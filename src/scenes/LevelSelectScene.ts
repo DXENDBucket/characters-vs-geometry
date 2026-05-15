@@ -16,11 +16,11 @@ import {
   type EncyclopediaEntry,
   type EncyclopediaTab
 } from "../encyclopedia";
-import { enemyDefinitions } from "../data/enemies";
 import { getLevelConfig, levelNodes } from "../data/levels";
-import { romanLabel, toRomanNumeral } from "../format";
+import { toRomanNumeral } from "../format";
 import { t, toggleLanguage } from "../i18n";
-import type { BossKind, CardDefinition, EnemyKind, LevelNode, UnitCategory } from "../types";
+import { createCubeIcon, createEnemyShape, createUnitBorder } from "../render/unitShapes";
+import type { BossKind, LevelNode } from "../types";
 
 interface BossNodePreview {
   frame: Phaser.GameObjects.Graphics;
@@ -718,11 +718,11 @@ export class LevelSelectScene extends Phaser.Scene {
     container.add(frame);
 
     if (entry.enemyKind) {
-      container.add(this.createEnemyPreviewShape(entry.enemyKind).setPosition(48, 72).setScale(1.05));
+      container.add(createEnemyShape(this, entry.enemyKind).setPosition(48, 72).setScale(1.05));
     } else if (entry.icon === "cube") {
-      container.add(this.createCubeIcon().setPosition(48, 72));
+      container.add(createCubeIcon(this).setPosition(48, 72));
     } else if (entry.card) {
-      const border = this.createUnitBorder(entry.card.category, 23, 2).setPosition(48, 70);
+      const border = createUnitBorder(this, entry.card.category, 23, 2).setPosition(48, 70);
       const label = this.add
         .text(48, 67, entry.card.id, {
           color: "#f5f5f5",
@@ -774,165 +774,6 @@ export class LevelSelectScene extends Phaser.Scene {
     const maxScroll = Math.max(0, this.encyclopediaContentHeight - this.encyclopediaViewport.height);
     this.encyclopediaScrollY = Math.round(Phaser.Math.Clamp(scrollY, 0, maxScroll));
     this.encyclopediaList.y = this.encyclopediaViewport.y - this.encyclopediaScrollY;
-  }
-
-  private createEnemyPreviewShape(kind: EnemyKind) {
-    if (kind === "circle" || kind === "circle2" || kind === "circle3") {
-      const shape = this.add.container(0, 0);
-      const circle = this.add.circle(0, 0, 20, palette.black, 1).setStrokeStyle(2, palette.white, 1);
-      const label = this.add
-        .text(0, -1, romanLabel(enemyDefinitions[kind].label), {
-          color: "#f5f5f5",
-          fontFamily: "monospace",
-          fontSize: "18px",
-          fontStyle: "700"
-        })
-        .setOrigin(0.5);
-      shape.add([circle, label]);
-      return shape;
-    }
-
-    if (kind === "square" || kind === "square2" || kind === "square3") {
-      const shape = this.add.container(0, 0);
-      const square = this.add.rectangle(0, 0, 40, 40, palette.black, 1).setStrokeStyle(2, palette.white, 1);
-      const label = this.add
-        .text(0, -1, romanLabel(enemyDefinitions[kind].label), {
-          color: "#f5f5f5",
-          fontFamily: "monospace",
-          fontSize: "18px",
-          fontStyle: "700"
-        })
-        .setOrigin(0.5);
-      shape.add([square, label]);
-      return shape;
-    }
-
-    if (kind === "shootingTriangle") {
-      const shape = this.add.container(0, 0);
-      const triangle = this.add.graphics();
-      triangle.fillStyle(palette.black, 1);
-      triangle.lineStyle(2, palette.white, 1);
-      triangle.beginPath();
-      triangle.moveTo(-22, 0);
-      triangle.lineTo(18, -22);
-      triangle.lineTo(18, 22);
-      triangle.closePath();
-      triangle.fillPath();
-      triangle.strokePath();
-      const label = this.add
-        .text(2, 0, romanLabel(enemyDefinitions[kind].label), {
-          color: "#f5f5f5",
-          fontFamily: "monospace",
-          fontSize: "18px",
-          fontStyle: "700"
-        })
-        .setOrigin(0.5);
-      shape.add([triangle, label]);
-      return shape;
-    }
-
-    const shape = this.add.container(0, 0);
-    const triangle = this.add.graphics();
-    triangle.fillStyle(palette.black, 1);
-    triangle.lineStyle(2, palette.white, 1);
-    triangle.beginPath();
-    triangle.moveTo(0, -22);
-    triangle.lineTo(22, 18);
-    triangle.lineTo(-22, 18);
-    triangle.closePath();
-    triangle.fillPath();
-    triangle.strokePath();
-    const label = this.add
-      .text(0, 2, romanLabel(enemyDefinitions[kind].label), {
-        color: "#f5f5f5",
-        fontFamily: "monospace",
-        fontSize: "18px",
-        fontStyle: "700"
-      })
-      .setOrigin(0.5);
-    shape.add([triangle, label]);
-    return shape;
-  }
-
-  private createCubeIcon() {
-    const icon = this.add.container(0, 0);
-    const frame = this.add.graphics();
-    const front = [
-      new Phaser.Math.Vector2(-18, -14),
-      new Phaser.Math.Vector2(16, -18),
-      new Phaser.Math.Vector2(20, 16),
-      new Phaser.Math.Vector2(-14, 20)
-    ];
-    const back = front.map((point) => new Phaser.Math.Vector2(point.x + 10, point.y - 10));
-    frame.lineStyle(2, palette.white, 0.95);
-    for (let index = 0; index < 4; index += 1) {
-      const next = (index + 1) % 4;
-      frame.lineBetween(front[index].x, front[index].y, front[next].x, front[next].y);
-      frame.lineBetween(back[index].x, back[index].y, back[next].x, back[next].y);
-      frame.lineBetween(front[index].x, front[index].y, back[index].x, back[index].y);
-    }
-    const label = this.add
-      .text(4, 0, `${toRomanNumeral(1)}/${toRomanNumeral(2)}`, {
-        color: "#f5f5f5",
-        fontFamily: "monospace",
-        fontSize: "14px",
-        fontStyle: "700"
-      })
-      .setOrigin(0.5);
-    icon.add([frame, label]);
-    return icon;
-  }
-
-  private createUnitBorder(category: UnitCategory, radius: number, lineWidth: number) {
-    const border = this.add.graphics();
-    border.fillStyle(palette.black, 1);
-    border.lineStyle(lineWidth, palette.white, 1);
-
-    if (category === "production") {
-      border.fillCircle(0, 0, radius);
-      border.strokeCircle(0, 0, radius);
-      return border;
-    }
-
-    if (category === "defense") {
-      border.fillRect(-radius, -radius, radius * 2, radius * 2);
-      border.strokeRect(-radius, -radius, radius * 2, radius * 2);
-      return border;
-    }
-
-    if (category === "healing") {
-      border.beginPath();
-      for (let index = 0; index < 6; index += 1) {
-        const angle = Phaser.Math.DegToRad(-90 + index * 60);
-        const x = Math.cos(angle) * radius;
-        const y = Math.sin(angle) * radius;
-        if (index === 0) {
-          border.moveTo(x, y);
-        } else {
-          border.lineTo(x, y);
-        }
-      }
-      border.closePath();
-      border.fillPath();
-      border.strokePath();
-      return border;
-    }
-
-    border.beginPath();
-    if (category === "attack") {
-      border.moveTo(0, -radius);
-      border.lineTo(radius, 0);
-      border.lineTo(0, radius);
-      border.lineTo(-radius, 0);
-    } else {
-      border.moveTo(0, -radius);
-      border.lineTo(radius, radius * 0.82);
-      border.lineTo(-radius, radius * 0.82);
-    }
-    border.closePath();
-    border.fillPath();
-    border.strokePath();
-    return border;
   }
 
   private createDifficultySlider() {

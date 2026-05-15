@@ -1,4 +1,4 @@
-import type { DifficultyConfig } from "./types";
+import type { BossKind, DifficultyConfig } from "./types";
 
 export const GAME_WIDTH = 1280;
 export const GAME_HEIGHT = 760;
@@ -37,7 +37,10 @@ export const DIFFICULTY_MIN = 0;
 export const DIFFICULTY_MAX = 7;
 export const BOSS_HITBOX_WIDTH = CELL_WIDTH * 2.95;
 export const BOSS_HITBOX_HEIGHT = CELL_HEIGHT * 2.95;
-export const CUBE_BOSS_MAX_HP = 100_000;
+export const CUBE_BOSS_STATS: Record<BossKind, { hp: number; armor: number; magicResistance: number }> = {
+  cube: { hp: 150_000, armor: 300, magicResistance: 20 },
+  cube2: { hp: 200_000, armor: 600, magicResistance: 20 }
+};
 export const CUBE_BOSS_PROMOTION_SKILL_MAX = 90;
 export const CUBE_BOSS_PROMOTION_SKILL_COST = 30;
 export const CUBE_BOSS_PROMOTION2_SKILL_MAX = 180;

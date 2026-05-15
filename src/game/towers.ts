@@ -1,0 +1,148 @@
+import Phaser from "phaser";
+import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, palette } from "../config";
+import { createUnitBorder } from "../render/unitShapes";
+import type { CardDefinition, CardId, CardState, Tower } from "../types";
+import {
+  effectiveUpgradeDelta,
+  isMaxHpUpgradeable,
+  maxHpGainForEffectiveUpgrades,
+  scaledByEffectiveUpgrades
+} from "./upgrades";
+
+export function createTower(
+  scene: Phaser.Scene,
+  definition: CardDefinition,
+  lane: number,
+  column: number,
+  battleTime: number,
+  placedOrder: number
+): Tower {
+  const x = BOARD_X + column * CELL_WIDTH + CELL_WIDTH / 2;
+  const y = BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2;
+  const body = scene.add.container(x, y).setDepth(20 + lane);
+  const border = createUnitBorder(scene, definition.category, 24, definition.id === "B" || definition.id === "D" ? 3 : 2);
+  const autoUpgradeBorder = createAutoUpgradeBorder(scene);
+  const label = scene.add
+    .text(0, -3, definition.id, {
+      color: "#f5f5f5",
+      fontFamily: "monospace",
+      fontSize: "34px",
+      fontStyle: "700"
+    })
+    .setOrigin(0.5);
+  const hpBack = scene.add.rectangle(0, 31, 42, 4, palette.dim, 1);
+  const hpFill = scene.add.rectangle(-21, 31, 42, 4, palette.white, 1).setOrigin(0, 0.5);
+  const levelText = scene.add
+    .text(0, 17, "1", {
+      color: "#8c8c8c",
+      fontFamily: "monospace",
+      fontSize: "12px",
+      fontStyle: "700"
+    })
+    .setOrigin(0.5);
+
+  body.add([autoUpgradeBorder, border, label, levelText, hpBack, hpFill]);
+  if (definition.id === "G") {
+    border.setVisible(false);
+  }
+
+  return {
+    id: `${lane}:${column}:${battleTime}`,
+    type: definition.id,
+    lane,
+    column,
+    x,
+    y,
+    hp: definition.maxHp,
+    maxHp: definition.maxHp,
+    baseMaxHp: definition.maxHp,
+    armor: definition.armor ?? 0,
+    magicResistance: definition.magicResistance ?? 0,
+    fireRate: definition.fireRate ?? Number.POSITIVE_INFINITY,
+    lastFire: -Number.POSITIVE_INFINITY,
+    level: 1,
+    nextProduceAt: definition.produceEvery ? battleTime + definition.produceEvery : Number.POSITIVE_INFINITY,
+    armedAt: definition.armTime ? battleTime + definition.armTime : 0,
+    autoUpgrade: false,
+    placedOrder,
+    body,
+    border,
+    autoUpgradeBorder,
+    hpFill,
+    levelText
+  };
+}
+
+export function upgradeTowerLevel(tower: Tower) {
+  const previousLevel = tower.level;
+  tower.level += 1;
+  tower.levelText.setText(`${tower.level}`);
+  tower.levelText.setAlpha(1);
+  return effectiveUpgradeDelta(previousLevel, tower.level);
+}
+
+export function applyTowerUpgradeStats(
+  tower: Tower,
+  definition: CardDefinition,
+  gainedEffectiveUpgrades: number,
+  battleTime: number
+) {
+  if (isMaxHpUpgradeable(tower.type) && gainedEffectiveUpgrades > 0) {
+    const hpGain = maxHpGainForEffectiveUpgrades(tower.baseMaxHp, gainedEffectiveUpgrades);
+    tower.maxHp += hpGain;
+    tower.hp = Math.min(tower.maxHp, tower.hp + hpGain);
+    syncTowerHpBar(tower);
+  }
+
+  if (tower.type === "G") {
+    resetTrapArming(tower, definition, battleTime);
+  }
+}
+
+export function syncTowerHpBar(tower: Tower) {
+  tower.hpFill.width = 42 * Phaser.Math.Clamp(tower.hp / tower.maxHp, 0, 1);
+}
+
+export function getProductionAmount(tower: Tower, definition: CardDefinition) {
+  return scaledByEffectiveUpgrades(definition.produceAmount ?? 0, tower.level);
+}
+
+export function getShockCount(tower: Tower, definition: CardDefinition) {
+  return scaledByEffectiveUpgrades(definition.triggerCount ?? 10, tower.level);
+}
+
+export function getTrapDamage(tower: Tower, definition: CardDefinition) {
+  return scaledByEffectiveUpgrades(definition.triggerDamage ?? 1_500, tower.level);
+}
+
+export function isTrapArmed(tower: Tower, time: number) {
+  return tower.type === "G" && time >= tower.armedAt;
+}
+
+export function setTowerAutoUpgradeState(tower: Tower, enabled: boolean) {
+  tower.autoUpgrade = enabled;
+  tower.autoUpgradeBorder.setVisible(enabled);
+}
+
+export function findAutoUpgradeTarget(towers: Tower[], cardId: CardId) {
+  return towers
+    .filter((tower) => tower.autoUpgrade && tower.type === cardId)
+    .sort((a, b) => a.level - b.level || a.placedOrder - b.placedOrder)[0];
+}
+
+export function isCardReadyForAutoUpgrade(cardState: CardState, cardTime: number) {
+  return cardTime >= cardState.readyAt;
+}
+
+function createAutoUpgradeBorder(scene: Phaser.Scene) {
+  const border = scene.add.graphics();
+  border.lineStyle(2, palette.green, 0.95);
+  border.strokeCircle(0, 0, 31);
+  border.setVisible(false);
+  return border;
+}
+
+function resetTrapArming(tower: Tower, definition: CardDefinition, battleTime: number) {
+  tower.armedAt = battleTime + (definition.armTime ?? 15_000);
+  tower.border.setVisible(false);
+}

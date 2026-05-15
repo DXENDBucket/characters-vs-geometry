@@ -1,7 +1,7 @@
 import {
   CUBE_BOSS_CONTACT_DAMAGE,
   CUBE_BOSS_CONTACT_INTERVAL,
-  CUBE_BOSS_MAX_HP,
+  CUBE_BOSS_STATS,
   ENEMY_SPEED
 } from "./config";
 import { cardDefinitions } from "./data/cards";
@@ -106,9 +106,9 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
       icon: "cube",
       lines: [
         statLine([
-          [t("label.hp"), CUBE_BOSS_MAX_HP],
+          [t("label.hp"), `I ${CUBE_BOSS_STATS.cube.hp} / II ${CUBE_BOSS_STATS.cube2.hp}`],
           [t("label.armor"), "I 300 / II 600"],
-          [t("label.mr"), 50],
+          [t("label.mr"), 20],
           [t("label.speed"), 0.6],
           [t("label.atk"), `${damageText(CUBE_BOSS_CONTACT_DAMAGE, "physical")} / ${CUBE_BOSS_CONTACT_INTERVAL}s`]
         ]),
