@@ -24,38 +24,26 @@ import {
   palette
 } from "../config";
 import {
-  applyEnemyPromotionStats,
   bossAdvanceSpawnPoints,
   chargeBossSkill,
   createCubeBoss,
-  findPromotionTarget,
   isBossSkillReady,
-  promotedKind,
   spendBossSkill,
   updateCubeBossMotion
 } from "../bosses/cubeBoss";
-import { cardDefinitions, defaultLoadout, getCardDefinition } from "../data/cards";
 import { getLevelConfig } from "../data/levels";
+import type { CardBehavior } from "../game/cardBehaviors";
+import type { CombatRuntime } from "../game/combatRuntime";
 import { calculateDamage } from "../game/damage";
+import { applyEnemyPromotion, enemyScaleFromHp, findPromotionTarget, promotedKind } from "../game/enemyBehaviors";
 import { advanceEnemies, spawnEnemyAt, spawnSplitEnemies, spawnWaveEnemies } from "../game/enemyRuntime";
 import {
-  enemyAttackInterval,
-  enemyScaleFromHp
-} from "../game/enemyFactory";
-import {
-  createTowerProjectile,
   isEnemyProjectileOutOfBounds,
-  isTowerProjectileOutOfBounds,
-  towerProjectileSpecs
+  isTowerProjectileOutOfBounds
 } from "../game/projectiles";
 import {
   bossRect,
-  canAttackBoss,
-  getAttackTarget,
-  getHealTarget,
-  getShiftTargets,
   gridCellKey,
-  hasAttackTarget,
   isBossInRadius,
   isBossInRect,
   isPointInBossHitbox,
@@ -83,13 +71,10 @@ import {
   makeCubeCollapse,
   makeEnemyHitShards,
   makeEraseMark,
-  makeHealParticles,
   makeHitShards,
   makeProductionPulse,
   makeShellBurst,
-  makeShiftEffect,
   makeShockPulse,
-  makeSlashEffect,
   makeTrapBurst
 } from "../render/combatEffects";
 import {
@@ -104,7 +89,7 @@ import {
   type GameHudElements,
   type GameOverlayElements
 } from "../render/gameUi";
-import { createEnemyShape } from "../render/unitShapes";
+import { defaultCardLoadout, getCardBehavior, getCardDefinition, hasCardDefinition } from "../registry/cards";
 import type {
   CardDefinition,
   CardId,
@@ -123,7 +108,7 @@ export class GameScene extends Phaser.Scene {
   private levelConfig = getLevelConfig("0-1");
   private difficulty = DEFAULT_DIFFICULTY;
   private difficultyConfig = getDifficultyConfig(DEFAULT_DIFFICULTY);
-  private selectedCardIds: CardId[] = [...defaultLoadout];
+  private selectedCardIds: CardId[] = [...defaultCardLoadout];
   private levelElapsed = 0;
   private battleTime = 0;
   private cardTime = 0;
@@ -503,18 +488,14 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    applyEnemyPromotionStats(enemy, nextKind, this.battleTime, enemyAttackInterval(nextKind));
-    enemy.body.removeAll(true);
-    enemy.shape = createEnemyShape(this, nextKind, { squareSize: 42, shootingNoseX: -24 });
-    enemy.body.add(enemy.shape);
-    enemy.shape.setScale(enemyScaleFromHp(enemy.hp / enemy.maxHp));
+    applyEnemyPromotion(this, enemy, nextKind, this.battleTime);
     makeCubeCollapse(this, enemy.x, enemy.y, enemy, this.enemies, this.towers);
   }
 
   private summonBossAdvanceMinions(boss: CubeBoss) {
     const waveNumber = this.wave || 0;
     for (const point of bossAdvanceSpawnPoints(boss)) {
-      spawnEnemyAt(this, this.enemies, {
+      spawnEnemyAt(this.combatRuntime(), {
         kind: boss.advanceMinionKind,
         waveNumber,
         time: this.battleTime,
@@ -527,55 +508,38 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  private combatRuntime(): CombatRuntime {
+    return {
+      scene: this,
+      enemies: this.enemies,
+      towers: this.towers,
+      boss: this.boss,
+      occupied: this.occupied,
+      projectiles: this.projectiles,
+      enemyProjectiles: this.enemyProjectiles,
+      damageEnemy: (enemy, damage, damageType) => this.damageEnemy(enemy, damage, damageType),
+      damageBoss: (damage, damageType) => this.damageBoss(damage, damageType),
+      damageTower: (tower, damage, damageType) => this.damageTower(tower, damage, damageType),
+      triggerTrapTower: (tower, target) => this.triggerTrapTower(tower, target),
+      triggerShockTower: (tower) => this.triggerShockTower(tower),
+      onEnemyReachedBase: (enemy) => this.handleEnemyReachedBase(enemy)
+    };
+  }
+
   private updateTowers(time: number) {
+    const runtime = this.combatRuntime();
     for (const tower of this.towers) {
       const definition = this.getDefinition(tower.type);
-      if (tower.type === "H") {
-        if (!definition.healAmount || time < tower.lastFire + tower.fireRate || !getHealTarget(tower, this.occupied)) {
-          continue;
-        }
-
-        this.startTowerVolley(tower, definition, time);
+      const behavior = getCardBehavior(tower.type);
+      if (!behavior.canUse(tower, definition, time, runtime)) {
         continue;
       }
 
-      if (tower.type === "L") {
-        if (time < tower.lastFire + tower.fireRate || getShiftTargets(tower, this.enemies).length === 0) {
-          continue;
-        }
-
-        this.startTowerVolley(tower, definition, time);
-        continue;
-      }
-
-      if (tower.type === "I") {
-        if (
-          !definition.damage ||
-          time < tower.lastFire + tower.fireRate ||
-          !hasAttackTarget(tower, definition, this.enemies, this.boss)
-        ) {
-          continue;
-        }
-
-        this.startTowerVolley(tower, definition, time);
-        continue;
-      }
-
-      if (!definition.damage || time < tower.lastFire + tower.fireRate) {
-        continue;
-      }
-
-      const target = getAttackTarget(tower, definition, this.enemies);
-
-      if (!target && !canAttackBoss(tower, definition, this.boss)) {
-        continue;
-      }
-
-      this.startTowerVolley(tower, definition, time);
+      this.startTowerVolley(tower, definition, behavior, time);
     }
   }
 
-  private startTowerVolley(tower: Tower, definition: CardDefinition, time: number) {
+  private startTowerVolley(tower: Tower, definition: CardDefinition, behavior: CardBehavior, time: number) {
     const shots = volleyShotCount(tower.type, tower.level);
     const interval = volleyInterval(tower.fireRate, shots);
 
@@ -585,96 +549,12 @@ export class GameScene extends Phaser.Scene {
           if (this.gameOver || !this.towers.includes(tower)) {
             return;
           }
-          this.fireTowerShot(tower, definition);
+          behavior.execute(tower, definition, this.combatRuntime());
         });
       });
     }
 
     tower.lastFire = time + (shots - 1) * interval;
-  }
-
-  private fireTowerShot(tower: Tower, definition: CardDefinition) {
-    if (tower.type === "H") {
-      this.fireHealingPulse(tower, definition);
-      return;
-    }
-
-    if (tower.type === "L") {
-      this.fireShiftPulse(tower, definition);
-      return;
-    }
-
-    if (tower.type === "K") {
-      this.fireSlash(tower, definition);
-      return;
-    }
-
-    const specs = towerProjectileSpecs(tower, definition);
-    for (const spec of specs) {
-      this.projectiles.push(createTowerProjectile(this, spec));
-    }
-  }
-
-  private fireHealingPulse(tower: Tower, definition: CardDefinition) {
-    const target = getHealTarget(tower, this.occupied);
-    if (target) {
-      this.healTower(target, definition.healAmount ?? 60);
-    }
-  }
-
-  private fireShiftPulse(tower: Tower, definition: CardDefinition) {
-    const targets = getShiftTargets(tower, this.enemies);
-    if (targets.length === 0) {
-      return;
-    }
-
-    for (const target of targets) {
-      const previousY = target.y;
-      target.lane = tower.lane;
-      target.y = tower.y;
-      target.body.setDepth(60 + target.lane);
-      target.body.setPosition(target.x, target.y);
-      makeShiftEffect(this, target.x, previousY, target.x, target.y);
-    }
-    for (let index = 0; index < targets.length; index += 1) {
-      if (!this.towers.includes(tower)) {
-        break;
-      }
-      this.damageTower(tower, definition.selfDamage ?? 400, definition.selfDamageType ?? "true");
-    }
-  }
-
-  private fireSlash(tower: Tower, definition: CardDefinition) {
-    const damage = definition.damage ?? 0;
-    const damageType = definition.damageType ?? "physical";
-    const target = getAttackTarget(tower, definition, this.enemies);
-    if (target) {
-      makeSlashEffect(this, target.x, target.y, damageType);
-      this.damageEnemy(target, damage, damageType);
-      return;
-    }
-
-    const boss = this.boss;
-    if (!boss || !canAttackBoss(tower, definition, boss)) {
-      return;
-    }
-
-    const rect = bossRect(boss);
-    const x = Phaser.Math.Clamp(tower.x + CELL_WIDTH, rect.left, rect.right);
-    const y = Phaser.Math.Clamp(tower.y, rect.top, rect.bottom);
-    makeSlashEffect(this, x, y, damageType);
-    this.damageBoss(damage, damageType);
-  }
-
-  private healTower(tower: Tower, amount: number) {
-    const previousHp = tower.hp;
-    tower.hp = Math.min(tower.maxHp, tower.hp + amount);
-    if (tower.hp <= previousHp) {
-      return;
-    }
-
-    syncTowerHpBar(tower);
-    makeHealParticles(this, tower.x, tower.y);
   }
 
   private updateProjectiles(seconds: number) {
@@ -748,27 +628,18 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateEnemies(time: number, seconds: number) {
-    advanceEnemies(this, {
-      enemies: this.enemies,
-      towers: this.towers,
-      enemyProjectiles: this.enemyProjectiles,
-      time,
-      seconds,
-      triggerTrapTower: (tower, enemy) => this.triggerTrapTower(tower, enemy),
-      triggerShockTower: (tower) => this.triggerShockTower(tower),
-      damageTower: (tower, damage, damageType) => this.damageTower(tower, damage, damageType),
-      damageEnemy: (enemy, damage, damageType) => this.damageEnemy(enemy, damage, damageType),
-      onEnemyReachedBase: (enemy) => {
-        this.baseIntegrity -= 1;
-        this.removeEnemy(enemy, false);
-        this.cameras.main.shake(110, 0.004);
-        if (this.baseIntegrity <= 0) {
-          this.endGame();
-          return true;
-        }
-        return false;
-      }
-    });
+    advanceEnemies(this.combatRuntime(), time, seconds);
+  }
+
+  private handleEnemyReachedBase(enemy: Enemy) {
+    this.baseIntegrity -= 1;
+    this.removeEnemy(enemy, false);
+    this.cameras.main.shake(110, 0.004);
+    if (this.baseIntegrity <= 0) {
+      this.endGame();
+      return true;
+    }
+    return false;
   }
 
   private updateWaveSchedule(levelElapsed: number, gameTime: number) {
@@ -793,7 +664,7 @@ export class GameScene extends Phaser.Scene {
   private spawnWave(levelElapsed: number, gameTime: number) {
     const waveNumber = this.wave + 1;
     this.wave = waveNumber;
-    this.waveTracker = spawnWaveEnemies(this, this.enemies, {
+    this.waveTracker = spawnWaveEnemies(this.combatRuntime(), {
       levelConfig: this.levelConfig,
       difficultyConfig: this.difficultyConfig,
       waveNumber,
@@ -855,7 +726,7 @@ export class GameScene extends Phaser.Scene {
       }
 
       this.enemiesDefeated += 1;
-      spawnSplitEnemies(this, this.enemies, enemy, this.battleTime, this.difficultyConfig.finalDamageReduction);
+      spawnSplitEnemies(this.combatRuntime(), enemy, this.battleTime, this.difficultyConfig.finalDamageReduction);
       this.removeEnemy(enemy, true);
     }
   }
@@ -1145,11 +1016,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private sanitizeLoadout(selectedCards?: CardId[]) {
-    const validCards = (selectedCards ?? defaultLoadout).filter((id, index, cards): id is CardId => {
-      return cardDefinitions.some((definition) => definition.id === id) && cards.indexOf(id) === index;
+    const validCards = (selectedCards ?? defaultCardLoadout).filter((id, index, cards): id is CardId => {
+      return hasCardDefinition(id) && cards.indexOf(id) === index;
     });
 
-    return validCards.length > 0 ? validCards.slice(0, CARD_SLOT_COUNT) : [...defaultLoadout];
+    return validCards.length > 0 ? validCards.slice(0, CARD_SLOT_COUNT) : [...defaultCardLoadout];
   }
 
   private restartLevel() {

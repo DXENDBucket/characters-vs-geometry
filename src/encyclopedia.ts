@@ -4,9 +4,9 @@ import {
   CUBE_BOSS_STATS,
   ENEMY_SPEED
 } from "./config";
-import { cardDefinitions } from "./data/cards";
 import { enemyDefinitions } from "./data/enemies";
 import { DAMAGE_SYMBOLS, EFFECT_SYMBOLS, getLanguage, t } from "./i18n";
+import { allCardDefinitions } from "./registry/cards";
 import type { CardDefinition, CardId, DamageType, EnemyKind, UnitCategory } from "./types";
 
 export type EncyclopediaTab = "enemies" | "towers";
@@ -127,7 +127,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
 }
 
 export function towerEncyclopediaEntries(): EncyclopediaEntry[] {
-  return cardDefinitions.map((card) => ({
+  return allCardDefinitions.map((card) => ({
     title: `${card.id}  ${categoryName(card.category)}`,
     card,
     lines: towerLines(card),

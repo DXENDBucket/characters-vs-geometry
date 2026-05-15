@@ -8,8 +8,8 @@ import {
   PROGRESS_BAR_WIDTH,
   palette
 } from "../config";
-import { getCardDefinition } from "../data/cards";
 import { t } from "../i18n";
+import { getCardDefinition } from "../registry/cards";
 import type { CardId, CardState, CubeBoss } from "../types";
 import { createUnitBorder } from "./unitShapes";
 

@@ -1,17 +1,7 @@
 import Phaser from "phaser";
-import { BOARD_HEIGHT, BOARD_WIDTH, BOARD_X, BOARD_Y, CELL_WIDTH, palette } from "../config";
+import { BOARD_HEIGHT, BOARD_WIDTH, BOARD_X, BOARD_Y, palette } from "../config";
 import { damageEffectColor, damageEffectTextColor } from "../render/combatEffects";
-import type {
-  CardDefinition,
-  CardId,
-  DamageType,
-  Enemy,
-  EnemyProjectile,
-  Projectile,
-  ProjectileKind,
-  Tower
-} from "../types";
-import { attackRangeRight } from "./targeting";
+import type { DamageType, Enemy, EnemyProjectile, Projectile, ProjectileKind } from "../types";
 
 export interface TowerProjectileSpec {
   type: ProjectileKind;
@@ -24,63 +14,6 @@ export interface TowerProjectileSpec {
   splashRadius: number;
   angleDegrees: number;
   maxX: number;
-}
-
-export function towerProjectileSpecs(tower: Tower, definition: CardDefinition): TowerProjectileSpec[] {
-  if (tower.type === "A") {
-    return [
-      makeProjectileSpec("bolt", tower.x + 24, tower.y, tower.lane, 540, definition, 0, 0)
-    ];
-  }
-
-  if (tower.type === "E" || tower.type === "M" || tower.type === "W") {
-    return fanAnglesFor(tower.type).map((angle) =>
-      makeProjectileSpec(
-        "bolt",
-        tower.type === "E" ? tower.x + 24 : tower.x,
-        tower.y,
-        tower.lane,
-        540,
-        definition,
-        0,
-        angle
-      )
-    );
-  }
-
-  if (tower.type === "I") {
-    return [
-      makeProjectileSpec(
-        "star",
-        tower.x + 12,
-        tower.y,
-        tower.lane,
-        540,
-        definition,
-        0,
-        0,
-        attackRangeRight(tower, definition)
-      )
-    ];
-  }
-
-  if (tower.type === "C" || tower.type === "J") {
-    return [
-      makeProjectileSpec(
-        tower.type === "J" ? "hash" : "shell",
-        tower.x + 22,
-        tower.y,
-        tower.lane,
-        390,
-        definition,
-        definition.splashRadius ?? CELL_WIDTH,
-        0,
-        tower.type === "J" ? attackRangeRight(tower, definition) : Number.POSITIVE_INFINITY
-      )
-    ];
-  }
-
-  return [];
 }
 
 export function createTowerProjectile(scene: Phaser.Scene, spec: TowerProjectileSpec): Projectile {
@@ -145,39 +78,4 @@ export function isTowerProjectileOutOfBounds(projectile: Projectile, reachedMaxX
 
 export function isEnemyProjectileOutOfBounds(projectile: EnemyProjectile) {
   return projectile.x < BOARD_X - 60 || projectile.x > BOARD_X + BOARD_WIDTH + 60;
-}
-
-function makeProjectileSpec(
-  type: ProjectileKind,
-  x: number,
-  y: number,
-  lane: number,
-  speed: number,
-  definition: CardDefinition,
-  splashRadius: number,
-  angleDegrees: number,
-  maxX = Number.POSITIVE_INFINITY
-): TowerProjectileSpec {
-  return {
-    type,
-    x,
-    y,
-    lane,
-    speed,
-    damage: definition.damage ?? 0,
-    damageType: definition.damageType ?? "physical",
-    splashRadius,
-    angleDegrees,
-    maxX
-  };
-}
-
-function fanAnglesFor(type: CardId) {
-  if (type === "W") {
-    return [-100, -90, -80];
-  }
-  if (type === "M") {
-    return [80, 90, 100];
-  }
-  return [-10, 0, 10];
 }

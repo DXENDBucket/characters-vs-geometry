@@ -14,15 +14,12 @@ import {
   CUBE_BOSS_PROMOTION_SKILL_COST,
   CUBE_BOSS_PROMOTION_SKILL_MAX,
   CUBE_BOSS_STATS,
-  ENEMY_SPEED,
-  ENEMY_SPEED_VARIANCE,
   LANES,
   palette
 } from "../config";
-import { enemyDefinitions } from "../data/enemies";
 import { toRomanNumeral } from "../format";
 import { bossRect } from "../game/targeting";
-import type { BossKind, BossSkill, CubeBoss, Enemy, EnemyKind } from "../types";
+import type { BossKind, BossSkill, CubeBoss } from "../types";
 
 const CUBE_DRAW_SIZE = 59;
 
@@ -140,57 +137,6 @@ export function spendBossSkill(skill: BossSkill) {
   skill.sp = Math.max(0, skill.sp - skill.cost);
 }
 
-export function findPromotionTarget(boss: CubeBoss, enemies: Enemy[], fromRank: number) {
-  return enemies
-    .filter((enemy) => enemyRank(enemy.kind) === fromRank && promotedKind(enemy.kind))
-    .sort((a, b) => Math.hypot(a.x - boss.x, a.y - boss.y) - Math.hypot(b.x - boss.x, b.y - boss.y))[0];
-}
-
-export function promotedKind(kind: EnemyKind): EnemyKind | null {
-  if (kind === "circle") {
-    return "circle2";
-  }
-  if (kind === "circle2") {
-    return "circle3";
-  }
-  if (kind === "triangle") {
-    return "triangle2";
-  }
-  if (kind === "triangle2") {
-    return "triangle3";
-  }
-  if (kind === "square") {
-    return "square2";
-  }
-  if (kind === "square2") {
-    return "square3";
-  }
-  return null;
-}
-
-export function applyEnemyPromotionStats(
-  enemy: Enemy,
-  kind: EnemyKind,
-  battleTime: number,
-  attackInterval: number
-) {
-  const hpRatio = Phaser.Math.Clamp(enemy.hp / enemy.maxHp, 0, 1);
-  const definition = enemyDefinitions[kind];
-  enemy.kind = kind;
-  enemy.maxHp = definition.hp;
-  enemy.hp = Math.max(1, definition.hp * hpRatio);
-  enemy.armor = definition.armor;
-  enemy.magicResistance = definition.magicResistance;
-  enemy.damage = definition.damage;
-  enemy.damageType = definition.damageType;
-  enemy.attackInterval = attackInterval;
-  enemy.attackAt = Math.min(enemy.attackAt, battleTime + enemy.attackInterval);
-  enemy.speed =
-    ENEMY_SPEED *
-    (definition.speedMultiplier ?? 1) *
-    Phaser.Math.FloatBetween(1 - ENEMY_SPEED_VARIANCE, 1 + ENEMY_SPEED_VARIANCE);
-}
-
 export function bossAdvanceSpawnPoints(boss: CubeBoss) {
   const centerLane = Phaser.Math.Clamp(Math.round((boss.y - BOARD_Y - CELL_HEIGHT / 2) / CELL_HEIGHT), 0, LANES - 1);
   const x = bossRect(boss).left - CELL_WIDTH / 2;
@@ -201,10 +147,6 @@ export function bossAdvanceSpawnPoints(boss: CubeBoss) {
       x,
       y: BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2
     }));
-}
-
-function enemyRank(kind: EnemyKind) {
-  return Number.parseInt(enemyDefinitions[kind].label ?? "1", 10);
 }
 
 function drawCubeBoss(boss: CubeBoss) {

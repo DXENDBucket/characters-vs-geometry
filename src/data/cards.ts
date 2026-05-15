@@ -203,7 +203,3 @@ export const cardDefinitions: CardDefinition[] = [
 ];
 
 export const defaultLoadout: CardId[] = ["A", "B", "C", "D", "X", "E"];
-
-export function getCardDefinition(id: CardId) {
-  return cardDefinitions.find((card) => card.id === id) ?? cardDefinitions[0];
-}

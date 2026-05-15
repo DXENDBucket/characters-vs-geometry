@@ -1,19 +1,12 @@
 import Phaser from "phaser";
 import { BOARD_WIDTH, BOARD_X, LANES } from "../config";
-import { getCardDefinition } from "../data/cards";
 import { enemyDefinitions } from "../data/enemies";
+import { getCardDefinition } from "../registry/cards";
 import { makeReflectFlash } from "../render/combatEffects";
-import type {
-  DamageType,
-  DifficultyConfig,
-  Enemy,
-  EnemyKind,
-  EnemyProjectile,
-  LevelConfig,
-  Tower,
-  WaveTracker
-} from "../types";
-import { createEnemy, splitSpawnKind, splitSpawnLanes } from "./enemyFactory";
+import type { DifficultyConfig, Enemy, EnemyKind, LevelConfig, Tower, WaveTracker } from "../types";
+import type { EnemyAdvanceRuntime, EnemySpawnRuntime } from "./combatRuntime";
+import { canEnemyMelee, shouldEnemyShoot, splitSpawnKind, splitSpawnLanes } from "./enemyBehaviors";
+import { createEnemy } from "./enemyFactory";
 import { createEnemyProjectile } from "./projectiles";
 import { towerRect } from "./targeting";
 import { isTrapArmed } from "./towers";
@@ -37,25 +30,12 @@ interface SpawnWaveOptions {
   gameTime: number;
 }
 
-interface AdvanceEnemiesOptions {
-  enemies: Enemy[];
-  towers: Tower[];
-  enemyProjectiles: EnemyProjectile[];
-  time: number;
-  seconds: number;
-  triggerTrapTower: (tower: Tower, target: Enemy) => void;
-  triggerShockTower: (tower: Tower) => void;
-  damageTower: (tower: Tower, damage: number, damageType: DamageType) => void;
-  damageEnemy: (enemy: Enemy, damage: number, damageType: DamageType) => void;
-  onEnemyReachedBase: (enemy: Enemy) => boolean;
-}
-
-export function spawnEnemyAt(scene: Phaser.Scene, enemies: Enemy[], options: SpawnEnemyOptions) {
-  enemies.push(createEnemy(scene, options));
+export function spawnEnemyAt(runtime: EnemySpawnRuntime, options: SpawnEnemyOptions) {
+  runtime.enemies.push(createEnemy(runtime.scene, options));
   return options.waveWeight;
 }
 
-export function spawnWaveEnemies(scene: Phaser.Scene, enemies: Enemy[], options: SpawnWaveOptions): WaveTracker {
+export function spawnWaveEnemies(runtime: EnemySpawnRuntime, options: SpawnWaveOptions): WaveTracker {
   const weightLimit = waveWeightLimit(options.levelConfig, options.difficultyConfig, options.waveNumber);
   const kinds = buildWaveKinds(options.levelConfig.enemyKinds, enemyDefinitions, weightLimit, (length) =>
     Phaser.Math.Between(0, length - 1)
@@ -65,7 +45,7 @@ export function spawnWaveEnemies(scene: Phaser.Scene, enemies: Enemy[], options:
   kinds.forEach((kind, index) => {
     const lane = Phaser.Math.Between(0, LANES - 1);
     const x = BOARD_X + BOARD_WIDTH + 46 + Phaser.Math.Between(0, 18) + (index % 3) * 5;
-    totalWeight += spawnEnemyAt(scene, enemies, {
+    totalWeight += spawnEnemyAt(runtime, {
       kind,
       waveNumber: options.waveNumber,
       time: options.gameTime,
@@ -85,8 +65,7 @@ export function spawnWaveEnemies(scene: Phaser.Scene, enemies: Enemy[], options:
 }
 
 export function spawnSplitEnemies(
-  scene: Phaser.Scene,
-  enemies: Enemy[],
+  runtime: EnemySpawnRuntime,
   enemy: Enemy,
   battleTime: number,
   finalDamageReduction: number
@@ -97,7 +76,7 @@ export function spawnSplitEnemies(
   }
 
   for (const lane of splitSpawnLanes(enemy.lane)) {
-    spawnEnemyAt(scene, enemies, {
+    spawnEnemyAt(runtime, {
       kind: spawnKind,
       waveNumber: enemy.waveNumber,
       time: battleTime,
@@ -109,56 +88,56 @@ export function spawnSplitEnemies(
   }
 }
 
-export function advanceEnemies(scene: Phaser.Scene, options: AdvanceEnemiesOptions) {
-  for (const enemy of [...options.enemies]) {
-    if (enemy.kind === "shootingTriangle" && options.time >= enemy.attackAt) {
-      fireEnemyShot(scene, options.enemies, options.enemyProjectiles, enemy);
-      enemy.attackAt = options.time + enemy.attackInterval;
+export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, seconds: number) {
+  for (const enemy of [...runtime.enemies]) {
+    if (shouldEnemyShoot(enemy, time)) {
+      fireEnemyShot(runtime, enemy);
+      enemy.attackAt = time + enemy.attackInterval;
     }
 
-    const blocker = findBlocker(options.towers, enemy);
+    const blocker = findBlocker(runtime.towers, enemy);
 
     if (blocker) {
-      if (blocker.type === "G" && isTrapArmed(blocker, options.time)) {
-        options.triggerTrapTower(blocker, enemy);
+      if (blocker.type === "G" && isTrapArmed(blocker, time)) {
+        runtime.triggerTrapTower(blocker, enemy);
         continue;
       }
 
       if (blocker.type === "F") {
-        options.triggerShockTower(blocker);
+        runtime.triggerShockTower(blocker);
         continue;
       }
 
-      if (enemy.kind !== "shootingTriangle" && options.time >= enemy.attackAt) {
-        options.damageTower(blocker, enemy.damage, enemy.damageType);
+      if (canEnemyMelee(enemy) && time >= enemy.attackAt) {
+        runtime.damageTower(blocker, enemy.damage, enemy.damageType);
         if (blocker.type === "B") {
           const definition = getCardDefinition(blocker.type);
-          options.damageEnemy(enemy, definition.reflectDamage ?? 20, definition.reflectDamageType ?? "physical");
-          makeReflectFlash(scene, blocker.x, blocker.y);
+          runtime.damageEnemy(enemy, definition.reflectDamage ?? 20, definition.reflectDamageType ?? "physical");
+          makeReflectFlash(runtime.scene, blocker.x, blocker.y);
         }
-        enemy.attackAt = options.time + enemy.attackInterval;
+        enemy.attackAt = time + enemy.attackInterval;
       }
     } else {
-      enemy.x -= enemy.speed * options.seconds;
+      enemy.x -= enemy.speed * seconds;
       enemy.body.setPosition(enemy.x, enemy.y);
     }
 
-    if (!options.enemies.includes(enemy)) {
+    if (!runtime.enemies.includes(enemy)) {
       continue;
     }
 
-    if (enemy.x < BOARD_X - 34 && options.onEnemyReachedBase(enemy)) {
+    if (enemy.x < BOARD_X - 34 && runtime.onEnemyReachedBase(enemy)) {
       return;
     }
   }
 }
 
-function fireEnemyShot(scene: Phaser.Scene, enemies: Enemy[], enemyProjectiles: EnemyProjectile[], enemy: Enemy) {
-  if (!enemies.includes(enemy)) {
+function fireEnemyShot(runtime: EnemyAdvanceRuntime, enemy: Enemy) {
+  if (!runtime.enemies.includes(enemy)) {
     return;
   }
 
-  enemyProjectiles.push(createEnemyProjectile(scene, enemy));
+  runtime.enemyProjectiles.push(createEnemyProjectile(runtime.scene, enemy));
 }
 
 function findBlocker(towers: Tower[], enemy: Enemy) {

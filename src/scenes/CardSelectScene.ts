@@ -8,18 +8,18 @@ import {
   clampDifficulty,
   palette
 } from "../config";
-import { cardDefinitions, defaultLoadout } from "../data/cards";
 import { enemyDefinitions } from "../data/enemies";
 import { getLevelConfig } from "../data/levels";
 import { toRomanNumeral } from "../format";
 import { DAMAGE_SYMBOLS, t } from "../i18n";
 import { createEnemyShape, createUnitBorder } from "../render/unitShapes";
+import { allCardDefinitions, defaultCardLoadout } from "../registry/cards";
 import type { BossKind, CardId, EnemyKind } from "../types";
 
 export class CardSelectScene extends Phaser.Scene {
   private levelId = "0-1";
   private difficulty = DEFAULT_DIFFICULTY;
-  private selectedCards: CardId[] = [...defaultLoadout];
+  private selectedCards: CardId[] = [...defaultCardLoadout];
   private enemyPreviewList!: Phaser.GameObjects.Container;
   private enemyPreviewViewport!: Phaser.Geom.Rectangle;
   private enemyPreviewContentHeight = 0;
@@ -51,7 +51,7 @@ export class CardSelectScene extends Phaser.Scene {
   init(data: { levelId?: string; difficulty?: number }) {
     this.levelId = data.levelId ?? "0-1";
     this.difficulty = clampDifficulty(data.difficulty);
-    this.selectedCards = [...defaultLoadout];
+    this.selectedCards = [...defaultCardLoadout];
     this.slotFrames = [];
     this.slotLabels = [];
     this.cardFrames = new Map();
@@ -284,7 +284,7 @@ export class CardSelectScene extends Phaser.Scene {
     maskGraphics.fillRect(viewportX, viewportY, viewportWidth, viewportHeight);
     this.cardPoolList.setMask(maskGraphics.createGeometryMask());
 
-    cardDefinitions.forEach((definition, index) => {
+    allCardDefinitions.forEach((definition, index) => {
       const x = 89 + (index % columns) * columnGap;
       const y = 48 + Math.floor(index / columns) * rowGap;
       const frame = this.add
@@ -328,7 +328,7 @@ export class CardSelectScene extends Phaser.Scene {
       this.cardFrames.set(definition.id, frame);
     });
 
-    const rowCount = Math.ceil(cardDefinitions.length / columns);
+    const rowCount = Math.ceil(allCardDefinitions.length / columns);
     this.cardPoolContentHeight = 48 + Math.max(0, rowCount - 1) * rowGap + 58;
     this.createCardPoolScrollControls();
     this.setCardPoolScroll(0);
