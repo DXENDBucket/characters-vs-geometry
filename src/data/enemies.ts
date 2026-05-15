@@ -29,7 +29,7 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     magicResistance: 0,
     damage: 400,
     damageType: "physical",
-    weight: 90
+    weight: 70
   },
   triangle: {
     kind: "triangle",
@@ -63,6 +63,17 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     damageType: "physical",
     speedMultiplier: 2.5,
     weight: 150
+  },
+  shootingTriangle: {
+    kind: "shootingTriangle",
+    label: "1",
+    hp: 2_000,
+    armor: 70,
+    magicResistance: 0,
+    damage: 400,
+    damageType: "physical",
+    speedMultiplier: 0.4,
+    weight: 90
   },
   square: {
     kind: "square",

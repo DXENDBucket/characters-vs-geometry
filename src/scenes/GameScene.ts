@@ -56,6 +56,7 @@ import type {
   DamageType,
   Enemy,
   EnemyKind,
+  EnemyProjectile,
   Projectile,
   ProjectileKind,
   Tower,
@@ -79,6 +80,7 @@ export class GameScene extends Phaser.Scene {
   private enemies: Enemy[] = [];
   private boss: CubeBoss | null = null;
   private projectiles: Projectile[] = [];
+  private enemyProjectiles: EnemyProjectile[] = [];
   private occupied = new Map<string, Tower>();
   private chars = STARTING_CHARS;
   private baseIntegrity = BASE_INTEGRITY;
@@ -122,8 +124,9 @@ export class GameScene extends Phaser.Scene {
     this.enemies = [];
     this.boss = null;
     this.projectiles = [];
+    this.enemyProjectiles = [];
     this.occupied = new Map<string, Tower>();
-    this.chars = STARTING_CHARS;
+    this.chars = this.startingCharsForLevel();
     this.baseIntegrity = BASE_INTEGRITY;
     this.wave = 0;
     this.waveTracker = null;
@@ -184,6 +187,7 @@ export class GameScene extends Phaser.Scene {
     this.updateEnemies(this.battleTime, seconds);
     this.updateTowers(this.battleTime);
     this.updateProjectiles(seconds);
+    this.updateEnemyProjectiles(seconds);
     this.updateWaveSchedule(this.levelElapsed, this.battleTime);
     this.attemptAutoUpgrades();
     this.updateCards(this.cardTime);
@@ -664,6 +668,10 @@ export class GameScene extends Phaser.Scene {
     this.chars = Math.min(MAX_CHARS, this.chars + amount);
     this.makeProductionPulse(x, y, amount);
     this.attemptAutoUpgrades();
+  }
+
+  private startingCharsForLevel() {
+    return this.levelConfig.startingChars ?? (this.levelId.startsWith("1-") ? 300 : STARTING_CHARS);
   }
 
   private spawnBossIfNeeded() {
@@ -1448,8 +1456,35 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  private updateEnemyProjectiles(seconds: number) {
+    for (const projectile of [...this.enemyProjectiles]) {
+      projectile.x += projectile.vx * seconds;
+      projectile.body.setPosition(projectile.x, projectile.y);
+
+      const hit = this.towers
+        .filter((tower) => tower.lane === projectile.sourceLane)
+        .find((tower) => this.towerRect(tower).contains(projectile.x, projectile.y));
+
+      if (hit) {
+        this.makeEnemyHitShards(projectile.x, projectile.y);
+        this.damageTower(hit, projectile.damage, projectile.damageType);
+        this.removeEnemyProjectile(projectile);
+        continue;
+      }
+
+      if (projectile.x < BOARD_X - 60 || projectile.x > BOARD_X + BOARD_WIDTH + 60) {
+        this.removeEnemyProjectile(projectile);
+      }
+    }
+  }
+
   private updateEnemies(time: number, seconds: number) {
     for (const enemy of [...this.enemies]) {
+      if (enemy.kind === "shootingTriangle" && time >= enemy.attackAt) {
+        this.fireEnemyShot(enemy);
+        enemy.attackAt = time + enemy.attackInterval;
+      }
+
       const blocker = this.towers
         .filter((tower) => tower.lane === enemy.lane && Math.abs(enemy.x - tower.x) < 38)
         .sort((a, b) => b.x - a.x)[0];
@@ -1465,7 +1500,7 @@ export class GameScene extends Phaser.Scene {
           continue;
         }
 
-        if (time >= enemy.attackAt) {
+        if (enemy.kind !== "shootingTriangle" && time >= enemy.attackAt) {
           this.damageTower(blocker, enemy.damage, enemy.damageType);
           if (blocker.type === "B") {
             const definition = this.getDefinition(blocker.type);
@@ -1493,6 +1528,24 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
+  }
+
+  private fireEnemyShot(enemy: Enemy) {
+    if (!this.enemies.includes(enemy)) {
+      return;
+    }
+
+    const body = this.add.rectangle(enemy.x - 22, enemy.y, 18, 4, palette.enemyShot, 1).setDepth(91);
+    body.rotation = Math.PI;
+    this.enemyProjectiles.push({
+      x: enemy.x - 22,
+      y: enemy.y,
+      vx: -430,
+      damage: enemy.damage,
+      damageType: enemy.damageType,
+      sourceLane: enemy.lane,
+      body
+    });
   }
 
   private updateWaveSchedule(levelElapsed: number, gameTime: number) {
@@ -1603,6 +1656,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   private enemyAttackInterval(kind: EnemyKind) {
+    if (kind === "shootingTriangle") {
+      return 2_000;
+    }
+
     const definition = enemyDefinitions[kind];
     if (kind.startsWith("triangle")) {
       const rank = Number.parseInt(definition.label ?? "1", 10);
@@ -1642,6 +1699,30 @@ export class GameScene extends Phaser.Scene {
         .setOrigin(0.5);
       label.setText(romanLabel(enemyDefinitions[kind].label));
       shape.add([square, label]);
+      return shape;
+    }
+
+    if (kind === "shootingTriangle") {
+      const shape = this.add.container(0, 0);
+      const triangle = this.add.graphics();
+      triangle.fillStyle(palette.black, 1);
+      triangle.lineStyle(2, palette.white, 1);
+      triangle.beginPath();
+      triangle.moveTo(-24, 0);
+      triangle.lineTo(18, -22);
+      triangle.lineTo(18, 22);
+      triangle.closePath();
+      triangle.fillPath();
+      triangle.strokePath();
+      const label = this.add
+        .text(2, 0, romanLabel(enemyDefinitions[kind].label), {
+          color: "#f5f5f5",
+          fontFamily: "monospace",
+          fontSize: "18px",
+          fontStyle: "700"
+        })
+        .setOrigin(0.5);
+      shape.add([triangle, label]);
       return shape;
     }
 
@@ -1922,6 +2003,24 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  private makeEnemyHitShards(x: number, y: number) {
+    for (let index = 0; index < 7; index += 1) {
+      const angle = Phaser.Math.FloatBetween(Math.PI * 0.2, Math.PI * 1.2);
+      const distance = Phaser.Math.Between(10, 26);
+      const shard = this.add.rectangle(x, y, Phaser.Math.Between(4, 8), 2, palette.enemyShot, 1).setDepth(110);
+      shard.rotation = angle;
+      this.tweens.add({
+        targets: shard,
+        x: x + Math.cos(angle) * distance,
+        y: y + Math.sin(angle) * distance,
+        alpha: 0,
+        duration: 240,
+        ease: "Quad.easeOut",
+        onComplete: () => shard.destroy()
+      });
+    }
+  }
+
   private makeShellBurst(x: number, y: number, radius: number, damageType: DamageType) {
     const ring = this.add
       .circle(x, y, radius / 5, palette.black, 0)
@@ -2153,6 +2252,11 @@ export class GameScene extends Phaser.Scene {
 
   private removeProjectile(projectile: Projectile) {
     Phaser.Utils.Array.Remove(this.projectiles, projectile);
+    projectile.body.destroy();
+  }
+
+  private removeEnemyProjectile(projectile: EnemyProjectile) {
+    Phaser.Utils.Array.Remove(this.enemyProjectiles, projectile);
     projectile.body.destroy();
   }
 

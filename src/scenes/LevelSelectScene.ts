@@ -10,10 +10,17 @@ import {
   clampDifficulty,
   palette
 } from "../config";
+import {
+  enemyEncyclopediaEntries,
+  towerEncyclopediaEntries,
+  type EncyclopediaEntry,
+  type EncyclopediaTab
+} from "../encyclopedia";
+import { enemyDefinitions } from "../data/enemies";
 import { getLevelConfig, levelNodes } from "../data/levels";
-import { toRomanNumeral } from "../format";
+import { romanLabel, toRomanNumeral } from "../format";
 import { t, toggleLanguage } from "../i18n";
-import type { BossKind, LevelNode } from "../types";
+import type { BossKind, CardDefinition, EnemyKind, LevelNode, UnitCategory } from "../types";
 
 interface BossNodePreview {
   frame: Phaser.GameObjects.Graphics;
@@ -29,6 +36,12 @@ interface BossNodePreview {
 
 interface ChapterButton {
   chapter: number;
+  frame: Phaser.GameObjects.Rectangle;
+  label: Phaser.GameObjects.Text;
+}
+
+interface EncyclopediaTabButton {
+  tab: EncyclopediaTab;
   frame: Phaser.GameObjects.Rectangle;
   label: Phaser.GameObjects.Text;
 }
@@ -58,8 +71,21 @@ export class LevelSelectScene extends Phaser.Scene {
   private chapterButtons: ChapterButton[] = [];
   private difficultyText!: Phaser.GameObjects.Text;
   private difficultyKnob!: Phaser.GameObjects.Rectangle;
+  private encyclopediaButton!: Phaser.GameObjects.Rectangle;
+  private encyclopediaText!: Phaser.GameObjects.Text;
   private languageButton!: Phaser.GameObjects.Rectangle;
   private languageText!: Phaser.GameObjects.Text;
+  private encyclopediaOverlay!: Phaser.GameObjects.Container;
+  private encyclopediaList!: Phaser.GameObjects.Container;
+  private encyclopediaViewport!: Phaser.Geom.Rectangle;
+  private encyclopediaContentHeight = 0;
+  private encyclopediaScrollY = 0;
+  private encyclopediaDragPointer: Phaser.Input.Pointer | null = null;
+  private encyclopediaDragStartY = 0;
+  private encyclopediaDragStartScrollY = 0;
+  private encyclopediaOpen = false;
+  private encyclopediaTab: EncyclopediaTab = "enemies";
+  private encyclopediaTabs: EncyclopediaTabButton[] = [];
 
   constructor() {
     super("LevelSelectScene");
@@ -68,15 +94,22 @@ export class LevelSelectScene extends Phaser.Scene {
   create() {
     this.bossNodePreviews = [];
     this.chapterButtons = [];
+    this.encyclopediaTabs = [];
+    this.encyclopediaOpen = false;
+    this.encyclopediaContentHeight = 0;
+    this.encyclopediaScrollY = 0;
+    this.encyclopediaDragPointer = null;
     this.cameras.main.setBackgroundColor(palette.black);
     this.drawBackdrop();
     this.createChapterSelector();
     this.createMapContainer();
     this.drawLevelPath();
     this.createMapDragControls();
+    this.createEncyclopediaButton();
     this.createLanguageButton();
     this.createStartButton();
     this.createDifficultySlider();
+    this.createEncyclopediaOverlay();
     this.updateSelection();
 
     this.input.keyboard?.on("keydown-ENTER", () => this.startSelectedLevel());
@@ -176,7 +209,7 @@ export class LevelSelectScene extends Phaser.Scene {
 
   private createMapDragControls() {
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
-      if (!this.mapViewport.contains(pointer.x, pointer.y)) {
+      if (this.encyclopediaOpen || !this.mapViewport.contains(pointer.x, pointer.y)) {
         return;
       }
 
@@ -350,6 +383,7 @@ export class LevelSelectScene extends Phaser.Scene {
 
   private selectLevelNode(node: LevelNode, pointer: Phaser.Input.Pointer) {
     if (
+      this.encyclopediaOpen ||
       this.mapDragging ||
       this.time.now < this.suppressNodeClickUntil ||
       !this.mapViewport.contains(pointer.x, pointer.y)
@@ -454,6 +488,24 @@ export class LevelSelectScene extends Phaser.Scene {
     return { x: x3 * scale, y: y3 * scale };
   }
 
+  private createEncyclopediaButton() {
+    this.encyclopediaButton = this.add
+      .rectangle(GAME_WIDTH - 206, 52, 132, 34, palette.black, 1)
+      .setStrokeStyle(2, palette.mid, 0.85)
+      .setInteractive({ useHandCursor: true });
+    this.encyclopediaText = this.add
+      .text(GAME_WIDTH - 206, 50, t("button.encyclopedia"), {
+        color: "#f5f5f5",
+        fontFamily: "monospace",
+        fontSize: "15px",
+        fontStyle: "700"
+      })
+      .setOrigin(0.5);
+
+    this.encyclopediaButton.on("pointerdown", () => this.openEncyclopedia("enemies"));
+    this.encyclopediaText.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.openEncyclopedia("enemies"));
+  }
+
   private createStartButton() {
     const x = GAME_WIDTH - 164;
     const y = this.footerY;
@@ -495,6 +547,392 @@ export class LevelSelectScene extends Phaser.Scene {
   private switchLanguage() {
     toggleLanguage();
     this.scene.restart();
+  }
+
+  private createEncyclopediaOverlay() {
+    this.encyclopediaTabs = [];
+    const backdrop = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, palette.black, 0.78);
+    backdrop.setInteractive();
+    const panel = this.add
+      .rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 10, 1060, 616, palette.black, 0.98)
+      .setStrokeStyle(2, palette.white, 0.95);
+    const title = this.add
+      .text(144, 86, t("encyclopedia.title"), {
+        color: "#f5f5f5",
+        fontFamily: "monospace",
+        fontSize: "26px",
+        fontStyle: "700"
+      })
+      .setOrigin(0, 0);
+    const closeButton = this.add
+      .rectangle(1128, 102, 54, 34, palette.black, 1)
+      .setStrokeStyle(2, palette.mid, 0.9)
+      .setInteractive({ useHandCursor: true });
+    const closeText = this.add
+      .text(1128, 100, "X", {
+        color: "#f5f5f5",
+        fontFamily: "monospace",
+        fontSize: "18px",
+        fontStyle: "700"
+      })
+      .setOrigin(0.5);
+
+    const enemyTab = this.createEncyclopediaTabButton("enemies", 144, 136);
+    const towerTab = this.createEncyclopediaTabButton("towers", 294, 136);
+
+    this.encyclopediaViewport = new Phaser.Geom.Rectangle(144, 180, 992, 418);
+    this.encyclopediaList = this.add.container(this.encyclopediaViewport.x, this.encyclopediaViewport.y);
+    const maskGraphics = this.add.graphics().setVisible(false);
+    maskGraphics.fillStyle(0xffffff, 1);
+    maskGraphics.fillRect(
+      this.encyclopediaViewport.x,
+      this.encyclopediaViewport.y,
+      this.encyclopediaViewport.width,
+      this.encyclopediaViewport.height
+    );
+    this.encyclopediaList.setMask(maskGraphics.createGeometryMask());
+    const scrollZone = this.add
+      .zone(
+        this.encyclopediaViewport.x,
+        this.encyclopediaViewport.y,
+        this.encyclopediaViewport.width,
+        this.encyclopediaViewport.height
+      )
+      .setOrigin(0, 0)
+      .setInteractive();
+
+    closeButton.on("pointerdown", () => this.closeEncyclopedia());
+    closeText.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.closeEncyclopedia());
+    scrollZone.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      if (!this.encyclopediaOpen) {
+        return;
+      }
+
+      this.encyclopediaDragPointer = pointer;
+      this.encyclopediaDragStartY = pointer.y;
+      this.encyclopediaDragStartScrollY = this.encyclopediaScrollY;
+    });
+    this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
+      if (this.encyclopediaDragPointer !== pointer || !pointer.isDown) {
+        return;
+      }
+
+      this.setEncyclopediaScroll(this.encyclopediaDragStartScrollY - (pointer.y - this.encyclopediaDragStartY));
+    });
+    this.input.on("pointerup", (pointer: Phaser.Input.Pointer) => this.stopEncyclopediaDrag(pointer));
+    this.input.on("pointerupoutside", (pointer: Phaser.Input.Pointer) => this.stopEncyclopediaDrag(pointer));
+    this.input.on(
+      "wheel",
+      (pointer: Phaser.Input.Pointer, _gameObjects: Phaser.GameObjects.GameObject[], _deltaX: number, deltaY: number) => {
+        if (!this.encyclopediaOpen || !this.encyclopediaViewport.contains(pointer.x, pointer.y)) {
+          return;
+        }
+
+        this.setEncyclopediaScroll(this.encyclopediaScrollY + deltaY);
+      }
+    );
+
+    this.encyclopediaOverlay = this.add.container(0, 0, [
+      backdrop,
+      panel,
+      title,
+      closeButton,
+      closeText,
+      enemyTab.frame,
+      enemyTab.label,
+      towerTab.frame,
+      towerTab.label,
+      maskGraphics,
+      this.encyclopediaList,
+      scrollZone
+    ]);
+    this.encyclopediaOverlay.setDepth(260);
+    this.encyclopediaOverlay.setVisible(false);
+  }
+
+  private createEncyclopediaTabButton(tab: EncyclopediaTab, x: number, y: number) {
+    const frame = this.add
+      .rectangle(x, y, 132, 36, palette.black, 1)
+      .setOrigin(0, 0.5)
+      .setStrokeStyle(2, palette.dim, 0.9)
+      .setInteractive({ useHandCursor: true });
+    const label = this.add
+      .text(x + 66, y - 1, t(tab === "enemies" ? "encyclopedia.enemies" : "encyclopedia.towers"), {
+        color: "#f5f5f5",
+        fontFamily: "monospace",
+        fontSize: "15px",
+        fontStyle: "700"
+      })
+      .setOrigin(0.5);
+
+    frame.on("pointerdown", () => this.setEncyclopediaTab(tab));
+    label.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.setEncyclopediaTab(tab));
+    const button = { tab, frame, label };
+    this.encyclopediaTabs.push(button);
+    return button;
+  }
+
+  private openEncyclopedia(tab: EncyclopediaTab) {
+    this.encyclopediaOpen = true;
+    this.encyclopediaOverlay.setVisible(true);
+    this.setEncyclopediaTab(tab);
+  }
+
+  private closeEncyclopedia() {
+    this.encyclopediaOpen = false;
+    this.encyclopediaDragPointer = null;
+    this.encyclopediaOverlay.setVisible(false);
+  }
+
+  private setEncyclopediaTab(tab: EncyclopediaTab) {
+    this.encyclopediaTab = tab;
+    this.updateEncyclopediaTabs();
+    this.rebuildEncyclopediaList();
+  }
+
+  private updateEncyclopediaTabs() {
+    for (const button of this.encyclopediaTabs) {
+      const selected = button.tab === this.encyclopediaTab;
+      button.frame.setStrokeStyle(selected ? 3 : 2, selected ? palette.white : palette.dim, selected ? 1 : 0.75);
+      button.frame.setFillStyle(selected ? palette.panel : palette.black, selected ? 1 : 0.86);
+      button.label.setAlpha(selected ? 1 : 0.55);
+    }
+  }
+
+  private rebuildEncyclopediaList() {
+    this.encyclopediaList.removeAll(true);
+    const entries = this.encyclopediaTab === "enemies" ? enemyEncyclopediaEntries() : towerEncyclopediaEntries();
+    const entryHeight = 206;
+    entries.forEach((entry, index) => {
+      this.drawEncyclopediaEntry(entry, index * entryHeight);
+    });
+    this.encyclopediaContentHeight = entries.length * entryHeight + 14;
+    this.setEncyclopediaScroll(0);
+  }
+
+  private drawEncyclopediaEntry(entry: EncyclopediaEntry, y: number) {
+    const container = this.add.container(0, y);
+    const frame = this.add
+      .rectangle(this.encyclopediaViewport.width / 2, 96, this.encyclopediaViewport.width - 6, 186, palette.black, 1)
+      .setStrokeStyle(1, palette.dim, 0.95);
+    container.add(frame);
+
+    if (entry.enemyKind) {
+      container.add(this.createEnemyPreviewShape(entry.enemyKind).setPosition(48, 72).setScale(1.05));
+    } else if (entry.icon === "cube") {
+      container.add(this.createCubeIcon().setPosition(48, 72));
+    } else if (entry.card) {
+      const border = this.createUnitBorder(entry.card.category, 23, 2).setPosition(48, 70);
+      const label = this.add
+        .text(48, 67, entry.card.id, {
+          color: "#f5f5f5",
+          fontFamily: "monospace",
+          fontSize: "28px",
+          fontStyle: "700"
+        })
+        .setOrigin(0.5);
+      container.add([border, label]);
+    }
+
+    const title = this.add
+      .text(92, 18, entry.title, {
+        color: "#f5f5f5",
+        fontFamily: "monospace",
+        fontSize: "18px",
+        fontStyle: "700"
+      })
+      .setOrigin(0, 0);
+    const stats = this.add
+      .text(92, 46, entry.lines.join("\n"), {
+        color: "#cfcfcf",
+        fontFamily: "monospace",
+        fontSize: "13px",
+        lineSpacing: 3,
+        wordWrap: { width: 850 }
+      })
+      .setOrigin(0, 0);
+    const description = this.add
+      .text(92, 134, entry.description, {
+        color: "#8c8c8c",
+        fontFamily: "monospace",
+        fontSize: "13px",
+        wordWrap: { width: 850 }
+      })
+      .setOrigin(0, 0);
+
+    container.add([title, stats, description]);
+    this.encyclopediaList.add(container);
+  }
+
+  private stopEncyclopediaDrag(pointer: Phaser.Input.Pointer) {
+    if (this.encyclopediaDragPointer === pointer) {
+      this.encyclopediaDragPointer = null;
+    }
+  }
+
+  private setEncyclopediaScroll(scrollY: number) {
+    const maxScroll = Math.max(0, this.encyclopediaContentHeight - this.encyclopediaViewport.height);
+    this.encyclopediaScrollY = Math.round(Phaser.Math.Clamp(scrollY, 0, maxScroll));
+    this.encyclopediaList.y = this.encyclopediaViewport.y - this.encyclopediaScrollY;
+  }
+
+  private createEnemyPreviewShape(kind: EnemyKind) {
+    if (kind === "circle" || kind === "circle2" || kind === "circle3") {
+      const shape = this.add.container(0, 0);
+      const circle = this.add.circle(0, 0, 20, palette.black, 1).setStrokeStyle(2, palette.white, 1);
+      const label = this.add
+        .text(0, -1, romanLabel(enemyDefinitions[kind].label), {
+          color: "#f5f5f5",
+          fontFamily: "monospace",
+          fontSize: "18px",
+          fontStyle: "700"
+        })
+        .setOrigin(0.5);
+      shape.add([circle, label]);
+      return shape;
+    }
+
+    if (kind === "square" || kind === "square2" || kind === "square3") {
+      const shape = this.add.container(0, 0);
+      const square = this.add.rectangle(0, 0, 40, 40, palette.black, 1).setStrokeStyle(2, palette.white, 1);
+      const label = this.add
+        .text(0, -1, romanLabel(enemyDefinitions[kind].label), {
+          color: "#f5f5f5",
+          fontFamily: "monospace",
+          fontSize: "18px",
+          fontStyle: "700"
+        })
+        .setOrigin(0.5);
+      shape.add([square, label]);
+      return shape;
+    }
+
+    if (kind === "shootingTriangle") {
+      const shape = this.add.container(0, 0);
+      const triangle = this.add.graphics();
+      triangle.fillStyle(palette.black, 1);
+      triangle.lineStyle(2, palette.white, 1);
+      triangle.beginPath();
+      triangle.moveTo(-22, 0);
+      triangle.lineTo(18, -22);
+      triangle.lineTo(18, 22);
+      triangle.closePath();
+      triangle.fillPath();
+      triangle.strokePath();
+      const label = this.add
+        .text(2, 0, romanLabel(enemyDefinitions[kind].label), {
+          color: "#f5f5f5",
+          fontFamily: "monospace",
+          fontSize: "18px",
+          fontStyle: "700"
+        })
+        .setOrigin(0.5);
+      shape.add([triangle, label]);
+      return shape;
+    }
+
+    const shape = this.add.container(0, 0);
+    const triangle = this.add.graphics();
+    triangle.fillStyle(palette.black, 1);
+    triangle.lineStyle(2, palette.white, 1);
+    triangle.beginPath();
+    triangle.moveTo(0, -22);
+    triangle.lineTo(22, 18);
+    triangle.lineTo(-22, 18);
+    triangle.closePath();
+    triangle.fillPath();
+    triangle.strokePath();
+    const label = this.add
+      .text(0, 2, romanLabel(enemyDefinitions[kind].label), {
+        color: "#f5f5f5",
+        fontFamily: "monospace",
+        fontSize: "18px",
+        fontStyle: "700"
+      })
+      .setOrigin(0.5);
+    shape.add([triangle, label]);
+    return shape;
+  }
+
+  private createCubeIcon() {
+    const icon = this.add.container(0, 0);
+    const frame = this.add.graphics();
+    const front = [
+      new Phaser.Math.Vector2(-18, -14),
+      new Phaser.Math.Vector2(16, -18),
+      new Phaser.Math.Vector2(20, 16),
+      new Phaser.Math.Vector2(-14, 20)
+    ];
+    const back = front.map((point) => new Phaser.Math.Vector2(point.x + 10, point.y - 10));
+    frame.lineStyle(2, palette.white, 0.95);
+    for (let index = 0; index < 4; index += 1) {
+      const next = (index + 1) % 4;
+      frame.lineBetween(front[index].x, front[index].y, front[next].x, front[next].y);
+      frame.lineBetween(back[index].x, back[index].y, back[next].x, back[next].y);
+      frame.lineBetween(front[index].x, front[index].y, back[index].x, back[index].y);
+    }
+    const label = this.add
+      .text(4, 0, `${toRomanNumeral(1)}/${toRomanNumeral(2)}`, {
+        color: "#f5f5f5",
+        fontFamily: "monospace",
+        fontSize: "14px",
+        fontStyle: "700"
+      })
+      .setOrigin(0.5);
+    icon.add([frame, label]);
+    return icon;
+  }
+
+  private createUnitBorder(category: UnitCategory, radius: number, lineWidth: number) {
+    const border = this.add.graphics();
+    border.fillStyle(palette.black, 1);
+    border.lineStyle(lineWidth, palette.white, 1);
+
+    if (category === "production") {
+      border.fillCircle(0, 0, radius);
+      border.strokeCircle(0, 0, radius);
+      return border;
+    }
+
+    if (category === "defense") {
+      border.fillRect(-radius, -radius, radius * 2, radius * 2);
+      border.strokeRect(-radius, -radius, radius * 2, radius * 2);
+      return border;
+    }
+
+    if (category === "healing") {
+      border.beginPath();
+      for (let index = 0; index < 6; index += 1) {
+        const angle = Phaser.Math.DegToRad(-90 + index * 60);
+        const x = Math.cos(angle) * radius;
+        const y = Math.sin(angle) * radius;
+        if (index === 0) {
+          border.moveTo(x, y);
+        } else {
+          border.lineTo(x, y);
+        }
+      }
+      border.closePath();
+      border.fillPath();
+      border.strokePath();
+      return border;
+    }
+
+    border.beginPath();
+    if (category === "attack") {
+      border.moveTo(0, -radius);
+      border.lineTo(radius, 0);
+      border.lineTo(0, radius);
+      border.lineTo(-radius, 0);
+    } else {
+      border.moveTo(0, -radius);
+      border.lineTo(radius, radius * 0.82);
+      border.lineTo(-radius, radius * 0.82);
+    }
+    border.closePath();
+    border.fillPath();
+    border.strokePath();
+    return border;
   }
 
   private createDifficultySlider() {
@@ -556,7 +994,7 @@ export class LevelSelectScene extends Phaser.Scene {
 
   private updateDifficultySlider(trackX: number, trackWidth: number) {
     this.difficultyKnob.x = trackX + (this.difficulty / DIFFICULTY_MAX) * trackWidth;
-    this.difficultyText.setText(`${this.difficulty}`);
+    this.difficultyText.setText(`${this.difficulty} ${t(`difficulty.${this.difficulty}`)}`);
   }
 
   private updateSelection() {
@@ -596,6 +1034,10 @@ export class LevelSelectScene extends Phaser.Scene {
   }
 
   private startSelectedLevel() {
+    if (this.encyclopediaOpen) {
+      return;
+    }
+
     const selected = this.chapterNodes().find((node) => node.id === this.selectedLevelId);
     if (selected?.unlocked) {
       this.scene.start("CardSelectScene", { levelId: selected.id, difficulty: this.difficulty });

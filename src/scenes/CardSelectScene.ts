@@ -3,6 +3,7 @@ import {
   CARD_SLOT_COUNT,
   CUBE_BOSS_MAX_HP,
   DEFAULT_DIFFICULTY,
+  ENEMY_SPEED,
   GAME_HEIGHT,
   GAME_WIDTH,
   clampDifficulty,
@@ -12,8 +13,16 @@ import { cardDefinitions, defaultLoadout } from "../data/cards";
 import { enemyDefinitions } from "../data/enemies";
 import { getLevelConfig } from "../data/levels";
 import { romanLabel, toRomanNumeral } from "../format";
-import { DAMAGE_SYMBOLS, t } from "../i18n";
-import type { BossKind, CardId, EnemyKind, UnitCategory } from "../types";
+import { DAMAGE_SYMBOLS, getLanguage, t, toggleLanguage } from "../i18n";
+import type { BossKind, CardDefinition, CardId, EnemyDefinition, EnemyKind, UnitCategory } from "../types";
+
+type EncyclopediaTab = "enemies" | "towers";
+
+interface EncyclopediaTabButton {
+  tab: EncyclopediaTab;
+  frame: Phaser.GameObjects.Rectangle;
+  label: Phaser.GameObjects.Text;
+}
 
 export class CardSelectScene extends Phaser.Scene {
   private levelId = "0-1";
@@ -42,6 +51,21 @@ export class CardSelectScene extends Phaser.Scene {
   private backText!: Phaser.GameObjects.Text;
   private startButton!: Phaser.GameObjects.Rectangle;
   private startText!: Phaser.GameObjects.Text;
+  private encyclopediaButton!: Phaser.GameObjects.Rectangle;
+  private encyclopediaText!: Phaser.GameObjects.Text;
+  private languageButton!: Phaser.GameObjects.Rectangle;
+  private languageText!: Phaser.GameObjects.Text;
+  private encyclopediaOverlay!: Phaser.GameObjects.Container;
+  private encyclopediaList!: Phaser.GameObjects.Container;
+  private encyclopediaViewport!: Phaser.Geom.Rectangle;
+  private encyclopediaContentHeight = 0;
+  private encyclopediaScrollY = 0;
+  private encyclopediaDragPointer: Phaser.Input.Pointer | null = null;
+  private encyclopediaDragStartY = 0;
+  private encyclopediaDragStartScrollY = 0;
+  private encyclopediaOpen = false;
+  private encyclopediaTab: EncyclopediaTab = "enemies";
+  private encyclopediaTabs: EncyclopediaTabButton[] = [];
 
   constructor() {
     super("CardSelectScene");
@@ -58,6 +82,12 @@ export class CardSelectScene extends Phaser.Scene {
     this.cardPoolDragPointer = null;
     this.cardPoolDragMoved = false;
     this.suppressCardClickUntil = 0;
+    this.encyclopediaContentHeight = 0;
+    this.encyclopediaScrollY = 0;
+    this.encyclopediaDragPointer = null;
+    this.encyclopediaOpen = false;
+    this.encyclopediaTab = "enemies";
+    this.encyclopediaTabs = [];
   }
 
   create() {
@@ -91,6 +121,44 @@ export class CardSelectScene extends Phaser.Scene {
     const frame = this.add.graphics();
     frame.lineStyle(1, palette.dim, 1);
     frame.strokeRect(38, 130, GAME_WIDTH - 76, GAME_HEIGHT - 220);
+  }
+
+  private createTopButtons() {
+    this.encyclopediaButton = this.add
+      .rectangle(GAME_WIDTH - 206, 52, 132, 34, palette.black, 1)
+      .setStrokeStyle(2, palette.mid, 0.85)
+      .setInteractive({ useHandCursor: true });
+    this.encyclopediaText = this.add
+      .text(GAME_WIDTH - 206, 50, t("button.encyclopedia"), {
+        color: "#f5f5f5",
+        fontFamily: "monospace",
+        fontSize: "15px",
+        fontStyle: "700"
+      })
+      .setOrigin(0.5);
+
+    this.languageButton = this.add
+      .rectangle(GAME_WIDTH - 78, 52, 92, 34, palette.black, 1)
+      .setStrokeStyle(2, palette.mid, 0.85)
+      .setInteractive({ useHandCursor: true });
+    this.languageText = this.add
+      .text(GAME_WIDTH - 78, 50, t("button.language"), {
+        color: "#f5f5f5",
+        fontFamily: "monospace",
+        fontSize: "15px",
+        fontStyle: "700"
+      })
+      .setOrigin(0.5);
+
+    this.encyclopediaButton.on("pointerdown", () => this.openEncyclopedia("enemies"));
+    this.encyclopediaText.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.openEncyclopedia("enemies"));
+    this.languageButton.on("pointerdown", () => this.switchLanguage());
+    this.languageText.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.switchLanguage());
+  }
+
+  private switchLanguage() {
+    toggleLanguage();
+    this.scene.restart({ levelId: this.levelId, difficulty: this.difficulty });
   }
 
   private drawEnemyPreview() {
@@ -144,6 +212,10 @@ export class CardSelectScene extends Phaser.Scene {
     const zone = this.add.zone(viewport.x, viewport.y, viewport.width, viewport.height).setOrigin(0, 0).setInteractive();
 
     zone.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      if (this.encyclopediaOpen) {
+        return;
+      }
+
       this.enemyPreviewDragPointer = pointer;
       this.enemyPreviewDragStartY = pointer.y;
       this.enemyPreviewDragStartScrollY = this.enemyPreviewScrollY;
@@ -161,6 +233,10 @@ export class CardSelectScene extends Phaser.Scene {
     this.input.on(
       "wheel",
       (pointer: Phaser.Input.Pointer, _gameObjects: Phaser.GameObjects.GameObject[], _deltaX: number, deltaY: number) => {
+        if (this.encyclopediaOpen) {
+          return;
+        }
+
         if (!this.enemyPreviewViewport.contains(pointer.x, pointer.y)) {
           return;
         }
@@ -242,6 +318,30 @@ export class CardSelectScene extends Phaser.Scene {
       return shape;
     }
 
+    if (kind === "shootingTriangle") {
+      const shape = this.add.container(0, 0);
+      const triangle = this.add.graphics();
+      triangle.fillStyle(palette.black, 1);
+      triangle.lineStyle(2, palette.white, 1);
+      triangle.beginPath();
+      triangle.moveTo(-22, 0);
+      triangle.lineTo(18, -22);
+      triangle.lineTo(18, 22);
+      triangle.closePath();
+      triangle.fillPath();
+      triangle.strokePath();
+      const label = this.add
+        .text(2, 0, romanLabel(enemyDefinitions[kind].label), {
+          color: "#f5f5f5",
+          fontFamily: "monospace",
+          fontSize: "18px",
+          fontStyle: "700"
+        })
+        .setOrigin(0.5);
+      shape.add([triangle, label]);
+      return shape;
+    }
+
     const shape = this.add.container(0, 0);
     const triangle = this.add.graphics();
     triangle.fillStyle(palette.black, 1);
@@ -285,6 +385,9 @@ export class CardSelectScene extends Phaser.Scene {
     }
     if (kind === "triangle3") {
       return t("enemy.triangle3");
+    }
+    if (kind === "shootingTriangle") {
+      return t("enemy.shootingTriangle");
     }
     if (kind === "square") {
       return t("enemy.square");
@@ -387,6 +490,10 @@ export class CardSelectScene extends Phaser.Scene {
 
   private createCardPoolScrollControls() {
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      if (this.encyclopediaOpen) {
+        return;
+      }
+
       if (!this.cardPoolViewport.contains(pointer.x, pointer.y)) {
         return;
       }
@@ -413,6 +520,10 @@ export class CardSelectScene extends Phaser.Scene {
     this.input.on(
       "wheel",
       (pointer: Phaser.Input.Pointer, _gameObjects: Phaser.GameObjects.GameObject[], _deltaX: number, deltaY: number) => {
+        if (this.encyclopediaOpen) {
+          return;
+        }
+
         if (!this.cardPoolViewport.contains(pointer.x, pointer.y)) {
           return;
         }
@@ -441,6 +552,7 @@ export class CardSelectScene extends Phaser.Scene {
 
   private handleCardPointerUp(id: CardId, pointer: Phaser.Input.Pointer) {
     if (
+      this.encyclopediaOpen ||
       this.cardPoolDragMoved ||
       this.time.now < this.suppressCardClickUntil ||
       !this.cardPoolViewport.contains(pointer.x, pointer.y)
@@ -449,6 +561,258 @@ export class CardSelectScene extends Phaser.Scene {
     }
 
     this.toggleCard(id);
+  }
+
+  private createEncyclopediaOverlay() {
+    this.encyclopediaTabs = [];
+    const backdrop = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, palette.black, 0.78);
+    backdrop.setInteractive();
+    const panel = this.add
+      .rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 10, 1060, 616, palette.black, 0.98)
+      .setStrokeStyle(2, palette.white, 0.95);
+    const title = this.add
+      .text(144, 86, t("encyclopedia.title"), {
+        color: "#f5f5f5",
+        fontFamily: "monospace",
+        fontSize: "26px",
+        fontStyle: "700"
+      })
+      .setOrigin(0, 0);
+    const closeButton = this.add
+      .rectangle(1128, 102, 54, 34, palette.black, 1)
+      .setStrokeStyle(2, palette.mid, 0.9)
+      .setInteractive({ useHandCursor: true });
+    const closeText = this.add
+      .text(1128, 100, "X", {
+        color: "#f5f5f5",
+        fontFamily: "monospace",
+        fontSize: "18px",
+        fontStyle: "700"
+      })
+      .setOrigin(0.5);
+
+    const enemyTab = this.createEncyclopediaTabButton("enemies", 144, 136);
+    const towerTab = this.createEncyclopediaTabButton("towers", 294, 136);
+
+    this.encyclopediaViewport = new Phaser.Geom.Rectangle(144, 180, 992, 418);
+    this.encyclopediaList = this.add.container(this.encyclopediaViewport.x, this.encyclopediaViewport.y);
+    const maskGraphics = this.add.graphics().setVisible(false);
+    maskGraphics.fillStyle(0xffffff, 1);
+    maskGraphics.fillRect(
+      this.encyclopediaViewport.x,
+      this.encyclopediaViewport.y,
+      this.encyclopediaViewport.width,
+      this.encyclopediaViewport.height
+    );
+    this.encyclopediaList.setMask(maskGraphics.createGeometryMask());
+    const scrollZone = this.add
+      .zone(
+        this.encyclopediaViewport.x,
+        this.encyclopediaViewport.y,
+        this.encyclopediaViewport.width,
+        this.encyclopediaViewport.height
+      )
+      .setOrigin(0, 0)
+      .setInteractive();
+
+    closeButton.on("pointerdown", () => this.closeEncyclopedia());
+    closeText.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.closeEncyclopedia());
+    scrollZone.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      if (!this.encyclopediaOpen) {
+        return;
+      }
+
+      this.encyclopediaDragPointer = pointer;
+      this.encyclopediaDragStartY = pointer.y;
+      this.encyclopediaDragStartScrollY = this.encyclopediaScrollY;
+    });
+    this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
+      if (this.encyclopediaDragPointer !== pointer || !pointer.isDown) {
+        return;
+      }
+
+      this.setEncyclopediaScroll(this.encyclopediaDragStartScrollY - (pointer.y - this.encyclopediaDragStartY));
+    });
+    this.input.on("pointerup", (pointer: Phaser.Input.Pointer) => this.stopEncyclopediaDrag(pointer));
+    this.input.on("pointerupoutside", (pointer: Phaser.Input.Pointer) => this.stopEncyclopediaDrag(pointer));
+    this.input.on(
+      "wheel",
+      (pointer: Phaser.Input.Pointer, _gameObjects: Phaser.GameObjects.GameObject[], _deltaX: number, deltaY: number) => {
+        if (!this.encyclopediaOpen || !this.encyclopediaViewport.contains(pointer.x, pointer.y)) {
+          return;
+        }
+
+        this.setEncyclopediaScroll(this.encyclopediaScrollY + deltaY);
+      }
+    );
+
+    this.encyclopediaOverlay = this.add.container(0, 0, [
+      backdrop,
+      panel,
+      title,
+      closeButton,
+      closeText,
+      enemyTab.frame,
+      enemyTab.label,
+      towerTab.frame,
+      towerTab.label,
+      maskGraphics,
+      this.encyclopediaList,
+      scrollZone
+    ]);
+    this.encyclopediaOverlay.setDepth(260);
+    this.encyclopediaOverlay.setVisible(false);
+  }
+
+  private createEncyclopediaTabButton(tab: EncyclopediaTab, x: number, y: number) {
+    const frame = this.add
+      .rectangle(x, y, 132, 36, palette.black, 1)
+      .setOrigin(0, 0.5)
+      .setStrokeStyle(2, palette.dim, 0.9)
+      .setInteractive({ useHandCursor: true });
+    const label = this.add
+      .text(x + 66, y - 1, t(tab === "enemies" ? "encyclopedia.enemies" : "encyclopedia.towers"), {
+        color: "#f5f5f5",
+        fontFamily: "monospace",
+        fontSize: "15px",
+        fontStyle: "700"
+      })
+      .setOrigin(0.5);
+
+    frame.on("pointerdown", () => this.setEncyclopediaTab(tab));
+    label.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.setEncyclopediaTab(tab));
+    const button = { tab, frame, label };
+    this.encyclopediaTabs.push(button);
+    return button;
+  }
+
+  private openEncyclopedia(tab: EncyclopediaTab) {
+    this.encyclopediaOpen = true;
+    this.encyclopediaOverlay.setVisible(true);
+    this.setEncyclopediaTab(tab);
+  }
+
+  private closeEncyclopedia() {
+    this.encyclopediaOpen = false;
+    this.encyclopediaDragPointer = null;
+    this.encyclopediaOverlay.setVisible(false);
+  }
+
+  private setEncyclopediaTab(tab: EncyclopediaTab) {
+    this.encyclopediaTab = tab;
+    this.updateEncyclopediaTabs();
+    this.rebuildEncyclopediaList();
+  }
+
+  private updateEncyclopediaTabs() {
+    for (const button of this.encyclopediaTabs) {
+      const selected = button.tab === this.encyclopediaTab;
+      button.frame.setStrokeStyle(selected ? 3 : 2, selected ? palette.white : palette.dim, selected ? 1 : 0.75);
+      button.frame.setFillStyle(selected ? palette.panel : palette.black, selected ? 1 : 0.86);
+      button.label.setAlpha(selected ? 1 : 0.55);
+    }
+  }
+
+  private rebuildEncyclopediaList() {
+    this.encyclopediaList.removeAll(true);
+    const entries =
+      this.encyclopediaTab === "enemies" ? this.enemyEncyclopediaEntries() : this.towerEncyclopediaEntries();
+    const entryHeight = 150;
+    entries.forEach((entry, index) => {
+      this.drawEncyclopediaEntry(entry, index * entryHeight);
+    });
+    this.encyclopediaContentHeight = entries.length * entryHeight + 14;
+    this.setEncyclopediaScroll(0);
+  }
+
+  private enemyEncyclopediaEntries(): Array<{
+    title: string;
+    lines: string[];
+    description: string;
+    enemyKind?: EnemyKind;
+    card?: CardDefinition;
+  }> {
+    return [];
+  }
+
+  private towerEncyclopediaEntries(): Array<{
+    title: string;
+    lines: string[];
+    description: string;
+    enemyKind?: EnemyKind;
+    card?: CardDefinition;
+  }> {
+    return [];
+  }
+
+  private drawEncyclopediaEntry(entry: {
+    title: string;
+    lines: string[];
+    description: string;
+    enemyKind?: EnemyKind;
+    card?: CardDefinition;
+  }, y: number) {
+    const container = this.add.container(0, y);
+    const frame = this.add
+      .rectangle(this.encyclopediaViewport.width / 2, 70, this.encyclopediaViewport.width - 6, 132, palette.black, 1)
+      .setStrokeStyle(1, palette.dim, 0.95);
+    container.add(frame);
+
+    if (entry.enemyKind) {
+      container.add(this.createEnemyPreviewShape(entry.enemyKind).setPosition(48, 66).setScale(1.05));
+    } else if (entry.card) {
+      const border = this.createUnitBorder(entry.card.category, 23, 2).setPosition(48, 62);
+      const label = this.add
+        .text(48, 59, entry.card.id, {
+          color: "#f5f5f5",
+          fontFamily: "monospace",
+          fontSize: "28px",
+          fontStyle: "700"
+        })
+        .setOrigin(0.5);
+      container.add([border, label]);
+    }
+
+    const title = this.add
+      .text(92, 18, entry.title, {
+        color: "#f5f5f5",
+        fontFamily: "monospace",
+        fontSize: "18px",
+        fontStyle: "700"
+      })
+      .setOrigin(0, 0);
+    const stats = this.add
+      .text(92, 46, entry.lines.join("\n"), {
+        color: "#cfcfcf",
+        fontFamily: "monospace",
+        fontSize: "13px",
+        lineSpacing: 3,
+        wordWrap: { width: 850 }
+      })
+      .setOrigin(0, 0);
+    const description = this.add
+      .text(92, 96, entry.description, {
+        color: "#8c8c8c",
+        fontFamily: "monospace",
+        fontSize: "13px",
+        wordWrap: { width: 850 }
+      })
+      .setOrigin(0, 0);
+
+    container.add([title, stats, description]);
+    this.encyclopediaList.add(container);
+  }
+
+  private stopEncyclopediaDrag(pointer: Phaser.Input.Pointer) {
+    if (this.encyclopediaDragPointer === pointer) {
+      this.encyclopediaDragPointer = null;
+    }
+  }
+
+  private setEncyclopediaScroll(scrollY: number) {
+    const maxScroll = Math.max(0, this.encyclopediaContentHeight - this.encyclopediaViewport.height);
+    this.encyclopediaScrollY = Math.round(Phaser.Math.Clamp(scrollY, 0, maxScroll));
+    this.encyclopediaList.y = this.encyclopediaViewport.y - this.encyclopediaScrollY;
   }
 
   private createStartButton() {

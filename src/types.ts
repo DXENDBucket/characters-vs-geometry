@@ -23,6 +23,7 @@ export type EnemyKind =
   | "triangle"
   | "triangle2"
   | "triangle3"
+  | "shootingTriangle"
   | "square"
   | "square2"
   | "square3";
@@ -137,6 +138,16 @@ export interface Projectile {
   body: Phaser.GameObjects.Shape | Phaser.GameObjects.Text;
 }
 
+export interface EnemyProjectile {
+  x: number;
+  y: number;
+  vx: number;
+  damage: number;
+  damageType: DamageType;
+  sourceLane: number;
+  body: Phaser.GameObjects.Rectangle;
+}
+
 export interface EnemyDefinition {
   kind: EnemyKind;
   label?: string;
@@ -171,6 +182,7 @@ export interface LevelConfig {
   totalWaves?: number;
   wavesPerFlag: number;
   waveWeightCap?: number;
+  startingChars?: number;
   bossKind?: BossKind;
   endless?: boolean;
 }

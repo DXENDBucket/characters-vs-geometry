@@ -10,6 +10,7 @@
 | Triangle 1 | 30 | 5000 | 100 | 600 | ◆ | Body label `I`; average speed `15` |
 | Triangle 2 | 90 | 5000 | 100 | 600 | ◆ | Body label `II`; average speed `20`, +`5` over Triangle 1; attacks every `0.5s` |
 | Triangle 3 | 150 | 5000 | 100 | 600 | ◆ | Body label `III`; average speed `25`, +`10` over Triangle 1; attacks every `0.33s` |
+| Shooting Triangle 1 | 70 | 2000 | 70 | 400 | ◆ | Body label `I`; average speed `4`; points toward the base and fires red-tinted bolts every `2s` |
 | Square 1 | 50 | 12000 | 300 | 400 | ◆ | Body label `I`; average speed `6` |
 | Square 2 | 150 | 12000 | 600 | 400 | ◆ | Body label `II`; average speed `6` |
 | Square 3 | 250 | 12000 | 900 | 400 | ◆ | Body label `III`; average speed `6` |
@@ -17,6 +18,7 @@
 Damage symbols: `◆` physical, `✦` magic, `◇` true. Magic-damage projectiles and related hit effects use light blue.
 Effect symbols: `Aa` character production, `♡` healing.
 Triangle enemies all deal Triangle 1's `600◆`; Triangle N attacks every `1/N` seconds.
+Shooting Triangle is a separate ranged enemy and does not use Triangle N attack scaling.
 Numbered minion weights use fixed additive steps: circles `+40`, triangles `+60`, squares `+100`.
 Enemy body labels are displayed as Roman numerals in-game.
 
@@ -45,7 +47,7 @@ Cube skills:
 | Character | Category | Border | Cost | CD | HP | Armor | MR | Main Effect | Upgrade |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- |
 | A | Attack | Diamond | 50 | 1s | 1200 | 150 | 0 | Fires 1 bolt, `400◆`, every `2s` | +1 volley per level |
-| B | Defense | Square | 100 | 20s | 3000 | 500 | 0 | Blocks; reflects `200◆` when attacked | +`2400` max/current HP per level |
+| B | Defense | Square | 100 | 20s | 3000 | 500 | 0 | Blocks; reflects `400◆` when hit by melee attacks | +`2400` max/current HP per level |
 | C | Attack | Diamond | 350 | 3s | 1200 | 150 | 0 | Fires 1 shell, `500◆`, `1` tile AOE, every `3s` | +1 volley per level |
 | D | Defense | Square | 100 | 20s | 3000 | 800 | 0 | High-armor blocker | +`2400` max/current HP per level |
 | X | Production | Circle | 50 | 1.5s | 1200 | 150 | 0 | Produces `25` chars every `10s`, shown as `Aa` | +`20` chars per production per level |
@@ -448,6 +450,38 @@ Base rule:
 | 20 | 2 | 209 | 300 |
 | 30 | 3 | 309 | 300 |
 
+## Level 1-1 Weight Growth
+
+Enemy pool:
+
+- Circle 1
+- Triangle 1
+- Triangle 2
+- Shooting Triangle 1
+
+Base rule:
+
+- Starting characters: `300`.
+- Wave 1 starts at weight cap `19`.
+- Each later wave adds `+12`.
+- Every flag wave, currently every `10`th wave, doubles that wave's final cap.
+- A wave may leave unused weight, but never exceeds its cap.
+- Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
+- The level has `10` total waves.
+
+| Wave | Flag | Base Cap | Final Cap |
+| ---: | ---: | ---: | ---: |
+| 1 | - | 19 | 19 |
+| 2 | - | 31 | 31 |
+| 3 | - | 43 | 43 |
+| 4 | - | 55 | 55 |
+| 5 | - | 67 | 67 |
+| 6 | - | 79 | 79 |
+| 7 | - | 91 | 91 |
+| 8 | - | 103 | 103 |
+| 9 | - | 115 | 115 |
+| 10 | 1 | 127 | 254 |
+
 ## Spawn Trigger
 
 After the first wave appears, the next wave spawns when either condition is met:
@@ -477,4 +511,6 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 ## Character Income
 
 - Character cap: `9999`.
+- Chapter 0 starting characters: `200`.
+- Chapter 1 starting characters: `300`.
 - Natural income: `25` every `5s`.

@@ -57,7 +57,8 @@ export const palette = {
   mid: 0x8c8c8c,
   dim: 0x454545,
   magic: 0x9fdcff,
-  green: 0x48ff88
+  green: 0x48ff88,
+  enemyShot: 0xff6464
 };
 
 export const difficultyConfigs: Record<number, DifficultyConfig> = {

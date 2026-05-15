@@ -24,9 +24,9 @@ export const cardDefinitions: CardDefinition[] = [
     maxHp: 3_000,
     armor: 500,
     magicResistance: 0,
-    reflectDamage: 200,
+    reflectDamage: 400,
     reflectDamageType: "physical",
-    stats: `3000 A500 R200${DAMAGE_SYMBOLS.physical}`
+    stats: `3000 A500 R400${DAMAGE_SYMBOLS.physical}`
   },
   {
     id: "C",

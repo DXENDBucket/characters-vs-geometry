@@ -11,7 +11,8 @@ export const levelNodes: LevelNode[] = [
   { id: "0-7", x: 1710, y: 385, unlocked: true },
   { id: "0-8", x: 2010, y: 265, unlocked: true },
   { id: "0-9", x: 2310, y: 405, unlocked: true },
-  { id: "0-10", x: 2610, y: 300, unlocked: true }
+  { id: "0-10", x: 2610, y: 300, unlocked: true },
+  { id: "1-1", x: 230, y: 405, unlocked: true }
 ];
 
 export const levelConfigs: Record<string, LevelConfig> = {
@@ -98,6 +99,15 @@ export const levelConfigs: Record<string, LevelConfig> = {
     waveWeightCap: CUBE_BOSS_WAVE_CAP,
     bossKind: "cube2",
     endless: true
+  },
+  "1-1": {
+    id: "1-1",
+    enemyKinds: ["circle", "triangle", "triangle2", "shootingTriangle"],
+    firstWaveWeight: 19,
+    waveWeightIncrement: 12,
+    totalWaves: TOTAL_WAVES,
+    wavesPerFlag: WAVES_PER_FLAG,
+    startingChars: 300
   }
 };
 
