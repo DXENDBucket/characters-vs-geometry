@@ -27,12 +27,20 @@ interface BossNodePreview {
   size: number;
 }
 
+interface ChapterButton {
+  chapter: number;
+  frame: Phaser.GameObjects.Rectangle;
+  label: Phaser.GameObjects.Text;
+}
+
 export class LevelSelectScene extends Phaser.Scene {
-  private selectedLevelId = "0-1";
+  private selectedChapter = 0;
+  private selectedLevelId: string | null = "0-1";
   private difficulty = DEFAULT_DIFFICULTY;
   private mapContainer!: Phaser.GameObjects.Container;
   private mapBounds!: Phaser.Geom.Rectangle;
-  private readonly mapViewport = new Phaser.Geom.Rectangle(38, 130, GAME_WIDTH - 76, GAME_HEIGHT - 220);
+  private readonly chapters = [0, 1];
+  private readonly mapViewport = new Phaser.Geom.Rectangle(38, 156, GAME_WIDTH - 76, GAME_HEIGHT - 246);
   private readonly footerY = 715;
   private mapDragPointer: Phaser.Input.Pointer | null = null;
   private mapDragTimer: Phaser.Time.TimerEvent | null = null;
@@ -46,6 +54,8 @@ export class LevelSelectScene extends Phaser.Scene {
   private lockGraphics!: Phaser.GameObjects.Graphics;
   private startButton!: Phaser.GameObjects.Rectangle;
   private startText!: Phaser.GameObjects.Text;
+  private chapterTitleText!: Phaser.GameObjects.Text;
+  private chapterButtons: ChapterButton[] = [];
   private difficultyText!: Phaser.GameObjects.Text;
   private difficultyKnob!: Phaser.GameObjects.Rectangle;
   private languageButton!: Phaser.GameObjects.Rectangle;
@@ -57,8 +67,10 @@ export class LevelSelectScene extends Phaser.Scene {
 
   create() {
     this.bossNodePreviews = [];
+    this.chapterButtons = [];
     this.cameras.main.setBackgroundColor(palette.black);
     this.drawBackdrop();
+    this.createChapterSelector();
     this.createMapContainer();
     this.drawLevelPath();
     this.createMapDragControls();
@@ -90,8 +102,8 @@ export class LevelSelectScene extends Phaser.Scene {
       })
       .setOrigin(0, 0);
 
-    this.add
-      .text(50, 86, t("operation.root"), {
+    this.chapterTitleText = this.add
+      .text(50, 86, this.chapterLabel(this.selectedChapter), {
         color: "#8c8c8c",
         fontFamily: "monospace",
         fontSize: "17px"
@@ -100,7 +112,36 @@ export class LevelSelectScene extends Phaser.Scene {
 
     const frame = this.add.graphics();
     frame.lineStyle(1, palette.dim, 1);
-    frame.strokeRect(38, 130, GAME_WIDTH - 76, GAME_HEIGHT - 220);
+    frame.strokeRect(this.mapViewport.x, this.mapViewport.y, this.mapViewport.width, this.mapViewport.height);
+  }
+
+  private createChapterSelector() {
+    const startX = 50;
+    const y = 122;
+    const width = 136;
+    const gap = 14;
+    this.chapters.forEach((chapter, index) => {
+      const x = startX + index * (width + gap);
+      const frame = this.add
+        .rectangle(x, y, width, 34, palette.black, 1)
+        .setOrigin(0, 0.5)
+        .setStrokeStyle(2, palette.dim, 1)
+        .setInteractive({ useHandCursor: true });
+      const label = this.add
+        .text(x + width / 2, y - 1, this.chapterLabel(chapter), {
+          color: "#f5f5f5",
+          fontFamily: "monospace",
+          fontSize: "15px",
+          fontStyle: "700"
+        })
+        .setOrigin(0.5);
+
+      frame.on("pointerdown", () => this.selectChapter(chapter));
+      label.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.selectChapter(chapter));
+      this.chapterButtons.push({ chapter, frame, label });
+    });
+
+    this.updateChapterSelector();
   }
 
   private createMapContainer() {
@@ -115,11 +156,21 @@ export class LevelSelectScene extends Phaser.Scene {
   }
 
   private calculateMapBounds() {
+    const nodes = this.chapterNodes();
+    if (nodes.length === 0) {
+      return new Phaser.Geom.Rectangle(
+        this.mapViewport.x,
+        this.mapViewport.y,
+        this.mapViewport.width,
+        this.mapViewport.height
+      );
+    }
+
     const padding = 72;
-    const left = Math.min(...levelNodes.map((node) => node.x - LEVEL_NODE_WIDTH / 2)) - padding;
-    const right = Math.max(...levelNodes.map((node) => node.x + LEVEL_NODE_WIDTH / 2)) + padding;
-    const top = Math.min(...levelNodes.map((node) => node.y - LEVEL_NODE_HEIGHT / 2)) - padding;
-    const bottom = Math.max(...levelNodes.map((node) => node.y + LEVEL_NODE_HEIGHT / 2)) + padding;
+    const left = Math.min(...nodes.map((node) => node.x - LEVEL_NODE_WIDTH / 2)) - padding;
+    const right = Math.max(...nodes.map((node) => node.x + LEVEL_NODE_WIDTH / 2)) + padding;
+    const top = Math.min(...nodes.map((node) => node.y - LEVEL_NODE_HEIGHT / 2)) - padding;
+    const bottom = Math.max(...nodes.map((node) => node.y + LEVEL_NODE_HEIGHT / 2)) + padding;
     return new Phaser.Geom.Rectangle(left, top, right - left, bottom - top);
   }
 
@@ -197,21 +248,76 @@ export class LevelSelectScene extends Phaser.Scene {
   }
 
   private drawLevelPath() {
+    const nodes = this.chapterNodes();
     const graphics = this.add.graphics();
     this.mapContainer.add(graphics);
     graphics.lineStyle(2, palette.dim, 1);
-    for (let index = 0; index < levelNodes.length - 1; index += 1) {
-      const current = levelNodes[index];
-      const next = levelNodes[index + 1];
+    for (let index = 0; index < nodes.length - 1; index += 1) {
+      const current = nodes[index];
+      const next = nodes[index + 1];
       graphics.lineBetween(current.x + LEVEL_NODE_WIDTH / 2, current.y, next.x - LEVEL_NODE_WIDTH / 2, next.y);
     }
 
-    for (const node of levelNodes) {
+    for (const node of nodes) {
       this.createLevelNode(node);
+    }
+
+    if (nodes.length === 0) {
+      const emptyText = this.add
+        .text(this.mapViewport.centerX, this.mapViewport.centerY, t("label.noLevels"), {
+          color: "#454545",
+          fontFamily: "monospace",
+          fontSize: "28px",
+          fontStyle: "700"
+        })
+        .setOrigin(0.5);
+      this.mapContainer.add(emptyText);
     }
 
     this.lockGraphics = this.add.graphics();
     this.mapContainer.add(this.lockGraphics);
+  }
+
+  private selectChapter(chapter: number) {
+    if (chapter === this.selectedChapter) {
+      return;
+    }
+
+    this.selectedChapter = chapter;
+    this.selectedLevelId = this.chapterNodes().find((node) => node.unlocked)?.id ?? this.chapterNodes()[0]?.id ?? null;
+    this.rebuildMap();
+    this.updateChapterSelector();
+    this.updateSelection();
+  }
+
+  private rebuildMap() {
+    this.mapDragTimer?.remove(false);
+    this.mapDragTimer = null;
+    this.mapDragPointer = null;
+    this.mapDragging = false;
+    this.input.setDefaultCursor("default");
+    this.bossNodePreviews = [];
+    this.mapContainer.destroy(true);
+    this.createMapContainer();
+    this.drawLevelPath();
+  }
+
+  private updateChapterSelector() {
+    this.chapterTitleText?.setText(this.chapterLabel(this.selectedChapter));
+    for (const button of this.chapterButtons) {
+      const selected = button.chapter === this.selectedChapter;
+      button.frame.setStrokeStyle(selected ? 3 : 2, selected ? palette.white : palette.dim, selected ? 1 : 0.8);
+      button.frame.setFillStyle(selected ? palette.panel : palette.black, selected ? 1 : 0.86);
+      button.label.setAlpha(selected ? 1 : 0.55);
+    }
+  }
+
+  private chapterNodes() {
+    return levelNodes.filter((node) => node.id.startsWith(`${this.selectedChapter}-`));
+  }
+
+  private chapterLabel(chapter: number) {
+    return t(`chapter.${chapter}`);
   }
 
   private createLevelNode(node: LevelNode) {
@@ -454,8 +560,16 @@ export class LevelSelectScene extends Phaser.Scene {
   }
 
   private updateSelection() {
-    const selected = levelNodes.find((node) => node.id === this.selectedLevelId) ?? levelNodes[0];
+    const nodes = this.chapterNodes();
+    const selected = nodes.find((node) => node.id === this.selectedLevelId) ?? nodes[0];
     this.lockGraphics.clear();
+    if (!selected) {
+      this.startButton.setStrokeStyle(2, palette.dim, 0.45);
+      this.startButton.setAlpha(0.36);
+      this.startText.setAlpha(0.28);
+      return;
+    }
+
     this.lockGraphics.lineStyle(3, palette.white, 1);
     this.drawCornerLocks(selected.x, selected.y, LEVEL_NODE_WIDTH + 24, LEVEL_NODE_HEIGHT + 24, 18);
 
@@ -482,7 +596,7 @@ export class LevelSelectScene extends Phaser.Scene {
   }
 
   private startSelectedLevel() {
-    const selected = levelNodes.find((node) => node.id === this.selectedLevelId);
+    const selected = this.chapterNodes().find((node) => node.id === this.selectedLevelId);
     if (selected?.unlocked) {
       this.scene.start("CardSelectScene", { levelId: selected.id, difficulty: this.difficulty });
     }
