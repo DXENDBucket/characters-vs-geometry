@@ -1,0 +1,29 @@
+import Phaser from "phaser";
+import "./styles.css";
+import { GAME_HEIGHT, GAME_WIDTH } from "./config";
+import { CardSelectScene } from "./scenes/CardSelectScene";
+import { GameScene } from "./scenes/GameScene";
+import { LevelSelectScene } from "./scenes/LevelSelectScene";
+
+const game = new Phaser.Game({
+  type: Phaser.AUTO,
+  parent: "app",
+  width: GAME_WIDTH,
+  height: GAME_HEIGHT,
+  pixelArt: true,
+  scene: [LevelSelectScene, CardSelectScene, GameScene],
+  scale: {
+    mode: Phaser.Scale.NONE,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+    zoom: Phaser.Scale.MAX_ZOOM,
+    autoRound: true
+  },
+  render: {
+    antialias: false,
+    roundPixels: true
+  }
+});
+
+window.addEventListener("resize", () => {
+  game.scale.setMaxZoom();
+});

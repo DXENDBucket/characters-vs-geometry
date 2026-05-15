@@ -1,0 +1,209 @@
+import { CELL_HEIGHT, CELL_WIDTH } from "../config";
+import { DAMAGE_SYMBOLS, EFFECT_SYMBOLS } from "../i18n";
+import type { CardDefinition, CardId } from "../types";
+
+export const cardDefinitions: CardDefinition[] = [
+  {
+    id: "A",
+    category: "attack",
+    cost: 50,
+    cooldown: 1_000,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 0,
+    fireRate: 2_000,
+    damage: 400,
+    damageType: "physical",
+    stats: `400${DAMAGE_SYMBOLS.physical} / 2s`
+  },
+  {
+    id: "B",
+    category: "defense",
+    cost: 100,
+    cooldown: 20_000,
+    maxHp: 3_000,
+    armor: 500,
+    magicResistance: 0,
+    reflectDamage: 200,
+    reflectDamageType: "physical",
+    stats: `3000 A500 R200${DAMAGE_SYMBOLS.physical}`
+  },
+  {
+    id: "C",
+    category: "attack",
+    cost: 350,
+    cooldown: 3_000,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 0,
+    fireRate: 3_000,
+    damage: 500,
+    damageType: "physical",
+    splashRadius: CELL_WIDTH,
+    stats: `500${DAMAGE_SYMBOLS.physical} / 3s`
+  },
+  {
+    id: "D",
+    category: "defense",
+    cost: 100,
+    cooldown: 20_000,
+    maxHp: 3_000,
+    armor: 800,
+    magicResistance: 0,
+    stats: "3000 A800"
+  },
+  {
+    id: "X",
+    category: "production",
+    cost: 50,
+    cooldown: 1_500,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 0,
+    produceEvery: 10_000,
+    produceAmount: 25,
+    stats: `${EFFECT_SYMBOLS.chars}25 / 10s`
+  },
+  {
+    id: "E",
+    category: "attack",
+    cost: 150,
+    cooldown: 2_000,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 0,
+    fireRate: 2_000,
+    damage: 400,
+    damageType: "physical",
+    stats: `3x400${DAMAGE_SYMBOLS.physical} / 2s`
+  },
+  {
+    id: "M",
+    category: "attack",
+    cost: 75,
+    cooldown: 2_000,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 0,
+    fireRate: 2_000,
+    damage: 400,
+    damageType: "physical",
+    stats: `3x400${DAMAGE_SYMBOLS.physical} / DN`
+  },
+  {
+    id: "W",
+    category: "attack",
+    cost: 75,
+    cooldown: 2_000,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 0,
+    fireRate: 2_000,
+    damage: 400,
+    damageType: "physical",
+    stats: `3x400${DAMAGE_SYMBOLS.physical} / UP`
+  },
+  {
+    id: "F",
+    category: "function",
+    cost: 125,
+    cooldown: 30_000,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 0,
+    triggerDamage: 1_200,
+    triggerDamageType: "physical",
+    triggerCount: 10,
+    triggerInterval: 50,
+    triggerRangeX: CELL_WIDTH * 1.5,
+    triggerRangeY: CELL_HEIGHT * 1.5,
+    stats: `10x1200${DAMAGE_SYMBOLS.physical}`
+  },
+  {
+    id: "G",
+    category: "function",
+    cost: 25,
+    cooldown: 30_000,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 0,
+    triggerDamage: 15_000,
+    triggerDamageType: "magic",
+    armTime: 15_000,
+    stats: `15000${DAMAGE_SYMBOLS.magic} / 15s`
+  },
+  {
+    id: "H",
+    category: "healing",
+    cost: 150,
+    cooldown: 20_000,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 0,
+    fireRate: 2_000,
+    healAmount: 1_000,
+    stats: `${EFFECT_SYMBOLS.heal}1000 / 2s`
+  },
+  {
+    id: "I",
+    category: "attack",
+    cost: 100,
+    cooldown: 2_000,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 20,
+    fireRate: 2_000,
+    damage: 300,
+    damageType: "magic",
+    rangeCells: 6,
+    stats: `300${DAMAGE_SYMBOLS.magic} / R6`
+  },
+  {
+    id: "J",
+    category: "attack",
+    cost: 375,
+    cooldown: 4_000,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 20,
+    fireRate: 4_000,
+    damage: 600,
+    damageType: "magic",
+    rangeCells: 6,
+    splashRadius: CELL_WIDTH,
+    stats: `600${DAMAGE_SYMBOLS.magic} / R6`
+  },
+  {
+    id: "K",
+    category: "attack",
+    cost: 375,
+    cooldown: 4_000,
+    maxHp: 2_500,
+    armor: 300,
+    magicResistance: 0,
+    fireRate: 4_000,
+    damage: 1_600,
+    damageType: "physical",
+    rangeCells: 3,
+    stats: `1600${DAMAGE_SYMBOLS.physical} / R3`
+  },
+  {
+    id: "L",
+    category: "function",
+    cost: 200,
+    cooldown: 20_000,
+    maxHp: 3_000,
+    armor: 200,
+    magicResistance: 0,
+    fireRate: 1_000,
+    selfDamage: 400,
+    selfDamageType: "true",
+    stats: `SHIFT / 1s`
+  }
+];
+
+export const defaultLoadout: CardId[] = ["A", "B", "C", "D", "X", "E"];
+
+export function getCardDefinition(id: CardId) {
+  return cardDefinitions.find((card) => card.id === id) ?? cardDefinitions[0];
+}
