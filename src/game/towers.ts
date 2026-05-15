@@ -20,7 +20,7 @@ export function createTower(
   const x = BOARD_X + column * CELL_WIDTH + CELL_WIDTH / 2;
   const y = BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2;
   const body = scene.add.container(x, y).setDepth(20 + lane);
-  const border = createUnitBorder(scene, definition.category, 24, definition.id === "B" || definition.id === "D" ? 3 : 2);
+  const border = createUnitBorder(scene, definition.category, 24, definition.category === "defense" ? 3 : 2);
   const autoUpgradeBorder = createAutoUpgradeBorder(scene);
   const label = scene.add
     .text(0, -3, definition.id, {

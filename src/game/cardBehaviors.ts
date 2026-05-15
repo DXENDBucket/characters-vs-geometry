@@ -9,6 +9,7 @@ import {
   bossRect,
   canAttackBoss,
   getAttackTarget,
+  getBlockedEnemies,
   getHealTarget,
   getShiftTargets,
   hasAttackTarget
@@ -55,6 +56,13 @@ export const shiftCardBehavior: CardBehavior = {
   execute: fireShiftPulse
 };
 
+export const blockedPushCardBehavior: CardBehavior = {
+  canUse: (tower, _definition, time, runtime) => {
+    return cooldownReady(tower, time) && getBlockedEnemies(tower, runtime.towers, runtime.enemies).length > 0;
+  },
+  execute: fireBlockedPushPulse
+};
+
 export const slashCardBehavior: CardBehavior = {
   canUse: (tower, definition, time, runtime) => {
     return cooldownReady(tower, time) && Boolean(definition.damage && hasAttackTarget(tower, definition, runtime.enemies, runtime.boss));
@@ -77,7 +85,8 @@ export const cardBehaviorsById: Record<CardId, CardBehavior> = {
   I: projectileCardBehavior,
   J: projectileCardBehavior,
   K: slashCardBehavior,
-  L: shiftCardBehavior
+  L: shiftCardBehavior,
+  N: blockedPushCardBehavior
 };
 
 function cooldownReady(tower: Tower, time: number) {
@@ -111,6 +120,28 @@ function fireShiftPulse(tower: Tower, definition: CardDefinition, runtime: CardB
     target.body.setPosition(target.x, target.y);
     makeShiftEffect(runtime.scene, target.x, previousY, target.x, target.y);
   }
+  for (let index = 0; index < targets.length; index += 1) {
+    if (!runtime.towers.includes(tower)) {
+      break;
+    }
+    runtime.damageTower(tower, definition.selfDamage ?? 400, definition.selfDamageType ?? "true");
+  }
+}
+
+function fireBlockedPushPulse(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {
+  const targets = getBlockedEnemies(tower, runtime.towers, runtime.enemies);
+  if (targets.length === 0) {
+    return;
+  }
+
+  const shiftDistance = (definition.shiftCells ?? 5) * CELL_WIDTH;
+  for (const target of targets) {
+    const previousX = target.x;
+    target.x -= shiftDistance;
+    target.body.setPosition(target.x, target.y);
+    makeShiftEffect(runtime.scene, previousX, target.y, target.x, target.y);
+  }
+
   for (let index = 0; index < targets.length; index += 1) {
     if (!runtime.towers.includes(tower)) {
       break;

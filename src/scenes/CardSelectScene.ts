@@ -235,6 +235,9 @@ export class CardSelectScene extends Phaser.Scene {
     if (kind === "shootingTriangle") {
       return t("enemy.shootingTriangle");
     }
+    if (kind === "shootingTriangle2") {
+      return t("enemy.shootingTriangle2");
+    }
     if (kind === "square") {
       return t("enemy.square");
     }

@@ -84,7 +84,7 @@ export function createEnemyShape(scene: Phaser.Scene, kind: EnemyKind, options: 
     return shape;
   }
 
-  if (kind === "shootingTriangle") {
+  if (kind.startsWith("shootingTriangle")) {
     const shape = scene.add.container(0, 0);
     const triangle = scene.add.graphics();
     triangle.fillStyle(palette.black, 1);

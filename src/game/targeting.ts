@@ -85,6 +85,18 @@ export function getShiftTargets(tower: Tower, enemies: Enemy[]) {
     .sort((a, b) => a.x - b.x || Math.abs(a.lane - tower.lane) - Math.abs(b.lane - tower.lane));
 }
 
+export function getBlockingTower(towers: Tower[], enemy: Enemy) {
+  return towers
+    .filter((tower) => tower.lane === enemy.lane && Math.abs(enemy.x - tower.x) < 38)
+    .sort((a, b) => b.x - a.x)[0];
+}
+
+export function getBlockedEnemies(tower: Tower, towers: Tower[], enemies: Enemy[]) {
+  return enemies
+    .filter((enemy) => getBlockingTower(towers, enemy) === tower)
+    .sort((a, b) => a.x - b.x);
+}
+
 export function getAttackTarget(tower: Tower, definition: CardDefinition, enemies: Enemy[]) {
   if (tower.type === "M" || tower.type === "W") {
     return getVerticalFanTarget(tower, enemies);

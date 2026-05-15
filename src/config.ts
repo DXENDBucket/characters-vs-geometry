@@ -3,7 +3,7 @@ import type { BossKind, DifficultyConfig } from "./types";
 export const GAME_WIDTH = 1280;
 export const GAME_HEIGHT = 760;
 export const LANES = 7;
-export const COLUMNS = 12;
+export const COLUMNS = 13;
 export const CELL_SIZE = 78;
 export const CELL_WIDTH = CELL_SIZE;
 export const CELL_HEIGHT = CELL_SIZE;

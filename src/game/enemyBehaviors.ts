@@ -19,7 +19,7 @@ const SPLIT_SPAWNS: Partial<Record<EnemyKind, EnemyKind>> = {
 };
 
 export function enemyAttackInterval(kind: EnemyKind) {
-  if (kind === "shootingTriangle") {
+  if (kind.startsWith("shootingTriangle")) {
     return 2_000;
   }
 
@@ -76,11 +76,15 @@ export function splitSpawnLanes(lane: number) {
 }
 
 export function shouldEnemyShoot(enemy: Enemy, time: number) {
-  return enemy.kind === "shootingTriangle" && time >= enemy.attackAt;
+  return enemy.kind.startsWith("shootingTriangle") && time >= enemy.attackAt;
 }
 
 export function canEnemyMelee(enemy: Enemy) {
-  return enemy.kind !== "shootingTriangle";
+  return !enemy.kind.startsWith("shootingTriangle");
+}
+
+export function enemyVolleyShotCount(enemy: Enemy) {
+  return enemy.kind.startsWith("shootingTriangle") ? enemyRank(enemy.kind) : 1;
 }
 
 export function randomizedEnemySpeed(kind: EnemyKind) {

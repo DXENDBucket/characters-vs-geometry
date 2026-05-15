@@ -61,8 +61,11 @@ Cube skills:
 | J | Attack | Diamond | 375 | 4s | 1200 | 150 | 20 | Fires 1 `#` shell, `600✦`, `1` tile AOE, every `4s`; range is self plus 5 cells ahead | +1 volley per level |
 | K | Attack | Diamond | 375 | 4s | 2500 | 300 | 0 | Slashes 1 target for `1600◆`, every `4s`; range is self plus 2 cells ahead | +1 volley per level |
 | L | Function | Triangle | 200 | 20s | 3000 | 200 | 0 | Every `1s`, shifts all enemies in upper/lower lanes within its column and the front column into its own lane; takes `400◇` per shifted enemy | +`2400` max/current HP per level |
+| N | Defense | Square | 125 | 20s | 3000 | 500 | 0 | Every `1s`, pushes all enemies it is blocking `5` cells left; takes `400◇` per pushed enemy | +`2400` max/current HP per level |
 
 Volley upgrades spread consecutive shots or heals across a total volley duration of `interval * (1 - 0.8^(shots - 1))`, so the full volley duration approaches the unit's attack/heal interval as shot count grows. The attack/heal interval itself is unchanged and starts after the volley finishes.
+
+Combat grid: `7` lanes x `13` columns.
 
 Current loadout slots: `8`.
 
@@ -514,3 +517,8 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 - Chapter 0 starting characters: `200`.
 - Chapter 1 starting characters: `300`.
 - Natural income: `25` every `5s`.
+
+## Recent Enemy Additions
+
+- Shooting Triangle 2: weight `130`, HP `2000`, armor `70`, attack `400` physical, average speed `4`, body label `II`.
+- Shooting Triangle 2 uses Shooting Triangle 1's ranged behavior but fires two red-tinted bolts per attack. The volley interval uses the same curve as upgraded tower volleys.

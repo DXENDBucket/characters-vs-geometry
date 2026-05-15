@@ -25,6 +25,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
   const circle = enemyDefinitions.circle;
   const triangle = enemyDefinitions.triangle;
   const shootingTriangle = enemyDefinitions.shootingTriangle;
+  const shootingTriangle2 = enemyDefinitions.shootingTriangle2;
   const square = enemyDefinitions.square;
 
   return [
@@ -95,6 +96,9 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.speed"), speedText("shootingTriangle")],
           [t("label.weight"), shootingTriangle.weight]
         ]),
+        zh
+          ? `权重 I/II：${shootingTriangle.weight} / ${shootingTriangle2.weight}，连发 I/II：1 / 2`
+          : `Weight I/II: ${shootingTriangle.weight} / ${shootingTriangle2.weight}, volley I/II: 1 / 2`,
         zh ? "攻击间隔：2s，弹幕命中塔时造成伤害" : "Attack interval: 2s, projectile damages towers on hit"
       ],
       description: zh
@@ -171,7 +175,8 @@ function towerDescription(id: CardId) {
     I: zh ? "短程法术射手。只攻击自身和前方 5 格内的目标。" : "Short-range magic shooter. Attacks only within itself plus five tiles ahead.",
     J: zh ? "短程法术溅射。范围和 I 一致，发射 # 弹幕并造成范围法术伤害。" : "Short-range magic splash attacker. Same range as I, firing # projectiles with splash.",
     K: zh ? "近程斩击塔。攻击自身一格和前方两格内的单体目标，释放十字斩特效。" : "Close-range slasher. Hits one target within itself plus two tiles ahead, with a cross slash.",
-    L: zh ? "牵引塔。抓取上下两行指定格子的所有敌怪平移到本行，每抓一个自损 400 真实伤害。" : "Shifter. Pulls all enemies from target tiles in adjacent lanes into its lane, taking 400 true self-damage per target."
+    L: zh ? "牵引塔。抓取上下两行指定格子的所有敌怪平移到本行，每抓一个自损 400 真实伤害。" : "Shifter. Pulls all enemies from target tiles in adjacent lanes into its lane, taking 400 true self-damage per target.",
+    N: zh ? "防御推移塔。每秒把自己正在阻挡的所有敌怪向左推移 5 格，每推一个自损 400 真实伤害。" : "Defender-shifter. Every second, pushes all enemies it is blocking 5 cells left, taking 400 true self-damage per pushed enemy."
   };
   return descriptions[id];
 }

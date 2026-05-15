@@ -15,9 +15,10 @@ export interface CombatRuntime {
   triggerTrapTower: (tower: Tower, target: Enemy | "boss") => void;
   triggerShockTower: (tower: Tower) => void;
   onEnemyReachedBase: (enemy: Enemy) => boolean;
+  runWhenBattleActive: (action: () => void) => void;
 }
 
-export type CardReadinessRuntime = Pick<CombatRuntime, "enemies" | "boss" | "occupied">;
+export type CardReadinessRuntime = Pick<CombatRuntime, "enemies" | "towers" | "boss" | "occupied">;
 
 export type CardBehaviorRuntime = Pick<
   CombatRuntime,
@@ -45,4 +46,5 @@ export type EnemyAdvanceRuntime = Pick<
   | "triggerTrapTower"
   | "triggerShockTower"
   | "onEnemyReachedBase"
+  | "runWhenBattleActive"
 >;

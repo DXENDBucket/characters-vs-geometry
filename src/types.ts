@@ -15,7 +15,8 @@ export type CardId =
   | "I"
   | "J"
   | "K"
-  | "L";
+  | "L"
+  | "N";
 export type EnemyKind =
   | "circle"
   | "circle2"
@@ -24,6 +25,7 @@ export type EnemyKind =
   | "triangle2"
   | "triangle3"
   | "shootingTriangle"
+  | "shootingTriangle2"
   | "square"
   | "square2"
   | "square3";
@@ -63,6 +65,7 @@ export interface CardDefinition {
   triggerRangeY?: number;
   selfDamage?: number;
   selfDamageType?: DamageType;
+  shiftCells?: number;
   armTime?: number;
   produceEvery?: number;
   produceAmount?: number;

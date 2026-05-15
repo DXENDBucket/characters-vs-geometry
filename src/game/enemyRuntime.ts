@@ -3,13 +3,14 @@ import { BOARD_WIDTH, BOARD_X, LANES } from "../config";
 import { enemyDefinitions } from "../data/enemies";
 import { getCardDefinition } from "../registry/cards";
 import { makeReflectFlash } from "../render/combatEffects";
-import type { DifficultyConfig, Enemy, EnemyKind, LevelConfig, Tower, WaveTracker } from "../types";
+import type { DifficultyConfig, Enemy, EnemyKind, LevelConfig, WaveTracker } from "../types";
 import type { EnemyAdvanceRuntime, EnemySpawnRuntime } from "./combatRuntime";
-import { canEnemyMelee, shouldEnemyShoot, splitSpawnKind, splitSpawnLanes } from "./enemyBehaviors";
+import { canEnemyMelee, enemyVolleyShotCount, shouldEnemyShoot, splitSpawnKind, splitSpawnLanes } from "./enemyBehaviors";
 import { createEnemy } from "./enemyFactory";
 import { createEnemyProjectile } from "./projectiles";
-import { towerRect } from "./targeting";
+import { getBlockingTower, towerRect } from "./targeting";
 import { isTrapArmed } from "./towers";
+import { volleyInterval } from "./upgrades";
 import { buildWaveKinds, waveWeightLimit } from "./waves";
 
 interface SpawnEnemyOptions {
@@ -91,11 +92,12 @@ export function spawnSplitEnemies(
 export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, seconds: number) {
   for (const enemy of [...runtime.enemies]) {
     if (shouldEnemyShoot(enemy, time)) {
-      fireEnemyShot(runtime, enemy);
-      enemy.attackAt = time + enemy.attackInterval;
+      fireEnemyVolley(runtime, enemy);
+      const shots = enemyVolleyShotCount(enemy);
+      enemy.attackAt = time + enemy.attackInterval + (shots - 1) * volleyInterval(enemy.attackInterval, shots);
     }
 
-    const blocker = findBlocker(runtime.towers, enemy);
+    const blocker = getBlockingTower(runtime.towers, enemy);
 
     if (blocker) {
       if (blocker.type === "G" && isTrapArmed(blocker, time)) {
@@ -132,16 +134,20 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
   }
 }
 
+function fireEnemyVolley(runtime: EnemyAdvanceRuntime, enemy: Enemy) {
+  const shots = enemyVolleyShotCount(enemy);
+  const interval = volleyInterval(enemy.attackInterval, shots);
+  for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
+    runtime.scene.time.delayedCall(shotIndex * interval, () => {
+      runtime.runWhenBattleActive(() => fireEnemyShot(runtime, enemy));
+    });
+  }
+}
+
 function fireEnemyShot(runtime: EnemyAdvanceRuntime, enemy: Enemy) {
   if (!runtime.enemies.includes(enemy)) {
     return;
   }
 
   runtime.enemyProjectiles.push(createEnemyProjectile(runtime.scene, enemy));
-}
-
-function findBlocker(towers: Tower[], enemy: Enemy) {
-  return towers
-    .filter((tower) => tower.lane === enemy.lane && Math.abs(enemy.x - tower.x) < 38)
-    .sort((a, b) => b.x - a.x)[0];
 }

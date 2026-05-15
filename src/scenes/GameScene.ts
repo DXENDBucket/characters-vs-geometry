@@ -522,7 +522,8 @@ export class GameScene extends Phaser.Scene {
       damageTower: (tower, damage, damageType) => this.damageTower(tower, damage, damageType),
       triggerTrapTower: (tower, target) => this.triggerTrapTower(tower, target),
       triggerShockTower: (tower) => this.triggerShockTower(tower),
-      onEnemyReachedBase: (enemy) => this.handleEnemyReachedBase(enemy)
+      onEnemyReachedBase: (enemy) => this.handleEnemyReachedBase(enemy),
+      runWhenBattleActive: (action) => this.runWhenBattleActive(action)
     };
   }
 
@@ -986,7 +987,8 @@ export class GameScene extends Phaser.Scene {
       I: "I",
       J: "J",
       K: "K",
-      L: "L"
+      L: "L",
+      N: "N"
     };
 
     const selected = hotkeys[upperKey];

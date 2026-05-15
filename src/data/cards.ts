@@ -199,6 +199,20 @@ export const cardDefinitions: CardDefinition[] = [
     selfDamage: 400,
     selfDamageType: "true",
     stats: `SHIFT / 1s`
+  },
+  {
+    id: "N",
+    category: "defense",
+    cost: 125,
+    cooldown: 20_000,
+    maxHp: 3_000,
+    armor: 500,
+    magicResistance: 0,
+    fireRate: 1_000,
+    selfDamage: 400,
+    selfDamageType: "true",
+    shiftCells: 5,
+    stats: `PUSH5 / 1s`
   }
 ];
 
