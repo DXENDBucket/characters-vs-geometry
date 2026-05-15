@@ -203,7 +203,7 @@ function towerDescription(id: CardId) {
 function towerUpgradeText(id: CardId) {
   const zh = isZh();
   if (id === "A" || id === "C" || id === "E" || id === "M" || id === "W" || id === "I" || id === "J" || id === "H" || id === "K") {
-    return zh ? "增加连发次数；等级越高，连发间隔按曲线缩短。" : "Adds burst count; higher levels reduce burst spacing on the upgrade curve.";
+    return zh ? "增加连发次数；整段连射固定占攻击/治疗间隔的五分之一。" : "Adds burst count; the whole volley always takes one fifth of the attack/heal interval.";
   }
   if (id === "X") {
     return zh ? "每级单次生产量增加基础值的 80%。" : "Each level adds 80% of base production per tick.";

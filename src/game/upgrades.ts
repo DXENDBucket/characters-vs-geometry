@@ -52,7 +52,7 @@ export function volleyInterval(fireRate: number, shots: number) {
     return 0;
   }
 
-  const totalVolleyTime = fireRate * (1 - 0.8 ** (shots - 1));
+  const totalVolleyTime = fireRate / 5;
   return totalVolleyTime / (shots - 1);
 }
 

@@ -64,7 +64,7 @@ Cube skills:
 | L | Function | Triangle | 200 | 20s | 3000 | 200 | 0 | Every `1s`, shifts all enemies in upper/lower lanes within its column and the front column into its own lane; takes `400◇` per shifted enemy | +`2400` max/current HP per level |
 | N | Defense | Square | 125 | 20s | 3000 | 500 | 0 | Every `1s`, pushes all enemies it is blocking `4` cells left; takes `400◇` per pushed enemy | +`2400` max/current HP per level |
 
-Volley upgrades spread consecutive shots or heals across a total volley duration of `interval * (1 - 0.8^(shots - 1))`, so the full volley duration approaches the unit's attack/heal interval as shot count grows. The attack/heal interval itself is unchanged and starts after the volley finishes.
+Volley upgrades spread consecutive shots or heals across a fixed total volley duration of `interval / 5`, regardless of shot count. The attack/heal interval itself is unchanged and starts after the volley finishes.
 
 Combat grid: `7` lanes x `13` columns.
 
@@ -219,7 +219,7 @@ Base rule:
 - Wave 1 starts at weight cap `16`.
 - Each later wave adds `+8`.
 - Every flag wave, currently every `10`th wave, doubles that wave's final cap.
-- The base weight cap is limited to `300`, then difficulty modifies that capped value.
+- The base weight cap is limited to `600`, then difficulty modifies that capped value.
 - There is no wave limit. Cube I death clears the level.
 
 | Wave | Flag | Base Cap | Capped Final Cap |
@@ -234,7 +234,7 @@ Base rule:
 | 8 | - | 72 | 72 |
 | 9 | - | 80 | 80 |
 | 10 | 1 | 88 | 176 |
-| 20 | 2 | 168 | 300 |
+| 20 | 2 | 168 | 336 |
 
 ## Level 0-6 Weight Growth
 
@@ -427,7 +427,7 @@ Base rule:
 - Wave 1 starts at weight cap `19`.
 - Each later wave adds `+10`.
 - Every flag wave, currently every `10`th wave, doubles that wave's final cap.
-- The base weight cap is limited to `300`, then difficulty modifies that capped value.
+- The base weight cap is limited to `600`, then difficulty modifies that capped value.
 - There is no wave limit. Cube II death clears the level.
 
 | Wave | Flag | Base Cap | Capped Final Cap |
@@ -451,8 +451,8 @@ Base rule:
 | 17 | - | 179 | 179 |
 | 18 | - | 189 | 189 |
 | 19 | - | 199 | 199 |
-| 20 | 2 | 209 | 300 |
-| 30 | 3 | 309 | 300 |
+| 20 | 2 | 209 | 418 |
+| 30 | 3 | 309 | 600 |
 
 ## Level 1-1 Weight Growth
 
@@ -588,4 +588,4 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 ## Recent Enemy Additions
 
 - Shooting Triangle 2: weight `100`, HP `2000`, armor `70`, attack `400` physical, average speed `4`, body label `II`.
-- Shooting Triangle 2 uses Shooting Triangle 1's ranged behavior but fires two red-tinted bolts per attack. The volley interval uses the same curve as upgraded tower volleys.
+- Shooting Triangle 2 uses Shooting Triangle 1's ranged behavior but fires two red-tinted bolts per attack. The full volley duration is fixed at one fifth of its attack interval, matching tower volleys.
