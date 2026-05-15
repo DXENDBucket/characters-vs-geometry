@@ -64,6 +64,17 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     speedMultiplier: 2.5,
     weight: 150
   },
+  invertedTriangle: {
+    kind: "invertedTriangle",
+    label: "1",
+    hp: 1_000,
+    armor: 70,
+    magicResistance: 60,
+    damage: 2_000,
+    damageType: "magic",
+    speedMultiplier: 3,
+    weight: 50
+  },
   shootingTriangle: {
     kind: "shootingTriangle",
     label: "1",
@@ -73,7 +84,7 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     damage: 400,
     damageType: "physical",
     speedMultiplier: 0.4,
-    weight: 70
+    weight: 50
   },
   shootingTriangle2: {
     kind: "shootingTriangle2",
@@ -84,7 +95,7 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     damage: 400,
     damageType: "physical",
     speedMultiplier: 0.4,
-    weight: 130
+    weight: 100
   },
   square: {
     kind: "square",

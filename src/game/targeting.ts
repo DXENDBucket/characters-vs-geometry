@@ -9,6 +9,7 @@ import {
   LANES
 } from "../config";
 import type { CardDefinition, CubeBoss, Enemy, Tower } from "../types";
+import { getCardAttackArea, type AttackAreaConfig } from "./cardAttackConfigs";
 
 export function gridCellKey(lane: number, column: number) {
   return `${lane}:${column}`;
@@ -56,13 +57,11 @@ export function isBossInRect(boss: CubeBoss | null, x: number, y: number, width:
 }
 
 export function getHealTarget(tower: Tower, occupied: Map<string, Tower>) {
-  const frontColumn = tower.column + 1;
-  if (frontColumn >= COLUMNS) {
-    return undefined;
-  }
+  const targetColumns = [tower.column, tower.column + 1].filter((column) => column >= 0 && column < COLUMNS);
+  const targetLanes = [tower.lane - 1, tower.lane, tower.lane + 1].filter((lane) => lane >= 0 && lane < LANES);
 
-  return [tower.lane - 1, tower.lane, tower.lane + 1]
-    .map((lane) => (lane >= 0 && lane < LANES ? occupied.get(gridCellKey(lane, frontColumn)) : undefined))
+  return targetLanes
+    .flatMap((lane) => targetColumns.map((column) => occupied.get(gridCellKey(lane, column))))
     .filter((target): target is Tower => Boolean(target && target.hp < target.maxHp))
     .sort((a, b) => {
       const hpRatioDelta = a.hp / a.maxHp - b.hp / b.maxHp;
@@ -98,25 +97,18 @@ export function getBlockedEnemies(tower: Tower, towers: Tower[], enemies: Enemy[
 }
 
 export function getAttackTarget(tower: Tower, definition: CardDefinition, enemies: Enemy[]) {
-  if (tower.type === "M" || tower.type === "W") {
-    return getVerticalFanTarget(tower, enemies);
-  }
-
-  if (tower.type === "I" || tower.type === "J" || tower.type === "K") {
-    const rangeLeft = BOARD_X + tower.column * CELL_WIDTH;
-    const rangeRight = attackRangeRight(tower, definition);
-    return enemies
-      .filter((enemy) => enemy.lane === tower.lane && enemy.x >= rangeLeft && enemy.x <= rangeRight)
-      .sort((a, b) => a.x - b.x)[0];
-  }
-
+  const area = getCardAttackArea(tower.type);
   return enemies
-    .filter((enemy) => enemy.lane === tower.lane && enemy.x > tower.x + 24)
-    .sort((a, b) => a.x - b.x)[0];
+    .filter((enemy) => enemyIsInAttackArea(tower, definition, area, enemy))
+    .sort((a, b) => attackTargetPriority(tower, area, a) - attackTargetPriority(tower, area, b))[0];
 }
 
 export function attackRangeRight(tower: Tower, definition: CardDefinition) {
-  const rangeCells = definition.rangeCells ?? COLUMNS;
+  const area = getCardAttackArea(tower.type);
+  const rangeCells =
+    area.kind === "laneRectangle" || area.kind === "laneForward"
+      ? area.rangeCells ?? definition.rangeCells ?? COLUMNS
+      : definition.rangeCells ?? COLUMNS;
   return BOARD_X + Math.min(COLUMNS, tower.column + rangeCells) * CELL_WIDTH;
 }
 
@@ -135,42 +127,65 @@ export function canAttackBoss(tower: Tower, definition: CardDefinition, boss: Cu
   }
 
   const rect = bossRect(boss);
-  if (tower.y < rect.top || tower.y > rect.bottom) {
-    return false;
-  }
-
-  if (tower.type === "I" || tower.type === "J" || tower.type === "K") {
-    const rangeLeft = BOARD_X + tower.column * CELL_WIDTH;
-    const rangeRight = attackRangeRight(tower, definition);
-    return rect.right >= rangeLeft && rect.left <= rangeRight;
-  }
-
-  if (tower.type === "M" || tower.type === "W") {
-    const verticalDirection = tower.type === "M" ? 1 : -1;
+  const area = getCardAttackArea(tower.type);
+  if (area.kind === "verticalFan") {
+    const verticalDirection = area.direction === "down" ? 1 : -1;
     const bossIsInDirection = verticalDirection > 0 ? rect.top > tower.y : rect.bottom < tower.y;
     if (!bossIsInDirection) {
       return false;
     }
 
     const distance = verticalDirection > 0 ? rect.top - tower.y : tower.y - rect.bottom;
-    const spread = CELL_WIDTH * 0.35 + Math.tan(Phaser.Math.DegToRad(10)) * distance;
+    const spread = area.halfWidth + Math.tan(Phaser.Math.DegToRad(area.spreadDegrees)) * distance;
     return tower.x >= rect.left - spread && tower.x <= rect.right + spread;
   }
 
-  return rect.right > tower.x + 12;
+  if (tower.y < rect.top || tower.y > rect.bottom) {
+    return false;
+  }
+
+  if (area.kind === "laneRectangle") {
+    const rangeLeft = BOARD_X + tower.column * CELL_WIDTH;
+    const rangeRight = attackRangeRight(tower, definition);
+    return rect.right >= rangeLeft && rect.left <= rangeRight;
+  }
+
+  return rect.right > tower.x + (area.startOffsetX ?? 12) && rect.left <= attackRangeRight(tower, definition);
 }
 
-export function getVerticalFanTarget(tower: Tower, enemies: Enemy[]) {
-  const verticalDirection = tower.type === "M" ? 1 : -1;
-  return enemies
-    .filter((enemy) => {
-      const dy = enemy.y - tower.y;
-      if (dy * verticalDirection <= 0) {
-        return false;
-      }
+function enemyIsInAttackArea(
+  tower: Tower,
+  definition: CardDefinition,
+  area: AttackAreaConfig,
+  enemy: Enemy
+) {
+  if (area.kind === "verticalFan") {
+    const verticalDirection = area.direction === "down" ? 1 : -1;
+    const dy = enemy.y - tower.y;
+    if (dy * verticalDirection <= 0) {
+      return false;
+    }
 
-      const spread = CELL_WIDTH * 0.35 + Math.tan(Phaser.Math.DegToRad(10)) * Math.abs(dy);
-      return Math.abs(enemy.x - tower.x) <= spread;
-    })
-    .sort((a, b) => Math.abs(a.y - tower.y) - Math.abs(b.y - tower.y))[0];
+    const spread = area.halfWidth + Math.tan(Phaser.Math.DegToRad(area.spreadDegrees)) * Math.abs(dy);
+    return Math.abs(enemy.x - tower.x) <= spread;
+  }
+
+  if (enemy.lane !== tower.lane) {
+    return false;
+  }
+
+  if (area.kind === "laneRectangle") {
+    const rangeLeft = BOARD_X + tower.column * CELL_WIDTH;
+    return enemy.x >= rangeLeft && enemy.x <= attackRangeRight(tower, definition);
+  }
+
+  return enemy.x > tower.x + (area.startOffsetX ?? 24) && enemy.x <= attackRangeRight(tower, definition);
+}
+
+function attackTargetPriority(tower: Tower, area: AttackAreaConfig, enemy: Enemy) {
+  if (area.kind === "verticalFan") {
+    return Math.abs(enemy.y - tower.y);
+  }
+
+  return enemy.x;
 }

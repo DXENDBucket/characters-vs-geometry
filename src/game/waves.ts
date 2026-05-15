@@ -2,7 +2,12 @@ import { FIRST_SPAWN_AT, NEXT_WAVE_DELAY } from "../config";
 import type { DifficultyConfig, EnemyDefinition, EnemyKind, LevelConfig, WaveTracker } from "../types";
 
 export function waveWeightLimit(levelConfig: LevelConfig, difficultyConfig: DifficultyConfig, waveNumber: number) {
-  const baseWeight = levelConfig.firstWaveWeight + (waveNumber - 1) * levelConfig.waveWeightIncrement;
+  const increments = waveNumber - 1;
+  const incrementGrowth = levelConfig.waveWeightIncrementGrowth ?? 0;
+  const baseWeight =
+    levelConfig.firstWaveWeight +
+    increments * levelConfig.waveWeightIncrement +
+    (incrementGrowth * increments * (increments - 1)) / 2;
   const flagWeight = waveNumber % levelConfig.wavesPerFlag === 0 ? baseWeight * 2 : baseWeight;
   const cappedWeight = levelConfig.waveWeightCap ? Math.min(flagWeight, levelConfig.waveWeightCap) : flagWeight;
   return Math.max(10, Math.floor(cappedWeight * difficultyConfig.weightMultiplier));

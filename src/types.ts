@@ -24,6 +24,7 @@ export type EnemyKind =
   | "triangle"
   | "triangle2"
   | "triangle3"
+  | "invertedTriangle"
   | "shootingTriangle"
   | "shootingTriangle2"
   | "square"
@@ -123,6 +124,8 @@ export interface Enemy {
   finalDamageReduction: number;
   attackInterval: number;
   attackAt: number;
+  blockedByTowerId?: string;
+  blockedSince?: number;
   body: Phaser.GameObjects.Container;
   shape: Phaser.GameObjects.GameObject & { setScale(scale: number): unknown };
 }
@@ -182,6 +185,7 @@ export interface LevelConfig {
   enemyKinds: EnemyKind[];
   firstWaveWeight: number;
   waveWeightIncrement: number;
+  waveWeightIncrementGrowth?: number;
   totalWaves?: number;
   wavesPerFlag: number;
   waveWeightCap?: number;

@@ -1,9 +1,9 @@
 import Phaser from "phaser";
-import { BOARD_WIDTH, BOARD_X, LANES } from "../config";
-import { enemyDefinitions } from "../data/enemies";
+import { BOARD_WIDTH, BOARD_X, CELL_HEIGHT, CELL_WIDTH, LANES } from "../config";
 import { getCardDefinition } from "../registry/cards";
-import { makeReflectFlash } from "../render/combatEffects";
-import type { DifficultyConfig, Enemy, EnemyKind, LevelConfig, WaveTracker } from "../types";
+import { allEnemyDefinitions, enemyBlockedDetonation, getEnemyDefinition } from "../registry/enemies";
+import { makeReflectFlash, makeShellBurst, makeShockPulse } from "../render/combatEffects";
+import type { DifficultyConfig, Enemy, EnemyKind, LevelConfig, Tower, WaveTracker } from "../types";
 import type { EnemyAdvanceRuntime, EnemySpawnRuntime } from "./combatRuntime";
 import { canEnemyMelee, enemyVolleyShotCount, shouldEnemyShoot, splitSpawnKind, splitSpawnLanes } from "./enemyBehaviors";
 import { createEnemy } from "./enemyFactory";
@@ -38,7 +38,7 @@ export function spawnEnemyAt(runtime: EnemySpawnRuntime, options: SpawnEnemyOpti
 
 export function spawnWaveEnemies(runtime: EnemySpawnRuntime, options: SpawnWaveOptions): WaveTracker {
   const weightLimit = waveWeightLimit(options.levelConfig, options.difficultyConfig, options.waveNumber);
-  const kinds = buildWaveKinds(options.levelConfig.enemyKinds, enemyDefinitions, weightLimit, (length) =>
+  const kinds = buildWaveKinds(options.levelConfig.enemyKinds, allEnemyDefinitions, weightLimit, (length) =>
     Phaser.Math.Between(0, length - 1)
   );
   let totalWeight = 0;
@@ -52,7 +52,7 @@ export function spawnWaveEnemies(runtime: EnemySpawnRuntime, options: SpawnWaveO
       time: options.gameTime,
       lane,
       x,
-      waveWeight: enemyDefinitions[kind].weight,
+      waveWeight: getEnemyDefinition(kind).weight,
       finalDamageReduction: options.difficultyConfig.finalDamageReduction
     });
   });
@@ -119,7 +119,13 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
         }
         enemy.attackAt = time + enemy.attackInterval;
       }
-    } else {
+    }
+
+    if (advanceBlockedDetonator(runtime, enemy, blocker, time)) {
+      continue;
+    }
+
+    if (!blocker) {
       enemy.x -= enemy.speed * seconds;
       enemy.body.setPosition(enemy.x, enemy.y);
     }
@@ -132,6 +138,53 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
       return;
     }
   }
+}
+
+function advanceBlockedDetonator(
+  runtime: EnemyAdvanceRuntime,
+  enemy: Enemy,
+  blocker: Tower | undefined,
+  time: number
+) {
+  const detonation = enemyBlockedDetonation(enemy.kind);
+  if (!detonation) {
+    return false;
+  }
+
+  if (enemy.blockedSince !== undefined && time >= enemy.blockedSince + detonation.delay) {
+    const startedByTowerId = enemy.blockedByTowerId;
+    resetBlockedDetonation(enemy);
+    if (blocker && blocker.id === startedByTowerId) {
+      makeShellBurst(runtime.scene, enemy.x, enemy.y, CELL_WIDTH, detonation.damageType);
+      makeShockPulse(runtime.scene, enemy.x, enemy.y, CELL_WIDTH * 0.72, CELL_HEIGHT * 0.72);
+      runtime.damageTower(blocker, detonation.damage, detonation.damageType);
+      runtime.damageEnemy(enemy, enemy.maxHp * 10_000, "true");
+      return true;
+    }
+
+    if (!blocker) {
+      return false;
+    }
+
+    enemy.blockedByTowerId = blocker.id;
+    enemy.blockedSince = time;
+    return true;
+  }
+
+  if (blocker) {
+    if (enemy.blockedSince === undefined) {
+      enemy.blockedByTowerId = blocker.id;
+      enemy.blockedSince = time;
+    }
+    return true;
+  }
+
+  return false;
+}
+
+function resetBlockedDetonation(enemy: Enemy) {
+  enemy.blockedByTowerId = undefined;
+  enemy.blockedSince = undefined;
 }
 
 function fireEnemyVolley(runtime: EnemyAdvanceRuntime, enemy: Enemy) {

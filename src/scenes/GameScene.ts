@@ -9,8 +9,6 @@ import {
   CELL_HEIGHT,
   CELL_WIDTH,
   COLUMNS,
-  CUBE_BOSS_CONTACT_DAMAGE,
-  CUBE_BOSS_CONTACT_INTERVAL,
   DEFAULT_DIFFICULTY,
   GAME_HEIGHT,
   GAME_WIDTH,
@@ -23,31 +21,20 @@ import {
   getDifficultyConfig,
   palette
 } from "../config";
-import {
-  bossAdvanceSpawnPoints,
-  chargeBossSkill,
-  createCubeBoss,
-  isBossSkillReady,
-  spendBossSkill,
-  updateCubeBossMotion
-} from "../bosses/cubeBoss";
+import { createCubeBoss } from "../bosses/cubeBoss";
 import { getLevelConfig } from "../data/levels";
+import { updateBossRuntime, type BossRuntime } from "../game/bossRuntime";
 import type { CardBehavior } from "../game/cardBehaviors";
 import type { CombatRuntime } from "../game/combatRuntime";
-import { calculateDamage } from "../game/damage";
-import { applyEnemyPromotion, enemyScaleFromHp, findPromotionTarget, promotedKind } from "../game/enemyBehaviors";
-import { advanceEnemies, spawnEnemyAt, spawnSplitEnemies, spawnWaveEnemies } from "../game/enemyRuntime";
+import { advanceEnemies, spawnWaveEnemies } from "../game/enemyRuntime";
 import {
-  isEnemyProjectileOutOfBounds,
-  isTowerProjectileOutOfBounds
-} from "../game/projectiles";
+  updateEnemyProjectiles,
+  updateTowerProjectiles,
+  type ProjectileRuntime
+} from "../game/projectileRuntime";
 import {
-  bossRect,
   gridCellKey,
-  isBossInRadius,
-  isBossInRect,
-  isPointInBossHitbox,
-  towerRect
+  isBossInRect
 } from "../game/targeting";
 import {
   applyTowerUpgradeStats,
@@ -57,23 +44,24 @@ import {
   getShockCount,
   getTrapDamage,
   isCardReadyForAutoUpgrade,
-  isTrapArmed,
   setTowerAutoUpgradeState,
-  syncTowerHpBar,
   upgradeTowerLevel
 } from "../game/towers";
+import {
+  damageBoss,
+  damageEnemy,
+  damageTower,
+  removeEnemy,
+  removeTower,
+  type UnitLifecycleRuntime
+} from "../game/unitLifecycle";
 import { volleyInterval, volleyShotCount } from "../game/upgrades";
 import { waveScheduleAction } from "../game/waves";
 import { t } from "../i18n";
 import {
   makeAutoUpgradePulse,
-  makeBossHitFlash,
-  makeCubeCollapse,
-  makeEnemyHitShards,
   makeEraseMark,
-  makeHitShards,
   makeProductionPulse,
-  makeShellBurst,
   makeShockPulse,
   makeTrapBurst
 } from "../render/combatEffects";
@@ -95,7 +83,6 @@ import type {
   CardId,
   CardState,
   CubeBoss,
-  DamageType,
   Enemy,
   EnemyProjectile,
   Projectile,
@@ -213,11 +200,12 @@ export class GameScene extends Phaser.Scene {
     this.updateNaturalProduction();
     this.updateProducers(this.battleTime);
     this.updateArmingTowers(this.battleTime);
-    this.updateBoss(seconds);
+    updateBossRuntime(this.bossRuntime(), seconds);
     this.updateEnemies(this.battleTime, seconds);
     this.updateTowers(this.battleTime);
-    this.updateProjectiles(seconds);
-    this.updateEnemyProjectiles(seconds);
+    const projectileRuntime = this.projectileRuntime();
+    updateTowerProjectiles(projectileRuntime, seconds);
+    updateEnemyProjectiles(projectileRuntime, seconds);
     this.updateWaveSchedule(this.levelElapsed, this.battleTime);
     this.attemptAutoUpgrades();
     this.updateCards(this.cardTime);
@@ -266,7 +254,7 @@ export class GameScene extends Phaser.Scene {
 
       const erasedX = existingTower.x;
       const erasedY = existingTower.y;
-      this.removeTower(existingTower);
+      removeTower(this.unitLifecycleRuntime(), existingTower);
       makeEraseMark(this, erasedX, erasedY);
       this.eraserMode = false;
       this.updateCards(this.cardTime);
@@ -382,132 +370,6 @@ export class GameScene extends Phaser.Scene {
     this.boss = createCubeBoss(this, this.levelConfig.bossKind, this.difficultyConfig.finalDamageReduction);
   }
 
-  private updateBoss(seconds: number) {
-    const boss = this.boss;
-    if (!boss) {
-      return;
-    }
-
-    updateCubeBossMotion(boss, seconds);
-    this.updateBossSkills(boss, seconds);
-    this.triggerFunctionalTowersTouchingBoss(boss);
-    if (!this.boss) {
-      return;
-    }
-    this.damageBossTouchingTowers(boss, seconds);
-
-    if (bossRect(boss).left <= BOARD_X - 20) {
-      this.endGame();
-    }
-  }
-
-  private triggerFunctionalTowersTouchingBoss(boss: CubeBoss) {
-    const rect = bossRect(boss);
-    for (const tower of [...this.towers]) {
-      if (!Phaser.Geom.Intersects.RectangleToRectangle(rect, towerRect(tower))) {
-        continue;
-      }
-
-      if (tower.type === "G" && isTrapArmed(tower, this.battleTime)) {
-        this.triggerTrapTower(tower, "boss");
-        if (!this.boss) {
-          return;
-        }
-        continue;
-      }
-
-      if (tower.type === "F") {
-        this.triggerShockTower(tower);
-      }
-    }
-  }
-
-  private damageBossTouchingTowers(boss: CubeBoss, seconds: number) {
-    boss.contactAttackBuffer += seconds;
-    if (boss.contactAttackBuffer < CUBE_BOSS_CONTACT_INTERVAL) {
-      return;
-    }
-
-    const rect = bossRect(boss);
-    while (boss.contactAttackBuffer >= CUBE_BOSS_CONTACT_INTERVAL) {
-      const targets = this.towers.filter((tower) => {
-        return Phaser.Geom.Intersects.RectangleToRectangle(rect, towerRect(tower));
-      });
-
-      for (const tower of targets) {
-        makeCubeCollapse(this, tower.x, tower.y, tower, this.enemies, this.towers);
-        this.damageTower(tower, CUBE_BOSS_CONTACT_DAMAGE, "physical");
-      }
-
-      boss.contactAttackBuffer -= CUBE_BOSS_CONTACT_INTERVAL;
-    }
-  }
-
-  private updateBossSkills(boss: CubeBoss, seconds: number) {
-    chargeBossSkill(boss.skills.promotion, seconds);
-    chargeBossSkill(boss.skills.advance, seconds);
-    if (boss.skills.promotion2) {
-      chargeBossSkill(boss.skills.promotion2, seconds);
-      this.tryUsePromotionSkill(boss, boss.skills.promotion2, 2);
-    }
-    this.tryUsePromotionSkill(boss, boss.skills.promotion, 1);
-    this.tryUseAdvanceSkill(boss);
-  }
-
-  private tryUsePromotionSkill(
-    boss: CubeBoss,
-    skill: CubeBoss["skills"]["promotion"] | NonNullable<CubeBoss["skills"]["promotion2"]>,
-    fromRank: number
-  ) {
-    if (!isBossSkillReady(skill)) {
-      return;
-    }
-
-    const target = findPromotionTarget(boss, this.enemies, fromRank);
-    if (!target) {
-      return;
-    }
-
-    spendBossSkill(skill);
-    this.promoteEnemy(target);
-  }
-
-  private tryUseAdvanceSkill(boss: CubeBoss) {
-    const skill = boss.skills.advance;
-    if (!isBossSkillReady(skill)) {
-      return;
-    }
-
-    spendBossSkill(skill);
-    this.summonBossAdvanceMinions(boss);
-  }
-
-  private promoteEnemy(enemy: Enemy) {
-    const nextKind = promotedKind(enemy.kind);
-    if (!nextKind || !this.enemies.includes(enemy)) {
-      return;
-    }
-
-    applyEnemyPromotion(this, enemy, nextKind, this.battleTime);
-    makeCubeCollapse(this, enemy.x, enemy.y, enemy, this.enemies, this.towers);
-  }
-
-  private summonBossAdvanceMinions(boss: CubeBoss) {
-    const waveNumber = this.wave || 0;
-    for (const point of bossAdvanceSpawnPoints(boss)) {
-      spawnEnemyAt(this.combatRuntime(), {
-        kind: boss.advanceMinionKind,
-        waveNumber,
-        time: this.battleTime,
-        lane: point.lane,
-        x: point.x,
-        waveWeight: 0,
-        finalDamageReduction: this.difficultyConfig.finalDamageReduction
-      });
-      makeCubeCollapse(this, point.x, point.y);
-    }
-  }
-
   private combatRuntime(): CombatRuntime {
     return {
       scene: this,
@@ -517,13 +379,63 @@ export class GameScene extends Phaser.Scene {
       occupied: this.occupied,
       projectiles: this.projectiles,
       enemyProjectiles: this.enemyProjectiles,
-      damageEnemy: (enemy, damage, damageType) => this.damageEnemy(enemy, damage, damageType),
-      damageBoss: (damage, damageType) => this.damageBoss(damage, damageType),
-      damageTower: (tower, damage, damageType) => this.damageTower(tower, damage, damageType),
+      damageEnemy: (enemy, damage, damageType) => damageEnemy(this.unitLifecycleRuntime(), enemy, damage, damageType),
+      damageBoss: (damage, damageType) => damageBoss(this.unitLifecycleRuntime(), damage, damageType),
+      damageTower: (tower, damage, damageType) => damageTower(this.unitLifecycleRuntime(), tower, damage, damageType),
       triggerTrapTower: (tower, target) => this.triggerTrapTower(tower, target),
       triggerShockTower: (tower) => this.triggerShockTower(tower),
       onEnemyReachedBase: (enemy) => this.handleEnemyReachedBase(enemy),
       runWhenBattleActive: (action) => this.runWhenBattleActive(action)
+    };
+  }
+
+  private bossRuntime(): BossRuntime {
+    return {
+      scene: this,
+      enemies: this.enemies,
+      towers: this.towers,
+      getBoss: () => this.boss,
+      wave: this.wave,
+      battleTime: this.battleTime,
+      finalDamageReduction: this.difficultyConfig.finalDamageReduction,
+      damageTower: (tower, damage, damageType) => damageTower(this.unitLifecycleRuntime(), tower, damage, damageType),
+      triggerTrapTower: (tower, target) => this.triggerTrapTower(tower, target),
+      triggerShockTower: (tower) => this.triggerShockTower(tower),
+      endGame: () => this.endGame()
+    };
+  }
+
+  private projectileRuntime(): ProjectileRuntime {
+    return {
+      scene: this,
+      projectiles: this.projectiles,
+      enemyProjectiles: this.enemyProjectiles,
+      enemies: this.enemies,
+      towers: this.towers,
+      getBoss: () => this.boss,
+      damageEnemy: (enemy, damage, damageType) => damageEnemy(this.unitLifecycleRuntime(), enemy, damage, damageType),
+      damageBoss: (damage, damageType) => damageBoss(this.unitLifecycleRuntime(), damage, damageType),
+      damageTower: (tower, damage, damageType) => damageTower(this.unitLifecycleRuntime(), tower, damage, damageType)
+    };
+  }
+
+  private unitLifecycleRuntime(): UnitLifecycleRuntime {
+    return {
+      scene: this,
+      enemies: this.enemies,
+      towers: this.towers,
+      occupied: this.occupied,
+      getBoss: () => this.boss,
+      setBoss: (boss) => {
+        this.boss = boss;
+      },
+      getWaveTracker: () => this.waveTracker,
+      battleTime: this.battleTime,
+      finalDamageReduction: this.difficultyConfig.finalDamageReduction,
+      onEnemyDefeated: () => {
+        this.enemiesDefeated += 1;
+      },
+      endLevel: () => this.endLevel()
     };
   }
 
@@ -558,83 +470,13 @@ export class GameScene extends Phaser.Scene {
     tower.lastFire = time + (shots - 1) * interval;
   }
 
-  private updateProjectiles(seconds: number) {
-    for (const projectile of [...this.projectiles]) {
-      const nextX = projectile.x + projectile.vx * seconds;
-      const reachedMaxX = nextX >= projectile.maxX;
-      projectile.x = reachedMaxX ? projectile.maxX : nextX;
-      projectile.y += projectile.vy * seconds;
-      projectile.body.setPosition(projectile.x, projectile.y);
-
-      const hit = this.enemies.find(
-        (enemy) => Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y) < 22
-      );
-      const hitBoss = isPointInBossHitbox(this.boss, projectile.x, projectile.y);
-
-      if (!hit && !hitBoss) {
-        if (isTowerProjectileOutOfBounds(projectile, reachedMaxX)) {
-          this.removeProjectile(projectile);
-        }
-        continue;
-      }
-
-      if (projectile.type === "bolt" || projectile.type === "star") {
-        if (hit) {
-          makeHitShards(this, hit.x, hit.y, projectile.damageType);
-          this.damageEnemy(hit, projectile.damage, projectile.damageType);
-        } else {
-          makeHitShards(this, projectile.x, projectile.y, projectile.damageType);
-          this.damageBoss(projectile.damage, projectile.damageType);
-        }
-      } else {
-        const burstX = hit ? hit.x : projectile.x;
-        const burstY = hit ? hit.y : projectile.y;
-        makeShellBurst(this, burstX, burstY, projectile.splashRadius, projectile.damageType);
-        for (const enemy of [...this.enemies]) {
-          const dx = enemy.x - burstX;
-          const dy = enemy.y - burstY;
-          if (Math.hypot(dx, dy) <= projectile.splashRadius) {
-            this.damageEnemy(enemy, projectile.damage, projectile.damageType);
-          }
-        }
-        if (isBossInRadius(this.boss, burstX, burstY, projectile.splashRadius)) {
-          this.damageBoss(projectile.damage, projectile.damageType);
-        }
-      }
-
-      this.removeProjectile(projectile);
-    }
-  }
-
-  private updateEnemyProjectiles(seconds: number) {
-    for (const projectile of [...this.enemyProjectiles]) {
-      projectile.x += projectile.vx * seconds;
-      projectile.body.setPosition(projectile.x, projectile.y);
-
-      const hit = this.towers
-        .filter((tower) => tower.lane === projectile.sourceLane)
-        .find((tower) => towerRect(tower).contains(projectile.x, projectile.y));
-
-      if (hit) {
-        makeEnemyHitShards(this, projectile.x, projectile.y);
-        this.damageTower(hit, projectile.damage, projectile.damageType);
-        this.removeEnemyProjectile(projectile);
-        continue;
-      }
-
-      if (isEnemyProjectileOutOfBounds(projectile)) {
-        this.removeEnemyProjectile(projectile);
-      }
-    }
-  }
-
   private updateEnemies(time: number, seconds: number) {
     advanceEnemies(this.combatRuntime(), time, seconds);
   }
 
   private handleEnemyReachedBase(enemy: Enemy) {
     this.baseIntegrity -= 1;
-    this.removeEnemy(enemy, false);
+    removeEnemy(this.unitLifecycleRuntime(), enemy, false);
     this.cameras.main.shake(110, 0.004);
     if (this.baseIntegrity <= 0) {
       this.endGame();
@@ -680,75 +522,6 @@ export class GameScene extends Phaser.Scene {
     );
   }
 
-  private damageTower(tower: Tower, damage: number, damageType: DamageType) {
-    const actualDamage = calculateDamage(damage, damageType, tower.armor, tower.magicResistance);
-    tower.hp -= actualDamage;
-    syncTowerHpBar(tower);
-
-    if (tower.hp <= 0) {
-      this.removeTower(tower);
-    }
-  }
-
-  private damageBoss(damage: number, damageType: DamageType) {
-    const boss = this.boss;
-    if (!boss) {
-      return;
-    }
-
-    const actualDamage =
-      calculateDamage(damage, damageType, boss.armor, boss.magicResistance) *
-      (1 - boss.finalDamageReduction);
-    boss.hp -= actualDamage;
-    makeBossHitFlash(this, boss.x, boss.y, damageType);
-
-    if (boss.hp <= 0) {
-      boss.hp = 0;
-      this.removeBoss();
-      this.endLevel();
-    }
-  }
-
-  private damageEnemy(enemy: Enemy, damage: number, damageType: DamageType) {
-    if (!this.enemies.includes(enemy)) {
-      return;
-    }
-
-    const actualDamage =
-      calculateDamage(damage, damageType, enemy.armor, enemy.magicResistance) *
-      (1 - enemy.finalDamageReduction);
-    enemy.hp -= actualDamage;
-    const hpRatio = Phaser.Math.Clamp(enemy.hp / enemy.maxHp, 0, 1);
-    enemy.shape.setScale(enemyScaleFromHp(hpRatio));
-
-    if (enemy.hp <= 0) {
-      if (this.waveTracker?.number === enemy.waveNumber) {
-        this.waveTracker.defeatedWeight += enemy.weight;
-      }
-
-      this.enemiesDefeated += 1;
-      spawnSplitEnemies(this.combatRuntime(), enemy, this.battleTime, this.difficultyConfig.finalDamageReduction);
-      this.removeEnemy(enemy, true);
-    }
-  }
-
-  private removeBoss() {
-    const boss = this.boss;
-    if (!boss) {
-      return;
-    }
-
-    this.boss = null;
-    this.tweens.add({
-      targets: boss.body,
-      alpha: 0,
-      scale: 0.82,
-      duration: 260,
-      ease: "Quad.easeOut",
-      onComplete: () => boss.body.destroy()
-    });
-  }
-
   private triggerShockTower(tower: Tower) {
     const definition = this.getDefinition(tower.type);
     const count = getShockCount(tower, definition);
@@ -760,7 +533,7 @@ export class GameScene extends Phaser.Scene {
     const x = tower.x;
     const y = tower.y;
 
-    this.removeTower(tower);
+    removeTower(this.unitLifecycleRuntime(), tower);
 
     for (let index = 0; index < count; index += 1) {
       this.time.delayedCall(index * interval, () => {
@@ -772,11 +545,11 @@ export class GameScene extends Phaser.Scene {
           makeShockPulse(this, x, y, rangeX, rangeY);
           for (const enemy of [...this.enemies]) {
             if (Math.abs(enemy.x - x) <= rangeX && Math.abs(enemy.y - y) <= rangeY) {
-              this.damageEnemy(enemy, damage, damageType);
+              damageEnemy(this.unitLifecycleRuntime(), enemy, damage, damageType);
             }
           }
           if (isBossInRect(this.boss, x - rangeX, y - rangeY, rangeX * 2, rangeY * 2)) {
-            this.damageBoss(damage, damageType);
+            damageBoss(this.unitLifecycleRuntime(), damage, damageType);
           }
         });
       });
@@ -803,51 +576,14 @@ export class GameScene extends Phaser.Scene {
     const x = tower.x;
     const y = tower.y;
 
-    this.removeTower(tower);
+    removeTower(this.unitLifecycleRuntime(), tower);
     makeTrapBurst(this, x, y, damageType);
     if (target === "boss") {
-      this.damageBoss(damage, damageType);
+      damageBoss(this.unitLifecycleRuntime(), damage, damageType);
       return;
     }
 
-    this.damageEnemy(target, damage, damageType);
-  }
-
-  private removeProjectile(projectile: Projectile) {
-    Phaser.Utils.Array.Remove(this.projectiles, projectile);
-    projectile.body.destroy();
-  }
-
-  private removeEnemyProjectile(projectile: EnemyProjectile) {
-    Phaser.Utils.Array.Remove(this.enemyProjectiles, projectile);
-    projectile.body.destroy();
-  }
-
-  private removeEnemy(enemy: Enemy, animate: boolean) {
-    Phaser.Utils.Array.Remove(this.enemies, enemy);
-    if (animate) {
-      this.tweens.add({
-        targets: enemy.body,
-        alpha: 0,
-        duration: 140,
-        onComplete: () => enemy.body.destroy()
-      });
-      return;
-    }
-
-    enemy.body.destroy();
-  }
-
-  private removeTower(tower: Tower) {
-    Phaser.Utils.Array.Remove(this.towers, tower);
-    this.occupied.delete(gridCellKey(tower.lane, tower.column));
-    this.tweens.add({
-      targets: tower.body,
-      alpha: 0,
-      y: tower.y + 8,
-      duration: 130,
-      onComplete: () => tower.body.destroy()
-    });
+    damageEnemy(this.unitLifecycleRuntime(), target, damage, damageType);
   }
 
   private updateCards(time: number) {

@@ -211,8 +211,8 @@ export const cardDefinitions: CardDefinition[] = [
     fireRate: 1_000,
     selfDamage: 400,
     selfDamageType: "true",
-    shiftCells: 5,
-    stats: `PUSH5 / 1s`
+    shiftCells: 4,
+    stats: `PUSH4 / 1s`
   }
 ];
 

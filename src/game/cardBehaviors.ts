@@ -1,7 +1,13 @@
 import Phaser from "phaser";
 import { CELL_WIDTH } from "../config";
 import { makeHealParticles, makeShiftEffect, makeSlashEffect } from "../render/combatEffects";
-import type { CardDefinition, CardId, ProjectileKind, Tower } from "../types";
+import type { CardDefinition, CardId, Tower } from "../types";
+import {
+  getProjectilePattern,
+  muzzleFaceOffsets,
+  type MuzzlePoint,
+  type ProjectilePatternConfig
+} from "./cardAttackConfigs";
 import type { CardBehaviorRuntime, CardReadinessRuntime } from "./combatRuntime";
 import { createTowerProjectile, type TowerProjectileSpec } from "./projectiles";
 import {
@@ -134,7 +140,7 @@ function fireBlockedPushPulse(tower: Tower, definition: CardDefinition, runtime:
     return;
   }
 
-  const shiftDistance = (definition.shiftCells ?? 5) * CELL_WIDTH;
+  const shiftDistance = (definition.shiftCells ?? 4) * CELL_WIDTH;
   for (const target of targets) {
     const previousX = target.x;
     target.x -= shiftDistance;
@@ -184,91 +190,67 @@ function healTower(scene: Phaser.Scene, tower: Tower, amount: number) {
 }
 
 function towerProjectileSpecs(tower: Tower, definition: CardDefinition): TowerProjectileSpec[] {
-  if (tower.type === "A") {
-    return [makeProjectileSpec("bolt", tower.x + 24, tower.y, tower.lane, 540, definition, 0, 0)];
+  const pattern = getProjectilePattern(tower.type);
+  if (!pattern) {
+    return [];
   }
 
-  if (tower.type === "E" || tower.type === "M" || tower.type === "W") {
-    return fanAnglesFor(tower.type).map((angle) =>
-      makeProjectileSpec(
-        "bolt",
-        tower.type === "E" ? tower.x + 24 : tower.x,
-        tower.y,
-        tower.lane,
-        540,
-        definition,
-        0,
-        angle
-      )
+  return pattern.shots.map((shot) => {
+    const muzzle = projectileMuzzlePoint(tower, shot.muzzle ?? pattern.defaultMuzzle);
+    return makeProjectileSpec(
+      pattern,
+      muzzle.x,
+      muzzle.y,
+      tower.lane,
+      definition,
+      shot.angleDegrees,
+      projectileMaxX(tower, definition, pattern)
     );
-  }
-
-  if (tower.type === "I") {
-    return [
-      makeProjectileSpec(
-        "star",
-        tower.x + 12,
-        tower.y,
-        tower.lane,
-        540,
-        definition,
-        0,
-        0,
-        attackRangeRight(tower, definition)
-      )
-    ];
-  }
-
-  if (tower.type === "C" || tower.type === "J") {
-    return [
-      makeProjectileSpec(
-        tower.type === "J" ? "hash" : "shell",
-        tower.x + 22,
-        tower.y,
-        tower.lane,
-        390,
-        definition,
-        definition.splashRadius ?? CELL_WIDTH,
-        0,
-        tower.type === "J" ? attackRangeRight(tower, definition) : Number.POSITIVE_INFINITY
-      )
-    ];
-  }
-
-  return [];
+  });
 }
 
 function makeProjectileSpec(
-  type: ProjectileKind,
+  pattern: ProjectilePatternConfig,
   x: number,
   y: number,
   lane: number,
-  speed: number,
   definition: CardDefinition,
-  splashRadius: number,
   angleDegrees: number,
   maxX = Number.POSITIVE_INFINITY
 ): TowerProjectileSpec {
   return {
-    type,
+    type: pattern.projectileKind,
     x,
     y,
     lane,
-    speed,
+    speed: pattern.speed,
     damage: definition.damage ?? 0,
     damageType: definition.damageType ?? "physical",
-    splashRadius,
+    splashRadius: projectileSplashRadius(pattern, definition),
     angleDegrees,
     maxX
   };
 }
 
-function fanAnglesFor(type: CardId) {
-  if (type === "W") {
-    return [-100, -90, -80];
+function projectileMuzzlePoint(tower: Tower, muzzle: MuzzlePoint) {
+  const faceOffset = muzzleFaceOffsets[muzzle.face];
+  return {
+    x: tower.x + faceOffset.x + (muzzle.offsetX ?? 0),
+    y: tower.y + faceOffset.y + (muzzle.offsetY ?? 0)
+  };
+}
+
+function projectileSplashRadius(pattern: ProjectilePatternConfig, definition: CardDefinition) {
+  if (pattern.splashRadius === "definition") {
+    return definition.splashRadius ?? CELL_WIDTH;
   }
-  if (type === "M") {
-    return [80, 90, 100];
+  return pattern.splashRadius ?? 0;
+}
+
+function projectileMaxX(tower: Tower, definition: CardDefinition, pattern: ProjectilePatternConfig) {
+  if (pattern.maxTravelArea) {
+    return attackRangeRight(tower, definition);
   }
-  return [-10, 0, 10];
+
+  return Number.POSITIVE_INFINITY;
 }

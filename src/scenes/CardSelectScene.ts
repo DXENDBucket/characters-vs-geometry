@@ -8,12 +8,12 @@ import {
   clampDifficulty,
   palette
 } from "../config";
-import { enemyDefinitions } from "../data/enemies";
 import { getLevelConfig } from "../data/levels";
 import { toRomanNumeral } from "../format";
 import { DAMAGE_SYMBOLS, t } from "../i18n";
 import { createEnemyShape, createUnitBorder } from "../render/unitShapes";
 import { allCardDefinitions, defaultCardLoadout } from "../registry/cards";
+import { getEnemyDefinition, getEnemyDisplayName } from "../registry/enemies";
 import type { BossKind, CardId, EnemyKind } from "../types";
 
 export class CardSelectScene extends Phaser.Scene {
@@ -186,11 +186,11 @@ export class CardSelectScene extends Phaser.Scene {
   }
 
   private drawEnemyPreviewRow(kind: EnemyKind, parent: Phaser.GameObjects.Container, y: number) {
-    const definition = enemyDefinitions[kind];
+    const definition = getEnemyDefinition(kind);
     const shape = createEnemyShape(this, kind).setPosition(20, y);
     shape.setAlpha(0.92);
     const name = this.add
-      .text(58, y - 25, this.enemyDisplayName(kind), {
+      .text(58, y - 25, getEnemyDisplayName(kind), {
         color: "#f5f5f5",
         fontFamily: "monospace",
         fontSize: "16px",
@@ -214,40 +214,6 @@ export class CardSelectScene extends Phaser.Scene {
 
   private bossDisplayName(kind: BossKind) {
     return `${t("enemy.bossCube")} ${toRomanNumeral(kind === "cube2" ? 2 : 1)}`;
-  }
-
-  private enemyDisplayName(kind: EnemyKind) {
-    if (kind === "circle") {
-      return t("enemy.circle");
-    }
-    if (kind === "circle2") {
-      return t("enemy.circle2");
-    }
-    if (kind === "circle3") {
-      return t("enemy.circle3");
-    }
-    if (kind === "triangle2") {
-      return t("enemy.triangle2");
-    }
-    if (kind === "triangle3") {
-      return t("enemy.triangle3");
-    }
-    if (kind === "shootingTriangle") {
-      return t("enemy.shootingTriangle");
-    }
-    if (kind === "shootingTriangle2") {
-      return t("enemy.shootingTriangle2");
-    }
-    if (kind === "square") {
-      return t("enemy.square");
-    }
-    if (kind === "square2") {
-      return t("enemy.square2");
-    }
-    if (kind === "square3") {
-      return t("enemy.square3");
-    }
-    return t("enemy.triangle");
   }
 
   private createSlots() {

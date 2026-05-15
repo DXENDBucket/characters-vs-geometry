@@ -1,6 +1,6 @@
 import type Phaser from "phaser";
 import { BOARD_Y, CELL_HEIGHT } from "../config";
-import { enemyDefinitions } from "../data/enemies";
+import { getEnemyDefinition } from "../registry/enemies";
 import { createEnemyShape } from "../render/unitShapes";
 import type { Enemy, EnemyKind } from "../types";
 import { enemyAttackInterval, randomizedEnemySpeed } from "./enemyBehaviors";
@@ -16,7 +16,7 @@ interface CreateEnemyOptions {
 }
 
 export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): Enemy {
-  const definition = enemyDefinitions[options.kind];
+  const definition = getEnemyDefinition(options.kind);
   const y = BOARD_Y + options.lane * CELL_HEIGHT + CELL_HEIGHT / 2;
   const attackInterval = enemyAttackInterval(options.kind);
   const body = scene.add.container(options.x, y).setDepth(60 + options.lane);

@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { palette } from "../config";
-import { enemyDefinitions } from "../data/enemies";
 import { romanLabel, toRomanNumeral } from "../format";
+import { enemyFamily, getEnemyDefinition } from "../registry/enemies";
 import type { EnemyKind, UnitCategory } from "../types";
 
 interface EnemyShapeOptions {
@@ -67,7 +67,8 @@ export function createUnitBorder(
 }
 
 export function createEnemyShape(scene: Phaser.Scene, kind: EnemyKind, options: EnemyShapeOptions = {}) {
-  if (kind === "circle" || kind === "circle2" || kind === "circle3") {
+  const family = enemyFamily(kind);
+  if (family === "circle") {
     const shape = scene.add.container(0, 0);
     const circle = scene.add.circle(0, 0, 20, palette.black, 1).setStrokeStyle(2, palette.white, 1);
     const label = createEnemyLabel(scene, 0, -1, kind);
@@ -75,7 +76,7 @@ export function createEnemyShape(scene: Phaser.Scene, kind: EnemyKind, options: 
     return shape;
   }
 
-  if (kind === "square" || kind === "square2" || kind === "square3") {
+  if (family === "square") {
     const shape = scene.add.container(0, 0);
     const size = options.squareSize ?? 40;
     const square = scene.add.rectangle(0, 0, size, size, palette.black, 1).setStrokeStyle(2, palette.white, 1);
@@ -84,7 +85,7 @@ export function createEnemyShape(scene: Phaser.Scene, kind: EnemyKind, options: 
     return shape;
   }
 
-  if (kind.startsWith("shootingTriangle")) {
+  if (family === "shootingTriangle") {
     const shape = scene.add.container(0, 0);
     const triangle = scene.add.graphics();
     triangle.fillStyle(palette.black, 1);
@@ -97,6 +98,23 @@ export function createEnemyShape(scene: Phaser.Scene, kind: EnemyKind, options: 
     triangle.fillPath();
     triangle.strokePath();
     const label = createEnemyLabel(scene, 2, 0, kind);
+    shape.add([triangle, label]);
+    return shape;
+  }
+
+  if (family === "invertedTriangle") {
+    const shape = scene.add.container(0, 0);
+    const triangle = scene.add.graphics();
+    triangle.fillStyle(palette.black, 1);
+    triangle.lineStyle(2, palette.white, 1);
+    triangle.beginPath();
+    triangle.moveTo(0, 22);
+    triangle.lineTo(22, -18);
+    triangle.lineTo(-22, -18);
+    triangle.closePath();
+    triangle.fillPath();
+    triangle.strokePath();
+    const label = createEnemyLabel(scene, 0, -2, kind);
     shape.add([triangle, label]);
     return shape;
   }
@@ -148,7 +166,7 @@ export function createCubeIcon(scene: Phaser.Scene) {
 
 function createEnemyLabel(scene: Phaser.Scene, x: number, y: number, kind: EnemyKind) {
   return scene.add
-    .text(x, y, romanLabel(enemyDefinitions[kind].label), {
+    .text(x, y, romanLabel(getEnemyDefinition(kind).label), {
       color: "#f5f5f5",
       fontFamily: "monospace",
       fontSize: "18px",

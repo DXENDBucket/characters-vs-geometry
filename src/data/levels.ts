@@ -12,7 +12,9 @@ export const levelNodes: LevelNode[] = [
   { id: "0-8", x: 2010, y: 265, unlocked: true },
   { id: "0-9", x: 2310, y: 405, unlocked: true },
   { id: "0-10", x: 2610, y: 300, unlocked: true },
-  { id: "1-1", x: 230, y: 405, unlocked: true }
+  { id: "1-1", x: 230, y: 405, unlocked: true },
+  { id: "1-2", x: 450, y: 310, unlocked: true },
+  { id: "1-3", x: 670, y: 430, unlocked: true }
 ];
 
 export const levelConfigs: Record<string, LevelConfig> = {
@@ -105,6 +107,27 @@ export const levelConfigs: Record<string, LevelConfig> = {
     enemyKinds: ["circle", "triangle", "triangle2", "shootingTriangle"],
     firstWaveWeight: 19,
     waveWeightIncrement: 12,
+    waveWeightIncrementGrowth: 1,
+    totalWaves: TOTAL_WAVES,
+    wavesPerFlag: WAVES_PER_FLAG,
+    startingChars: 300
+  },
+  "1-2": {
+    id: "1-2",
+    enemyKinds: ["circle", "triangle", "shootingTriangle", "shootingTriangle2"],
+    firstWaveWeight: 19,
+    waveWeightIncrement: 12,
+    waveWeightIncrementGrowth: 1,
+    totalWaves: TOTAL_WAVES,
+    wavesPerFlag: WAVES_PER_FLAG,
+    startingChars: 300
+  },
+  "1-3": {
+    id: "1-3",
+    enemyKinds: ["circle", "triangle", "shootingTriangle", "shootingTriangle2", "invertedTriangle"],
+    firstWaveWeight: 19,
+    waveWeightIncrement: 12,
+    waveWeightIncrementGrowth: 1,
     totalWaves: TOTAL_WAVES,
     wavesPerFlag: WAVES_PER_FLAG,
     startingChars: 300

@@ -4,9 +4,9 @@ import {
   CUBE_BOSS_STATS,
   ENEMY_SPEED
 } from "./config";
-import { enemyDefinitions } from "./data/enemies";
 import { DAMAGE_SYMBOLS, EFFECT_SYMBOLS, getLanguage, t } from "./i18n";
 import { allCardDefinitions } from "./registry/cards";
+import { getEnemyDefinition } from "./registry/enemies";
 import type { CardDefinition, CardId, DamageType, EnemyKind, UnitCategory } from "./types";
 
 export type EncyclopediaTab = "enemies" | "towers";
@@ -22,11 +22,12 @@ export interface EncyclopediaEntry {
 
 export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
   const zh = isZh();
-  const circle = enemyDefinitions.circle;
-  const triangle = enemyDefinitions.triangle;
-  const shootingTriangle = enemyDefinitions.shootingTriangle;
-  const shootingTriangle2 = enemyDefinitions.shootingTriangle2;
-  const square = enemyDefinitions.square;
+  const circle = getEnemyDefinition("circle");
+  const triangle = getEnemyDefinition("triangle");
+  const invertedTriangle = getEnemyDefinition("invertedTriangle");
+  const shootingTriangle = getEnemyDefinition("shootingTriangle");
+  const shootingTriangle2 = getEnemyDefinition("shootingTriangle2");
+  const square = getEnemyDefinition("square");
 
   return [
     {
@@ -65,6 +66,24 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
       description: zh
         ? "近战单位。数字越高，生命与单次攻击不变，但移动更快，攻击间隔按数字缩短。"
         : "Melee unit. Higher ranks keep the same HP and hit damage, but move faster and attack more often."
+    },
+    {
+      title: zh ? "倒三角系列" : "Inverted Triangle Series",
+      enemyKind: "invertedTriangle",
+      lines: [
+        statLine([
+          [t("label.hp"), invertedTriangle.hp],
+          [t("label.armor"), invertedTriangle.armor],
+          [t("label.mr"), invertedTriangle.magicResistance],
+          [t("label.atk"), damageText(invertedTriangle.damage, invertedTriangle.damageType)],
+          [t("label.speed"), speedText("invertedTriangle")],
+          [t("label.weight"), invertedTriangle.weight]
+        ]),
+        zh ? "被同一座塔连续阻挡 2s 后触发" : "Triggers after being blocked by the same tower for 2s"
+      ],
+      description: zh
+        ? "高速法抗自爆单位。若 2 秒内一直被同一座塔阻挡，会消失并爆炸，对阻挡者造成法术伤害。"
+        : "Fast magic-resistant detonator. If the same tower blocks it for 2 seconds, it disappears and deals magic damage to that blocker."
     },
     {
       title: zh ? "正方形系列" : "Square Series",
@@ -117,8 +136,8 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.atk"), `${damageText(CUBE_BOSS_CONTACT_DAMAGE, "physical")} / ${CUBE_BOSS_CONTACT_INTERVAL}s`]
         ]),
         zh
-          ? "晋升：90技力满后消耗30，将最近 I 小怪升为 II；推进：120技力满后召唤3个正方体。"
-          : "Promotion: at 90 SP, spend 30 to promote nearest rank I minion to II. Advance: at 120 SP, summon 3 cubes.",
+          ? "晋升：90技力满后消耗30，将最近 I 小怪升为 II；推进：120技力满后在每一行召唤一个正方形。"
+          : "Promotion: at 90 SP, spend 30 to promote nearest rank I minion to II. Advance: at 120 SP, summon one square in each lane.",
         zh
           ? "正方体 II 额外拥有晋升2：180技力满后消耗40，将最近 II 小怪升为 III。"
           : "Cube II also has Promotion 2: at 180 SP, spend 40 to promote nearest rank II minion to III."
@@ -171,12 +190,12 @@ function towerDescription(id: CardId) {
     W: zh ? "上向三连物理射手。攻击方向朝上，出弹点保持在列中心。" : "Upward triple physical shooter. Fires upward from the column center.",
     F: zh ? "触发器。阻挡敌怪时立刻消失，并在 3x3 范围内连续释放冲击波。" : "Trigger. Disappears on blocking and releases rapid shockwaves in a 3x3 area.",
     G: zh ? "延迟触发器。放置 15 秒后准备完成，接触敌怪时消失并造成高额法术伤害。" : "Delayed trigger. Arms after 15s, then disappears on contact to deal heavy magic damage.",
-    H: zh ? "治疗塔。治疗前方一列、以自己为中心三行内生命百分比最低的一座塔。" : "Healer. Heals the lowest-HP-percent tower in the three front tiles.",
+    H: zh ? "治疗塔。治疗自身列和前方一列、以自己为中心三行内生命百分比最低的一座塔。" : "Healer. Heals the lowest-HP-percent tower in a 2x3 area covering its column and the front column.",
     I: zh ? "短程法术射手。只攻击自身和前方 5 格内的目标。" : "Short-range magic shooter. Attacks only within itself plus five tiles ahead.",
     J: zh ? "短程法术溅射。范围和 I 一致，发射 # 弹幕并造成范围法术伤害。" : "Short-range magic splash attacker. Same range as I, firing # projectiles with splash.",
     K: zh ? "近程斩击塔。攻击自身一格和前方两格内的单体目标，释放十字斩特效。" : "Close-range slasher. Hits one target within itself plus two tiles ahead, with a cross slash.",
     L: zh ? "牵引塔。抓取上下两行指定格子的所有敌怪平移到本行，每抓一个自损 400 真实伤害。" : "Shifter. Pulls all enemies from target tiles in adjacent lanes into its lane, taking 400 true self-damage per target.",
-    N: zh ? "防御推移塔。每秒把自己正在阻挡的所有敌怪向左推移 5 格，每推一个自损 400 真实伤害。" : "Defender-shifter. Every second, pushes all enemies it is blocking 5 cells left, taking 400 true self-damage per pushed enemy."
+    N: zh ? "防御推移塔。每秒把自己正在阻挡的所有敌怪向左推移 4 格，每推一个自损 400 真实伤害。" : "Defender-shifter. Every second, pushes all enemies it is blocking 4 cells left, taking 400 true self-damage per pushed enemy."
   };
   return descriptions[id];
 }
@@ -219,7 +238,7 @@ function damageText(amount: number, type: DamageType) {
 }
 
 function speedText(kind: EnemyKind) {
-  const speed = ENEMY_SPEED * (enemyDefinitions[kind].speedMultiplier ?? 1);
+  const speed = ENEMY_SPEED * (getEnemyDefinition(kind).speedMultiplier ?? 1);
   return Number.isInteger(speed) ? `${speed}` : speed.toFixed(1);
 }
 

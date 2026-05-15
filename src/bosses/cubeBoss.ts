@@ -138,15 +138,12 @@ export function spendBossSkill(skill: BossSkill) {
 }
 
 export function bossAdvanceSpawnPoints(boss: CubeBoss) {
-  const centerLane = Phaser.Math.Clamp(Math.round((boss.y - BOARD_Y - CELL_HEIGHT / 2) / CELL_HEIGHT), 0, LANES - 1);
   const x = bossRect(boss).left - CELL_WIDTH / 2;
-  return [centerLane - 1, centerLane, centerLane + 1]
-    .filter((lane) => lane >= 0 && lane < LANES)
-    .map((lane) => ({
-      lane,
-      x,
-      y: BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2
-    }));
+  return Array.from({ length: LANES }, (_, lane) => ({
+    lane,
+    x,
+    y: BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2
+  }));
 }
 
 function drawCubeBoss(boss: CubeBoss) {
