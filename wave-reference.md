@@ -10,7 +10,7 @@
 | Triangle 1 | 30 | 5000 | 100 | 600 | ◆ | Body label `I`; average speed `15` |
 | Triangle 2 | 90 | 5000 | 100 | 600 | ◆ | Body label `II`; average speed `20`, +`5` over Triangle 1; attacks every `0.5s` |
 | Triangle 3 | 150 | 5000 | 100 | 600 | ◆ | Body label `III`; average speed `25`, +`10` over Triangle 1; attacks every `0.33s` |
-| Inverted Triangle 1 | 50 | 1000 | 70 | 2000 | ✦ | Body label `I`; MR `60`; average speed `30`; after being blocked by the same tower for `2s`, disappears and detonates against that tower |
+| Inverted Triangle 1 | 50 | 1000 | 70 | 2000 | ✦ | Body label `I`; MR `60`; average speed `40`; after being blocked by the same tower for `2s`, disappears and detonates against that tower |
 | Shooting Triangle 1 | 50 | 2000 | 70 | 400 | ◆ | Body label `I`; average speed `4`; points toward the base and fires red-tinted bolts every `2s` |
 | Square 1 | 50 | 12000 | 300 | 400 | ◆ | Body label `I`; average speed `6` |
 | Square 2 | 150 | 12000 | 600 | 400 | ◆ | Body label `II`; average speed `6` |
@@ -82,7 +82,7 @@ Upgrade scaling:
 
 | Tool | Location | Effect |
 | --- | --- | --- |
-| Debug | Combat screen top-right, left of Auto Upgrade | Grants `9999` characters immediately and triggers auto-upgrade checks. |
+| Debug | Combat screen top-right, left of Auto Upgrade | Grants `10000` characters immediately and triggers auto-upgrade checks. |
 | Auto Upgrade | Combat screen top-right, left of Eraser | Select `AUTO`, then click a tower to mark/unmark it. Marked towers show a green ring and auto-buy upgrades when their matching card slot is ready. |
 | Eraser | Combat screen top-right | Select `ERASE`, then click a placed character to remove it. No character refund. |
 | Pause | Spacebar | Freezes combat time while keeping deployment controls available. |
@@ -562,7 +562,7 @@ The first wave starts `20s` after entering combat.
 
 ## Difficulty
 
-Difficulty is selected from `0` to `7` on the level-select screen. Default is `3`.
+Difficulty is selected from `0` to `8` on the level-select screen. Default is `3`.
 
 | Difficulty | Weight Multiplier | Enemy Final Damage Reduction |
 | ---: | ---: | ---: |
@@ -574,12 +574,13 @@ Difficulty is selected from `0` to `7` on the level-select screen. Default is `3
 | 5 | 180% | 30% |
 | 6 | 220% | 60% |
 | 7 | 300% | 75% |
+| 8 | 500% | 85% |
 
 Enemy final damage reduction is applied after armor, magic resistance, and minimum-damage rules. It also reduces true damage.
 
 ## Character Income
 
-- Character cap: `9999`.
+- Characters have no fixed cap.
 - Chapter 0 starting characters: `200`.
 - Chapter 1 starting characters: `300`.
 - Natural income: `25` every `5s`.

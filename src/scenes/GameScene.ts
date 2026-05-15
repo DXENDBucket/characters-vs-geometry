@@ -13,7 +13,6 @@ import {
   GAME_HEIGHT,
   GAME_WIDTH,
   LANES,
-  MAX_CHARS,
   NATURAL_PRODUCE_AMOUNT,
   NATURAL_PRODUCE_INTERVAL,
   STARTING_CHARS,
@@ -45,6 +44,7 @@ import {
   getTrapDamage,
   isCardReadyForAutoUpgrade,
   setTowerAutoUpgradeState,
+  syncTowerAutoUpgradeVisual,
   upgradeTowerLevel
 } from "../game/towers";
 import {
@@ -118,6 +118,9 @@ export class GameScene extends Phaser.Scene {
   private battlePaused = false;
   private eraserMode = false;
   private autoUpgradeMode = false;
+  private autoUpgradeEnabled = true;
+  private autoUpgradeReserveChars = 0;
+  private autoUpgradeReserveInputFocused = false;
   private ui!: GameHudElements;
   private overlay!: GameOverlayElements;
 
@@ -149,6 +152,9 @@ export class GameScene extends Phaser.Scene {
     this.battlePaused = false;
     this.eraserMode = false;
     this.autoUpgradeMode = false;
+    this.autoUpgradeEnabled = true;
+    this.autoUpgradeReserveChars = 0;
+    this.autoUpgradeReserveInputFocused = false;
     this.levelElapsed = 0;
     this.battleTime = 0;
     this.cardTime = 0;
@@ -161,6 +167,8 @@ export class GameScene extends Phaser.Scene {
     this.ui = createGameHud(this, this.levelId, this.difficulty, {
       onDebug: () => this.grantDebugChars(),
       onAutoUpgrade: () => this.toggleAutoUpgradeMode(),
+      onAutoUpgradeEnabled: () => this.toggleAutoUpgradeEnabled(),
+      onAutoUpgradeReserveFocus: () => this.focusAutoUpgradeReserveInput(),
       onErase: () => this.toggleEraser()
     });
     this.spawnBossIfNeeded();
@@ -169,10 +177,14 @@ export class GameScene extends Phaser.Scene {
     this.overlay = createGameOverlay(this, () => this.handleOverlayAction());
 
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
-      this.handleBoardPointer(pointer.x, pointer.y);
+      this.handleBoardPointer(pointer);
     });
 
     this.input.keyboard?.on("keydown", (event: KeyboardEvent) => {
+      if (this.handleAutoUpgradeReserveKey(event)) {
+        return;
+      }
+
       if (event.code === "Space" || event.key === " ") {
         event.preventDefault();
         this.toggleBattlePause();
@@ -236,10 +248,13 @@ export class GameScene extends Phaser.Scene {
     graphics.lineBetween(BOARD_X - 20, BOARD_Y, BOARD_X - 20, BOARD_Y + BOARD_HEIGHT);
   }
 
-  private handleBoardPointer(x: number, y: number) {
+  private handleBoardPointer(pointer: Phaser.Input.Pointer) {
+    const x = pointer.x;
+    const y = pointer.y;
     if (this.gameOver || !this.isInsideBoard(x, y)) {
       return;
     }
+    this.autoUpgradeReserveInputFocused = false;
 
     const column = Math.floor((x - BOARD_X) / CELL_WIDTH);
     const lane = Math.floor((y - BOARD_Y) / CELL_HEIGHT);
@@ -267,8 +282,15 @@ export class GameScene extends Phaser.Scene {
         return;
       }
 
-      setTowerAutoUpgradeState(existingTower, !existingTower.autoUpgrade);
-      this.showToast(existingTower.autoUpgrade ? t("toast.autoOn") : t("toast.autoOff"));
+      const nextState = !existingTower.autoUpgrade;
+      if (this.isShiftPointer(pointer)) {
+        this.towers
+          .filter((tower) => tower.type === existingTower.type)
+          .forEach((tower) => setTowerAutoUpgradeState(tower, nextState, this.autoUpgradeEnabled));
+      } else {
+        setTowerAutoUpgradeState(existingTower, nextState, this.autoUpgradeEnabled);
+      }
+      this.showToast(nextState ? t("toast.autoOn") : t("toast.autoOff"));
       this.attemptAutoUpgrades();
       return;
     }
@@ -353,7 +375,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private gainChars(amount: number, x: number, y: number) {
-    this.chars = Math.min(MAX_CHARS, this.chars + amount);
+    this.chars += amount;
     makeProductionPulse(this, x, y, amount);
     this.attemptAutoUpgrades();
   }
@@ -594,7 +616,14 @@ export class GameScene extends Phaser.Scene {
       eraserMode: this.eraserMode,
       autoUpgradeMode: this.autoUpgradeMode
     });
-    updateToolButtonStates(this.ui, this.eraserMode, this.autoUpgradeMode);
+    updateToolButtonStates(
+      this.ui,
+      this.eraserMode,
+      this.autoUpgradeMode,
+      this.autoUpgradeEnabled,
+      this.autoUpgradeReserveChars,
+      this.autoUpgradeReserveInputFocused
+    );
   }
 
   private grantDebugChars() {
@@ -604,7 +633,8 @@ export class GameScene extends Phaser.Scene {
 
     this.eraserMode = false;
     this.autoUpgradeMode = false;
-    this.gainChars(9_999, this.ui.debugButton.x, this.ui.debugButton.y + 34);
+    this.autoUpgradeReserveInputFocused = false;
+    this.gainChars(10_000, this.ui.debugButton.x, this.ui.debugButton.y + 34);
     this.showToast(t("toast.debugChars"));
     this.updateCards(this.cardTime);
   }
@@ -615,6 +645,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.eraserMode = !this.eraserMode;
+    this.autoUpgradeReserveInputFocused = false;
     if (this.eraserMode) {
       this.autoUpgradeMode = false;
     }
@@ -627,22 +658,54 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.autoUpgradeMode = !this.autoUpgradeMode;
+    this.autoUpgradeReserveInputFocused = false;
     if (this.autoUpgradeMode) {
       this.eraserMode = false;
     }
     this.updateCards(this.cardTime);
   }
 
+  private toggleAutoUpgradeEnabled() {
+    if (this.gameOver) {
+      return;
+    }
+
+    this.autoUpgradeEnabled = !this.autoUpgradeEnabled;
+    this.autoUpgradeReserveInputFocused = false;
+    this.syncAutoUpgradeBorders();
+    this.attemptAutoUpgrades();
+    this.updateCards(this.cardTime);
+  }
+
+  private focusAutoUpgradeReserveInput() {
+    if (this.gameOver) {
+      return;
+    }
+
+    this.eraserMode = false;
+    this.autoUpgradeMode = false;
+    this.autoUpgradeReserveInputFocused = true;
+    this.updateCards(this.cardTime);
+  }
+
   private attemptAutoUpgrades() {
+    if (!this.autoUpgradeEnabled || this.autoUpgradeReserveInputFocused || this.chars <= this.autoUpgradeReserveChars) {
+      return;
+    }
+
     let upgraded = false;
     for (const cardState of this.cardStates) {
+      if (this.chars <= this.autoUpgradeReserveChars) {
+        break;
+      }
+
       if (!isCardReadyForAutoUpgrade(cardState, this.cardTime)) {
         continue;
       }
 
       const target = findAutoUpgradeTarget(this.towers, cardState.definition.id);
 
-      if (!target || this.chars < cardState.definition.cost) {
+      if (!target || !this.canSpendForAutoUpgrade(cardState.definition.cost)) {
         continue;
       }
 
@@ -656,6 +719,14 @@ export class GameScene extends Phaser.Scene {
     if (upgraded) {
       this.updateCards(this.cardTime);
     }
+  }
+
+  private syncAutoUpgradeBorders() {
+    this.towers.forEach((tower) => syncTowerAutoUpgradeVisual(tower, this.autoUpgradeEnabled));
+  }
+
+  private canSpendForAutoUpgrade(cost: number) {
+    return this.chars - cost >= this.autoUpgradeReserveChars;
   }
 
   private toggleBattlePause() {
@@ -700,6 +771,42 @@ export class GameScene extends Phaser.Scene {
     this.scene.start("LevelSelectScene");
   }
 
+  private handleAutoUpgradeReserveKey(event: KeyboardEvent) {
+    if (!this.autoUpgradeReserveInputFocused) {
+      return false;
+    }
+
+    if (event.key === "Enter" || event.key === "Escape") {
+      event.preventDefault();
+      this.autoUpgradeReserveInputFocused = false;
+      this.attemptAutoUpgrades();
+      this.updateCards(this.cardTime);
+      return true;
+    }
+
+    if (event.key === "Backspace" || event.key === "Delete") {
+      event.preventDefault();
+      this.setAutoUpgradeReserve(Math.floor(this.autoUpgradeReserveChars / 10));
+      return true;
+    }
+
+    if (/^\d$/.test(event.key)) {
+      event.preventDefault();
+      const nextText =
+        this.autoUpgradeReserveChars === 0 ? event.key : `${this.autoUpgradeReserveChars}${event.key}`;
+      this.setAutoUpgradeReserve(Number.parseInt(nextText, 10));
+      return true;
+    }
+
+    event.preventDefault();
+    return true;
+  }
+
+  private setAutoUpgradeReserve(value: number) {
+    this.autoUpgradeReserveChars = Math.max(0, Math.floor(value));
+    this.updateCards(this.cardTime);
+  }
+
   private handleKey(key: string) {
     const upperKey = key.toUpperCase();
     const slotIndex = Number.parseInt(upperKey, 10) - 1;
@@ -741,6 +848,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.eraserMode = false;
     this.autoUpgradeMode = false;
+    this.autoUpgradeReserveInputFocused = false;
     this.selectedCardId = id;
     this.updateCards(this.cardTime);
   }
@@ -771,6 +879,11 @@ export class GameScene extends Phaser.Scene {
 
   private isInsideBoard(x: number, y: number) {
     return x >= BOARD_X && x < BOARD_X + BOARD_WIDTH && y >= BOARD_Y && y < BOARD_Y + BOARD_HEIGHT;
+  }
+
+  private isShiftPointer(pointer: Phaser.Input.Pointer) {
+    const event = pointer.event as MouseEvent | undefined;
+    return Boolean(event && "shiftKey" in event && event.shiftKey);
   }
 
 }

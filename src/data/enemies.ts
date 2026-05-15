@@ -72,7 +72,7 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     magicResistance: 60,
     damage: 2_000,
     damageType: "magic",
-    speedMultiplier: 3,
+    speedMultiplier: 4,
     weight: 50
   },
   shootingTriangle: {

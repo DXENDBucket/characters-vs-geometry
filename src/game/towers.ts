@@ -119,9 +119,14 @@ export function isTrapArmed(tower: Tower, time: number) {
   return tower.type === "G" && time >= tower.armedAt;
 }
 
-export function setTowerAutoUpgradeState(tower: Tower, enabled: boolean) {
+export function setTowerAutoUpgradeState(tower: Tower, enabled: boolean, active = true) {
   tower.autoUpgrade = enabled;
-  tower.autoUpgradeBorder.setVisible(enabled);
+  syncTowerAutoUpgradeVisual(tower, active);
+}
+
+export function syncTowerAutoUpgradeVisual(tower: Tower, active: boolean) {
+  tower.autoUpgradeBorder.setVisible(tower.autoUpgrade);
+  tower.autoUpgradeBorder.setAlpha(active ? 0.95 : 0.28);
 }
 
 export function findAutoUpgradeTarget(towers: Tower[], cardId: CardId) {

@@ -23,6 +23,12 @@ export interface GameHudElements {
   debugText: Phaser.GameObjects.Text;
   autoUpgradeButton: Phaser.GameObjects.Rectangle;
   autoUpgradeText: Phaser.GameObjects.Text;
+  autoUpgradeEnabledBox: Phaser.GameObjects.Rectangle;
+  autoUpgradeEnabledFill: Phaser.GameObjects.Rectangle;
+  autoUpgradeEnabledLabel: Phaser.GameObjects.Text;
+  autoUpgradeReserveLabel: Phaser.GameObjects.Text;
+  autoUpgradeReserveInput: Phaser.GameObjects.Rectangle;
+  autoUpgradeReserveText: Phaser.GameObjects.Text;
   eraserButton: Phaser.GameObjects.Rectangle;
   eraserText: Phaser.GameObjects.Text;
 }
@@ -36,6 +42,8 @@ export interface GameOverlayElements {
 interface GameHudActions {
   onDebug: () => void;
   onAutoUpgrade: () => void;
+  onAutoUpgradeEnabled: () => void;
+  onAutoUpgradeReserveFocus: () => void;
   onErase: () => void;
 }
 
@@ -116,11 +124,54 @@ export function createGameHud(
     t("button.autoUpgrade")
   );
   const { button: eraserButton, text: eraserText } = createToolButton(scene, GAME_WIDTH - 68, 42, 100, t("button.erase"));
+  const autoUpgradeEnabledBox = scene.add
+    .rectangle(GAME_WIDTH - 252, 88, 18, 18, palette.black, 1)
+    .setStrokeStyle(2, palette.green, 0.82)
+    .setInteractive({ useHandCursor: true })
+    .setDepth(30);
+  const autoUpgradeEnabledFill = scene.add.rectangle(GAME_WIDTH - 252, 88, 10, 10, palette.green, 1).setDepth(31);
+  const autoUpgradeEnabledLabel = scene.add
+    .text(GAME_WIDTH - 238, 86, t("label.autoUpgradeEnabled"), {
+      color: "#d8d8d8",
+      fontFamily: "monospace",
+      fontSize: "12px"
+    })
+    .setOrigin(0, 0.5)
+    .setDepth(31)
+    .setInteractive({ useHandCursor: true });
+  const autoUpgradeReserveLabel = scene.add
+    .text(GAME_WIDTH - 205, 86, t("label.autoUpgradeReserve"), {
+      color: "#8c8c8c",
+      fontFamily: "monospace",
+      fontSize: "12px"
+    })
+    .setOrigin(0, 0.5)
+    .setDepth(31);
+  const autoUpgradeReserveInput = scene.add
+    .rectangle(GAME_WIDTH - 145, 88, 42, 22, palette.black, 1)
+    .setStrokeStyle(2, palette.mid, 0.72)
+    .setInteractive({ useHandCursor: true })
+    .setDepth(30);
+  const autoUpgradeReserveText = scene.add
+    .text(GAME_WIDTH - 145, 86, "0", {
+      color: "#f5f5f5",
+      fontFamily: "monospace",
+      fontSize: "13px"
+    })
+    .setOrigin(0.5, 0.5)
+    .setDepth(31)
+    .setInteractive({ useHandCursor: true });
 
   debugButton.on("pointerdown", actions.onDebug);
   debugText.setInteractive({ useHandCursor: true }).on("pointerdown", actions.onDebug);
   autoUpgradeButton.on("pointerdown", actions.onAutoUpgrade);
+  autoUpgradeText.setInteractive({ useHandCursor: true }).on("pointerdown", actions.onAutoUpgrade);
+  autoUpgradeEnabledBox.on("pointerdown", actions.onAutoUpgradeEnabled);
+  autoUpgradeEnabledLabel.on("pointerdown", actions.onAutoUpgradeEnabled);
+  autoUpgradeReserveInput.on("pointerdown", actions.onAutoUpgradeReserveFocus);
+  autoUpgradeReserveText.on("pointerdown", actions.onAutoUpgradeReserveFocus);
   eraserButton.on("pointerdown", actions.onErase);
+  eraserText.setInteractive({ useHandCursor: true }).on("pointerdown", actions.onErase);
 
   return {
     charsText,
@@ -132,6 +183,12 @@ export function createGameHud(
     debugText,
     autoUpgradeButton,
     autoUpgradeText,
+    autoUpgradeEnabledBox,
+    autoUpgradeEnabledFill,
+    autoUpgradeEnabledLabel,
+    autoUpgradeReserveLabel,
+    autoUpgradeReserveInput,
+    autoUpgradeReserveText,
     eraserButton,
     eraserText
   };
@@ -239,11 +296,30 @@ export function updateCardStates(cardStates: CardState[], state: CardUpdateState
   }
 }
 
-export function updateToolButtonStates(ui: GameHudElements, eraserMode: boolean, autoUpgradeMode: boolean) {
+export function updateToolButtonStates(
+  ui: GameHudElements,
+  eraserMode: boolean,
+  autoUpgradeMode: boolean,
+  autoUpgradeEnabled: boolean,
+  autoUpgradeReserve: number,
+  reserveInputFocused: boolean
+) {
   ui.autoUpgradeButton.setStrokeStyle(autoUpgradeMode ? 4 : 2, autoUpgradeMode ? palette.green : palette.mid, 1);
   ui.autoUpgradeButton.setFillStyle(autoUpgradeMode ? palette.panel : palette.black, autoUpgradeMode ? 1 : 0.82);
   ui.autoUpgradeButton.setAlpha(autoUpgradeMode ? 1 : 0.78);
   ui.autoUpgradeText.setAlpha(autoUpgradeMode ? 1 : 0.78);
+  ui.autoUpgradeEnabledBox.setStrokeStyle(2, autoUpgradeEnabled ? palette.green : palette.dim, autoUpgradeEnabled ? 0.86 : 0.62);
+  ui.autoUpgradeEnabledFill.setVisible(autoUpgradeEnabled);
+  ui.autoUpgradeEnabledLabel.setAlpha(autoUpgradeEnabled ? 0.95 : 0.42);
+  ui.autoUpgradeReserveLabel.setAlpha(autoUpgradeEnabled ? 0.72 : 0.34);
+  ui.autoUpgradeReserveInput.setStrokeStyle(
+    reserveInputFocused ? 3 : 2,
+    reserveInputFocused ? palette.white : autoUpgradeEnabled ? palette.mid : palette.dim,
+    reserveInputFocused ? 1 : autoUpgradeEnabled ? 0.72 : 0.42
+  );
+  ui.autoUpgradeReserveInput.setFillStyle(reserveInputFocused ? palette.panel : palette.black, reserveInputFocused ? 1 : 0.84);
+  ui.autoUpgradeReserveText.setText(`${autoUpgradeReserve}`);
+  ui.autoUpgradeReserveText.setAlpha(autoUpgradeEnabled ? 0.95 : 0.44);
 
   ui.eraserButton.setStrokeStyle(eraserMode ? 4 : 2, eraserMode ? palette.white : palette.mid, 1);
   ui.eraserButton.setFillStyle(eraserMode ? palette.panel : palette.black, eraserMode ? 1 : 0.82);

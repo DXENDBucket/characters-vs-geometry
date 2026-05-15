@@ -13,7 +13,6 @@ export const BOARD_WIDTH = COLUMNS * CELL_WIDTH;
 export const BOARD_HEIGHT = LANES * CELL_HEIGHT;
 export const FIRST_SPAWN_AT = 20_000;
 export const STARTING_CHARS = 200;
-export const MAX_CHARS = 9999;
 export const BASE_INTEGRITY = 6;
 export const ENEMY_SPEED = 10;
 export const ENEMY_SPEED_VARIANCE = 0.1;
@@ -34,7 +33,7 @@ export const LEVEL_NODE_HEIGHT = 72;
 export const CARD_SLOT_COUNT = 8;
 export const DEFAULT_DIFFICULTY = 3;
 export const DIFFICULTY_MIN = 0;
-export const DIFFICULTY_MAX = 7;
+export const DIFFICULTY_MAX = 8;
 export const BOSS_HITBOX_WIDTH = CELL_WIDTH * 2.95;
 export const BOSS_HITBOX_HEIGHT = CELL_HEIGHT * 2.95;
 export const CUBE_BOSS_STATS: Record<BossKind, { hp: number; armor: number; magicResistance: number }> = {
@@ -72,7 +71,8 @@ export const difficultyConfigs: Record<number, DifficultyConfig> = {
   4: { weightMultiplier: 1.4, finalDamageReduction: 0 },
   5: { weightMultiplier: 1.8, finalDamageReduction: 0.3 },
   6: { weightMultiplier: 2.2, finalDamageReduction: 0.6 },
-  7: { weightMultiplier: 3, finalDamageReduction: 0.75 }
+  7: { weightMultiplier: 3, finalDamageReduction: 0.75 },
+  8: { weightMultiplier: 5, finalDamageReduction: 0.85 }
 };
 
 export function clampDifficulty(difficulty?: number) {
