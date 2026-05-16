@@ -97,7 +97,7 @@ export function canEnemyMelee(enemy: Enemy) {
 }
 
 export function enemyVolleyShotCount(enemy: Enemy) {
-  return enemyIsRanged(enemy.kind) ? enemyRank(enemy.kind) : 1;
+  return enemyIsRanged(enemy.kind) || enemyIsMortar(enemy.kind) ? enemyRank(enemy.kind) : 1;
 }
 
 export function randomizedEnemySpeed(kind: EnemyKind) {

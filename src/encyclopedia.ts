@@ -26,7 +26,9 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
   const triangle = getEnemyDefinition("triangle");
   const triangleRam = getEnemyDefinition("triangleRam");
   const triangleRam2 = getEnemyDefinition("triangleRam2");
+  const triangleRam3 = getEnemyDefinition("triangleRam3");
   const mortarTriangle = getEnemyDefinition("mortarTriangle");
+  const mortarTriangle2 = getEnemyDefinition("mortarTriangle2");
   const invertedTriangle = getEnemyDefinition("invertedTriangle");
   const invertedTriangle2 = getEnemyDefinition("invertedTriangle2");
   const shootingTriangle = getEnemyDefinition("shootingTriangle");
@@ -80,8 +82,8 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.armor"), triangleRam.armor],
           [t("label.mr"), triangleRam.magicResistance],
           [t("label.atk"), damageText(triangleRam.damage, triangleRam.damageType)],
-          [t("label.speed"), `I ${speedText("triangleRam")} -> ${ENEMY_SPEED * 1.5 * 4} / II ${speedText("triangleRam2")} -> ${ENEMY_SPEED * 2 * 4}`],
-          [t("label.weight"), `I ${triangleRam.weight} / II ${triangleRam2.weight}`]
+          [t("label.speed"), `I ${speedText("triangleRam")} -> ${ENEMY_SPEED * 1.5 * 4} / II ${speedText("triangleRam2")} -> ${ENEMY_SPEED * 2 * 4} / III ${speedText("triangleRam3")} -> ${ENEMY_SPEED * 2.5 * 4}`],
+          [t("label.weight"), `I ${triangleRam.weight} / II ${triangleRam2.weight} / III ${triangleRam3.weight}`]
         ]),
         zh ? "移动中匀加速，经过 7 格达到 4 倍基础速度" : "Accelerates while moving, reaching 4x base speed after 7 cells"
       ],
@@ -137,9 +139,9 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.mr"), mortarTriangle.magicResistance],
           [t("label.atk"), damageText(mortarTriangle.damage, mortarTriangle.damageType)],
           [t("label.speed"), speedText("mortarTriangle")],
-          [t("label.weight"), mortarTriangle.weight]
+          [t("label.weight"), `I ${mortarTriangle.weight} / II ${mortarTriangle2.weight}`]
         ]),
-        zh ? "每 15 秒发射 3x3 法术迫击弹" : "Fires a 3x3 magic mortar every 15s"
+        zh ? "每 15 秒发射 3x3 法术迫击弹；II 连射 2 发，连射窗口固定为攻速五分之一" : "Fires 3x3 magic mortars every 15s; II fires 2 shots with the volley window fixed at one fifth of its attack interval"
       ],
       description: zh
         ? "锁定场上阻挡敌怪数最多的塔；若相同则瞄准更晚放置的塔。锁定 N 时落点会被 N 改写。命中 R 时，R 会照常受伤并把迫击弹反射回发射者。"

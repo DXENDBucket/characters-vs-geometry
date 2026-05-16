@@ -147,11 +147,12 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
     }
 
     if (shouldEnemyShoot(enemy, time)) {
+      const shots = enemyVolleyShotCount(enemy);
+      const interval = volleyInterval(enemy.attackInterval, shots);
       if (enemyIsMortar(enemy.kind)) {
-        enemy.attackAt = fireEnemyMortar(runtime, enemy, time) ? time + enemy.attackInterval : time + 1_000;
+        enemy.attackAt = fireEnemyMortarVolley(runtime, enemy, time) ? time + enemy.attackInterval + (shots - 1) * interval : time + 1_000;
       } else {
         fireEnemyVolley(runtime, enemy, time);
-        const shots = enemyVolleyShotCount(enemy);
         enemy.attackAt = time + enemy.attackInterval + (shots - 1) * volleyInterval(enemy.attackInterval, shots);
       }
     }
@@ -289,7 +290,7 @@ function fireEnemyShot(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number)
   runtime.enemyProjectiles.push(createEnemyProjectile(runtime.scene, enemy, time));
 }
 
-function fireEnemyMortar(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number) {
+function fireEnemyMortarVolley(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number) {
   if (!runtime.enemies.includes(enemy)) {
     return false;
   }
@@ -297,6 +298,26 @@ function fireEnemyMortar(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: numbe
   const target = findMortarTarget(runtime.towers, runtime.enemies);
   if (!target) {
     return false;
+  }
+
+  const shots = enemyVolleyShotCount(enemy);
+  const interval = volleyInterval(enemy.attackInterval, shots);
+  for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
+    runtime.scene.time.delayedCall(shotIndex * interval, () => {
+      runtime.runWhenBattleActive(() => fireEnemyMortarShot(runtime, enemy, time));
+    });
+  }
+  return true;
+}
+
+function fireEnemyMortarShot(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number) {
+  if (!runtime.enemies.includes(enemy)) {
+    return;
+  }
+
+  const target = findMortarTarget(runtime.towers, runtime.enemies);
+  if (!target) {
+    return;
   }
 
   runtime.mortarProjectiles.push(
@@ -314,7 +335,6 @@ function fireEnemyMortar(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: numbe
       targetTower: target
     })
   );
-  return true;
 }
 
 function findMortarTarget(towers: Tower[], enemies: Enemy[]) {

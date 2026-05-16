@@ -91,6 +91,14 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     family: "triangleRam",
     rank: 2,
     nameKey: "enemy.triangleRam2",
+    attackMode: "siegeRam",
+    promotionKind: "triangleRam3"
+  },
+  triangleRam3: {
+    definition: rawEnemyDefinitions.triangleRam3,
+    family: "triangleRam",
+    rank: 3,
+    nameKey: "enemy.triangleRam3",
     attackMode: "siegeRam"
   },
   mortarTriangle: {
@@ -98,6 +106,14 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     family: "mortarTriangle",
     rank: 1,
     nameKey: "enemy.mortarTriangle",
+    attackMode: "mortar",
+    promotionKind: "mortarTriangle2"
+  },
+  mortarTriangle2: {
+    definition: rawEnemyDefinitions.mortarTriangle2,
+    family: "mortarTriangle",
+    rank: 2,
+    nameKey: "enemy.mortarTriangle2",
     attackMode: "mortar"
   },
   invertedTriangle: {
