@@ -42,6 +42,7 @@ import {
   applyTowerUpgradeStats,
   createTower,
   findAutoUpgradeTarget,
+  getHitProductionAmount,
   getProductionAmount,
   getShockCount,
   getTrapDamage,
@@ -422,6 +423,18 @@ export class GameScene extends Phaser.Scene {
     this.attemptAutoUpgrades();
   }
 
+  private handleTowerDamaged(tower: Tower) {
+    const definition = this.getDefinition(tower.type);
+    if (!definition.hitProduceAmount) {
+      return;
+    }
+
+    const amount = getHitProductionAmount(tower, definition);
+    if (amount > 0) {
+      this.gainChars(amount, tower.x, tower.y - 28);
+    }
+  }
+
   private startingCharsForLevel() {
     return this.levelConfig.startingChars ?? (this.levelId.startsWith("1-") ? 300 : STARTING_CHARS);
   }
@@ -517,6 +530,7 @@ export class GameScene extends Phaser.Scene {
       onEnemyDefeated: () => {
         this.enemiesDefeated += 1;
       },
+      onTowerDamaged: (tower) => this.handleTowerDamaged(tower),
       endLevel: () => this.endLevel()
     };
   }
@@ -912,7 +926,8 @@ export class GameScene extends Phaser.Scene {
       L: "L",
       N: "N",
       T: "T",
-      P: "P"
+      P: "P",
+      Y: "Y"
     };
 
     const selected = hotkeys[upperKey];

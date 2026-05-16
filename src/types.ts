@@ -21,7 +21,8 @@ export type CardId =
   | "L"
   | "N"
   | "T"
-  | "P";
+  | "P"
+  | "Y";
 export type EnemyKind =
   | "circle"
   | "circle2"
@@ -87,6 +88,7 @@ export interface CardDefinition {
   reflectProjectiles?: boolean;
   produceEvery?: number;
   produceAmount?: number;
+  hitProduceAmount?: number;
   stats: string;
 }
 

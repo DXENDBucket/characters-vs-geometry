@@ -204,6 +204,9 @@ function towerLines(card: CardDefinition) {
   if (card.rangeCells) {
     effectParts.push(`${isZh() ? "范围" : "range"} ${card.rangeCells}`);
   }
+  if (card.hitProduceAmount) {
+    effectParts.push(`${isZh() ? "受击" : "on hit"} ${EFFECT_SYMBOLS.chars}${card.hitProduceAmount}`);
+  }
   const secondLine = `${t("label.effect")}: ${effectParts.join("  ")}`;
   return [firstLine, secondLine, `${t("label.upgrade")}: ${towerUpgradeText(card.id)}`];
 }
@@ -218,6 +221,7 @@ function towerDescription(id: CardId) {
     O: zh ? "抗法防御塔。机制和 D 类似，但冷却更短并拥有较高法术抗性。" : "Magic-resistant defender. Similar to D, with shorter cooldown and high magic resistance.",
     R: zh ? "反弹防御塔。机制和 O 类似；敌方弹幕击中它时仍会造成伤害，但弹幕会被反射为同伤害、同类型、反向飞行的我方弹幕。" : "Reflect defender. Similar to O; enemy projectiles still damage it on hit, then reflect into friendly projectiles with the same damage and damage type flying the opposite direction.",
     X: zh ? `生产塔。每 10 秒产生 ${EFFECT_SYMBOLS.chars}25，也是主要字符来源之一。` : `Producer. Generates ${EFFECT_SYMBOLS.chars}25 every 10s.`,
+    Y: zh ? `受击生产塔。不攻击；每次受到攻击时产生 ${EFFECT_SYMBOLS.chars}12。` : `Hit producer. Does not attack; generates ${EFFECT_SYMBOLS.chars}12 each time it is attacked.`,
     E: zh ? "三连物理射手。向前平射，并向上/下各偏转 10 度发射一发。" : "Triple physical shooter. Fires one straight shot plus two shots at +/-10 degrees.",
     M: zh ? "下向三连物理射手。攻击方向朝下，出弹点保持在列中心。" : "Downward triple physical shooter. Fires downward from the column center.",
     W: zh ? "上向三连物理射手。攻击方向朝上，出弹点保持在列中心。" : "Upward triple physical shooter. Fires upward from the column center.",
@@ -241,8 +245,8 @@ function towerUpgradeText(id: CardId) {
   if (id === "A" || id === "C" || id === "E" || id === "M" || id === "W" || id === "I" || id === "Q" || id === "J" || id === "H" || id === "P" || id === "K") {
     return zh ? "增加连发次数；整段连射固定占攻击/治疗间隔的五分之一。" : "Adds burst count; the whole volley always takes one fifth of the attack/heal interval.";
   }
-  if (id === "X") {
-    return zh ? "每级单次生产量增加基础值的 80%。" : "Each level adds 80% of base production per tick.";
+  if (id === "X" || id === "Y") {
+    return zh ? "每级单次生产量增加基础值的 80%。" : "Each level adds 80% of base production per trigger.";
   }
   if (id === "F") {
     return zh ? "每级冲击波数量增加基础值的 80%。" : "Each level adds 80% of base shockwave count.";

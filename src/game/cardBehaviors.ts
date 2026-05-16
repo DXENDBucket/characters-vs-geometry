@@ -106,7 +106,8 @@ export const cardBehaviorsById: Record<CardId, CardBehavior> = {
   L: shiftCardBehavior,
   N: blockedPushCardBehavior,
   T: slowAuraCardBehavior,
-  P: healingCardBehavior
+  P: healingCardBehavior,
+  Y: idleCardBehavior
 };
 
 function cooldownReady(tower: Tower, time: number) {

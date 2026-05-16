@@ -109,6 +109,10 @@ export function getProductionAmount(tower: Tower, definition: CardDefinition) {
   return scaledByEffectiveUpgrades(definition.produceAmount ?? 0, tower.level);
 }
 
+export function getHitProductionAmount(tower: Tower, definition: CardDefinition) {
+  return scaledByEffectiveUpgrades(definition.hitProduceAmount ?? 0, tower.level);
+}
+
 export function getShockCount(tower: Tower, definition: CardDefinition) {
   return scaledByEffectiveUpgrades(definition.triggerCount ?? 10, tower.level);
 }

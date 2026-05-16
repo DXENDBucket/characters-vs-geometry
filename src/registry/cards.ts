@@ -12,8 +12,8 @@ const behaviorsById = new Map<CardId, CardBehavior>(
   rawCardDefinitions.map((definition) => [definition.id, cardBehaviorsById[definition.id] ?? idleCardBehavior])
 );
 
-export const allCardDefinitions = rawCardDefinitions;
-export const defaultCardLoadout = rawDefaultLoadout;
+export const allCardDefinitions = [...rawCardDefinitions].sort((a, b) => a.id.localeCompare(b.id));
+export const defaultCardLoadout = [...rawDefaultLoadout].sort((a, b) => a.localeCompare(b));
 
 export function getCardDefinition(id: CardId) {
   return definitionsById.get(id) ?? allCardDefinitions[0];

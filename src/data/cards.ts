@@ -86,6 +86,17 @@ export const cardDefinitions: CardDefinition[] = [
     stats: `${EFFECT_SYMBOLS.chars}25 / 10s`
   },
   {
+    id: "Y",
+    category: "production",
+    cost: 75,
+    cooldown: 8_000,
+    maxHp: 2_000,
+    armor: 250,
+    magicResistance: 0,
+    hitProduceAmount: 12,
+    stats: `${EFFECT_SYMBOLS.chars}12 / HIT`
+  },
+  {
     id: "E",
     category: "attack",
     cost: 150,
@@ -279,4 +290,4 @@ export const cardDefinitions: CardDefinition[] = [
   }
 ];
 
-export const defaultLoadout: CardId[] = ["A", "B", "C", "D", "X", "E"];
+export const defaultLoadout: CardId[] = ["A", "B", "C", "D", "E", "X"];

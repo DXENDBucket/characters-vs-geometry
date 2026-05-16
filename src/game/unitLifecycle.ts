@@ -27,6 +27,7 @@ export interface UnitLifecycleRuntime {
   battleTime: number;
   finalDamageReduction: number;
   onEnemyDefeated: () => void;
+  onTowerDamaged: (tower: Tower) => void;
   endLevel: () => void;
 }
 
@@ -37,6 +38,7 @@ export function damageTower(runtime: UnitLifecycleRuntime, tower: Tower, damage:
 
   const actualDamage = calculateDamage(damage, damageType, tower.armor, tower.magicResistance);
   tower.hp -= actualDamage;
+  runtime.onTowerDamaged(tower);
   syncTowerHpBar(tower);
 
   if (tower.hp <= 0) {

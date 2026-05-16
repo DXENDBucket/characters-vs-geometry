@@ -31,7 +31,7 @@ Enemy body labels are displayed as Roman numerals in-game.
 | --- | ---: | ---: | ---: | ---: | --- | --- |
 | Cube I | 150000 | 300 | 20 | 0.6 | `2.95x2.95` cells | Appears at combat start. Does not shrink from damage. Killing it clears the level; reaching the base fails the level. Deals `2000◆` every `0.5s` to all touching towers at once, with a following cube-collapse effect on each target. |
 | Cube II | 200000 | 600 | 20 | 0.6 | `2.95x2.95` cells | Same baseline behavior as Cube I. Advance becomes Advance II and summons Square 2 minions. Also has Promotion II. |
-| Tetrahedron I | 150000 | 150 | 20 | 1.2 | `2.95x2.95` cells | Fast-attack Boss with quicker visual rotation. Same baseline behavior as Cube I, but uses tetrahedron-collapse effects. At first `50%` HP or lower, summons Inverted Triangle 2 in every cell of the three columns farthest from the base and immediately fills Charge SP. At first `10%` HP or lower, its HP is held at `10%`, gains `15s` Invincible, gains `60s` Boss Haste at `300%` speed, and summons Inverted Triangle 1 in every cell of the five columns farthest from the base. If it would die before this triggers, it instead locks at `1` HP and triggers the same effect package. |
+| Tetrahedron I | 100000 | 150 | 20 | 1.2 | `2.95x2.95` cells | Fast-attack Boss with quicker visual rotation. Same baseline behavior as Cube I, but uses tetrahedron-collapse effects. At first `50%` HP or lower, summons Inverted Triangle 2 in every cell of the three columns farthest from the base and immediately fills Charge SP. At first `10%` HP or lower, its HP is held at `10%`, gains `15s` Invincible, gains `60s` Boss Haste at `300%` speed, and summons Inverted Triangle 1 in every cell of the five columns farthest from the base. If it would die before this triggers, it instead locks at `1` HP and triggers the same effect package. |
 
 Cube skills:
 
@@ -74,6 +74,7 @@ Tetrahedron skills:
 | O | Defense | Square | 125 | 15s | 3000 | 300 | 70 | Magic-resistant blocker | +`2400` max/current HP per level |
 | R | Defense | Square | 225 | 15s | 3000 | 350 | 35 | Enemy projectiles still damage it, then reflect into friendly projectiles with the same damage and damage type flying in the opposite direction | +`2400` max/current HP per level |
 | X | Production | Circle | 50 | 1.5s | 1200 | 150 | 0 | Produces `25` chars every `10s`, shown as `Aa` | +`20` chars per production per level |
+| Y | Production | Circle | 75 | 8s | 2000 | 250 | 0 | Does not attack; produces `12` chars every time it is attacked | +80% base production per hit per level |
 | E | Attack | Diamond | 150 | 2s | 1200 | 150 | 0 | Fires 3 bolts at `-10/0/+10` degrees, `400◆` each, every `2s` | +1 volley per level |
 | M | Attack | Diamond | 75 | 2s | 1200 | 150 | 0 | Fires 3 bolts downward at `80/90/100` degrees, `400◆` each, every `2s`; all shots start from the cell center | +1 volley per level |
 | W | Attack | Diamond | 75 | 2s | 1200 | 150 | 0 | Fires 3 bolts upward at `-100/-90/-80` degrees, `400◆` each, every `2s`; all shots start from the cell center | +1 volley per level |
