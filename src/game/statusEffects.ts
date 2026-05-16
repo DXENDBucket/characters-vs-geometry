@@ -6,7 +6,7 @@ const STATUS_SPEED_MULTIPLIERS: Record<StatusEffectName, number> = {
   power: 1
 };
 const STATUS_ATTACK_MULTIPLIERS: Partial<Record<StatusEffectName, number>> = {
-  power: 1.5
+  power: 1.3
 };
 
 export function applyStatusEffect(enemy: Enemy, name: StatusEffectName, duration: number, time: number) {

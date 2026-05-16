@@ -19,7 +19,7 @@
 
 Damage symbols: `◆` physical, `✦` magic, `◇` true. Magic-damage projectiles and related hit effects use light blue.
 Effect symbols: `Aa` character production, `♡` healing.
-Stasis gives enemies a blue border and reduces their movement speed to `1/3`. Haste gives enemies light-blue wind trails and raises movement speed to `200%`. Power gives enemies a red sword icon and increases outgoing attack damage by `50%` without changing their base attack stat.
+Stasis gives enemies a blue border and reduces their movement speed to `1/3`. Haste gives enemies light-blue wind trails and raises movement speed to `200%`. Power gives enemies a red `!` icon and increases outgoing attack damage by `30%` without changing their base attack stat.
 Triangle enemies all deal Triangle 1's `600◆`; Triangle N attacks every `1/N` seconds.
 Shooting Triangle is a separate ranged enemy and does not use Triangle N attack scaling.
 Numbered minion weights use fixed additive steps: circles `+40`, triangles `+60`, squares `+100`.
@@ -31,7 +31,7 @@ Enemy body labels are displayed as Roman numerals in-game.
 | --- | ---: | ---: | ---: | ---: | --- | --- |
 | Cube I | 150000 | 300 | 20 | 0.6 | `2.95x2.95` cells | Appears at combat start. Does not shrink from damage. Killing it clears the level; reaching the base fails the level. Deals `2000◆` every `0.5s` to all touching towers at once, with a following cube-collapse effect on each target. |
 | Cube II | 200000 | 600 | 20 | 0.6 | `2.95x2.95` cells | Same baseline behavior as Cube I. Advance becomes Advance II and summons Square 2 minions. Also has Promotion II. |
-| Tetrahedron I | 100000 | 150 | 20 | 1.2 | `2.95x2.95` cells | Fast-attack Boss with quicker visual rotation. Same baseline behavior as Cube I, but uses tetrahedron-collapse effects. At first `50%` HP or lower, summons Inverted Triangle 2 in every cell of the three columns farthest from the base and immediately fills Charge SP. At first `10%` HP or lower, its HP is held at `10%`, gains `15s` Invincible, gains `60s` Boss Haste at `300%` speed, and summons Inverted Triangle 1 in every cell of the five columns farthest from the base. If it would die before this triggers, it instead locks at `1` HP and triggers the same effect package. |
+| Tetrahedron I | 100000 | 150 | 20 | 1.2 | `2.95x2.95` cells | Fast-attack Boss with quicker visual rotation. Same baseline behavior as Cube I, but uses tetrahedron-collapse effects. At first `50%` HP or lower, summons Inverted Triangle 1 in every cell of the two columns farthest from the base and immediately fills Charge SP. At first `10%` HP or lower, its HP is held at `10%`, gains `15s` Invincible, gains `60s` Boss Haste at `300%` speed, and summons Inverted Triangle 1 in every cell of the three columns farthest from the base. If it would die before this triggers, it instead locks at `1` HP and triggers the same effect package. |
 
 Cube skills:
 
@@ -51,13 +51,13 @@ Tetrahedron skills:
 - Charge: starts at `0/60` SP, gains `1` SP per second, max `60`.
 - At full SP, consumes `30` SP and gives ordinary enemies `7s` Haste.
 - Haste makes affected enemies move at `200%` speed and shows light-blue wind trails.
-- Using Charge gives Suppression `+16` SP.
+- Using Charge gives Suppression `+15` SP.
 - Impact: starts at `0/120` SP, gains `1` SP per second, max `120`.
 - At full SP, consumes `60` SP and summons Inverted Triangle 1 in every lane across two columns in front of the Boss.
-- Using Impact gives Charge `+12` SP.
+- Using Impact gives Charge `+10` SP.
 - Suppression: starts at `0/160` SP, gains `1` SP per second, max `160`.
 - At full SP, consumes `40` SP and summons Shooting Triangle 1 in every lane at the normal spawn line.
-- Using Suppression gives Impact `+25` SP.
+- Using Suppression gives Impact `+20` SP.
 - Last Stand: starts at `0/10` SP, max `10`, only gains `1` SP per second while Tetrahedron HP is at or below `50%`.
 - At full SP, consumes `10` SP, gives permanent Power to all enemies touching the Boss hitbox, and gives Charge `+5` SP.
 - Tetrahedron skills have no priority order; each skill that is full at the start of the skill check activates once. SP gained from a skill is checked on later updates.
@@ -87,7 +87,7 @@ Tetrahedron skills:
 | J | Attack | Diamond | 375 | 4s | 1200 | 150 | 20 | Fires 1 `#` shell, `600✦`, `1` tile AOE, every `4s`; range is self plus 5 cells ahead | +1 volley per level |
 | K | Attack | Diamond | 375 | 4s | 2500 | 300 | 0 | Slashes 1 target for `1600◆`, every `4s`; range is self plus 2 cells ahead | +1 volley per level |
 | L | Function | Triangle | 200 | 20s | 3000 | 200 | 0 | Every `1s`, shifts all enemies in upper/lower lanes within its column and the front column into its own lane; takes `400◇` per shifted enemy | +`2400` max/current HP per level |
-| N | Defense | Square | 125 | 20s | 3000 | 500 | 0 | Every `1s`, pushes all enemies it is blocking `4` cells left; takes `400◇` per pushed enemy | +`2400` max/current HP per level |
+| N | Defense | Square | 125 | 20s | 3000 | 500 | 0 | Every `1s`, pushes all enemies it is blocking `4` cells left; takes `400◇` per pushed enemy. Enemy projectiles that would hit N are shifted left by `4` cells instead and do not damage N | +`2400` max/current HP per level |
 | T | Function | Triangle | 650 | 50s | 4000 | 150 | 20 | Every `1s`, takes `700◇`; ordinary units and projectiles in a centered `5x5` no-corner area move at `1/6` speed. Bosses ignore the slow. The area is shown with a deep-purple time border. On death, clears projectiles in that area; eraser removal does not trigger this | +`3200` max/current HP per level |
 
 Volley upgrades spread consecutive shots or heals across a fixed total volley duration of `interval / 5`, regardless of shot count. The attack/heal interval itself is unchanged and starts after the volley finishes.
@@ -492,7 +492,7 @@ Enemy pool:
 
 Base rule:
 
-- Starting characters: `300`.
+- Starting characters: `500`.
 - Wave 1 starts at weight cap `19`.
 - Wave 2 adds `+12`; each later increment grows by `+1` (`+13`, `+14`, ...).
 - Every flag wave, currently every `10`th wave, doubles that wave's final cap.

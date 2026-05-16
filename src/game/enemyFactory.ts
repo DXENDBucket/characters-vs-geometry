@@ -22,10 +22,10 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
   const body = scene.add.container(options.x, y).setDepth(60 + options.lane);
   const statusBorder = scene.add.circle(0, 0, 28, palette.black, 0).setStrokeStyle(2, palette.magic, 0.92);
   const powerIcon = scene.add
-    .text(0, -38, "⚔", {
+    .text(0, -38, "!", {
       color: "#ff6464",
-      fontFamily: "Segoe UI Emoji, sans-serif",
-      fontSize: "18px",
+      fontFamily: "monospace",
+      fontSize: "22px",
       fontStyle: "700"
     })
     .setOrigin(0.5);

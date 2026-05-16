@@ -161,17 +161,17 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.atk"), `${damageText(CUBE_BOSS_CONTACT_DAMAGE, "physical")} / ${CUBE_BOSS_CONTACT_INTERVAL}s`]
         ]),
         zh
-          ? "冲锋：60技力满后消耗30，使所有普通敌怪在 7 秒内获得加速，移动速度变为 200%，并使压制技力 +16。"
-          : "Charge: at 60 SP, spend 30 to give ordinary enemies 7s Haste, raising movement speed to 200%, and gives Suppression +16 SP.",
+          ? "冲锋：60技力满后消耗30，使所有普通敌怪在 7 秒内获得加速，移动速度变为 200%，并使压制技力 +15。"
+          : "Charge: at 60 SP, spend 30 to give ordinary enemies 7s Haste, raising movement speed to 200%, and gives Suppression +15 SP.",
         zh
-          ? "冲击：120技力满后消耗60，在 Boss 前方两列每行召唤倒三角 I，并使冲锋技力 +12。压制：160技力满后消耗40，在出怪线每行召唤射击三角 I，并使冲击技力 +25。"
-          : "Impact: at 120 SP, spend 60 to summon Inverted Triangle I in every lane across two columns in front of the Boss, and gives Charge +12 SP. Suppression: at 160 SP, spend 40 to summon Shooting Triangle I in every lane at the spawn line, and gives Impact +25 SP.",
+          ? "冲击：120技力满后消耗60，在 Boss 前方两列每行召唤倒三角 I，并使冲锋技力 +10。压制：160技力满后消耗40，在出怪线每行召唤射击三角 I，并使冲击技力 +20。"
+          : "Impact: at 120 SP, spend 60 to summon Inverted Triangle I in every lane across two columns in front of the Boss, and gives Charge +10 SP. Suppression: at 160 SP, spend 40 to summon Shooting Triangle I in every lane at the spawn line, and gives Impact +20 SP.",
         zh
-          ? "首次降至50%生命时，在最远离底线的三列每格召唤倒三角 II，并立刻填满冲锋技力。"
-          : "The first time HP reaches 50% or lower, summons Inverted Triangle II in every cell of the three columns farthest from the base and immediately fills Charge SP.",
+          ? "首次降至50%生命时，在最远离底线的两列每格召唤倒三角 I，并立刻填满冲锋技力。"
+          : "The first time HP reaches 50% or lower, summons Inverted Triangle I in every cell of the two columns farthest from the base and immediately fills Charge SP.",
         zh
-          ? "首次降至10%生命时获得15秒无敌和60秒300%速度加速，并在最远离底线的五列每格召唤倒三角 I；若此前被直接击杀，则锁1血并触发同一套效果。孤注一掷：50%生命以下每秒回1技力，10满后给接触 Boss 的敌怪永久力量，并使冲锋 +5。"
-          : "The first time HP reaches 10% or lower, gains 15s Invincible and 60s Boss Haste at 300% speed, then summons Inverted Triangle I in every cell of the five columns farthest from the base. If it would die before this triggers, it locks at 1 HP and triggers the same package. Last Stand: below 50% HP, gains 1 SP/s; at 10 SP, grants permanent Power to enemies touching the Boss and gives Charge +5 SP."
+          ? "首次降至10%生命时获得15秒无敌和60秒300%速度加速，并在最远离底线的三列每格召唤倒三角 I；若此前被直接击杀，则锁1血并触发同一套效果。孤注一掷：50%生命以下每秒回1技力，10满后给接触 Boss 的敌怪永久力量，并使冲锋 +5。"
+          : "The first time HP reaches 10% or lower, gains 15s Invincible and 60s Boss Haste at 300% speed, then summons Inverted Triangle I in every cell of the three columns farthest from the base. If it would die before this triggers, it locks at 1 HP and triggers the same package. Last Stand: below 50% HP, gains 1 SP/s; at 10 SP, grants permanent Power to enemies touching the Boss and gives Charge +5 SP."
       ],
       description: zh
         ? "Boss 不会被阻挡，也不会随血量缩小；到达底线会失败，死亡会直接胜利。"
@@ -234,7 +234,7 @@ function towerDescription(id: CardId) {
     J: zh ? "短程法术溅射。范围和 I 一致，发射 # 弹幕并造成范围法术伤害。" : "Short-range magic splash attacker. Same range as I, firing # projectiles with splash.",
     K: zh ? "近程斩击塔。攻击自身一格和前方两格内的单体目标，释放十字斩特效。" : "Close-range slasher. Hits one target within itself plus two tiles ahead, with a cross slash.",
     L: zh ? "牵引塔。抓取上下两行指定格子的所有敌怪平移到本行，每抓一个自损 400 真实伤害。" : "Shifter. Pulls all enemies from target tiles in adjacent lanes into its lane, taking 400 true self-damage per target.",
-    N: zh ? "防御推移塔。每秒把自己正在阻挡的所有敌怪向左推移 4 格，每推一个自损 400 真实伤害。" : "Defender-shifter. Every second, pushes all enemies it is blocking 4 cells left, taking 400 true self-damage per pushed enemy.",
+    N: zh ? "防御推移塔。每秒把自己正在阻挡的所有敌怪向左推移 4 格，每推一个自损 400 真实伤害。敌方弹幕命中它时也会被推移，且不会对 N 造成伤害。" : "Defender-shifter. Every second, pushes all enemies it is blocking 4 cells left, taking 400 true self-damage per pushed enemy. Enemy projectiles that would hit it are shifted too and do not damage N.",
     T: zh ? "迟滞塔。每秒自损 700 真实伤害；以自身为中心 5x5 去角范围内的普通单位和弹幕移动速度降为六分之一，并显示深紫色时间范围框。Boss 不受减速影响。死亡时清除范围内弹幕；被橡皮擦移除不会触发亡语。" : "Slow field tower. Takes 700 true self-damage every second; ordinary units and projectiles in its centered 5x5 no-corner area move at one sixth speed, shown with a deep-purple time range border. Bosses ignore the slow. On death, clears projectiles in that area; erasing it does not trigger the death effect."
   };
   return descriptions[id];

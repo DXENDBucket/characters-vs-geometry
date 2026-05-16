@@ -161,7 +161,7 @@ export const levelConfigs: Record<string, LevelConfig> = {
     waveWeightIncrementGrowth: 1,
     wavesPerFlag: WAVES_PER_FLAG,
     waveWeightCap: 800,
-    startingChars: 300,
+    startingChars: 500,
     bossKind: "tetrahedron",
     endless: true
   }

@@ -1,9 +1,12 @@
 import Phaser from "phaser";
+import { CELL_WIDTH } from "../config";
+import { getCardDefinition } from "../registry/cards";
 import {
   makeEnemyHitShards,
   makeHitShards,
   makeReflectFlash,
   makeShellBurst,
+  makeShiftEffect,
   makeStasisEffect
 } from "../render/combatEffects";
 import type { CubeBoss, DamageType, Enemy, EnemyProjectile, Projectile, Tower } from "../types";
@@ -90,6 +93,16 @@ export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: numb
       .find((tower) => towerRect(tower).contains(projectile.x, projectile.y));
 
     if (hit) {
+      if (hit.type === "N") {
+        shiftEnemyProjectile(projectile, hit);
+        makeShiftEffect(runtime.scene, projectile.x + projectileShiftDistance(hit), projectile.y, projectile.x, projectile.y);
+        projectile.body.setPosition(projectile.x, projectile.y);
+        if (isEnemyProjectileOutOfBounds(projectile)) {
+          removeEnemyProjectile(runtime.enemyProjectiles, projectile);
+        }
+        continue;
+      }
+
       makeEnemyHitShards(runtime.scene, projectile.x, projectile.y);
       const reflectsProjectile = hit.reflectProjectiles;
       runtime.damageTower(hit, projectile.damage, projectile.damageType);
@@ -105,6 +118,15 @@ export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: numb
       removeEnemyProjectile(runtime.enemyProjectiles, projectile);
     }
   }
+}
+
+function shiftEnemyProjectile(projectile: EnemyProjectile, tower: Tower) {
+  projectile.x -= projectileShiftDistance(tower);
+}
+
+function projectileShiftDistance(tower: Tower) {
+  const definition = getCardDefinition(tower.type);
+  return (definition.shiftCells ?? 4) * CELL_WIDTH;
 }
 
 function removeProjectile(projectiles: Projectile[], projectile: Projectile) {
