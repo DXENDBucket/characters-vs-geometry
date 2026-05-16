@@ -57,7 +57,8 @@ export const cardAttackAreas: Partial<Record<CardId, AttackAreaConfig>> = {
   I: { kind: "laneRectangle", rangeCells: 6 },
   Q: { kind: "laneRectangle", rangeCells: 6 },
   J: { kind: "laneRectangle", rangeCells: 6 },
-  K: { kind: "laneRectangle", rangeCells: 3 }
+  K: { kind: "laneRectangle", rangeCells: 3 },
+  Z: { kind: "laneRectangle", rangeCells: 3 }
 };
 
 export const projectilePatterns: Partial<Record<CardId, ProjectilePatternConfig>> = {

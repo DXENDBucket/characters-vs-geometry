@@ -1,6 +1,6 @@
 import type { CardId } from "../types";
 
-const VOLLEY_UPGRADEABLE_CARDS = new Set<CardId>(["A", "C", "E", "M", "W", "H", "P", "I", "Q", "J", "K"]);
+const VOLLEY_UPGRADEABLE_CARDS = new Set<CardId>(["A", "C", "E", "M", "W", "H", "P", "I", "Q", "J", "K", "Z"]);
 const MAX_HP_UPGRADEABLE_CARDS = new Set<CardId>(["B", "D", "O", "R", "L", "N", "T"]);
 const UPGRADE_SCALE = 0.8;
 

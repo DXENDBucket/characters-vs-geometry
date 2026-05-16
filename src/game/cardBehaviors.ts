@@ -108,7 +108,8 @@ export const cardBehaviorsById: Record<CardId, CardBehavior> = {
   N: blockedPushCardBehavior,
   T: slowAuraCardBehavior,
   P: healingCardBehavior,
-  Y: idleCardBehavior
+  Y: idleCardBehavior,
+  Z: slashCardBehavior
 };
 
 function cooldownReady(tower: Tower, time: number) {
@@ -179,6 +180,7 @@ function fireSlash(tower: Tower, definition: CardDefinition, runtime: CardBehavi
   if (target) {
     makeSlashEffect(runtime.scene, target.x, target.y, damageType);
     runtime.damageEnemy(target, damage, damageType);
+    gainAttackProduction(definition, runtime, target.x, target.y);
     return;
   }
 
@@ -192,6 +194,15 @@ function fireSlash(tower: Tower, definition: CardDefinition, runtime: CardBehavi
   const y = Phaser.Math.Clamp(tower.y, rect.top, rect.bottom);
   makeSlashEffect(runtime.scene, x, y, damageType);
   runtime.damageBoss(damage, damageType);
+  gainAttackProduction(definition, runtime, x, y);
+}
+
+function gainAttackProduction(definition: CardDefinition, runtime: CardBehaviorRuntime, x: number, y: number) {
+  if (!definition.attackProduceAmount) {
+    return;
+  }
+
+  runtime.gainChars(definition.attackProduceAmount, x, y - 24);
 }
 
 function healTower(scene: Phaser.Scene, tower: Tower, amount: number) {

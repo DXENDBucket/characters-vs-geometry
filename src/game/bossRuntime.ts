@@ -163,7 +163,7 @@ function triggerTetrahedronCriticalSummon(runtime: BossRuntime, boss: CubeBoss) 
 
   boss.pendingCriticalSummon = false;
   const waveNumber = runtime.wave || 0;
-  for (let column = COLUMNS - 3; column < COLUMNS; column += 1) {
+  for (let column = COLUMNS - 5; column < COLUMNS; column += 1) {
     const x = BOARD_X + column * CELL_WIDTH + CELL_WIDTH / 2;
     for (let lane = 0; lane < LANES; lane += 1) {
       const y = BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2;

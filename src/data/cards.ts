@@ -246,6 +246,21 @@ export const cardDefinitions: CardDefinition[] = [
     stats: `1600${DAMAGE_SYMBOLS.physical} / R3`
   },
   {
+    id: "Z",
+    category: "production",
+    cost: 175,
+    cooldown: 4_000,
+    maxHp: 2_500,
+    armor: 300,
+    magicResistance: 0,
+    fireRate: 2_000,
+    damage: 400,
+    damageType: "physical",
+    rangeCells: 3,
+    attackProduceAmount: 15,
+    stats: `400${DAMAGE_SYMBOLS.physical}+${EFFECT_SYMBOLS.chars}15 / 2s`
+  },
+  {
     id: "L",
     category: "function",
     cost: 200,
