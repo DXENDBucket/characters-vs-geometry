@@ -41,6 +41,7 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
     finalDamageReduction: options.finalDamageReduction,
     attackInterval,
     attackAt: options.time + attackInterval,
+    statusEffects: [],
     body,
     shape
   };

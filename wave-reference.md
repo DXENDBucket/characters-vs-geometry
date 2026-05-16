@@ -51,7 +51,8 @@ Cube skills:
 | A | Attack | Diamond | 50 | 1s | 1200 | 150 | 0 | Fires 1 bolt, `400◆`, every `2s` | +1 volley per level |
 | B | Defense | Square | 100 | 20s | 3000 | 500 | 0 | Blocks; reflects `400◆` when hit by melee attacks | +`2400` max/current HP per level |
 | C | Attack | Diamond | 350 | 3s | 1200 | 150 | 0 | Fires 1 shell, `500◆`, `1` tile AOE, every `3s` | +1 volley per level |
-| D | Defense | Square | 100 | 20s | 3000 | 800 | 0 | High-armor blocker | +`2400` max/current HP per level |
+| D | Defense | Square | 100 | 20s | 2600 | 800 | 0 | High-armor blocker | +`2080` max/current HP per level |
+| O | Defense | Square | 125 | 15s | 3000 | 350 | 70 | Magic-resistant blocker | +`2400` max/current HP per level |
 | X | Production | Circle | 50 | 1.5s | 1200 | 150 | 0 | Produces `25` chars every `10s`, shown as `Aa` | +`20` chars per production per level |
 | E | Attack | Diamond | 150 | 2s | 1200 | 150 | 0 | Fires 3 bolts at `-10/0/+10` degrees, `400◆` each, every `2s` | +1 volley per level |
 | M | Attack | Diamond | 75 | 2s | 1200 | 150 | 0 | Fires 3 bolts downward at `80/90/100` degrees, `400◆` each, every `2s`; all shots start from the cell center | +1 volley per level |
@@ -61,11 +62,12 @@ Cube skills:
 | H | Healing | Hexagon | 150 | 20s | 1200 | 150 | 0 | Heals the lowest HP% damaged ally in a `2x3` area covering its column and the front column for `1000`, every `2s`, shown as `♡`; ties prefer earlier placement | +1 healing volley per level |
 | P | Healing | Hexagon | 100 | 20s | 1200 | 150 | 0 | Heals the lowest HP% damaged ally in a `5x3` area covering its column and the next 4 columns for `280`, every `2s`, shown as `♡`; ties prefer earlier placement | +1 healing volley per level |
 | I | Attack | Diamond | 100 | 2s | 1200 | 150 | 20 | Fires 1 `*` projectile, `300✦`, every `2s`; range is self plus 5 cells ahead | +1 volley per level |
+| Q | Attack | Diamond | 225 | 4s | 1200 | 150 | 20 | Fires 1 `$` projectile, `300✦`, every `2s`; range is self plus 5 cells ahead. On hit, applies `Stasis` for `1s`, reducing ordinary enemy movement speed to `1/3`; Bosses ignore this debuff | +1 volley per level |
 | J | Attack | Diamond | 375 | 4s | 1200 | 150 | 20 | Fires 1 `#` shell, `600✦`, `1` tile AOE, every `4s`; range is self plus 5 cells ahead | +1 volley per level |
 | K | Attack | Diamond | 375 | 4s | 2500 | 300 | 0 | Slashes 1 target for `1600◆`, every `4s`; range is self plus 2 cells ahead | +1 volley per level |
 | L | Function | Triangle | 200 | 20s | 3000 | 200 | 0 | Every `1s`, shifts all enemies in upper/lower lanes within its column and the front column into its own lane; takes `400◇` per shifted enemy | +`2400` max/current HP per level |
 | N | Defense | Square | 125 | 20s | 3000 | 500 | 0 | Every `1s`, pushes all enemies it is blocking `4` cells left; takes `400◇` per pushed enemy | +`2400` max/current HP per level |
-| T | Function | Triangle | 650 | 50s | 4000 | 150 | 20 | Every `1s`, takes `700◇`; all units and projectiles in a centered `5x5` no-corner area move at `1/6` speed. The area is shown with a deep-purple time border. On death, clears projectiles in that area and deals `4500◇` to all units there; eraser removal does not trigger this | +`3200` max/current HP per level |
+| T | Function | Triangle | 650 | 50s | 4000 | 150 | 20 | Every `1s`, takes `700◇`; ordinary units and projectiles in a centered `5x5` no-corner area move at `1/6` speed. Bosses ignore the slow. The area is shown with a deep-purple time border. On death, clears projectiles in that area and deals `4500◇` to all units and Bosses there; eraser removal does not trigger this | +`3200` max/current HP per level |
 
 Volley upgrades spread consecutive shots or heals across a fixed total volley duration of `interval / 5`, regardless of shot count. The attack/heal interval itself is unchanged and starts after the volley finishes.
 

@@ -140,6 +140,37 @@ export function makeShiftEffect(scene: Phaser.Scene, fromX: number, fromY: numbe
   });
 }
 
+export function makeStasisEffect(scene: Phaser.Scene, x: number, y: number) {
+  const ring = scene.add.circle(x, y, 18, palette.black, 0).setStrokeStyle(2, palette.time, 0.95);
+  const marker = scene.add
+    .text(x, y - 1, "$", {
+      color: "#9fdcff",
+      fontFamily: "monospace",
+      fontSize: "18px",
+      fontStyle: "700"
+    })
+    .setOrigin(0.5);
+  ring.setDepth(109);
+  marker.setDepth(110);
+
+  scene.tweens.add({
+    targets: ring,
+    scale: 1.7,
+    alpha: 0,
+    duration: 240,
+    ease: "Quad.easeOut",
+    onComplete: () => ring.destroy()
+  });
+  scene.tweens.add({
+    targets: marker,
+    y: y - 18,
+    alpha: 0,
+    duration: 300,
+    ease: "Quad.easeOut",
+    onComplete: () => marker.destroy()
+  });
+}
+
 export function makeBossHitFlash(scene: Phaser.Scene, x: number, y: number, damageType: DamageType) {
   const flash = scene.add
     .rectangle(x, y, BOSS_HITBOX_WIDTH, BOSS_HITBOX_HEIGHT, palette.black, 0)

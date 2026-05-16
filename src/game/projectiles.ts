@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { BOARD_HEIGHT, BOARD_WIDTH, BOARD_X, BOARD_Y, palette } from "../config";
 import { damageEffectColor, damageEffectTextColor } from "../render/combatEffects";
-import type { DamageType, Enemy, EnemyProjectile, Projectile, ProjectileKind } from "../types";
+import type { DamageType, Enemy, EnemyProjectile, Projectile, ProjectileKind, StatusEffectName } from "../types";
 
 export interface TowerProjectileSpec {
   type: ProjectileKind;
@@ -11,6 +11,8 @@ export interface TowerProjectileSpec {
   speed: number;
   damage: number;
   damageType: DamageType;
+  debuff?: StatusEffectName;
+  debuffDuration?: number;
   splashRadius: number;
   angleDegrees: number;
   maxX: number;
@@ -22,9 +24,9 @@ export function createTowerProjectile(scene: Phaser.Scene, spec: TowerProjectile
   let body: Phaser.GameObjects.Shape | Phaser.GameObjects.Text;
   if (spec.type === "bolt") {
     body = scene.add.rectangle(spec.x, spec.y, 18, 4, projectileColor, 1);
-  } else if (spec.type === "star" || spec.type === "hash") {
+  } else if (spec.type === "star" || spec.type === "hash" || spec.type === "dollar") {
     body = scene.add
-      .text(spec.x, spec.y - 1, spec.type === "star" ? "*" : "#", {
+      .text(spec.x, spec.y - 1, projectileText(spec.type), {
         color: damageEffectTextColor(spec.damageType),
         fontFamily: "monospace",
         fontSize: "22px",
@@ -46,6 +48,8 @@ export function createTowerProjectile(scene: Phaser.Scene, spec: TowerProjectile
     vy: Math.sin(angle) * spec.speed,
     damage: spec.damage,
     damageType: spec.damageType,
+    debuff: spec.debuff,
+    debuffDuration: spec.debuffDuration,
     splashRadius: spec.splashRadius,
     maxX: spec.maxX,
     body
@@ -78,4 +82,14 @@ export function isTowerProjectileOutOfBounds(projectile: Projectile, reachedMaxX
 
 export function isEnemyProjectileOutOfBounds(projectile: EnemyProjectile) {
   return projectile.x < BOARD_X - 60 || projectile.x > BOARD_X + BOARD_WIDTH + 60;
+}
+
+function projectileText(type: ProjectileKind) {
+  if (type === "star") {
+    return "*";
+  }
+  if (type === "hash") {
+    return "#";
+  }
+  return "$";
 }

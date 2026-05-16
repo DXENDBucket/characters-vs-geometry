@@ -2,11 +2,13 @@ import Phaser from "phaser";
 import {
   makeEnemyHitShards,
   makeHitShards,
-  makeShellBurst
+  makeShellBurst,
+  makeStasisEffect
 } from "../render/combatEffects";
 import type { CubeBoss, DamageType, Enemy, EnemyProjectile, Projectile, Tower } from "../types";
 import { isEnemyProjectileOutOfBounds, isTowerProjectileOutOfBounds } from "./projectiles";
 import { movementSpeedMultiplier } from "./slowAura";
+import { applyStatusEffect } from "./statusEffects";
 import { isBossInRadius, isPointInBossHitbox, towerRect } from "./targeting";
 
 export interface ProjectileRuntime {
@@ -15,6 +17,7 @@ export interface ProjectileRuntime {
   enemyProjectiles: EnemyProjectile[];
   enemies: Enemy[];
   towers: Tower[];
+  battleTime: number;
   getBoss: () => CubeBoss | null;
   damageEnemy: (enemy: Enemy, damage: number, damageType: DamageType) => void;
   damageBoss: (damage: number, damageType: DamageType) => void;
@@ -42,10 +45,13 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
       continue;
     }
 
-    if (projectile.type === "bolt" || projectile.type === "star") {
+    if (projectile.type === "bolt" || projectile.type === "star" || projectile.type === "dollar") {
       if (hit) {
         makeHitShards(runtime.scene, hit.x, hit.y, projectile.damageType);
         runtime.damageEnemy(hit, projectile.damage, projectile.damageType);
+        if (runtime.enemies.includes(hit)) {
+          applyProjectileDebuff(runtime.scene, projectile, hit, runtime.battleTime);
+        }
       } else {
         makeHitShards(runtime.scene, projectile.x, projectile.y, projectile.damageType);
         runtime.damageBoss(projectile.damage, projectile.damageType);
@@ -59,6 +65,9 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
         const dy = enemy.y - burstY;
         if (Math.hypot(dx, dy) <= projectile.splashRadius) {
           runtime.damageEnemy(enemy, projectile.damage, projectile.damageType);
+          if (runtime.enemies.includes(enemy)) {
+            applyProjectileDebuff(runtime.scene, projectile, enemy, runtime.battleTime);
+          }
         }
       }
       if (isBossInRadius(runtime.getBoss(), burstX, burstY, projectile.splashRadius)) {
@@ -100,4 +109,15 @@ function removeProjectile(projectiles: Projectile[], projectile: Projectile) {
 function removeEnemyProjectile(projectiles: EnemyProjectile[], projectile: EnemyProjectile) {
   Phaser.Utils.Array.Remove(projectiles, projectile);
   projectile.body.destroy();
+}
+
+function applyProjectileDebuff(scene: Phaser.Scene, projectile: Projectile, enemy: Enemy, time: number) {
+  if (!projectile.debuff || !projectile.debuffDuration) {
+    return;
+  }
+
+  applyStatusEffect(enemy, projectile.debuff, projectile.debuffDuration, time);
+  if (projectile.debuff === "stasis") {
+    makeStasisEffect(scene, enemy.x, enemy.y);
+  }
 }

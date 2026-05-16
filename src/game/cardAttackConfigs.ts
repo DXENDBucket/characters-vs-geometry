@@ -55,6 +55,7 @@ export const cardAttackAreas: Partial<Record<CardId, AttackAreaConfig>> = {
   M: { kind: "verticalFan", direction: "down", halfWidth: CELL_WIDTH * 0.35, spreadDegrees: 10 },
   W: { kind: "verticalFan", direction: "up", halfWidth: CELL_WIDTH * 0.35, spreadDegrees: 10 },
   I: { kind: "laneRectangle", rangeCells: 6 },
+  Q: { kind: "laneRectangle", rangeCells: 6 },
   J: { kind: "laneRectangle", rangeCells: 6 },
   K: { kind: "laneRectangle", rangeCells: 3 }
 };
@@ -97,6 +98,13 @@ export const projectilePatterns: Partial<Record<CardId, ProjectilePatternConfig>
     defaultMuzzle: { face: "right", offsetX: -12 },
     shots: [{ angleDegrees: 0 }],
     maxTravelArea: cardAttackAreas.I
+  },
+  Q: {
+    projectileKind: "dollar",
+    speed: 540,
+    defaultMuzzle: { face: "right", offsetX: -12 },
+    shots: [{ angleDegrees: 0 }],
+    maxTravelArea: cardAttackAreas.Q
   },
   J: {
     projectileKind: "hash",

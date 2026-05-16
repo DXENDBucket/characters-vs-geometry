@@ -47,10 +47,20 @@ export const cardDefinitions: CardDefinition[] = [
     category: "defense",
     cost: 100,
     cooldown: 20_000,
-    maxHp: 3_000,
+    maxHp: 2_600,
     armor: 800,
     magicResistance: 0,
-    stats: "3000 A800"
+    stats: "2600 A800"
+  },
+  {
+    id: "O",
+    category: "defense",
+    cost: 125,
+    cooldown: 15_000,
+    maxHp: 3_000,
+    armor: 350,
+    magicResistance: 70,
+    stats: "3000 A350 MR70"
   },
   {
     id: "X",
@@ -157,6 +167,22 @@ export const cardDefinitions: CardDefinition[] = [
     damageType: "magic",
     rangeCells: 6,
     stats: `300${DAMAGE_SYMBOLS.magic} / R6`
+  },
+  {
+    id: "Q",
+    category: "attack",
+    cost: 225,
+    cooldown: 4_000,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 20,
+    fireRate: 2_000,
+    damage: 300,
+    damageType: "magic",
+    rangeCells: 6,
+    projectileDebuff: "stasis",
+    projectileDebuffDuration: 1_000,
+    stats: `300${DAMAGE_SYMBOLS.magic} / R6 / STASIS`
   },
   {
     id: "J",

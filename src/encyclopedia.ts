@@ -187,6 +187,7 @@ function towerDescription(id: CardId) {
     B: zh ? "防御塔。阻挡敌怪，只会对近战伤害反伤 400 物理伤害。" : "Defender. Blocks enemies and reflects 400 physical damage only against melee hits.",
     C: zh ? "物理溅射炮。沿本行发射炮弹，命中后对 1 格半径造成范围伤害。" : "Physical splash cannon. Fires down its lane and deals 1-cell radius splash on hit.",
     D: zh ? "纯防御塔。高护甲，用来拖住近战敌怪。" : "Pure defender with high armor for stalling melee enemies.",
+    O: zh ? "抗法防御塔。机制和 D 类似，但冷却更短并拥有较高法术抗性。" : "Magic-resistant defender. Similar to D, with shorter cooldown and high magic resistance.",
     X: zh ? `生产塔。每 10 秒产生 ${EFFECT_SYMBOLS.chars}25，也是主要字符来源之一。` : `Producer. Generates ${EFFECT_SYMBOLS.chars}25 every 10s.`,
     E: zh ? "三连物理射手。向前平射，并向上/下各偏转 10 度发射一发。" : "Triple physical shooter. Fires one straight shot plus two shots at +/-10 degrees.",
     M: zh ? "下向三连物理射手。攻击方向朝下，出弹点保持在列中心。" : "Downward triple physical shooter. Fires downward from the column center.",
@@ -196,18 +197,19 @@ function towerDescription(id: CardId) {
     H: zh ? "治疗塔。治疗自身列和前方一列、以自己为中心三行内生命百分比最低的一座塔。" : "Healer. Heals the lowest-HP-percent tower in a 2x3 area covering its column and the front column.",
     P: zh ? "广域治疗塔。治疗自身列和前方四列、以自己为中心三行内生命百分比最低的一座塔。" : "Wide healer. Heals the lowest-HP-percent tower in a 5x3 area covering its column plus four forward columns.",
     I: zh ? "短程法术射手。只攻击自身和前方 5 格内的目标。" : "Short-range magic shooter. Attacks only within itself plus five tiles ahead.",
+    Q: zh ? "短程控制射手。范围和 I 一致，发射 $ 法术弹幕；命中普通敌怪后施加 1 秒凝滞，使其移动速度变为三分之一。Boss 不会受到凝滞影响。" : "Short-range control shooter. Same range as I, firing $ magic projectiles; hits apply 1s Stasis to ordinary enemies, reducing movement speed to one third. Bosses ignore Stasis.",
     J: zh ? "短程法术溅射。范围和 I 一致，发射 # 弹幕并造成范围法术伤害。" : "Short-range magic splash attacker. Same range as I, firing # projectiles with splash.",
     K: zh ? "近程斩击塔。攻击自身一格和前方两格内的单体目标，释放十字斩特效。" : "Close-range slasher. Hits one target within itself plus two tiles ahead, with a cross slash.",
     L: zh ? "牵引塔。抓取上下两行指定格子的所有敌怪平移到本行，每抓一个自损 400 真实伤害。" : "Shifter. Pulls all enemies from target tiles in adjacent lanes into its lane, taking 400 true self-damage per target.",
     N: zh ? "防御推移塔。每秒把自己正在阻挡的所有敌怪向左推移 4 格，每推一个自损 400 真实伤害。" : "Defender-shifter. Every second, pushes all enemies it is blocking 4 cells left, taking 400 true self-damage per pushed enemy.",
-    T: zh ? "迟滞塔。每秒自损 700 真实伤害；以自身为中心 5x5 去角范围内的所有单位和弹幕移动速度降为六分之一，并显示深紫色时间范围框。死亡时清除范围内弹幕，并对范围内所有单位造成 4500 真实伤害；被橡皮擦移除不会触发。" : "Slow field tower. Takes 700 true self-damage every second; all units and projectiles in its centered 5x5 no-corner area move at one sixth speed, shown with a deep-purple time range border. On death, clears projectiles in that area and deals 4500 true damage to all units there; erasing it does not trigger this."
+    T: zh ? "迟滞塔。每秒自损 700 真实伤害；以自身为中心 5x5 去角范围内的普通单位和弹幕移动速度降为六分之一，并显示深紫色时间范围框。Boss 不受减速影响。死亡时清除范围内弹幕，并对范围内所有单位和 Boss 造成 4500 真实伤害；被橡皮擦移除不会触发。" : "Slow field tower. Takes 700 true self-damage every second; ordinary units and projectiles in its centered 5x5 no-corner area move at one sixth speed, shown with a deep-purple time range border. Bosses ignore the slow. On death, clears projectiles in that area and deals 4500 true damage to all units and Bosses there; erasing it does not trigger this."
   };
   return descriptions[id];
 }
 
 function towerUpgradeText(id: CardId) {
   const zh = isZh();
-  if (id === "A" || id === "C" || id === "E" || id === "M" || id === "W" || id === "I" || id === "J" || id === "H" || id === "P" || id === "K") {
+  if (id === "A" || id === "C" || id === "E" || id === "M" || id === "W" || id === "I" || id === "Q" || id === "J" || id === "H" || id === "P" || id === "K") {
     return zh ? "增加连发次数；整段连射固定占攻击/治疗间隔的五分之一。" : "Adds burst count; the whole volley always takes one fifth of the attack/heal interval.";
   }
   if (id === "X") {

@@ -5,6 +5,7 @@ export type CardId =
   | "B"
   | "C"
   | "D"
+  | "O"
   | "X"
   | "E"
   | "M"
@@ -13,6 +14,7 @@ export type CardId =
   | "G"
   | "H"
   | "I"
+  | "Q"
   | "J"
   | "K"
   | "L"
@@ -35,9 +37,10 @@ export type EnemyKind =
   | "square3";
 export type BossKind = "cube" | "cube2";
 export type BossSkillName = "promotion" | "advance" | "promotion2";
-export type ProjectileKind = "bolt" | "shell" | "star" | "hash";
+export type ProjectileKind = "bolt" | "shell" | "star" | "hash" | "dollar";
 export type UnitCategory = "production" | "attack" | "defense" | "function" | "healing";
 export type DamageType = "physical" | "magic" | "true";
+export type StatusEffectName = "stasis";
 export type AlphaGameObject = Phaser.GameObjects.GameObject & { setAlpha(alpha: number): unknown };
 
 export interface DifficultyConfig {
@@ -71,9 +74,16 @@ export interface CardDefinition {
   selfDamageType?: DamageType;
   shiftCells?: number;
   armTime?: number;
+  projectileDebuff?: StatusEffectName;
+  projectileDebuffDuration?: number;
   produceEvery?: number;
   produceAmount?: number;
   stats: string;
+}
+
+export interface StatusEffect {
+  name: StatusEffectName;
+  expiresAt: number;
 }
 
 export interface CardState {
@@ -129,6 +139,7 @@ export interface Enemy {
   attackAt: number;
   blockedByTowerId?: string;
   blockedSince?: number;
+  statusEffects: StatusEffect[];
   body: Phaser.GameObjects.Container;
   shape: Phaser.GameObjects.GameObject & { setScale(scale: number): unknown };
 }
@@ -142,6 +153,8 @@ export interface Projectile {
   vy: number;
   damage: number;
   damageType: DamageType;
+  debuff?: StatusEffectName;
+  debuffDuration?: number;
   splashRadius: number;
   maxX: number;
   body: Phaser.GameObjects.Shape | Phaser.GameObjects.Text;

@@ -9,6 +9,7 @@ import { canEnemyMelee, enemyVolleyShotCount, shouldEnemyShoot, splitSpawnKind, 
 import { createEnemy } from "./enemyFactory";
 import { createEnemyProjectile } from "./projectiles";
 import { movementSpeedMultiplier } from "./slowAura";
+import { statusSpeedMultiplier } from "./statusEffects";
 import { getBlockingTower, towerRect } from "./targeting";
 import { isTrapArmed } from "./towers";
 import { volleyInterval } from "./upgrades";
@@ -127,7 +128,11 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
     }
 
     if (!blocker) {
-      enemy.x -= enemy.speed * seconds * movementSpeedMultiplier(runtime.towers, enemy.x, enemy.y);
+      enemy.x -=
+        enemy.speed *
+        seconds *
+        movementSpeedMultiplier(runtime.towers, enemy.x, enemy.y) *
+        statusSpeedMultiplier(enemy, time);
       enemy.body.setPosition(enemy.x, enemy.y);
     }
 
