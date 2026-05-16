@@ -99,8 +99,8 @@ export function createCubeBoss(scene: Phaser.Scene, kind: BossKind, finalDamageR
   return boss;
 }
 
-export function updateCubeBossMotion(boss: CubeBoss, seconds: number) {
-  boss.x -= boss.speed * seconds;
+export function updateCubeBossMotion(boss: CubeBoss, seconds: number, movementMultiplier = 1) {
+  boss.x -= boss.speed * seconds * movementMultiplier;
   boss.body.setPosition(boss.x, boss.y);
 
   boss.nextTurnIn -= seconds;

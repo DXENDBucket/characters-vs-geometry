@@ -11,6 +11,7 @@ import { makeCubeCollapse } from "../render/combatEffects";
 import type { CubeBoss, DamageType, Enemy, Tower } from "../types";
 import { applyEnemyPromotion, findPromotionTarget, promotedKind } from "./enemyBehaviors";
 import { spawnEnemyAt } from "./enemyRuntime";
+import { movementSpeedMultiplier } from "./slowAura";
 import { bossRect, towerRect } from "./targeting";
 import { isTrapArmed } from "./towers";
 
@@ -34,7 +35,7 @@ export function updateBossRuntime(runtime: BossRuntime, seconds: number) {
     return;
   }
 
-  updateCubeBossMotion(boss, seconds);
+  updateCubeBossMotion(boss, seconds, movementSpeedMultiplier(runtime.towers, boss.x, boss.y));
   updateBossSkills(runtime, boss, seconds);
   triggerFunctionalTowersTouchingBoss(runtime, boss);
   if (!runtime.getBoss()) {

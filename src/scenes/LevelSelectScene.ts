@@ -50,6 +50,7 @@ export class LevelSelectScene extends Phaser.Scene {
   private selectedChapter = 0;
   private selectedLevelId: string | null = "0-1";
   private difficulty = DEFAULT_DIFFICULTY;
+  private unlimitedFirepower = false;
   private mapContainer!: Phaser.GameObjects.Container;
   private mapBounds!: Phaser.Geom.Rectangle;
   private readonly chapters = [0, 1];
@@ -71,6 +72,9 @@ export class LevelSelectScene extends Phaser.Scene {
   private chapterButtons: ChapterButton[] = [];
   private difficultyText!: Phaser.GameObjects.Text;
   private difficultyKnob!: Phaser.GameObjects.Rectangle;
+  private unlimitedFirepowerBox!: Phaser.GameObjects.Rectangle;
+  private unlimitedFirepowerFill!: Phaser.GameObjects.Rectangle;
+  private unlimitedFirepowerText!: Phaser.GameObjects.Text;
   private encyclopediaButton!: Phaser.GameObjects.Rectangle;
   private encyclopediaText!: Phaser.GameObjects.Text;
   private languageButton!: Phaser.GameObjects.Rectangle;
@@ -781,6 +785,7 @@ export class LevelSelectScene extends Phaser.Scene {
     const trackX = 172;
     const trackY = this.footerY;
     const trackWidth = 360;
+    this.createUnlimitedFirepowerToggle(labelX + 10, trackY - 34);
 
     this.add
       .text(labelX, trackY - 10, t("label.difficulty"), {
@@ -825,6 +830,42 @@ export class LevelSelectScene extends Phaser.Scene {
     }
 
     this.updateDifficultySlider(trackX, trackWidth);
+  }
+
+  private createUnlimitedFirepowerToggle(x: number, y: number) {
+    this.unlimitedFirepowerBox = this.add
+      .rectangle(x, y, 18, 18, palette.black, 1)
+      .setStrokeStyle(2, palette.mid, 0.86)
+      .setInteractive({ useHandCursor: true });
+    this.unlimitedFirepowerFill = this.add.rectangle(x, y, 10, 10, palette.white, 1);
+    this.unlimitedFirepowerText = this.add
+      .text(x + 16, y - 2, t("label.unlimitedFirepower"), {
+        color: "#d8d8d8",
+        fontFamily: "monospace",
+        fontSize: "14px",
+        fontStyle: "700"
+      })
+      .setOrigin(0, 0.5)
+      .setInteractive({ useHandCursor: true });
+
+    this.unlimitedFirepowerBox.on("pointerdown", () => this.toggleUnlimitedFirepower());
+    this.unlimitedFirepowerText.on("pointerdown", () => this.toggleUnlimitedFirepower());
+    this.updateUnlimitedFirepowerToggle();
+  }
+
+  private toggleUnlimitedFirepower() {
+    this.unlimitedFirepower = !this.unlimitedFirepower;
+    this.updateUnlimitedFirepowerToggle();
+  }
+
+  private updateUnlimitedFirepowerToggle() {
+    this.unlimitedFirepowerBox.setStrokeStyle(
+      2,
+      this.unlimitedFirepower ? palette.white : palette.mid,
+      this.unlimitedFirepower ? 1 : 0.72
+    );
+    this.unlimitedFirepowerFill.setVisible(this.unlimitedFirepower);
+    this.unlimitedFirepowerText.setAlpha(this.unlimitedFirepower ? 1 : 0.62);
   }
 
   private setDifficultyFromX(x: number, trackX: number, trackWidth: number) {
@@ -881,7 +922,11 @@ export class LevelSelectScene extends Phaser.Scene {
 
     const selected = this.chapterNodes().find((node) => node.id === this.selectedLevelId);
     if (selected?.unlocked) {
-      this.scene.start("CardSelectScene", { levelId: selected.id, difficulty: this.difficulty });
+      this.scene.start("CardSelectScene", {
+        levelId: selected.id,
+        difficulty: this.difficulty,
+        unlimitedFirepower: this.unlimitedFirepower
+      });
     }
   }
 }

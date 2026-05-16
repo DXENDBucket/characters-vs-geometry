@@ -16,7 +16,9 @@ export type CardId =
   | "J"
   | "K"
   | "L"
-  | "N";
+  | "N"
+  | "T"
+  | "P";
 export type EnemyKind =
   | "circle"
   | "circle2"
@@ -25,6 +27,7 @@ export type EnemyKind =
   | "triangle2"
   | "triangle3"
   | "invertedTriangle"
+  | "invertedTriangle2"
   | "shootingTriangle"
   | "shootingTriangle2"
   | "square"

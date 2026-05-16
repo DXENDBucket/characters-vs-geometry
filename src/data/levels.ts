@@ -14,7 +14,8 @@ export const levelNodes: LevelNode[] = [
   { id: "0-10", x: 2610, y: 300, unlocked: true },
   { id: "1-1", x: 230, y: 405, unlocked: true },
   { id: "1-2", x: 450, y: 310, unlocked: true },
-  { id: "1-3", x: 670, y: 430, unlocked: true }
+  { id: "1-3", x: 670, y: 430, unlocked: true },
+  { id: "1-4", x: 890, y: 330, unlocked: true }
 ];
 
 export const levelConfigs: Record<string, LevelConfig> = {
@@ -129,6 +130,16 @@ export const levelConfigs: Record<string, LevelConfig> = {
     waveWeightIncrement: 12,
     waveWeightIncrementGrowth: 1,
     totalWaves: TOTAL_WAVES,
+    wavesPerFlag: WAVES_PER_FLAG,
+    startingChars: 300
+  },
+  "1-4": {
+    id: "1-4",
+    enemyKinds: ["circle", "triangle", "shootingTriangle", "shootingTriangle2", "invertedTriangle", "invertedTriangle2", "square"],
+    firstWaveWeight: 19,
+    waveWeightIncrement: 12,
+    waveWeightIncrementGrowth: 1,
+    totalWaves: 20,
     wavesPerFlag: WAVES_PER_FLAG,
     startingChars: 300
   }

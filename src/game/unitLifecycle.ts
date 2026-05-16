@@ -1,16 +1,22 @@
 import Phaser from "phaser";
-import { makeBossHitFlash } from "../render/combatEffects";
-import type { CubeBoss, DamageType, Enemy, Tower, WaveTracker } from "../types";
+import { CELL_HEIGHT, CELL_WIDTH } from "../config";
+import { makeBossHitFlash, makeShellBurst, makeShockPulse } from "../render/combatEffects";
+import type { CubeBoss, DamageType, Enemy, EnemyProjectile, Projectile, Tower, WaveTracker } from "../types";
 import { calculateDamage } from "./damage";
 import { enemyScaleFromHp } from "./enemyBehaviors";
 import { spawnSplitEnemies } from "./enemyRuntime";
+import { isPointInSlowAura } from "./slowAura";
 import { gridCellKey } from "./targeting";
 import { syncTowerHpBar } from "./towers";
+
+const SLOW_AURA_DEATH_DAMAGE = 4_500;
 
 export interface UnitLifecycleRuntime {
   scene: Phaser.Scene;
   enemies: Enemy[];
   towers: Tower[];
+  projectiles: Projectile[];
+  enemyProjectiles: EnemyProjectile[];
   occupied: Map<string, Tower>;
   getBoss: () => CubeBoss | null;
   setBoss: (boss: CubeBoss | null) => void;
@@ -22,11 +28,21 @@ export interface UnitLifecycleRuntime {
 }
 
 export function damageTower(runtime: UnitLifecycleRuntime, tower: Tower, damage: number, damageType: DamageType) {
+  if (!runtime.towers.includes(tower)) {
+    return;
+  }
+
   const actualDamage = calculateDamage(damage, damageType, tower.armor, tower.magicResistance);
   tower.hp -= actualDamage;
   syncTowerHpBar(tower);
 
   if (tower.hp <= 0) {
+    if (tower.type === "T") {
+      removeTower(runtime, tower);
+      detonateSlowAuraTower(runtime, tower);
+      return;
+    }
+
     removeTower(runtime, tower);
   }
 }
@@ -116,4 +132,42 @@ export function removeTower(runtime: UnitLifecycleRuntime, tower: Tower) {
     duration: 130,
     onComplete: () => tower.body.destroy()
   });
+}
+
+function detonateSlowAuraTower(runtime: UnitLifecycleRuntime, tower: Tower) {
+  makeShellBurst(runtime.scene, tower.x, tower.y, CELL_WIDTH * 2, "true");
+  makeShockPulse(runtime.scene, tower.x, tower.y, CELL_WIDTH * 2.5, CELL_HEIGHT * 2.5);
+  clearProjectilesInSlowAura(runtime.projectiles, tower);
+  clearProjectilesInSlowAura(runtime.enemyProjectiles, tower);
+
+  for (const enemy of [...runtime.enemies]) {
+    if (isPointInSlowAura(tower, enemy.x, enemy.y)) {
+      damageEnemy(runtime, enemy, SLOW_AURA_DEATH_DAMAGE, "true");
+    }
+  }
+
+  for (const target of [...runtime.towers]) {
+    if (isPointInSlowAura(tower, target.x, target.y)) {
+      damageTower(runtime, target, SLOW_AURA_DEATH_DAMAGE, "true");
+    }
+  }
+
+  const boss = runtime.getBoss();
+  if (boss && isPointInSlowAura(tower, boss.x, boss.y)) {
+    damageBoss(runtime, SLOW_AURA_DEATH_DAMAGE, "true");
+  }
+}
+
+function clearProjectilesInSlowAura<T extends { x: number; y: number; body: Phaser.GameObjects.GameObject }>(
+  projectiles: T[],
+  tower: Tower
+) {
+  for (const projectile of [...projectiles]) {
+    if (!isPointInSlowAura(tower, projectile.x, projectile.y)) {
+      continue;
+    }
+
+    Phaser.Utils.Array.Remove(projectiles, projectile);
+    projectile.body.destroy();
+  }
 }

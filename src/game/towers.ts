@@ -21,6 +21,7 @@ export function createTower(
   const y = BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2;
   const body = scene.add.container(x, y).setDepth(20 + lane);
   const border = createUnitBorder(scene, definition.category, 24, definition.category === "defense" ? 3 : 2);
+  const rangeBorder = definition.id === "T" ? createSlowAuraRangeBorder(scene) : null;
   const autoUpgradeBorder = createAutoUpgradeBorder(scene);
   const label = scene.add
     .text(0, -3, definition.id, {
@@ -41,7 +42,7 @@ export function createTower(
     })
     .setOrigin(0.5);
 
-  body.add([autoUpgradeBorder, border, label, levelText, hpBack, hpFill]);
+  body.add([...(rangeBorder ? [rangeBorder] : []), autoUpgradeBorder, border, label, levelText, hpBack, hpFill]);
   if (definition.id === "G") {
     border.setVisible(false);
   }
@@ -144,6 +145,30 @@ function createAutoUpgradeBorder(scene: Phaser.Scene) {
   border.lineStyle(2, palette.green, 0.95);
   border.strokeCircle(0, 0, 31);
   border.setVisible(false);
+  return border;
+}
+
+function createSlowAuraRangeBorder(scene: Phaser.Scene) {
+  const border = scene.add.graphics();
+  const inner = CELL_WIDTH * 1.5;
+  const outer = CELL_WIDTH * 2.5;
+
+  border.lineStyle(2, palette.time, 0.86);
+  border.beginPath();
+  border.moveTo(-inner, -outer);
+  border.lineTo(inner, -outer);
+  border.lineTo(inner, -inner);
+  border.lineTo(outer, -inner);
+  border.lineTo(outer, inner);
+  border.lineTo(inner, inner);
+  border.lineTo(inner, outer);
+  border.lineTo(-inner, outer);
+  border.lineTo(-inner, inner);
+  border.lineTo(-outer, inner);
+  border.lineTo(-outer, -inner);
+  border.lineTo(-inner, -inner);
+  border.closePath();
+  border.strokePath();
   return border;
 }
 

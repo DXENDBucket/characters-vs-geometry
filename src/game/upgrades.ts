@@ -1,7 +1,7 @@
 import type { CardId } from "../types";
 
-const VOLLEY_UPGRADEABLE_CARDS = new Set<CardId>(["A", "C", "E", "M", "W", "H", "I", "J", "K"]);
-const MAX_HP_UPGRADEABLE_CARDS = new Set<CardId>(["B", "D", "L", "N"]);
+const VOLLEY_UPGRADEABLE_CARDS = new Set<CardId>(["A", "C", "E", "M", "W", "H", "P", "I", "J", "K"]);
+const MAX_HP_UPGRADEABLE_CARDS = new Set<CardId>(["B", "D", "L", "N", "T"]);
 const UPGRADE_SCALE = 0.8;
 
 export function effectiveUpgradeCountForLevel(level: number) {

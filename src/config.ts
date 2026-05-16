@@ -60,6 +60,7 @@ export const palette = {
   dim: 0x454545,
   magic: 0x9fdcff,
   green: 0x48ff88,
+  time: 0x5b2a91,
   enemyShot: 0xff6464
 };
 

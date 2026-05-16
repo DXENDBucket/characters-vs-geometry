@@ -77,9 +77,22 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     rank: 1,
     nameKey: "enemy.invertedTriangle",
     attackMode: "blockedDetonator",
+    promotionKind: "invertedTriangle2",
     blockedDetonation: {
       delay: 2_000,
       damage: 2_000,
+      damageType: "magic"
+    }
+  },
+  invertedTriangle2: {
+    definition: rawEnemyDefinitions.invertedTriangle2,
+    family: "invertedTriangle",
+    rank: 2,
+    nameKey: "enemy.invertedTriangle2",
+    attackMode: "blockedDetonator",
+    blockedDetonation: {
+      delay: 2_000,
+      damage: 2_600,
       damageType: "magic"
     }
   },

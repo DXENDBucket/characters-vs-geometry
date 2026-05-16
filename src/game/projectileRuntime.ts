@@ -6,6 +6,7 @@ import {
 } from "../render/combatEffects";
 import type { CubeBoss, DamageType, Enemy, EnemyProjectile, Projectile, Tower } from "../types";
 import { isEnemyProjectileOutOfBounds, isTowerProjectileOutOfBounds } from "./projectiles";
+import { movementSpeedMultiplier } from "./slowAura";
 import { isBossInRadius, isPointInBossHitbox, towerRect } from "./targeting";
 
 export interface ProjectileRuntime {
@@ -22,10 +23,11 @@ export interface ProjectileRuntime {
 
 export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: number) {
   for (const projectile of [...runtime.projectiles]) {
-    const nextX = projectile.x + projectile.vx * seconds;
+    const speedMultiplier = movementSpeedMultiplier(runtime.towers, projectile.x, projectile.y);
+    const nextX = projectile.x + projectile.vx * seconds * speedMultiplier;
     const reachedMaxX = nextX >= projectile.maxX;
     projectile.x = reachedMaxX ? projectile.maxX : nextX;
-    projectile.y += projectile.vy * seconds;
+    projectile.y += projectile.vy * seconds * speedMultiplier;
     projectile.body.setPosition(projectile.x, projectile.y);
 
     const hit = runtime.enemies.find(
@@ -70,7 +72,7 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
 
 export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: number) {
   for (const projectile of [...runtime.enemyProjectiles]) {
-    projectile.x += projectile.vx * seconds;
+    projectile.x += projectile.vx * seconds * movementSpeedMultiplier(runtime.towers, projectile.x, projectile.y);
     projectile.body.setPosition(projectile.x, projectile.y);
 
     const hit = runtime.towers

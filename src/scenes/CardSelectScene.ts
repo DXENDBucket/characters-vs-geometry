@@ -19,6 +19,7 @@ import type { BossKind, CardId, EnemyKind } from "../types";
 export class CardSelectScene extends Phaser.Scene {
   private levelId = "0-1";
   private difficulty = DEFAULT_DIFFICULTY;
+  private unlimitedFirepower = false;
   private selectedCards: CardId[] = [...defaultCardLoadout];
   private enemyPreviewList!: Phaser.GameObjects.Container;
   private enemyPreviewViewport!: Phaser.Geom.Rectangle;
@@ -48,9 +49,10 @@ export class CardSelectScene extends Phaser.Scene {
     super("CardSelectScene");
   }
 
-  init(data: { levelId?: string; difficulty?: number }) {
+  init(data: { levelId?: string; difficulty?: number; unlimitedFirepower?: boolean }) {
     this.levelId = data.levelId ?? "0-1";
     this.difficulty = clampDifficulty(data.difficulty);
+    this.unlimitedFirepower = Boolean(data.unlimitedFirepower);
     this.selectedCards = [...defaultCardLoadout];
     this.slotFrames = [];
     this.slotLabels = [];
@@ -75,12 +77,17 @@ export class CardSelectScene extends Phaser.Scene {
 
   private drawBackdrop() {
     this.add
-      .text(48, 40, t("operation.level", { level: this.levelId, difficulty: this.difficulty }), {
+      .text(
+        48,
+        40,
+        `${t("operation.level", { level: this.levelId, difficulty: this.difficulty })}${this.unlimitedFirepower ? `  ${t("label.unlimitedFirepower")}` : ""}`,
+        {
         color: "#f5f5f5",
         fontFamily: "monospace",
         fontSize: "28px",
         fontStyle: "700"
-      })
+        }
+      )
       .setOrigin(0, 0);
 
     this.add
@@ -439,7 +446,8 @@ export class CardSelectScene extends Phaser.Scene {
     this.scene.start("GameScene", {
       levelId: this.levelId,
       selectedCards: this.selectedCards,
-      difficulty: this.difficulty
+      difficulty: this.difficulty,
+      unlimitedFirepower: this.unlimitedFirepower
     });
   }
 }

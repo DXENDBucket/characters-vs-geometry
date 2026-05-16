@@ -25,6 +25,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
   const circle = getEnemyDefinition("circle");
   const triangle = getEnemyDefinition("triangle");
   const invertedTriangle = getEnemyDefinition("invertedTriangle");
+  const invertedTriangle2 = getEnemyDefinition("invertedTriangle2");
   const shootingTriangle = getEnemyDefinition("shootingTriangle");
   const shootingTriangle2 = getEnemyDefinition("shootingTriangle2");
   const square = getEnemyDefinition("square");
@@ -75,10 +76,12 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.hp"), invertedTriangle.hp],
           [t("label.armor"), invertedTriangle.armor],
           [t("label.mr"), invertedTriangle.magicResistance],
-          [t("label.atk"), damageText(invertedTriangle.damage, invertedTriangle.damageType)],
-          [t("label.speed"), speedText("invertedTriangle")],
-          [t("label.weight"), invertedTriangle.weight]
+          [t("label.atk"), `I ${damageText(invertedTriangle.damage, invertedTriangle.damageType)} / II ${damageText(invertedTriangle2.damage, invertedTriangle2.damageType)}`],
+          [t("label.speed"), `I ${speedText("invertedTriangle")} / II ${speedText("invertedTriangle2")}`]
         ]),
+        zh
+          ? `权重 I/II：${invertedTriangle.weight} / ${invertedTriangle2.weight}`
+          : `Weight I/II: ${invertedTriangle.weight} / ${invertedTriangle2.weight}`,
         zh ? "被同一座塔连续阻挡 2s 后触发" : "Triggers after being blocked by the same tower for 2s"
       ],
       description: zh
@@ -191,18 +194,20 @@ function towerDescription(id: CardId) {
     F: zh ? "触发器。阻挡敌怪时立刻消失，并在 3x3 范围内连续释放冲击波。" : "Trigger. Disappears on blocking and releases rapid shockwaves in a 3x3 area.",
     G: zh ? "延迟触发器。放置 15 秒后准备完成，接触敌怪时消失并造成高额法术伤害。" : "Delayed trigger. Arms after 15s, then disappears on contact to deal heavy magic damage.",
     H: zh ? "治疗塔。治疗自身列和前方一列、以自己为中心三行内生命百分比最低的一座塔。" : "Healer. Heals the lowest-HP-percent tower in a 2x3 area covering its column and the front column.",
+    P: zh ? "广域治疗塔。治疗自身列和前方四列、以自己为中心三行内生命百分比最低的一座塔。" : "Wide healer. Heals the lowest-HP-percent tower in a 5x3 area covering its column plus four forward columns.",
     I: zh ? "短程法术射手。只攻击自身和前方 5 格内的目标。" : "Short-range magic shooter. Attacks only within itself plus five tiles ahead.",
     J: zh ? "短程法术溅射。范围和 I 一致，发射 # 弹幕并造成范围法术伤害。" : "Short-range magic splash attacker. Same range as I, firing # projectiles with splash.",
     K: zh ? "近程斩击塔。攻击自身一格和前方两格内的单体目标，释放十字斩特效。" : "Close-range slasher. Hits one target within itself plus two tiles ahead, with a cross slash.",
     L: zh ? "牵引塔。抓取上下两行指定格子的所有敌怪平移到本行，每抓一个自损 400 真实伤害。" : "Shifter. Pulls all enemies from target tiles in adjacent lanes into its lane, taking 400 true self-damage per target.",
-    N: zh ? "防御推移塔。每秒把自己正在阻挡的所有敌怪向左推移 4 格，每推一个自损 400 真实伤害。" : "Defender-shifter. Every second, pushes all enemies it is blocking 4 cells left, taking 400 true self-damage per pushed enemy."
+    N: zh ? "防御推移塔。每秒把自己正在阻挡的所有敌怪向左推移 4 格，每推一个自损 400 真实伤害。" : "Defender-shifter. Every second, pushes all enemies it is blocking 4 cells left, taking 400 true self-damage per pushed enemy.",
+    T: zh ? "迟滞塔。每秒自损 700 真实伤害；以自身为中心 5x5 去角范围内的所有单位和弹幕移动速度降为六分之一，并显示深紫色时间范围框。死亡时清除范围内弹幕，并对范围内所有单位造成 4500 真实伤害；被橡皮擦移除不会触发。" : "Slow field tower. Takes 700 true self-damage every second; all units and projectiles in its centered 5x5 no-corner area move at one sixth speed, shown with a deep-purple time range border. On death, clears projectiles in that area and deals 4500 true damage to all units there; erasing it does not trigger this."
   };
   return descriptions[id];
 }
 
 function towerUpgradeText(id: CardId) {
   const zh = isZh();
-  if (id === "A" || id === "C" || id === "E" || id === "M" || id === "W" || id === "I" || id === "J" || id === "H" || id === "K") {
+  if (id === "A" || id === "C" || id === "E" || id === "M" || id === "W" || id === "I" || id === "J" || id === "H" || id === "P" || id === "K") {
     return zh ? "增加连发次数；整段连射固定占攻击/治疗间隔的五分之一。" : "Adds burst count; the whole volley always takes one fifth of the attack/heal interval.";
   }
   if (id === "X") {

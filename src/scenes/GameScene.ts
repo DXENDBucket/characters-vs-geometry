@@ -83,6 +83,7 @@ import type {
   CardId,
   CardState,
   CubeBoss,
+  DifficultyConfig,
   Enemy,
   EnemyProjectile,
   Projectile,
@@ -95,6 +96,7 @@ export class GameScene extends Phaser.Scene {
   private levelConfig = getLevelConfig("0-1");
   private difficulty = DEFAULT_DIFFICULTY;
   private difficultyConfig = getDifficultyConfig(DEFAULT_DIFFICULTY);
+  private unlimitedFirepower = false;
   private selectedCardIds: CardId[] = [...defaultCardLoadout];
   private levelElapsed = 0;
   private battleTime = 0;
@@ -128,11 +130,12 @@ export class GameScene extends Phaser.Scene {
     super("GameScene");
   }
 
-  init(data: { levelId?: string; selectedCards?: CardId[]; difficulty?: number }) {
+  init(data: { levelId?: string; selectedCards?: CardId[]; difficulty?: number; unlimitedFirepower?: boolean }) {
     this.levelId = data.levelId ?? "0-1";
     this.levelConfig = getLevelConfig(this.levelId);
     this.difficulty = clampDifficulty(data.difficulty);
-    this.difficultyConfig = getDifficultyConfig(this.difficulty);
+    this.unlimitedFirepower = Boolean(data.unlimitedFirepower);
+    this.difficultyConfig = this.adjustDifficultyForUnlimitedFirepower(getDifficultyConfig(this.difficulty));
     this.selectedCardIds = this.sanitizeLoadout(data.selectedCards);
     this.cardStates = [];
     this.selectedCardId = this.selectedCardIds.includes("X") ? "X" : this.selectedCardIds[0];
@@ -308,19 +311,50 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    if (existingTower) {
-      if (existingTower.type !== definition.id) {
-        this.showToast(t("toast.occupied"));
-        return;
-      }
-
-      this.upgradeTower(existingTower);
-    } else {
-      this.placeTower(definition, lane, column);
+    const deployed = this.unlimitedFirepower
+      ? this.deployColumn(definition, column)
+      : this.deploySingle(definition, lane, column);
+    if (!deployed) {
+      this.showToast(t("toast.occupied"));
+      return;
     }
 
     this.chars -= definition.cost;
     cardState.readyAt = this.cardTime + definition.cooldown;
+  }
+
+  private deploySingle(definition: CardDefinition, lane: number, column: number) {
+    const existingTower = this.occupied.get(gridCellKey(lane, column));
+    if (existingTower) {
+      if (existingTower.type !== definition.id) {
+        return false;
+      }
+
+      this.upgradeTower(existingTower);
+      return true;
+    }
+
+    this.placeTower(definition, lane, column);
+    return true;
+  }
+
+  private deployColumn(definition: CardDefinition, column: number) {
+    let deployed = false;
+    for (let lane = 0; lane < LANES; lane += 1) {
+      const existingTower = this.occupied.get(gridCellKey(lane, column));
+      if (existingTower) {
+        if (existingTower.type === definition.id) {
+          this.upgradeTower(existingTower);
+          deployed = true;
+        }
+        continue;
+      }
+
+      this.placeTower(definition, lane, column);
+      deployed = true;
+    }
+
+    return deployed;
   }
 
   private placeTower(definition: CardDefinition, lane: number, column: number) {
@@ -384,12 +418,27 @@ export class GameScene extends Phaser.Scene {
     return this.levelConfig.startingChars ?? (this.levelId.startsWith("1-") ? 300 : STARTING_CHARS);
   }
 
+  private adjustDifficultyForUnlimitedFirepower(difficultyConfig: DifficultyConfig): DifficultyConfig {
+    if (!this.unlimitedFirepower) {
+      return difficultyConfig;
+    }
+
+    return {
+      ...difficultyConfig,
+      weightMultiplier: difficultyConfig.weightMultiplier * 10
+    };
+  }
+
   private spawnBossIfNeeded() {
     if (!this.levelConfig.bossKind) {
       return;
     }
 
     this.boss = createCubeBoss(this, this.levelConfig.bossKind, this.difficultyConfig.finalDamageReduction);
+    if (this.unlimitedFirepower) {
+      this.boss.maxHp *= 10;
+      this.boss.hp = this.boss.maxHp;
+    }
   }
 
   private combatRuntime(): CombatRuntime {
@@ -446,6 +495,8 @@ export class GameScene extends Phaser.Scene {
       scene: this,
       enemies: this.enemies,
       towers: this.towers,
+      projectiles: this.projectiles,
+      enemyProjectiles: this.enemyProjectiles,
       occupied: this.occupied,
       getBoss: () => this.boss,
       setBoss: (boss) => {
@@ -634,6 +685,9 @@ export class GameScene extends Phaser.Scene {
     this.eraserMode = false;
     this.autoUpgradeMode = false;
     this.autoUpgradeReserveInputFocused = false;
+    this.cardStates.forEach((cardState) => {
+      cardState.readyAt = this.cardTime;
+    });
     this.gainChars(10_000, this.ui.debugButton.x, this.ui.debugButton.y + 34);
     this.showToast(t("toast.debugChars"));
     this.updateCards(this.cardTime);
@@ -710,7 +764,11 @@ export class GameScene extends Phaser.Scene {
       }
 
       this.chars -= cardState.definition.cost;
-      this.upgradeTower(target);
+      if (this.unlimitedFirepower) {
+        this.deployColumn(cardState.definition, target.column);
+      } else {
+        this.upgradeTower(target);
+      }
       makeAutoUpgradePulse(this, target.x, target.y);
       cardState.readyAt = this.cardTime + cardState.definition.cooldown;
       upgraded = true;
@@ -831,7 +889,9 @@ export class GameScene extends Phaser.Scene {
       J: "J",
       K: "K",
       L: "L",
-      N: "N"
+      N: "N",
+      T: "T",
+      P: "P"
     };
 
     const selected = hotkeys[upperKey];
@@ -873,7 +933,8 @@ export class GameScene extends Phaser.Scene {
     this.scene.restart({
       levelId: this.levelId,
       selectedCards: this.selectedCardIds,
-      difficulty: this.difficulty
+      difficulty: this.difficulty,
+      unlimitedFirepower: this.unlimitedFirepower
     });
   }
 

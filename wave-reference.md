@@ -11,6 +11,7 @@
 | Triangle 2 | 90 | 5000 | 100 | 600 | ◆ | Body label `II`; average speed `20`, +`5` over Triangle 1; attacks every `0.5s` |
 | Triangle 3 | 150 | 5000 | 100 | 600 | ◆ | Body label `III`; average speed `25`, +`10` over Triangle 1; attacks every `0.33s` |
 | Inverted Triangle 1 | 50 | 1000 | 70 | 2000 | ✦ | Body label `I`; MR `60`; average speed `40`; after being blocked by the same tower for `2s`, disappears and detonates against that tower |
+| Inverted Triangle 2 | 100 | 1000 | 70 | 2600 | ✦ | Body label `II`; MR `60`; average speed `45`; after being blocked by the same tower for `2s`, disappears and detonates against that tower |
 | Shooting Triangle 1 | 50 | 2000 | 70 | 400 | ◆ | Body label `I`; average speed `4`; points toward the base and fires red-tinted bolts every `2s` |
 | Square 1 | 50 | 12000 | 300 | 400 | ◆ | Body label `I`; average speed `6` |
 | Square 2 | 150 | 12000 | 600 | 400 | ◆ | Body label `II`; average speed `6` |
@@ -58,11 +59,13 @@ Cube skills:
 | F | Function | Triangle | 125 | 30s | 1200 | 150 | 0 | On enemy or Boss contact, disappears and emits `10` shockwaves; each deals `1200◆` in a `3x3` area | +`8` shockwaves per level |
 | G | Function | Triangle | 25 | 30s | 1200 | 150 | 0 | Arms after `15s`; on enemy or Boss contact, disappears and deals `15000✦` | +`12000✦` per level; resets arming |
 | H | Healing | Hexagon | 150 | 20s | 1200 | 150 | 0 | Heals the lowest HP% damaged ally in a `2x3` area covering its column and the front column for `1000`, every `2s`, shown as `♡`; ties prefer earlier placement | +1 healing volley per level |
+| P | Healing | Hexagon | 100 | 20s | 1200 | 150 | 0 | Heals the lowest HP% damaged ally in a `5x3` area covering its column and the next 4 columns for `280`, every `2s`, shown as `♡`; ties prefer earlier placement | +1 healing volley per level |
 | I | Attack | Diamond | 100 | 2s | 1200 | 150 | 20 | Fires 1 `*` projectile, `300✦`, every `2s`; range is self plus 5 cells ahead | +1 volley per level |
 | J | Attack | Diamond | 375 | 4s | 1200 | 150 | 20 | Fires 1 `#` shell, `600✦`, `1` tile AOE, every `4s`; range is self plus 5 cells ahead | +1 volley per level |
 | K | Attack | Diamond | 375 | 4s | 2500 | 300 | 0 | Slashes 1 target for `1600◆`, every `4s`; range is self plus 2 cells ahead | +1 volley per level |
 | L | Function | Triangle | 200 | 20s | 3000 | 200 | 0 | Every `1s`, shifts all enemies in upper/lower lanes within its column and the front column into its own lane; takes `400◇` per shifted enemy | +`2400` max/current HP per level |
 | N | Defense | Square | 125 | 20s | 3000 | 500 | 0 | Every `1s`, pushes all enemies it is blocking `4` cells left; takes `400◇` per pushed enemy | +`2400` max/current HP per level |
+| T | Function | Triangle | 650 | 50s | 4000 | 150 | 20 | Every `1s`, takes `700◇`; all units and projectiles in a centered `5x5` no-corner area move at `1/6` speed. The area is shown with a deep-purple time border. On death, clears projectiles in that area and deals `4500◇` to all units there; eraser removal does not trigger this | +`3200` max/current HP per level |
 
 Volley upgrades spread consecutive shots or heals across a fixed total volley duration of `interval / 5`, regardless of shot count. The attack/heal interval itself is unchanged and starts after the volley finishes.
 
@@ -82,8 +85,9 @@ Upgrade scaling:
 
 | Tool | Location | Effect |
 | --- | --- | --- |
-| Debug | Combat screen top-right, left of Auto Upgrade | Grants `10000` characters immediately and triggers auto-upgrade checks. |
+| Debug | Combat screen top-right, left of Auto Upgrade | Grants `10000` characters, refreshes all card cooldowns, and triggers auto-upgrade checks. |
 | Auto Upgrade | Combat screen top-right, left of Eraser | Select `AUTO`, then click a tower to mark/unmark it. Marked towers show a green ring and auto-buy upgrades when their matching card slot is ready. |
+| Unlimited Firepower | Level select, left of the difficulty slider | Multiplies wave weight caps by `10` and Boss HP by `10`. Manual placement or upgrade applies to the whole clicked column; cells occupied by other tower types stay unchanged. |
 | Eraser | Combat screen top-right | Select `ERASE`, then click a placed character to remove it. No character refund. |
 | Pause | Spacebar | Freezes combat time while keeping deployment controls available. |
 
@@ -550,6 +554,51 @@ Base rule:
 | 8 | - | 124 | 124 |
 | 9 | - | 143 | 143 |
 | 10 | 1 | 163 | 326 |
+
+## Level 1-4 Weight Growth
+
+Enemy pool:
+
+- Circle 1
+- Triangle 1
+- Shooting Triangle 1
+- Shooting Triangle 2
+- Inverted Triangle 1
+- Inverted Triangle 2
+- Square 1
+
+Base rule:
+
+- Starting characters: `300`.
+- Wave 1 starts at weight cap `19`.
+- Wave 2 adds `+12`; each later increment grows by `+1` (`+13`, `+14`, ...).
+- Every flag wave, currently every `10`th wave, doubles that wave's final cap.
+- A wave may leave unused weight, but never exceeds its cap.
+- Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
+- The level has `20` total waves.
+
+| Wave | Flag | Base Cap | Final Cap |
+| ---: | ---: | ---: | ---: |
+| 1 | - | 19 | 19 |
+| 2 | - | 31 | 31 |
+| 3 | - | 44 | 44 |
+| 4 | - | 58 | 58 |
+| 5 | - | 73 | 73 |
+| 6 | - | 89 | 89 |
+| 7 | - | 106 | 106 |
+| 8 | - | 124 | 124 |
+| 9 | - | 143 | 143 |
+| 10 | 1 | 163 | 326 |
+| 11 | - | 184 | 184 |
+| 12 | - | 206 | 206 |
+| 13 | - | 229 | 229 |
+| 14 | - | 253 | 253 |
+| 15 | - | 278 | 278 |
+| 16 | - | 304 | 304 |
+| 17 | - | 331 | 331 |
+| 18 | - | 359 | 359 |
+| 19 | - | 388 | 388 |
+| 20 | 2 | 418 | 836 |
 
 ## Spawn Trigger
 

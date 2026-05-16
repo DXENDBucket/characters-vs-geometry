@@ -56,8 +56,11 @@ export function isBossInRect(boss: CubeBoss | null, x: number, y: number, width:
   return Phaser.Geom.Intersects.RectangleToRectangle(bossRect(boss), new Phaser.Geom.Rectangle(x, y, width, height));
 }
 
-export function getHealTarget(tower: Tower, occupied: Map<string, Tower>) {
-  const targetColumns = [tower.column, tower.column + 1].filter((column) => column >= 0 && column < COLUMNS);
+export function getHealTarget(tower: Tower, definition: CardDefinition, occupied: Map<string, Tower>) {
+  const rangeCells = definition.rangeCells ?? 2;
+  const targetColumns = Array.from({ length: rangeCells }, (_value, index) => tower.column + index).filter(
+    (column) => column >= 0 && column < COLUMNS
+  );
   const targetLanes = [tower.lane - 1, tower.lane, tower.lane + 1].filter((lane) => lane >= 0 && lane < LANES);
 
   return targetLanes

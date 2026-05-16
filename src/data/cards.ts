@@ -213,6 +213,32 @@ export const cardDefinitions: CardDefinition[] = [
     selfDamageType: "true",
     shiftCells: 4,
     stats: `PUSH4 / 1s`
+  },
+  {
+    id: "T",
+    category: "function",
+    cost: 650,
+    cooldown: 50_000,
+    maxHp: 4_000,
+    armor: 150,
+    magicResistance: 20,
+    fireRate: 1_000,
+    selfDamage: 700,
+    selfDamageType: "true",
+    stats: `SLOW1/6 / 1s`
+  },
+  {
+    id: "P",
+    category: "healing",
+    cost: 100,
+    cooldown: 20_000,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 0,
+    fireRate: 2_000,
+    healAmount: 280,
+    rangeCells: 5,
+    stats: `${EFFECT_SYMBOLS.heal}280 / R5`
   }
 ];
 

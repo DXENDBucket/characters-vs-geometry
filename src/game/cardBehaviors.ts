@@ -50,7 +50,7 @@ export const projectileCardBehavior: CardBehavior = {
 
 export const healingCardBehavior: CardBehavior = {
   canUse: (tower, definition, time, runtime) => {
-    return cooldownReady(tower, time) && Boolean(definition.healAmount && getHealTarget(tower, runtime.occupied));
+    return cooldownReady(tower, time) && Boolean(definition.healAmount && getHealTarget(tower, definition, runtime.occupied));
   },
   execute: fireHealingPulse
 };
@@ -67,6 +67,15 @@ export const blockedPushCardBehavior: CardBehavior = {
     return cooldownReady(tower, time) && getBlockedEnemies(tower, runtime.towers, runtime.enemies).length > 0;
   },
   execute: fireBlockedPushPulse
+};
+
+export const slowAuraCardBehavior: CardBehavior = {
+  canUse: (tower, definition, time) => {
+    return cooldownReady(tower, time) && Boolean(definition.selfDamage);
+  },
+  execute: (tower, definition, runtime) => {
+    runtime.damageTower(tower, definition.selfDamage ?? 700, definition.selfDamageType ?? "true");
+  }
 };
 
 export const slashCardBehavior: CardBehavior = {
@@ -92,7 +101,9 @@ export const cardBehaviorsById: Record<CardId, CardBehavior> = {
   J: projectileCardBehavior,
   K: slashCardBehavior,
   L: shiftCardBehavior,
-  N: blockedPushCardBehavior
+  N: blockedPushCardBehavior,
+  T: slowAuraCardBehavior,
+  P: healingCardBehavior
 };
 
 function cooldownReady(tower: Tower, time: number) {
@@ -104,7 +115,7 @@ function fireHealingPulse(
   definition: CardDefinition,
   runtime: Pick<CardBehaviorRuntime, "scene" | "occupied">
 ) {
-  const target = getHealTarget(tower, runtime.occupied);
+  const target = getHealTarget(tower, definition, runtime.occupied);
   if (!target) {
     return;
   }
