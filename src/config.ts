@@ -42,7 +42,7 @@ export const BOSS_HITBOX_HEIGHT = CELL_HEIGHT * 2.95;
 export const CUBE_BOSS_STATS: Record<BossKind, { hp: number; armor: number; magicResistance: number; speed: number }> = {
   cube: { hp: 150_000, armor: 300, magicResistance: 20, speed: 0.6 },
   cube2: { hp: 200_000, armor: 600, magicResistance: 20, speed: 0.6 },
-  tetrahedron: { hp: 100_000, armor: 150, magicResistance: 20, speed: 1.2 }
+  tetrahedron: { hp: 120_000, armor: 150, magicResistance: 20, speed: 1.2 }
 };
 export const CUBE_BOSS_PROMOTION_SKILL_MAX = 90;
 export const CUBE_BOSS_PROMOTION_SKILL_COST = 30;
