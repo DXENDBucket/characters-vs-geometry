@@ -26,6 +26,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
   const triangle = getEnemyDefinition("triangle");
   const triangleRam = getEnemyDefinition("triangleRam");
   const triangleRam2 = getEnemyDefinition("triangleRam2");
+  const mortarTriangle = getEnemyDefinition("mortarTriangle");
   const invertedTriangle = getEnemyDefinition("invertedTriangle");
   const invertedTriangle2 = getEnemyDefinition("invertedTriangle2");
   const shootingTriangle = getEnemyDefinition("shootingTriangle");
@@ -125,6 +126,24 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
       description: zh
         ? "慢速高护甲近战单位。数字越高护甲和权重越高。"
         : "Slow, armored melee unit. Higher ranks gain more armor and cost more wave weight."
+    },
+    {
+      title: zh ? "三角迫击炮系列" : "Triangle Mortar Series",
+      enemyKind: "mortarTriangle",
+      lines: [
+        statLine([
+          [t("label.hp"), mortarTriangle.hp],
+          [t("label.armor"), mortarTriangle.armor],
+          [t("label.mr"), mortarTriangle.magicResistance],
+          [t("label.atk"), damageText(mortarTriangle.damage, mortarTriangle.damageType)],
+          [t("label.speed"), speedText("mortarTriangle")],
+          [t("label.weight"), mortarTriangle.weight]
+        ]),
+        zh ? "每 15 秒发射 3x3 法术迫击弹" : "Fires a 3x3 magic mortar every 15s"
+      ],
+      description: zh
+        ? "锁定场上阻挡敌怪数最多的塔；若相同则瞄准更晚放置的塔。锁定 N 时落点会被 N 改写。命中 R 时，R 会照常受伤并把迫击弹反射回发射者。"
+        : "Targets the tower blocking the most enemies, breaking ties by later placement. If it locks onto N, N rewrites the landing point. If it hits R, R still takes damage and reflects a matching mortar back at the shooter."
     },
     {
       title: zh ? "射击三角系列" : "Shooting Triangle Series",
@@ -243,7 +262,7 @@ function towerDescription(id: CardId) {
     c: zh ? "极速钟。每秒回复 1 技力，20 满后显示边框；点击消耗全部技力，使自身进入 10 秒闪烁状态。所有激活的 c 会让其他卡槽冷却速度变为等级和 +1 倍，c 自身卡槽冷却不受影响；Shift+点击可同时激活所有满技力的 c。" : "Speed clock. Gains 1 SP/s up to 20 and shows its border when full; clicking it spends all SP and makes it flash for 10s. Active c towers make other card-slot cooldown speed equal active level sum + 1; c's own card cooldown is unaffected. Shift-click activates all full c towers.",
     D: zh ? "纯防御塔。高护甲，用来拖住近战敌怪。" : "Pure defender with high armor for stalling melee enemies.",
     O: zh ? "抗法防御塔。机制和 D 类似，但冷却更短并拥有较高法术抗性。" : "Magic-resistant defender. Similar to D, with shorter cooldown and high magic resistance.",
-    R: zh ? "反弹防御塔。机制和 O 类似；敌方弹幕击中它时仍会造成伤害，但弹幕会被反射为同伤害、同类型、反向飞行的我方弹幕。" : "Reflect defender. Similar to O; enemy projectiles still damage it on hit, then reflect into friendly projectiles with the same damage and damage type flying the opposite direction.",
+    R: zh ? "反弹防御塔。机制和 O 类似；敌方弹幕击中它时仍会造成伤害，但弹幕会被反射为同伤害、同类型的我方弹幕。锁定迫击弹命中 R 时会被反射回发射者。" : "Reflect defender. Similar to O; enemy projectiles still damage it on hit, then reflect into friendly projectiles with the same damage and damage type. Locked mortars that hit R are reflected back at the shooter.",
     X: zh ? `生产塔。每 10 秒产生 ${EFFECT_SYMBOLS.chars}25，也是主要字符来源之一。` : `Producer. Generates ${EFFECT_SYMBOLS.chars}25 every 10s.`,
     Y: zh ? `受击生产塔。不攻击；每次受到攻击时产生 ${EFFECT_SYMBOLS.chars}12。` : `Hit producer. Does not attack; generates ${EFFECT_SYMBOLS.chars}12 each time it is attacked.`,
     E: zh ? "三连物理射手。向前平射，并向上/下各偏转 10 度发射一发。" : "Triple physical shooter. Fires one straight shot plus two shots at +/-10 degrees.",
@@ -260,7 +279,7 @@ function towerDescription(id: CardId) {
     S: zh ? "主动术法迫击塔。30 技力满后显示边框；点击进入瞄准，指定任意落点后连射三发 S 形抛物线迫击弹，每发造成 3x3 范围法术伤害。右键或点击其他 UI 可取消瞄准。" : "Active spell mortar. At 30 SP, shows its border; click to aim, then choose any target point to fire three arcing S shells, each dealing 3x3 magic AOE damage. Right-click or clicking other UI cancels aiming.",
     Z: zh ? `生产型斩击塔。范围和 K 一致；每次斩击命中时产生 ${EFFECT_SYMBOLS.chars}15。` : `Production slasher. Same range as K; each slash hit generates ${EFFECT_SYMBOLS.chars}15.`,
     L: zh ? "牵引塔。抓取上下两行指定格子的所有敌怪平移到本行，每抓一个自损 400 真实伤害。" : "Shifter. Pulls all enemies from target tiles in adjacent lanes into its lane, taking 400 true self-damage per target.",
-    N: zh ? "防御推移塔。每秒把自己正在阻挡的所有敌怪向左推移 4 格，每推一个自损 400 真实伤害。敌方弹幕命中它时也会被推移，且不会对 N 造成伤害。" : "Defender-shifter. Every second, pushes all enemies it is blocking 4 cells left, taking 400 true self-damage per pushed enemy. Enemy projectiles that would hit it are shifted too and do not damage N.",
+    N: zh ? "防御推移塔。每秒把自己正在阻挡的所有敌怪向左推移 4 格，每推一个自损 400 真实伤害。敌方弹幕命中它时会被推移且不会造成伤害；锁定 N 的迫击弹会被改写落点。" : "Defender-shifter. Every second, pushes all enemies it is blocking 4 cells left, taking 400 true self-damage per pushed enemy. Enemy projectiles that would hit it are shifted too and do not damage N; locked mortars targeting N have their landing point rewritten.",
     T: zh ? "迟滞塔。每秒自损 700 真实伤害；以自身为中心 5x5 去角范围内的普通单位和弹幕移动速度降为六分之一，并显示深紫色时间范围框。Boss 不受减速影响。死亡时清除范围内弹幕；被橡皮擦移除不会触发亡语。" : "Slow field tower. Takes 700 true self-damage every second; ordinary units and projectiles in its centered 5x5 no-corner area move at one sixth speed, shown with a deep-purple time range border. Bosses ignore the slow. On death, clears projectiles in that area; erasing it does not trigger the death effect."
   };
   return descriptions[id];

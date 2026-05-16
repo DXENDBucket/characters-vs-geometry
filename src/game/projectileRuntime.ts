@@ -7,18 +7,25 @@ import {
   makeReflectFlash,
   makeShellBurst,
   makeShiftEffect,
+  makeSpellMortarImpact,
   makeStasisEffect
 } from "../render/combatEffects";
-import type { CubeBoss, DamageType, Enemy, EnemyProjectile, Projectile, Tower } from "../types";
-import { createReflectedProjectile, isEnemyProjectileOutOfBounds, isTowerProjectileOutOfBounds } from "./projectiles";
+import type { CubeBoss, DamageType, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower } from "../types";
+import {
+  createMortarProjectile,
+  createReflectedProjectile,
+  isEnemyProjectileOutOfBounds,
+  isTowerProjectileOutOfBounds
+} from "./projectiles";
 import { movementSpeedMultiplier } from "./slowAura";
 import { applyStatusEffect } from "./statusEffects";
-import { isBossInRadius, isPointInBossHitbox, towerRect } from "./targeting";
+import { isBossInRadius, isBossInRect, isPointInBossHitbox, towerRect } from "./targeting";
 
 export interface ProjectileRuntime {
   scene: Phaser.Scene;
   projectiles: Projectile[];
   enemyProjectiles: EnemyProjectile[];
+  mortarProjectiles: MortarProjectile[];
   enemies: Enemy[];
   towers: Tower[];
   battleTime: number;
@@ -120,6 +127,26 @@ export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: numb
   }
 }
 
+export function updateMortarProjectiles(runtime: ProjectileRuntime, seconds: number) {
+  for (const projectile of [...runtime.mortarProjectiles]) {
+    syncMortarTarget(runtime, projectile);
+    const speedMultiplier = movementSpeedMultiplier(runtime.towers, projectile.x, projectile.y);
+    projectile.progress = Math.min(1, projectile.progress + (seconds * 1000 * speedMultiplier) / projectile.duration);
+    positionMortarProjectile(projectile);
+
+    if (projectile.progress < 1) {
+      continue;
+    }
+
+    if (projectile.owner === "enemy") {
+      detonateEnemyMortar(runtime, projectile);
+    } else {
+      detonateTowerMortar(runtime, projectile);
+    }
+    removeMortarProjectile(runtime.mortarProjectiles, projectile);
+  }
+}
+
 function shiftEnemyProjectile(projectile: EnemyProjectile, tower: Tower) {
   projectile.x -= projectileShiftDistance(tower);
 }
@@ -135,6 +162,89 @@ function removeProjectile(projectiles: Projectile[], projectile: Projectile) {
 }
 
 function removeEnemyProjectile(projectiles: EnemyProjectile[], projectile: EnemyProjectile) {
+  Phaser.Utils.Array.Remove(projectiles, projectile);
+  projectile.body.destroy();
+}
+
+function syncMortarTarget(runtime: ProjectileRuntime, projectile: MortarProjectile) {
+  if (projectile.targetEnemy && runtime.enemies.includes(projectile.targetEnemy)) {
+    projectile.targetX = projectile.targetEnemy.x;
+    projectile.targetY = projectile.targetEnemy.y;
+    return;
+  }
+
+  if (projectile.targetTower && runtime.towers.includes(projectile.targetTower)) {
+    projectile.targetX =
+      projectile.owner === "enemy" && projectile.targetTower.type === "N"
+        ? projectile.targetTower.x - projectileShiftDistance(projectile.targetTower)
+        : projectile.targetTower.x;
+    projectile.targetY = projectile.targetTower.y;
+  }
+}
+
+function positionMortarProjectile(projectile: MortarProjectile) {
+  const progress = projectile.progress;
+  const inverse = 1 - progress;
+  const distance = Math.hypot(projectile.targetX - projectile.fromX, projectile.targetY - projectile.fromY);
+  const controlX = (projectile.fromX + projectile.targetX) / 2;
+  const controlY = Math.min(projectile.fromY, projectile.targetY) - 420 - distance * 0.4;
+
+  projectile.x =
+    inverse * inverse * projectile.fromX + 2 * inverse * progress * controlX + progress * progress * projectile.targetX;
+  projectile.y =
+    inverse * inverse * projectile.fromY + 2 * inverse * progress * controlY + progress * progress * projectile.targetY;
+  projectile.body.setPosition(projectile.x, projectile.y);
+  projectile.body.rotation = progress * Math.PI * 1.4;
+  projectile.body.setScale(1 + Math.sin(progress * Math.PI) * 0.26);
+}
+
+function detonateEnemyMortar(runtime: ProjectileRuntime, projectile: MortarProjectile) {
+  makeSpellMortarImpact(runtime.scene, projectile.targetX, projectile.targetY, projectile.rangeX, projectile.rangeY);
+  const hitTowers = runtime.towers.filter((tower) => {
+    return Math.abs(tower.x - projectile.targetX) <= projectile.rangeX && Math.abs(tower.y - projectile.targetY) <= projectile.rangeY;
+  });
+  const reflectors = hitTowers.filter((tower) => tower.reflectProjectiles);
+
+  for (const tower of hitTowers) {
+    runtime.damageTower(tower, projectile.damage, projectile.damageType);
+  }
+
+  for (const tower of reflectors) {
+    if (!projectile.sourceEnemy || !runtime.enemies.includes(projectile.sourceEnemy)) {
+      continue;
+    }
+
+    runtime.mortarProjectiles.push(
+      createMortarProjectile(runtime.scene, {
+        owner: "tower",
+        fromX: tower.x,
+        fromY: tower.y,
+        targetX: projectile.sourceEnemy.x,
+        targetY: projectile.sourceEnemy.y,
+        damage: projectile.damage,
+        damageType: projectile.damageType,
+        rangeX: projectile.rangeX,
+        rangeY: projectile.rangeY,
+        targetEnemy: projectile.sourceEnemy
+      })
+    );
+    makeReflectFlash(runtime.scene, tower.x, tower.y);
+  }
+}
+
+function detonateTowerMortar(runtime: ProjectileRuntime, projectile: MortarProjectile) {
+  makeSpellMortarImpact(runtime.scene, projectile.targetX, projectile.targetY, projectile.rangeX, projectile.rangeY);
+  for (const enemy of [...runtime.enemies]) {
+    if (Math.abs(enemy.x - projectile.targetX) <= projectile.rangeX && Math.abs(enemy.y - projectile.targetY) <= projectile.rangeY) {
+      runtime.damageEnemy(enemy, projectile.damage, projectile.damageType);
+    }
+  }
+  if (isBossInRect(runtime.getBoss(), projectile.targetX - projectile.rangeX, projectile.targetY - projectile.rangeY, projectile.rangeX * 2, projectile.rangeY * 2)) {
+    runtime.damageBoss(projectile.damage, projectile.damageType);
+  }
+}
+
+function removeMortarProjectile(projectiles: MortarProjectile[], projectile: MortarProjectile) {
   Phaser.Utils.Array.Remove(projectiles, projectile);
   projectile.body.destroy();
 }

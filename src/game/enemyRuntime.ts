@@ -1,7 +1,14 @@
 import Phaser from "phaser";
 import { BOARD_WIDTH, BOARD_X, CELL_HEIGHT, CELL_WIDTH, LANES } from "../config";
 import { getCardDefinition } from "../registry/cards";
-import { allEnemyDefinitions, enemyBlockedDetonation, enemyIsSiegeRam, enemyRank, getEnemyDefinition } from "../registry/enemies";
+import {
+  allEnemyDefinitions,
+  enemyBlockedDetonation,
+  enemyIsMortar,
+  enemyIsSiegeRam,
+  enemyRank,
+  getEnemyDefinition
+} from "../registry/enemies";
 import { makeHasteTrail, makeReflectFlash, makeShellBurst, makeShockPulse } from "../render/combatEffects";
 import type { DifficultyConfig, Enemy, EnemyKind, LevelConfig, Tower, WaveTracker } from "../types";
 import type { EnemyAdvanceRuntime, EnemySpawnRuntime } from "./combatRuntime";
@@ -14,7 +21,7 @@ import {
   splitSpawnLanes
 } from "./enemyBehaviors";
 import { createEnemy } from "./enemyFactory";
-import { createEnemyProjectile } from "./projectiles";
+import { createEnemyProjectile, createMortarProjectile } from "./projectiles";
 import { movementSpeedMultiplier } from "./slowAura";
 import { hasStatusEffect, statusAttackMultiplier, statusSpeedMultiplier } from "./statusEffects";
 import { getBlockingTower, towerRect } from "./targeting";
@@ -140,9 +147,13 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
     }
 
     if (shouldEnemyShoot(enemy, time)) {
-      fireEnemyVolley(runtime, enemy, time);
-      const shots = enemyVolleyShotCount(enemy);
-      enemy.attackAt = time + enemy.attackInterval + (shots - 1) * volleyInterval(enemy.attackInterval, shots);
+      if (enemyIsMortar(enemy.kind)) {
+        enemy.attackAt = fireEnemyMortar(runtime, enemy, time) ? time + enemy.attackInterval : time + 1_000;
+      } else {
+        fireEnemyVolley(runtime, enemy, time);
+        const shots = enemyVolleyShotCount(enemy);
+        enemy.attackAt = time + enemy.attackInterval + (shots - 1) * volleyInterval(enemy.attackInterval, shots);
+      }
     }
 
     const blocker = getBlockingTower(runtime.towers, enemy);
@@ -276,4 +287,52 @@ function fireEnemyShot(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number)
   }
 
   runtime.enemyProjectiles.push(createEnemyProjectile(runtime.scene, enemy, time));
+}
+
+function fireEnemyMortar(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number) {
+  if (!runtime.enemies.includes(enemy)) {
+    return false;
+  }
+
+  const target = findMortarTarget(runtime.towers, runtime.enemies);
+  if (!target) {
+    return false;
+  }
+
+  runtime.mortarProjectiles.push(
+    createMortarProjectile(runtime.scene, {
+      owner: "enemy",
+      fromX: enemy.x,
+      fromY: enemy.y,
+      targetX: target.x,
+      targetY: target.y,
+      damage: enemy.damage * statusAttackMultiplier(enemy, time),
+      damageType: enemy.damageType,
+      rangeX: CELL_WIDTH * 1.5,
+      rangeY: CELL_HEIGHT * 1.5,
+      sourceEnemy: enemy,
+      targetTower: target
+    })
+  );
+  return true;
+}
+
+function findMortarTarget(towers: Tower[], enemies: Enemy[]) {
+  if (towers.length === 0) {
+    return undefined;
+  }
+
+  const blockedCounts = new Map<string, number>();
+  for (const enemy of enemies) {
+    const blocker = getBlockingTower(towers, enemy);
+    if (!blocker) {
+      continue;
+    }
+    blockedCounts.set(blocker.id, (blockedCounts.get(blocker.id) ?? 0) + 1);
+  }
+
+  return [...towers].sort((a, b) => {
+    const blockedDelta = (blockedCounts.get(b.id) ?? 0) - (blockedCounts.get(a.id) ?? 0);
+    return blockedDelta || b.placedOrder - a.placedOrder;
+  })[0];
 }

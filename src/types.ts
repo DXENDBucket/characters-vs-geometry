@@ -35,6 +35,7 @@ export type EnemyKind =
   | "triangle3"
   | "triangleRam"
   | "triangleRam2"
+  | "mortarTriangle"
   | "invertedTriangle"
   | "invertedTriangle2"
   | "shootingTriangle"
@@ -193,6 +194,26 @@ export interface EnemyProjectile {
   damageType: DamageType;
   sourceLane: number;
   body: Phaser.GameObjects.Rectangle;
+}
+
+export interface MortarProjectile {
+  owner: "enemy" | "tower";
+  x: number;
+  y: number;
+  fromX: number;
+  fromY: number;
+  targetX: number;
+  targetY: number;
+  progress: number;
+  duration: number;
+  damage: number;
+  damageType: DamageType;
+  rangeX: number;
+  rangeY: number;
+  sourceEnemy?: Enemy;
+  targetEnemy?: Enemy;
+  targetTower?: Tower;
+  body: Phaser.GameObjects.Text;
 }
 
 export interface EnemyDefinition {

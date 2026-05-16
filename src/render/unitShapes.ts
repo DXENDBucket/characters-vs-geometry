@@ -127,6 +127,31 @@ export function createEnemyShape(scene: Phaser.Scene, kind: EnemyKind, options: 
     return shape;
   }
 
+  if (family === "mortarTriangle") {
+    const shape = scene.add.container(0, 0);
+    const triangles = scene.add.graphics();
+    triangles.fillStyle(palette.black, 1);
+    triangles.lineStyle(2, palette.white, 1);
+    triangles.beginPath();
+    triangles.moveTo(0, -28);
+    triangles.lineTo(-22, 0);
+    triangles.lineTo(22, 0);
+    triangles.closePath();
+    triangles.fillPath();
+    triangles.strokePath();
+    triangles.beginPath();
+    triangles.moveTo(0, 28);
+    triangles.lineTo(-22, 0);
+    triangles.lineTo(22, 0);
+    triangles.closePath();
+    triangles.fillPath();
+    triangles.strokePath();
+    const topLabel = createEnemyLabel(scene, 0, -9, kind, 15);
+    const bottomLabel = createEnemyLabel(scene, 0, 9, kind, 15);
+    shape.add([triangles, topLabel, bottomLabel]);
+    return shape;
+  }
+
   if (family === "invertedTriangle") {
     const shape = scene.add.container(0, 0);
     const triangle = scene.add.graphics();

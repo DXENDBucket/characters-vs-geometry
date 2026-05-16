@@ -15,6 +15,7 @@
 | Inverted Triangle 1 | 50 | 1000 | 70 | 2000 | ✦ | Body label `I`; MR `60`; average speed `40`; after being blocked by the same tower for `2s`, disappears and detonates against that tower |
 | Inverted Triangle 2 | 100 | 1000 | 70 | 2600 | ✦ | Body label `II`; MR `60`; average speed `45`; after being blocked by the same tower for `2s`, disappears and detonates against that tower |
 | Shooting Triangle 1 | 50 | 2000 | 70 | 400 | ◆ | Body label `I`; average speed `4`; points toward the base and fires red-tinted bolts every `2s` |
+| Triangle Mortar 1 | 90 | 1500 | 70 | 800 | ✦ | Body label `I/I`; MR `40`; average speed `3`; every `15s`, fires an S-like magic mortar with `3x3` AOE at the tower blocking the most enemies. Ties target the later-placed tower. N rewrites the landing point if targeted; R takes damage and reflects a matching mortar back at the shooter |
 | Square 1 | 50 | 12000 | 300 | 400 | ◆ | Body label `I`; average speed `6` |
 | Square 2 | 150 | 12000 | 600 | 400 | ◆ | Body label `II`; average speed `6` |
 | Square 3 | 250 | 12000 | 900 | 400 | ◆ | Body label `III`; average speed `6` |
@@ -76,7 +77,7 @@ Tetrahedron skills:
 | c | Function | Triangle | 1425 | 70s | 1200 | 150 | 0 | Speed Clock: gains `1` SP/s, max `20`; at full SP gains a border. Clicking a ready c spends all SP and makes it flash for `10s`; active c towers make other card-slot cooldown speed `(active c level sum + 1)x`; c's own card cooldown is not accelerated by this effect. Shift-click a ready c activates all ready c towers | Skill contribution uses its current level |
 | D | Defense | Square | 100 | 20s | 2600 | 800 | 0 | High-armor blocker | +`2080` max/current HP per level |
 | O | Defense | Square | 125 | 15s | 3000 | 300 | 70 | Magic-resistant blocker | +`2400` max/current HP per level |
-| R | Defense | Square | 225 | 15s | 3000 | 350 | 35 | Enemy projectiles still damage it, then reflect into friendly projectiles with the same damage and damage type flying in the opposite direction | +`2400` max/current HP per level |
+| R | Defense | Square | 225 | 15s | 3000 | 350 | 35 | Enemy projectiles still damage it, then reflect into friendly projectiles with the same damage and damage type. Locked mortars that hit R are reflected back at the shooter | +`2400` max/current HP per level |
 | X | Production | Circle | 50 | 1.5s | 1200 | 150 | 0 | Produces `25` chars every `10s`, shown as `Aa` | +`20` chars per production per level |
 | Y | Production | Circle | 75 | 8s | 2000 | 250 | 0 | Does not attack; produces `12` chars every time it is attacked | +80% base production per hit per level |
 | E | Attack | Diamond | 150 | 2s | 1200 | 150 | 0 | Fires 3 bolts at `-10/0/+10` degrees, `400◆` each, every `2s` | +1 volley per level |
@@ -93,7 +94,7 @@ Tetrahedron skills:
 | S | Attack | Diamond | 825 | 50s | 1200 | 150 | 40 | Active skill: Spell Mortar. Gains `1` SP/s, max `30`; at full SP gains a border. Click a ready S, or Shift-click to select all ready S, then click any board point to fire 3 arcing `S` shells at `0.5s` intervals. Each shell deals `6500✦` in a `3x3` area. Right-click or clicking UI cancels aiming | +`5200✦` per shell per level; resets SP |
 | Z | Production | Circle | 175 | 4s | 2500 | 300 | 0 | Slashes 1 target for `400◆`, every `2s`; range is self plus 2 cells ahead. Each slash hit produces `Aa15` | +1 volley per level |
 | L | Function | Triangle | 200 | 20s | 3000 | 200 | 0 | Every `1s`, shifts all enemies in upper/lower lanes within its column and the front column into its own lane; takes `400◇` per shifted enemy | +`2400` max/current HP per level |
-| N | Defense | Square | 125 | 20s | 3000 | 500 | 0 | Every `1s`, pushes all enemies it is blocking `4` cells left; takes `400◇` per pushed enemy. Enemy projectiles that would hit N are shifted left by `4` cells instead and do not damage N | +`2400` max/current HP per level |
+| N | Defense | Square | 125 | 20s | 3000 | 500 | 0 | Every `1s`, pushes all enemies it is blocking `4` cells left; takes `400◇` per pushed enemy. Enemy projectiles that would hit N are shifted left by `4` cells instead and do not damage N; locked mortar shots targeting N have their landing point shifted left by the same distance | +`2400` max/current HP per level |
 | T | Function | Triangle | 650 | 50s | 4000 | 150 | 20 | Every `1s`, takes `700◇`; ordinary units and projectiles in a centered `5x5` no-corner area move at `1/6` speed. Bosses ignore the slow. The area is shown with a deep-purple time border. On death, clears projectiles in that area; eraser removal does not trigger this | +`3200` max/current HP per level |
 
 Volley upgrades spread consecutive shots or heals across a fixed total volley duration of `interval / 5`, regardless of shot count. The attack/heal interval itself is unchanged and starts after the volley finishes.
@@ -775,6 +776,49 @@ Base rule:
 | 28 | - | 694 | 694 |
 | 29 | - | 733 | 733 |
 | 30 | 3 | 773 | 1546 |
+
+## Level 1-8 Weight Growth
+
+Enemy pool:
+
+- Circle 1
+- Triangle 1
+- Triangle 3
+- Triangle Mortar 1
+- Triangle Ram 1
+
+Base rule:
+
+- Starting characters: `300`.
+- Wave 1 starts at weight cap `19`.
+- Wave 2 adds `+12`; each later increment grows by `+1` (`+13`, `+14`, ...).
+- Every flag wave, currently every `10`th wave, doubles that wave's final cap.
+- A wave may leave unused weight, but never exceeds its cap.
+- Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
+- The level has `20` total waves.
+
+| Wave | Flag | Base Cap | Final Cap |
+| ---: | ---: | ---: | ---: |
+| 1 | - | 19 | 19 |
+| 2 | - | 31 | 31 |
+| 3 | - | 44 | 44 |
+| 4 | - | 58 | 58 |
+| 5 | - | 73 | 73 |
+| 6 | - | 89 | 89 |
+| 7 | - | 106 | 106 |
+| 8 | - | 124 | 124 |
+| 9 | - | 143 | 143 |
+| 10 | 1 | 163 | 326 |
+| 11 | - | 184 | 184 |
+| 12 | - | 206 | 206 |
+| 13 | - | 229 | 229 |
+| 14 | - | 253 | 253 |
+| 15 | - | 278 | 278 |
+| 16 | - | 304 | 304 |
+| 17 | - | 331 | 331 |
+| 18 | - | 359 | 359 |
+| 19 | - | 388 | 388 |
+| 20 | 2 | 418 | 836 |
 
 ## Spawn Trigger
 

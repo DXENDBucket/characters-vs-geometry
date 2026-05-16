@@ -39,6 +39,7 @@ import type { CombatRuntime } from "../game/combatRuntime";
 import { advanceEnemies, spawnWaveEnemies } from "../game/enemyRuntime";
 import {
   updateEnemyProjectiles,
+  updateMortarProjectiles,
   updateTowerProjectiles,
   type ProjectileRuntime
 } from "../game/projectileRuntime";
@@ -101,6 +102,7 @@ import type {
   DifficultyConfig,
   Enemy,
   EnemyProjectile,
+  MortarProjectile,
   Projectile,
   Tower,
   WaveTracker
@@ -124,6 +126,7 @@ export class GameScene extends Phaser.Scene {
   private boss: CubeBoss | null = null;
   private projectiles: Projectile[] = [];
   private enemyProjectiles: EnemyProjectile[] = [];
+  private mortarProjectiles: MortarProjectile[] = [];
   private occupied = new Map<string, Tower>();
   private chars = STARTING_CHARS;
   private baseIntegrity = BASE_INTEGRITY;
@@ -163,6 +166,7 @@ export class GameScene extends Phaser.Scene {
     this.boss = null;
     this.projectiles = [];
     this.enemyProjectiles = [];
+    this.mortarProjectiles = [];
     this.occupied = new Map<string, Tower>();
     this.chars = this.startingCharsForLevel();
     this.baseIntegrity = BASE_INTEGRITY;
@@ -250,6 +254,7 @@ export class GameScene extends Phaser.Scene {
     const projectileRuntime = this.projectileRuntime();
     updateTowerProjectiles(projectileRuntime, seconds);
     updateEnemyProjectiles(projectileRuntime, seconds);
+    updateMortarProjectiles(projectileRuntime, seconds);
     this.updateWaveSchedule(this.levelElapsed, this.battleTime);
     this.attemptAutoUpgrades();
     this.updateCards(this.cardTime);
@@ -803,6 +808,7 @@ export class GameScene extends Phaser.Scene {
       occupied: this.occupied,
       projectiles: this.projectiles,
       enemyProjectiles: this.enemyProjectiles,
+      mortarProjectiles: this.mortarProjectiles,
       damageEnemy: (enemy, damage, damageType) => damageEnemy(this.unitLifecycleRuntime(), enemy, damage, damageType),
       damageBoss: (damage, damageType) => damageBoss(this.unitLifecycleRuntime(), damage, damageType),
       damageTower: (tower, damage, damageType) => damageTower(this.unitLifecycleRuntime(), tower, damage, damageType),
@@ -835,6 +841,7 @@ export class GameScene extends Phaser.Scene {
       scene: this,
       projectiles: this.projectiles,
       enemyProjectiles: this.enemyProjectiles,
+      mortarProjectiles: this.mortarProjectiles,
       enemies: this.enemies,
       towers: this.towers,
       battleTime: this.battleTime,
@@ -852,6 +859,7 @@ export class GameScene extends Phaser.Scene {
       towers: this.towers,
       projectiles: this.projectiles,
       enemyProjectiles: this.enemyProjectiles,
+      mortarProjectiles: this.mortarProjectiles,
       occupied: this.occupied,
       getBoss: () => this.boss,
       setBoss: (boss) => {

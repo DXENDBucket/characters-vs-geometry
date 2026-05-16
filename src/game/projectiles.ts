@@ -1,7 +1,16 @@
 import Phaser from "phaser";
 import { BOARD_HEIGHT, BOARD_WIDTH, BOARD_X, BOARD_Y, palette } from "../config";
 import { damageEffectColor, damageEffectTextColor } from "../render/combatEffects";
-import type { DamageType, Enemy, EnemyProjectile, Projectile, ProjectileKind, StatusEffectName } from "../types";
+import type {
+  DamageType,
+  Enemy,
+  EnemyProjectile,
+  MortarProjectile,
+  Projectile,
+  ProjectileKind,
+  StatusEffectName,
+  Tower
+} from "../types";
 import { statusAttackMultiplier } from "./statusEffects";
 
 export interface TowerProjectileSpec {
@@ -67,6 +76,53 @@ export function createEnemyProjectile(scene: Phaser.Scene, enemy: Enemy, time: n
     damage: enemy.damage * statusAttackMultiplier(enemy, time),
     damageType: enemy.damageType,
     sourceLane: enemy.lane,
+    body
+  };
+}
+
+export interface MortarProjectileSpec {
+  owner: "enemy" | "tower";
+  fromX: number;
+  fromY: number;
+  targetX: number;
+  targetY: number;
+  damage: number;
+  damageType: DamageType;
+  rangeX: number;
+  rangeY: number;
+  sourceEnemy?: Enemy;
+  targetEnemy?: Enemy;
+  targetTower?: Tower;
+}
+
+export function createMortarProjectile(scene: Phaser.Scene, spec: MortarProjectileSpec): MortarProjectile {
+  const body = scene.add
+    .text(spec.fromX, spec.fromY, "S", {
+      color: spec.owner === "enemy" ? "#ff6464" : damageEffectTextColor(spec.damageType),
+      fontFamily: "monospace",
+      fontSize: "24px",
+      fontStyle: "700"
+    })
+    .setOrigin(0.5)
+    .setDepth(120);
+
+  return {
+    owner: spec.owner,
+    x: spec.fromX,
+    y: spec.fromY,
+    fromX: spec.fromX,
+    fromY: spec.fromY,
+    targetX: spec.targetX,
+    targetY: spec.targetY,
+    progress: 0,
+    duration: 3_240,
+    damage: spec.damage,
+    damageType: spec.damageType,
+    rangeX: spec.rangeX,
+    rangeY: spec.rangeY,
+    sourceEnemy: spec.sourceEnemy,
+    targetEnemy: spec.targetEnemy,
+    targetTower: spec.targetTower,
     body
   };
 }

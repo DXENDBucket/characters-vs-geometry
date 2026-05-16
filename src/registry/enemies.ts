@@ -2,8 +2,15 @@ import { enemyDefinitions as rawEnemyDefinitions } from "../data/enemies";
 import { t } from "../i18n";
 import type { DamageType, EnemyDefinition, EnemyKind } from "../types";
 
-export type EnemyFamily = "circle" | "triangle" | "triangleRam" | "invertedTriangle" | "shootingTriangle" | "square";
-export type EnemyAttackMode = "melee" | "ranged" | "blockedDetonator" | "siegeRam";
+export type EnemyFamily =
+  | "circle"
+  | "triangle"
+  | "triangleRam"
+  | "mortarTriangle"
+  | "invertedTriangle"
+  | "shootingTriangle"
+  | "square";
+export type EnemyAttackMode = "melee" | "ranged" | "mortar" | "blockedDetonator" | "siegeRam";
 
 export interface BlockedDetonation {
   delay: number;
@@ -85,6 +92,13 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     rank: 2,
     nameKey: "enemy.triangleRam2",
     attackMode: "siegeRam"
+  },
+  mortarTriangle: {
+    definition: rawEnemyDefinitions.mortarTriangle,
+    family: "mortarTriangle",
+    rank: 1,
+    nameKey: "enemy.mortarTriangle",
+    attackMode: "mortar"
   },
   invertedTriangle: {
     definition: rawEnemyDefinitions.invertedTriangle,
@@ -183,6 +197,10 @@ export function enemySplitSpawnKind(kind: EnemyKind) {
 
 export function enemyIsRanged(kind: EnemyKind) {
   return enemyRegistrations[kind].attackMode === "ranged";
+}
+
+export function enemyIsMortar(kind: EnemyKind) {
+  return enemyRegistrations[kind].attackMode === "mortar";
 }
 
 export function enemyIsBlockedDetonator(kind: EnemyKind) {

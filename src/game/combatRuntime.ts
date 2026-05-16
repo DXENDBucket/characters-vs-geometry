@@ -1,5 +1,5 @@
 import type Phaser from "phaser";
-import type { CubeBoss, DamageType, Enemy, EnemyProjectile, Projectile, Tower } from "../types";
+import type { CubeBoss, DamageType, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower } from "../types";
 
 export interface CombatRuntime {
   scene: Phaser.Scene;
@@ -9,6 +9,7 @@ export interface CombatRuntime {
   occupied: Map<string, Tower>;
   projectiles: Projectile[];
   enemyProjectiles: EnemyProjectile[];
+  mortarProjectiles: MortarProjectile[];
   damageEnemy: (enemy: Enemy, damage: number, damageType: DamageType) => void;
   damageBoss: (damage: number, damageType: DamageType) => void;
   damageTower: (tower: Tower, damage: number, damageType: DamageType) => void;
@@ -43,6 +44,7 @@ export type EnemyAdvanceRuntime = Pick<
   | "enemies"
   | "towers"
   | "enemyProjectiles"
+  | "mortarProjectiles"
   | "damageTower"
   | "damageEnemy"
   | "triggerTrapTower"

@@ -6,7 +6,7 @@ import {
   TETRAHEDRON_BOSS_INVINCIBLE_DURATION
 } from "../config";
 import { makeBossHitFlash, makeBossInvincibleFlash, makeShockPulse } from "../render/combatEffects";
-import type { CubeBoss, DamageType, Enemy, EnemyProjectile, Projectile, Tower, WaveTracker } from "../types";
+import type { CubeBoss, DamageType, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower, WaveTracker } from "../types";
 import { calculateDamage } from "./damage";
 import { enemyScaleFromHp } from "./enemyBehaviors";
 import { spawnSplitEnemies } from "./enemyRuntime";
@@ -20,6 +20,7 @@ export interface UnitLifecycleRuntime {
   towers: Tower[];
   projectiles: Projectile[];
   enemyProjectiles: EnemyProjectile[];
+  mortarProjectiles: MortarProjectile[];
   occupied: Map<string, Tower>;
   getBoss: () => CubeBoss | null;
   setBoss: (boss: CubeBoss | null) => void;
@@ -165,6 +166,7 @@ function detonateSlowAuraTower(runtime: UnitLifecycleRuntime, tower: Tower) {
   makeShockPulse(runtime.scene, tower.x, tower.y, CELL_WIDTH * 2.5, CELL_HEIGHT * 2.5);
   clearProjectilesInSlowAura(runtime.projectiles, tower);
   clearProjectilesInSlowAura(runtime.enemyProjectiles, tower);
+  clearProjectilesInSlowAura(runtime.mortarProjectiles, tower);
 }
 
 function clearProjectilesInSlowAura<T extends { x: number; y: number; body: Phaser.GameObjects.GameObject }>(
