@@ -58,9 +58,20 @@ export const cardDefinitions: CardDefinition[] = [
     cost: 125,
     cooldown: 15_000,
     maxHp: 3_000,
-    armor: 350,
+    armor: 300,
     magicResistance: 70,
-    stats: "3000 A350 MR70"
+    stats: "3000 A300 MR70"
+  },
+  {
+    id: "R",
+    category: "defense",
+    cost: 225,
+    cooldown: 15_000,
+    maxHp: 3_000,
+    armor: 350,
+    magicResistance: 35,
+    reflectProjectiles: true,
+    stats: "3000 A350 MR35 REFLECT"
   },
   {
     id: "X",

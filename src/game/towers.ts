@@ -65,6 +65,7 @@ export function createTower(
     nextProduceAt: definition.produceEvery ? battleTime + definition.produceEvery : Number.POSITIVE_INFINITY,
     armedAt: definition.armTime ? battleTime + definition.armTime : 0,
     autoUpgrade: false,
+    reflectProjectiles: Boolean(definition.reflectProjectiles),
     placedOrder,
     body,
     border,

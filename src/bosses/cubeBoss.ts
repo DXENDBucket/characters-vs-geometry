@@ -14,6 +14,14 @@ import {
   CUBE_BOSS_PROMOTION_SKILL_COST,
   CUBE_BOSS_PROMOTION_SKILL_MAX,
   CUBE_BOSS_STATS,
+  TETRAHEDRON_BOSS_CHARGE_SKILL_COST,
+  TETRAHEDRON_BOSS_CHARGE_SKILL_MAX,
+  TETRAHEDRON_BOSS_DESPERATION_SKILL_COST,
+  TETRAHEDRON_BOSS_DESPERATION_SKILL_MAX,
+  TETRAHEDRON_BOSS_IMPACT_SKILL_COST,
+  TETRAHEDRON_BOSS_IMPACT_SKILL_MAX,
+  TETRAHEDRON_BOSS_SUPPRESSION_SKILL_COST,
+  TETRAHEDRON_BOSS_SUPPRESSION_SKILL_MAX,
   LANES,
   palette
 } from "../config";
@@ -22,6 +30,11 @@ import { bossRect } from "../game/targeting";
 import type { BossKind, BossSkill, CubeBoss } from "../types";
 
 const CUBE_DRAW_SIZE = 59;
+const TETRAHEDRON_INITIAL_ROTATION_SPEED = {
+  x: 0.56,
+  y: -0.42,
+  z: 0.36
+};
 
 export function createCubeBoss(scene: Phaser.Scene, kind: BossKind, finalDamageReduction: number) {
   const rank = kind === "cube2" ? 2 : 1;
@@ -50,8 +63,9 @@ export function createCubeBoss(scene: Phaser.Scene, kind: BossKind, finalDamageR
     armor: stats.armor,
     magicResistance: stats.magicResistance,
     finalDamageReduction,
-    speed: 0.6,
+    speed: stats.speed,
     advanceMinionKind: rank >= 2 ? "square2" : "square",
+    hasSkills: true,
     skills: {
       promotion: {
         name: "promotion",
@@ -77,48 +91,90 @@ export function createCubeBoss(scene: Phaser.Scene, kind: BossKind, finalDamageR
               gainBuffer: 0
             }
           }
+        : {}),
+      ...(kind === "tetrahedron"
+        ? {
+            charge: {
+              name: "charge" as const,
+              sp: 0,
+              maxSp: TETRAHEDRON_BOSS_CHARGE_SKILL_MAX,
+              cost: TETRAHEDRON_BOSS_CHARGE_SKILL_COST,
+              gainBuffer: 0
+            },
+            impact: {
+              name: "impact" as const,
+              sp: 0,
+              maxSp: TETRAHEDRON_BOSS_IMPACT_SKILL_MAX,
+              cost: TETRAHEDRON_BOSS_IMPACT_SKILL_COST,
+              gainBuffer: 0
+            },
+            suppression: {
+              name: "suppression" as const,
+              sp: 0,
+              maxSp: TETRAHEDRON_BOSS_SUPPRESSION_SKILL_MAX,
+              cost: TETRAHEDRON_BOSS_SUPPRESSION_SKILL_COST,
+              gainBuffer: 0
+            },
+            desperation: {
+              name: "desperation" as const,
+              sp: 0,
+              maxSp: TETRAHEDRON_BOSS_DESPERATION_SKILL_MAX,
+              cost: TETRAHEDRON_BOSS_DESPERATION_SKILL_COST,
+              gainBuffer: 0
+            }
+          }
         : {})
     },
     contactAttackBuffer: 0,
+    chargeExpiresAt: 0,
+    halfHpTriggered: false,
+    criticalHpTriggered: false,
+    pendingCriticalSummon: false,
+    invincibleUntil: 0,
+    bossHasteUntil: 0,
+    nextBossHasteTrailAt: 0,
     body,
     frame,
     labelText,
     rotationX: Phaser.Math.FloatBetween(-0.4, 0.4),
     rotationY: Phaser.Math.FloatBetween(-0.4, 0.4),
     rotationZ: Phaser.Math.FloatBetween(-0.2, 0.2),
-    velocityX: 0.18,
-    velocityY: -0.12,
-    velocityZ: 0.1,
-    targetVelocityX: 0.18,
-    targetVelocityY: -0.12,
-    targetVelocityZ: 0.1,
-    nextTurnIn: 1.8
+    velocityX: kind === "tetrahedron" ? TETRAHEDRON_INITIAL_ROTATION_SPEED.x : 0.18,
+    velocityY: kind === "tetrahedron" ? TETRAHEDRON_INITIAL_ROTATION_SPEED.y : -0.12,
+    velocityZ: kind === "tetrahedron" ? TETRAHEDRON_INITIAL_ROTATION_SPEED.z : 0.1,
+    targetVelocityX: kind === "tetrahedron" ? TETRAHEDRON_INITIAL_ROTATION_SPEED.x : 0.18,
+    targetVelocityY: kind === "tetrahedron" ? TETRAHEDRON_INITIAL_ROTATION_SPEED.y : -0.12,
+    targetVelocityZ: kind === "tetrahedron" ? TETRAHEDRON_INITIAL_ROTATION_SPEED.z : 0.1,
+    nextTurnIn: kind === "tetrahedron" ? 0.8 : 1.8
   };
 
-  drawCubeBoss(boss);
+  drawCubeBoss(boss, 0);
   return boss;
 }
 
-export function updateCubeBossMotion(boss: CubeBoss, seconds: number, movementMultiplier = 1) {
+export function updateCubeBossMotion(boss: CubeBoss, seconds: number, movementMultiplier = 1, time = 0) {
   boss.x -= boss.speed * seconds * movementMultiplier;
   boss.body.setPosition(boss.x, boss.y);
 
   boss.nextTurnIn -= seconds;
   if (boss.nextTurnIn <= 0) {
-    boss.targetVelocityX = Phaser.Math.FloatBetween(-0.32, 0.32);
-    boss.targetVelocityY = Phaser.Math.FloatBetween(-0.32, 0.32);
-    boss.targetVelocityZ = Phaser.Math.FloatBetween(-0.22, 0.22);
-    boss.nextTurnIn = Phaser.Math.FloatBetween(2.2, 4.6);
+    const rotationRange = boss.kind === "tetrahedron"
+      ? { xy: 0.92, z: 0.72, minTurn: 0.75, maxTurn: 1.8 }
+      : { xy: 0.32, z: 0.22, minTurn: 2.2, maxTurn: 4.6 };
+    boss.targetVelocityX = Phaser.Math.FloatBetween(-rotationRange.xy, rotationRange.xy);
+    boss.targetVelocityY = Phaser.Math.FloatBetween(-rotationRange.xy, rotationRange.xy);
+    boss.targetVelocityZ = Phaser.Math.FloatBetween(-rotationRange.z, rotationRange.z);
+    boss.nextTurnIn = Phaser.Math.FloatBetween(rotationRange.minTurn, rotationRange.maxTurn);
   }
 
-  const turnEase = Phaser.Math.Clamp(seconds * 0.55, 0, 1);
+  const turnEase = Phaser.Math.Clamp(seconds * (boss.kind === "tetrahedron" ? 1.08 : 0.55), 0, 1);
   boss.velocityX = Phaser.Math.Linear(boss.velocityX, boss.targetVelocityX, turnEase);
   boss.velocityY = Phaser.Math.Linear(boss.velocityY, boss.targetVelocityY, turnEase);
   boss.velocityZ = Phaser.Math.Linear(boss.velocityZ, boss.targetVelocityZ, turnEase);
   boss.rotationX += boss.velocityX * seconds;
   boss.rotationY += boss.velocityY * seconds;
   boss.rotationZ += boss.velocityZ * seconds;
-  drawCubeBoss(boss);
+  drawCubeBoss(boss, time);
 }
 
 export function chargeBossSkill(skill: BossSkill, seconds: number) {
@@ -146,7 +202,12 @@ export function bossAdvanceSpawnPoints(boss: CubeBoss) {
   }));
 }
 
-function drawCubeBoss(boss: CubeBoss) {
+function drawCubeBoss(boss: CubeBoss, time: number) {
+  if (boss.kind === "tetrahedron") {
+    drawTetrahedronBoss(boss, time);
+    return;
+  }
+
   const vertices = [
     [-1, -1, -1],
     [1, -1, -1],
@@ -172,8 +233,35 @@ function drawCubeBoss(boss: CubeBoss) {
     [3, 7]
   ];
 
+  const color = boss.invincibleUntil > time ? palette.gold : palette.white;
+  boss.labelText.setColor(boss.invincibleUntil > time ? "#ffd75a" : "#f5f5f5");
   boss.frame.clear();
-  boss.frame.lineStyle(2, palette.white, 0.95);
+  boss.frame.lineStyle(2, color, 0.95);
+  for (const [from, to] of edges) {
+    boss.frame.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
+  }
+}
+
+function drawTetrahedronBoss(boss: CubeBoss, time: number) {
+  const vertices = [
+    [1, 1, 1],
+    [-1, -1, 1],
+    [-1, 1, -1],
+    [1, -1, -1]
+  ].map(([x, y, z]) => projectCubePoint(x * CUBE_DRAW_SIZE, y * CUBE_DRAW_SIZE, z * CUBE_DRAW_SIZE, boss));
+  const edges = [
+    [0, 1],
+    [0, 2],
+    [0, 3],
+    [1, 2],
+    [1, 3],
+    [2, 3]
+  ];
+
+  const color = boss.invincibleUntil > time ? palette.gold : palette.white;
+  boss.labelText.setColor(boss.invincibleUntil > time ? "#ffd75a" : "#f5f5f5");
+  boss.frame.clear();
+  boss.frame.lineStyle(2, color, 0.95);
   for (const [from, to] of edges) {
     boss.frame.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
   }

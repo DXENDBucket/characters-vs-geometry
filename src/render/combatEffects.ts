@@ -3,6 +3,12 @@ import { BOSS_HITBOX_HEIGHT, BOSS_HITBOX_WIDTH, palette } from "../config";
 import { EFFECT_SYMBOLS } from "../i18n";
 import type { DamageType, Enemy, Tower } from "../types";
 
+interface CollapseRotation {
+  x: number;
+  y: number;
+  z: number;
+}
+
 export function damageEffectColor(damageType: DamageType) {
   return damageType === "magic" ? palette.magic : palette.white;
 }
@@ -171,6 +177,59 @@ export function makeStasisEffect(scene: Phaser.Scene, x: number, y: number) {
   });
 }
 
+export function makeHasteTrail(scene: Phaser.Scene, x: number, y: number) {
+  const trail = scene.add.graphics().setDepth(58);
+  trail.lineStyle(2, palette.magic, 0.72);
+  for (let index = 0; index < 3; index += 1) {
+    const offsetY = Phaser.Math.Between(-12, 12);
+    const length = Phaser.Math.Between(16, 30);
+    trail.lineBetween(x + 22 + index * 4, y + offsetY, x + 22 + length, y + offsetY - Phaser.Math.Between(2, 8));
+  }
+
+  scene.tweens.add({
+    targets: trail,
+    x: trail.x + 18,
+    alpha: 0,
+    duration: 260,
+    ease: "Quad.easeOut",
+    onComplete: () => trail.destroy()
+  });
+}
+
+export function makeBossHasteTrail(scene: Phaser.Scene, x: number, y: number) {
+  const trail = scene.add.graphics().setDepth(87);
+  trail.lineStyle(3, palette.magic, 0.78);
+  for (let index = 0; index < 7; index += 1) {
+    const offsetY = Phaser.Math.Between(-64, 64);
+    const length = Phaser.Math.Between(46, 86);
+    trail.lineBetween(x + 64 + index * 8, y + offsetY, x + 64 + length, y + offsetY - Phaser.Math.Between(5, 18));
+  }
+
+  scene.tweens.add({
+    targets: trail,
+    x: trail.x + 34,
+    alpha: 0,
+    duration: 320,
+    ease: "Quad.easeOut",
+    onComplete: () => trail.destroy()
+  });
+}
+
+export function makeBossInvincibleFlash(scene: Phaser.Scene, x: number, y: number) {
+  const shield = scene.add
+    .rectangle(x, y, BOSS_HITBOX_WIDTH * 0.96, BOSS_HITBOX_HEIGHT * 0.96, palette.black, 0)
+    .setStrokeStyle(3, palette.gold, 0.9)
+    .setDepth(110);
+  scene.tweens.add({
+    targets: shield,
+    alpha: 0,
+    scale: 1.08,
+    duration: 220,
+    ease: "Quad.easeOut",
+    onComplete: () => shield.destroy()
+  });
+}
+
 export function makeBossHitFlash(scene: Phaser.Scene, x: number, y: number, damageType: DamageType) {
   const flash = scene.add
     .rectangle(x, y, BOSS_HITBOX_WIDTH, BOSS_HITBOX_HEIGHT, palette.black, 0)
@@ -194,20 +253,41 @@ export function makeCubeCollapse(
   activeEnemies: Enemy[] = [],
   activeTowers: Tower[] = []
 ) {
-  const cube = scene.add.graphics().setPosition(x, y).setDepth(108);
-  const size = 132;
-  cube.lineStyle(2, palette.white, 0.88);
-  cube.strokeRect(-size / 2, -size / 2, size, size);
-  cube.strokeRect(-size / 2 + 8, -size / 2 - 8, size, size);
-  cube.lineBetween(-size / 2, -size / 2, -size / 2 + 8, -size / 2 - 8);
-  cube.lineBetween(size / 2, -size / 2, size / 2 + 8, -size / 2 - 8);
-  cube.lineBetween(size / 2, size / 2, size / 2 + 8, size / 2 - 8);
-  cube.lineBetween(-size / 2, size / 2, -size / 2 + 8, size / 2 - 8);
+  makePolyhedronCollapse(scene, x, y, "cube", followTarget, activeEnemies, activeTowers);
+}
+
+export function makeTetrahedronCollapse(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  followTarget?: Enemy | Tower,
+  activeEnemies: Enemy[] = [],
+  activeTowers: Tower[] = []
+) {
+  makePolyhedronCollapse(scene, x, y, "tetrahedron", followTarget, activeEnemies, activeTowers);
+}
+
+function makePolyhedronCollapse(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  shape: "cube" | "tetrahedron",
+  followTarget?: Enemy | Tower,
+  activeEnemies: Enemy[] = [],
+  activeTowers: Tower[] = []
+) {
+  const collapse = scene.add.graphics().setPosition(x, y).setDepth(108);
+  const rotation = randomCollapseRotation();
+  if (shape === "cube") {
+    drawProjectedCube(collapse, 34, rotation);
+  } else {
+    drawProjectedTetrahedron(collapse, 39, rotation);
+  }
 
   scene.tweens.add({
-    targets: cube,
+    targets: collapse,
     scale: 0.15,
-    rotation: 0.5,
+    rotation: Phaser.Math.FloatBetween(-0.75, 0.75),
     alpha: 0,
     duration: 936,
     ease: "Quad.easeIn",
@@ -219,11 +299,91 @@ export function makeCubeCollapse(
       const targetStillExists =
         "kind" in followTarget ? activeEnemies.includes(followTarget) : activeTowers.includes(followTarget);
       if (targetStillExists) {
-        cube.setPosition(followTarget.x, followTarget.y);
+        collapse.setPosition(followTarget.x, followTarget.y);
       }
     },
-    onComplete: () => cube.destroy()
+    onComplete: () => collapse.destroy()
   });
+}
+
+function randomCollapseRotation(): CollapseRotation {
+  return {
+    x: Phaser.Math.FloatBetween(-Math.PI, Math.PI),
+    y: Phaser.Math.FloatBetween(-Math.PI, Math.PI),
+    z: Phaser.Math.FloatBetween(-Math.PI, Math.PI)
+  };
+}
+
+function drawProjectedCube(graphics: Phaser.GameObjects.Graphics, size: number, rotation: CollapseRotation) {
+  const vertices = [
+    [-1, -1, -1],
+    [1, -1, -1],
+    [1, 1, -1],
+    [-1, 1, -1],
+    [-1, -1, 1],
+    [1, -1, 1],
+    [1, 1, 1],
+    [-1, 1, 1]
+  ].map(([x, y, z]) => projectCollapsePoint(x * size, y * size, z * size, rotation));
+  const edges = [
+    [0, 1],
+    [1, 2],
+    [2, 3],
+    [3, 0],
+    [4, 5],
+    [5, 6],
+    [6, 7],
+    [7, 4],
+    [0, 4],
+    [1, 5],
+    [2, 6],
+    [3, 7]
+  ];
+
+  graphics.lineStyle(2, palette.white, 0.88);
+  for (const [from, to] of edges) {
+    graphics.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
+  }
+}
+
+function drawProjectedTetrahedron(graphics: Phaser.GameObjects.Graphics, size: number, rotation: CollapseRotation) {
+  const vertices = [
+    [1, 1, 1],
+    [-1, -1, 1],
+    [-1, 1, -1],
+    [1, -1, -1]
+  ].map(([x, y, z]) => projectCollapsePoint(x * size, y * size, z * size, rotation));
+  const edges = [
+    [0, 1],
+    [0, 2],
+    [0, 3],
+    [1, 2],
+    [1, 3],
+    [2, 3]
+  ];
+
+  graphics.lineStyle(2, palette.white, 0.9);
+  for (const [from, to] of edges) {
+    graphics.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
+  }
+}
+
+function projectCollapsePoint(x: number, y: number, z: number, rotation: CollapseRotation) {
+  const cosX = Math.cos(rotation.x);
+  const sinX = Math.sin(rotation.x);
+  const cosY = Math.cos(rotation.y);
+  const sinY = Math.sin(rotation.y);
+  const cosZ = Math.cos(rotation.z);
+  const sinZ = Math.sin(rotation.z);
+
+  const y1 = y * cosX - z * sinX;
+  const z1 = y * sinX + z * cosX;
+  const x2 = x * cosY + z1 * sinY;
+  const z2 = -x * sinY + z1 * cosY;
+  const x3 = x2 * cosZ - y1 * sinZ;
+  const y3 = x2 * sinZ + y1 * cosZ;
+  const scale = 1.25 / (1 + z2 / 360);
+  return { x: x3 * scale, y: y3 * scale };
 }
 
 export function makeHealParticles(scene: Phaser.Scene, x: number, y: number) {

@@ -2,14 +2,14 @@ import Phaser from "phaser";
 import { BOARD_WIDTH, BOARD_X, CELL_HEIGHT, CELL_WIDTH, LANES } from "../config";
 import { getCardDefinition } from "../registry/cards";
 import { allEnemyDefinitions, enemyBlockedDetonation, getEnemyDefinition } from "../registry/enemies";
-import { makeReflectFlash, makeShellBurst, makeShockPulse } from "../render/combatEffects";
+import { makeHasteTrail, makeReflectFlash, makeShellBurst, makeShockPulse } from "../render/combatEffects";
 import type { DifficultyConfig, Enemy, EnemyKind, LevelConfig, Tower, WaveTracker } from "../types";
 import type { EnemyAdvanceRuntime, EnemySpawnRuntime } from "./combatRuntime";
 import { canEnemyMelee, enemyVolleyShotCount, shouldEnemyShoot, splitSpawnKind, splitSpawnLanes } from "./enemyBehaviors";
 import { createEnemy } from "./enemyFactory";
 import { createEnemyProjectile } from "./projectiles";
 import { movementSpeedMultiplier } from "./slowAura";
-import { statusSpeedMultiplier } from "./statusEffects";
+import { hasStatusEffect, statusAttackMultiplier, statusSpeedMultiplier } from "./statusEffects";
 import { getBlockingTower, towerRect } from "./targeting";
 import { isTrapArmed } from "./towers";
 import { volleyInterval } from "./upgrades";
@@ -93,8 +93,14 @@ export function spawnSplitEnemies(
 
 export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, seconds: number) {
   for (const enemy of [...runtime.enemies]) {
+    const statusMultiplier = statusSpeedMultiplier(enemy, time);
+    if (hasStatusEffect(enemy, "haste", time) && time >= enemy.nextHasteTrailAt) {
+      makeHasteTrail(runtime.scene, enemy.x, enemy.y);
+      enemy.nextHasteTrailAt = time + 120;
+    }
+
     if (shouldEnemyShoot(enemy, time)) {
-      fireEnemyVolley(runtime, enemy);
+      fireEnemyVolley(runtime, enemy, time);
       const shots = enemyVolleyShotCount(enemy);
       enemy.attackAt = time + enemy.attackInterval + (shots - 1) * volleyInterval(enemy.attackInterval, shots);
     }
@@ -113,7 +119,7 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
       }
 
       if (canEnemyMelee(enemy) && time >= enemy.attackAt) {
-        runtime.damageTower(blocker, enemy.damage, enemy.damageType);
+        runtime.damageTower(blocker, enemy.damage * statusAttackMultiplier(enemy, time), enemy.damageType);
         if (blocker.type === "B") {
           const definition = getCardDefinition(blocker.type);
           runtime.damageEnemy(enemy, definition.reflectDamage ?? 20, definition.reflectDamageType ?? "physical");
@@ -132,7 +138,7 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
         enemy.speed *
         seconds *
         movementSpeedMultiplier(runtime.towers, enemy.x, enemy.y) *
-        statusSpeedMultiplier(enemy, time);
+        statusMultiplier;
       enemy.body.setPosition(enemy.x, enemy.y);
     }
 
@@ -163,7 +169,7 @@ function advanceBlockedDetonator(
     if (blocker && blocker.id === startedByTowerId) {
       makeShellBurst(runtime.scene, enemy.x, enemy.y, CELL_WIDTH, detonation.damageType);
       makeShockPulse(runtime.scene, enemy.x, enemy.y, CELL_WIDTH * 0.72, CELL_HEIGHT * 0.72);
-      runtime.damageTower(blocker, detonation.damage, detonation.damageType);
+      runtime.damageTower(blocker, detonation.damage * statusAttackMultiplier(enemy, time), detonation.damageType);
       runtime.damageEnemy(enemy, enemy.maxHp * 10_000, "true");
       return true;
     }
@@ -193,20 +199,20 @@ function resetBlockedDetonation(enemy: Enemy) {
   enemy.blockedSince = undefined;
 }
 
-function fireEnemyVolley(runtime: EnemyAdvanceRuntime, enemy: Enemy) {
+function fireEnemyVolley(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number) {
   const shots = enemyVolleyShotCount(enemy);
   const interval = volleyInterval(enemy.attackInterval, shots);
   for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
     runtime.scene.time.delayedCall(shotIndex * interval, () => {
-      runtime.runWhenBattleActive(() => fireEnemyShot(runtime, enemy));
+      runtime.runWhenBattleActive(() => fireEnemyShot(runtime, enemy, time));
     });
   }
 }
 
-function fireEnemyShot(runtime: EnemyAdvanceRuntime, enemy: Enemy) {
+function fireEnemyShot(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number) {
   if (!runtime.enemies.includes(enemy)) {
     return;
   }
 
-  runtime.enemyProjectiles.push(createEnemyProjectile(runtime.scene, enemy));
+  runtime.enemyProjectiles.push(createEnemyProjectile(runtime.scene, enemy, time));
 }

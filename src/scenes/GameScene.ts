@@ -10,8 +10,11 @@ import {
   CELL_WIDTH,
   COLUMNS,
   DEFAULT_DIFFICULTY,
+  DEFAULT_GAME_SPEED,
   GAME_HEIGHT,
   GAME_WIDTH,
+  GAME_SPEED_MAX,
+  GAME_SPEED_MIN,
   LANES,
   NATURAL_PRODUCE_AMOUNT,
   NATURAL_PRODUCE_INTERVAL,
@@ -118,6 +121,7 @@ export class GameScene extends Phaser.Scene {
   private towerOrder = 0;
   private gameOver = false;
   private battlePaused = false;
+  private gameSpeed = DEFAULT_GAME_SPEED;
   private eraserMode = false;
   private autoUpgradeMode = false;
   private autoUpgradeEnabled = true;
@@ -153,6 +157,7 @@ export class GameScene extends Phaser.Scene {
     this.towerOrder = 0;
     this.gameOver = false;
     this.battlePaused = false;
+    this.gameSpeed = DEFAULT_GAME_SPEED;
     this.eraserMode = false;
     this.autoUpgradeMode = false;
     this.autoUpgradeEnabled = true;
@@ -172,8 +177,10 @@ export class GameScene extends Phaser.Scene {
       onAutoUpgrade: () => this.toggleAutoUpgradeMode(),
       onAutoUpgradeEnabled: () => this.toggleAutoUpgradeEnabled(),
       onAutoUpgradeReserveFocus: () => this.focusAutoUpgradeReserveInput(),
+      onGameSpeedChange: (speed) => this.setGameSpeed(speed),
       onErase: () => this.toggleEraser()
     });
+    this.setGameSpeed(this.gameSpeed);
     this.spawnBossIfNeeded();
     this.cardStates = createCardStates(this, this.selectedCardIds, (id) => this.selectCard(id));
     this.updateCards(this.cardTime);
@@ -208,10 +215,11 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    const seconds = delta / 1000;
-    this.levelElapsed += delta;
-    this.battleTime += delta;
-    this.cardTime += delta;
+    const scaledDelta = delta * this.gameSpeed;
+    const seconds = scaledDelta / 1000;
+    this.levelElapsed += scaledDelta;
+    this.battleTime += scaledDelta;
+    this.cardTime += scaledDelta;
     this.updateNaturalProduction();
     this.updateProducers(this.battleTime);
     this.updateArmingTowers(this.battleTime);
@@ -689,9 +697,11 @@ export class GameScene extends Phaser.Scene {
     this.cardStates.forEach((cardState) => {
       cardState.readyAt = this.cardTime;
     });
+    this.baseIntegrity += 1_000;
     this.gainChars(10_000, this.ui.debugButton.x, this.ui.debugButton.y + 34);
     this.showToast(t("toast.debugChars"));
     this.updateCards(this.cardTime);
+    this.updateHud();
   }
 
   private toggleEraser() {
@@ -799,6 +809,12 @@ export class GameScene extends Phaser.Scene {
     this.updateHud();
   }
 
+  private setGameSpeed(speed: number) {
+    this.gameSpeed = Math.min(GAME_SPEED_MAX, Math.max(GAME_SPEED_MIN, Math.round(speed * 10) / 10));
+    this.time.timeScale = this.gameSpeed;
+    this.updateHud();
+  }
+
   private updateHud() {
     updateGameHud(this.ui, {
       chars: this.chars,
@@ -808,6 +824,7 @@ export class GameScene extends Phaser.Scene {
       baseIntegrity: this.baseIntegrity,
       enemiesDefeated: this.enemiesDefeated,
       battlePaused: this.battlePaused,
+      gameSpeed: this.gameSpeed,
       boss: this.boss
     });
   }
@@ -880,6 +897,7 @@ export class GameScene extends Phaser.Scene {
       C: "C",
       D: "D",
       O: "O",
+      R: "R",
       X: "X",
       E: "E",
       M: "M",

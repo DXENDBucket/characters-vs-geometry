@@ -1,6 +1,11 @@
 import Phaser from "phaser";
-import { CELL_HEIGHT, CELL_WIDTH } from "../config";
-import { makeBossHitFlash, makeShellBurst, makeShockPulse } from "../render/combatEffects";
+import {
+  CELL_HEIGHT,
+  CELL_WIDTH,
+  TETRAHEDRON_BOSS_HASTE_DURATION,
+  TETRAHEDRON_BOSS_INVINCIBLE_DURATION
+} from "../config";
+import { makeBossHitFlash, makeBossInvincibleFlash, makeShockPulse } from "../render/combatEffects";
 import type { CubeBoss, DamageType, Enemy, EnemyProjectile, Projectile, Tower, WaveTracker } from "../types";
 import { calculateDamage } from "./damage";
 import { enemyScaleFromHp } from "./enemyBehaviors";
@@ -8,8 +13,6 @@ import { spawnSplitEnemies } from "./enemyRuntime";
 import { isPointInSlowAura } from "./slowAura";
 import { gridCellKey } from "./targeting";
 import { syncTowerHpBar } from "./towers";
-
-const SLOW_AURA_DEATH_DAMAGE = 4_500;
 
 export interface UnitLifecycleRuntime {
   scene: Phaser.Scene;
@@ -53,10 +56,28 @@ export function damageBoss(runtime: UnitLifecycleRuntime, damage: number, damage
     return;
   }
 
+  if (boss.invincibleUntil > runtime.battleTime) {
+    makeBossInvincibleFlash(runtime.scene, boss.x, boss.y);
+    return;
+  }
+
   const actualDamage =
     calculateDamage(damage, damageType, boss.armor, boss.magicResistance) *
     (1 - boss.finalDamageReduction);
-  boss.hp -= actualDamage;
+  const nextHp = boss.hp - actualDamage;
+  if (shouldTriggerTetrahedronCritical(boss, nextHp)) {
+    boss.criticalHpTriggered = true;
+    boss.pendingCriticalSummon = true;
+    boss.invincibleUntil = runtime.battleTime + TETRAHEDRON_BOSS_INVINCIBLE_DURATION;
+    boss.bossHasteUntil = runtime.battleTime + TETRAHEDRON_BOSS_HASTE_DURATION;
+    boss.nextBossHasteTrailAt = runtime.battleTime;
+    boss.hp = nextHp <= 0 ? 1 : boss.maxHp * 0.1;
+    makeBossHitFlash(runtime.scene, boss.x, boss.y, damageType);
+    makeBossInvincibleFlash(runtime.scene, boss.x, boss.y);
+    return;
+  }
+
+  boss.hp = nextHp;
   makeBossHitFlash(runtime.scene, boss.x, boss.y, damageType);
 
   if (boss.hp <= 0) {
@@ -64,6 +85,10 @@ export function damageBoss(runtime: UnitLifecycleRuntime, damage: number, damage
     removeBoss(runtime);
     runtime.endLevel();
   }
+}
+
+function shouldTriggerTetrahedronCritical(boss: CubeBoss, nextHp: number) {
+  return boss.kind === "tetrahedron" && !boss.criticalHpTriggered && nextHp <= boss.maxHp * 0.1;
 }
 
 export function damageEnemy(runtime: UnitLifecycleRuntime, enemy: Enemy, damage: number, damageType: DamageType) {
@@ -135,27 +160,9 @@ export function removeTower(runtime: UnitLifecycleRuntime, tower: Tower) {
 }
 
 function detonateSlowAuraTower(runtime: UnitLifecycleRuntime, tower: Tower) {
-  makeShellBurst(runtime.scene, tower.x, tower.y, CELL_WIDTH * 2, "true");
   makeShockPulse(runtime.scene, tower.x, tower.y, CELL_WIDTH * 2.5, CELL_HEIGHT * 2.5);
   clearProjectilesInSlowAura(runtime.projectiles, tower);
   clearProjectilesInSlowAura(runtime.enemyProjectiles, tower);
-
-  for (const enemy of [...runtime.enemies]) {
-    if (isPointInSlowAura(tower, enemy.x, enemy.y)) {
-      damageEnemy(runtime, enemy, SLOW_AURA_DEATH_DAMAGE, "true");
-    }
-  }
-
-  for (const target of [...runtime.towers]) {
-    if (isPointInSlowAura(tower, target.x, target.y)) {
-      damageTower(runtime, target, SLOW_AURA_DEATH_DAMAGE, "true");
-    }
-  }
-
-  const boss = runtime.getBoss();
-  if (boss && isPointInSlowAura(tower, boss.x, boss.y)) {
-    damageBoss(runtime, SLOW_AURA_DEATH_DAMAGE, "true");
-  }
 }
 
 function clearProjectilesInSlowAura<T extends { x: number; y: number; body: Phaser.GameObjects.GameObject }>(

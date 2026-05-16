@@ -34,11 +34,15 @@ export const CARD_SLOT_COUNT = 8;
 export const DEFAULT_DIFFICULTY = 3;
 export const DIFFICULTY_MIN = 0;
 export const DIFFICULTY_MAX = 8;
+export const DEFAULT_GAME_SPEED = 1;
+export const GAME_SPEED_MIN = 0.5;
+export const GAME_SPEED_MAX = 4;
 export const BOSS_HITBOX_WIDTH = CELL_WIDTH * 2.95;
 export const BOSS_HITBOX_HEIGHT = CELL_HEIGHT * 2.95;
-export const CUBE_BOSS_STATS: Record<BossKind, { hp: number; armor: number; magicResistance: number }> = {
-  cube: { hp: 150_000, armor: 300, magicResistance: 20 },
-  cube2: { hp: 200_000, armor: 600, magicResistance: 20 }
+export const CUBE_BOSS_STATS: Record<BossKind, { hp: number; armor: number; magicResistance: number; speed: number }> = {
+  cube: { hp: 150_000, armor: 300, magicResistance: 20, speed: 0.6 },
+  cube2: { hp: 200_000, armor: 600, magicResistance: 20, speed: 0.6 },
+  tetrahedron: { hp: 150_000, armor: 150, magicResistance: 20, speed: 1.2 }
 };
 export const CUBE_BOSS_PROMOTION_SKILL_MAX = 90;
 export const CUBE_BOSS_PROMOTION_SKILL_COST = 30;
@@ -46,6 +50,22 @@ export const CUBE_BOSS_PROMOTION2_SKILL_MAX = 180;
 export const CUBE_BOSS_PROMOTION2_SKILL_COST = 40;
 export const CUBE_BOSS_ADVANCE_SKILL_MAX = 120;
 export const CUBE_BOSS_ADVANCE_SKILL_COST = 120;
+export const TETRAHEDRON_BOSS_CHARGE_SKILL_MAX = 60;
+export const TETRAHEDRON_BOSS_CHARGE_SKILL_COST = 30;
+export const TETRAHEDRON_BOSS_CHARGE_DURATION = 7_000;
+export const TETRAHEDRON_BOSS_CHARGE_SUPPRESSION_SP_GAIN = 16;
+export const TETRAHEDRON_BOSS_IMPACT_SKILL_MAX = 120;
+export const TETRAHEDRON_BOSS_IMPACT_SKILL_COST = 60;
+export const TETRAHEDRON_BOSS_IMPACT_CHARGE_SP_GAIN = 12;
+export const TETRAHEDRON_BOSS_SUPPRESSION_SKILL_MAX = 160;
+export const TETRAHEDRON_BOSS_SUPPRESSION_SKILL_COST = 40;
+export const TETRAHEDRON_BOSS_SUPPRESSION_IMPACT_SP_GAIN = 25;
+export const TETRAHEDRON_BOSS_DESPERATION_SKILL_MAX = 10;
+export const TETRAHEDRON_BOSS_DESPERATION_SKILL_COST = 10;
+export const TETRAHEDRON_BOSS_DESPERATION_CHARGE_SP_GAIN = 5;
+export const TETRAHEDRON_BOSS_INVINCIBLE_DURATION = 15_000;
+export const TETRAHEDRON_BOSS_HASTE_DURATION = 60_000;
+export const TETRAHEDRON_BOSS_HASTE_MULTIPLIER = 3;
 export const CUBE_BOSS_WAVE_CAP = 600;
 export const CUBE_BOSS_CONTACT_DAMAGE = 2_000;
 export const CUBE_BOSS_CONTACT_INTERVAL = 0.5;
@@ -60,6 +80,7 @@ export const palette = {
   dim: 0x454545,
   magic: 0x9fdcff,
   green: 0x48ff88,
+  gold: 0xffd75a,
   time: 0x5b2a91,
   enemyShot: 0xff6464
 };

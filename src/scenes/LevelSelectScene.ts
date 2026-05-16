@@ -19,10 +19,11 @@ import {
 import { getLevelConfig, levelNodes } from "../data/levels";
 import { toRomanNumeral } from "../format";
 import { t, toggleLanguage } from "../i18n";
-import { createCubeIcon, createEnemyShape, createUnitBorder } from "../render/unitShapes";
+import { createCubeIcon, createEnemyShape, createTetrahedronIcon, createUnitBorder } from "../render/unitShapes";
 import type { BossKind, LevelNode } from "../types";
 
 interface BossNodePreview {
+  kind: BossKind;
   frame: Phaser.GameObjects.Graphics;
   label: Phaser.GameObjects.Text;
   rotationX: number;
@@ -421,6 +422,7 @@ export class LevelSelectScene extends Phaser.Scene {
 
     this.mapContainer.add([frame, label]);
     const preview: BossNodePreview = {
+      kind: levelConfig.bossKind,
       frame,
       label,
       rotationX: -0.35,
@@ -440,6 +442,11 @@ export class LevelSelectScene extends Phaser.Scene {
   }
 
   private drawBossNodePreview(preview: BossNodePreview) {
+    if (preview.kind === "tetrahedron") {
+      this.drawTetrahedronNodePreview(preview);
+      return;
+    }
+
     const vertices = [
       [-1, -1, -1],
       [1, -1, -1],
@@ -465,6 +472,31 @@ export class LevelSelectScene extends Phaser.Scene {
       [1, 5],
       [2, 6],
       [3, 7]
+    ];
+
+    preview.frame.clear();
+    preview.frame.lineStyle(1.5, palette.white, 0.92);
+    for (const [from, to] of edges) {
+      preview.frame.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
+    }
+  }
+
+  private drawTetrahedronNodePreview(preview: BossNodePreview) {
+    const vertices = [
+      [1, 1, 1],
+      [-1, -1, 1],
+      [-1, 1, -1],
+      [1, -1, -1]
+    ].map(([x, y, z]) => {
+      return this.projectBossNodePoint(x * preview.size, y * preview.size, z * preview.size, preview);
+    });
+    const edges = [
+      [0, 1],
+      [0, 2],
+      [0, 3],
+      [1, 2],
+      [1, 3],
+      [2, 3]
     ];
 
     preview.frame.clear();
@@ -725,6 +757,8 @@ export class LevelSelectScene extends Phaser.Scene {
       container.add(createEnemyShape(this, entry.enemyKind).setPosition(48, 72).setScale(1.05));
     } else if (entry.icon === "cube") {
       container.add(createCubeIcon(this).setPosition(48, 72));
+    } else if (entry.icon === "tetrahedron") {
+      container.add(createTetrahedronIcon(this).setPosition(48, 72));
     } else if (entry.card) {
       const border = createUnitBorder(this, entry.card.category, 23, 2).setPosition(48, 70);
       const label = this.add

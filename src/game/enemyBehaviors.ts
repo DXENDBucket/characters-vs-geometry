@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { ATTACK_INTERVAL, ENEMY_SPEED, ENEMY_SPEED_VARIANCE, LANES } from "../config";
+import { ATTACK_INTERVAL, ENEMY_SPEED, ENEMY_SPEED_VARIANCE, LANES, palette } from "../config";
 import {
   enemyFamily,
   enemyIsBlockedDetonator,
@@ -52,8 +52,19 @@ export function applyEnemyPromotion(scene: Phaser.Scene, enemy: Enemy, kind: Ene
   enemy.attackAt = Math.min(enemy.attackAt, battleTime + enemy.attackInterval);
   enemy.speed = randomizedEnemySpeed(kind);
   enemy.body.removeAll(true);
+  enemy.statusBorder = scene.add.circle(0, 0, 28, palette.black, 0).setStrokeStyle(2, palette.magic, 0.92);
+  enemy.statusBorder.setVisible(false);
+  enemy.powerIcon = scene.add
+    .text(0, -38, "⚔", {
+      color: "#ff6464",
+      fontFamily: "Segoe UI Emoji, sans-serif",
+      fontSize: "18px",
+      fontStyle: "700"
+    })
+    .setOrigin(0.5);
+  enemy.powerIcon.setVisible(false);
   enemy.shape = createEnemyShape(scene, kind, { squareSize: 42, shootingNoseX: -24 });
-  enemy.body.add(enemy.shape);
+  enemy.body.add([enemy.statusBorder, enemy.shape, enemy.powerIcon]);
   enemy.shape.setScale(enemyScaleFromHp(enemy.hp / enemy.maxHp));
 }
 

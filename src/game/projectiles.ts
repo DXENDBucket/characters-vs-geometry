@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { BOARD_HEIGHT, BOARD_WIDTH, BOARD_X, BOARD_Y, palette } from "../config";
 import { damageEffectColor, damageEffectTextColor } from "../render/combatEffects";
 import type { DamageType, Enemy, EnemyProjectile, Projectile, ProjectileKind, StatusEffectName } from "../types";
+import { statusAttackMultiplier } from "./statusEffects";
 
 export interface TowerProjectileSpec {
   type: ProjectileKind;
@@ -56,18 +57,33 @@ export function createTowerProjectile(scene: Phaser.Scene, spec: TowerProjectile
   };
 }
 
-export function createEnemyProjectile(scene: Phaser.Scene, enemy: Enemy): EnemyProjectile {
+export function createEnemyProjectile(scene: Phaser.Scene, enemy: Enemy, time: number): EnemyProjectile {
   const body = scene.add.rectangle(enemy.x - 22, enemy.y, 18, 4, palette.enemyShot, 1).setDepth(91);
   body.rotation = Math.PI;
   return {
     x: enemy.x - 22,
     y: enemy.y,
     vx: -430,
-    damage: enemy.damage,
+    damage: enemy.damage * statusAttackMultiplier(enemy, time),
     damageType: enemy.damageType,
     sourceLane: enemy.lane,
     body
   };
+}
+
+export function createReflectedProjectile(scene: Phaser.Scene, projectile: EnemyProjectile): Projectile {
+  return createTowerProjectile(scene, {
+    type: "bolt",
+    x: projectile.x,
+    y: projectile.y,
+    lane: projectile.sourceLane,
+    speed: Math.abs(projectile.vx),
+    damage: projectile.damage,
+    damageType: projectile.damageType,
+    splashRadius: 0,
+    angleDegrees: projectile.vx < 0 ? 0 : 180,
+    maxX: Number.POSITIVE_INFINITY
+  });
 }
 
 export function isTowerProjectileOutOfBounds(projectile: Projectile, reachedMaxX: boolean) {

@@ -52,7 +52,7 @@ const dictionaries: Record<Language, Record<string, string>> = {
     "label.ko": "KO",
     "label.flag": "FLAG",
     "label.paused": "PAUSED",
-    "label.cubeHp": "CUBE HP",
+    "label.cubeHp": "BOSS HP",
     "label.noLevels": "NO OPERATIONS",
     "encyclopedia.title": "INDEX",
     "encyclopedia.enemies": "ENEMIES",
@@ -76,7 +76,7 @@ const dictionaries: Record<Language, Record<string, string>> = {
     "toast.resume": "RESUME",
     "toast.autoOn": "AUTO ON",
     "toast.autoOff": "AUTO OFF",
-    "toast.debugChars": "+10000 CHARS",
+    "toast.debugChars": "+10000 CHARS / +1000 BASE",
     "enemy.circle": "CIRCLE 1",
     "enemy.circle2": "CIRCLE 2",
     "enemy.circle3": "CIRCLE 3",
@@ -90,7 +90,8 @@ const dictionaries: Record<Language, Record<string, string>> = {
     "enemy.square": "SQUARE 1",
     "enemy.square2": "SQUARE 2",
     "enemy.square3": "SQUARE 3",
-    "enemy.bossCube": "BOSS CUBE"
+    "enemy.bossCube": "BOSS CUBE",
+    "enemy.bossTetrahedron": "BOSS TETRAHEDRON"
   },
   "zh-CN": {
     "app.title": "字符大战几何体",
@@ -129,7 +130,7 @@ const dictionaries: Record<Language, Record<string, string>> = {
     "label.ko": "击破",
     "label.flag": "旗帜",
     "label.paused": "暂停",
-    "label.cubeHp": "立方体生命",
+    "label.cubeHp": "Boss 生命",
     "label.noLevels": "暂无行动",
     "encyclopedia.title": "图鉴",
     "encyclopedia.enemies": "敌怪",
@@ -153,6 +154,7 @@ const dictionaries: Record<Language, Record<string, string>> = {
     "toast.resume": "继续",
     "toast.autoOn": "自动升级开启",
     "toast.autoOff": "自动升级关闭",
+    "toast.debugChars": "+10000 字符 / +1000 底线",
     "enemy.circle": "圆 1",
     "enemy.circle2": "圆 2",
     "enemy.circle3": "圆 3",
@@ -166,7 +168,8 @@ const dictionaries: Record<Language, Record<string, string>> = {
     "enemy.square": "正方形 1",
     "enemy.square2": "正方形 2",
     "enemy.square3": "正方形 3",
-    "enemy.bossCube": "Boss 立方体"
+    "enemy.bossCube": "Boss 立方体",
+    "enemy.bossTetrahedron": "Boss 正四面体"
   }
 };
 

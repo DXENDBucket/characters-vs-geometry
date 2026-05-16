@@ -164,6 +164,39 @@ export function createCubeIcon(scene: Phaser.Scene) {
   return icon;
 }
 
+export function createTetrahedronIcon(scene: Phaser.Scene) {
+  const icon = scene.add.container(0, 0);
+  const frame = scene.add.graphics();
+  const points = [
+    new Phaser.Math.Vector2(0, -22),
+    new Phaser.Math.Vector2(-22, 17),
+    new Phaser.Math.Vector2(24, 15),
+    new Phaser.Math.Vector2(7, 5)
+  ];
+  const edges = [
+    [0, 1],
+    [0, 2],
+    [0, 3],
+    [1, 2],
+    [1, 3],
+    [2, 3]
+  ];
+  frame.lineStyle(2, palette.white, 0.95);
+  for (const [from, to] of edges) {
+    frame.lineBetween(points[from].x, points[from].y, points[to].x, points[to].y);
+  }
+  const label = scene.add
+    .text(2, 0, toRomanNumeral(1), {
+      color: "#f5f5f5",
+      fontFamily: "monospace",
+      fontSize: "14px",
+      fontStyle: "700"
+    })
+    .setOrigin(0.5);
+  icon.add([frame, label]);
+  return icon;
+}
+
 function createEnemyLabel(scene: Phaser.Scene, x: number, y: number, kind: EnemyKind) {
   return scene.add
     .text(x, y, romanLabel(getEnemyDefinition(kind).label), {

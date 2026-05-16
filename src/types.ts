@@ -6,6 +6,7 @@ export type CardId =
   | "C"
   | "D"
   | "O"
+  | "R"
   | "X"
   | "E"
   | "M"
@@ -35,12 +36,19 @@ export type EnemyKind =
   | "square"
   | "square2"
   | "square3";
-export type BossKind = "cube" | "cube2";
-export type BossSkillName = "promotion" | "advance" | "promotion2";
+export type BossKind = "cube" | "cube2" | "tetrahedron";
+export type BossSkillName =
+  | "promotion"
+  | "advance"
+  | "promotion2"
+  | "charge"
+  | "impact"
+  | "suppression"
+  | "desperation";
 export type ProjectileKind = "bolt" | "shell" | "star" | "hash" | "dollar";
 export type UnitCategory = "production" | "attack" | "defense" | "function" | "healing";
 export type DamageType = "physical" | "magic" | "true";
-export type StatusEffectName = "stasis";
+export type StatusEffectName = "stasis" | "haste" | "power";
 export type AlphaGameObject = Phaser.GameObjects.GameObject & { setAlpha(alpha: number): unknown };
 
 export interface DifficultyConfig {
@@ -76,6 +84,7 @@ export interface CardDefinition {
   armTime?: number;
   projectileDebuff?: StatusEffectName;
   projectileDebuffDuration?: number;
+  reflectProjectiles?: boolean;
   produceEvery?: number;
   produceAmount?: number;
   stats: string;
@@ -112,6 +121,7 @@ export interface Tower {
   nextProduceAt: number;
   armedAt: number;
   autoUpgrade: boolean;
+  reflectProjectiles: boolean;
   placedOrder: number;
   body: Phaser.GameObjects.Container;
   border: Phaser.GameObjects.Graphics;
@@ -140,6 +150,9 @@ export interface Enemy {
   blockedByTowerId?: string;
   blockedSince?: number;
   statusEffects: StatusEffect[];
+  statusBorder: Phaser.GameObjects.Arc;
+  powerIcon: Phaser.GameObjects.Text;
+  nextHasteTrailAt: number;
   body: Phaser.GameObjects.Container;
   shape: Phaser.GameObjects.GameObject & { setScale(scale: number): unknown };
 }
@@ -231,12 +244,24 @@ export interface CubeBoss {
   finalDamageReduction: number;
   speed: number;
   advanceMinionKind: EnemyKind;
+  hasSkills: boolean;
   skills: {
     promotion: BossSkill<"promotion">;
     advance: BossSkill<"advance">;
     promotion2?: BossSkill<"promotion2">;
+    charge?: BossSkill<"charge">;
+    impact?: BossSkill<"impact">;
+    suppression?: BossSkill<"suppression">;
+    desperation?: BossSkill<"desperation">;
   };
   contactAttackBuffer: number;
+  chargeExpiresAt: number;
+  halfHpTriggered: boolean;
+  criticalHpTriggered: boolean;
+  pendingCriticalSummon: boolean;
+  invincibleUntil: number;
+  bossHasteUntil: number;
+  nextBossHasteTrailAt: number;
   body: Phaser.GameObjects.Container;
   frame: Phaser.GameObjects.Graphics;
   labelText: Phaser.GameObjects.Text;

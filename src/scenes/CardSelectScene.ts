@@ -220,6 +220,10 @@ export class CardSelectScene extends Phaser.Scene {
   }
 
   private bossDisplayName(kind: BossKind) {
+    if (kind === "tetrahedron") {
+      return `${t("enemy.bossTetrahedron")} ${toRomanNumeral(1)}`;
+    }
+
     return `${t("enemy.bossCube")} ${toRomanNumeral(kind === "cube2" ? 2 : 1)}`;
   }
 

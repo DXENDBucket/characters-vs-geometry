@@ -5,6 +5,8 @@ import {
   CARD_WIDTH,
   GAME_HEIGHT,
   GAME_WIDTH,
+  GAME_SPEED_MAX,
+  GAME_SPEED_MIN,
   PROGRESS_BAR_WIDTH,
   palette
 } from "../config";
@@ -19,6 +21,9 @@ export interface GameHudElements {
   progressText: Phaser.GameObjects.Text;
   progressFill: Phaser.GameObjects.Rectangle;
   toastText: Phaser.GameObjects.Text;
+  speedText: Phaser.GameObjects.Text;
+  speedFill: Phaser.GameObjects.Rectangle;
+  speedKnob: Phaser.GameObjects.Rectangle;
   debugButton: Phaser.GameObjects.Rectangle;
   debugText: Phaser.GameObjects.Text;
   autoUpgradeButton: Phaser.GameObjects.Rectangle;
@@ -44,6 +49,7 @@ interface GameHudActions {
   onAutoUpgrade: () => void;
   onAutoUpgradeEnabled: () => void;
   onAutoUpgradeReserveFocus: () => void;
+  onGameSpeedChange: (speed: number) => void;
   onErase: () => void;
 }
 
@@ -63,6 +69,7 @@ interface HudUpdateState {
   baseIntegrity: number;
   enemiesDefeated: number;
   battlePaused: boolean;
+  gameSpeed: number;
   boss: CubeBoss | null;
 }
 
@@ -92,6 +99,37 @@ export function createGameHud(
     fontFamily: "monospace",
     fontSize: "16px"
   });
+  const speedSliderX = 348;
+  const speedSliderY = 120;
+  const speedSliderWidth = 176;
+  const speedText = scene.add
+    .text(240, speedSliderY - 2, "", {
+      color: "#8c8c8c",
+      fontFamily: "monospace",
+      fontSize: "13px"
+    })
+    .setOrigin(0, 0.5)
+    .setDepth(21);
+  scene.add.rectangle(speedSliderX, speedSliderY, speedSliderWidth, 4, palette.dim, 1).setOrigin(0, 0.5).setDepth(21);
+  const speedFill = scene.add.rectangle(speedSliderX, speedSliderY, 0, 4, palette.white, 1).setOrigin(0, 0.5).setDepth(22);
+  const speedKnob = scene.add
+    .rectangle(speedSliderX, speedSliderY, 10, 20, palette.black, 1)
+    .setStrokeStyle(2, palette.white, 0.92)
+    .setInteractive({ useHandCursor: true })
+    .setDepth(23);
+  const speedHit = scene.add
+    .rectangle(speedSliderX + speedSliderWidth / 2, speedSliderY, speedSliderWidth + 24, 28, palette.black, 0.001)
+    .setInteractive({ useHandCursor: true })
+    .setDepth(20);
+  const setSpeedFromPointer = (pointer: Phaser.Input.Pointer) => {
+    const ratio = Phaser.Math.Clamp((pointer.x - speedSliderX) / speedSliderWidth, 0, 1);
+    const speed = GAME_SPEED_MIN + ratio * (GAME_SPEED_MAX - GAME_SPEED_MIN);
+    actions.onGameSpeedChange(Math.round(speed * 10) / 10);
+  };
+  speedHit.on("pointerdown", setSpeedFromPointer);
+  speedKnob.on("pointerdown", setSpeedFromPointer);
+  speedKnob.on("drag", (pointer: Phaser.Input.Pointer) => setSpeedFromPointer(pointer));
+  scene.input.setDraggable(speedKnob);
 
   const progressText = scene.add
     .text(GAME_WIDTH - 28, GAME_HEIGHT - 50, "", {
@@ -179,6 +217,9 @@ export function createGameHud(
     progressText,
     progressFill,
     toastText,
+    speedText,
+    speedFill,
+    speedKnob,
     debugButton,
     debugText,
     autoUpgradeButton,
@@ -331,11 +372,15 @@ export function updateGameHud(ui: GameHudElements, state: HudUpdateState) {
   const waveText = state.wave === 0 ? t("label.wait") : `${state.wave}`;
   const flag = state.wave === 0 ? 0 : Math.ceil(state.wave / state.wavesPerFlag);
   const pauseText = state.battlePaused ? `    ${t("label.paused")}` : "";
+  const speedRatio = Phaser.Math.Clamp((state.gameSpeed - GAME_SPEED_MIN) / (GAME_SPEED_MAX - GAME_SPEED_MIN), 0, 1);
 
   ui.charsText.setText(`${t("label.chars")} ${Math.floor(state.chars)}`);
   ui.statusText.setText(
     `${t("label.wave")} ${waveText}    ${t("label.base")} ${state.baseIntegrity}    ${t("label.ko")} ${state.enemiesDefeated}${pauseText}`
   );
+  ui.speedText.setText(`${t("label.speed")} x${formatSpeed(state.gameSpeed)}`);
+  ui.speedFill.width = 176 * speedRatio;
+  ui.speedKnob.x = Math.round(348 + 176 * speedRatio);
   if (state.boss) {
     const bossHpRatio = Phaser.Math.Clamp(state.boss.hp / state.boss.maxHp, 0, 1);
     ui.progressText.setText(`${t("label.cubeHp")} ${Math.ceil(state.boss.hp)}/${state.boss.maxHp}`);
@@ -349,6 +394,10 @@ export function updateGameHud(ui: GameHudElements, state: HudUpdateState) {
     `${t("label.flag")} ${flag}/${totalFlags}  ${t("label.wave")} ${state.wave}/${state.totalWaves}`
   );
   ui.progressFill.width = PROGRESS_BAR_WIDTH * waveProgress;
+}
+
+function formatSpeed(speed: number) {
+  return Number.isInteger(speed) ? speed.toFixed(0) : speed.toFixed(1);
 }
 
 export function showToast(scene: Phaser.Scene, ui: GameHudElements, text: string) {

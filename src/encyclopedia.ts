@@ -17,7 +17,7 @@ export interface EncyclopediaEntry {
   description: string;
   enemyKind?: EnemyKind;
   card?: CardDefinition;
-  icon?: "cube";
+  icon?: "cube" | "tetrahedron";
 }
 
 export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
@@ -135,7 +135,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.hp"), `I ${CUBE_BOSS_STATS.cube.hp} / II ${CUBE_BOSS_STATS.cube2.hp}`],
           [t("label.armor"), "I 300 / II 600"],
           [t("label.mr"), 20],
-          [t("label.speed"), 0.6],
+          [t("label.speed"), CUBE_BOSS_STATS.cube.speed],
           [t("label.atk"), `${damageText(CUBE_BOSS_CONTACT_DAMAGE, "physical")} / ${CUBE_BOSS_CONTACT_INTERVAL}s`]
         ]),
         zh
@@ -148,6 +148,34 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
       description: zh
         ? "Boss 不会被阻挡，也不会随血量缩小；到达底线会失败，死亡会直接胜利。"
         : "Bosses cannot be blocked and do not shrink with HP. Reaching the base is defeat; killing one clears the stage."
+    },
+    {
+      title: zh ? "正四面体 Boss 系列" : "Tetrahedron Boss Series",
+      icon: "tetrahedron",
+      lines: [
+        statLine([
+          [t("label.hp"), CUBE_BOSS_STATS.tetrahedron.hp],
+          [t("label.armor"), CUBE_BOSS_STATS.tetrahedron.armor],
+          [t("label.mr"), CUBE_BOSS_STATS.tetrahedron.magicResistance],
+          [t("label.speed"), CUBE_BOSS_STATS.tetrahedron.speed],
+          [t("label.atk"), `${damageText(CUBE_BOSS_CONTACT_DAMAGE, "physical")} / ${CUBE_BOSS_CONTACT_INTERVAL}s`]
+        ]),
+        zh
+          ? "冲锋：60技力满后消耗30，使所有普通敌怪在 7 秒内获得加速，移动速度变为 200%，并使压制技力 +16。"
+          : "Charge: at 60 SP, spend 30 to give ordinary enemies 7s Haste, raising movement speed to 200%, and gives Suppression +16 SP.",
+        zh
+          ? "冲击：120技力满后消耗60，在 Boss 前方两列每行召唤倒三角 I，并使冲锋技力 +12。压制：160技力满后消耗40，在出怪线每行召唤射击三角 I，并使冲击技力 +25。"
+          : "Impact: at 120 SP, spend 60 to summon Inverted Triangle I in every lane across two columns in front of the Boss, and gives Charge +12 SP. Suppression: at 160 SP, spend 40 to summon Shooting Triangle I in every lane at the spawn line, and gives Impact +25 SP.",
+        zh
+          ? "首次降至50%生命时，在最远离底线的三列每格召唤倒三角 II，并立刻填满冲锋技力。"
+          : "The first time HP reaches 50% or lower, summons Inverted Triangle II in every cell of the three columns farthest from the base and immediately fills Charge SP.",
+        zh
+          ? "首次降至10%生命时获得15秒无敌和60秒300%速度加速，并在最远离底线的五列每格召唤倒三角 I；若此前被直接击杀，则锁1血并触发同一套效果。孤注一掷：50%生命以下每秒回1技力，10满后给接触 Boss 的敌怪永久力量，并使冲锋 +5。"
+          : "The first time HP reaches 10% or lower, gains 15s Invincible and 60s Boss Haste at 300% speed, then summons Inverted Triangle I in every cell of the five columns farthest from the base. If it would die before this triggers, it locks at 1 HP and triggers the same package. Last Stand: below 50% HP, gains 1 SP/s; at 10 SP, grants permanent Power to enemies touching the Boss and gives Charge +5 SP."
+      ],
+      description: zh
+        ? "Boss 不会被阻挡，也不会随血量缩小；到达底线会失败，死亡会直接胜利。"
+        : "Boss cannot be blocked and does not shrink with HP. Reaching the base is defeat; killing it clears the stage."
     }
   ];
 }
@@ -188,6 +216,7 @@ function towerDescription(id: CardId) {
     C: zh ? "物理溅射炮。沿本行发射炮弹，命中后对 1 格半径造成范围伤害。" : "Physical splash cannon. Fires down its lane and deals 1-cell radius splash on hit.",
     D: zh ? "纯防御塔。高护甲，用来拖住近战敌怪。" : "Pure defender with high armor for stalling melee enemies.",
     O: zh ? "抗法防御塔。机制和 D 类似，但冷却更短并拥有较高法术抗性。" : "Magic-resistant defender. Similar to D, with shorter cooldown and high magic resistance.",
+    R: zh ? "反弹防御塔。机制和 O 类似；敌方弹幕击中它时仍会造成伤害，但弹幕会被反射为同伤害、同类型、反向飞行的我方弹幕。" : "Reflect defender. Similar to O; enemy projectiles still damage it on hit, then reflect into friendly projectiles with the same damage and damage type flying the opposite direction.",
     X: zh ? `生产塔。每 10 秒产生 ${EFFECT_SYMBOLS.chars}25，也是主要字符来源之一。` : `Producer. Generates ${EFFECT_SYMBOLS.chars}25 every 10s.`,
     E: zh ? "三连物理射手。向前平射，并向上/下各偏转 10 度发射一发。" : "Triple physical shooter. Fires one straight shot plus two shots at +/-10 degrees.",
     M: zh ? "下向三连物理射手。攻击方向朝下，出弹点保持在列中心。" : "Downward triple physical shooter. Fires downward from the column center.",
@@ -202,7 +231,7 @@ function towerDescription(id: CardId) {
     K: zh ? "近程斩击塔。攻击自身一格和前方两格内的单体目标，释放十字斩特效。" : "Close-range slasher. Hits one target within itself plus two tiles ahead, with a cross slash.",
     L: zh ? "牵引塔。抓取上下两行指定格子的所有敌怪平移到本行，每抓一个自损 400 真实伤害。" : "Shifter. Pulls all enemies from target tiles in adjacent lanes into its lane, taking 400 true self-damage per target.",
     N: zh ? "防御推移塔。每秒把自己正在阻挡的所有敌怪向左推移 4 格，每推一个自损 400 真实伤害。" : "Defender-shifter. Every second, pushes all enemies it is blocking 4 cells left, taking 400 true self-damage per pushed enemy.",
-    T: zh ? "迟滞塔。每秒自损 700 真实伤害；以自身为中心 5x5 去角范围内的普通单位和弹幕移动速度降为六分之一，并显示深紫色时间范围框。Boss 不受减速影响。死亡时清除范围内弹幕，并对范围内所有单位和 Boss 造成 4500 真实伤害；被橡皮擦移除不会触发。" : "Slow field tower. Takes 700 true self-damage every second; ordinary units and projectiles in its centered 5x5 no-corner area move at one sixth speed, shown with a deep-purple time range border. Bosses ignore the slow. On death, clears projectiles in that area and deals 4500 true damage to all units and Bosses there; erasing it does not trigger this."
+    T: zh ? "迟滞塔。每秒自损 700 真实伤害；以自身为中心 5x5 去角范围内的普通单位和弹幕移动速度降为六分之一，并显示深紫色时间范围框。Boss 不受减速影响。死亡时清除范围内弹幕；被橡皮擦移除不会触发亡语。" : "Slow field tower. Takes 700 true self-damage every second; ordinary units and projectiles in its centered 5x5 no-corner area move at one sixth speed, shown with a deep-purple time range border. Bosses ignore the slow. On death, clears projectiles in that area; erasing it does not trigger the death effect."
   };
   return descriptions[id];
 }

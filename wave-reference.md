@@ -19,6 +19,7 @@
 
 Damage symbols: `◆` physical, `✦` magic, `◇` true. Magic-damage projectiles and related hit effects use light blue.
 Effect symbols: `Aa` character production, `♡` healing.
+Stasis gives enemies a blue border and reduces their movement speed to `1/3`. Haste gives enemies light-blue wind trails and raises movement speed to `200%`. Power gives enemies a red sword icon and increases outgoing attack damage by `50%` without changing their base attack stat.
 Triangle enemies all deal Triangle 1's `600◆`; Triangle N attacks every `1/N` seconds.
 Shooting Triangle is a separate ranged enemy and does not use Triangle N attack scaling.
 Numbered minion weights use fixed additive steps: circles `+40`, triangles `+60`, squares `+100`.
@@ -30,6 +31,7 @@ Enemy body labels are displayed as Roman numerals in-game.
 | --- | ---: | ---: | ---: | ---: | --- | --- |
 | Cube I | 150000 | 300 | 20 | 0.6 | `2.95x2.95` cells | Appears at combat start. Does not shrink from damage. Killing it clears the level; reaching the base fails the level. Deals `2000◆` every `0.5s` to all touching towers at once, with a following cube-collapse effect on each target. |
 | Cube II | 200000 | 600 | 20 | 0.6 | `2.95x2.95` cells | Same baseline behavior as Cube I. Advance becomes Advance II and summons Square 2 minions. Also has Promotion II. |
+| Tetrahedron I | 150000 | 150 | 20 | 1.2 | `2.95x2.95` cells | Fast-attack Boss with quicker visual rotation. Same baseline behavior as Cube I, but uses tetrahedron-collapse effects. At first `50%` HP or lower, summons Inverted Triangle 2 in every cell of the three columns farthest from the base and immediately fills Charge SP. At first `10%` HP or lower, its HP is held at `10%`, gains `15s` Invincible, gains `60s` Boss Haste at `300%` speed, and summons Inverted Triangle 1 in every cell of the five columns farthest from the base. If it would die before this triggers, it instead locks at `1` HP and triggers the same effect package. |
 
 Cube skills:
 
@@ -44,6 +46,23 @@ Cube skills:
 - At full SP, consumes `120` SP and summons one Square 1 minion in every lane, one cell in front of its hitbox.
 - Advance II, Cube II only: same SP rules as Advance, but summons Square 2 minions.
 
+Tetrahedron skills:
+
+- Charge: starts at `0/60` SP, gains `1` SP per second, max `60`.
+- At full SP, consumes `30` SP and gives ordinary enemies `7s` Haste.
+- Haste makes affected enemies move at `200%` speed and shows light-blue wind trails.
+- Using Charge gives Suppression `+16` SP.
+- Impact: starts at `0/120` SP, gains `1` SP per second, max `120`.
+- At full SP, consumes `60` SP and summons Inverted Triangle 1 in every lane across two columns in front of the Boss.
+- Using Impact gives Charge `+12` SP.
+- Suppression: starts at `0/160` SP, gains `1` SP per second, max `160`.
+- At full SP, consumes `40` SP and summons Shooting Triangle 1 in every lane at the normal spawn line.
+- Using Suppression gives Impact `+25` SP.
+- Last Stand: starts at `0/10` SP, max `10`, only gains `1` SP per second while Tetrahedron HP is at or below `50%`.
+- At full SP, consumes `10` SP, gives permanent Power to all enemies touching the Boss hitbox, and gives Charge `+5` SP.
+- Tetrahedron skills have no priority order; each skill that is full at the start of the skill check activates once. SP gained from a skill is checked on later updates.
+- Tetrahedron attack and skill visuals use tetrahedron-collapse effects. Cube and tetrahedron collapse effects each start from a random 3D rotation.
+
 ## Character Attributes
 
 | Character | Category | Border | Cost | CD | HP | Armor | MR | Main Effect | Upgrade |
@@ -52,7 +71,8 @@ Cube skills:
 | B | Defense | Square | 100 | 20s | 3000 | 500 | 0 | Blocks; reflects `400◆` when hit by melee attacks | +`2400` max/current HP per level |
 | C | Attack | Diamond | 350 | 3s | 1200 | 150 | 0 | Fires 1 shell, `500◆`, `1` tile AOE, every `3s` | +1 volley per level |
 | D | Defense | Square | 100 | 20s | 2600 | 800 | 0 | High-armor blocker | +`2080` max/current HP per level |
-| O | Defense | Square | 125 | 15s | 3000 | 350 | 70 | Magic-resistant blocker | +`2400` max/current HP per level |
+| O | Defense | Square | 125 | 15s | 3000 | 300 | 70 | Magic-resistant blocker | +`2400` max/current HP per level |
+| R | Defense | Square | 225 | 15s | 3000 | 350 | 35 | Enemy projectiles still damage it, then reflect into friendly projectiles with the same damage and damage type flying in the opposite direction | +`2400` max/current HP per level |
 | X | Production | Circle | 50 | 1.5s | 1200 | 150 | 0 | Produces `25` chars every `10s`, shown as `Aa` | +`20` chars per production per level |
 | E | Attack | Diamond | 150 | 2s | 1200 | 150 | 0 | Fires 3 bolts at `-10/0/+10` degrees, `400◆` each, every `2s` | +1 volley per level |
 | M | Attack | Diamond | 75 | 2s | 1200 | 150 | 0 | Fires 3 bolts downward at `80/90/100` degrees, `400◆` each, every `2s`; all shots start from the cell center | +1 volley per level |
@@ -67,7 +87,7 @@ Cube skills:
 | K | Attack | Diamond | 375 | 4s | 2500 | 300 | 0 | Slashes 1 target for `1600◆`, every `4s`; range is self plus 2 cells ahead | +1 volley per level |
 | L | Function | Triangle | 200 | 20s | 3000 | 200 | 0 | Every `1s`, shifts all enemies in upper/lower lanes within its column and the front column into its own lane; takes `400◇` per shifted enemy | +`2400` max/current HP per level |
 | N | Defense | Square | 125 | 20s | 3000 | 500 | 0 | Every `1s`, pushes all enemies it is blocking `4` cells left; takes `400◇` per pushed enemy | +`2400` max/current HP per level |
-| T | Function | Triangle | 650 | 50s | 4000 | 150 | 20 | Every `1s`, takes `700◇`; ordinary units and projectiles in a centered `5x5` no-corner area move at `1/6` speed. Bosses ignore the slow. The area is shown with a deep-purple time border. On death, clears projectiles in that area and deals `4500◇` to all units and Bosses there; eraser removal does not trigger this | +`3200` max/current HP per level |
+| T | Function | Triangle | 650 | 50s | 4000 | 150 | 20 | Every `1s`, takes `700◇`; ordinary units and projectiles in a centered `5x5` no-corner area move at `1/6` speed. Bosses ignore the slow. The area is shown with a deep-purple time border. On death, clears projectiles in that area; eraser removal does not trigger this | +`3200` max/current HP per level |
 
 Volley upgrades spread consecutive shots or heals across a fixed total volley duration of `interval / 5`, regardless of shot count. The attack/heal interval itself is unchanged and starts after the volley finishes.
 
@@ -87,7 +107,7 @@ Upgrade scaling:
 
 | Tool | Location | Effect |
 | --- | --- | --- |
-| Debug | Combat screen top-right, left of Auto Upgrade | Grants `10000` characters, refreshes all card cooldowns, and triggers auto-upgrade checks. |
+| Debug | Combat screen top-right, left of Auto Upgrade | Grants `10000` characters and `1000` base integrity, refreshes all card cooldowns, and triggers auto-upgrade checks. |
 | Auto Upgrade | Combat screen top-right, left of Eraser | Select `AUTO`, then click a tower to mark/unmark it. Marked towers show a green ring and auto-buy upgrades when their matching card slot is ready. |
 | Unlimited Firepower | Level select, left of the difficulty slider | Multiplies wave weight caps by `10` and Boss HP by `10`. Manual placement or upgrade applies to the whole clicked column; cells occupied by other tower types stay unchanged. |
 | Eraser | Combat screen top-right | Select `ERASE`, then click a placed character to remove it. No character refund. |
@@ -601,6 +621,54 @@ Base rule:
 | 18 | - | 359 | 359 |
 | 19 | - | 388 | 388 |
 | 20 | 2 | 418 | 836 |
+
+## Level 1-5 Weight Growth
+
+Enemy pool:
+
+- Circle 1
+- Triangle 1
+- Triangle 2
+- Triangle 3
+- Inverted Triangle 1
+- Inverted Triangle 2
+- Shooting Triangle 1
+- Shooting Triangle 2
+- Boss: Tetrahedron 1
+
+Base rule:
+
+- Starting characters: `300`.
+- Wave 1 starts at weight cap `19`.
+- Wave 2 adds `+12`; each later increment grows by `+1` (`+13`, `+14`, ...).
+- Every flag wave, currently every `10`th wave, doubles that wave's final cap.
+- A wave may leave unused weight, but never exceeds its cap.
+- Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
+- The level is an endless Boss stage.
+- Final wave weight cap is capped at `800` before difficulty and unlimited-firepower modifiers.
+
+| Wave | Flag | Base Cap | Final Cap |
+| ---: | ---: | ---: | ---: |
+| 1 | - | 19 | 19 |
+| 2 | - | 31 | 31 |
+| 3 | - | 44 | 44 |
+| 4 | - | 58 | 58 |
+| 5 | - | 73 | 73 |
+| 6 | - | 89 | 89 |
+| 7 | - | 106 | 106 |
+| 8 | - | 124 | 124 |
+| 9 | - | 143 | 143 |
+| 10 | 1 | 163 | 326 |
+| 11 | - | 184 | 184 |
+| 12 | - | 206 | 206 |
+| 13 | - | 229 | 229 |
+| 14 | - | 253 | 253 |
+| 15 | - | 278 | 278 |
+| 16 | - | 304 | 304 |
+| 17 | - | 331 | 331 |
+| 18 | - | 359 | 359 |
+| 19 | - | 388 | 388 |
+| 20 | 2 | 418 | 800 |
 
 ## Spawn Trigger
 

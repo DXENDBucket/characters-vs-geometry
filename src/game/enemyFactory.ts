@@ -1,5 +1,5 @@
 import type Phaser from "phaser";
-import { BOARD_Y, CELL_HEIGHT } from "../config";
+import { BOARD_Y, CELL_HEIGHT, palette } from "../config";
 import { getEnemyDefinition } from "../registry/enemies";
 import { createEnemyShape } from "../render/unitShapes";
 import type { Enemy, EnemyKind } from "../types";
@@ -20,9 +20,20 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
   const y = BOARD_Y + options.lane * CELL_HEIGHT + CELL_HEIGHT / 2;
   const attackInterval = enemyAttackInterval(options.kind);
   const body = scene.add.container(options.x, y).setDepth(60 + options.lane);
+  const statusBorder = scene.add.circle(0, 0, 28, palette.black, 0).setStrokeStyle(2, palette.magic, 0.92);
+  const powerIcon = scene.add
+    .text(0, -38, "⚔", {
+      color: "#ff6464",
+      fontFamily: "Segoe UI Emoji, sans-serif",
+      fontSize: "18px",
+      fontStyle: "700"
+    })
+    .setOrigin(0.5);
   const shape = createEnemyShape(scene, options.kind, { squareSize: 42, shootingNoseX: -24 });
 
-  body.add([shape]);
+  statusBorder.setVisible(false);
+  powerIcon.setVisible(false);
+  body.add([statusBorder, shape, powerIcon]);
 
   return {
     kind: options.kind,
@@ -42,6 +53,9 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
     attackInterval,
     attackAt: options.time + attackInterval,
     statusEffects: [],
+    statusBorder,
+    powerIcon,
+    nextHasteTrailAt: options.time,
     body,
     shape
   };

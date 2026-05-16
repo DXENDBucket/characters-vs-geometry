@@ -2,11 +2,12 @@ import Phaser from "phaser";
 import {
   makeEnemyHitShards,
   makeHitShards,
+  makeReflectFlash,
   makeShellBurst,
   makeStasisEffect
 } from "../render/combatEffects";
 import type { CubeBoss, DamageType, Enemy, EnemyProjectile, Projectile, Tower } from "../types";
-import { isEnemyProjectileOutOfBounds, isTowerProjectileOutOfBounds } from "./projectiles";
+import { createReflectedProjectile, isEnemyProjectileOutOfBounds, isTowerProjectileOutOfBounds } from "./projectiles";
 import { movementSpeedMultiplier } from "./slowAura";
 import { applyStatusEffect } from "./statusEffects";
 import { isBossInRadius, isPointInBossHitbox, towerRect } from "./targeting";
@@ -90,7 +91,12 @@ export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: numb
 
     if (hit) {
       makeEnemyHitShards(runtime.scene, projectile.x, projectile.y);
+      const reflectsProjectile = hit.reflectProjectiles;
       runtime.damageTower(hit, projectile.damage, projectile.damageType);
+      if (reflectsProjectile) {
+        runtime.projectiles.push(createReflectedProjectile(runtime.scene, projectile));
+        makeReflectFlash(runtime.scene, projectile.x, projectile.y);
+      }
       removeEnemyProjectile(runtime.enemyProjectiles, projectile);
       continue;
     }
