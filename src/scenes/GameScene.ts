@@ -8,6 +8,8 @@ import {
   CARD_SLOT_COUNT,
   CELL_HEIGHT,
   CELL_WIDTH,
+  CLOCK_TOWER_SKILL_DURATION,
+  CLOCK_TOWER_SKILL_MAX,
   COLUMNS,
   DEFAULT_DIFFICULTY,
   DEFAULT_GAME_SPEED,
@@ -220,7 +222,8 @@ export class GameScene extends Phaser.Scene {
     const seconds = scaledDelta / 1000;
     this.levelElapsed += scaledDelta;
     this.battleTime += scaledDelta;
-    this.cardTime += scaledDelta;
+    this.updateClockTowers(seconds, this.battleTime);
+    this.cardTime += scaledDelta * this.cardCooldownMultiplier();
     this.updateNaturalProduction();
     this.updateProducers(this.battleTime);
     this.updateArmingTowers(this.battleTime);
@@ -307,10 +310,20 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    if (existingTower?.type === "c" && this.isClockTowerReady(existingTower)) {
+      if (this.isShiftPointer(pointer)) {
+        this.activateReadyClockTowers();
+      } else {
+        this.activateClockTower(existingTower);
+      }
+      this.updateCards(this.cardTime);
+      return;
+    }
+
     const definition = this.getSelectedDefinition();
     const cardState = this.cardStates.find((card) => card.definition.id === definition.id);
 
-    if (!cardState || this.cardTime < cardState.readyAt) {
+    if (!cardState || this.cardTimeFor(definition.id) < cardState.readyAt) {
       this.showToast(t("toast.cooldown"));
       return;
     }
@@ -329,7 +342,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.chars -= definition.cost;
-    cardState.readyAt = this.cardTime + definition.cooldown;
+    cardState.readyAt = this.cardTimeFor(definition.id) + definition.cooldown;
   }
 
   private deploySingle(definition: CardDefinition, lane: number, column: number) {
@@ -378,6 +391,9 @@ export class GameScene extends Phaser.Scene {
     const definition = this.getDefinition(tower.type);
     const gainedEffectiveUpgrades = upgradeTowerLevel(tower);
     applyTowerUpgradeStats(tower, definition, gainedEffectiveUpgrades, this.battleTime);
+    if (tower.type === "c") {
+      this.resetClockTowerSkill(tower);
+    }
     this.tweens.add({
       targets: tower.body,
       scale: 1.08,
@@ -417,6 +433,49 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  private updateClockTowers(seconds: number, time: number) {
+    for (const tower of this.towers) {
+      if (tower.type !== "c") {
+        continue;
+      }
+
+      if (time < tower.skillActiveUntil) {
+        tower.border.setVisible(true);
+        tower.border.setAlpha(0.35 + Math.sin(time / 70) * 0.32 + 0.32);
+        continue;
+      }
+
+      tower.border.setAlpha(1);
+      if (tower.skillSp >= CLOCK_TOWER_SKILL_MAX) {
+        tower.border.setVisible(true);
+        continue;
+      }
+
+      tower.border.setVisible(false);
+      tower.skillSpBuffer += seconds;
+      while (tower.skillSpBuffer >= 1 && tower.skillSp < CLOCK_TOWER_SKILL_MAX) {
+        tower.skillSp += 1;
+        tower.skillSpBuffer -= 1;
+      }
+      if (tower.skillSp >= CLOCK_TOWER_SKILL_MAX) {
+        tower.skillSp = CLOCK_TOWER_SKILL_MAX;
+        tower.skillSpBuffer = 0;
+        tower.border.setVisible(true);
+      }
+    }
+  }
+
+  private cardCooldownMultiplier() {
+    const activeClockLevelSum = this.towers
+      .filter((tower) => tower.type === "c" && this.battleTime < tower.skillActiveUntil)
+      .reduce((sum, tower) => sum + tower.level, 0);
+    return activeClockLevelSum + 1;
+  }
+
+  private cardTimeFor(id: CardId) {
+    return id === "c" ? this.battleTime : this.cardTime;
+  }
+
   private gainChars(amount: number, x: number, y: number) {
     this.chars += amount;
     makeProductionPulse(this, x, y, amount);
@@ -433,6 +492,33 @@ export class GameScene extends Phaser.Scene {
     if (amount > 0) {
       this.gainChars(amount, tower.x, tower.y - 28);
     }
+  }
+
+  private isClockTowerReady(tower: Tower) {
+    return tower.type === "c" && this.battleTime >= tower.skillActiveUntil && tower.skillSp >= CLOCK_TOWER_SKILL_MAX;
+  }
+
+  private activateReadyClockTowers() {
+    for (const tower of this.towers) {
+      if (this.isClockTowerReady(tower)) {
+        this.activateClockTower(tower);
+      }
+    }
+  }
+
+  private activateClockTower(tower: Tower) {
+    tower.skillSp = 0;
+    tower.skillSpBuffer = 0;
+    tower.skillActiveUntil = this.battleTime + CLOCK_TOWER_SKILL_DURATION;
+    tower.border.setVisible(true);
+  }
+
+  private resetClockTowerSkill(tower: Tower) {
+    tower.skillSp = 0;
+    tower.skillSpBuffer = 0;
+    tower.skillActiveUntil = 0;
+    tower.border.setAlpha(1);
+    tower.border.setVisible(false);
   }
 
   private startingCharsForLevel() {
@@ -685,6 +771,7 @@ export class GameScene extends Phaser.Scene {
   private updateCards(time: number) {
     updateCardStates(this.cardStates, {
       time,
+      timeForCard: (id) => this.cardTimeFor(id),
       selectedCardId: this.selectedCardId,
       chars: this.chars,
       eraserMode: this.eraserMode,
@@ -709,7 +796,7 @@ export class GameScene extends Phaser.Scene {
     this.autoUpgradeMode = false;
     this.autoUpgradeReserveInputFocused = false;
     this.cardStates.forEach((cardState) => {
-      cardState.readyAt = this.cardTime;
+      cardState.readyAt = this.cardTimeFor(cardState.definition.id);
     });
     this.baseIntegrity += 1_000;
     this.gainChars(10_000, this.ui.debugButton.x, this.ui.debugButton.y + 34);
@@ -778,7 +865,7 @@ export class GameScene extends Phaser.Scene {
         break;
       }
 
-      if (!isCardReadyForAutoUpgrade(cardState, this.cardTime)) {
+      if (!isCardReadyForAutoUpgrade(cardState, this.cardTimeFor(cardState.definition.id))) {
         continue;
       }
 
@@ -795,7 +882,7 @@ export class GameScene extends Phaser.Scene {
         this.upgradeTower(target);
       }
       makeAutoUpgradePulse(this, target.x, target.y);
-      cardState.readyAt = this.cardTime + cardState.definition.cooldown;
+      cardState.readyAt = this.cardTimeFor(cardState.definition.id) + cardState.definition.cooldown;
       upgraded = true;
     }
 
@@ -898,6 +985,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handleKey(key: string) {
+    if (key === "c" && this.selectedCardIds.includes("c")) {
+      this.selectCard("c");
+      return;
+    }
+
     const upperKey = key.toUpperCase();
     const slotIndex = Number.parseInt(upperKey, 10) - 1;
     if (slotIndex >= 0 && slotIndex < this.selectedCardIds.length) {

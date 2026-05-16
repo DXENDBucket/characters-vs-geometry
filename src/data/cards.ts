@@ -43,6 +43,16 @@ export const cardDefinitions: CardDefinition[] = [
     stats: `500${DAMAGE_SYMBOLS.physical} / 3s`
   },
   {
+    id: "c",
+    category: "function",
+    cost: 825,
+    cooldown: 70_000,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 0,
+    stats: "CLOCK / 20SP"
+  },
+  {
     id: "D",
     category: "defense",
     cost: 100,

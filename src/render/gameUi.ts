@@ -55,6 +55,7 @@ interface GameHudActions {
 
 interface CardUpdateState {
   time: number;
+  timeForCard?: (id: CardId) => number;
   selectedCardId: CardId;
   chars: number;
   eraserMode: boolean;
@@ -239,7 +240,7 @@ export function createCardStates(scene: Phaser.Scene, selectedCardIds: CardId[],
   return selectedCardIds.map((cardId, index): CardState => {
     const definition = getCardDefinition(cardId);
     const x = 28;
-    const y = 122 + index * 82;
+    const y = 122 + index * 70;
     const frame = scene.add
       .rectangle(x, y, CARD_WIDTH, CARD_HEIGHT, palette.black, 1)
       .setOrigin(0, 0)
@@ -320,7 +321,8 @@ export function updateCardStates(cardStates: CardState[], state: CardUpdateState
   for (const card of cardStates) {
     const isSelected = !state.eraserMode && !state.autoUpgradeMode && card.definition.id === state.selectedCardId;
     const isAffordable = state.chars >= card.definition.cost;
-    const cooldownRatio = Phaser.Math.Clamp((card.readyAt - state.time) / card.definition.cooldown, 0, 1);
+    const cardTime = state.timeForCard?.(card.definition.id) ?? state.time;
+    const cooldownRatio = Phaser.Math.Clamp((card.readyAt - cardTime) / card.definition.cooldown, 0, 1);
     const readyRatio = 1 - cooldownRatio;
     const contentAlpha = isSelected ? (isAffordable ? 1 : 0.56) : isAffordable ? 0.82 : 0.22;
 

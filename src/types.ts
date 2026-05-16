@@ -4,6 +4,7 @@ export type CardId =
   | "A"
   | "B"
   | "C"
+  | "c"
   | "D"
   | "O"
   | "R"
@@ -122,6 +123,9 @@ export interface Tower {
   level: number;
   nextProduceAt: number;
   armedAt: number;
+  skillSp: number;
+  skillSpBuffer: number;
+  skillActiveUntil: number;
   autoUpgrade: boolean;
   reflectProjectiles: boolean;
   placedOrder: number;

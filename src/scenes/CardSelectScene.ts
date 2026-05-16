@@ -12,9 +12,15 @@ import { getLevelConfig } from "../data/levels";
 import { toRomanNumeral } from "../format";
 import { DAMAGE_SYMBOLS, t } from "../i18n";
 import { createEnemyShape, createUnitBorder } from "../render/unitShapes";
-import { allCardDefinitions, defaultCardLoadout } from "../registry/cards";
+import { allCardDefinitions, cardLetterCase, defaultCardLoadout, type CardLetterCase } from "../registry/cards";
 import { getEnemyDefinition, getEnemyDisplayName } from "../registry/enemies";
 import type { BossKind, CardId, EnemyKind } from "../types";
+
+interface CardPoolCaseButton {
+  letterCase: CardLetterCase;
+  frame: Phaser.GameObjects.Rectangle;
+  label: Phaser.GameObjects.Text;
+}
 
 export class CardSelectScene extends Phaser.Scene {
   private levelId = "0-1";
@@ -37,6 +43,8 @@ export class CardSelectScene extends Phaser.Scene {
   private cardPoolDragStartScrollY = 0;
   private cardPoolDragMoved = false;
   private suppressCardClickUntil = 0;
+  private cardPoolCase: CardLetterCase = "uppercase";
+  private cardPoolCaseButtons: CardPoolCaseButton[] = [];
   private slotFrames: Phaser.GameObjects.Rectangle[] = [];
   private slotLabels: Phaser.GameObjects.Text[] = [];
   private cardFrames: Map<CardId, Phaser.GameObjects.Rectangle> = new Map();
@@ -63,6 +71,8 @@ export class CardSelectScene extends Phaser.Scene {
     this.cardPoolDragPointer = null;
     this.cardPoolDragMoved = false;
     this.suppressCardClickUntil = 0;
+    this.cardPoolCase = "uppercase";
+    this.cardPoolCaseButtons = [];
   }
 
   create() {
@@ -228,12 +238,13 @@ export class CardSelectScene extends Phaser.Scene {
   }
 
   private createSlots() {
-    const startX = 96;
-    const slotGap = 104;
+    const startX = 90;
+    const slotGap = 94;
+    const slotWidth = 88;
     const y = 180;
     for (let index = 0; index < CARD_SLOT_COUNT; index += 1) {
       const x = startX + index * slotGap;
-      const frame = this.add.rectangle(x, y, 96, 70, palette.black, 1).setStrokeStyle(2, palette.dim, 1);
+      const frame = this.add.rectangle(x, y, slotWidth, 70, palette.black, 1).setStrokeStyle(2, palette.dim, 1);
       const label = this.add
         .text(x, y - 3, "", {
           color: "#f5f5f5",
@@ -258,13 +269,23 @@ export class CardSelectScene extends Phaser.Scene {
 
     this.cardPoolViewport = new Phaser.Geom.Rectangle(viewportX, viewportY, viewportWidth, viewportHeight);
     this.cardPoolList = this.add.container(viewportX, viewportY);
+    this.createCardPoolCaseButtons(viewportX, viewportY - 26);
 
     const maskGraphics = this.add.graphics().setVisible(false);
     maskGraphics.fillStyle(0xffffff, 1);
     maskGraphics.fillRect(viewportX, viewportY, viewportWidth, viewportHeight);
     this.cardPoolList.setMask(maskGraphics.createGeometryMask());
 
-    allCardDefinitions.forEach((definition, index) => {
+    this.populateCardPool(columns, columnGap, rowGap);
+    this.createCardPoolScrollControls();
+    this.setCardPoolScroll(0);
+  }
+
+  private populateCardPool(columns: number, columnGap: number, rowGap: number) {
+    this.cardPoolList.removeAll(true);
+    this.cardFrames.clear();
+    const definitions = allCardDefinitions.filter((definition) => cardLetterCase(definition.id) === this.cardPoolCase);
+    definitions.forEach((definition, index) => {
       const x = 89 + (index % columns) * columnGap;
       const y = 48 + Math.floor(index / columns) * rowGap;
       const frame = this.add
@@ -308,10 +329,61 @@ export class CardSelectScene extends Phaser.Scene {
       this.cardFrames.set(definition.id, frame);
     });
 
-    const rowCount = Math.ceil(allCardDefinitions.length / columns);
+    const rowCount = Math.ceil(definitions.length / columns);
     this.cardPoolContentHeight = 48 + Math.max(0, rowCount - 1) * rowGap + 58;
-    this.createCardPoolScrollControls();
+    this.updateCardPoolCaseButtons();
+    if (this.startButton) {
+      this.updateCardSelection();
+    }
     this.setCardPoolScroll(0);
+  }
+
+  private createCardPoolCaseButtons(x: number, y: number) {
+    this.cardPoolCaseButtons = [
+      this.createCardPoolCaseButton("uppercase", x, y, "A"),
+      this.createCardPoolCaseButton("lowercase", x + 54, y, "a")
+    ];
+    this.updateCardPoolCaseButtons();
+  }
+
+  private createCardPoolCaseButton(letterCase: CardLetterCase, x: number, y: number, text: string) {
+    const frame = this.add
+      .rectangle(x, y, 42, 28, palette.black, 1)
+      .setOrigin(0, 0.5)
+      .setStrokeStyle(2, palette.dim, 0.9)
+      .setInteractive({ useHandCursor: true });
+    const label = this.add
+      .text(x + 21, y - 1, text, {
+        color: "#f5f5f5",
+        fontFamily: "monospace",
+        fontSize: "17px",
+        fontStyle: "700"
+      })
+      .setOrigin(0.5);
+
+    frame.on("pointerdown", () => this.setCardPoolCase(letterCase));
+    label.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.setCardPoolCase(letterCase));
+    return { letterCase, frame, label };
+  }
+
+  private setCardPoolCase(letterCase: CardLetterCase) {
+    if (letterCase === this.cardPoolCase) {
+      return;
+    }
+
+    this.cardPoolCase = letterCase;
+    this.cardPoolDragPointer = null;
+    this.cardPoolDragMoved = false;
+    this.populateCardPool(4, 190, 112);
+  }
+
+  private updateCardPoolCaseButtons() {
+    for (const button of this.cardPoolCaseButtons) {
+      const selected = button.letterCase === this.cardPoolCase;
+      button.frame.setStrokeStyle(selected ? 3 : 2, selected ? palette.white : palette.dim, selected ? 1 : 0.7);
+      button.frame.setFillStyle(selected ? palette.panel : palette.black, selected ? 1 : 0.78);
+      button.label.setAlpha(selected ? 1 : 0.55);
+    }
   }
 
   private createCardPoolScrollControls() {

@@ -43,7 +43,7 @@ export function createTower(
     .setOrigin(0.5);
 
   body.add([...(rangeBorder ? [rangeBorder] : []), autoUpgradeBorder, border, label, levelText, hpBack, hpFill]);
-  if (definition.id === "G") {
+  if (definition.id === "G" || definition.id === "c") {
     border.setVisible(false);
   }
 
@@ -64,6 +64,9 @@ export function createTower(
     level: 1,
     nextProduceAt: definition.produceEvery ? battleTime + definition.produceEvery : Number.POSITIVE_INFINITY,
     armedAt: definition.armTime ? battleTime + definition.armTime : 0,
+    skillSp: 0,
+    skillSpBuffer: 0,
+    skillActiveUntil: 0,
     autoUpgrade: false,
     reflectProjectiles: Boolean(definition.reflectProjectiles),
     placedOrder,

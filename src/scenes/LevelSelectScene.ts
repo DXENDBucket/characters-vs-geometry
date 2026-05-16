@@ -20,6 +20,7 @@ import { getLevelConfig, levelNodes } from "../data/levels";
 import { toRomanNumeral } from "../format";
 import { t, toggleLanguage } from "../i18n";
 import { createCubeIcon, createEnemyShape, createTetrahedronIcon, createUnitBorder } from "../render/unitShapes";
+import { cardLetterCase, type CardLetterCase } from "../registry/cards";
 import type { BossKind, LevelNode } from "../types";
 
 interface BossNodePreview {
@@ -43,6 +44,12 @@ interface ChapterButton {
 
 interface EncyclopediaTabButton {
   tab: EncyclopediaTab;
+  frame: Phaser.GameObjects.Rectangle;
+  label: Phaser.GameObjects.Text;
+}
+
+interface EncyclopediaCardCaseButton {
+  letterCase: CardLetterCase;
   frame: Phaser.GameObjects.Rectangle;
   label: Phaser.GameObjects.Text;
 }
@@ -91,6 +98,8 @@ export class LevelSelectScene extends Phaser.Scene {
   private encyclopediaOpen = false;
   private encyclopediaTab: EncyclopediaTab = "enemies";
   private encyclopediaTabs: EncyclopediaTabButton[] = [];
+  private encyclopediaCardCase: CardLetterCase = "uppercase";
+  private encyclopediaCardCaseButtons: EncyclopediaCardCaseButton[] = [];
 
   constructor() {
     super("LevelSelectScene");
@@ -100,6 +109,7 @@ export class LevelSelectScene extends Phaser.Scene {
     this.bossNodePreviews = [];
     this.chapterButtons = [];
     this.encyclopediaTabs = [];
+    this.encyclopediaCardCaseButtons = [];
     this.encyclopediaOpen = false;
     this.encyclopediaContentHeight = 0;
     this.encyclopediaScrollY = 0;
@@ -615,6 +625,8 @@ export class LevelSelectScene extends Phaser.Scene {
 
     const enemyTab = this.createEncyclopediaTabButton("enemies", 144, 136);
     const towerTab = this.createEncyclopediaTabButton("towers", 294, 136);
+    const upperCaseButton = this.createEncyclopediaCardCaseButton("uppercase", 452, 136, "A");
+    const lowerCaseButton = this.createEncyclopediaCardCaseButton("lowercase", 504, 136, "a");
 
     this.encyclopediaViewport = new Phaser.Geom.Rectangle(144, 180, 992, 418);
     this.encyclopediaList = this.add.container(this.encyclopediaViewport.x, this.encyclopediaViewport.y);
@@ -678,6 +690,10 @@ export class LevelSelectScene extends Phaser.Scene {
       enemyTab.label,
       towerTab.frame,
       towerTab.label,
+      upperCaseButton.frame,
+      upperCaseButton.label,
+      lowerCaseButton.frame,
+      lowerCaseButton.label,
       maskGraphics,
       this.encyclopediaList,
       scrollZone
@@ -708,6 +724,28 @@ export class LevelSelectScene extends Phaser.Scene {
     return button;
   }
 
+  private createEncyclopediaCardCaseButton(letterCase: CardLetterCase, x: number, y: number, text: string) {
+    const frame = this.add
+      .rectangle(x, y, 42, 30, palette.black, 1)
+      .setOrigin(0, 0.5)
+      .setStrokeStyle(2, palette.dim, 0.9)
+      .setInteractive({ useHandCursor: true });
+    const label = this.add
+      .text(x + 21, y - 1, text, {
+        color: "#f5f5f5",
+        fontFamily: "monospace",
+        fontSize: "16px",
+        fontStyle: "700"
+      })
+      .setOrigin(0.5);
+
+    frame.on("pointerdown", () => this.setEncyclopediaCardCase(letterCase));
+    label.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.setEncyclopediaCardCase(letterCase));
+    const button = { letterCase, frame, label };
+    this.encyclopediaCardCaseButtons.push(button);
+    return button;
+  }
+
   private openEncyclopedia(tab: EncyclopediaTab) {
     this.encyclopediaOpen = true;
     this.encyclopediaOverlay.setVisible(true);
@@ -723,7 +761,20 @@ export class LevelSelectScene extends Phaser.Scene {
   private setEncyclopediaTab(tab: EncyclopediaTab) {
     this.encyclopediaTab = tab;
     this.updateEncyclopediaTabs();
+    this.updateEncyclopediaCardCaseButtons();
     this.rebuildEncyclopediaList();
+  }
+
+  private setEncyclopediaCardCase(letterCase: CardLetterCase) {
+    if (letterCase === this.encyclopediaCardCase) {
+      return;
+    }
+
+    this.encyclopediaCardCase = letterCase;
+    this.updateEncyclopediaCardCaseButtons();
+    if (this.encyclopediaTab === "towers") {
+      this.rebuildEncyclopediaList();
+    }
   }
 
   private updateEncyclopediaTabs() {
@@ -735,9 +786,25 @@ export class LevelSelectScene extends Phaser.Scene {
     }
   }
 
+  private updateEncyclopediaCardCaseButtons() {
+    const visible = this.encyclopediaTab === "towers";
+    for (const button of this.encyclopediaCardCaseButtons) {
+      const selected = button.letterCase === this.encyclopediaCardCase;
+      button.frame.setVisible(visible);
+      button.label.setVisible(visible);
+      button.frame.setStrokeStyle(selected ? 3 : 2, selected ? palette.white : palette.dim, selected ? 1 : 0.7);
+      button.frame.setFillStyle(selected ? palette.panel : palette.black, selected ? 1 : 0.78);
+      button.label.setAlpha(selected ? 1 : 0.55);
+    }
+  }
+
   private rebuildEncyclopediaList() {
     this.encyclopediaList.removeAll(true);
-    const entries = this.encyclopediaTab === "enemies" ? enemyEncyclopediaEntries() : towerEncyclopediaEntries();
+    const entries = this.encyclopediaTab === "enemies"
+      ? enemyEncyclopediaEntries()
+      : towerEncyclopediaEntries().filter((entry) => {
+          return entry.card && cardLetterCase(entry.card.id) === this.encyclopediaCardCase;
+        });
     const entryHeight = 206;
     entries.forEach((entry, index) => {
       this.drawEncyclopediaEntry(entry, index * entryHeight);
