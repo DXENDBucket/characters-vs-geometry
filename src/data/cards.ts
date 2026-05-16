@@ -45,7 +45,7 @@ export const cardDefinitions: CardDefinition[] = [
   {
     id: "c",
     category: "function",
-    cost: 825,
+    cost: 1_425,
     cooldown: 70_000,
     maxHp: 1_200,
     armor: 150,
@@ -211,10 +211,9 @@ export const cardDefinitions: CardDefinition[] = [
     fireRate: 2_000,
     damage: 300,
     damageType: "magic",
-    rangeCells: 6,
     projectileDebuff: "stasis",
     projectileDebuffDuration: 1_000,
-    stats: `300${DAMAGE_SYMBOLS.magic} / R6 / STASIS`
+    stats: `300${DAMAGE_SYMBOLS.magic} / LINE / STASIS`
   },
   {
     id: "J",

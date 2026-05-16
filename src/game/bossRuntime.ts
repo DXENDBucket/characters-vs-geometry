@@ -210,11 +210,12 @@ function updateTetrahedronSkills(runtime: BossRuntime, boss: CubeBoss, seconds: 
     return;
   }
 
-  chargeBossSkill(charge, seconds);
-  chargeBossSkill(impact, seconds);
-  chargeBossSkill(suppression, seconds);
+  const naturalSkillSeconds = seconds * tetrahedronNaturalSkillRegenMultiplier(boss);
+  chargeBossSkill(charge, naturalSkillSeconds);
+  chargeBossSkill(impact, naturalSkillSeconds);
+  chargeBossSkill(suppression, naturalSkillSeconds);
   if (boss.hp <= boss.maxHp * 0.5) {
-    chargeBossSkill(desperation, seconds);
+    chargeBossSkill(desperation, naturalSkillSeconds);
   }
 
   const useCharge = isBossSkillReady(charge);
@@ -262,6 +263,10 @@ function updateTetrahedronSkills(runtime: BossRuntime, boss: CubeBoss, seconds: 
   for (const enemy of runtime.enemies) {
     applyStatusEffect(enemy, "haste", boss.chargeExpiresAt - runtime.battleTime, runtime.battleTime);
   }
+}
+
+function tetrahedronNaturalSkillRegenMultiplier(boss: CubeBoss) {
+  return boss.criticalHpTriggered ? 2 : 1;
 }
 
 function gainBossSkillSp(skill: BossSkill | undefined, amount: number) {

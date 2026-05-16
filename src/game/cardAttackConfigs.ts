@@ -55,7 +55,7 @@ export const cardAttackAreas: Partial<Record<CardId, AttackAreaConfig>> = {
   M: { kind: "verticalFan", direction: "down", halfWidth: CELL_WIDTH * 0.35, spreadDegrees: 10 },
   W: { kind: "verticalFan", direction: "up", halfWidth: CELL_WIDTH * 0.35, spreadDegrees: 10 },
   I: { kind: "laneRectangle", rangeCells: 6 },
-  Q: { kind: "laneRectangle", rangeCells: 6 },
+  Q: { kind: "laneForward", startOffsetX: 24 },
   J: { kind: "laneRectangle", rangeCells: 6 },
   K: { kind: "laneRectangle", rangeCells: 3 },
   Z: { kind: "laneRectangle", rangeCells: 3 }
