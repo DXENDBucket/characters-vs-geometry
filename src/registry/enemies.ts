@@ -76,6 +76,14 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     family: "triangleRam",
     rank: 1,
     nameKey: "enemy.triangleRam",
+    attackMode: "siegeRam",
+    promotionKind: "triangleRam2"
+  },
+  triangleRam2: {
+    definition: rawEnemyDefinitions.triangleRam2,
+    family: "triangleRam",
+    rank: 2,
+    nameKey: "enemy.triangleRam2",
     attackMode: "siegeRam"
   },
   invertedTriangle: {

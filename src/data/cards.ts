@@ -183,8 +183,8 @@ export const cardDefinitions: CardDefinition[] = [
     armor: 150,
     magicResistance: 0,
     fireRate: 2_000,
-    healAmount: 1_000,
-    stats: `${EFFECT_SYMBOLS.heal}1000 / 2s`
+    healAmount: 700,
+    stats: `${EFFECT_SYMBOLS.heal}700 / 2s`
   },
   {
     id: "I",
@@ -314,15 +314,15 @@ export const cardDefinitions: CardDefinition[] = [
   {
     id: "P",
     category: "healing",
-    cost: 100,
+    cost: 125,
     cooldown: 20_000,
     maxHp: 1_200,
     armor: 150,
     magicResistance: 0,
     fireRate: 2_000,
-    healAmount: 280,
+    healAmount: 250,
     rangeCells: 5,
-    stats: `${EFFECT_SYMBOLS.heal}280 / R5`
+    stats: `${EFFECT_SYMBOLS.heal}250 / R5`
   }
 ];
 

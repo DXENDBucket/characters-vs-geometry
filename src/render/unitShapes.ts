@@ -121,10 +121,8 @@ export function createEnemyShape(scene: Phaser.Scene, kind: EnemyKind, options: 
     triangles.closePath();
     triangles.fillPath();
     triangles.strokePath();
-    const leftLabel = createEnemyLabel(scene, -9, 0, kind);
-    const rightLabel = createEnemyLabel(scene, 9, 0, kind);
-    leftLabel.setFontSize(15);
-    rightLabel.setFontSize(15);
+    const leftLabel = createEnemyLabel(scene, -9, 0, kind, 15);
+    const rightLabel = createEnemyLabel(scene, 9, 0, kind, 15);
     shape.add([triangles, leftLabel, rightLabel]);
     return shape;
   }
@@ -224,13 +222,16 @@ export function createTetrahedronIcon(scene: Phaser.Scene) {
   return icon;
 }
 
-function createEnemyLabel(scene: Phaser.Scene, x: number, y: number, kind: EnemyKind) {
+function createEnemyLabel(scene: Phaser.Scene, x: number, y: number, kind: EnemyKind, size = 18) {
+  const label = romanLabel(getEnemyDefinition(kind).label);
+
   return scene.add
-    .text(x, y, romanLabel(getEnemyDefinition(kind).label), {
+    .text(x, y, label, {
       color: "#f5f5f5",
-      fontFamily: "monospace",
-      fontSize: "18px",
-      fontStyle: "700"
+      fontFamily: "Georgia, 'Times New Roman', serif",
+      fontSize: `${size}px`,
+      fontStyle: "bold"
     })
-    .setOrigin(0.5);
+    .setOrigin(0.5)
+    .setScale(0.64, 1);
 }

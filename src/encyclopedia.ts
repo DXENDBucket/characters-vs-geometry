@@ -25,6 +25,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
   const circle = getEnemyDefinition("circle");
   const triangle = getEnemyDefinition("triangle");
   const triangleRam = getEnemyDefinition("triangleRam");
+  const triangleRam2 = getEnemyDefinition("triangleRam2");
   const invertedTriangle = getEnemyDefinition("invertedTriangle");
   const invertedTriangle2 = getEnemyDefinition("invertedTriangle2");
   const shootingTriangle = getEnemyDefinition("shootingTriangle");
@@ -78,8 +79,8 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.armor"), triangleRam.armor],
           [t("label.mr"), triangleRam.magicResistance],
           [t("label.atk"), damageText(triangleRam.damage, triangleRam.damageType)],
-          [t("label.speed"), `${speedText("triangleRam")} -> ${ENEMY_SPEED * 1.5 * 4}`],
-          [t("label.weight"), triangleRam.weight]
+          [t("label.speed"), `I ${speedText("triangleRam")} -> ${ENEMY_SPEED * 1.5 * 4} / II ${speedText("triangleRam2")} -> ${ENEMY_SPEED * 2 * 4}`],
+          [t("label.weight"), `I ${triangleRam.weight} / II ${triangleRam2.weight}`]
         ]),
         zh ? "移动中匀加速，经过 7 格达到 4 倍基础速度" : "Accelerates while moving, reaching 4x base speed after 7 cells"
       ],

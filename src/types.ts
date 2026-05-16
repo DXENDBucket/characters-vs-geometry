@@ -34,6 +34,7 @@ export type EnemyKind =
   | "triangle2"
   | "triangle3"
   | "triangleRam"
+  | "triangleRam2"
   | "invertedTriangle"
   | "invertedTriangle2"
   | "shootingTriangle"

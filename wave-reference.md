@@ -11,6 +11,7 @@
 | Triangle 2 | 90 | 5000 | 100 | 600 | ◆ | Body label `II`; average speed `20`, +`5` over Triangle 1; attacks every `0.5s` |
 | Triangle 3 | 150 | 5000 | 100 | 600 | ◆ | Body label `III`; average speed `25`, +`10` over Triangle 1; attacks every `0.33s` |
 | Triangle Ram 1 | 75 | 5000 | 200 | 1400 | ◆ | Body label `I/I`; base average speed `15`, uniformly accelerates while moving and reaches `60` after `7` cells. The first time it is blocked, it rams the blocker for physical damage. When it dies for any reason, it spawns two Triangle 1 enemies slightly ahead/behind |
+| Triangle Ram 2 | 225 | 5000 | 200 | 1400 | ◆ | Body label `II/II`; base average speed `20`, uniformly accelerates while moving and reaches `80` after `7` cells. The first time it is blocked, it rams the blocker for physical damage. When it dies for any reason, it spawns two Triangle 2 enemies slightly ahead/behind |
 | Inverted Triangle 1 | 50 | 1000 | 70 | 2000 | ✦ | Body label `I`; MR `60`; average speed `40`; after being blocked by the same tower for `2s`, disappears and detonates against that tower |
 | Inverted Triangle 2 | 100 | 1000 | 70 | 2600 | ✦ | Body label `II`; MR `60`; average speed `45`; after being blocked by the same tower for `2s`, disappears and detonates against that tower |
 | Shooting Triangle 1 | 50 | 2000 | 70 | 400 | ◆ | Body label `I`; average speed `4`; points toward the base and fires red-tinted bolts every `2s` |
@@ -83,8 +84,8 @@ Tetrahedron skills:
 | W | Attack | Diamond | 75 | 2s | 1200 | 150 | 0 | Fires 3 bolts upward at `-100/-90/-80` degrees, `400◆` each, every `2s`; all shots start from the cell center | +1 volley per level |
 | F | Function | Triangle | 125 | 30s | 1200 | 150 | 0 | On enemy or Boss contact, disappears and emits `10` shockwaves; each deals `1400◆` in a `4x4` area | +`8` shockwaves per level |
 | G | Function | Triangle | 25 | 30s | 1200 | 150 | 0 | Arms after `15s`; on enemy or Boss contact, disappears and deals `15000✦` | +`12000✦` per level; resets arming |
-| H | Healing | Hexagon | 150 | 20s | 1200 | 150 | 0 | Heals the lowest HP% damaged ally in a `2x3` area covering its column and the front column for `1000`, every `2s`, shown as `♡`; ties prefer earlier placement | +1 healing volley per level |
-| P | Healing | Hexagon | 100 | 20s | 1200 | 150 | 0 | Heals the lowest HP% damaged ally in a `5x3` area covering its column and the next 4 columns for `280`, every `2s`, shown as `♡`; ties prefer earlier placement | +1 healing volley per level |
+| H | Healing | Hexagon | 150 | 20s | 1200 | 150 | 0 | Heals the lowest HP% damaged ally in a `2x3` area covering its column and the front column for `700`, every `2s`, shown as `♡`; ties prefer earlier placement | +1 healing volley per level |
+| P | Healing | Hexagon | 125 | 20s | 1200 | 150 | 0 | Heals the lowest HP% damaged ally in a `5x3` area covering its column and the next 4 columns for `250`, every `2s`, shown as `♡`; ties prefer earlier placement | +1 healing volley per level |
 | I | Attack | Diamond | 100 | 2s | 1200 | 150 | 20 | Fires 1 `*` projectile, `300✦`, every `2s`; range is self plus 5 cells ahead | +1 volley per level |
 | Q | Attack | Diamond | 225 | 4s | 1200 | 150 | 20 | Fires 1 `$` projectile, `300✦`, every `2s`; range is the full lane ahead. On hit, applies `Stasis` for `1s`, reducing ordinary enemy movement speed to `1/3`; Bosses ignore this debuff | +1 volley per level |
 | J | Attack | Diamond | 375 | 4s | 1200 | 150 | 20 | Fires 1 `#` shell, `600✦`, `1` tile AOE, every `4s`; range is self plus 5 cells ahead | +1 volley per level |
@@ -719,6 +720,61 @@ Base rule:
 | 18 | - | 359 | 359 |
 | 19 | - | 388 | 388 |
 | 20 | 2 | 418 | 836 |
+
+## Level 1-7 Weight Growth
+
+Enemy pool:
+
+- Circle 1
+- Triangle 1
+- Triangle 3
+- Triangle Ram 1
+- Triangle Ram 2
+- Shooting Triangle 1
+- Inverted Triangle 1
+
+Base rule:
+
+- Starting characters: `300`.
+- Wave 1 starts at weight cap `19`.
+- Wave 2 adds `+12`; each later increment grows by `+1` (`+13`, `+14`, ...).
+- Every flag wave, currently every `10`th wave, doubles that wave's final cap.
+- A wave may leave unused weight, but never exceeds its cap.
+- Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
+- The level has `30` total waves.
+
+| Wave | Flag | Base Cap | Final Cap |
+| ---: | ---: | ---: | ---: |
+| 1 | - | 19 | 19 |
+| 2 | - | 31 | 31 |
+| 3 | - | 44 | 44 |
+| 4 | - | 58 | 58 |
+| 5 | - | 73 | 73 |
+| 6 | - | 89 | 89 |
+| 7 | - | 106 | 106 |
+| 8 | - | 124 | 124 |
+| 9 | - | 143 | 143 |
+| 10 | 1 | 163 | 326 |
+| 11 | - | 184 | 184 |
+| 12 | - | 206 | 206 |
+| 13 | - | 229 | 229 |
+| 14 | - | 253 | 253 |
+| 15 | - | 278 | 278 |
+| 16 | - | 304 | 304 |
+| 17 | - | 331 | 331 |
+| 18 | - | 359 | 359 |
+| 19 | - | 388 | 388 |
+| 20 | 2 | 418 | 836 |
+| 21 | - | 449 | 449 |
+| 22 | - | 481 | 481 |
+| 23 | - | 514 | 514 |
+| 24 | - | 548 | 548 |
+| 25 | - | 583 | 583 |
+| 26 | - | 619 | 619 |
+| 27 | - | 656 | 656 |
+| 28 | - | 694 | 694 |
+| 29 | - | 733 | 733 |
+| 30 | 3 | 773 | 1546 |
 
 ## Spawn Trigger
 
