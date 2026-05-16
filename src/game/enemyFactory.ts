@@ -40,6 +40,7 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
     waveNumber: options.waveNumber,
     weight: options.waveWeight,
     lane: options.lane,
+    spawnX: options.x,
     x: options.x,
     y,
     hp: definition.hp,

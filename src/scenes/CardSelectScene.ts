@@ -204,10 +204,12 @@ export class CardSelectScene extends Phaser.Scene {
 
   private drawEnemyPreviewRow(kind: EnemyKind, parent: Phaser.GameObjects.Container, y: number) {
     const definition = getEnemyDefinition(kind);
-    const shape = createEnemyShape(this, kind).setPosition(20, y);
+    const shapeX = 34;
+    const textX = 76;
+    const shape = createEnemyShape(this, kind).setPosition(shapeX, y);
     shape.setAlpha(0.92);
     const name = this.add
-      .text(58, y - 25, getEnemyDisplayName(kind), {
+      .text(textX, y - 25, getEnemyDisplayName(kind), {
         color: "#f5f5f5",
         fontFamily: "monospace",
         fontSize: "16px",
@@ -216,7 +218,7 @@ export class CardSelectScene extends Phaser.Scene {
       .setOrigin(0, 0);
     const stats = this.add
       .text(
-        58,
+        textX,
         y + 2,
         `${t("label.hp")} ${definition.hp}  ${t("label.atk")} ${definition.damage}${DAMAGE_SYMBOLS[definition.damageType]}  ${t("label.weight")} ${definition.weight}`,
         {

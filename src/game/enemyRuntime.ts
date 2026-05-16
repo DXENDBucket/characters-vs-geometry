@@ -1,11 +1,18 @@
 import Phaser from "phaser";
 import { BOARD_WIDTH, BOARD_X, CELL_HEIGHT, CELL_WIDTH, LANES } from "../config";
 import { getCardDefinition } from "../registry/cards";
-import { allEnemyDefinitions, enemyBlockedDetonation, getEnemyDefinition } from "../registry/enemies";
+import { allEnemyDefinitions, enemyBlockedDetonation, enemyIsSiegeRam, enemyRank, getEnemyDefinition } from "../registry/enemies";
 import { makeHasteTrail, makeReflectFlash, makeShellBurst, makeShockPulse } from "../render/combatEffects";
 import type { DifficultyConfig, Enemy, EnemyKind, LevelConfig, Tower, WaveTracker } from "../types";
 import type { EnemyAdvanceRuntime, EnemySpawnRuntime } from "./combatRuntime";
-import { canEnemyMelee, enemyVolleyShotCount, shouldEnemyShoot, splitSpawnKind, splitSpawnLanes } from "./enemyBehaviors";
+import {
+  canEnemyMelee,
+  enemyVolleyShotCount,
+  shouldEnemyShoot,
+  siegeRamSpeed,
+  splitSpawnKind,
+  splitSpawnLanes
+} from "./enemyBehaviors";
 import { createEnemy } from "./enemyFactory";
 import { createEnemyProjectile } from "./projectiles";
 import { movementSpeedMultiplier } from "./slowAura";
@@ -73,6 +80,11 @@ export function spawnSplitEnemies(
   battleTime: number,
   finalDamageReduction: number
 ) {
+  if (enemyIsSiegeRam(enemy.kind)) {
+    spawnSiegeRamTriangles(runtime, enemy, battleTime);
+    return;
+  }
+
   const spawnKind = splitSpawnKind(enemy.kind);
   if (!spawnKind) {
     return;
@@ -89,6 +101,34 @@ export function spawnSplitEnemies(
       finalDamageReduction
     });
   }
+}
+
+function spawnSiegeRamTriangles(runtime: EnemySpawnRuntime, enemy: Enemy, time: number) {
+  const spawnKind = triangleKindForRank(enemyRank(enemy.kind));
+  const offsets = [-18, 18];
+  for (const offset of offsets) {
+    spawnEnemyAt(runtime, {
+      kind: spawnKind,
+      waveNumber: enemy.waveNumber,
+      time,
+      lane: enemy.lane,
+      x: enemy.x + offset,
+      waveWeight: 0,
+      finalDamageReduction: enemy.finalDamageReduction
+    });
+  }
+}
+
+function triangleKindForRank(rank: number): EnemyKind {
+  if (rank === 2) {
+    return "triangle2";
+  }
+
+  if (rank >= 3) {
+    return "triangle3";
+  }
+
+  return "triangle";
 }
 
 export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, seconds: number) {
@@ -118,6 +158,10 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
         continue;
       }
 
+      if (advanceSiegeRam(runtime, enemy, blocker, time)) {
+        continue;
+      }
+
       if (canEnemyMelee(enemy) && time >= enemy.attackAt) {
         runtime.damageTower(blocker, enemy.damage * statusAttackMultiplier(enemy, time), enemy.damageType);
         if (blocker.type === "B") {
@@ -135,7 +179,7 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
 
     if (!blocker) {
       enemy.x -=
-        enemy.speed *
+        siegeRamSpeed(enemy) *
         seconds *
         movementSpeedMultiplier(runtime.towers, enemy.x, enemy.y) *
         statusMultiplier;
@@ -150,6 +194,23 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
       return;
     }
   }
+}
+
+function advanceSiegeRam(
+  runtime: EnemyAdvanceRuntime,
+  enemy: Enemy,
+  blocker: Tower | undefined,
+  time: number
+) {
+  if (!blocker || !enemyIsSiegeRam(enemy.kind)) {
+    return false;
+  }
+
+  makeShellBurst(runtime.scene, enemy.x, enemy.y, CELL_WIDTH * 0.85, enemy.damageType);
+  makeShockPulse(runtime.scene, enemy.x, enemy.y, CELL_WIDTH * 0.82, CELL_HEIGHT * 0.62);
+  runtime.damageTower(blocker, enemy.damage * statusAttackMultiplier(enemy, time), enemy.damageType);
+  runtime.damageEnemy(enemy, enemy.maxHp * 10_000, "true");
+  return true;
 }
 
 function advanceBlockedDetonator(

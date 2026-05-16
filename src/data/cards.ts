@@ -153,13 +153,13 @@ export const cardDefinitions: CardDefinition[] = [
     maxHp: 1_200,
     armor: 150,
     magicResistance: 0,
-    triggerDamage: 1_200,
+    triggerDamage: 1_400,
     triggerDamageType: "physical",
     triggerCount: 10,
     triggerInterval: 50,
-    triggerRangeX: CELL_WIDTH * 1.5,
-    triggerRangeY: CELL_HEIGHT * 1.5,
-    stats: `10x1200${DAMAGE_SYMBOLS.physical}`
+    triggerRangeX: CELL_WIDTH * 2,
+    triggerRangeY: CELL_HEIGHT * 2,
+    stats: `10x1400${DAMAGE_SYMBOLS.physical}`
   },
   {
     id: "G",
@@ -243,6 +243,18 @@ export const cardDefinitions: CardDefinition[] = [
     damageType: "physical",
     rangeCells: 3,
     stats: `1600${DAMAGE_SYMBOLS.physical} / R3`
+  },
+  {
+    id: "S",
+    category: "attack",
+    cost: 825,
+    cooldown: 50_000,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 40,
+    damage: 6_500,
+    damageType: "magic",
+    stats: `3x6500${DAMAGE_SYMBOLS.magic} / 30SP`
   },
   {
     id: "Z",

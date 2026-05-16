@@ -24,6 +24,8 @@ const game = new Phaser.Game({
   }
 });
 
+window.addEventListener("contextmenu", (event) => event.preventDefault());
+
 window.addEventListener("resize", () => {
   game.scale.setMaxZoom();
 });

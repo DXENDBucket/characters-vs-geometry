@@ -19,6 +19,7 @@ export type CardId =
   | "Q"
   | "J"
   | "K"
+  | "S"
   | "L"
   | "N"
   | "T"
@@ -32,6 +33,7 @@ export type EnemyKind =
   | "triangle"
   | "triangle2"
   | "triangle3"
+  | "triangleRam"
   | "invertedTriangle"
   | "invertedTriangle2"
   | "shootingTriangle"
@@ -143,6 +145,7 @@ export interface Enemy {
   waveNumber: number;
   weight: number;
   lane: number;
+  spawnX: number;
   x: number;
   y: number;
   hp: number;

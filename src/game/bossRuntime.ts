@@ -25,7 +25,7 @@ import {
 } from "../bosses/cubeBoss";
 import { makeBossHasteTrail, makeCubeCollapse, makeTetrahedronCollapse } from "../render/combatEffects";
 import type { BossSkill, CubeBoss, DamageType, Enemy, Tower } from "../types";
-import { applyEnemyPromotion, findPromotionTarget, promotedKind } from "./enemyBehaviors";
+import { applyEnemyPromotion, findPromotionTargets, promotedKind } from "./enemyBehaviors";
 import { spawnEnemyAt } from "./enemyRuntime";
 import { applyStatusEffect } from "./statusEffects";
 import { bossRect, towerRect } from "./targeting";
@@ -334,13 +334,15 @@ function tryUsePromotionSkill(
     return;
   }
 
-  const target = findPromotionTarget(boss, runtime.enemies, fromRank);
-  if (!target) {
+  const targets = findPromotionTargets(boss, runtime.enemies, fromRank, 3);
+  if (targets.length < 3) {
     return;
   }
 
   spendBossSkill(skill);
-  promoteEnemy(runtime, target);
+  for (const target of targets) {
+    promoteEnemy(runtime, target);
+  }
 }
 
 function tryUseAdvanceSkill(runtime: BossRuntime, boss: CubeBoss) {

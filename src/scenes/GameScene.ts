@@ -20,6 +20,12 @@ import {
   LANES,
   NATURAL_PRODUCE_AMOUNT,
   NATURAL_PRODUCE_INTERVAL,
+  SPELL_MORTAR_AOE_RANGE_X,
+  SPELL_MORTAR_AOE_RANGE_Y,
+  SPELL_MORTAR_SHOT_COUNT,
+  SPELL_MORTAR_SHOT_INTERVAL,
+  SPELL_MORTAR_SKILL_COST,
+  SPELL_MORTAR_SKILL_MAX,
   STARTING_CHARS,
   clampDifficulty,
   getDifficultyConfig,
@@ -47,6 +53,7 @@ import {
   getHitProductionAmount,
   getProductionAmount,
   getShockCount,
+  getSpellMortarDamage,
   getTrapDamage,
   isCardReadyForAutoUpgrade,
   setTowerAutoUpgradeState,
@@ -68,6 +75,8 @@ import {
   makeAutoUpgradePulse,
   makeEraseMark,
   makeProductionPulse,
+  makeSpellMortarImpact,
+  makeSpellMortarShot,
   makeShockPulse,
   makeTrapBurst
 } from "../render/combatEffects";
@@ -130,6 +139,9 @@ export class GameScene extends Phaser.Scene {
   private autoUpgradeEnabled = true;
   private autoUpgradeReserveChars = 0;
   private autoUpgradeReserveInputFocused = false;
+  private spellMortarTargetingTowers: Tower[] = [];
+  private spellMortarReticle: Phaser.GameObjects.Container | null = null;
+  private activeSpellMortarTweens: Phaser.Tweens.Tween[] = [];
   private ui!: GameHudElements;
   private overlay!: GameOverlayElements;
 
@@ -166,6 +178,9 @@ export class GameScene extends Phaser.Scene {
     this.autoUpgradeEnabled = true;
     this.autoUpgradeReserveChars = 0;
     this.autoUpgradeReserveInputFocused = false;
+    this.spellMortarTargetingTowers = [];
+    this.spellMortarReticle = null;
+    this.activeSpellMortarTweens = [];
     this.levelElapsed = 0;
     this.battleTime = 0;
     this.cardTime = 0;
@@ -189,8 +204,9 @@ export class GameScene extends Phaser.Scene {
     this.updateCards(this.cardTime);
     this.overlay = createGameOverlay(this, () => this.handleOverlayAction());
 
-    this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
-      this.handleBoardPointer(pointer);
+    this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => this.handlePointerDown(pointer));
+    this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
+      this.updateSpellMortarReticlePosition(pointer.x, pointer.y);
     });
 
     this.input.keyboard?.on("keydown", (event: KeyboardEvent) => {
@@ -223,6 +239,7 @@ export class GameScene extends Phaser.Scene {
     this.levelElapsed += scaledDelta;
     this.battleTime += scaledDelta;
     this.updateClockTowers(seconds, this.battleTime);
+    this.updateSpellMortarTowers(seconds, this.battleTime);
     this.cardTime += scaledDelta * this.cardCooldownMultiplier();
     this.updateNaturalProduction();
     this.updateProducers(this.battleTime);
@@ -263,10 +280,34 @@ export class GameScene extends Phaser.Scene {
     graphics.lineBetween(BOARD_X - 20, BOARD_Y, BOARD_X - 20, BOARD_Y + BOARD_HEIGHT);
   }
 
+  private handlePointerDown(pointer: Phaser.Input.Pointer) {
+    const x = pointer.x;
+    const y = pointer.y;
+    if (this.gameOver) {
+      return;
+    }
+
+    if (this.isRightPointer(pointer)) {
+      this.cancelSpellMortarTargeting();
+      return;
+    }
+
+    if (this.spellMortarTargetingTowers.length > 0) {
+      if (this.isInsideBoard(x, y)) {
+        this.fireSelectedSpellMortars(x, y);
+      } else {
+        this.cancelSpellMortarTargeting();
+      }
+      return;
+    }
+
+    this.handleBoardPointer(pointer);
+  }
+
   private handleBoardPointer(pointer: Phaser.Input.Pointer) {
     const x = pointer.x;
     const y = pointer.y;
-    if (this.gameOver || !this.isInsideBoard(x, y)) {
+    if (!this.isInsideBoard(x, y)) {
       return;
     }
     this.autoUpgradeReserveInputFocused = false;
@@ -315,6 +356,16 @@ export class GameScene extends Phaser.Scene {
         this.activateReadyClockTowers();
       } else {
         this.activateClockTower(existingTower);
+      }
+      this.updateCards(this.cardTime);
+      return;
+    }
+
+    if (existingTower?.type === "S" && this.isSpellMortarReady(existingTower)) {
+      if (this.isShiftPointer(pointer)) {
+        this.activateReadySpellMortars(pointer.x, pointer.y);
+      } else {
+        this.activateSpellMortarTargeting([existingTower], pointer.x, pointer.y);
       }
       this.updateCards(this.cardTime);
       return;
@@ -393,6 +444,9 @@ export class GameScene extends Phaser.Scene {
     applyTowerUpgradeStats(tower, definition, gainedEffectiveUpgrades, this.battleTime);
     if (tower.type === "c") {
       this.resetClockTowerSkill(tower);
+    }
+    if (tower.type === "S") {
+      this.resetSpellMortarSkill(tower);
     }
     this.tweens.add({
       targets: tower.body,
@@ -519,6 +573,198 @@ export class GameScene extends Phaser.Scene {
     tower.skillActiveUntil = 0;
     tower.border.setAlpha(1);
     tower.border.setVisible(false);
+  }
+
+  private updateSpellMortarTowers(seconds: number, time: number) {
+    this.spellMortarTargetingTowers = this.spellMortarTargetingTowers.filter((tower) => this.towers.includes(tower));
+    if (this.spellMortarTargetingTowers.length === 0) {
+      this.destroySpellMortarReticle();
+    }
+
+    for (const tower of this.towers) {
+      if (tower.type !== "S") {
+        continue;
+      }
+
+      if (time < tower.skillActiveUntil || this.spellMortarTargetingTowers.includes(tower)) {
+        tower.border.setVisible(true);
+        tower.border.setAlpha(0.35 + Math.sin(time / 70) * 0.32 + 0.32);
+        continue;
+      }
+
+      tower.border.setAlpha(1);
+      if (tower.skillSp >= SPELL_MORTAR_SKILL_MAX) {
+        tower.border.setVisible(true);
+        continue;
+      }
+
+      tower.border.setVisible(false);
+      tower.skillSpBuffer += seconds;
+      while (tower.skillSpBuffer >= 1 && tower.skillSp < SPELL_MORTAR_SKILL_MAX) {
+        tower.skillSp += 1;
+        tower.skillSpBuffer -= 1;
+      }
+      if (tower.skillSp >= SPELL_MORTAR_SKILL_MAX) {
+        tower.skillSp = SPELL_MORTAR_SKILL_MAX;
+        tower.skillSpBuffer = 0;
+        tower.border.setVisible(true);
+      }
+    }
+  }
+
+  private isSpellMortarReady(tower: Tower) {
+    return tower.type === "S" && this.battleTime >= tower.skillActiveUntil && tower.skillSp >= SPELL_MORTAR_SKILL_MAX;
+  }
+
+  private activateReadySpellMortars(x: number, y: number) {
+    const towers = this.towers.filter((tower) => this.isSpellMortarReady(tower));
+    this.activateSpellMortarTargeting(towers, x, y);
+  }
+
+  private activateSpellMortarTargeting(towers: Tower[], x: number, y: number) {
+    const readyTowers = towers.filter((tower) => this.isSpellMortarReady(tower));
+    if (readyTowers.length === 0) {
+      return;
+    }
+
+    this.eraserMode = false;
+    this.autoUpgradeMode = false;
+    this.autoUpgradeReserveInputFocused = false;
+    this.spellMortarTargetingTowers = readyTowers;
+    this.ensureSpellMortarReticle();
+    this.updateSpellMortarReticlePosition(x, y);
+  }
+
+  private cancelSpellMortarTargeting() {
+    if (this.spellMortarTargetingTowers.length === 0) {
+      return;
+    }
+
+    this.spellMortarTargetingTowers = [];
+    this.destroySpellMortarReticle();
+    this.updateCards(this.cardTime);
+  }
+
+  private fireSelectedSpellMortars(targetX: number, targetY: number) {
+    const towers = this.spellMortarTargetingTowers.filter((tower) => this.isSpellMortarReady(tower));
+    if (towers.length === 0) {
+      this.cancelSpellMortarTargeting();
+      return;
+    }
+
+    this.spellMortarTargetingTowers = [];
+    this.destroySpellMortarReticle();
+    for (const tower of towers) {
+      this.fireSpellMortar(tower, targetX, targetY);
+    }
+    this.updateCards(this.cardTime);
+  }
+
+  private fireSpellMortar(tower: Tower, targetX: number, targetY: number) {
+    const definition = this.getDefinition(tower.type);
+    const damage = getSpellMortarDamage(tower, definition);
+    const damageType = definition.damageType ?? "magic";
+    tower.skillSp = Math.max(0, tower.skillSp - SPELL_MORTAR_SKILL_COST);
+    tower.skillSpBuffer = 0;
+    tower.skillActiveUntil = this.battleTime + (SPELL_MORTAR_SHOT_COUNT - 1) * SPELL_MORTAR_SHOT_INTERVAL;
+    tower.border.setVisible(true);
+
+    for (let shotIndex = 0; shotIndex < SPELL_MORTAR_SHOT_COUNT; shotIndex += 1) {
+      this.time.delayedCall(shotIndex * SPELL_MORTAR_SHOT_INTERVAL, () => {
+        this.runWhenBattleActive(() => {
+          if (this.gameOver || !this.towers.includes(tower)) {
+            return;
+          }
+
+          let tween: Phaser.Tweens.Tween;
+          tween = makeSpellMortarShot(
+            this,
+            tower.x,
+            tower.y,
+            targetX,
+            targetY,
+            () => {
+              this.detonateSpellMortar(targetX, targetY, damage, damageType);
+            },
+            () => {
+              Phaser.Utils.Array.Remove(this.activeSpellMortarTweens, tween);
+            }
+          );
+          this.activeSpellMortarTweens.push(tween);
+          if (this.battlePaused) {
+            tween.pause();
+          }
+        });
+      });
+    }
+  }
+
+  private detonateSpellMortar(x: number, y: number, damage: number, damageType: CardDefinition["damageType"]) {
+    if (this.gameOver) {
+      return;
+    }
+
+    const resolvedDamageType = damageType ?? "magic";
+    makeSpellMortarImpact(this, x, y, SPELL_MORTAR_AOE_RANGE_X, SPELL_MORTAR_AOE_RANGE_Y);
+    for (const enemy of [...this.enemies]) {
+      if (Math.abs(enemy.x - x) <= SPELL_MORTAR_AOE_RANGE_X && Math.abs(enemy.y - y) <= SPELL_MORTAR_AOE_RANGE_Y) {
+        damageEnemy(this.unitLifecycleRuntime(), enemy, damage, resolvedDamageType);
+      }
+    }
+    if (isBossInRect(this.boss, x - SPELL_MORTAR_AOE_RANGE_X, y - SPELL_MORTAR_AOE_RANGE_Y, SPELL_MORTAR_AOE_RANGE_X * 2, SPELL_MORTAR_AOE_RANGE_Y * 2)) {
+      damageBoss(this.unitLifecycleRuntime(), damage, resolvedDamageType);
+    }
+  }
+
+  private resetSpellMortarSkill(tower: Tower) {
+    tower.skillSp = 0;
+    tower.skillSpBuffer = 0;
+    tower.skillActiveUntil = 0;
+    tower.border.setAlpha(1);
+    tower.border.setVisible(false);
+    if (this.spellMortarTargetingTowers.includes(tower)) {
+      this.spellMortarTargetingTowers = this.spellMortarTargetingTowers.filter((target) => target !== tower);
+      if (this.spellMortarTargetingTowers.length === 0) {
+        this.destroySpellMortarReticle();
+      }
+    }
+  }
+
+  private ensureSpellMortarReticle() {
+    if (this.spellMortarReticle) {
+      return;
+    }
+
+    const size = CELL_WIDTH * 0.75;
+    const graphics = this.add.graphics();
+    graphics.lineStyle(2, palette.magic, 0.9);
+    graphics.strokeRect(-size / 2, -size / 2, size, size);
+    graphics.lineBetween(-size / 2, 0, -size / 5, 0);
+    graphics.lineBetween(size / 5, 0, size / 2, 0);
+    graphics.lineBetween(0, -size / 2, 0, -size / 5);
+    graphics.lineBetween(0, size / 5, 0, size / 2);
+    const label = this.add
+      .text(0, -1, "S", {
+        color: "#9fdcff",
+        fontFamily: "monospace",
+        fontSize: "22px",
+        fontStyle: "700"
+      })
+      .setOrigin(0.5);
+    this.spellMortarReticle = this.add.container(0, 0, [graphics, label]).setDepth(160);
+  }
+
+  private updateSpellMortarReticlePosition(x: number, y: number) {
+    if (!this.spellMortarReticle) {
+      return;
+    }
+
+    this.spellMortarReticle.setPosition(Math.round(x), Math.round(y));
+  }
+
+  private destroySpellMortarReticle() {
+    this.spellMortarReticle?.destroy();
+    this.spellMortarReticle = null;
   }
 
   private startingCharsForLevel() {
@@ -796,6 +1042,7 @@ export class GameScene extends Phaser.Scene {
     this.eraserMode = false;
     this.autoUpgradeMode = false;
     this.autoUpgradeReserveInputFocused = false;
+    this.cancelSpellMortarTargeting();
     this.cardStates.forEach((cardState) => {
       cardState.readyAt = this.cardTimeFor(cardState.definition.id);
     });
@@ -813,6 +1060,7 @@ export class GameScene extends Phaser.Scene {
 
     this.eraserMode = !this.eraserMode;
     this.autoUpgradeReserveInputFocused = false;
+    this.cancelSpellMortarTargeting();
     if (this.eraserMode) {
       this.autoUpgradeMode = false;
     }
@@ -826,6 +1074,7 @@ export class GameScene extends Phaser.Scene {
 
     this.autoUpgradeMode = !this.autoUpgradeMode;
     this.autoUpgradeReserveInputFocused = false;
+    this.cancelSpellMortarTargeting();
     if (this.autoUpgradeMode) {
       this.eraserMode = false;
     }
@@ -852,6 +1101,7 @@ export class GameScene extends Phaser.Scene {
     this.eraserMode = false;
     this.autoUpgradeMode = false;
     this.autoUpgradeReserveInputFocused = true;
+    this.cancelSpellMortarTargeting();
     this.updateCards(this.cardTime);
   }
 
@@ -906,9 +1156,20 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.battlePaused = !this.battlePaused;
+    this.syncSpellMortarTweenPause();
     this.showToast(this.battlePaused ? t("toast.paused") : t("toast.resume"));
     this.updateCards(this.cardTime);
     this.updateHud();
+  }
+
+  private syncSpellMortarTweenPause() {
+    for (const tween of this.activeSpellMortarTweens) {
+      if (this.battlePaused) {
+        tween.pause();
+      } else {
+        tween.resume();
+      }
+    }
   }
 
   private setGameSpeed(speed: number) {
@@ -1016,6 +1277,7 @@ export class GameScene extends Phaser.Scene {
       Q: "Q",
       J: "J",
       K: "K",
+      S: "S",
       Z: "Z",
       L: "L",
       N: "N",
@@ -1039,6 +1301,7 @@ export class GameScene extends Phaser.Scene {
     this.eraserMode = false;
     this.autoUpgradeMode = false;
     this.autoUpgradeReserveInputFocused = false;
+    this.cancelSpellMortarTargeting();
     this.selectedCardId = id;
     this.updateCards(this.cardTime);
   }
@@ -1075,6 +1338,11 @@ export class GameScene extends Phaser.Scene {
   private isShiftPointer(pointer: Phaser.Input.Pointer) {
     const event = pointer.event as MouseEvent | undefined;
     return Boolean(event && "shiftKey" in event && event.shiftKey);
+  }
+
+  private isRightPointer(pointer: Phaser.Input.Pointer) {
+    const event = pointer.event as MouseEvent | undefined;
+    return Boolean(event?.button === 2 || pointer.rightButtonDown());
   }
 
 }

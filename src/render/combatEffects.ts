@@ -69,6 +69,86 @@ export function makeShellBurst(scene: Phaser.Scene, x: number, y: number, radius
   });
 }
 
+export function makeSpellMortarShot(
+  scene: Phaser.Scene,
+  fromX: number,
+  fromY: number,
+  targetX: number,
+  targetY: number,
+  onImpact: () => void,
+  onComplete?: () => void
+) {
+  const projectile = scene.add
+    .text(fromX, fromY, "S", {
+      color: "#9fdcff",
+      fontFamily: "monospace",
+      fontSize: "24px",
+      fontStyle: "700"
+    })
+    .setOrigin(0.5)
+    .setDepth(120);
+  const distance = Math.hypot(targetX - fromX, targetY - fromY);
+  const controlX = (fromX + targetX) / 2;
+  const controlY = Math.min(fromY, targetY) - 420 - distance * 0.4;
+
+  return scene.tweens.addCounter({
+    from: 0,
+    to: 1,
+    duration: 3240,
+    ease: "Sine.easeInOut",
+    onUpdate: (tween) => {
+      const progress = tween.getValue();
+      if (typeof progress !== "number") {
+        return;
+      }
+
+      const inverse = 1 - progress;
+      projectile.x = inverse * inverse * fromX + 2 * inverse * progress * controlX + progress * progress * targetX;
+      projectile.y = inverse * inverse * fromY + 2 * inverse * progress * controlY + progress * progress * targetY;
+      projectile.rotation = progress * Math.PI * 1.4;
+      projectile.setScale(1 + Math.sin(progress * Math.PI) * 0.26);
+    },
+    onComplete: () => {
+      projectile.destroy();
+      onImpact();
+      onComplete?.();
+    }
+  });
+}
+
+export function makeSpellMortarImpact(scene: Phaser.Scene, x: number, y: number, rangeX: number, rangeY: number) {
+  const blast = scene.add
+    .rectangle(x, y, rangeX * 2, rangeY * 2, palette.black, 0)
+    .setStrokeStyle(3, palette.magic, 0.92)
+    .setDepth(112);
+  const marker = scene.add
+    .text(x, y - 1, "S", {
+      color: "#9fdcff",
+      fontFamily: "monospace",
+      fontSize: "26px",
+      fontStyle: "700"
+    })
+    .setOrigin(0.5)
+    .setDepth(113);
+
+  scene.tweens.add({
+    targets: blast,
+    scale: 1.08,
+    alpha: 0,
+    duration: 260,
+    ease: "Quad.easeOut",
+    onComplete: () => blast.destroy()
+  });
+  scene.tweens.add({
+    targets: marker,
+    scale: 1.45,
+    alpha: 0,
+    duration: 280,
+    ease: "Quad.easeOut",
+    onComplete: () => marker.destroy()
+  });
+}
+
 export function makeShockPulse(scene: Phaser.Scene, x: number, y: number, rangeX: number, rangeY: number) {
   const pulse = scene.add
     .rectangle(x, y, rangeX * 2, rangeY * 2, palette.black, 0)

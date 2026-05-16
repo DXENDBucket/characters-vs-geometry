@@ -43,7 +43,7 @@ export function createTower(
     .setOrigin(0.5);
 
   body.add([...(rangeBorder ? [rangeBorder] : []), autoUpgradeBorder, border, label, levelText, hpBack, hpFill]);
-  if (definition.id === "G" || definition.id === "c") {
+  if (definition.id === "G" || definition.id === "c" || definition.id === "S") {
     border.setVisible(false);
   }
 
@@ -122,6 +122,10 @@ export function getShockCount(tower: Tower, definition: CardDefinition) {
 
 export function getTrapDamage(tower: Tower, definition: CardDefinition) {
   return scaledByEffectiveUpgrades(definition.triggerDamage ?? 1_500, tower.level);
+}
+
+export function getSpellMortarDamage(tower: Tower, definition: CardDefinition) {
+  return scaledByEffectiveUpgrades(definition.damage ?? 8_000, tower.level);
 }
 
 export function isTrapArmed(tower: Tower, time: number) {

@@ -1,9 +1,10 @@
 import Phaser from "phaser";
-import { ATTACK_INTERVAL, ENEMY_SPEED, ENEMY_SPEED_VARIANCE, LANES, palette } from "../config";
+import { ATTACK_INTERVAL, CELL_WIDTH, ENEMY_SPEED, ENEMY_SPEED_VARIANCE, LANES, palette } from "../config";
 import {
   enemyFamily,
   enemyIsBlockedDetonator,
   enemyIsRanged,
+  enemyIsSiegeRam,
   enemyPromotionKind,
   enemyRank,
   enemySplitSpawnKind,
@@ -32,10 +33,11 @@ export function promotedKind(kind: EnemyKind) {
   return enemyPromotionKind(kind);
 }
 
-export function findPromotionTarget(boss: CubeBoss, enemies: Enemy[], fromRank: number) {
+export function findPromotionTargets(boss: CubeBoss, enemies: Enemy[], fromRank: number, count: number) {
   return enemies
     .filter((enemy) => enemyRank(enemy.kind) === fromRank && promotedKind(enemy.kind))
-    .sort((a, b) => Math.hypot(a.x - boss.x, a.y - boss.y) - Math.hypot(b.x - boss.x, b.y - boss.y))[0];
+    .sort((a, b) => Math.hypot(a.x - boss.x, a.y - boss.y) - Math.hypot(b.x - boss.x, b.y - boss.y))
+    .slice(0, count);
 }
 
 export function applyEnemyPromotion(scene: Phaser.Scene, enemy: Enemy, kind: EnemyKind, battleTime: number) {
@@ -81,7 +83,7 @@ export function shouldEnemyShoot(enemy: Enemy, time: number) {
 }
 
 export function canEnemyMelee(enemy: Enemy) {
-  return !enemyIsRanged(enemy.kind) && !enemyIsBlockedDetonator(enemy.kind);
+  return !enemyIsRanged(enemy.kind) && !enemyIsBlockedDetonator(enemy.kind) && !enemyIsSiegeRam(enemy.kind);
 }
 
 export function enemyVolleyShotCount(enemy: Enemy) {
@@ -95,4 +97,16 @@ export function randomizedEnemySpeed(kind: EnemyKind) {
     (definition.speedMultiplier ?? 1) *
     Phaser.Math.FloatBetween(1 - ENEMY_SPEED_VARIANCE, 1 + ENEMY_SPEED_VARIANCE)
   );
+}
+
+export function siegeRamSpeed(enemy: Enemy) {
+  if (!enemyIsSiegeRam(enemy.kind)) {
+    return enemy.speed;
+  }
+
+  const accelerationDistance = 7 * CELL_WIDTH;
+  const traveled = Math.max(0, enemy.spawnX - enemy.x);
+  const progress = Phaser.Math.Clamp(traveled / accelerationDistance, 0, 1);
+  const multiplier = Math.sqrt(1 + 15 * progress);
+  return enemy.speed * multiplier;
 }

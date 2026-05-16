@@ -16,7 +16,8 @@ export const levelNodes: LevelNode[] = [
   { id: "1-2", x: 450, y: 310, unlocked: true },
   { id: "1-3", x: 670, y: 430, unlocked: true },
   { id: "1-4", x: 890, y: 330, unlocked: true },
-  { id: "1-5", x: 1110, y: 440, unlocked: true }
+  { id: "1-5", x: 1110, y: 440, unlocked: true },
+  { id: "1-6", x: 1410, y: 330, unlocked: true }
 ];
 
 export const levelConfigs: Record<string, LevelConfig> = {
@@ -164,6 +165,16 @@ export const levelConfigs: Record<string, LevelConfig> = {
     startingChars: 500,
     bossKind: "tetrahedron",
     endless: true
+  },
+  "1-6": {
+    id: "1-6",
+    enemyKinds: ["circle", "triangle", "triangle2", "triangle3", "shootingTriangle", "triangleRam"],
+    firstWaveWeight: 19,
+    waveWeightIncrement: 12,
+    waveWeightIncrementGrowth: 1,
+    totalWaves: 20,
+    wavesPerFlag: WAVES_PER_FLAG,
+    startingChars: 300
   }
 };
 

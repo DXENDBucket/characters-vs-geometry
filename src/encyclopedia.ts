@@ -24,6 +24,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
   const zh = isZh();
   const circle = getEnemyDefinition("circle");
   const triangle = getEnemyDefinition("triangle");
+  const triangleRam = getEnemyDefinition("triangleRam");
   const invertedTriangle = getEnemyDefinition("invertedTriangle");
   const invertedTriangle2 = getEnemyDefinition("invertedTriangle2");
   const shootingTriangle = getEnemyDefinition("shootingTriangle");
@@ -67,6 +68,24 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
       description: zh
         ? "近战单位。数字越高，生命与单次攻击不变，但移动更快，攻击间隔按数字缩短。"
         : "Melee unit. Higher ranks keep the same HP and hit damage, but move faster and attack more often."
+    },
+    {
+      title: zh ? "三角攻城锤系列" : "Triangle Ram Series",
+      enemyKind: "triangleRam",
+      lines: [
+        statLine([
+          [t("label.hp"), triangleRam.hp],
+          [t("label.armor"), triangleRam.armor],
+          [t("label.mr"), triangleRam.magicResistance],
+          [t("label.atk"), damageText(triangleRam.damage, triangleRam.damageType)],
+          [t("label.speed"), `${speedText("triangleRam")} -> ${ENEMY_SPEED * 1.5 * 4}`],
+          [t("label.weight"), triangleRam.weight]
+        ]),
+        zh ? "移动中匀加速，经过 7 格达到 4 倍基础速度" : "Accelerates while moving, reaching 4x base speed after 7 cells"
+      ],
+      description: zh
+        ? "冲锋单位。第一次被阻挡时立刻撞击阻挡者并造成物理伤害；无论因撞击还是被击杀而死亡，都会在原地略微前后分裂成两个同数字三角。"
+        : "Charging unit. The first time it is blocked, it immediately rams the blocker for physical damage. Whether it dies by ramming or being killed, it splits into two same-rank triangles slightly ahead and behind."
     },
     {
       title: zh ? "倒三角系列" : "Inverted Triangle Series",
@@ -139,11 +158,11 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.atk"), `${damageText(CUBE_BOSS_CONTACT_DAMAGE, "physical")} / ${CUBE_BOSS_CONTACT_INTERVAL}s`]
         ]),
         zh
-          ? "晋升：90技力满后消耗30，将最近 I 小怪升为 II；推进：120技力满后在每一行召唤一个正方形。"
-          : "Promotion: at 90 SP, spend 30 to promote nearest rank I minion to II. Advance: at 120 SP, summon one square in each lane.",
+          ? "晋升：90技力满后消耗30，将最近 3 个 I 小怪升为 II；不足 3 个目标时不发动。推进：120技力满后在每一行召唤一个正方形。"
+          : "Promotion: at 90 SP, spend 30 to promote the nearest 3 rank I minions to II; it will not activate with fewer than 3 targets. Advance: at 120 SP, summon one square in each lane.",
         zh
-          ? "正方体 II 额外拥有晋升2：180技力满后消耗40，将最近 II 小怪升为 III。"
-          : "Cube II also has Promotion 2: at 180 SP, spend 40 to promote nearest rank II minion to III."
+          ? "正方体 II 额外拥有晋升2：180技力满后消耗40，将最近 3 个 II 小怪升为 III；不足 3 个目标时不发动。"
+          : "Cube II also has Promotion 2: at 180 SP, spend 40 to promote the nearest 3 rank II minions to III; it will not activate with fewer than 3 targets."
       ],
       description: zh
         ? "Boss 不会被阻挡，也不会随血量缩小；到达底线会失败，死亡会直接胜利。"
@@ -229,7 +248,7 @@ function towerDescription(id: CardId) {
     E: zh ? "三连物理射手。向前平射，并向上/下各偏转 10 度发射一发。" : "Triple physical shooter. Fires one straight shot plus two shots at +/-10 degrees.",
     M: zh ? "下向三连物理射手。攻击方向朝下，出弹点保持在列中心。" : "Downward triple physical shooter. Fires downward from the column center.",
     W: zh ? "上向三连物理射手。攻击方向朝上，出弹点保持在列中心。" : "Upward triple physical shooter. Fires upward from the column center.",
-    F: zh ? "触发器。阻挡敌怪时立刻消失，并在 3x3 范围内连续释放冲击波。" : "Trigger. Disappears on blocking and releases rapid shockwaves in a 3x3 area.",
+    F: zh ? "触发器。阻挡敌怪时立刻消失，并在 4x4 范围内连续释放冲击波。" : "Trigger. Disappears on blocking and releases rapid shockwaves in a 4x4 area.",
     G: zh ? "延迟触发器。放置 15 秒后准备完成，接触敌怪时消失并造成高额法术伤害。" : "Delayed trigger. Arms after 15s, then disappears on contact to deal heavy magic damage.",
     H: zh ? "治疗塔。治疗自身列和前方一列、以自己为中心三行内生命百分比最低的一座塔。" : "Healer. Heals the lowest-HP-percent tower in a 2x3 area covering its column and the front column.",
     P: zh ? "广域治疗塔。治疗自身列和前方四列、以自己为中心三行内生命百分比最低的一座塔。" : "Wide healer. Heals the lowest-HP-percent tower in a 5x3 area covering its column plus four forward columns.",
@@ -237,6 +256,7 @@ function towerDescription(id: CardId) {
     Q: zh ? "整行控制射手。沿本行发射 $ 法术弹幕；命中普通敌怪后施加 1 秒凝滞，使其移动速度变为三分之一。Boss 不会受到凝滞影响。" : "Full-lane control shooter. Fires $ magic projectiles along its lane; hits apply 1s Stasis to ordinary enemies, reducing movement speed to one third. Bosses ignore Stasis.",
     J: zh ? "短程法术溅射。范围和 I 一致，发射 # 弹幕并造成范围法术伤害。" : "Short-range magic splash attacker. Same range as I, firing # projectiles with splash.",
     K: zh ? "近程斩击塔。攻击自身一格和前方两格内的单体目标，释放十字斩特效。" : "Close-range slasher. Hits one target within itself plus two tiles ahead, with a cross slash.",
+    S: zh ? "主动术法迫击塔。30 技力满后显示边框；点击进入瞄准，指定任意落点后连射三发 S 形抛物线迫击弹，每发造成 3x3 范围法术伤害。右键或点击其他 UI 可取消瞄准。" : "Active spell mortar. At 30 SP, shows its border; click to aim, then choose any target point to fire three arcing S shells, each dealing 3x3 magic AOE damage. Right-click or clicking other UI cancels aiming.",
     Z: zh ? `生产型斩击塔。范围和 K 一致；每次斩击命中时产生 ${EFFECT_SYMBOLS.chars}15。` : `Production slasher. Same range as K; each slash hit generates ${EFFECT_SYMBOLS.chars}15.`,
     L: zh ? "牵引塔。抓取上下两行指定格子的所有敌怪平移到本行，每抓一个自损 400 真实伤害。" : "Shifter. Pulls all enemies from target tiles in adjacent lanes into its lane, taking 400 true self-damage per target.",
     N: zh ? "防御推移塔。每秒把自己正在阻挡的所有敌怪向左推移 4 格，每推一个自损 400 真实伤害。敌方弹幕命中它时也会被推移，且不会对 N 造成伤害。" : "Defender-shifter. Every second, pushes all enemies it is blocking 4 cells left, taking 400 true self-damage per pushed enemy. Enemy projectiles that would hit it are shifted too and do not damage N.",
@@ -255,6 +275,9 @@ function towerUpgradeText(id: CardId) {
   }
   if (id === "c") {
     return zh ? "技能倍率按当前激活的 c 的等级和计算。" : "Skill multiplier uses the sum of active c tower levels.";
+  }
+  if (id === "S") {
+    return zh ? "每级每发迫击弹伤害增加基础值的 80%（5200），并重置技力。" : "Each level adds 80% of base mortar damage per shell (+5200) and resets SP.";
   }
   if (id === "F") {
     return zh ? "每级冲击波数量增加基础值的 80%。" : "Each level adds 80% of base shockwave count.";

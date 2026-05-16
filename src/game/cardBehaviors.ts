@@ -104,6 +104,7 @@ export const cardBehaviorsById: Record<CardId, CardBehavior> = {
   Q: projectileCardBehavior,
   J: projectileCardBehavior,
   K: slashCardBehavior,
+  S: idleCardBehavior,
   L: shiftCardBehavior,
   N: blockedPushCardBehavior,
   T: slowAuraCardBehavior,
