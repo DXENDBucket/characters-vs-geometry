@@ -5,6 +5,7 @@ import {
   TETRAHEDRON_BOSS_HASTE_DURATION,
   TETRAHEDRON_BOSS_INVINCIBLE_DURATION
 } from "../config";
+import { isTetrahedronBoss } from "../bosses/cubeBoss";
 import { makeBossHitFlash, makeBossInvincibleFlash, makeShockPulse } from "../render/combatEffects";
 import type { CubeBoss, DamageType, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower, WaveTracker } from "../types";
 import { calculateDamage } from "./damage";
@@ -91,7 +92,7 @@ export function damageBoss(runtime: UnitLifecycleRuntime, damage: number, damage
 }
 
 function shouldTriggerTetrahedronCritical(boss: CubeBoss, nextHp: number) {
-  return boss.kind === "tetrahedron" && !boss.criticalHpTriggered && nextHp <= boss.maxHp * 0.1;
+  return isTetrahedronBoss(boss) && !boss.criticalHpTriggered && nextHp <= boss.maxHp * 0.1;
 }
 
 export function damageEnemy(runtime: UnitLifecycleRuntime, enemy: Enemy, damage: number, damageType: DamageType) {

@@ -37,7 +37,7 @@ const TETRAHEDRON_INITIAL_ROTATION_SPEED = {
 };
 
 export function createCubeBoss(scene: Phaser.Scene, kind: BossKind, finalDamageReduction: number) {
-  const rank = kind === "cube2" ? 2 : 1;
+  const rank = bossRank(kind);
   const stats = CUBE_BOSS_STATS[kind];
   const x = BOARD_X + BOARD_WIDTH - BOSS_HITBOX_WIDTH / 2;
   const y = BOARD_Y + BOARD_HEIGHT / 2;
@@ -92,7 +92,7 @@ export function createCubeBoss(scene: Phaser.Scene, kind: BossKind, finalDamageR
             }
           }
         : {}),
-      ...(kind === "tetrahedron"
+      ...(isTetrahedronBossKind(kind)
         ? {
             charge: {
               name: "charge" as const,
@@ -139,13 +139,13 @@ export function createCubeBoss(scene: Phaser.Scene, kind: BossKind, finalDamageR
     rotationX: Phaser.Math.FloatBetween(-0.4, 0.4),
     rotationY: Phaser.Math.FloatBetween(-0.4, 0.4),
     rotationZ: Phaser.Math.FloatBetween(-0.2, 0.2),
-    velocityX: kind === "tetrahedron" ? TETRAHEDRON_INITIAL_ROTATION_SPEED.x : 0.18,
-    velocityY: kind === "tetrahedron" ? TETRAHEDRON_INITIAL_ROTATION_SPEED.y : -0.12,
-    velocityZ: kind === "tetrahedron" ? TETRAHEDRON_INITIAL_ROTATION_SPEED.z : 0.1,
-    targetVelocityX: kind === "tetrahedron" ? TETRAHEDRON_INITIAL_ROTATION_SPEED.x : 0.18,
-    targetVelocityY: kind === "tetrahedron" ? TETRAHEDRON_INITIAL_ROTATION_SPEED.y : -0.12,
-    targetVelocityZ: kind === "tetrahedron" ? TETRAHEDRON_INITIAL_ROTATION_SPEED.z : 0.1,
-    nextTurnIn: kind === "tetrahedron" ? 0.8 : 1.8
+    velocityX: isTetrahedronBossKind(kind) ? TETRAHEDRON_INITIAL_ROTATION_SPEED.x : 0.18,
+    velocityY: isTetrahedronBossKind(kind) ? TETRAHEDRON_INITIAL_ROTATION_SPEED.y : -0.12,
+    velocityZ: isTetrahedronBossKind(kind) ? TETRAHEDRON_INITIAL_ROTATION_SPEED.z : 0.1,
+    targetVelocityX: isTetrahedronBossKind(kind) ? TETRAHEDRON_INITIAL_ROTATION_SPEED.x : 0.18,
+    targetVelocityY: isTetrahedronBossKind(kind) ? TETRAHEDRON_INITIAL_ROTATION_SPEED.y : -0.12,
+    targetVelocityZ: isTetrahedronBossKind(kind) ? TETRAHEDRON_INITIAL_ROTATION_SPEED.z : 0.1,
+    nextTurnIn: isTetrahedronBossKind(kind) ? 0.8 : 1.8
   };
 
   drawCubeBoss(boss, 0);
@@ -158,16 +158,21 @@ export function updateCubeBossMotion(boss: CubeBoss, seconds: number, movementMu
 
   boss.nextTurnIn -= seconds;
   if (boss.nextTurnIn <= 0) {
-    const rotationRange = boss.kind === "tetrahedron"
-      ? { xy: 0.92, z: 0.72, minTurn: 0.75, maxTurn: 1.8 }
-      : { xy: 0.32, z: 0.22, minTurn: 2.2, maxTurn: 4.6 };
-    boss.targetVelocityX = Phaser.Math.FloatBetween(-rotationRange.xy, rotationRange.xy);
-    boss.targetVelocityY = Phaser.Math.FloatBetween(-rotationRange.xy, rotationRange.xy);
-    boss.targetVelocityZ = Phaser.Math.FloatBetween(-rotationRange.z, rotationRange.z);
-    boss.nextTurnIn = Phaser.Math.FloatBetween(rotationRange.minTurn, rotationRange.maxTurn);
+    if (isTetrahedronBoss(boss)) {
+      boss.targetVelocityX = randomSignedRotationSpeed(0.42, 0.9);
+      boss.targetVelocityY = randomSignedRotationSpeed(0.42, 0.9);
+      boss.targetVelocityZ = randomSignedRotationSpeed(0.28, 0.64);
+      boss.nextTurnIn = Phaser.Math.FloatBetween(2.8, 5.2);
+    } else {
+      const rotationRange = { xy: 0.32, z: 0.22, minTurn: 2.2, maxTurn: 4.6 };
+      boss.targetVelocityX = Phaser.Math.FloatBetween(-rotationRange.xy, rotationRange.xy);
+      boss.targetVelocityY = Phaser.Math.FloatBetween(-rotationRange.xy, rotationRange.xy);
+      boss.targetVelocityZ = Phaser.Math.FloatBetween(-rotationRange.z, rotationRange.z);
+      boss.nextTurnIn = Phaser.Math.FloatBetween(rotationRange.minTurn, rotationRange.maxTurn);
+    }
   }
 
-  const turnEase = Phaser.Math.Clamp(seconds * (boss.kind === "tetrahedron" ? 1.08 : 0.55), 0, 1);
+  const turnEase = Phaser.Math.Clamp(seconds * (isTetrahedronBoss(boss) ? 0.42 : 0.55), 0, 1);
   boss.velocityX = Phaser.Math.Linear(boss.velocityX, boss.targetVelocityX, turnEase);
   boss.velocityY = Phaser.Math.Linear(boss.velocityY, boss.targetVelocityY, turnEase);
   boss.velocityZ = Phaser.Math.Linear(boss.velocityZ, boss.targetVelocityZ, turnEase);
@@ -175,6 +180,10 @@ export function updateCubeBossMotion(boss: CubeBoss, seconds: number, movementMu
   boss.rotationY += boss.velocityY * seconds;
   boss.rotationZ += boss.velocityZ * seconds;
   drawCubeBoss(boss, time);
+}
+
+function randomSignedRotationSpeed(min: number, max: number) {
+  return Phaser.Math.FloatBetween(min, max) * (Phaser.Math.Between(0, 1) === 0 ? -1 : 1);
 }
 
 export function chargeBossSkill(skill: BossSkill, seconds: number) {
@@ -203,7 +212,7 @@ export function bossAdvanceSpawnPoints(boss: CubeBoss) {
 }
 
 function drawCubeBoss(boss: CubeBoss, time: number) {
-  if (boss.kind === "tetrahedron") {
+  if (isTetrahedronBoss(boss)) {
     drawTetrahedronBoss(boss, time);
     return;
   }
@@ -240,6 +249,18 @@ function drawCubeBoss(boss: CubeBoss, time: number) {
   for (const [from, to] of edges) {
     boss.frame.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
   }
+}
+
+export function bossRank(kind: BossKind) {
+  return kind === "cube2" || kind === "tetrahedron2" ? 2 : 1;
+}
+
+export function isTetrahedronBossKind(kind: BossKind) {
+  return kind === "tetrahedron" || kind === "tetrahedron2";
+}
+
+export function isTetrahedronBoss(boss: CubeBoss) {
+  return isTetrahedronBossKind(boss.kind);
 }
 
 function drawTetrahedronBoss(boss: CubeBoss, time: number) {

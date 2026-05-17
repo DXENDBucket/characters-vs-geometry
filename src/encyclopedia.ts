@@ -29,6 +29,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
   const triangleRam3 = getEnemyDefinition("triangleRam3");
   const mortarTriangle = getEnemyDefinition("mortarTriangle");
   const mortarTriangle2 = getEnemyDefinition("mortarTriangle2");
+  const diamond = getEnemyDefinition("diamond");
   const invertedTriangle = getEnemyDefinition("invertedTriangle");
   const invertedTriangle2 = getEnemyDefinition("invertedTriangle2");
   const shootingTriangle = getEnemyDefinition("shootingTriangle");
@@ -141,11 +142,11 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.speed"), speedText("mortarTriangle")],
           [t("label.weight"), `I ${mortarTriangle.weight} / II ${mortarTriangle2.weight}`]
         ]),
-        zh ? "每 15 秒发射 3x3 法术迫击弹；II 连射 2 发，连射窗口固定为攻速五分之一" : "Fires 3x3 magic mortars every 15s; II fires 2 shots with the volley window fixed at one fifth of its attack interval"
+        zh ? "每 15 秒发射 3x3 物理迫击弹；II 连射 2 发，连射窗口固定为攻速五分之一" : "Fires 3x3 physical mortars every 15s; II fires 2 shots with the volley window fixed at one fifth of its attack interval"
       ],
       description: zh
-        ? "锁定场上阻挡敌怪数最多的塔；若相同则瞄准更晚放置的塔。锁定 N 时落点会被 N 改写。命中 R 时，R 会照常受伤并把迫击弹反射回发射者。"
-        : "Targets the tower blocking the most enemies, breaking ties by later placement. If it locks onto N, N rewrites the landing point. If it hits R, R still takes damage and reflects a matching mortar back at the shooter."
+        ? "若自身正被阻挡，会优先锁定阻挡自己的塔；否则锁定场上阻挡敌怪数最多的塔，若相同则瞄准更晚放置的塔。锁定 N 时落点会被 N 改写。命中 R 时，R 会照常受伤并把迫击弹反射回发射者。"
+        : "If blocked, it targets its own blocker first. Otherwise it targets the tower blocking the most enemies, breaking ties by later placement. If it locks onto N, N rewrites the landing point. If it hits R, R still takes damage and reflects a matching mortar back at the shooter."
     },
     {
       title: zh ? "射击三角系列" : "Shooting Triangle Series",
@@ -167,6 +168,24 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
       description: zh
         ? "远程敌怪。三角尖端朝向底线，会发射带红色的物理弹幕。"
         : "Ranged enemy. Its point faces the base and it fires red-tinted physical projectiles."
+    },
+    {
+      title: zh ? "菱形系列" : "Diamond Series",
+      enemyKind: "diamond",
+      lines: [
+        statLine([
+          [t("label.hp"), diamond.hp],
+          [t("label.armor"), diamond.armor],
+          [t("label.mr"), diamond.magicResistance],
+          [t("label.atk"), damageText(diamond.damage, diamond.damageType)],
+          [t("label.speed"), speedText("diamond")],
+          [t("label.weight"), diamond.weight]
+        ]),
+        zh ? "第 1 旗前不会自然出现；攻击间隔 2s" : "Does not naturally appear before Flag 1; attack interval: 2s"
+      ],
+      description: zh
+        ? "远程法术敌怪。发射红色 * 弹幕，命中塔时造成法术伤害。"
+        : "Ranged magic enemy. Fires red * projectiles that deal magic damage to towers."
     },
     {
       title: zh ? "正方体 Boss 系列" : "Cube Boss Series",
@@ -195,15 +214,18 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
       icon: "tetrahedron",
       lines: [
         statLine([
-          [t("label.hp"), CUBE_BOSS_STATS.tetrahedron.hp],
+          [t("label.hp"), `I ${CUBE_BOSS_STATS.tetrahedron.hp} / II ${CUBE_BOSS_STATS.tetrahedron2.hp}`],
           [t("label.armor"), CUBE_BOSS_STATS.tetrahedron.armor],
           [t("label.mr"), CUBE_BOSS_STATS.tetrahedron.magicResistance],
-          [t("label.speed"), CUBE_BOSS_STATS.tetrahedron.speed],
+          [t("label.speed"), `I ${CUBE_BOSS_STATS.tetrahedron.speed} / II ${CUBE_BOSS_STATS.tetrahedron2.speed}`],
           [t("label.atk"), `${damageText(CUBE_BOSS_CONTACT_DAMAGE, "physical")} / ${CUBE_BOSS_CONTACT_INTERVAL}s`]
         ]),
         zh
-          ? "冲锋：60技力满后消耗30，使所有普通敌怪在 7 秒内获得加速，移动速度变为 200%，并使压制技力 +15。"
-          : "Charge: at 60 SP, spend 30 to give ordinary enemies 7s Haste, raising movement speed to 200%, and gives Suppression +15 SP.",
+          ? "正四面体 II 使用同一套技能，但 Boss 机制召唤的倒三角和射击三角均为 II。"
+          : "Tetrahedron II uses the same skill kit, but all Inverted/Shooting Triangles summoned by Boss mechanics are rank II.",
+        zh
+          ? "冲锋：60技力满后消耗30，使所有普通敌怪在 7 秒内获得加速，移动速度变为 200%；正四面体 II 为 250%。并使压制技力 +15。"
+          : "Charge: at 60 SP, spend 30 to give ordinary enemies 7s Haste, raising movement speed to 200%; Tetrahedron II uses 250%. It also gives Suppression +15 SP.",
         zh
           ? "冲击：120技力满后消耗60，在 Boss 前方两列每行召唤倒三角 I，并使冲锋技力 +10。压制：160技力满后消耗40，在出怪线每行召唤射击三角 I，并使冲击技力 +20。"
           : "Impact: at 120 SP, spend 60 to summon Inverted Triangle I in every lane across two columns in front of the Boss, and gives Charge +10 SP. Suppression: at 160 SP, spend 40 to summon Shooting Triangle I in every lane at the spawn line, and gives Impact +20 SP.",
@@ -259,11 +281,12 @@ function towerDescription(id: CardId) {
   const zh = isZh();
   const descriptions: Record<CardId, string> = {
     A: zh ? "直线物理射手。沿本行平射，命中后有碎片粒子。" : "Straight physical shooter. Fires along its lane with hit shards.",
+    a: zh ? "短程免费物理射手。机制类似 A，但只攻击自身和前方 4 格内的目标。" : "Free short-range physical shooter. Similar to A, but only attacks within itself plus 4 tiles ahead.",
     B: zh ? "防御塔。阻挡敌怪，只会对近战伤害反伤 400 物理伤害。" : "Defender. Blocks enemies and reflects 400 physical damage only against melee hits.",
-    C: zh ? "物理溅射炮。沿本行发射炮弹，命中后对 1 格半径造成范围伤害。" : "Physical splash cannon. Fires down its lane and deals 1-cell radius splash on hit.",
+    C: zh ? "物理溅射炮。沿本行发射炮弹，命中后对 1.75 格半径造成范围伤害。" : "Physical splash cannon. Fires down its lane and deals 1.75-cell radius splash on hit.",
     c: zh ? "极速钟。每秒回复 1 技力，20 满后显示边框；点击消耗全部技力，使自身进入 10 秒闪烁状态。所有激活的 c 会让其他卡槽冷却速度变为等级和 +1 倍，c 自身卡槽冷却不受影响；Shift+点击可同时激活所有满技力的 c。" : "Speed clock. Gains 1 SP/s up to 20 and shows its border when full; clicking it spends all SP and makes it flash for 10s. Active c towers make other card-slot cooldown speed equal active level sum + 1; c's own card cooldown is unaffected. Shift-click activates all full c towers.",
     D: zh ? "纯防御塔。高护甲，用来拖住近战敌怪。" : "Pure defender with high armor for stalling melee enemies.",
-    O: zh ? "抗法防御塔。机制和 D 类似，但冷却更短并拥有较高法术抗性。" : "Magic-resistant defender. Similar to D, with shorter cooldown and high magic resistance.",
+    O: zh ? "抗法防御塔。机制和 D 类似，拥有高护甲和中等法术抗性。" : "Magic-resistant defender. Similar to D, with high armor and moderate magic resistance.",
     R: zh ? "反弹防御塔。机制和 O 类似；敌方弹幕击中它时仍会造成伤害，但弹幕会被反射为同伤害、同类型的我方弹幕。锁定迫击弹命中 R 时会被反射回发射者。" : "Reflect defender. Similar to O; enemy projectiles still damage it on hit, then reflect into friendly projectiles with the same damage and damage type. Locked mortars that hit R are reflected back at the shooter.",
     X: zh ? `生产塔。每 10 秒产生 ${EFFECT_SYMBOLS.chars}25，也是主要字符来源之一。` : `Producer. Generates ${EFFECT_SYMBOLS.chars}25 every 10s.`,
     Y: zh ? `受击生产塔。不攻击；每次受到攻击时产生 ${EFFECT_SYMBOLS.chars}12。` : `Hit producer. Does not attack; generates ${EFFECT_SYMBOLS.chars}12 each time it is attacked.`,
@@ -271,12 +294,14 @@ function towerDescription(id: CardId) {
     M: zh ? "下向三连物理射手。攻击方向朝下，出弹点保持在列中心。" : "Downward triple physical shooter. Fires downward from the column center.",
     W: zh ? "上向三连物理射手。攻击方向朝上，出弹点保持在列中心。" : "Upward triple physical shooter. Fires upward from the column center.",
     F: zh ? "触发器。阻挡敌怪时立刻消失，并在 4x4 范围内连续释放冲击波。" : "Trigger. Disappears on blocking and releases rapid shockwaves in a 4x4 area.",
+    f: zh ? "凝滞触发器。机制和 F 类似，触发时消失，不造成伤害，而是让 5x5 范围内普通敌怪获得凝滞。" : "Stasis trigger. Similar trigger rules to F; disappears on trigger and deals no damage, applying Stasis to ordinary enemies in a 5x5 area.",
     G: zh ? "延迟触发器。放置 15 秒后准备完成，接触敌怪时消失并造成高额法术伤害。" : "Delayed trigger. Arms after 15s, then disappears on contact to deal heavy magic damage.",
     H: zh ? "治疗塔。治疗自身列和前方一列、以自己为中心三行内生命百分比最低的一座塔。" : "Healer. Heals the lowest-HP-percent tower in a 2x3 area covering its column and the front column.",
+    h: zh ? "守护者。每秒回复 1 技力，20 技力满后若自己或 3x3 范围内有缺血塔，会自动消耗 20 技力治疗自己，并治疗范围内生命百分比最低的一座缺血塔。" : "Guardian. Gains 1 SP/s up to 20; when full, if itself or a tower in its 3x3 area is damaged, it spends 20 SP to heal itself and the lowest-HP-percent damaged tower in that area.",
     P: zh ? "广域治疗塔。治疗自身列和前方四列、以自己为中心三行内生命百分比最低的一座塔。" : "Wide healer. Heals the lowest-HP-percent tower in a 5x3 area covering its column plus four forward columns.",
     I: zh ? "短程法术射手。只攻击自身和前方 5 格内的目标。" : "Short-range magic shooter. Attacks only within itself plus five tiles ahead.",
     Q: zh ? "整行控制射手。沿本行发射 $ 法术弹幕；命中普通敌怪后施加 1 秒凝滞，使其移动速度变为三分之一。Boss 不会受到凝滞影响。" : "Full-lane control shooter. Fires $ magic projectiles along its lane; hits apply 1s Stasis to ordinary enemies, reducing movement speed to one third. Bosses ignore Stasis.",
-    J: zh ? "短程法术溅射。范围和 I 一致，发射 # 弹幕并造成范围法术伤害。" : "Short-range magic splash attacker. Same range as I, firing # projectiles with splash.",
+    J: zh ? "短程法术溅射。范围和 I 一致，发射 # 弹幕并造成 1.75 格半径范围法术伤害。" : "Short-range magic splash attacker. Same range as I, firing # projectiles with 1.75-cell radius splash.",
     K: zh ? "近程斩击塔。攻击自身一格和前方两格内的单体目标，释放十字斩特效。" : "Close-range slasher. Hits one target within itself plus two tiles ahead, with a cross slash.",
     S: zh ? "主动术法迫击塔。30 技力满后显示边框；点击进入瞄准，指定任意落点后连射三发 S 形抛物线迫击弹，每发造成 3x3 范围法术伤害。右键或点击其他 UI 可取消瞄准。" : "Active spell mortar. At 30 SP, shows its border; click to aim, then choose any target point to fire three arcing S shells, each dealing 3x3 magic AOE damage. Right-click or clicking other UI cancels aiming.",
     Z: zh ? `生产型斩击塔。范围和 K 一致；每次斩击命中时产生 ${EFFECT_SYMBOLS.chars}15。` : `Production slasher. Same range as K; each slash hit generates ${EFFECT_SYMBOLS.chars}15.`,
@@ -289,7 +314,7 @@ function towerDescription(id: CardId) {
 
 function towerUpgradeText(id: CardId) {
   const zh = isZh();
-  if (id === "A" || id === "C" || id === "E" || id === "M" || id === "W" || id === "I" || id === "Q" || id === "J" || id === "H" || id === "P" || id === "K" || id === "Z") {
+  if (id === "A" || id === "a" || id === "C" || id === "E" || id === "M" || id === "W" || id === "I" || id === "Q" || id === "J" || id === "H" || id === "P" || id === "K" || id === "Z") {
     return zh ? "增加连发次数；整段连射固定占攻击/治疗间隔的五分之一。" : "Adds burst count; the whole volley always takes one fifth of the attack/heal interval.";
   }
   if (id === "X" || id === "Y") {
@@ -299,10 +324,13 @@ function towerUpgradeText(id: CardId) {
     return zh ? "技能倍率按当前激活的 c 的等级和计算。" : "Skill multiplier uses the sum of active c tower levels.";
   }
   if (id === "S") {
-    return zh ? "每级每发迫击弹伤害增加基础值的 80%（5200），并重置技力。" : "Each level adds 80% of base mortar damage per shell (+5200) and resets SP.";
+    return zh ? "每级每发迫击弹伤害增加基础值的 80%（4000），并重置技力。" : "Each level adds 80% of base mortar damage per shell (+4000) and resets SP.";
   }
   if (id === "F") {
     return zh ? "每级冲击波数量增加基础值的 80%。" : "Each level adds 80% of base shockwave count.";
+  }
+  if (id === "f") {
+    return zh ? "每级凝滞持续时间增加基础值的 80%。" : "Each level adds 80% of base Stasis duration.";
   }
   if (id === "G") {
     return zh ? "每级伤害增加基础值的 80%，并重置准备倒计时。" : "Each level adds 80% of base damage and resets arming.";

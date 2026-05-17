@@ -17,9 +17,23 @@ export const cardDefinitions: CardDefinition[] = [
     stats: `400${DAMAGE_SYMBOLS.physical} / 2s`
   },
   {
+    id: "a",
+    category: "attack",
+    cost: 15,
+    cooldown: 1_000,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 0,
+    fireRate: 2_000,
+    damage: 400,
+    damageType: "physical",
+    rangeCells: 5,
+    stats: `400${DAMAGE_SYMBOLS.physical} / R5`
+  },
+  {
     id: "B",
     category: "defense",
-    cost: 100,
+    cost: 75,
     cooldown: 20_000,
     maxHp: 3_000,
     armor: 500,
@@ -31,7 +45,7 @@ export const cardDefinitions: CardDefinition[] = [
   {
     id: "C",
     category: "attack",
-    cost: 350,
+    cost: 250,
     cooldown: 3_000,
     maxHp: 1_200,
     armor: 150,
@@ -39,7 +53,7 @@ export const cardDefinitions: CardDefinition[] = [
     fireRate: 3_000,
     damage: 500,
     damageType: "physical",
-    splashRadius: CELL_WIDTH,
+    splashRadius: CELL_WIDTH * 1.75,
     stats: `500${DAMAGE_SYMBOLS.physical} / 3s`
   },
   {
@@ -66,11 +80,11 @@ export const cardDefinitions: CardDefinition[] = [
     id: "O",
     category: "defense",
     cost: 125,
-    cooldown: 15_000,
+    cooldown: 20_000,
     maxHp: 3_000,
-    armor: 300,
-    magicResistance: 70,
-    stats: "3000 A300 MR70"
+    armor: 550,
+    magicResistance: 40,
+    stats: "3000 A550 MR40"
   },
   {
     id: "R",
@@ -162,6 +176,20 @@ export const cardDefinitions: CardDefinition[] = [
     stats: `10x1400${DAMAGE_SYMBOLS.physical}`
   },
   {
+    id: "f",
+    category: "function",
+    cost: 125,
+    cooldown: 30_000,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 0,
+    triggerRangeX: CELL_WIDTH * 2.5,
+    triggerRangeY: CELL_HEIGHT * 2.5,
+    triggerDebuff: "stasis",
+    triggerDebuffDuration: 10_000,
+    stats: "STASIS / 10s"
+  },
+  {
     id: "G",
     category: "function",
     cost: 25,
@@ -187,18 +215,28 @@ export const cardDefinitions: CardDefinition[] = [
     stats: `${EFFECT_SYMBOLS.heal}700 / 2s`
   },
   {
+    id: "h",
+    category: "defense",
+    cost: 175,
+    cooldown: 20_000,
+    maxHp: 3_000,
+    armor: 550,
+    magicResistance: 0,
+    stats: `${EFFECT_SYMBOLS.heal}40% / 20SP`
+  },
+  {
     id: "I",
     category: "attack",
-    cost: 100,
+    cost: 50,
     cooldown: 2_000,
     maxHp: 1_200,
     armor: 150,
     magicResistance: 20,
     fireRate: 2_000,
-    damage: 300,
+    damage: 400,
     damageType: "magic",
     rangeCells: 6,
-    stats: `300${DAMAGE_SYMBOLS.magic} / R6`
+    stats: `400${DAMAGE_SYMBOLS.magic} / R6`
   },
   {
     id: "Q",
@@ -218,7 +256,7 @@ export const cardDefinitions: CardDefinition[] = [
   {
     id: "J",
     category: "attack",
-    cost: 375,
+    cost: 200,
     cooldown: 4_000,
     maxHp: 1_200,
     armor: 150,
@@ -227,7 +265,7 @@ export const cardDefinitions: CardDefinition[] = [
     damage: 600,
     damageType: "magic",
     rangeCells: 6,
-    splashRadius: CELL_WIDTH,
+    splashRadius: CELL_WIDTH * 1.75,
     stats: `600${DAMAGE_SYMBOLS.magic} / R6`
   },
   {
@@ -247,14 +285,14 @@ export const cardDefinitions: CardDefinition[] = [
   {
     id: "S",
     category: "attack",
-    cost: 825,
+    cost: 925,
     cooldown: 50_000,
     maxHp: 1_200,
     armor: 150,
     magicResistance: 40,
-    damage: 6_500,
+    damage: 5_000,
     damageType: "magic",
-    stats: `3x6500${DAMAGE_SYMBOLS.magic} / 30SP`
+    stats: `3x5000${DAMAGE_SYMBOLS.magic} / 30SP`
   },
   {
     id: "Z",

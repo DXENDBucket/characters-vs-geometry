@@ -17,11 +17,20 @@ export function buildWaveKinds(
   enemyKinds: EnemyKind[],
   enemies: Record<EnemyKind, EnemyDefinition>,
   weightLimit: number,
+  waveNumber: number,
+  wavesPerFlag: number,
   randomIndex: (length: number) => number
 ) {
   const kinds: EnemyKind[] = [];
   let remainingWeight = weightLimit;
-  const enemyPool = enemyKinds.map((kind) => enemies[kind]);
+  const currentFlag = Math.floor(waveNumber / wavesPerFlag);
+  const enemyPool = enemyKinds
+    .map((kind) => enemies[kind])
+    .filter((enemy) => currentFlag >= (enemy.minFlag ?? 0));
+  if (enemyPool.length === 0) {
+    return kinds;
+  }
+
   const minWeight = Math.min(...enemyPool.map((enemy) => enemy.weight));
 
   while (remainingWeight >= minWeight) {

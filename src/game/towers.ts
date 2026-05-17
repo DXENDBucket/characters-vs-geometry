@@ -120,6 +120,10 @@ export function getShockCount(tower: Tower, definition: CardDefinition) {
   return scaledByEffectiveUpgrades(definition.triggerCount ?? 10, tower.level);
 }
 
+export function getTriggerDebuffDuration(tower: Tower, definition: CardDefinition) {
+  return scaledByEffectiveUpgrades(definition.triggerDebuffDuration ?? 0, tower.level);
+}
+
 export function getTrapDamage(tower: Tower, definition: CardDefinition) {
   return scaledByEffectiveUpgrades(definition.triggerDamage ?? 1_500, tower.level);
 }

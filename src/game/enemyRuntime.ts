@@ -24,7 +24,7 @@ import { createEnemy } from "./enemyFactory";
 import { createEnemyProjectile, createMortarProjectile } from "./projectiles";
 import { movementSpeedMultiplier } from "./slowAura";
 import { hasStatusEffect, statusAttackMultiplier, statusSpeedMultiplier } from "./statusEffects";
-import { getBlockingTower, towerRect } from "./targeting";
+import { getBlockingTower } from "./targeting";
 import { isTrapArmed } from "./towers";
 import { volleyInterval } from "./upgrades";
 import { buildWaveKinds, waveWeightLimit } from "./waves";
@@ -54,8 +54,13 @@ export function spawnEnemyAt(runtime: EnemySpawnRuntime, options: SpawnEnemyOpti
 
 export function spawnWaveEnemies(runtime: EnemySpawnRuntime, options: SpawnWaveOptions): WaveTracker {
   const weightLimit = waveWeightLimit(options.levelConfig, options.difficultyConfig, options.waveNumber);
-  const kinds = buildWaveKinds(options.levelConfig.enemyKinds, allEnemyDefinitions, weightLimit, (length) =>
-    Phaser.Math.Between(0, length - 1)
+  const kinds = buildWaveKinds(
+    options.levelConfig.enemyKinds,
+    allEnemyDefinitions,
+    weightLimit,
+    options.waveNumber,
+    options.levelConfig.wavesPerFlag,
+    (length) => Phaser.Math.Between(0, length - 1)
   );
   let totalWeight = 0;
 
@@ -165,7 +170,7 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
         continue;
       }
 
-      if (blocker.type === "F") {
+      if (blocker.type === "F" || blocker.type === "f") {
         runtime.triggerShockTower(blocker);
         continue;
       }
@@ -295,7 +300,7 @@ function fireEnemyMortarVolley(runtime: EnemyAdvanceRuntime, enemy: Enemy, time:
     return false;
   }
 
-  const target = findMortarTarget(runtime.towers, runtime.enemies);
+  const target = findLockedAttackTarget(runtime.towers, runtime.enemies, enemy);
   if (!target) {
     return false;
   }
@@ -315,7 +320,7 @@ function fireEnemyMortarShot(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: n
     return;
   }
 
-  const target = findMortarTarget(runtime.towers, runtime.enemies);
+  const target = findLockedAttackTarget(runtime.towers, runtime.enemies, enemy);
   if (!target) {
     return;
   }
@@ -337,18 +342,23 @@ function fireEnemyMortarShot(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: n
   );
 }
 
-function findMortarTarget(towers: Tower[], enemies: Enemy[]) {
+function findLockedAttackTarget(towers: Tower[], enemies: Enemy[], attacker: Enemy) {
   if (towers.length === 0) {
     return undefined;
   }
 
+  const blocker = getBlockingTower(towers, attacker);
+  if (blocker) {
+    return blocker;
+  }
+
   const blockedCounts = new Map<string, number>();
   for (const enemy of enemies) {
-    const blocker = getBlockingTower(towers, enemy);
-    if (!blocker) {
+    const enemyBlocker = getBlockingTower(towers, enemy);
+    if (!enemyBlocker) {
       continue;
     }
-    blockedCounts.set(blocker.id, (blockedCounts.get(blocker.id) ?? 0) + 1);
+    blockedCounts.set(enemyBlocker.id, (blockedCounts.get(enemyBlocker.id) ?? 0) + 1);
   }
 
   return [...towers].sort((a, b) => {

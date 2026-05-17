@@ -10,6 +10,7 @@ import {
   clampDifficulty,
   palette
 } from "../config";
+import { bossRank, isTetrahedronBossKind } from "../bosses/cubeBoss";
 import {
   enemyEncyclopediaEntries,
   towerEncyclopediaEntries,
@@ -61,7 +62,7 @@ export class LevelSelectScene extends Phaser.Scene {
   private unlimitedFirepower = false;
   private mapContainer!: Phaser.GameObjects.Container;
   private mapBounds!: Phaser.Geom.Rectangle;
-  private readonly chapters = [0, 1];
+  private readonly chapters = [0, 1, 2];
   private readonly mapViewport = new Phaser.Geom.Rectangle(38, 156, GAME_WIDTH - 76, GAME_HEIGHT - 246);
   private readonly footerY = 715;
   private mapDragPointer: Phaser.Input.Pointer | null = null;
@@ -416,7 +417,7 @@ export class LevelSelectScene extends Phaser.Scene {
       return;
     }
 
-    const rank = this.bossRank(levelConfig.bossKind);
+    const rank = bossRank(levelConfig.bossKind);
     const x = node.x + LEVEL_NODE_WIDTH / 2 - 27;
     const y = node.y + LEVEL_NODE_HEIGHT / 2 - 18;
     const frame = this.add.graphics().setPosition(x, y).setAlpha(alpha);
@@ -447,12 +448,8 @@ export class LevelSelectScene extends Phaser.Scene {
     this.drawBossNodePreview(preview);
   }
 
-  private bossRank(kind: BossKind) {
-    return kind === "cube2" ? 2 : 1;
-  }
-
   private drawBossNodePreview(preview: BossNodePreview) {
-    if (preview.kind === "tetrahedron") {
+    if (isTetrahedronBossKind(preview.kind)) {
       this.drawTetrahedronNodePreview(preview);
       return;
     }
@@ -905,8 +902,7 @@ export class LevelSelectScene extends Phaser.Scene {
       })
       .setOrigin(0, 0.5);
 
-    const track = this.add
-      .rectangle(trackX + trackWidth / 2, trackY, trackWidth, 4, palette.dim, 1);
+    this.add.rectangle(trackX + trackWidth / 2, trackY, trackWidth, 4, palette.dim, 1);
     const hitArea = this.add
       .zone(trackX + trackWidth / 2, trackY, trackWidth + 42, 52)
       .setInteractive({ useHandCursor: true });

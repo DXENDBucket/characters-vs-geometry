@@ -16,17 +16,20 @@
 | Inverted Triangle 1 | 50 | 1000 | 70 | 2000 | ✦ | Body label `I`; MR `60`; average speed `40`; after being blocked by the same tower for `2s`, disappears and detonates against that tower |
 | Inverted Triangle 2 | 100 | 1000 | 70 | 2600 | ✦ | Body label `II`; MR `60`; average speed `45`; after being blocked by the same tower for `2s`, disappears and detonates against that tower |
 | Shooting Triangle 1 | 50 | 2000 | 70 | 400 | ◆ | Body label `I`; average speed `4`; points toward the base and fires red-tinted bolts every `2s` |
-| Triangle Mortar 1 | 90 | 1500 | 70 | 800 | ✦ | Body label `I/I`; MR `40`; average speed `3`; every `15s`, fires an S-like magic mortar with `3x3` AOE at the tower blocking the most enemies. Ties target the later-placed tower. N rewrites the landing point if targeted; R takes damage and reflects a matching mortar back at the shooter |
-| Triangle Mortar 2 | 180 | 1500 | 70 | 800 | ✦ | Body label `II/II`; MR `40`; average speed `3`; every `15s`, fires 2 S-like magic mortars with `3x3` AOE. The volley window is fixed at one fifth of its attack interval, so the two shots are `3s` apart |
+| Triangle Mortar 1 | 90 | 1500 | 70 | 1150 | ◆ | Body label `I/I`; MR `0`; average speed `3`; every `15s`, fires a shell-like physical mortar with `3x3` AOE at the tower blocking the most enemies. Ties target the later-placed tower. N rewrites the landing point if targeted; R takes damage and reflects a matching mortar back at the shooter |
+| Triangle Mortar 2 | 180 | 1500 | 70 | 1150 | ◆ | Body label `II/II`; MR `0`; average speed `3`; every `15s`, fires 2 shell-like physical mortars with `3x3` AOE. The volley window is fixed at one fifth of its attack interval, so the two shots are `3s` apart |
+| Diamond 1 | 100 | 2000 | 70 | 400 | ✦ | Body label `I`; MR `40`; average speed `4`; fires red `*` magic projectiles every `2s`; does not naturally appear before Flag 1 |
 | Square 1 | 50 | 12000 | 300 | 400 | ◆ | Body label `I`; average speed `6` |
 | Square 2 | 150 | 12000 | 600 | 400 | ◆ | Body label `II`; average speed `6` |
 | Square 3 | 250 | 12000 | 900 | 400 | ◆ | Body label `III`; average speed `6` |
 
 Damage symbols: `◆` physical, `✦` magic, `◇` true. Magic-damage projectiles and related hit effects use light blue.
 Effect symbols: `Aa` character production, `♡` healing.
-Stasis gives enemies a blue border and reduces their movement speed to `1/3`. Haste gives enemies light-blue wind trails and raises movement speed to `200%`. Power gives enemies a red `!` icon and increases outgoing attack damage by `30%` without changing their base attack stat.
+Stasis gives enemies a blue border and reduces their movement speed to `1/3`. Haste gives enemies light-blue wind trails and raises movement speed to `200%` unless specified otherwise. Power gives enemies a red `!` icon and increases outgoing attack damage by `30%` without changing their base attack stat.
 Triangle enemies all deal Triangle 1's `600◆`; Triangle N attacks every `1/N` seconds.
 Shooting Triangle is a separate ranged enemy and does not use Triangle N attack scaling.
+Locked attacks, including Triangle Mortars, target the tower blocking the attacker if the attacker is currently blocked; otherwise they use their normal targeting rule.
+Enemies with a minimum flag gate are excluded from random wave pools before that flag wave. All Diamonds and Triangle Mortars require Flag 1, so they can start appearing on wave 10 of standard 10-wave flags.
 Numbered minion weights use fixed additive steps: circles `+40`, triangles `+60`, squares `+100`.
 Enemy body labels are displayed as Roman numerals in-game.
 
@@ -37,6 +40,7 @@ Enemy body labels are displayed as Roman numerals in-game.
 | Cube I | 150000 | 300 | 20 | 0.6 | `2.95x2.95` cells | Appears at combat start. Does not shrink from damage. Killing it clears the level; reaching the base fails the level. Deals `2000◆` every `0.5s` to all touching towers at once, with a following cube-collapse effect on each target. |
 | Cube II | 200000 | 600 | 20 | 0.6 | `2.95x2.95` cells | Same baseline behavior as Cube I. Advance becomes Advance II and summons Square 2 minions. Also has Promotion II. |
 | Tetrahedron I | 120000 | 150 | 20 | 1.2 | `2.95x2.95` cells | Fast-attack Boss with quicker visual rotation. Same baseline behavior as Cube I, but uses tetrahedron-collapse effects. At first `50%` HP or lower, summons Inverted Triangle 1 in every cell of the two columns farthest from the base and immediately fills Charge SP. At first `10%` HP or lower, its HP is held at `10%`, gains `15s` Invincible, gains `60s` Boss Haste at `300%` speed, summons Inverted Triangle 1 in every cell of the five columns farthest from the base, and permanently doubles all skill natural SP gain. If it would die before this triggers, it instead locks at `1` HP and triggers the same effect package. |
+| Tetrahedron II | 120000 | 150 | 20 | 1.2 | `2.95x2.95` cells | Same baseline behavior as Tetrahedron I. All Inverted Triangles and Shooting Triangles summoned by its Boss mechanics are rank II. |
 
 Cube skills:
 
@@ -55,7 +59,7 @@ Tetrahedron skills:
 
 - Charge: starts at `0/60` SP, gains `1` SP per second, max `60`.
 - At full SP, consumes `30` SP and gives ordinary enemies `7s` Haste.
-- Haste makes affected enemies move at `200%` speed and shows light-blue wind trails.
+- Haste makes affected enemies move at `200%` speed and shows light-blue wind trails. Tetrahedron II Charge uses `250%` speed instead.
 - Using Charge gives Suppression `+15` SP.
 - Impact: starts at `0/120` SP, gains `1` SP per second, max `120`.
 - At full SP, consumes `60` SP and summons Inverted Triangle 1 in every lane across two columns in front of the Boss.
@@ -66,6 +70,7 @@ Tetrahedron skills:
 - Last Stand: starts at `0/10` SP, max `10`, only gains `1` SP per second while Tetrahedron HP is at or below `50%`.
 - At full SP, consumes `10` SP, gives permanent Power to all enemies touching the Boss hitbox, and gives Charge `+5` SP.
 - Tetrahedron skills have no priority order; each skill that is full at the start of the skill check activates once. SP gained from a skill is checked on later updates.
+- Tetrahedron II uses the same skill rules, but its half-HP, critical-HP, Impact, and Suppression summons use rank II Inverted/Shooting Triangles.
 - After Tetrahedron's first `10%` HP trigger, all Tetrahedron skill natural SP gain is permanently doubled. This does not double SP granted directly by other skills.
 - Tetrahedron attack and skill visuals use tetrahedron-collapse effects. Cube and tetrahedron collapse effects each start from a random 3D rotation.
 
@@ -74,11 +79,12 @@ Tetrahedron skills:
 | Character | Category | Border | Cost | CD | HP | Armor | MR | Main Effect | Upgrade |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- |
 | A | Attack | Diamond | 50 | 1s | 1200 | 150 | 0 | Fires 1 bolt, `400◆`, every `2s` | +1 volley per level |
-| B | Defense | Square | 100 | 20s | 3000 | 500 | 0 | Blocks; reflects `400◆` when hit by melee attacks | +`2400` max/current HP per level |
-| C | Attack | Diamond | 350 | 3s | 1200 | 150 | 0 | Fires 1 shell, `500◆`, `1` tile AOE, every `3s` | +1 volley per level |
+| a | Attack | Diamond | 15 | 1s | 1200 | 150 | 0 | Fires 1 bolt, `400◆`, every `2s`; range is self plus 4 cells ahead | +1 volley per level |
+| B | Defense | Square | 75 | 20s | 3000 | 500 | 0 | Blocks; reflects `400◆` when hit by melee attacks | +`2400` max/current HP per level |
+| C | Attack | Diamond | 250 | 3s | 1200 | 150 | 0 | Fires 1 shell, `500◆`, `1.75` tile radius AOE, every `3s` | +1 volley per level |
 | c | Function | Triangle | 1425 | 70s | 1200 | 150 | 0 | Speed Clock: gains `1` SP/s, max `20`; at full SP gains a border. Clicking a ready c spends all SP and makes it flash for `10s`; active c towers make other card-slot cooldown speed `(active c level sum + 1)x`; c's own card cooldown is not accelerated by this effect. Shift-click a ready c activates all ready c towers | Skill contribution uses its current level |
 | D | Defense | Square | 100 | 20s | 2600 | 800 | 0 | High-armor blocker | +`2080` max/current HP per level |
-| O | Defense | Square | 125 | 15s | 3000 | 300 | 70 | Magic-resistant blocker | +`2400` max/current HP per level |
+| O | Defense | Square | 125 | 20s | 3000 | 550 | 40 | Armor-heavy magic-resistant blocker | +`2400` max/current HP per level |
 | R | Defense | Square | 225 | 15s | 3000 | 350 | 35 | Enemy projectiles still damage it, then reflect into friendly projectiles with the same damage and damage type. Locked mortars that hit R are reflected back at the shooter | +`2400` max/current HP per level |
 | X | Production | Circle | 50 | 1.5s | 1200 | 150 | 0 | Produces `25` chars every `10s`, shown as `Aa` | +`20` chars per production per level |
 | Y | Production | Circle | 75 | 8s | 2000 | 250 | 0 | Does not attack; produces `12` chars every time it is attacked | +80% base production per hit per level |
@@ -86,14 +92,16 @@ Tetrahedron skills:
 | M | Attack | Diamond | 75 | 2s | 1200 | 150 | 0 | Fires 3 bolts downward at `80/90/100` degrees, `400◆` each, every `2s`; all shots start from the cell center | +1 volley per level |
 | W | Attack | Diamond | 75 | 2s | 1200 | 150 | 0 | Fires 3 bolts upward at `-100/-90/-80` degrees, `400◆` each, every `2s`; all shots start from the cell center | +1 volley per level |
 | F | Function | Triangle | 125 | 30s | 1200 | 150 | 0 | On enemy or Boss contact, disappears and emits `10` shockwaves; each deals `1400◆` in a `4x4` area | +`8` shockwaves per level |
+| f | Function | Triangle | 125 | 30s | 1200 | 150 | 0 | On enemy or Boss contact, disappears, deals no damage, and applies `10s` Stasis to enemies in a `5x5` area | +`8s` Stasis duration per level |
 | G | Function | Triangle | 25 | 30s | 1200 | 150 | 0 | Arms after `15s`; on enemy or Boss contact, disappears and deals `15000✦` | +`12000✦` per level; resets arming |
 | H | Healing | Hexagon | 150 | 20s | 1200 | 150 | 0 | Heals the lowest HP% damaged ally in a `2x3` area covering its column and the front column for `700`, every `2s`, shown as `♡`; ties prefer earlier placement | +1 healing volley per level |
+| h | Defense | Square | 175 | 20s | 3000 | 550 | 0 | Guardian: gains `1` SP/s, max `20`; when full, waits until itself or a tower in its centered `3x3` area is damaged, then spends `20` SP to heal itself and the lowest HP% damaged tower in that area for `40%` of h's max HP | +`2400` max/current HP per level |
 | P | Healing | Hexagon | 125 | 20s | 1200 | 150 | 0 | Heals the lowest HP% damaged ally in a `5x3` area covering its column and the next 4 columns for `250`, every `2s`, shown as `♡`; ties prefer earlier placement | +1 healing volley per level |
-| I | Attack | Diamond | 100 | 2s | 1200 | 150 | 20 | Fires 1 `*` projectile, `300✦`, every `2s`; range is self plus 5 cells ahead | +1 volley per level |
+| I | Attack | Diamond | 50 | 2s | 1200 | 150 | 20 | Fires 1 `*` projectile, `400✦`, every `2s`; range is self plus 5 cells ahead | +1 volley per level |
 | Q | Attack | Diamond | 225 | 4s | 1200 | 150 | 20 | Fires 1 `$` projectile, `300✦`, every `2s`; range is the full lane ahead. On hit, applies `Stasis` for `1s`, reducing ordinary enemy movement speed to `1/3`; Bosses ignore this debuff | +1 volley per level |
-| J | Attack | Diamond | 375 | 4s | 1200 | 150 | 20 | Fires 1 `#` shell, `600✦`, `1` tile AOE, every `4s`; range is self plus 5 cells ahead | +1 volley per level |
+| J | Attack | Diamond | 200 | 4s | 1200 | 150 | 20 | Fires 1 `#` shell, `600✦`, `1.75` tile radius AOE, every `4s`; range is self plus 5 cells ahead | +1 volley per level |
 | K | Attack | Diamond | 375 | 4s | 2500 | 300 | 0 | Slashes 1 target for `1600◆`, every `4s`; range is self plus 2 cells ahead | +1 volley per level |
-| S | Attack | Diamond | 825 | 50s | 1200 | 150 | 40 | Active skill: Spell Mortar. Gains `1` SP/s, max `30`; at full SP gains a border. Click a ready S, or Shift-click to select all ready S, then click any board point to fire 3 arcing `S` shells at `0.5s` intervals. Each shell deals `6500✦` in a `3x3` area. Right-click or clicking UI cancels aiming | +`5200✦` per shell per level; resets SP |
+| S | Attack | Diamond | 925 | 50s | 1200 | 150 | 40 | Active skill: Spell Mortar. Gains `1` SP/s, max `30`; at full SP gains a border. Click a ready S, or Shift-click to select all ready S, then click any board point to fire 3 arcing `S` shells at `0.5s` intervals. Each shell deals `5000✦` in a `3x3` area. Right-click or clicking UI cancels aiming | +`4000✦` per shell per level; resets SP |
 | Z | Production | Circle | 175 | 4s | 2500 | 300 | 0 | Slashes 1 target for `400◆`, every `2s`; range is self plus 2 cells ahead. Each slash hit produces `Aa15` | +1 volley per level |
 | L | Function | Triangle | 200 | 20s | 3000 | 200 | 0 | Every `1s`, shifts all enemies in upper/lower lanes within its column and the front column into its own lane; takes `400◇` per shifted enemy | +`2400` max/current HP per level |
 | N | Defense | Square | 125 | 20s | 3000 | 500 | 0 | Every `1s`, pushes all enemies it is blocking `4` cells left; takes `400◇` per pushed enemy. Enemy projectiles that would hit N are shifted left by `4` cells instead and do not damage N; locked mortar shots targeting N have their landing point shifted left by the same distance | +`2400` max/current HP per level |
@@ -876,6 +884,139 @@ Base rule:
 | 28 | - | 694 | 694 |
 | 29 | - | 733 | 733 |
 | 30 | 3 | 773 | 1546 |
+
+## Level 1-10 Weight Growth
+
+Enemy pool:
+
+- Circle 1
+- Triangle 1
+- Shooting Triangle 1
+- Triangle Ram 1
+- Triangle Mortar 1
+- Triangle Mortar 2
+- Triangle Ram 3
+- Boss: Tetrahedron II
+
+Base rule:
+
+- Starting characters: `500`.
+- Wave 1 starts at weight cap `19`.
+- Wave 2 adds `+12`; each later increment grows by `+1` (`+13`, `+14`, ...).
+- Every flag wave, currently every `10`th wave, doubles that wave's final cap.
+- Final wave cap is capped at `800` before difficulty and unlimited-firepower multipliers.
+- A wave may leave unused weight, but never exceeds its cap.
+- Difficulty modifies the final cap after flag doubling and the level cap. The result is floored and never lower than `10`.
+- Boss stage: endless waves until Tetrahedron II dies or reaches the base.
+
+| Wave | Flag | Base Cap | Final Cap |
+| ---: | ---: | ---: | ---: |
+| 1 | - | 19 | 19 |
+| 2 | - | 31 | 31 |
+| 3 | - | 44 | 44 |
+| 4 | - | 58 | 58 |
+| 5 | - | 73 | 73 |
+| 6 | - | 89 | 89 |
+| 7 | - | 106 | 106 |
+| 8 | - | 124 | 124 |
+| 9 | - | 143 | 143 |
+| 10 | 1 | 163 | 326 |
+| 11 | - | 184 | 184 |
+| 12 | - | 206 | 206 |
+| 13 | - | 229 | 229 |
+| 14 | - | 253 | 253 |
+| 15 | - | 278 | 278 |
+| 16 | - | 304 | 304 |
+| 17 | - | 331 | 331 |
+| 18 | - | 359 | 359 |
+| 19 | - | 388 | 388 |
+| 20 | 2 | 418 | 800 |
+| 21 | - | 449 | 449 |
+| 22 | - | 481 | 481 |
+| 23 | - | 514 | 514 |
+| 24 | - | 548 | 548 |
+| 25 | - | 583 | 583 |
+| 26 | - | 619 | 619 |
+| 27 | - | 656 | 656 |
+| 28 | - | 694 | 694 |
+| 29 | - | 733 | 733 |
+| 30 | 3 | 773 | 800 |
+
+## Level 2-1 Weight Growth
+
+Enemy pool:
+
+- Circle 1
+- Triangle 1
+- Square 1
+- Diamond 1
+
+Base rule:
+
+- Starting characters: `300`.
+- Wave 1 starts at weight cap `25`.
+- Wave 2 adds `+16`; each later increment grows by `+2` (`+18`, `+20`, ...).
+- Every flag wave, currently every `10`th wave, doubles that wave's final cap.
+- A wave may leave unused weight, but never exceeds its cap.
+- Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
+- The level has `10` total waves.
+- Diamond 1 has a minimum Flag 1 gate, so it can first enter the random pool on wave 10.
+
+| Wave | Flag | Base Cap | Final Cap |
+| ---: | ---: | ---: | ---: |
+| 1 | - | 25 | 25 |
+| 2 | - | 41 | 41 |
+| 3 | - | 59 | 59 |
+| 4 | - | 79 | 79 |
+| 5 | - | 101 | 101 |
+| 6 | - | 125 | 125 |
+| 7 | - | 151 | 151 |
+| 8 | - | 179 | 179 |
+| 9 | - | 209 | 209 |
+| 10 | 1 | 241 | 482 |
+
+## Level 2-2 Weight Growth
+
+Enemy pool:
+
+- Circle 1
+- Square 1
+- Triangle Ram 1
+- Diamond 1
+
+Base rule:
+
+- Starting characters: `300`.
+- Wave 1 starts at weight cap `25`.
+- Wave 2 adds `+16`; each later increment grows by `+2` (`+18`, `+20`, ...).
+- Every flag wave, currently every `10`th wave, doubles that wave's final cap.
+- A wave may leave unused weight, but never exceeds its cap.
+- Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
+- The level has `20` total waves.
+- Diamond 1 has a minimum Flag 1 gate, so it can first enter the random pool on wave 10.
+
+| Wave | Flag | Base Cap | Final Cap |
+| ---: | ---: | ---: | ---: |
+| 1 | - | 25 | 25 |
+| 2 | - | 41 | 41 |
+| 3 | - | 59 | 59 |
+| 4 | - | 79 | 79 |
+| 5 | - | 101 | 101 |
+| 6 | - | 125 | 125 |
+| 7 | - | 151 | 151 |
+| 8 | - | 179 | 179 |
+| 9 | - | 209 | 209 |
+| 10 | 1 | 241 | 482 |
+| 11 | - | 275 | 275 |
+| 12 | - | 311 | 311 |
+| 13 | - | 349 | 349 |
+| 14 | - | 389 | 389 |
+| 15 | - | 431 | 431 |
+| 16 | - | 475 | 475 |
+| 17 | - | 521 | 521 |
+| 18 | - | 569 | 569 |
+| 19 | - | 619 | 619 |
+| 20 | 2 | 671 | 1342 |
 
 ## Spawn Trigger
 

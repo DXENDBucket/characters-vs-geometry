@@ -9,22 +9,32 @@ const STATUS_ATTACK_MULTIPLIERS: Partial<Record<StatusEffectName, number>> = {
   power: 1.3
 };
 
-export function applyStatusEffect(enemy: Enemy, name: StatusEffectName, duration: number, time: number) {
+export function applyStatusEffect(
+  enemy: Enemy,
+  name: StatusEffectName,
+  duration: number,
+  time: number,
+  speedMultiplier?: number
+) {
   const expiresAt = time + duration;
   const existing = enemy.statusEffects.find((effect) => effect.name === name);
   if (existing) {
     existing.expiresAt = Math.max(existing.expiresAt, expiresAt);
+    existing.speedMultiplier = Math.max(
+      existing.speedMultiplier ?? STATUS_SPEED_MULTIPLIERS[name],
+      speedMultiplier ?? STATUS_SPEED_MULTIPLIERS[name]
+    );
     return;
   }
 
-  enemy.statusEffects.push({ name, expiresAt });
+  enemy.statusEffects.push({ name, expiresAt, speedMultiplier });
 }
 
 export function statusSpeedMultiplier(enemy: Enemy, time: number) {
   removeExpiredStatusEffects(enemy, time);
   syncStatusVisuals(enemy, time);
   return enemy.statusEffects.reduce((multiplier, effect) => {
-    return multiplier * STATUS_SPEED_MULTIPLIERS[effect.name];
+    return multiplier * (effect.speedMultiplier ?? STATUS_SPEED_MULTIPLIERS[effect.name]);
   }, 1);
 }
 

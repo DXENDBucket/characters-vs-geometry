@@ -152,6 +152,24 @@ export function createEnemyShape(scene: Phaser.Scene, kind: EnemyKind, options: 
     return shape;
   }
 
+  if (family === "diamond") {
+    const shape = scene.add.container(0, 0);
+    const diamond = scene.add.graphics();
+    diamond.fillStyle(palette.black, 1);
+    diamond.lineStyle(2, palette.white, 1);
+    diamond.beginPath();
+    diamond.moveTo(0, -25);
+    diamond.lineTo(25, 0);
+    diamond.lineTo(0, 25);
+    diamond.lineTo(-25, 0);
+    diamond.closePath();
+    diamond.fillPath();
+    diamond.strokePath();
+    const label = createEnemyLabel(scene, 0, -1, kind);
+    shape.add([diamond, label]);
+    return shape;
+  }
+
   if (family === "invertedTriangle") {
     const shape = scene.add.container(0, 0);
     const triangle = scene.add.graphics();

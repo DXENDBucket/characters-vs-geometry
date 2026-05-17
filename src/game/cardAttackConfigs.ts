@@ -50,6 +50,7 @@ export const muzzleFaceOffsets: Record<MuzzleFace, { x: number; y: number }> = {
 
 export const cardAttackAreas: Partial<Record<CardId, AttackAreaConfig>> = {
   A: { kind: "laneForward", startOffsetX: 24 },
+  a: { kind: "laneRectangle", rangeCells: 5 },
   C: { kind: "laneForward", startOffsetX: 24 },
   E: { kind: "laneForward", startOffsetX: 24 },
   M: { kind: "verticalFan", direction: "down", halfWidth: CELL_WIDTH * 0.35, spreadDegrees: 10 },
@@ -67,6 +68,13 @@ export const projectilePatterns: Partial<Record<CardId, ProjectilePatternConfig>
     speed: 540,
     defaultMuzzle: { face: "right" },
     shots: [{ angleDegrees: 0 }]
+  },
+  a: {
+    projectileKind: "bolt",
+    speed: 540,
+    defaultMuzzle: { face: "right" },
+    shots: [{ angleDegrees: 0 }],
+    maxTravelArea: cardAttackAreas.a
   },
   C: {
     projectileKind: "shell",

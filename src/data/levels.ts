@@ -20,7 +20,10 @@ export const levelNodes: LevelNode[] = [
   { id: "1-6", x: 1410, y: 330, unlocked: true },
   { id: "1-7", x: 1710, y: 430, unlocked: true },
   { id: "1-8", x: 2010, y: 330, unlocked: true },
-  { id: "1-9", x: 2310, y: 430, unlocked: true }
+  { id: "1-9", x: 2310, y: 430, unlocked: true },
+  { id: "1-10", x: 2610, y: 300, unlocked: true },
+  { id: "2-1", x: 230, y: 405, unlocked: true },
+  { id: "2-2", x: 450, y: 310, unlocked: true }
 ];
 
 export const levelConfigs: Record<string, LevelConfig> = {
@@ -214,6 +217,46 @@ export const levelConfigs: Record<string, LevelConfig> = {
     waveWeightIncrement: 12,
     waveWeightIncrementGrowth: 1,
     totalWaves: 30,
+    wavesPerFlag: WAVES_PER_FLAG,
+    startingChars: 300
+  },
+  "1-10": {
+    id: "1-10",
+    enemyKinds: [
+      "circle",
+      "triangle",
+      "shootingTriangle",
+      "triangleRam",
+      "mortarTriangle",
+      "mortarTriangle2",
+      "triangleRam3"
+    ],
+    firstWaveWeight: 19,
+    waveWeightIncrement: 12,
+    waveWeightIncrementGrowth: 1,
+    wavesPerFlag: WAVES_PER_FLAG,
+    waveWeightCap: 800,
+    startingChars: 500,
+    bossKind: "tetrahedron2",
+    endless: true
+  },
+  "2-1": {
+    id: "2-1",
+    enemyKinds: ["circle", "triangle", "square", "diamond"],
+    firstWaveWeight: 25,
+    waveWeightIncrement: 16,
+    waveWeightIncrementGrowth: 2,
+    totalWaves: 10,
+    wavesPerFlag: WAVES_PER_FLAG,
+    startingChars: 300
+  },
+  "2-2": {
+    id: "2-2",
+    enemyKinds: ["circle", "square", "triangleRam", "diamond"],
+    firstWaveWeight: 25,
+    waveWeightIncrement: 16,
+    waveWeightIncrementGrowth: 2,
+    totalWaves: 20,
     wavesPerFlag: WAVES_PER_FLAG,
     startingChars: 300
   }

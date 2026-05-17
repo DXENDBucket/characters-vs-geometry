@@ -8,6 +8,7 @@ import {
   clampDifficulty,
   palette
 } from "../config";
+import { bossRank, isTetrahedronBossKind } from "../bosses/cubeBoss";
 import { getLevelConfig } from "../data/levels";
 import { toRomanNumeral } from "../format";
 import { DAMAGE_SYMBOLS, t } from "../i18n";
@@ -232,11 +233,11 @@ export class CardSelectScene extends Phaser.Scene {
   }
 
   private bossDisplayName(kind: BossKind) {
-    if (kind === "tetrahedron") {
-      return `${t("enemy.bossTetrahedron")} ${toRomanNumeral(1)}`;
+    if (isTetrahedronBossKind(kind)) {
+      return `${t("enemy.bossTetrahedron")} ${toRomanNumeral(bossRank(kind))}`;
     }
 
-    return `${t("enemy.bossCube")} ${toRomanNumeral(kind === "cube2" ? 2 : 1)}`;
+    return `${t("enemy.bossCube")} ${toRomanNumeral(bossRank(kind))}`;
   }
 
   private createSlots() {

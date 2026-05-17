@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { BOARD_HEIGHT, BOARD_WIDTH, BOARD_X, BOARD_Y, palette } from "../config";
+import { enemyFamily } from "../registry/enemies";
 import { damageEffectColor, damageEffectTextColor } from "../render/combatEffects";
 import type {
   DamageType,
@@ -67,8 +68,19 @@ export function createTowerProjectile(scene: Phaser.Scene, spec: TowerProjectile
 }
 
 export function createEnemyProjectile(scene: Phaser.Scene, enemy: Enemy, time: number): EnemyProjectile {
-  const body = scene.add.rectangle(enemy.x - 22, enemy.y, 18, 4, palette.enemyShot, 1).setDepth(91);
-  body.rotation = Math.PI;
+  const isDiamondShot = enemyFamily(enemy.kind) === "diamond";
+  const body = isDiamondShot
+    ? scene.add
+        .text(enemy.x - 22, enemy.y - 1, "*", {
+          color: "#ff6464",
+          fontFamily: "monospace",
+          fontSize: "22px",
+          fontStyle: "700"
+        })
+        .setOrigin(0.5)
+        .setDepth(91)
+    : scene.add.rectangle(enemy.x - 22, enemy.y, 18, 4, palette.enemyShot, 1).setDepth(91);
+  body.rotation = isDiamondShot ? 0 : Math.PI;
   return {
     x: enemy.x - 22,
     y: enemy.y,
@@ -96,14 +108,10 @@ export interface MortarProjectileSpec {
 }
 
 export function createMortarProjectile(scene: Phaser.Scene, spec: MortarProjectileSpec): MortarProjectile {
+  const projectileColor = spec.owner === "enemy" ? palette.enemyShot : damageEffectColor(spec.damageType);
   const body = scene.add
-    .text(spec.fromX, spec.fromY, "S", {
-      color: spec.owner === "enemy" ? "#ff6464" : damageEffectTextColor(spec.damageType),
-      fontFamily: "monospace",
-      fontSize: "24px",
-      fontStyle: "700"
-    })
-    .setOrigin(0.5)
+    .circle(spec.fromX, spec.fromY, 7, palette.black, 1)
+    .setStrokeStyle(2, projectileColor, 1)
     .setDepth(120);
 
   return {

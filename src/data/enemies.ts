@@ -102,22 +102,36 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     label: "1",
     hp: 1_500,
     armor: 70,
-    magicResistance: 40,
-    damage: 800,
-    damageType: "magic",
+    magicResistance: 0,
+    damage: 1_150,
+    damageType: "physical",
     speedMultiplier: 0.3,
-    weight: 90
+    weight: 90,
+    minFlag: 1
   },
   mortarTriangle2: {
     kind: "mortarTriangle2",
     label: "2",
     hp: 1_500,
     armor: 70,
-    magicResistance: 40,
-    damage: 800,
-    damageType: "magic",
+    magicResistance: 0,
+    damage: 1_150,
+    damageType: "physical",
     speedMultiplier: 0.3,
-    weight: 180
+    weight: 180,
+    minFlag: 1
+  },
+  diamond: {
+    kind: "diamond",
+    label: "1",
+    hp: 2_000,
+    armor: 70,
+    magicResistance: 40,
+    damage: 400,
+    damageType: "magic",
+    speedMultiplier: 0.4,
+    weight: 100,
+    minFlag: 1
   },
   invertedTriangle: {
     kind: "invertedTriangle",

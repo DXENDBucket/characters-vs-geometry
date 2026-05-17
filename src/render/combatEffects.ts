@@ -116,20 +116,38 @@ export function makeSpellMortarShot(
   });
 }
 
-export function makeSpellMortarImpact(scene: Phaser.Scene, x: number, y: number, rangeX: number, rangeY: number) {
+interface MortarImpactStyle {
+  color?: number;
+  marker?: "text" | "shell";
+  markerText?: string;
+  markerTextColor?: string;
+}
+
+export function makeSpellMortarImpact(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  rangeX: number,
+  rangeY: number,
+  style: MortarImpactStyle = {}
+) {
+  const color = style.color ?? palette.magic;
   const blast = scene.add
     .rectangle(x, y, rangeX * 2, rangeY * 2, palette.black, 0)
-    .setStrokeStyle(3, palette.magic, 0.92)
+    .setStrokeStyle(3, color, 0.92)
     .setDepth(112);
-  const marker = scene.add
-    .text(x, y - 1, "S", {
-      color: "#9fdcff",
-      fontFamily: "monospace",
-      fontSize: "26px",
-      fontStyle: "700"
-    })
-    .setOrigin(0.5)
-    .setDepth(113);
+  const marker =
+    style.marker === "shell"
+      ? scene.add.circle(x, y, 9, palette.black, 1).setStrokeStyle(3, color, 0.96).setDepth(113)
+      : scene.add
+          .text(x, y - 1, style.markerText ?? "S", {
+            color: style.markerTextColor ?? "#9fdcff",
+            fontFamily: "monospace",
+            fontSize: "26px",
+            fontStyle: "700"
+          })
+          .setOrigin(0.5)
+          .setDepth(113);
 
   scene.tweens.add({
     targets: blast,

@@ -2,6 +2,7 @@ import type Phaser from "phaser";
 
 export type CardId =
   | "A"
+  | "a"
   | "B"
   | "C"
   | "c"
@@ -13,8 +14,10 @@ export type CardId =
   | "M"
   | "W"
   | "F"
+  | "f"
   | "G"
   | "H"
+  | "h"
   | "I"
   | "Q"
   | "J"
@@ -38,6 +41,7 @@ export type EnemyKind =
   | "triangleRam3"
   | "mortarTriangle"
   | "mortarTriangle2"
+  | "diamond"
   | "invertedTriangle"
   | "invertedTriangle2"
   | "shootingTriangle"
@@ -45,7 +49,7 @@ export type EnemyKind =
   | "square"
   | "square2"
   | "square3";
-export type BossKind = "cube" | "cube2" | "tetrahedron";
+export type BossKind = "cube" | "cube2" | "tetrahedron" | "tetrahedron2";
 export type BossSkillName =
   | "promotion"
   | "advance"
@@ -87,6 +91,8 @@ export interface CardDefinition {
   triggerInterval?: number;
   triggerRangeX?: number;
   triggerRangeY?: number;
+  triggerDebuff?: StatusEffectName;
+  triggerDebuffDuration?: number;
   selfDamage?: number;
   selfDamageType?: DamageType;
   shiftCells?: number;
@@ -104,6 +110,7 @@ export interface CardDefinition {
 export interface StatusEffect {
   name: StatusEffectName;
   expiresAt: number;
+  speedMultiplier?: number;
 }
 
 export interface CardState {
@@ -195,7 +202,7 @@ export interface EnemyProjectile {
   damage: number;
   damageType: DamageType;
   sourceLane: number;
-  body: Phaser.GameObjects.Rectangle;
+  body: Phaser.GameObjects.Shape | Phaser.GameObjects.Text;
 }
 
 export interface MortarProjectile {
@@ -215,7 +222,7 @@ export interface MortarProjectile {
   sourceEnemy?: Enemy;
   targetEnemy?: Enemy;
   targetTower?: Tower;
-  body: Phaser.GameObjects.Text;
+  body: Phaser.GameObjects.Shape | Phaser.GameObjects.Text;
 }
 
 export interface EnemyDefinition {
@@ -228,6 +235,7 @@ export interface EnemyDefinition {
   damageType: DamageType;
   speedMultiplier?: number;
   weight: number;
+  minFlag?: number;
 }
 
 export interface WaveTracker {

@@ -42,7 +42,8 @@ export const BOSS_HITBOX_HEIGHT = CELL_HEIGHT * 2.95;
 export const CUBE_BOSS_STATS: Record<BossKind, { hp: number; armor: number; magicResistance: number; speed: number }> = {
   cube: { hp: 150_000, armor: 300, magicResistance: 20, speed: 0.6 },
   cube2: { hp: 200_000, armor: 600, magicResistance: 20, speed: 0.6 },
-  tetrahedron: { hp: 120_000, armor: 150, magicResistance: 20, speed: 1.2 }
+  tetrahedron: { hp: 120_000, armor: 150, magicResistance: 20, speed: 1.2 },
+  tetrahedron2: { hp: 120_000, armor: 150, magicResistance: 20, speed: 1.2 }
 };
 export const CUBE_BOSS_PROMOTION_SKILL_MAX = 90;
 export const CUBE_BOSS_PROMOTION_SKILL_COST = 30;
@@ -68,6 +69,9 @@ export const TETRAHEDRON_BOSS_HASTE_DURATION = 60_000;
 export const TETRAHEDRON_BOSS_HASTE_MULTIPLIER = 3;
 export const CLOCK_TOWER_SKILL_MAX = 20;
 export const CLOCK_TOWER_SKILL_DURATION = 10_000;
+export const GUARDIAN_TOWER_SKILL_MAX = 20;
+export const GUARDIAN_TOWER_SKILL_COST = 20;
+export const GUARDIAN_TOWER_HEAL_RATIO = 0.4;
 export const SPELL_MORTAR_SKILL_MAX = 30;
 export const SPELL_MORTAR_SKILL_COST = 30;
 export const SPELL_MORTAR_SHOT_COUNT = 3;

@@ -87,6 +87,7 @@ export const slashCardBehavior: CardBehavior = {
 
 export const cardBehaviorsById: Record<CardId, CardBehavior> = {
   A: projectileCardBehavior,
+  a: projectileCardBehavior,
   B: idleCardBehavior,
   C: projectileCardBehavior,
   c: idleCardBehavior,
@@ -98,8 +99,10 @@ export const cardBehaviorsById: Record<CardId, CardBehavior> = {
   M: projectileCardBehavior,
   W: projectileCardBehavior,
   F: idleCardBehavior,
+  f: idleCardBehavior,
   G: idleCardBehavior,
   H: healingCardBehavior,
+  h: idleCardBehavior,
   I: projectileCardBehavior,
   Q: projectileCardBehavior,
   J: projectileCardBehavior,
