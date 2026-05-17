@@ -29,11 +29,20 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
       fontStyle: "700"
     })
     .setOrigin(0.5);
+  const armorIcon = scene.add
+    .text(0, -54, "⬡", {
+      color: "#d8d8d8",
+      fontFamily: "monospace",
+      fontSize: "22px",
+      fontStyle: "700"
+    })
+    .setOrigin(0.5);
   const shape = createEnemyShape(scene, options.kind, { squareSize: 42, shootingNoseX: -24 });
 
   statusBorder.setVisible(false);
   powerIcon.setVisible(false);
-  body.add([statusBorder, shape, powerIcon]);
+  armorIcon.setVisible(false);
+  body.add([statusBorder, shape, powerIcon, armorIcon]);
 
   return {
     kind: options.kind,
@@ -53,9 +62,11 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
     finalDamageReduction: options.finalDamageReduction,
     attackInterval,
     attackAt: options.time + attackInterval,
+    skillSp: 0,
     statusEffects: [],
     statusBorder,
     powerIcon,
+    armorIcon,
     nextHasteTrailAt: options.time,
     body,
     shape

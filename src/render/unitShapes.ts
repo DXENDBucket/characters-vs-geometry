@@ -170,6 +170,30 @@ export function createEnemyShape(scene: Phaser.Scene, kind: EnemyKind, options: 
     return shape;
   }
 
+  if (family === "hexagon") {
+    const shape = scene.add.container(0, 0);
+    const hexagon = scene.add.graphics();
+    hexagon.fillStyle(palette.black, 1);
+    hexagon.lineStyle(2, palette.white, 1);
+    hexagon.beginPath();
+    for (let index = 0; index < 6; index += 1) {
+      const angle = Phaser.Math.DegToRad(30 + index * 60);
+      const x = Math.cos(angle) * 25;
+      const y = Math.sin(angle) * 25;
+      if (index === 0) {
+        hexagon.moveTo(x, y);
+      } else {
+        hexagon.lineTo(x, y);
+      }
+    }
+    hexagon.closePath();
+    hexagon.fillPath();
+    hexagon.strokePath();
+    const label = createEnemyLabel(scene, 0, -1, kind);
+    shape.add([hexagon, label]);
+    return shape;
+  }
+
   if (family === "invertedTriangle") {
     const shape = scene.add.container(0, 0);
     const triangle = scene.add.graphics();

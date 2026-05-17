@@ -8,6 +8,7 @@ export type EnemyFamily =
   | "triangleRam"
   | "mortarTriangle"
   | "diamond"
+  | "hexagon"
   | "invertedTriangle"
   | "shootingTriangle"
   | "square";
@@ -123,6 +124,13 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     rank: 1,
     nameKey: "enemy.diamond",
     attackMode: "ranged"
+  },
+  hexagon: {
+    definition: rawEnemyDefinitions.hexagon,
+    family: "hexagon",
+    rank: 1,
+    nameKey: "enemy.hexagon",
+    attackMode: "melee"
   },
   invertedTriangle: {
     definition: rawEnemyDefinitions.invertedTriangle,

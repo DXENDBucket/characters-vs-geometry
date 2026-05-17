@@ -22,6 +22,7 @@ import {
 } from "./enemyBehaviors";
 import { createEnemy } from "./enemyFactory";
 import { createEnemyProjectile, createMortarProjectile } from "./projectiles";
+import { syncHexArmorAuras, updateHexHealers } from "./enemySupport";
 import { movementSpeedMultiplier } from "./slowAura";
 import { hasStatusEffect, statusAttackMultiplier, statusSpeedMultiplier } from "./statusEffects";
 import { getBlockingTower } from "./targeting";
@@ -144,6 +145,9 @@ function triangleKindForRank(rank: number): EnemyKind {
 }
 
 export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, seconds: number) {
+  syncHexArmorAuras(runtime.enemies, time);
+  updateHexHealers(runtime.scene, runtime.enemies);
+
   for (const enemy of [...runtime.enemies]) {
     const statusMultiplier = statusSpeedMultiplier(enemy, time);
     if (hasStatusEffect(enemy, "haste", time) && time >= enemy.nextHasteTrailAt) {

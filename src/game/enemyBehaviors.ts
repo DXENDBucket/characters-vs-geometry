@@ -70,8 +70,18 @@ export function applyEnemyPromotion(scene: Phaser.Scene, enemy: Enemy, kind: Ene
     })
     .setOrigin(0.5);
   enemy.powerIcon.setVisible(false);
+  enemy.armorIcon = scene.add
+    .text(0, -54, "⬡", {
+      color: "#d8d8d8",
+      fontFamily: "monospace",
+      fontSize: "22px",
+      fontStyle: "700"
+    })
+    .setOrigin(0.5);
+  enemy.armorIcon.setVisible(false);
   enemy.shape = createEnemyShape(scene, kind, { squareSize: 42, shootingNoseX: -24 });
-  enemy.body.add([enemy.statusBorder, enemy.shape, enemy.powerIcon]);
+  enemy.skillSp = 0;
+  enemy.body.add([enemy.statusBorder, enemy.shape, enemy.powerIcon, enemy.armorIcon]);
   enemy.shape.setScale(enemyScaleFromHp(enemy.hp / enemy.maxHp));
 }
 

@@ -30,6 +30,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
   const mortarTriangle = getEnemyDefinition("mortarTriangle");
   const mortarTriangle2 = getEnemyDefinition("mortarTriangle2");
   const diamond = getEnemyDefinition("diamond");
+  const hexagon = getEnemyDefinition("hexagon");
   const invertedTriangle = getEnemyDefinition("invertedTriangle");
   const invertedTriangle2 = getEnemyDefinition("invertedTriangle2");
   const shootingTriangle = getEnemyDefinition("shootingTriangle");
@@ -186,6 +187,24 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
       description: zh
         ? "远程法术敌怪。发射红色 * 弹幕，命中塔时造成法术伤害。"
         : "Ranged magic enemy. Fires red * projectiles that deal magic damage to towers."
+    },
+    {
+      title: zh ? "六边形系列" : "Hexagon Series",
+      enemyKind: "hexagon",
+      lines: [
+        statLine([
+          [t("label.hp"), hexagon.hp],
+          [t("label.armor"), hexagon.armor],
+          [t("label.mr"), hexagon.magicResistance],
+          [t("label.atk"), damageText(hexagon.damage, hexagon.damageType)],
+          [t("label.speed"), speedText("hexagon")],
+          [t("label.weight"), hexagon.weight]
+        ]),
+        zh ? "半径 1.4 格装甲光环；每次受击 +1 技力，10 技力满后可治愈" : "1.4-cell Armor aura; gains +1 SP when hit, heals at 10 SP"
+      ],
+      description: zh
+        ? "支援型近战敌怪。自身和半径 1.4 格内敌怪获得装甲，每个六边形提供 +200 护甲，可加算叠加，显示 ⬡。治愈会治疗范围内生命百分比最低的缺血敌怪，治疗量为自身最大生命的 30%。外观是一条边朝向底线的六边形。"
+        : "Support melee enemy. It and enemies within 1.4 cells gain Armor: each Hexagon grants +200 armor, stacking additively and shown as ⬡. Heal restores the lowest-HP-percent damaged enemy in range for 30% of its own max HP. Its flat side faces the base."
     },
     {
       title: zh ? "正方体 Boss 系列" : "Cube Boss Series",

@@ -11,6 +11,7 @@ import type { CubeBoss, DamageType, Enemy, EnemyProjectile, MortarProjectile, Pr
 import { calculateDamage } from "./damage";
 import { enemyScaleFromHp } from "./enemyBehaviors";
 import { spawnSplitEnemies } from "./enemyRuntime";
+import { gainHexHealSkillOnHit, hexArmorBonus, updateHexHealers } from "./enemySupport";
 import { isPointInSlowAura } from "./slowAura";
 import { gridCellKey } from "./targeting";
 import { syncTowerHpBar } from "./towers";
@@ -101,7 +102,7 @@ export function damageEnemy(runtime: UnitLifecycleRuntime, enemy: Enemy, damage:
   }
 
   const actualDamage =
-    calculateDamage(damage, damageType, enemy.armor, enemy.magicResistance) *
+    calculateDamage(damage, damageType, enemy.armor + hexArmorBonus(runtime.enemies, enemy), enemy.magicResistance) *
     (1 - enemy.finalDamageReduction);
   enemy.hp -= actualDamage;
   const hpRatio = Phaser.Math.Clamp(enemy.hp / enemy.maxHp, 0, 1);
@@ -116,6 +117,9 @@ export function damageEnemy(runtime: UnitLifecycleRuntime, enemy: Enemy, damage:
     runtime.onEnemyDefeated();
     spawnSplitEnemies(runtime, enemy, runtime.battleTime, runtime.finalDamageReduction);
     removeEnemy(runtime, enemy, true);
+  } else {
+    gainHexHealSkillOnHit(enemy);
+    updateHexHealers(runtime.scene, runtime.enemies);
   }
 }
 

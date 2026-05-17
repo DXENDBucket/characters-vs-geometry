@@ -42,6 +42,7 @@ export type EnemyKind =
   | "mortarTriangle"
   | "mortarTriangle2"
   | "diamond"
+  | "hexagon"
   | "invertedTriangle"
   | "invertedTriangle2"
   | "shootingTriangle"
@@ -171,9 +172,11 @@ export interface Enemy {
   attackAt: number;
   blockedByTowerId?: string;
   blockedSince?: number;
+  skillSp: number;
   statusEffects: StatusEffect[];
   statusBorder: Phaser.GameObjects.Arc;
   powerIcon: Phaser.GameObjects.Text;
+  armorIcon: Phaser.GameObjects.Text;
   nextHasteTrailAt: number;
   body: Phaser.GameObjects.Container;
   shape: Phaser.GameObjects.GameObject & { setScale(scale: number): unknown };

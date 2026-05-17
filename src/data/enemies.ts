@@ -133,6 +133,17 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     weight: 100,
     minFlag: 1
   },
+  hexagon: {
+    kind: "hexagon",
+    label: "1",
+    hp: 18_000,
+    armor: 150,
+    magicResistance: 20,
+    damage: 400,
+    damageType: "physical",
+    speedMultiplier: 0.5,
+    weight: 160
+  },
   invertedTriangle: {
     kind: "invertedTriangle",
     label: "1",
