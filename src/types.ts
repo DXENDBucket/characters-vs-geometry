@@ -22,10 +22,13 @@ export type CardId =
   | "Q"
   | "J"
   | "K"
+  | "k"
   | "S"
   | "L"
+  | "l"
   | "N"
   | "T"
+  | "U"
   | "P"
   | "Y"
   | "Z";
@@ -42,6 +45,7 @@ export type EnemyKind =
   | "mortarTriangle"
   | "mortarTriangle2"
   | "diamond"
+  | "diamond2"
   | "hexagon"
   | "invertedTriangle"
   | "invertedTriangle2"
@@ -137,6 +141,7 @@ export interface Tower {
   fireRate: number;
   lastFire: number;
   level: number;
+  levelBonus: number;
   nextProduceAt: number;
   armedAt: number;
   skillSp: number;

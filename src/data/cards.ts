@@ -112,7 +112,7 @@ export const cardDefinitions: CardDefinition[] = [
   {
     id: "Y",
     category: "production",
-    cost: 75,
+    cost: 125,
     cooldown: 8_000,
     maxHp: 2_000,
     armor: 250,
@@ -188,6 +188,21 @@ export const cardDefinitions: CardDefinition[] = [
     triggerDebuff: "stasis",
     triggerDebuffDuration: 10_000,
     stats: "GLOBAL STASIS / 10s"
+  },
+  {
+    id: "l",
+    category: "function",
+    cost: 175,
+    cooldown: 30_000,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 40,
+    triggerDamage: 15_000,
+    triggerDamageType: "magic",
+    triggerCount: 1,
+    triggerRangeX: CELL_WIDTH * 0.75,
+    triggerRangeY: Number.POSITIVE_INFINITY,
+    stats: `15000${DAMAGE_SYMBOLS.magic} / COLUMN`
   },
   {
     id: "G",
@@ -283,6 +298,19 @@ export const cardDefinitions: CardDefinition[] = [
     stats: `1600${DAMAGE_SYMBOLS.physical} / R3`
   },
   {
+    id: "k",
+    category: "attack",
+    cost: 525,
+    cooldown: 10_000,
+    maxHp: 2_500,
+    armor: 300,
+    magicResistance: 40,
+    fireRate: 1_000,
+    damage: 320,
+    damageType: "magic",
+    stats: `320${DAMAGE_SYMBOLS.magic} / 2x3+1`
+  },
+  {
     id: "S",
     category: "attack",
     cost: 925,
@@ -348,6 +376,16 @@ export const cardDefinitions: CardDefinition[] = [
     selfDamage: 700,
     selfDamageType: "true",
     stats: `SLOW1/6 / 1s`
+  },
+  {
+    id: "U",
+    category: "function",
+    cost: 1_275,
+    cooldown: 50_000,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 40,
+    stats: "LEVEL AURA / 3x3"
   },
   {
     id: "P",

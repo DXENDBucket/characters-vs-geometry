@@ -71,8 +71,8 @@ export function applyEnemyPromotion(scene: Phaser.Scene, enemy: Enemy, kind: Ene
     .setOrigin(0.5);
   enemy.powerIcon.setVisible(false);
   enemy.armorIcon = scene.add
-    .text(0, -54, "⬡", {
-      color: "#d8d8d8",
+    .text(0, -38, "⬡", {
+      color: "#9fdcff",
       fontFamily: "monospace",
       fontSize: "22px",
       fontStyle: "700"

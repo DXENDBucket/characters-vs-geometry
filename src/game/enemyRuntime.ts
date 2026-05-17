@@ -146,7 +146,7 @@ function triangleKindForRank(rank: number): EnemyKind {
 
 export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, seconds: number) {
   syncHexArmorAuras(runtime.enemies, time);
-  updateHexHealers(runtime.scene, runtime.enemies);
+  updateHexHealers(runtime.scene, runtime.enemies, seconds);
 
   for (const enemy of [...runtime.enemies]) {
     const statusMultiplier = statusSpeedMultiplier(enemy, time);
@@ -174,7 +174,7 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
         continue;
       }
 
-      if (blocker.type === "F" || blocker.type === "f") {
+      if (blocker.type === "F" || blocker.type === "f" || blocker.type === "l") {
         runtime.triggerShockTower(blocker);
         continue;
       }

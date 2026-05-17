@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { BOSS_HITBOX_HEIGHT, BOSS_HITBOX_WIDTH, palette } from "../config";
+import { BOSS_HITBOX_HEIGHT, BOSS_HITBOX_WIDTH, CELL_HEIGHT, palette } from "../config";
 import { EFFECT_SYMBOLS } from "../i18n";
 import type { DamageType, Enemy, Tower } from "../types";
 
@@ -167,10 +167,17 @@ export function makeSpellMortarImpact(
   });
 }
 
-export function makeShockPulse(scene: Phaser.Scene, x: number, y: number, rangeX: number, rangeY: number) {
+export function makeShockPulse(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  rangeX: number,
+  rangeY: number,
+  damageType: DamageType = "physical"
+) {
   const pulse = scene.add
     .rectangle(x, y, rangeX * 2, rangeY * 2, palette.black, 0)
-    .setStrokeStyle(2, palette.white, 0.82)
+    .setStrokeStyle(2, damageEffectColor(damageType), 0.82)
     .setDepth(106);
 
   scene.tweens.add({
@@ -217,6 +224,34 @@ export function makeSlashEffect(scene: Phaser.Scene, x: number, y: number, damag
     duration: 145,
     ease: "Quad.easeOut",
     onComplete: () => slash.destroy()
+  });
+}
+
+export function makeArcWaveEffect(scene: Phaser.Scene, x: number, y: number, damageType: DamageType) {
+  const color = damageEffectColor(damageType);
+  const wave = scene.add.graphics().setPosition(x, y).setDepth(110);
+  const arcs = [
+    { x: -10, radius: CELL_HEIGHT * 0.9, angle: 1.38, width: 4, alpha: 0.95 },
+    { x: -34, radius: CELL_HEIGHT * 1.3, angle: 1.2, width: 3, alpha: 0.72 },
+    { x: -60, radius: CELL_HEIGHT * 1.72, angle: 1.04, width: 2, alpha: 0.52 }
+  ];
+
+  for (const arc of arcs) {
+    wave.lineStyle(arc.width, color, arc.alpha);
+    wave.beginPath();
+    wave.arc(arc.x, 0, arc.radius, -arc.angle, arc.angle, false);
+    wave.strokePath();
+  }
+
+  scene.tweens.add({
+    targets: wave,
+    x: x + 56,
+    scaleX: 1.26,
+    scaleY: 1.12,
+    alpha: 0,
+    duration: 220,
+    ease: "Quad.easeOut",
+    onComplete: () => wave.destroy()
   });
 }
 

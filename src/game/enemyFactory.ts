@@ -30,8 +30,8 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
     })
     .setOrigin(0.5);
   const armorIcon = scene.add
-    .text(0, -54, "⬡", {
-      color: "#d8d8d8",
+    .text(0, -38, "⬡", {
+      color: "#9fdcff",
       fontFamily: "monospace",
       fontSize: "22px",
       fontStyle: "700"

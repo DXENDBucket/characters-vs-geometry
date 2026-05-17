@@ -1,7 +1,7 @@
 import Phaser from "phaser";
-import { CELL_WIDTH } from "../config";
-import { makeHealParticles, makeShiftEffect, makeSlashEffect } from "../render/combatEffects";
-import type { CardDefinition, CardId, Tower } from "../types";
+import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, COLUMNS, LANES } from "../config";
+import { makeArcWaveEffect, makeHealParticles, makeShiftEffect, makeSlashEffect } from "../render/combatEffects";
+import type { CardDefinition, CardId, CubeBoss, Enemy, Tower } from "../types";
 import {
   getProjectilePattern,
   muzzleFaceOffsets,
@@ -20,7 +20,8 @@ import {
   getShiftTargets,
   hasAttackTarget
 } from "./targeting";
-import { syncTowerHpBar } from "./towers";
+import { effectiveTowerLevel, syncTowerHpBar } from "./towers";
+import { scaledByEffectiveUpgrades } from "./upgrades";
 
 export interface CardBehavior {
   canUse: (
@@ -85,6 +86,13 @@ export const slashCardBehavior: CardBehavior = {
   execute: fireSlash
 };
 
+export const arcWaveCardBehavior: CardBehavior = {
+  canUse: (tower, definition, time, runtime) => {
+    return cooldownReady(tower, time) && Boolean(definition.damage && hasArcWaveTarget(tower, runtime.enemies, runtime.boss));
+  },
+  execute: fireArcWave
+};
+
 export const cardBehaviorsById: Record<CardId, CardBehavior> = {
   A: projectileCardBehavior,
   a: projectileCardBehavior,
@@ -100,6 +108,7 @@ export const cardBehaviorsById: Record<CardId, CardBehavior> = {
   W: projectileCardBehavior,
   F: idleCardBehavior,
   f: idleCardBehavior,
+  l: idleCardBehavior,
   G: idleCardBehavior,
   H: healingCardBehavior,
   h: idleCardBehavior,
@@ -107,10 +116,12 @@ export const cardBehaviorsById: Record<CardId, CardBehavior> = {
   Q: projectileCardBehavior,
   J: projectileCardBehavior,
   K: slashCardBehavior,
+  k: arcWaveCardBehavior,
   S: idleCardBehavior,
   L: shiftCardBehavior,
   N: blockedPushCardBehavior,
   T: slowAuraCardBehavior,
+  U: idleCardBehavior,
   P: healingCardBehavior,
   Y: idleCardBehavior,
   Z: slashCardBehavior
@@ -199,6 +210,62 @@ function fireSlash(tower: Tower, definition: CardDefinition, runtime: CardBehavi
   makeSlashEffect(runtime.scene, x, y, damageType);
   runtime.damageBoss(damage, damageType);
   gainAttackProduction(definition, runtime, x, y);
+}
+
+function fireArcWave(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {
+  const damage = scaledByEffectiveUpgrades(definition.damage ?? 0, effectiveTowerLevel(tower));
+  const damageType = definition.damageType ?? "magic";
+  makeArcWaveEffect(runtime.scene, tower.x - CELL_WIDTH * 0.24, tower.y, damageType);
+
+  for (const enemy of arcWaveEnemyTargets(tower, runtime.enemies)) {
+    runtime.damageEnemy(enemy, damage, damageType);
+  }
+
+  if (arcWaveHitsBoss(tower, runtime.boss)) {
+    runtime.damageBoss(damage, damageType);
+  }
+}
+
+function hasArcWaveTarget(tower: Tower, enemies: Enemy[], boss: CubeBoss | null) {
+  return arcWaveEnemyTargets(tower, enemies).length > 0 || arcWaveHitsBoss(tower, boss);
+}
+
+function arcWaveEnemyTargets(tower: Tower, enemies: Enemy[]) {
+  const cells = arcWaveCells(tower);
+  return enemies.filter((enemy) => cells.some((cell) => cell.contains(enemy.x, enemy.y)));
+}
+
+function arcWaveHitsBoss(tower: Tower, boss: CubeBoss | null) {
+  if (!boss) {
+    return false;
+  }
+
+  const rect = bossRect(boss);
+  return arcWaveCells(tower).some((cell) => Phaser.Geom.Intersects.RectangleToRectangle(cell, rect));
+}
+
+function arcWaveCells(tower: Tower) {
+  const cells: Phaser.Geom.Rectangle[] = [];
+  for (const lane of [tower.lane - 1, tower.lane, tower.lane + 1]) {
+    for (const column of [tower.column, tower.column + 1]) {
+      addBoardCell(cells, lane, column);
+    }
+  }
+  addBoardCell(cells, tower.lane, tower.column + 2);
+  return cells;
+}
+
+function addBoardCell(cells: Phaser.Geom.Rectangle[], lane: number, column: number) {
+  if (lane < 0 || lane >= LANES || column < 0 || column >= COLUMNS) {
+    return;
+  }
+
+  cells.push(new Phaser.Geom.Rectangle(
+    BOARD_X + column * CELL_WIDTH,
+    BOARD_Y + lane * CELL_HEIGHT,
+    CELL_WIDTH,
+    CELL_HEIGHT
+  ));
 }
 
 function gainAttackProduction(definition: CardDefinition, runtime: CardBehaviorRuntime, x: number, y: number) {

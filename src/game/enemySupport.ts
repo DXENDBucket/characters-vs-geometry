@@ -7,8 +7,9 @@ import { enemyScaleFromHp } from "./enemyBehaviors";
 
 const HEX_ARMOR_RADIUS = CELL_WIDTH * 1.4;
 const HEX_ARMOR_BONUS = 200;
-const HEX_HEAL_SKILL_MAX = 10;
-const HEX_HEAL_SKILL_COST = 10;
+const HEX_HEAL_SKILL_MAX = 20;
+const HEX_HEAL_SKILL_COST = 20;
+const HEX_HEAL_SKILL_REGEN_PER_SECOND = 1;
 const HEX_HEAL_RATIO = 0.3;
 
 export function hexArmorBonus(enemies: Enemy[], target: Enemy) {
@@ -20,21 +21,16 @@ export function syncHexArmorAuras(enemies: Enemy[], time: number) {
     const stacks = hexArmorStacks(enemies, enemy);
     enemy.armorIcon.setVisible(stacks > 0);
     if (stacks > 0) {
-      enemy.armorIcon.setY(-54 + Math.sin(time / 110) * 2);
+      enemy.armorIcon.setY(-38 + Math.sin(time / 110) * 2);
     }
   }
 }
 
-export function gainHexHealSkillOnHit(enemy: Enemy) {
-  if (!isHexagon(enemy)) {
-    return;
-  }
-
-  enemy.skillSp = Math.min(HEX_HEAL_SKILL_MAX, enemy.skillSp + 1);
-}
-
-export function updateHexHealers(scene: Phaser.Scene, enemies: Enemy[]) {
+export function updateHexHealers(scene: Phaser.Scene, enemies: Enemy[], seconds: number) {
   for (const enemy of enemies) {
+    if (isHexagon(enemy)) {
+      enemy.skillSp = Math.min(HEX_HEAL_SKILL_MAX, enemy.skillSp + seconds * HEX_HEAL_SKILL_REGEN_PER_SECOND);
+    }
     tryUseHexHeal(scene, enemies, enemy);
   }
 }

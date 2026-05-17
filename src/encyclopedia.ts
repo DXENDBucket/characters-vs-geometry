@@ -30,6 +30,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
   const mortarTriangle = getEnemyDefinition("mortarTriangle");
   const mortarTriangle2 = getEnemyDefinition("mortarTriangle2");
   const diamond = getEnemyDefinition("diamond");
+  const diamond2 = getEnemyDefinition("diamond2");
   const hexagon = getEnemyDefinition("hexagon");
   const invertedTriangle = getEnemyDefinition("invertedTriangle");
   const invertedTriangle2 = getEnemyDefinition("invertedTriangle2");
@@ -182,6 +183,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.speed"), speedText("diamond")],
           [t("label.weight"), diamond.weight]
         ]),
+        zh ? `权重 I/II：${diamond.weight} / ${diamond2.weight}，连发 I/II：1 / 2` : `Weight I/II: ${diamond.weight} / ${diamond2.weight}, volley I/II: 1 / 2`,
         zh ? "第 1 旗前不会自然出现；攻击间隔 2s" : "Does not naturally appear before Flag 1; attack interval: 2s"
       ],
       description: zh
@@ -200,11 +202,11 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.speed"), speedText("hexagon")],
           [t("label.weight"), hexagon.weight]
         ]),
-        zh ? "半径 1.4 格装甲光环；每次受击 +1 技力，10 技力满后可治愈" : "1.4-cell Armor aura; gains +1 SP when hit, heals at 10 SP"
+        zh ? "半径 1.4 格装甲光环；每秒 +1 技力，20 技力满后可治愈" : "1.4-cell Armor aura; gains +1 SP/s, heals at 20 SP"
       ],
       description: zh
-        ? "支援型近战敌怪。自身和半径 1.4 格内敌怪获得装甲，每个六边形提供 +200 护甲，可加算叠加，显示 ⬡。治愈会治疗范围内生命百分比最低的缺血敌怪，治疗量为自身最大生命的 30%。外观是一条边朝向底线的六边形。"
-        : "Support melee enemy. It and enemies within 1.4 cells gain Armor: each Hexagon grants +200 armor, stacking additively and shown as ⬡. Heal restores the lowest-HP-percent damaged enemy in range for 30% of its own max HP. Its flat side faces the base."
+        ? "支援型近战敌怪。自身和半径 1.4 格内敌怪获得装甲，每个六边形提供 +200 护甲，可加算叠加，显示 ⬡。治愈每秒回复 1 技力，上限 20，满技力且范围内有可治疗目标时消耗 20 技力，治疗范围内生命百分比最低的缺血敌怪，治疗量为自身最大生命的 30%。外观是一条边朝向底线的六边形。"
+        : "Support melee enemy. It and enemies within 1.4 cells gain Armor: each Hexagon grants +200 armor, stacking additively and shown as ⬡. Heal gains 1 SP/s up to 20; at full SP, if a healing target exists, it consumes 20 SP and restores the lowest-HP-percent damaged enemy in range for 30% of its own max HP. Its flat side faces the base."
     },
     {
       title: zh ? "正方体 Boss 系列" : "Cube Boss Series",
@@ -314,6 +316,7 @@ function towerDescription(id: CardId) {
     W: zh ? "上向三连物理射手。攻击方向朝上，出弹点保持在列中心。" : "Upward triple physical shooter. Fires upward from the column center.",
     F: zh ? "触发器。阻挡敌怪时立刻消失，并在 4x4 范围内连续释放冲击波。" : "Trigger. Disappears on blocking and releases rapid shockwaves in a 4x4 area.",
     f: zh ? "全场凝滞触发器。机制和 F 类似，触发时消失，不造成伤害，而是让全场普通敌怪获得凝滞。" : "Global Stasis trigger. Similar trigger rules to F; disappears on trigger and deals no damage, applying Stasis to all ordinary enemies on the field.",
+    l: zh ? "列式法术触发器。机制和 F 类似，可被点击主动引爆；触发时消失，对整列横向 0.75 格范围造成一次法术伤害。" : "Column magic trigger. Similar to F and can be clicked to detonate manually; disappears on trigger and deals one magic hit to a full-column area with 0.75-cell horizontal range.",
     G: zh ? "延迟触发器。放置 15 秒后准备完成，接触敌怪时消失并造成高额法术伤害。" : "Delayed trigger. Arms after 15s, then disappears on contact to deal heavy magic damage.",
     H: zh ? "治疗塔。治疗自身列和前方一列、以自己为中心三行内生命百分比最低的一座塔。" : "Healer. Heals the lowest-HP-percent tower in a 2x3 area covering its column and the front column.",
     h: zh ? "守护者。每秒回复 1 技力，20 技力满后若自己或 3x3 范围内有缺血塔，会自动消耗 20 技力治疗自己，并治疗范围内生命百分比最低的一座缺血塔。" : "Guardian. Gains 1 SP/s up to 20; when full, if itself or a tower in its 3x3 area is damaged, it spends 20 SP to heal itself and the lowest-HP-percent damaged tower in that area.",
@@ -322,17 +325,22 @@ function towerDescription(id: CardId) {
     Q: zh ? "整行控制射手。沿本行发射 $ 法术弹幕；命中普通敌怪后施加 1 秒凝滞，使其移动速度变为三分之一。Boss 不会受到凝滞影响。" : "Full-lane control shooter. Fires $ magic projectiles along its lane; hits apply 1s Stasis to ordinary enemies, reducing movement speed to one third. Bosses ignore Stasis.",
     J: zh ? "短程法术溅射。范围和 I 一致，发射 # 弹幕并造成 1.75 格半径范围法术伤害。" : "Short-range magic splash attacker. Same range as I, firing # projectiles with 1.75-cell radius splash.",
     K: zh ? "近程斩击塔。攻击自身一格和前方两格内的单体目标，释放十字斩特效。" : "Close-range slasher. Hits one target within itself plus two tiles ahead, with a cross slash.",
+    k: zh ? "近程推波塔。攻击自身列和前方一列的上下三行，并额外覆盖本行更前方一格；每秒释放弧形推波，对范围内所有敌怪造成法术伤害。" : "Close-range wave attacker. Covers a 2x3 area over its column and the next column plus one extra forward cell in its lane; every second releases an arc wave that deals magic damage to all enemies in range.",
     S: zh ? "主动术法迫击塔。30 技力满后显示边框；点击进入瞄准，指定任意落点后连射三发 S 形抛物线迫击弹，每发造成 3x3 范围法术伤害。右键或点击其他 UI 可取消瞄准。" : "Active spell mortar. At 30 SP, shows its border; click to aim, then choose any target point to fire three arcing S shells, each dealing 3x3 magic AOE damage. Right-click or clicking other UI cancels aiming.",
     Z: zh ? `生产型斩击塔。范围和 K 一致；每次斩击命中时产生 ${EFFECT_SYMBOLS.chars}15。` : `Production slasher. Same range as K; each slash hit generates ${EFFECT_SYMBOLS.chars}15.`,
     L: zh ? "牵引塔。抓取上下两行指定格子的所有敌怪平移到本行，每抓一个自损 400 真实伤害。" : "Shifter. Pulls all enemies from target tiles in adjacent lanes into its lane, taking 400 true self-damage per target.",
     N: zh ? "防御推移塔。每秒把自己正在阻挡的所有敌怪向左推移 4 格，每推一个自损 400 真实伤害。敌方弹幕命中它时会被推移且不会造成伤害；锁定 N 的迫击弹会被改写落点。" : "Defender-shifter. Every second, pushes all enemies it is blocking 4 cells left, taking 400 true self-damage per pushed enemy. Enemy projectiles that would hit it are shifted too and do not damage N; locked mortars targeting N have their landing point rewritten.",
-    T: zh ? "迟滞塔。每秒自损 700 真实伤害；以自身为中心 5x5 去角范围内的普通单位和弹幕移动速度降为六分之一，并显示深紫色时间范围框。Boss 不受减速影响。死亡时清除范围内弹幕；被橡皮擦移除不会触发亡语。" : "Slow field tower. Takes 700 true self-damage every second; ordinary units and projectiles in its centered 5x5 no-corner area move at one sixth speed, shown with a deep-purple time range border. Bosses ignore the slow. On death, clears projectiles in that area; erasing it does not trigger the death effect."
+    T: zh ? "迟滞塔。每秒自损 700 真实伤害；以自身为中心 5x5 去角范围内的普通单位和弹幕移动速度降为六分之一，并显示深紫色时间范围框。Boss 不受减速影响。死亡时清除范围内弹幕；被橡皮擦移除不会触发亡语。" : "Slow field tower. Takes 700 true self-damage every second; ordinary units and projectiles in its centered 5x5 no-corner area move at one sixth speed, shown with a deep-purple time range border. Bosses ignore the slow. On death, clears projectiles in that area; erasing it does not trigger the death effect.",
+    U: zh ? "等级光环塔。为自身 3x3 范围内除自己外、基础费用低于 U 的塔提供等同于自身真实等级的额外等级加成；多个 U 可加算。" : "Level aura tower. Grants towers in its centered 3x3 area, excluding itself, bonus levels equal to U's real level. It only affects towers with a lower base cost than U, and multiple U auras stack additively."
   };
   return descriptions[id];
 }
 
 function towerUpgradeText(id: CardId) {
   const zh = isZh();
+  if (id === "U") {
+    return zh ? "每级提高自身等级，因此光环提供的额外等级也会提高。" : "Each level raises U's own level, increasing the bonus levels its aura grants.";
+  }
   if (id === "A" || id === "a" || id === "C" || id === "E" || id === "M" || id === "W" || id === "I" || id === "Q" || id === "J" || id === "H" || id === "P" || id === "K" || id === "Z") {
     return zh ? "增加连发次数；整段连射固定占攻击/治疗间隔的五分之一。" : "Adds burst count; the whole volley always takes one fifth of the attack/heal interval.";
   }
@@ -350,6 +358,12 @@ function towerUpgradeText(id: CardId) {
   }
   if (id === "f") {
     return zh ? "每级凝滞持续时间增加基础值的 80%。" : "Each level adds 80% of base Stasis duration.";
+  }
+  if (id === "l") {
+    return zh ? "每级伤害增加基础值的 80%。" : "Each level adds 80% of base damage.";
+  }
+  if (id === "k") {
+    return zh ? "每级攻击力增加基础值的 80%。" : "Each level adds 80% of base attack.";
   }
   if (id === "G") {
     return zh ? "每级伤害增加基础值的 80%，并重置准备倒计时。" : "Each level adds 80% of base damage and resets arming.";

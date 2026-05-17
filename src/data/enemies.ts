@@ -133,6 +133,18 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     weight: 100,
     minFlag: 1
   },
+  diamond2: {
+    kind: "diamond2",
+    label: "2",
+    hp: 2_000,
+    armor: 70,
+    magicResistance: 40,
+    damage: 400,
+    damageType: "magic",
+    speedMultiplier: 0.4,
+    weight: 200,
+    minFlag: 1
+  },
   hexagon: {
     kind: "hexagon",
     label: "1",

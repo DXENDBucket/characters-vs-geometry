@@ -100,7 +100,7 @@ function triggerFunctionalTowersTouchingBoss(runtime: BossRuntime, boss: CubeBos
       continue;
     }
 
-    if (tower.type === "F" || tower.type === "f") {
+    if (tower.type === "F" || tower.type === "f" || tower.type === "l") {
       runtime.triggerShockTower(tower);
     }
   }

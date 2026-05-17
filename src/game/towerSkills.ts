@@ -17,7 +17,7 @@ import {
 import { makeHealParticles, makeSpellMortarImpact, makeSpellMortarShot } from "../render/combatEffects";
 import type { CardDefinition, CardId, CubeBoss, DamageType, Enemy, Tower } from "../types";
 import { isBossInRect } from "./targeting";
-import { getSpellMortarDamage, syncTowerHpBar } from "./towers";
+import { effectiveTowerLevel, getSpellMortarDamage, syncTowerHpBar } from "./towers";
 
 export interface TowerSkillRuntime {
   towers: Tower[];
@@ -57,7 +57,7 @@ export class TowerSkillController {
     const runtime = this.runtime();
     const activeClockLevelSum = runtime.towers
       .filter((tower) => tower.type === "c" && runtime.battleTime < tower.skillActiveUntil)
-      .reduce((sum, tower) => sum + tower.level, 0);
+      .reduce((sum, tower) => sum + effectiveTowerLevel(tower), 0);
     return activeClockLevelSum + 1;
   }
 

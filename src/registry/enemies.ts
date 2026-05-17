@@ -123,6 +123,14 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     family: "diamond",
     rank: 1,
     nameKey: "enemy.diamond",
+    attackMode: "ranged",
+    promotionKind: "diamond2"
+  },
+  diamond2: {
+    definition: rawEnemyDefinitions.diamond2,
+    family: "diamond",
+    rank: 2,
+    nameKey: "enemy.diamond2",
     attackMode: "ranged"
   },
   hexagon: {

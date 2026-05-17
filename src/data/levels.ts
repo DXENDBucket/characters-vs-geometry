@@ -1,6 +1,8 @@
 import { CUBE_BOSS_WAVE_CAP, TOTAL_WAVES, WAVES_PER_FLAG } from "../config";
 import type { LevelConfig, LevelNode } from "../types";
 
+const CHAPTER_TWO_STARTING_CHARS = 350;
+
 export const levelNodes: LevelNode[] = [
   { id: "0-1", x: 230, y: 405, unlocked: true },
   { id: "0-2", x: 450, y: 310, unlocked: true },
@@ -23,7 +25,9 @@ export const levelNodes: LevelNode[] = [
   { id: "1-9", x: 2310, y: 430, unlocked: true },
   { id: "1-10", x: 2610, y: 300, unlocked: true },
   { id: "2-1", x: 230, y: 405, unlocked: true },
-  { id: "2-2", x: 450, y: 310, unlocked: true }
+  { id: "2-2", x: 450, y: 310, unlocked: true },
+  { id: "2-3", x: 670, y: 430, unlocked: true },
+  { id: "2-4", x: 890, y: 330, unlocked: true }
 ];
 
 export const levelConfigs: Record<string, LevelConfig> = {
@@ -248,7 +252,7 @@ export const levelConfigs: Record<string, LevelConfig> = {
     waveWeightIncrementGrowth: 2,
     totalWaves: 10,
     wavesPerFlag: WAVES_PER_FLAG,
-    startingChars: 300
+    startingChars: CHAPTER_TWO_STARTING_CHARS
   },
   "2-2": {
     id: "2-2",
@@ -258,7 +262,27 @@ export const levelConfigs: Record<string, LevelConfig> = {
     waveWeightIncrementGrowth: 2,
     totalWaves: 20,
     wavesPerFlag: WAVES_PER_FLAG,
-    startingChars: 300
+    startingChars: CHAPTER_TWO_STARTING_CHARS
+  },
+  "2-3": {
+    id: "2-3",
+    enemyKinds: ["circle", "square", "triangle3", "hexagon", "diamond"],
+    firstWaveWeight: 25,
+    waveWeightIncrement: 16,
+    waveWeightIncrementGrowth: 2,
+    totalWaves: 20,
+    wavesPerFlag: WAVES_PER_FLAG,
+    startingChars: CHAPTER_TWO_STARTING_CHARS
+  },
+  "2-4": {
+    id: "2-4",
+    enemyKinds: ["circle", "circle3", "triangleRam3", "hexagon", "diamond", "diamond2"],
+    firstWaveWeight: 25,
+    waveWeightIncrement: 16,
+    waveWeightIncrementGrowth: 2,
+    totalWaves: 30,
+    wavesPerFlag: WAVES_PER_FLAG,
+    startingChars: CHAPTER_TWO_STARTING_CHARS
   }
 };
 

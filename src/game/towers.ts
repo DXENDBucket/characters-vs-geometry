@@ -3,6 +3,7 @@ import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, palette } from "../config";
 import { createUnitBorder } from "../render/unitShapes";
 import type { CardDefinition, CardId, CardState, Tower } from "../types";
 import {
+  effectiveUpgradeCountForLevel,
   effectiveUpgradeDelta,
   isMaxHpUpgradeable,
   maxHpGainForEffectiveUpgrades,
@@ -62,6 +63,7 @@ export function createTower(
     fireRate: definition.fireRate ?? Number.POSITIVE_INFINITY,
     lastFire: -Number.POSITIVE_INFINITY,
     level: 1,
+    levelBonus: 0,
     nextProduceAt: definition.produceEvery ? battleTime + definition.produceEvery : Number.POSITIVE_INFINITY,
     armedAt: definition.armTime ? battleTime + definition.armTime : 0,
     skillSp: 0,
@@ -81,7 +83,7 @@ export function createTower(
 export function upgradeTowerLevel(tower: Tower) {
   const previousLevel = tower.level;
   tower.level += 1;
-  tower.levelText.setText(`${tower.level}`);
+  syncTowerLevelText(tower);
   tower.levelText.setAlpha(1);
   return effectiveUpgradeDelta(previousLevel, tower.level);
 }
@@ -92,44 +94,76 @@ export function applyTowerUpgradeStats(
   gainedEffectiveUpgrades: number,
   battleTime: number
 ) {
-  if (isMaxHpUpgradeable(tower.type) && gainedEffectiveUpgrades > 0) {
-    const hpGain = maxHpGainForEffectiveUpgrades(tower.baseMaxHp, gainedEffectiveUpgrades);
-    tower.maxHp += hpGain;
-    tower.hp = Math.min(tower.maxHp, tower.hp + hpGain);
-    syncTowerHpBar(tower);
-  }
+  syncTowerDerivedStats(tower, gainedEffectiveUpgrades > 0);
 
   if (tower.type === "G") {
     resetTrapArming(tower, definition, battleTime);
   }
 }
 
+export function syncTowerDerivedStats(tower: Tower, healMaxHpIncrease = false) {
+  if (!isMaxHpUpgradeable(tower.type)) {
+    return;
+  }
+
+  const previousMaxHp = tower.maxHp;
+  const effectiveUpgrades = effectiveUpgradeCountForLevel(effectiveTowerLevel(tower));
+  tower.maxHp = tower.baseMaxHp + maxHpGainForEffectiveUpgrades(tower.baseMaxHp, effectiveUpgrades);
+  if (healMaxHpIncrease && tower.maxHp > previousMaxHp) {
+    tower.hp = Math.min(tower.maxHp, tower.hp + tower.maxHp - previousMaxHp);
+  } else {
+    tower.hp = Math.min(tower.hp, tower.maxHp);
+  }
+  syncTowerHpBar(tower);
+}
+
 export function syncTowerHpBar(tower: Tower) {
   tower.hpFill.width = 42 * Phaser.Math.Clamp(tower.hp / tower.maxHp, 0, 1);
 }
 
+export function effectiveTowerLevel(tower: Tower) {
+  return Math.max(1, tower.level + tower.levelBonus);
+}
+
+export function syncTowerLevelText(tower: Tower) {
+  if (tower.levelBonus > 0) {
+    tower.levelText.setText(`${tower.level}+${tower.levelBonus}`);
+    tower.levelText.setFontSize(10);
+    tower.levelText.setColor("#9fdcff");
+    return;
+  }
+
+  tower.levelText.setText(`${tower.level}`);
+  tower.levelText.setFontSize(12);
+  tower.levelText.setColor("#8c8c8c");
+}
+
 export function getProductionAmount(tower: Tower, definition: CardDefinition) {
-  return scaledByEffectiveUpgrades(definition.produceAmount ?? 0, tower.level);
+  return scaledByEffectiveUpgrades(definition.produceAmount ?? 0, effectiveTowerLevel(tower));
 }
 
 export function getHitProductionAmount(tower: Tower, definition: CardDefinition) {
-  return scaledByEffectiveUpgrades(definition.hitProduceAmount ?? 0, tower.level);
+  return scaledByEffectiveUpgrades(definition.hitProduceAmount ?? 0, effectiveTowerLevel(tower));
 }
 
 export function getShockCount(tower: Tower, definition: CardDefinition) {
-  return scaledByEffectiveUpgrades(definition.triggerCount ?? 10, tower.level);
+  if (tower.type === "l") {
+    return 1;
+  }
+
+  return scaledByEffectiveUpgrades(definition.triggerCount ?? 10, effectiveTowerLevel(tower));
 }
 
 export function getTriggerDebuffDuration(tower: Tower, definition: CardDefinition) {
-  return scaledByEffectiveUpgrades(definition.triggerDebuffDuration ?? 0, tower.level);
+  return scaledByEffectiveUpgrades(definition.triggerDebuffDuration ?? 0, effectiveTowerLevel(tower));
 }
 
 export function getTrapDamage(tower: Tower, definition: CardDefinition) {
-  return scaledByEffectiveUpgrades(definition.triggerDamage ?? 1_500, tower.level);
+  return scaledByEffectiveUpgrades(definition.triggerDamage ?? 1_500, effectiveTowerLevel(tower));
 }
 
 export function getSpellMortarDamage(tower: Tower, definition: CardDefinition) {
-  return scaledByEffectiveUpgrades(definition.damage ?? 8_000, tower.level);
+  return scaledByEffectiveUpgrades(definition.damage ?? 8_000, effectiveTowerLevel(tower));
 }
 
 export function isTrapArmed(tower: Tower, time: number) {

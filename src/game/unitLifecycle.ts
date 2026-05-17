@@ -11,7 +11,7 @@ import type { CubeBoss, DamageType, Enemy, EnemyProjectile, MortarProjectile, Pr
 import { calculateDamage } from "./damage";
 import { enemyScaleFromHp } from "./enemyBehaviors";
 import { spawnSplitEnemies } from "./enemyRuntime";
-import { gainHexHealSkillOnHit, hexArmorBonus, updateHexHealers } from "./enemySupport";
+import { hexArmorBonus } from "./enemySupport";
 import { isPointInSlowAura } from "./slowAura";
 import { gridCellKey } from "./targeting";
 import { syncTowerHpBar } from "./towers";
@@ -117,9 +117,6 @@ export function damageEnemy(runtime: UnitLifecycleRuntime, enemy: Enemy, damage:
     runtime.onEnemyDefeated();
     spawnSplitEnemies(runtime, enemy, runtime.battleTime, runtime.finalDamageReduction);
     removeEnemy(runtime, enemy, true);
-  } else {
-    gainHexHealSkillOnHit(enemy);
-    updateHexHealers(runtime.scene, runtime.enemies);
   }
 }
 
