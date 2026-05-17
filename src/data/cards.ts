@@ -183,11 +183,11 @@ export const cardDefinitions: CardDefinition[] = [
     maxHp: 1_200,
     armor: 150,
     magicResistance: 0,
-    triggerRangeX: CELL_WIDTH * 2.5,
-    triggerRangeY: CELL_HEIGHT * 2.5,
+    triggerRangeX: Number.POSITIVE_INFINITY,
+    triggerRangeY: Number.POSITIVE_INFINITY,
     triggerDebuff: "stasis",
     triggerDebuffDuration: 10_000,
-    stats: "STASIS / 10s"
+    stats: "GLOBAL STASIS / 10s"
   },
   {
     id: "G",

@@ -313,7 +313,7 @@ function towerDescription(id: CardId) {
     M: zh ? "下向三连物理射手。攻击方向朝下，出弹点保持在列中心。" : "Downward triple physical shooter. Fires downward from the column center.",
     W: zh ? "上向三连物理射手。攻击方向朝上，出弹点保持在列中心。" : "Upward triple physical shooter. Fires upward from the column center.",
     F: zh ? "触发器。阻挡敌怪时立刻消失，并在 4x4 范围内连续释放冲击波。" : "Trigger. Disappears on blocking and releases rapid shockwaves in a 4x4 area.",
-    f: zh ? "凝滞触发器。机制和 F 类似，触发时消失，不造成伤害，而是让 5x5 范围内普通敌怪获得凝滞。" : "Stasis trigger. Similar trigger rules to F; disappears on trigger and deals no damage, applying Stasis to ordinary enemies in a 5x5 area.",
+    f: zh ? "全场凝滞触发器。机制和 F 类似，触发时消失，不造成伤害，而是让全场普通敌怪获得凝滞。" : "Global Stasis trigger. Similar trigger rules to F; disappears on trigger and deals no damage, applying Stasis to all ordinary enemies on the field.",
     G: zh ? "延迟触发器。放置 15 秒后准备完成，接触敌怪时消失并造成高额法术伤害。" : "Delayed trigger. Arms after 15s, then disappears on contact to deal heavy magic damage.",
     H: zh ? "治疗塔。治疗自身列和前方一列、以自己为中心三行内生命百分比最低的一座塔。" : "Healer. Heals the lowest-HP-percent tower in a 2x3 area covering its column and the front column.",
     h: zh ? "守护者。每秒回复 1 技力，20 技力满后若自己或 3x3 范围内有缺血塔，会自动消耗 20 技力治疗自己，并治疗范围内生命百分比最低的一座缺血塔。" : "Guardian. Gains 1 SP/s up to 20; when full, if itself or a tower in its 3x3 area is damaged, it spends 20 SP to heal itself and the lowest-HP-percent damaged tower in that area.",

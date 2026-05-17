@@ -94,7 +94,7 @@ Tetrahedron skills:
 | M | Attack | Diamond | 75 | 2s | 1200 | 150 | 0 | Fires 3 bolts downward at `80/90/100` degrees, `400◆` each, every `2s`; all shots start from the cell center | +1 volley per level |
 | W | Attack | Diamond | 75 | 2s | 1200 | 150 | 0 | Fires 3 bolts upward at `-100/-90/-80` degrees, `400◆` each, every `2s`; all shots start from the cell center | +1 volley per level |
 | F | Function | Triangle | 125 | 30s | 1200 | 150 | 0 | On enemy or Boss contact, disappears and emits `10` shockwaves; each deals `1400◆` in a `4x4` area | +`8` shockwaves per level |
-| f | Function | Triangle | 125 | 30s | 1200 | 150 | 0 | On enemy or Boss contact, disappears, deals no damage, and applies `10s` Stasis to enemies in a `5x5` area | +`8s` Stasis duration per level |
+| f | Function | Triangle | 125 | 30s | 1200 | 150 | 0 | On enemy or Boss contact, disappears, deals no damage, and applies `10s` Stasis to all enemies on the field | +`8s` Stasis duration per level |
 | G | Function | Triangle | 25 | 30s | 1200 | 150 | 0 | Arms after `15s`; on enemy or Boss contact, disappears and deals `15000✦` | +`12000✦` per level; resets arming |
 | H | Healing | Hexagon | 150 | 20s | 1200 | 150 | 0 | Heals the lowest HP% damaged ally in a `2x3` area covering its column and the front column for `700`, every `2s`, shown as `♡`; ties prefer earlier placement | +1 healing volley per level |
 | h | Defense | Square | 175 | 20s | 3000 | 550 | 0 | Guardian: gains `1` SP/s, max `20`; when full, waits until itself or a tower in its centered `3x3` area is damaged, then spends `20` SP to heal itself and the lowest HP% damaged tower in that area for `40%` of h's max HP | +`2400` max/current HP per level |
