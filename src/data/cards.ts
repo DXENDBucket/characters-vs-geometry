@@ -241,17 +241,17 @@ export const cardDefinitions: CardDefinition[] = [
   {
     id: "Q",
     category: "attack",
-    cost: 225,
+    cost: 175,
     cooldown: 4_000,
     maxHp: 1_200,
     armor: 150,
     magicResistance: 20,
     fireRate: 2_000,
-    damage: 300,
+    damage: 400,
     damageType: "magic",
     projectileDebuff: "stasis",
     projectileDebuffDuration: 1_000,
-    stats: `300${DAMAGE_SYMBOLS.magic} / LINE / STASIS`
+    stats: `400${DAMAGE_SYMBOLS.magic} / LINE / STASIS`
   },
   {
     id: "J",

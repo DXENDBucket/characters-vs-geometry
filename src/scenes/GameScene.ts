@@ -1024,6 +1024,16 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    if (key === "1") {
+      this.toggleEraser();
+      return;
+    }
+
+    if (key === "2") {
+      this.toggleAutoUpgradeMode();
+      return;
+    }
+
     const upperKey = key.toUpperCase();
     const slotIndex = Number.parseInt(upperKey, 10) - 1;
     if (slotIndex >= 0 && slotIndex < this.selectedCardIds.length) {
