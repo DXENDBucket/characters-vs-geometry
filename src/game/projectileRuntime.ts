@@ -3,6 +3,7 @@ import { CELL_WIDTH, palette } from "../config";
 import { getCardDefinition } from "../registry/cards";
 import {
   damageEffectColor,
+  damageEffectTextColor,
   makeEnemyHitShards,
   makeHitShards,
   makeReflectFlash,
@@ -202,7 +203,9 @@ function positionMortarProjectile(projectile: MortarProjectile) {
 function detonateEnemyMortar(runtime: ProjectileRuntime, projectile: MortarProjectile) {
   makeSpellMortarImpact(runtime.scene, projectile.targetX, projectile.targetY, projectile.rangeX, projectile.rangeY, {
     color: palette.enemyShot,
-    marker: "shell"
+    marker: projectile.marker ?? "shell",
+    markerText: projectile.markerText,
+    markerTextColor: projectile.markerTextColor
   });
   const hitTowers = runtime.towers.filter((tower) => {
     return Math.abs(tower.x - projectile.targetX) <= projectile.rangeX && Math.abs(tower.y - projectile.targetY) <= projectile.rangeY;
@@ -229,6 +232,9 @@ function detonateEnemyMortar(runtime: ProjectileRuntime, projectile: MortarProje
         damageType: projectile.damageType,
         rangeX: projectile.rangeX,
         rangeY: projectile.rangeY,
+        marker: projectile.marker,
+        markerText: projectile.markerText,
+        markerTextColor: projectile.marker === "text" ? damageEffectTextColor(projectile.damageType) : undefined,
         targetEnemy: projectile.sourceEnemy
       })
     );
@@ -239,7 +245,9 @@ function detonateEnemyMortar(runtime: ProjectileRuntime, projectile: MortarProje
 function detonateTowerMortar(runtime: ProjectileRuntime, projectile: MortarProjectile) {
   makeSpellMortarImpact(runtime.scene, projectile.targetX, projectile.targetY, projectile.rangeX, projectile.rangeY, {
     color: damageEffectColor(projectile.damageType),
-    marker: "shell"
+    marker: projectile.marker ?? "shell",
+    markerText: projectile.markerText,
+    markerTextColor: projectile.marker === "text" ? damageEffectTextColor(projectile.damageType) : undefined
   });
   for (const enemy of [...runtime.enemies]) {
     if (Math.abs(enemy.x - projectile.targetX) <= projectile.rangeX && Math.abs(enemy.y - projectile.targetY) <= projectile.rangeY) {

@@ -30,11 +30,54 @@ import { bossRect } from "../game/targeting";
 import type { BossKind, BossSkill, CubeBoss } from "../types";
 
 const CUBE_DRAW_SIZE = 59;
+const DODECAHEDRON_DRAW_SIZE = 47;
+const PHI = (1 + Math.sqrt(5)) / 2;
+const INV_PHI = 1 / PHI;
 const TETRAHEDRON_INITIAL_ROTATION_SPEED = {
   x: 0.56,
   y: -0.42,
   z: 0.36
 };
+
+export const DODECAHEDRON_UNIT_VERTICES = [
+  [-1, -1, -1],
+  [-1, -1, 1],
+  [-1, 1, -1],
+  [-1, 1, 1],
+  [1, -1, -1],
+  [1, -1, 1],
+  [1, 1, -1],
+  [1, 1, 1],
+  [0, -INV_PHI, -PHI],
+  [0, -INV_PHI, PHI],
+  [0, INV_PHI, -PHI],
+  [0, INV_PHI, PHI],
+  [-INV_PHI, -PHI, 0],
+  [-INV_PHI, PHI, 0],
+  [INV_PHI, -PHI, 0],
+  [INV_PHI, PHI, 0],
+  [-PHI, 0, -INV_PHI],
+  [-PHI, 0, INV_PHI],
+  [PHI, 0, -INV_PHI],
+  [PHI, 0, INV_PHI]
+] as const;
+
+export const DODECAHEDRON_EDGES = buildDodecahedronEdges();
+
+function buildDodecahedronEdges() {
+  const edges: Array<[number, number]> = [];
+  for (let from = 0; from < DODECAHEDRON_UNIT_VERTICES.length; from += 1) {
+    for (let to = from + 1; to < DODECAHEDRON_UNIT_VERTICES.length; to += 1) {
+      const [x1, y1, z1] = DODECAHEDRON_UNIT_VERTICES[from];
+      const [x2, y2, z2] = DODECAHEDRON_UNIT_VERTICES[to];
+      const distanceSquared = (x1 - x2) ** 2 + (y1 - y2) ** 2 + (z1 - z2) ** 2;
+      if (distanceSquared < 1.6) {
+        edges.push([from, to]);
+      }
+    }
+  }
+  return edges;
+}
 
 export function createCubeBoss(scene: Phaser.Scene, kind: BossKind, finalDamageReduction: number) {
   const rank = bossRank(kind);
@@ -65,7 +108,7 @@ export function createCubeBoss(scene: Phaser.Scene, kind: BossKind, finalDamageR
     finalDamageReduction,
     speed: stats.speed,
     advanceMinionKind: rank >= 2 ? "square2" : "square",
-    hasSkills: true,
+    hasSkills: !isDodecahedronBossKind(kind),
     skills: {
       promotion: {
         name: "promotion",
@@ -217,6 +260,11 @@ function drawCubeBoss(boss: CubeBoss, time: number) {
     return;
   }
 
+  if (isDodecahedronBoss(boss)) {
+    drawDodecahedronBoss(boss, time);
+    return;
+  }
+
   const vertices = [
     [-1, -1, -1],
     [1, -1, -1],
@@ -263,6 +311,14 @@ export function isTetrahedronBoss(boss: CubeBoss) {
   return isTetrahedronBossKind(boss.kind);
 }
 
+export function isDodecahedronBossKind(kind: BossKind) {
+  return kind === "dodecahedron";
+}
+
+export function isDodecahedronBoss(boss: CubeBoss) {
+  return isDodecahedronBossKind(boss.kind);
+}
+
 function drawTetrahedronBoss(boss: CubeBoss, time: number) {
   const vertices = [
     [1, 1, 1],
@@ -284,6 +340,20 @@ function drawTetrahedronBoss(boss: CubeBoss, time: number) {
   boss.frame.clear();
   boss.frame.lineStyle(2, color, 0.95);
   for (const [from, to] of edges) {
+    boss.frame.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
+  }
+}
+
+function drawDodecahedronBoss(boss: CubeBoss, time: number) {
+  const vertices = DODECAHEDRON_UNIT_VERTICES.map(([x, y, z]) =>
+    projectCubePoint(x * DODECAHEDRON_DRAW_SIZE, y * DODECAHEDRON_DRAW_SIZE, z * DODECAHEDRON_DRAW_SIZE, boss)
+  );
+
+  const color = boss.invincibleUntil > time ? palette.gold : palette.white;
+  boss.labelText.setColor(boss.invincibleUntil > time ? "#ffd75a" : "#f5f5f5");
+  boss.frame.clear();
+  boss.frame.lineStyle(2, color, 0.9);
+  for (const [from, to] of DODECAHEDRON_EDGES) {
     boss.frame.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
   }
 }

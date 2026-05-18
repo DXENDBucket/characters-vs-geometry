@@ -27,7 +27,13 @@ export const levelNodes: LevelNode[] = [
   { id: "2-1", x: 230, y: 405, unlocked: true },
   { id: "2-2", x: 450, y: 310, unlocked: true },
   { id: "2-3", x: 670, y: 430, unlocked: true },
-  { id: "2-4", x: 890, y: 330, unlocked: true }
+  { id: "2-4", x: 890, y: 330, unlocked: true },
+  { id: "2-5", x: 1110, y: 430, unlocked: true },
+  { id: "2-6", x: 1330, y: 330, unlocked: true },
+  { id: "2-7", x: 1550, y: 430, unlocked: true },
+  { id: "2-8", x: 1770, y: 330, unlocked: true },
+  { id: "2-9", x: 1990, y: 430, unlocked: true },
+  { id: "2-10", x: 2210, y: 330, unlocked: true }
 ];
 
 export const levelConfigs: Record<string, LevelConfig> = {
@@ -283,6 +289,78 @@ export const levelConfigs: Record<string, LevelConfig> = {
     totalWaves: 30,
     wavesPerFlag: WAVES_PER_FLAG,
     startingChars: CHAPTER_TWO_STARTING_CHARS
+  },
+  "2-5": {
+    id: "2-5",
+    enemyKinds: ["circle", "square", "hexagon", "pentagon"],
+    firstWaveWeight: 25,
+    waveWeightIncrement: 16,
+    waveWeightIncrementGrowth: 2,
+    totalWaves: 20,
+    wavesPerFlag: WAVES_PER_FLAG,
+    startingChars: CHAPTER_TWO_STARTING_CHARS
+  },
+  "2-6": {
+    id: "2-6",
+    enemyKinds: ["circle", "square2", "triangleRam", "hexagon", "shootingPentagon"],
+    firstWaveWeight: 25,
+    waveWeightIncrement: 16,
+    waveWeightIncrementGrowth: 2,
+    totalWaves: 20,
+    wavesPerFlag: WAVES_PER_FLAG,
+    startingChars: CHAPTER_TWO_STARTING_CHARS
+  },
+  "2-7": {
+    id: "2-7",
+    enemyKinds: ["circle", "chargingHexagon", "hexagon", "pentagon", "shootingPentagon"],
+    firstWaveWeight: 25,
+    waveWeightIncrement: 16,
+    waveWeightIncrementGrowth: 2,
+    totalWaves: 30,
+    wavesPerFlag: WAVES_PER_FLAG,
+    startingChars: CHAPTER_TWO_STARTING_CHARS
+  },
+  "2-8": {
+    id: "2-8",
+    enemyKinds: ["circle", "triangle3", "angelPentagon", "hexagon", "chargingHexagon"],
+    firstWaveWeight: 25,
+    waveWeightIncrement: 16,
+    waveWeightIncrementGrowth: 2,
+    totalWaves: 20,
+    wavesPerFlag: WAVES_PER_FLAG,
+    startingChars: CHAPTER_TWO_STARTING_CHARS
+  },
+  "2-9": {
+    id: "2-9",
+    enemyKinds: [
+      "circle",
+      "triangleRam",
+      "triangle3",
+      "pentagon",
+      "angelPentagon",
+      "shootingPentagon",
+      "diamond2",
+      "hexagon",
+      "chargingHexagon"
+    ],
+    firstWaveWeight: 25,
+    waveWeightIncrement: 16,
+    waveWeightIncrementGrowth: 2,
+    totalWaves: 20,
+    wavesPerFlag: WAVES_PER_FLAG,
+    startingChars: CHAPTER_TWO_STARTING_CHARS
+  },
+  "2-10": {
+    id: "2-10",
+    enemyKinds: ["circle", "pentagon", "shootingPentagon", "hexagon", "chargingHexagon", "triangleRam3"],
+    firstWaveWeight: 25,
+    waveWeightIncrement: 16,
+    waveWeightIncrementGrowth: 2,
+    wavesPerFlag: WAVES_PER_FLAG,
+    waveWeightCap: 800,
+    startingChars: CHAPTER_TWO_STARTING_CHARS,
+    bossKind: "dodecahedron",
+    endless: true
   }
 };
 

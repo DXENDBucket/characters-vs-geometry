@@ -105,7 +105,7 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     magicResistance: 0,
     damage: 1_150,
     damageType: "physical",
-    speedMultiplier: 0.3,
+    speedMultiplier: 0.38,
     weight: 90,
     minFlag: 1
   },
@@ -117,8 +117,44 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     magicResistance: 0,
     damage: 1_150,
     damageType: "physical",
-    speedMultiplier: 0.3,
+    speedMultiplier: 0.38,
     weight: 180,
+    minFlag: 1
+  },
+  pentagon: {
+    kind: "pentagon",
+    label: "1",
+    hp: 1_500,
+    armor: 70,
+    magicResistance: 40,
+    damage: 800,
+    damageType: "magic",
+    speedMultiplier: 0.38,
+    weight: 120,
+    minFlag: 1
+  },
+  angelPentagon: {
+    kind: "angelPentagon",
+    label: "1",
+    hp: 1_200,
+    armor: 50,
+    magicResistance: 20,
+    damage: 300,
+    damageType: "physical",
+    speedMultiplier: 2,
+    weight: 200,
+    minFlag: 1
+  },
+  shootingPentagon: {
+    kind: "shootingPentagon",
+    label: "1",
+    hp: 2_000,
+    armor: 70,
+    magicResistance: 40,
+    damage: 150,
+    damageType: "magic",
+    speedMultiplier: 0.4,
+    weight: 125,
     minFlag: 1
   },
   diamond: {
@@ -155,6 +191,17 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     damageType: "physical",
     speedMultiplier: 0.5,
     weight: 160
+  },
+  chargingHexagon: {
+    kind: "chargingHexagon",
+    label: "1",
+    hp: 12_000,
+    armor: 150,
+    magicResistance: 40,
+    damage: 500,
+    damageType: "magic",
+    speedMultiplier: 2.5,
+    weight: 150
   },
   invertedTriangle: {
     kind: "invertedTriangle",

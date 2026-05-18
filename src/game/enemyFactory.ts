@@ -31,18 +31,20 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
     .setOrigin(0.5);
   const armorIcon = scene.add
     .text(0, -38, "⬡", {
-      color: "#9fdcff",
+      color: "#f5f5f5",
       fontFamily: "monospace",
       fontSize: "22px",
       fontStyle: "700"
     })
     .setOrigin(0.5);
+  const flyingHalo = scene.add.ellipse(0, -42, 30, 8, palette.black, 0).setStrokeStyle(2, palette.white, 0.94);
   const shape = createEnemyShape(scene, options.kind, { squareSize: 42, shootingNoseX: -24 });
 
   statusBorder.setVisible(false);
   powerIcon.setVisible(false);
   armorIcon.setVisible(false);
-  body.add([statusBorder, shape, powerIcon, armorIcon]);
+  flyingHalo.setVisible(false);
+  body.add([statusBorder, flyingHalo, shape, powerIcon, armorIcon]);
 
   return {
     kind: options.kind,
@@ -63,10 +65,13 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
     attackInterval,
     attackAt: options.time + attackInterval,
     skillSp: 0,
+    skillSpBuffer: 0,
+    skillActiveUntil: 0,
     statusEffects: [],
     statusBorder,
     powerIcon,
     armorIcon,
+    flyingHalo,
     nextHasteTrailAt: options.time,
     body,
     shape

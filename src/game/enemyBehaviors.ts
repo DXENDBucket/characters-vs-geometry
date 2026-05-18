@@ -3,6 +3,7 @@ import { ATTACK_INTERVAL, CELL_WIDTH, ENEMY_SPEED, ENEMY_SPEED_VARIANCE, LANES, 
 import {
   enemyFamily,
   enemyIsBlockedDetonator,
+  enemyIsLaser,
   enemyIsMortar,
   enemyIsRanged,
   enemyIsSiegeRam,
@@ -15,11 +16,19 @@ import { createEnemyShape } from "../render/unitShapes";
 import type { CubeBoss, Enemy, EnemyKind } from "../types";
 
 export function enemyAttackInterval(kind: EnemyKind) {
+  if (enemyIsLaser(kind)) {
+    return 4_000;
+  }
+
   if (enemyIsMortar(kind)) {
     return 15_000;
   }
 
   if (enemyIsRanged(kind)) {
+    return 2_000;
+  }
+
+  if (enemyFamily(kind) === "chargingHexagon") {
     return 2_000;
   }
 
@@ -72,16 +81,20 @@ export function applyEnemyPromotion(scene: Phaser.Scene, enemy: Enemy, kind: Ene
   enemy.powerIcon.setVisible(false);
   enemy.armorIcon = scene.add
     .text(0, -38, "⬡", {
-      color: "#9fdcff",
+      color: "#f5f5f5",
       fontFamily: "monospace",
       fontSize: "22px",
       fontStyle: "700"
     })
     .setOrigin(0.5);
   enemy.armorIcon.setVisible(false);
+  enemy.flyingHalo = scene.add.ellipse(0, -42, 30, 8, palette.black, 0).setStrokeStyle(2, palette.white, 0.94);
+  enemy.flyingHalo.setVisible(false);
   enemy.shape = createEnemyShape(scene, kind, { squareSize: 42, shootingNoseX: -24 });
   enemy.skillSp = 0;
-  enemy.body.add([enemy.statusBorder, enemy.shape, enemy.powerIcon, enemy.armorIcon]);
+  enemy.skillSpBuffer = 0;
+  enemy.skillActiveUntil = 0;
+  enemy.body.add([enemy.statusBorder, enemy.flyingHalo, enemy.shape, enemy.powerIcon, enemy.armorIcon]);
   enemy.shape.setScale(enemyScaleFromHp(enemy.hp / enemy.maxHp));
 }
 
@@ -94,20 +107,21 @@ export function splitSpawnLanes(lane: number) {
 }
 
 export function shouldEnemyShoot(enemy: Enemy, time: number) {
-  return (enemyIsRanged(enemy.kind) || enemyIsMortar(enemy.kind)) && time >= enemy.attackAt;
+  return (enemyIsRanged(enemy.kind) || enemyIsMortar(enemy.kind) || enemyIsLaser(enemy.kind)) && time >= enemy.attackAt;
 }
 
 export function canEnemyMelee(enemy: Enemy) {
   return (
     !enemyIsRanged(enemy.kind) &&
     !enemyIsMortar(enemy.kind) &&
+    !enemyIsLaser(enemy.kind) &&
     !enemyIsBlockedDetonator(enemy.kind) &&
     !enemyIsSiegeRam(enemy.kind)
   );
 }
 
 export function enemyVolleyShotCount(enemy: Enemy) {
-  return enemyIsRanged(enemy.kind) || enemyIsMortar(enemy.kind) ? enemyRank(enemy.kind) : 1;
+  return enemyIsRanged(enemy.kind) || enemyIsMortar(enemy.kind) || enemyIsLaser(enemy.kind) ? enemyRank(enemy.kind) : 1;
 }
 
 export function randomizedEnemySpeed(kind: EnemyKind) {

@@ -88,6 +88,10 @@ export function getShiftTargets(tower: Tower, enemies: Enemy[]) {
 }
 
 export function getBlockingTower(towers: Tower[], enemy: Enemy) {
+  if (enemy.statusEffects.some((effect) => effect.name === "flying")) {
+    return undefined;
+  }
+
   return towers
     .filter((tower) => tower.lane === enemy.lane && Math.abs(enemy.x - tower.x) < 38)
     .sort((a, b) => b.x - a.x)[0];

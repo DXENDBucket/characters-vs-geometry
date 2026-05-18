@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { DODECAHEDRON_EDGES, DODECAHEDRON_UNIT_VERTICES } from "../bosses/cubeBoss";
 import { BOSS_HITBOX_HEIGHT, BOSS_HITBOX_WIDTH, CELL_HEIGHT, palette } from "../config";
 import { EFFECT_SYMBOLS } from "../i18n";
 import type { DamageType, Enemy, Tower } from "../types";
@@ -52,6 +53,38 @@ export function makeEnemyHitShards(scene: Phaser.Scene, x: number, y: number) {
       onComplete: () => shard.destroy()
     });
   }
+}
+
+export function makeEnemyLaserEffect(scene: Phaser.Scene, fromX: number, y: number, toX: number) {
+  const beam = scene.add.graphics().setDepth(109);
+  beam.lineStyle(11, palette.enemyShot, 0.18);
+  beam.lineBetween(fromX, y, toX, y);
+  beam.lineStyle(6, palette.enemyShot, 0.72);
+  beam.lineBetween(fromX, y, toX, y);
+  beam.lineStyle(2, palette.white, 0.9);
+  beam.lineBetween(fromX, y, toX, y);
+
+  const emitter = scene.add.circle(fromX, y, 8, palette.black, 0).setStrokeStyle(3, palette.enemyShot, 0.92).setDepth(110);
+  const endpoint = scene.add.circle(toX, y, 10, palette.black, 0).setStrokeStyle(2, palette.enemyShot, 0.72).setDepth(110);
+
+  scene.tweens.add({
+    targets: beam,
+    alpha: 0,
+    duration: 120,
+    ease: "Quad.easeOut",
+    onComplete: () => beam.destroy()
+  });
+  scene.tweens.add({
+    targets: [emitter, endpoint],
+    scale: 1.8,
+    alpha: 0,
+    duration: 160,
+    ease: "Quad.easeOut",
+    onComplete: () => {
+      emitter.destroy();
+      endpoint.destroy();
+    }
+  });
 }
 
 export function makeShellBurst(scene: Phaser.Scene, x: number, y: number, radius: number, damageType: DamageType) {
@@ -400,11 +433,22 @@ export function makeTetrahedronCollapse(
   makePolyhedronCollapse(scene, x, y, "tetrahedron", followTarget, activeEnemies, activeTowers);
 }
 
+export function makeDodecahedronCollapse(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  followTarget?: Enemy | Tower,
+  activeEnemies: Enemy[] = [],
+  activeTowers: Tower[] = []
+) {
+  makePolyhedronCollapse(scene, x, y, "dodecahedron", followTarget, activeEnemies, activeTowers);
+}
+
 function makePolyhedronCollapse(
   scene: Phaser.Scene,
   x: number,
   y: number,
-  shape: "cube" | "tetrahedron",
+  shape: "cube" | "tetrahedron" | "dodecahedron",
   followTarget?: Enemy | Tower,
   activeEnemies: Enemy[] = [],
   activeTowers: Tower[] = []
@@ -413,8 +457,10 @@ function makePolyhedronCollapse(
   const rotation = randomCollapseRotation();
   if (shape === "cube") {
     drawProjectedCube(collapse, 34, rotation);
-  } else {
+  } else if (shape === "tetrahedron") {
     drawProjectedTetrahedron(collapse, 39, rotation);
+  } else {
+    drawProjectedDodecahedron(collapse, 29, rotation);
   }
 
   scene.tweens.add({
@@ -497,6 +543,17 @@ function drawProjectedTetrahedron(graphics: Phaser.GameObjects.Graphics, size: n
 
   graphics.lineStyle(2, palette.white, 0.9);
   for (const [from, to] of edges) {
+    graphics.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
+  }
+}
+
+function drawProjectedDodecahedron(graphics: Phaser.GameObjects.Graphics, size: number, rotation: CollapseRotation) {
+  const vertices = DODECAHEDRON_UNIT_VERTICES.map(([x, y, z]) =>
+    projectCollapsePoint(x * size, y * size, z * size, rotation)
+  );
+
+  graphics.lineStyle(2, palette.white, 0.86);
+  for (const [from, to] of DODECAHEDRON_EDGES) {
     graphics.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
   }
 }

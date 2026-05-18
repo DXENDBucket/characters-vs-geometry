@@ -11,7 +11,7 @@ import type { CubeBoss, DamageType, Enemy, EnemyProjectile, MortarProjectile, Pr
 import { calculateDamage } from "./damage";
 import { enemyScaleFromHp } from "./enemyBehaviors";
 import { spawnSplitEnemies } from "./enemyRuntime";
-import { hexArmorBonus } from "./enemySupport";
+import { hexArmorBonus, hexBossArmorBonus } from "./enemySupport";
 import { isPointInSlowAura } from "./slowAura";
 import { gridCellKey } from "./targeting";
 import { syncTowerHpBar } from "./towers";
@@ -67,7 +67,7 @@ export function damageBoss(runtime: UnitLifecycleRuntime, damage: number, damage
   }
 
   const actualDamage =
-    calculateDamage(damage, damageType, boss.armor, boss.magicResistance) *
+    calculateDamage(damage, damageType, boss.armor + hexBossArmorBonus(runtime.enemies, boss), boss.magicResistance) *
     (1 - boss.finalDamageReduction);
   const nextHp = boss.hp - actualDamage;
   if (shouldTriggerTetrahedronCritical(boss, nextHp)) {

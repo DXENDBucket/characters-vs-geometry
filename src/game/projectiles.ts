@@ -102,6 +102,9 @@ export interface MortarProjectileSpec {
   damageType: DamageType;
   rangeX: number;
   rangeY: number;
+  marker?: "shell" | "text";
+  markerText?: string;
+  markerTextColor?: string;
   sourceEnemy?: Enemy;
   targetEnemy?: Enemy;
   targetTower?: Tower;
@@ -109,10 +112,18 @@ export interface MortarProjectileSpec {
 
 export function createMortarProjectile(scene: Phaser.Scene, spec: MortarProjectileSpec): MortarProjectile {
   const projectileColor = spec.owner === "enemy" ? palette.enemyShot : damageEffectColor(spec.damageType);
-  const body = scene.add
-    .circle(spec.fromX, spec.fromY, 7, palette.black, 1)
-    .setStrokeStyle(2, projectileColor, 1)
-    .setDepth(120);
+  const body =
+    spec.marker === "text"
+      ? scene.add
+          .text(spec.fromX, spec.fromY - 1, spec.markerText ?? "#", {
+            color: spec.markerTextColor ?? damageEffectTextColor(spec.damageType),
+            fontFamily: "monospace",
+            fontSize: "24px",
+            fontStyle: "700"
+          })
+          .setOrigin(0.5)
+          .setDepth(120)
+      : scene.add.circle(spec.fromX, spec.fromY, 7, palette.black, 1).setStrokeStyle(2, projectileColor, 1).setDepth(120);
 
   return {
     owner: spec.owner,
@@ -128,6 +139,9 @@ export function createMortarProjectile(scene: Phaser.Scene, spec: MortarProjecti
     damageType: spec.damageType,
     rangeX: spec.rangeX,
     rangeY: spec.rangeY,
+    marker: spec.marker,
+    markerText: spec.markerText,
+    markerTextColor: spec.markerTextColor,
     sourceEnemy: spec.sourceEnemy,
     targetEnemy: spec.targetEnemy,
     targetTower: spec.targetTower,

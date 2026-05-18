@@ -300,15 +300,15 @@ export const cardDefinitions: CardDefinition[] = [
   {
     id: "k",
     category: "attack",
-    cost: 525,
+    cost: 625,
     cooldown: 10_000,
     maxHp: 2_500,
     armor: 300,
     magicResistance: 40,
     fireRate: 1_000,
-    damage: 320,
+    damage: 280,
     damageType: "magic",
-    stats: `320${DAMAGE_SYMBOLS.magic} / 2x3+1`
+    stats: `280${DAMAGE_SYMBOLS.magic} / 2x3+1`
   },
   {
     id: "S",
@@ -361,8 +361,8 @@ export const cardDefinitions: CardDefinition[] = [
     fireRate: 1_000,
     selfDamage: 400,
     selfDamageType: "true",
-    shiftCells: 4,
-    stats: `PUSH4 / 1s`
+    shiftCells: 5,
+    stats: `PUSH5 / 1s`
   },
   {
     id: "T",

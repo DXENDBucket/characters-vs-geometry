@@ -89,9 +89,13 @@ const dictionaries: Record<Language, Record<string, string>> = {
     "enemy.triangleRam3": "TRIANGLE RAM 3",
     "enemy.mortarTriangle": "TRIANGLE MORTAR 1",
     "enemy.mortarTriangle2": "TRIANGLE MORTAR 2",
+    "enemy.pentagon": "PENTAGON 1",
+    "enemy.angelPentagon": "ANGEL PENTAGON 1",
+    "enemy.shootingPentagon": "SHOOTING PENTAGON 1",
     "enemy.diamond": "DIAMOND 1",
     "enemy.diamond2": "DIAMOND 2",
     "enemy.hexagon": "HEXAGON 1",
+    "enemy.chargingHexagon": "CHARGING HEXAGON 1",
     "enemy.invertedTriangle": "INVERTED TRIANGLE 1",
     "enemy.invertedTriangle2": "INVERTED TRIANGLE 2",
     "enemy.shootingTriangle": "SHOOTING TRIANGLE 1",
@@ -100,7 +104,8 @@ const dictionaries: Record<Language, Record<string, string>> = {
     "enemy.square2": "SQUARE 2",
     "enemy.square3": "SQUARE 3",
     "enemy.bossCube": "BOSS CUBE",
-    "enemy.bossTetrahedron": "BOSS TETRAHEDRON"
+    "enemy.bossTetrahedron": "BOSS TETRAHEDRON",
+    "enemy.bossDodecahedron": "BOSS DODECAHEDRON"
   },
   "zh-CN": {
     "app.title": "字符大战几何体",
@@ -176,9 +181,13 @@ const dictionaries: Record<Language, Record<string, string>> = {
     "enemy.triangleRam3": "三角攻城锤 3",
     "enemy.mortarTriangle": "三角迫击炮 1",
     "enemy.mortarTriangle2": "三角迫击炮 2",
+    "enemy.pentagon": "五边形 1",
+    "enemy.angelPentagon": "天使五边形 1",
+    "enemy.shootingPentagon": "射击五边形 1",
     "enemy.diamond": "菱形 1",
     "enemy.diamond2": "菱形 2",
     "enemy.hexagon": "六边形 1",
+    "enemy.chargingHexagon": "冲锋六边形 1",
     "enemy.invertedTriangle": "倒三角 1",
     "enemy.invertedTriangle2": "倒三角 2",
     "enemy.shootingTriangle": "射击三角 1",
@@ -187,7 +196,8 @@ const dictionaries: Record<Language, Record<string, string>> = {
     "enemy.square2": "正方形 2",
     "enemy.square3": "正方形 3",
     "enemy.bossCube": "Boss 立方体",
-    "enemy.bossTetrahedron": "Boss 正四面体"
+    "enemy.bossTetrahedron": "Boss 正四面体",
+    "enemy.bossDodecahedron": "Boss 正十二面体"
   }
 };
 

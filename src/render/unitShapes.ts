@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { DODECAHEDRON_EDGES, DODECAHEDRON_UNIT_VERTICES } from "../bosses/cubeBoss";
 import { palette } from "../config";
 import { romanLabel, toRomanNumeral } from "../format";
 import { enemyFamily, getEnemyDefinition } from "../registry/enemies";
@@ -170,6 +171,82 @@ export function createEnemyShape(scene: Phaser.Scene, kind: EnemyKind, options: 
     return shape;
   }
 
+  if (family === "pentagon") {
+    const shape = scene.add.container(0, 0);
+    const pentagon = scene.add.graphics();
+    pentagon.fillStyle(palette.black, 1);
+    pentagon.lineStyle(2, palette.white, 1);
+    pentagon.beginPath();
+    const radius = 25;
+    for (let index = 0; index < 5; index += 1) {
+      const angle = Phaser.Math.DegToRad(54 + index * 72);
+      const x = Math.cos(angle) * radius;
+      const y = Math.sin(angle) * radius;
+      if (index === 0) {
+        pentagon.moveTo(x, y);
+      } else {
+        pentagon.lineTo(x, y);
+      }
+    }
+    pentagon.closePath();
+    pentagon.fillPath();
+    pentagon.strokePath();
+    const label = createEnemyLabel(scene, 0, -1, kind);
+    shape.add([pentagon, label]);
+    return shape;
+  }
+
+  if (family === "angelPentagon") {
+    const shape = scene.add.container(0, 0);
+    const pentagon = scene.add.graphics();
+    pentagon.fillStyle(palette.black, 1);
+    pentagon.lineStyle(2, palette.white, 1);
+    pentagon.beginPath();
+    const radius = 25;
+    for (let index = 0; index < 5; index += 1) {
+      const angle = Phaser.Math.DegToRad(90 + index * 72);
+      const x = Math.cos(angle) * radius;
+      const y = Math.sin(angle) * radius;
+      if (index === 0) {
+        pentagon.moveTo(x, y);
+      } else {
+        pentagon.lineTo(x, y);
+      }
+    }
+    pentagon.closePath();
+    pentagon.fillPath();
+    pentagon.strokePath();
+    const halo = scene.add.ellipse(0, -34, 25, 7, palette.black, 0).setStrokeStyle(2, palette.white, 0.95);
+    const label = createEnemyLabel(scene, 0, -1, kind);
+    shape.add([halo, pentagon, label]);
+    return shape;
+  }
+
+  if (family === "shootingPentagon") {
+    const shape = scene.add.container(0, 0);
+    const pentagon = scene.add.graphics();
+    pentagon.fillStyle(palette.black, 1);
+    pentagon.lineStyle(2, palette.white, 1);
+    pentagon.beginPath();
+    const radius = 25;
+    for (let index = 0; index < 5; index += 1) {
+      const angle = Phaser.Math.DegToRad(180 + index * 72);
+      const x = Math.cos(angle) * radius;
+      const y = Math.sin(angle) * radius;
+      if (index === 0) {
+        pentagon.moveTo(x, y);
+      } else {
+        pentagon.lineTo(x, y);
+      }
+    }
+    pentagon.closePath();
+    pentagon.fillPath();
+    pentagon.strokePath();
+    const label = createEnemyLabel(scene, 2, -1, kind);
+    shape.add([pentagon, label]);
+    return shape;
+  }
+
   if (family === "hexagon") {
     const shape = scene.add.container(0, 0);
     const hexagon = scene.add.graphics();
@@ -190,6 +267,30 @@ export function createEnemyShape(scene: Phaser.Scene, kind: EnemyKind, options: 
     hexagon.fillPath();
     hexagon.strokePath();
     const label = createEnemyLabel(scene, 0, -1, kind);
+    shape.add([hexagon, label]);
+    return shape;
+  }
+
+  if (family === "chargingHexagon") {
+    const shape = scene.add.container(0, 0);
+    const hexagon = scene.add.graphics();
+    hexagon.fillStyle(palette.black, 1);
+    hexagon.lineStyle(2, palette.white, 1);
+    hexagon.beginPath();
+    for (let index = 0; index < 6; index += 1) {
+      const angle = Phaser.Math.DegToRad(180 + index * 60);
+      const x = Math.cos(angle) * 27;
+      const y = Math.sin(angle) * 27;
+      if (index === 0) {
+        hexagon.moveTo(x, y);
+      } else {
+        hexagon.lineTo(x, y);
+      }
+    }
+    hexagon.closePath();
+    hexagon.fillPath();
+    hexagon.strokePath();
+    const label = createEnemyLabel(scene, 1, -1, kind);
     shape.add([hexagon, label]);
     return shape;
   }
@@ -287,6 +388,48 @@ export function createTetrahedronIcon(scene: Phaser.Scene) {
     .setOrigin(0.5);
   icon.add([frame, label]);
   return icon;
+}
+
+export function createDodecahedronIcon(scene: Phaser.Scene) {
+  const icon = scene.add.container(0, 0);
+  const frame = scene.add.graphics();
+  const vertices = DODECAHEDRON_UNIT_VERTICES.map(([x, y, z]) =>
+    projectIconPoint(x * 15, y * 15, z * 15, -0.42, 0.62, -0.12)
+  );
+
+  frame.lineStyle(1.6, palette.white, 0.95);
+  for (const [from, to] of DODECAHEDRON_EDGES) {
+    frame.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
+  }
+
+  const label = scene.add
+    .text(0, 0, toRomanNumeral(1), {
+      color: "#f5f5f5",
+      fontFamily: "monospace",
+      fontSize: "14px",
+      fontStyle: "700"
+    })
+    .setOrigin(0.5);
+  icon.add([frame, label]);
+  return icon;
+}
+
+function projectIconPoint(x: number, y: number, z: number, rotationX: number, rotationY: number, rotationZ: number) {
+  const cosX = Math.cos(rotationX);
+  const sinX = Math.sin(rotationX);
+  const cosY = Math.cos(rotationY);
+  const sinY = Math.sin(rotationY);
+  const cosZ = Math.cos(rotationZ);
+  const sinZ = Math.sin(rotationZ);
+
+  const y1 = y * cosX - z * sinX;
+  const z1 = y * sinX + z * cosX;
+  const x2 = x * cosY + z1 * sinY;
+  const z2 = -x * sinY + z1 * cosY;
+  const x3 = x2 * cosZ - y1 * sinZ;
+  const y3 = x2 * sinZ + y1 * cosZ;
+  const scale = 1.35 / (1 + z2 / 120);
+  return { x: x3 * scale, y: y3 * scale };
 }
 
 function createEnemyLabel(scene: Phaser.Scene, x: number, y: number, kind: EnemyKind, size = 18) {

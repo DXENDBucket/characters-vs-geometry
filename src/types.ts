@@ -44,9 +44,13 @@ export type EnemyKind =
   | "triangleRam3"
   | "mortarTriangle"
   | "mortarTriangle2"
+  | "pentagon"
+  | "angelPentagon"
+  | "shootingPentagon"
   | "diamond"
   | "diamond2"
   | "hexagon"
+  | "chargingHexagon"
   | "invertedTriangle"
   | "invertedTriangle2"
   | "shootingTriangle"
@@ -54,7 +58,7 @@ export type EnemyKind =
   | "square"
   | "square2"
   | "square3";
-export type BossKind = "cube" | "cube2" | "tetrahedron" | "tetrahedron2";
+export type BossKind = "cube" | "cube2" | "tetrahedron" | "tetrahedron2" | "dodecahedron";
 export type BossSkillName =
   | "promotion"
   | "advance"
@@ -66,7 +70,7 @@ export type BossSkillName =
 export type ProjectileKind = "bolt" | "shell" | "star" | "hash" | "dollar";
 export type UnitCategory = "production" | "attack" | "defense" | "function" | "healing";
 export type DamageType = "physical" | "magic" | "true";
-export type StatusEffectName = "stasis" | "haste" | "power";
+export type StatusEffectName = "stasis" | "haste" | "power" | "flying";
 export type AlphaGameObject = Phaser.GameObjects.GameObject & { setAlpha(alpha: number): unknown };
 
 export interface DifficultyConfig {
@@ -116,6 +120,7 @@ export interface StatusEffect {
   name: StatusEffectName;
   expiresAt: number;
   speedMultiplier?: number;
+  showHalo?: boolean;
 }
 
 export interface CardState {
@@ -178,10 +183,13 @@ export interface Enemy {
   blockedByTowerId?: string;
   blockedSince?: number;
   skillSp: number;
+  skillSpBuffer: number;
+  skillActiveUntil: number;
   statusEffects: StatusEffect[];
   statusBorder: Phaser.GameObjects.Arc;
   powerIcon: Phaser.GameObjects.Text;
   armorIcon: Phaser.GameObjects.Text;
+  flyingHalo: Phaser.GameObjects.Ellipse;
   nextHasteTrailAt: number;
   body: Phaser.GameObjects.Container;
   shape: Phaser.GameObjects.GameObject & { setScale(scale: number): unknown };
@@ -227,6 +235,9 @@ export interface MortarProjectile {
   damageType: DamageType;
   rangeX: number;
   rangeY: number;
+  marker?: "shell" | "text";
+  markerText?: string;
+  markerTextColor?: string;
   sourceEnemy?: Enemy;
   targetEnemy?: Enemy;
   targetTower?: Tower;

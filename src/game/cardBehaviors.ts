@@ -20,6 +20,7 @@ import {
   getShiftTargets,
   hasAttackTarget
 } from "./targeting";
+import { syncEnemyBodyPosition } from "./statusEffects";
 import { effectiveTowerLevel, syncTowerHpBar } from "./towers";
 import { scaledByEffectiveUpgrades } from "./upgrades";
 
@@ -155,7 +156,7 @@ function fireShiftPulse(tower: Tower, definition: CardDefinition, runtime: CardB
     target.lane = tower.lane;
     target.y = tower.y;
     target.body.setDepth(60 + target.lane);
-    target.body.setPosition(target.x, target.y);
+    syncEnemyBodyPosition(target);
     makeShiftEffect(runtime.scene, target.x, previousY, target.x, target.y);
   }
   for (let index = 0; index < targets.length; index += 1) {
@@ -176,7 +177,7 @@ function fireBlockedPushPulse(tower: Tower, definition: CardDefinition, runtime:
   for (const target of targets) {
     const previousX = target.x;
     target.x -= shiftDistance;
-    target.body.setPosition(target.x, target.y);
+    syncEnemyBodyPosition(target);
     makeShiftEffect(runtime.scene, previousX, target.y, target.x, target.y);
   }
 

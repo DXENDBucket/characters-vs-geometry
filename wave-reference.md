@@ -16,11 +16,15 @@
 | Inverted Triangle 1 | 50 | 1000 | 70 | 2000 | ✦ | Body label `I`; MR `60`; average speed `40`; after being blocked by the same tower for `2s`, disappears and detonates against that tower |
 | Inverted Triangle 2 | 100 | 1000 | 70 | 2600 | ✦ | Body label `II`; MR `60`; average speed `45`; after being blocked by the same tower for `2s`, disappears and detonates against that tower |
 | Shooting Triangle 1 | 50 | 2000 | 70 | 400 | ◆ | Body label `I`; average speed `4`; points toward the base and fires red-tinted bolts every `2s` |
-| Triangle Mortar 1 | 90 | 1500 | 70 | 1150 | ◆ | Body label `I/I`; MR `0`; average speed `3`; every `15s`, fires a shell-like physical mortar with `3x3` AOE at the tower blocking the most enemies. Ties target the later-placed tower. N rewrites the landing point if targeted; R takes damage and reflects a matching mortar back at the shooter |
-| Triangle Mortar 2 | 180 | 1500 | 70 | 1150 | ◆ | Body label `II/II`; MR `0`; average speed `3`; every `15s`, fires 2 shell-like physical mortars with `3x3` AOE. The volley window is fixed at one fifth of its attack interval, so the two shots are `3s` apart |
+| Triangle Mortar 1 | 90 | 1500 | 70 | 1150 | ◆ | Body label `I/I`; MR `0`; average speed `3.8`; every `15s`, fires a shell-like physical mortar with `3x3` AOE at the tower blocking the most enemies. Ties target the later-placed tower. N rewrites the landing point if targeted; R takes damage and reflects a matching mortar back at the shooter |
+| Triangle Mortar 2 | 180 | 1500 | 70 | 1150 | ◆ | Body label `II/II`; MR `0`; average speed `3.8`; every `15s`, fires 2 shell-like physical mortars with `3x3` AOE. The volley window is fixed at one fifth of its attack interval, so the two shots are `3s` apart |
+| Pentagon 1 | 120 | 1500 | 70 | 800 | ✦ | Body label `I`; MR `40`; average speed `3.8`; downward-facing pentagon. Every `15s`, fires a red `#` magic mortar with `3x3` AOE. If blocked, targets its blocker; otherwise targets the highest-level tower on the field. Ties target the later-placed tower. N rewrites the landing point if targeted; R takes damage and reflects a matching mortar back at the shooter |
+| Angel Pentagon 1 | 200 | 1200 | 50 | 300 | ◆ | Body label `I`; MR `20`; average speed `20`; point faces downward and it has a small halo. Does not naturally appear before Flag 1. Wings: starts at `0/15` SP, gains `1` SP/s, then gives itself and enemies in a centered `3x3` area Flying with a halo and `+100%` movement speed for `3s`; SP regeneration pauses while Wings is active |
+| Shooting Pentagon 1 | 125 | 2000 | 70 | 150 | ✦ | Body label `I`; MR `40`; average speed `4`; one point faces the base. Every `4s`, fires an instant red magic laser. The laser is not a projectile, cannot be reflected by R, pierces towers in its lane, and stops after damaging the first tower with MR greater than `0` |
 | Diamond 1 | 100 | 2000 | 70 | 400 | ✦ | Body label `I`; MR `40`; average speed `4`; fires red `*` magic projectiles every `2s`; does not naturally appear before Flag 1 |
 | Diamond 2 | 200 | 2000 | 70 | 400 | ✦ | Body label `II`; MR `40`; average speed `4`; fires 2 red `*` magic projectiles every `2s`; volley window is fixed at one fifth of its attack interval; does not naturally appear before Flag 1 |
-| Hexagon 1 | 160 | 18000 | 150 | 400 | ◆ | Body label `I`; MR `20`; average speed `5`; melee attack every `1s`; flat side faces the base. Enemies within `1.4` cells, including itself, gain Armor: `+200` armor per Hexagon aura, stacking additively and shown as `⬡`. Gains `1` SP/s up to `20`; at full SP, heals the lowest HP% damaged enemy within `1.4` cells for `30%` of Hexagon max HP, consuming `20` SP |
+| Hexagon 1 | 160 | 18000 | 150 | 400 | ◆ | Body label `I`; MR `20`; average speed `5`; melee attack every `1s`; flat side faces the base. Enemies within `1.4` cells, including itself, and Bosses touching that aura gain Armor: `+80` armor per Hexagon aura, stacking additively and shown as `⬡` on ordinary enemies. Gains `1` SP/s up to `20`; at full SP, heals the lowest HP% damaged enemy within `1.4` cells for `30%` of Hexagon max HP, consuming `20` SP |
+| Charging Hexagon 1 | 150 | 12000 | 150 | 500 | ✦ | Body label `I`; MR `40`; average speed `25`; point faces the base. Melee magic attack every `2s`. Enemies in the same lane and farther from the base gain a non-stacking `+50%` movement speed bonus |
 | Square 1 | 50 | 12000 | 300 | 400 | ◆ | Body label `I`; average speed `6` |
 | Square 2 | 150 | 12000 | 600 | 400 | ◆ | Body label `II`; average speed `6` |
 | Square 3 | 250 | 12000 | 900 | 400 | ◆ | Body label `III`; average speed `6` |
@@ -28,11 +32,13 @@
 Damage symbols: `◆` physical, `✦` magic, `◇` true. Magic-damage projectiles and related hit effects use light blue.
 Effect symbols: `Aa` character production, `♡` healing.
 Stasis gives enemies a blue border and reduces their movement speed to `1/3`. Haste gives enemies light-blue wind trails and raises movement speed to `200%` unless specified otherwise. Power gives enemies a red `!` icon and increases outgoing attack damage by `30%` without changing their base attack stat.
-Armor from Hexagons gives enemies a `⬡` icon and stacks additively as bonus armor.
+Armor from Hexagons gives ordinary enemies a `⬡` icon and stacks additively as bonus armor. Bosses also gain the bonus armor while their hitbox is within a Hexagon aura.
+Charging Hexagon speed aura is dynamic, non-stacking, and multiplies with other speed modifiers.
 Triangle enemies all deal Triangle 1's `600◆`; Triangle N attacks every `1/N` seconds.
 Shooting Triangle is a separate ranged enemy and does not use Triangle N attack scaling.
 Locked attacks, including Triangle Mortars, target the tower blocking the attacker if the attacker is currently blocked; otherwise they use their normal targeting rule.
-Enemies with a minimum flag gate are excluded from random wave pools before that flag wave. All Diamonds and Triangle Mortars require Flag 1, so they can start appearing on wave 10 of standard 10-wave flags.
+Flying units cannot be blocked and render slightly higher than grounded enemies. Flying itself does not always show a halo; Wings-granted Flying shows a halo.
+Enemies with a minimum flag gate are excluded from random wave pools before that flag wave. All Diamonds, Triangle Mortars, Pentagons, Angel Pentagons, and Shooting Pentagons require Flag 1, so they can start appearing on wave 10 of standard 10-wave flags.
 Numbered minion weights use fixed additive steps: circles `+40`, triangles `+60`, squares `+100`.
 Enemy body labels are displayed as Roman numerals in-game.
 
@@ -44,6 +50,7 @@ Enemy body labels are displayed as Roman numerals in-game.
 | Cube II | 200000 | 600 | 20 | 0.6 | `2.95x2.95` cells | Same baseline behavior as Cube I. Advance becomes Advance II and summons Square 2 minions. Also has Promotion II. |
 | Tetrahedron I | 120000 | 150 | 20 | 1.2 | `2.95x2.95` cells | Fast-attack Boss with quicker visual rotation. Same baseline behavior as Cube I, but uses tetrahedron-collapse effects. At first `50%` HP or lower, summons Inverted Triangle 1 in every cell of the two columns farthest from the base and immediately fills Charge SP. At first `10%` HP or lower, its HP is held at `10%`, gains `15s` Invincible, gains `60s` Boss Haste at `300%` speed, summons Inverted Triangle 1 in every cell of the five columns farthest from the base, and permanently doubles all skill natural SP gain. If it would die before this triggers, it instead locks at `1` HP and triggers the same effect package. |
 | Tetrahedron II | 120000 | 150 | 20 | 1.2 | `2.95x2.95` cells | Same baseline behavior as Tetrahedron I. All Inverted Triangles and Shooting Triangles summoned by its Boss mechanics are rank II. |
+| Dodecahedron I | 200000 | 200 | 80 | 0.6 | `2.95x2.95` cells | Whiteboard Boss. Same baseline behavior as Cube I, but has no SP skills. |
 
 Cube skills:
 
@@ -105,11 +112,11 @@ Tetrahedron skills:
 | Q | Attack | Diamond | 175 | 4s | 1200 | 150 | 20 | Fires 1 `$` projectile, `400✦`, every `2s`; range is the full lane ahead. On hit, applies `Stasis` for `1s`, reducing ordinary enemy movement speed to `1/3`; Bosses ignore this debuff | +1 volley per level |
 | J | Attack | Diamond | 200 | 4s | 1200 | 150 | 20 | Fires 1 `#` shell, `600✦`, `1.75` tile radius AOE, every `4s`; range is self plus 5 cells ahead | +1 volley per level |
 | K | Attack | Diamond | 375 | 4s | 2500 | 300 | 0 | Slashes 1 target for `1600◆`, every `4s`; range is self plus 2 cells ahead | +1 volley per level |
-| k | Attack | Diamond | 525 | 10s | 2500 | 300 | 40 | Every `1s`, releases an arc wave that deals `320✦` to all enemies in a `2x3+1` area: its column and next column across 3 lanes, plus one extra forward cell in its lane | +`256✦` attack per level |
+| k | Attack | Diamond | 625 | 10s | 2500 | 300 | 40 | Every `1s`, releases an arc wave that deals `280✦` to all enemies in a `2x3+1` area: its column and next column across 3 lanes, plus one extra forward cell in its lane | +`224✦` attack per level |
 | S | Attack | Diamond | 925 | 50s | 1200 | 150 | 40 | Active skill: Spell Mortar. Gains `1` SP/s, max `30`; at full SP gains a border. Click a ready S, or Shift-click to select all ready S, then click any board point to fire 3 arcing `S` shells at `0.5s` intervals. Each shell deals `5000✦` in a `3x3` area. Right-click or clicking UI cancels aiming | +`4000✦` per shell per level; resets SP |
 | Z | Production | Circle | 175 | 4s | 2500 | 300 | 0 | Slashes 1 target for `400◆`, every `2s`; range is self plus 2 cells ahead. Each slash hit produces `Aa15` | +1 volley per level |
 | L | Function | Triangle | 200 | 20s | 3000 | 200 | 0 | Every `1s`, shifts all enemies in upper/lower lanes within its column and the front column into its own lane; takes `400◇` per shifted enemy | +`2400` max/current HP per level |
-| N | Defense | Square | 125 | 20s | 3000 | 500 | 0 | Every `1s`, pushes all enemies it is blocking `4` cells left; takes `400◇` per pushed enemy. Enemy projectiles that would hit N are shifted left by `4` cells instead and do not damage N; locked mortar shots targeting N have their landing point shifted left by the same distance | +`2400` max/current HP per level |
+| N | Defense | Square | 125 | 20s | 3000 | 500 | 0 | Every `1s`, pushes all enemies it is blocking `5` cells left; takes `400◇` per pushed enemy. Enemy projectiles that would hit N are shifted left by `5` cells instead and do not damage N; locked mortar shots targeting N have their landing point shifted left by the same distance | +`2400` max/current HP per level |
 | T | Function | Triangle | 650 | 50s | 4000 | 150 | 20 | Every `1s`, takes `700◇`; ordinary units and projectiles in a centered `5x5` no-corner area move at `1/6` speed. Bosses ignore the slow. The area is shown with a deep-purple time border. On death, clears projectiles in that area; eraser removal does not trigger this | +`3200` max/current HP per level |
 
 | U | Function | Triangle | 1275 | 50s | 1200 | 150 | 40 | Grants towers in a centered `3x3` area, excluding itself, bonus levels equal to U's real level. Only affects towers whose base cost is lower than U's base cost. Multiple U auras stack additively | Each level raises U's aura bonus by `+1` level |
@@ -302,7 +309,7 @@ Base rule:
 - Every flag wave, currently every `10`th wave, doubles that wave's final cap.
 - A wave may leave unused weight, but never exceeds its cap.
 - Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
-- The level has `20` total waves.
+- The level has `30` total waves.
 
 | Wave | Flag | Base Cap | Final Cap |
 | ---: | ---: | ---: | ---: |
@@ -857,7 +864,7 @@ Base rule:
 - Every flag wave, currently every `10`th wave, doubles that wave's final cap.
 - A wave may leave unused weight, but never exceeds its cap.
 - Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
-- The level has `30` total waves.
+- The level has `20` total waves.
 
 | Wave | Flag | Base Cap | Final Cap |
 | ---: | ---: | ---: | ---: |
@@ -1113,6 +1120,137 @@ Base rule:
 | 18 | - | 569 | 569 |
 | 19 | - | 619 | 619 |
 | 20 | 2 | 671 | 1342 |
+
+## Level 2-5 Weight Growth
+
+Enemy pool:
+
+- Circle 1
+- Square 1
+- Hexagon 1
+- Pentagon 1
+
+Base rule:
+
+- Starting characters: `350`.
+- Wave 1 starts at weight cap `25`.
+- Wave 2 adds `+16`; each later increment grows by `+2` (`+18`, `+20`, ...).
+- Every flag wave, currently every `10`th wave, doubles that wave's final cap.
+- A wave may leave unused weight, but never exceeds its cap.
+- Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
+- The level has `20` total waves.
+- Pentagon 1 has a minimum Flag 1 gate, so it can first enter the random pool on wave 10.
+
+| Wave | Flag | Base Cap | Final Cap |
+| ---: | ---: | ---: | ---: |
+| 1 | - | 25 | 25 |
+| 2 | - | 41 | 41 |
+| 3 | - | 59 | 59 |
+| 4 | - | 79 | 79 |
+| 5 | - | 101 | 101 |
+| 6 | - | 125 | 125 |
+| 7 | - | 151 | 151 |
+| 8 | - | 179 | 179 |
+| 9 | - | 209 | 209 |
+| 10 | 1 | 241 | 482 |
+| 11 | - | 275 | 275 |
+| 12 | - | 311 | 311 |
+| 13 | - | 349 | 349 |
+| 14 | - | 389 | 389 |
+| 15 | - | 431 | 431 |
+| 16 | - | 475 | 475 |
+| 17 | - | 521 | 521 |
+| 18 | - | 569 | 569 |
+| 19 | - | 619 | 619 |
+| 20 | 2 | 671 | 1342 |
+
+## Level 2-6 Weight Growth
+
+Enemy pool:
+
+- Circle 1
+- Square 2
+- Triangle Ram 1
+- Hexagon 1
+- Shooting Pentagon 1
+
+Base rule:
+
+- Starting characters: `350`.
+- Wave 1 starts at weight cap `25`.
+- Wave 2 adds `+16`; each later increment grows by `+2` (`+18`, `+20`, ...).
+- Every flag wave, currently every `10`th wave, doubles that wave's final cap.
+- A wave may leave unused weight, but never exceeds its cap.
+- Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
+- The level has `20` total waves.
+- Shooting Pentagon 1 has a minimum Flag 1 gate, so it can first enter the random pool on wave 10.
+
+| Wave | Flag | Base Cap | Final Cap |
+| ---: | ---: | ---: | ---: |
+| 1 | - | 25 | 25 |
+| 2 | - | 41 | 41 |
+| 3 | - | 59 | 59 |
+| 4 | - | 79 | 79 |
+| 5 | - | 101 | 101 |
+| 6 | - | 125 | 125 |
+| 7 | - | 151 | 151 |
+| 8 | - | 179 | 179 |
+| 9 | - | 209 | 209 |
+| 10 | 1 | 241 | 482 |
+| 11 | - | 275 | 275 |
+| 12 | - | 311 | 311 |
+| 13 | - | 349 | 349 |
+| 14 | - | 389 | 389 |
+| 15 | - | 431 | 431 |
+| 16 | - | 475 | 475 |
+| 17 | - | 521 | 521 |
+| 18 | - | 569 | 569 |
+| 19 | - | 619 | 619 |
+| 20 | 2 | 671 | 1342 |
+
+## Level 2-7 Weight Growth
+
+Enemy pool:
+
+- Circle 1
+- Charging Hexagon 1
+- Hexagon 1
+- Pentagon 1
+- Shooting Pentagon 1
+
+Base rule:
+
+- Starting characters: `350`.
+- Wave 1 starts at weight cap `25`.
+- Wave 2 adds `+16`; each later increment grows by `+2` (`+18`, `+20`, ...).
+- Every flag wave, currently every `10`th wave, doubles that wave's final cap.
+- A wave may leave unused weight, but never exceeds its cap.
+- Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
+- The level has `30` total waves.
+- Pentagon 1 and Shooting Pentagon 1 have a minimum Flag 1 gate, so they can first enter the random pool on wave 10.
+
+| Wave | Flag | Base Cap | Final Cap |
+| ---: | ---: | ---: | ---: |
+| 1 | - | 25 | 25 |
+| 2 | - | 41 | 41 |
+| 3 | - | 59 | 59 |
+| 4 | - | 79 | 79 |
+| 5 | - | 101 | 101 |
+| 6 | - | 125 | 125 |
+| 7 | - | 151 | 151 |
+| 8 | - | 179 | 179 |
+| 9 | - | 209 | 209 |
+| 10 | 1 | 241 | 482 |
+| 11 | - | 275 | 275 |
+| 12 | - | 311 | 311 |
+| 13 | - | 349 | 349 |
+| 14 | - | 389 | 389 |
+| 15 | - | 431 | 431 |
+| 16 | - | 475 | 475 |
+| 17 | - | 521 | 521 |
+| 18 | - | 569 | 569 |
+| 19 | - | 619 | 619 |
+| 20 | 2 | 671 | 1342 |
 | 21 | - | 725 | 725 |
 | 22 | - | 781 | 781 |
 | 23 | - | 839 | 839 |
@@ -1123,6 +1261,155 @@ Base rule:
 | 28 | - | 1159 | 1159 |
 | 29 | - | 1229 | 1229 |
 | 30 | 3 | 1301 | 2602 |
+
+## Level 2-8 Weight Growth
+
+Enemy pool:
+
+- Circle 1
+- Triangle 3
+- Angel Pentagon 1
+- Hexagon 1
+- Charging Hexagon 1
+
+Base rule:
+
+- Starting characters: `350`.
+- Wave 1 starts at weight cap `25`.
+- Wave 2 adds `+16`; each later increment grows by `+2` (`+18`, `+20`, ...).
+- Every flag wave, currently every `10`th wave, doubles that wave's final cap.
+- A wave may leave unused weight, but never exceeds its cap.
+- Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
+- The level has `20` total waves.
+- Angel Pentagon 1 has a minimum Flag 1 gate, so it can first enter the random pool on wave 10.
+
+| Wave | Flag | Base Cap | Final Cap |
+| ---: | ---: | ---: | ---: |
+| 1 | - | 25 | 25 |
+| 2 | - | 41 | 41 |
+| 3 | - | 59 | 59 |
+| 4 | - | 79 | 79 |
+| 5 | - | 101 | 101 |
+| 6 | - | 125 | 125 |
+| 7 | - | 151 | 151 |
+| 8 | - | 179 | 179 |
+| 9 | - | 209 | 209 |
+| 10 | 1 | 241 | 482 |
+| 11 | - | 275 | 275 |
+| 12 | - | 311 | 311 |
+| 13 | - | 349 | 349 |
+| 14 | - | 389 | 389 |
+| 15 | - | 431 | 431 |
+| 16 | - | 475 | 475 |
+| 17 | - | 521 | 521 |
+| 18 | - | 569 | 569 |
+| 19 | - | 619 | 619 |
+| 20 | 2 | 671 | 1342 |
+
+## Level 2-9 Weight Growth
+
+Enemy pool:
+
+- Circle 1
+- Triangle Ram 1
+- Triangle 3
+- Pentagon 1
+- Angel Pentagon 1
+- Shooting Pentagon 1
+- Diamond 2
+- Hexagon 1
+- Charging Hexagon 1
+
+Base rule:
+
+- Starting characters: `350`.
+- Wave 1 starts at weight cap `25`.
+- Wave 2 adds `+16`; each later increment grows by `+2` (`+18`, `+20`, ...).
+- Every flag wave, currently every `10`th wave, doubles that wave's final cap.
+- A wave may leave unused weight, but never exceeds its cap.
+- Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
+- The level has `20` total waves.
+- Pentagon 1, Angel Pentagon 1, Shooting Pentagon 1, and Diamond 2 have a minimum Flag 1 gate, so they can first enter the random pool on wave 10.
+
+| Wave | Flag | Base Cap | Final Cap |
+| ---: | ---: | ---: | ---: |
+| 1 | - | 25 | 25 |
+| 2 | - | 41 | 41 |
+| 3 | - | 59 | 59 |
+| 4 | - | 79 | 79 |
+| 5 | - | 101 | 101 |
+| 6 | - | 125 | 125 |
+| 7 | - | 151 | 151 |
+| 8 | - | 179 | 179 |
+| 9 | - | 209 | 209 |
+| 10 | 1 | 241 | 482 |
+| 11 | - | 275 | 275 |
+| 12 | - | 311 | 311 |
+| 13 | - | 349 | 349 |
+| 14 | - | 389 | 389 |
+| 15 | - | 431 | 431 |
+| 16 | - | 475 | 475 |
+| 17 | - | 521 | 521 |
+| 18 | - | 569 | 569 |
+| 19 | - | 619 | 619 |
+| 20 | 2 | 671 | 1342 |
+
+## Level 2-10 Weight Growth
+
+Enemy pool:
+
+- Circle 1
+- Pentagon 1
+- Shooting Pentagon 1
+- Hexagon 1
+- Charging Hexagon 1
+- Triangle Ram 3
+- Boss: Dodecahedron I
+
+Base rule:
+
+- Starting characters: `350`.
+- Wave 1 starts at weight cap `25`.
+- Wave 2 adds `+16`; each later increment grows by `+2` (`+18`, `+20`, ...).
+- Every flag wave, currently every `10`th wave, doubles that wave's final cap.
+- Final wave weight cap is capped at `800` before difficulty and unlimited-firepower modifiers.
+- A wave may leave unused weight, but never exceeds its cap.
+- Difficulty modifies the final cap after flag doubling and the level cap. The result is floored and never lower than `10`.
+- Boss stage: endless waves until Dodecahedron I dies or reaches the base.
+- Pentagon 1 and Shooting Pentagon 1 have a minimum Flag 1 gate, so they can first enter the random pool on wave 10.
+
+| Wave | Flag | Base Cap | Final Cap |
+| ---: | ---: | ---: | ---: |
+| 1 | - | 25 | 25 |
+| 2 | - | 41 | 41 |
+| 3 | - | 59 | 59 |
+| 4 | - | 79 | 79 |
+| 5 | - | 101 | 101 |
+| 6 | - | 125 | 125 |
+| 7 | - | 151 | 151 |
+| 8 | - | 179 | 179 |
+| 9 | - | 209 | 209 |
+| 10 | 1 | 241 | 482 |
+| 11 | - | 275 | 275 |
+| 12 | - | 311 | 311 |
+| 13 | - | 349 | 349 |
+| 14 | - | 389 | 389 |
+| 15 | - | 431 | 431 |
+| 16 | - | 475 | 475 |
+| 17 | - | 521 | 521 |
+| 18 | - | 569 | 569 |
+| 19 | - | 619 | 619 |
+| 20 | 2 | 671 | 800 |
+| 21 | - | 725 | 725 |
+| 22 | - | 781 | 781 |
+| 23 | - | 839 | 800 |
+| 24 | - | 899 | 800 |
+| 25 | - | 961 | 800 |
+| 26 | - | 1025 | 800 |
+| 27 | - | 1091 | 800 |
+| 28 | - | 1159 | 800 |
+| 29 | - | 1229 | 800 |
+| 30 | 3 | 1301 | 800 |
 
 ## Spawn Trigger
 

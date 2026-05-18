@@ -10,7 +10,13 @@ import {
   clampDifficulty,
   palette
 } from "../config";
-import { bossRank, isTetrahedronBossKind } from "../bosses/cubeBoss";
+import {
+  DODECAHEDRON_EDGES,
+  DODECAHEDRON_UNIT_VERTICES,
+  bossRank,
+  isDodecahedronBossKind,
+  isTetrahedronBossKind
+} from "../bosses/cubeBoss";
 import {
   enemyEncyclopediaEntries,
   towerEncyclopediaEntries,
@@ -20,7 +26,13 @@ import {
 import { getLevelConfig, levelNodes } from "../data/levels";
 import { toRomanNumeral } from "../format";
 import { t, toggleLanguage } from "../i18n";
-import { createCubeIcon, createEnemyShape, createTetrahedronIcon, createUnitBorder } from "../render/unitShapes";
+import {
+  createCubeIcon,
+  createDodecahedronIcon,
+  createEnemyShape,
+  createTetrahedronIcon,
+  createUnitBorder
+} from "../render/unitShapes";
 import { cardLetterCase, type CardLetterCase } from "../registry/cards";
 import type { BossKind, LevelNode } from "../types";
 
@@ -454,6 +466,11 @@ export class LevelSelectScene extends Phaser.Scene {
       return;
     }
 
+    if (isDodecahedronBossKind(preview.kind)) {
+      this.drawDodecahedronNodePreview(preview);
+      return;
+    }
+
     const vertices = [
       [-1, -1, -1],
       [1, -1, -1],
@@ -509,6 +526,18 @@ export class LevelSelectScene extends Phaser.Scene {
     preview.frame.clear();
     preview.frame.lineStyle(1.5, palette.white, 0.92);
     for (const [from, to] of edges) {
+      preview.frame.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
+    }
+  }
+
+  private drawDodecahedronNodePreview(preview: BossNodePreview) {
+    const vertices = DODECAHEDRON_UNIT_VERTICES.map(([x, y, z]) => {
+      return this.projectBossNodePoint(x * preview.size * 0.84, y * preview.size * 0.84, z * preview.size * 0.84, preview);
+    });
+
+    preview.frame.clear();
+    preview.frame.lineStyle(1.4, palette.white, 0.9);
+    for (const [from, to] of DODECAHEDRON_EDGES) {
       preview.frame.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
     }
   }
@@ -823,6 +852,8 @@ export class LevelSelectScene extends Phaser.Scene {
       container.add(createCubeIcon(this).setPosition(48, 72));
     } else if (entry.icon === "tetrahedron") {
       container.add(createTetrahedronIcon(this).setPosition(48, 72));
+    } else if (entry.icon === "dodecahedron") {
+      container.add(createDodecahedronIcon(this).setPosition(48, 72));
     } else if (entry.card) {
       const border = createUnitBorder(this, entry.card.category, 23, 2).setPosition(48, 70);
       const label = this.add

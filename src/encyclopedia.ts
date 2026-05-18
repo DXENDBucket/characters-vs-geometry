@@ -17,7 +17,7 @@ export interface EncyclopediaEntry {
   description: string;
   enemyKind?: EnemyKind;
   card?: CardDefinition;
-  icon?: "cube" | "tetrahedron";
+  icon?: "cube" | "tetrahedron" | "dodecahedron";
 }
 
 export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
@@ -29,9 +29,13 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
   const triangleRam3 = getEnemyDefinition("triangleRam3");
   const mortarTriangle = getEnemyDefinition("mortarTriangle");
   const mortarTriangle2 = getEnemyDefinition("mortarTriangle2");
+  const pentagon = getEnemyDefinition("pentagon");
+  const angelPentagon = getEnemyDefinition("angelPentagon");
+  const shootingPentagon = getEnemyDefinition("shootingPentagon");
   const diamond = getEnemyDefinition("diamond");
   const diamond2 = getEnemyDefinition("diamond2");
   const hexagon = getEnemyDefinition("hexagon");
+  const chargingHexagon = getEnemyDefinition("chargingHexagon");
   const invertedTriangle = getEnemyDefinition("invertedTriangle");
   const invertedTriangle2 = getEnemyDefinition("invertedTriangle2");
   const shootingTriangle = getEnemyDefinition("shootingTriangle");
@@ -151,6 +155,42 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
         : "If blocked, it targets its own blocker first. Otherwise it targets the tower blocking the most enemies, breaking ties by later placement. If it locks onto N, N rewrites the landing point. If it hits R, R still takes damage and reflects a matching mortar back at the shooter."
     },
     {
+      title: zh ? "五边形系列" : "Pentagon Series",
+      enemyKind: "pentagon",
+      lines: [
+        statLine([
+          [t("label.hp"), pentagon.hp],
+          [t("label.armor"), pentagon.armor],
+          [t("label.mr"), pentagon.magicResistance],
+          [t("label.atk"), damageText(pentagon.damage, pentagon.damageType)],
+          [t("label.speed"), speedText("pentagon")],
+          [t("label.weight"), pentagon.weight]
+        ]),
+        zh ? "每 15 秒发射红色 # 法术迫击弹，3x3 范围伤害；第 1 旗前不会自然出现" : "Fires red # magic mortars every 15s with 3x3 AOE; does not naturally appear before Flag 1"
+      ],
+      description: zh
+        ? "锁定型远程敌怪，行为类似三角迫击炮。若自身正被阻挡，会优先锁定阻挡自己的塔；否则锁定场上等级最高的塔，若相同则瞄准更晚放置的塔。外观为面朝下的五边形。"
+        : "Locked ranged enemy, similar to Triangle Mortar. If blocked, it targets its own blocker first; otherwise it targets the highest-level tower on the field, breaking ties by later placement. Its pentagon body has a downward-facing side."
+    },
+    {
+      title: zh ? "天使五边形系列" : "Angel Pentagon Series",
+      enemyKind: "angelPentagon",
+      lines: [
+        statLine([
+          [t("label.hp"), angelPentagon.hp],
+          [t("label.armor"), angelPentagon.armor],
+          [t("label.mr"), angelPentagon.magicResistance],
+          [t("label.atk"), damageText(angelPentagon.damage, angelPentagon.damageType)],
+          [t("label.speed"), speedText("angelPentagon")],
+          [t("label.weight"), angelPentagon.weight]
+        ]),
+        zh ? "第 1 旗前不会自然出现；羽翼：15 技力满后，让自身和 3x3 范围内敌怪飞行并获得 100% 移速加成，持续 3s" : "Does not naturally appear before Flag 1. Wings: at 15 SP, gives itself and enemies in a 3x3 area Flying and +100% movement speed for 3s"
+      ],
+      description: zh
+        ? "支援型近战敌怪，外观为端点朝下且带小光环的五边形。飞行单位不会被阻挡，显示位置会更靠上。羽翼持续期间不会回复技力，结束后才重新蓄力。"
+        : "Support melee enemy. Its pentagon point faces downward and it has a small halo. Flying units cannot be blocked and render slightly higher. It does not regenerate SP while Wings is active, then starts charging again after the effect ends."
+    },
+    {
       title: zh ? "射击三角系列" : "Shooting Triangle Series",
       enemyKind: "shootingTriangle",
       lines: [
@@ -170,6 +210,24 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
       description: zh
         ? "远程敌怪。三角尖端朝向底线，会发射带红色的物理弹幕。"
         : "Ranged enemy. Its point faces the base and it fires red-tinted physical projectiles."
+    },
+    {
+      title: zh ? "射击五边形系列" : "Shooting Pentagon Series",
+      enemyKind: "shootingPentagon",
+      lines: [
+        statLine([
+          [t("label.hp"), shootingPentagon.hp],
+          [t("label.armor"), shootingPentagon.armor],
+          [t("label.mr"), shootingPentagon.magicResistance],
+          [t("label.atk"), damageText(shootingPentagon.damage, shootingPentagon.damageType)],
+          [t("label.speed"), speedText("shootingPentagon")],
+          [t("label.weight"), shootingPentagon.weight]
+        ]),
+        zh ? "攻击间隔 4s；红色激光瞬间结算，会穿透塔，直到命中第一座法抗大于 0 的塔后停止" : "Attack interval: 4s; instant red laser pierces towers until it hits the first tower with MR greater than 0"
+      ],
+      description: zh
+        ? "远程法术敌怪，性质类似菱形。外观为一个顶点朝向底线的五边形。激光不是弹射物，会同时对同一行路径上的塔造成法术伤害，不会被 R 反弹，并在第一座有法抗的塔处停止。"
+        : "Ranged magic enemy, similar to Diamond. Its pentagon body has one point facing the base. The laser is not a projectile: it damages towers in its lane instantly, cannot be reflected by R, and stops at the first tower with magic resistance."
     },
     {
       title: zh ? "菱形系列" : "Diamond Series",
@@ -205,8 +263,26 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
         zh ? "半径 1.4 格装甲光环；每秒 +1 技力，20 技力满后可治愈" : "1.4-cell Armor aura; gains +1 SP/s, heals at 20 SP"
       ],
       description: zh
-        ? "支援型近战敌怪。自身和半径 1.4 格内敌怪获得装甲，每个六边形提供 +200 护甲，可加算叠加，显示 ⬡。治愈每秒回复 1 技力，上限 20，满技力且范围内有可治疗目标时消耗 20 技力，治疗范围内生命百分比最低的缺血敌怪，治疗量为自身最大生命的 30%。外观是一条边朝向底线的六边形。"
-        : "Support melee enemy. It and enemies within 1.4 cells gain Armor: each Hexagon grants +200 armor, stacking additively and shown as ⬡. Heal gains 1 SP/s up to 20; at full SP, if a healing target exists, it consumes 20 SP and restores the lowest-HP-percent damaged enemy in range for 30% of its own max HP. Its flat side faces the base."
+        ? "支援型近战敌怪。自身和半径 1.4 格内敌怪获得装甲，Boss 碰撞体接触光环时也会获得装甲；每个六边形提供 +80 护甲，可加算叠加，普通敌怪显示 ⬡。治愈每秒回复 1 技力，上限 20，满技力且范围内有可治疗目标时消耗 20 技力，治疗范围内生命百分比最低的缺血敌怪，治疗量为自身最大生命的 30%。外观是一条边朝向底线的六边形。"
+        : "Support melee enemy. It and enemies within 1.4 cells gain Armor, and Bosses also gain Armor while their hitbox touches the aura. Each Hexagon grants +80 armor, stacking additively and shown as ⬡ on ordinary enemies. Heal gains 1 SP/s up to 20; at full SP, if a healing target exists, it consumes 20 SP and restores the lowest-HP-percent damaged enemy in range for 30% of its own max HP. Its flat side faces the base."
+    },
+    {
+      title: zh ? "冲锋六边形系列" : "Charging Hexagon Series",
+      enemyKind: "chargingHexagon",
+      lines: [
+        statLine([
+          [t("label.hp"), chargingHexagon.hp],
+          [t("label.armor"), chargingHexagon.armor],
+          [t("label.mr"), chargingHexagon.magicResistance],
+          [t("label.atk"), `${damageText(chargingHexagon.damage, chargingHexagon.damageType)} / 2s`],
+          [t("label.speed"), speedText("chargingHexagon")],
+          [t("label.weight"), chargingHexagon.weight]
+        ]),
+        zh ? "同行且更靠后的敌怪获得不可叠加的 50% 移速加成" : "Enemies in the same lane behind it gain a non-stacking 50% movement speed bonus"
+      ],
+      description: zh
+        ? "高速近战支援敌怪。外观为尖端朝向底线的六边形，近战攻击造成法术伤害。它会推进同一行、距离底线更远的敌怪。"
+        : "Fast melee support enemy. Its hexagon point faces the base, and its melee attack deals magic damage. It pushes enemies in the same lane that are farther from the base."
     },
     {
       title: zh ? "正方体 Boss 系列" : "Cube Boss Series",
@@ -256,6 +332,23 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
         zh
           ? "首次降至10%生命时获得15秒无敌和60秒300%速度加速，并在最远离底线的五列每格召唤倒三角 I；之后所有技能自然回技速度永久翻倍。若此前被直接击杀，则锁1血并触发同一套效果。孤注一掷：50%生命以下每秒回1技力，10满后给接触 Boss 的敌怪永久力量，并使冲锋 +5。"
           : "The first time HP reaches 10% or lower, gains 15s Invincible and 60s Boss Haste at 300% speed, summons Inverted Triangle I in every cell of the five columns farthest from the base, and permanently doubles all skill natural SP gain. If it would die before this triggers, it locks at 1 HP and triggers the same package. Last Stand: below 50% HP, gains 1 SP/s; at 10 SP, grants permanent Power to enemies touching the Boss and gives Charge +5 SP."
+      ],
+      description: zh
+        ? "Boss 不会被阻挡，也不会随血量缩小；到达底线会失败，死亡会直接胜利。"
+        : "Boss cannot be blocked and does not shrink with HP. Reaching the base is defeat; killing it clears the stage."
+    },
+    {
+      title: zh ? "正十二面体 Boss 系列" : "Dodecahedron Boss Series",
+      icon: "dodecahedron",
+      lines: [
+        statLine([
+          [t("label.hp"), CUBE_BOSS_STATS.dodecahedron.hp],
+          [t("label.armor"), CUBE_BOSS_STATS.dodecahedron.armor],
+          [t("label.mr"), CUBE_BOSS_STATS.dodecahedron.magicResistance],
+          [t("label.speed"), CUBE_BOSS_STATS.dodecahedron.speed],
+          [t("label.atk"), `${damageText(CUBE_BOSS_CONTACT_DAMAGE, "physical")} / ${CUBE_BOSS_CONTACT_INTERVAL}s`]
+        ]),
+        zh ? "白板 Boss：没有技力技能。" : "Whiteboard Boss: no SP skills."
       ],
       description: zh
         ? "Boss 不会被阻挡，也不会随血量缩小；到达底线会失败，死亡会直接胜利。"
@@ -329,7 +422,7 @@ function towerDescription(id: CardId) {
     S: zh ? "主动术法迫击塔。30 技力满后显示边框；点击进入瞄准，指定任意落点后连射三发 S 形抛物线迫击弹，每发造成 3x3 范围法术伤害。右键或点击其他 UI 可取消瞄准。" : "Active spell mortar. At 30 SP, shows its border; click to aim, then choose any target point to fire three arcing S shells, each dealing 3x3 magic AOE damage. Right-click or clicking other UI cancels aiming.",
     Z: zh ? `生产型斩击塔。范围和 K 一致；每次斩击命中时产生 ${EFFECT_SYMBOLS.chars}15。` : `Production slasher. Same range as K; each slash hit generates ${EFFECT_SYMBOLS.chars}15.`,
     L: zh ? "牵引塔。抓取上下两行指定格子的所有敌怪平移到本行，每抓一个自损 400 真实伤害。" : "Shifter. Pulls all enemies from target tiles in adjacent lanes into its lane, taking 400 true self-damage per target.",
-    N: zh ? "防御推移塔。每秒把自己正在阻挡的所有敌怪向左推移 4 格，每推一个自损 400 真实伤害。敌方弹幕命中它时会被推移且不会造成伤害；锁定 N 的迫击弹会被改写落点。" : "Defender-shifter. Every second, pushes all enemies it is blocking 4 cells left, taking 400 true self-damage per pushed enemy. Enemy projectiles that would hit it are shifted too and do not damage N; locked mortars targeting N have their landing point rewritten.",
+    N: zh ? "防御推移塔。每秒把自己正在阻挡的所有敌怪向左推移 5 格，每推一个自损 400 真实伤害。敌方弹幕命中它时会被推移且不会造成伤害；锁定 N 的迫击弹会被改写落点。" : "Defender-shifter. Every second, pushes all enemies it is blocking 5 cells left, taking 400 true self-damage per pushed enemy. Enemy projectiles that would hit it are shifted too and do not damage N; locked mortars targeting N have their landing point rewritten.",
     T: zh ? "迟滞塔。每秒自损 700 真实伤害；以自身为中心 5x5 去角范围内的普通单位和弹幕移动速度降为六分之一，并显示深紫色时间范围框。Boss 不受减速影响。死亡时清除范围内弹幕；被橡皮擦移除不会触发亡语。" : "Slow field tower. Takes 700 true self-damage every second; ordinary units and projectiles in its centered 5x5 no-corner area move at one sixth speed, shown with a deep-purple time range border. Bosses ignore the slow. On death, clears projectiles in that area; erasing it does not trigger the death effect.",
     U: zh ? "等级光环塔。为自身 3x3 范围内除自己外、基础费用低于 U 的塔提供等同于自身真实等级的额外等级加成；多个 U 可加算。" : "Level aura tower. Grants towers in its centered 3x3 area, excluding itself, bonus levels equal to U's real level. It only affects towers with a lower base cost than U, and multiple U auras stack additively."
   };

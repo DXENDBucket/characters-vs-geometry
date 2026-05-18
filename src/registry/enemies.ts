@@ -7,12 +7,16 @@ export type EnemyFamily =
   | "triangle"
   | "triangleRam"
   | "mortarTriangle"
+  | "pentagon"
+  | "angelPentagon"
+  | "shootingPentagon"
   | "diamond"
   | "hexagon"
+  | "chargingHexagon"
   | "invertedTriangle"
   | "shootingTriangle"
   | "square";
-export type EnemyAttackMode = "melee" | "ranged" | "mortar" | "blockedDetonator" | "siegeRam";
+export type EnemyAttackMode = "melee" | "ranged" | "mortar" | "laser" | "blockedDetonator" | "siegeRam";
 
 export interface BlockedDetonation {
   delay: number;
@@ -118,6 +122,27 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     nameKey: "enemy.mortarTriangle2",
     attackMode: "mortar"
   },
+  pentagon: {
+    definition: rawEnemyDefinitions.pentagon,
+    family: "pentagon",
+    rank: 1,
+    nameKey: "enemy.pentagon",
+    attackMode: "mortar"
+  },
+  angelPentagon: {
+    definition: rawEnemyDefinitions.angelPentagon,
+    family: "angelPentagon",
+    rank: 1,
+    nameKey: "enemy.angelPentagon",
+    attackMode: "melee"
+  },
+  shootingPentagon: {
+    definition: rawEnemyDefinitions.shootingPentagon,
+    family: "shootingPentagon",
+    rank: 1,
+    nameKey: "enemy.shootingPentagon",
+    attackMode: "laser"
+  },
   diamond: {
     definition: rawEnemyDefinitions.diamond,
     family: "diamond",
@@ -138,6 +163,13 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     family: "hexagon",
     rank: 1,
     nameKey: "enemy.hexagon",
+    attackMode: "melee"
+  },
+  chargingHexagon: {
+    definition: rawEnemyDefinitions.chargingHexagon,
+    family: "chargingHexagon",
+    rank: 1,
+    nameKey: "enemy.chargingHexagon",
     attackMode: "melee"
   },
   invertedTriangle: {
@@ -241,6 +273,10 @@ export function enemyIsRanged(kind: EnemyKind) {
 
 export function enemyIsMortar(kind: EnemyKind) {
   return enemyRegistrations[kind].attackMode === "mortar";
+}
+
+export function enemyIsLaser(kind: EnemyKind) {
+  return enemyRegistrations[kind].attackMode === "laser";
 }
 
 export function enemyIsBlockedDetonator(kind: EnemyKind) {

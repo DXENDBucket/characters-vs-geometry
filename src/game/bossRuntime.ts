@@ -19,12 +19,18 @@ import {
 import {
   bossAdvanceSpawnPoints,
   chargeBossSkill,
+  isDodecahedronBoss,
   isTetrahedronBoss,
   isBossSkillReady,
   spendBossSkill,
   updateCubeBossMotion
 } from "../bosses/cubeBoss";
-import { makeBossHasteTrail, makeCubeCollapse, makeTetrahedronCollapse } from "../render/combatEffects";
+import {
+  makeBossHasteTrail,
+  makeCubeCollapse,
+  makeDodecahedronCollapse,
+  makeTetrahedronCollapse
+} from "../render/combatEffects";
 import type { BossSkill, CubeBoss, DamageType, Enemy, Tower } from "../types";
 import { applyEnemyPromotion, findPromotionTargets, promotedKind } from "./enemyBehaviors";
 import { spawnEnemyAt } from "./enemyRuntime";
@@ -409,6 +415,11 @@ function makeBossCollapse(
 ) {
   if (isTetrahedronBoss(boss)) {
     makeTetrahedronCollapse(runtime.scene, x, y, followTarget, runtime.enemies, runtime.towers);
+    return;
+  }
+
+  if (isDodecahedronBoss(boss)) {
+    makeDodecahedronCollapse(runtime.scene, x, y, followTarget, runtime.enemies, runtime.towers);
     return;
   }
 
