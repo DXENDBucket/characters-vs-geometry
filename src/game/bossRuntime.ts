@@ -20,6 +20,7 @@ import {
   bossAdvanceSpawnPoints,
   chargeBossSkill,
   isDodecahedronBoss,
+  isSmallStellatedDodecahedronBoss,
   isTetrahedronBoss,
   isBossSkillReady,
   spendBossSkill,
@@ -29,19 +30,51 @@ import {
   makeBossHasteTrail,
   makeCubeCollapse,
   makeDodecahedronCollapse,
+  makeEnemyHitShards,
+  makeEnemyInvincibleFlash,
+  makeEnemyLaserEffect,
+  makeSmallStellatedDodecahedronCollapse,
   makeTetrahedronCollapse
 } from "../render/combatEffects";
-import type { BossSkill, CubeBoss, DamageType, Enemy, Tower } from "../types";
+import { syncDodecahedronCompanionShape } from "../render/unitShapes";
+import type { BossCompanionActionPhase, BossSkill, CubeBoss, DamageType, Enemy, MortarProjectile, Tower } from "../types";
 import { applyEnemyPromotion, findPromotionTargets, promotedKind } from "./enemyBehaviors";
 import { spawnEnemyAt } from "./enemyRuntime";
-import { applyStatusEffect } from "./statusEffects";
+import { createMortarProjectile } from "./projectiles";
+import { makeWingPulse, triggerAngelWings } from "./enemySupport";
+import { applyStatusEffect, hasStatusEffect, statusAttackMultiplier } from "./statusEffects";
 import { bossRect, towerRect } from "./targeting";
 import { isTrapArmed } from "./towers";
+import { volleyInterval } from "./upgrades";
+import { getEnemyDefinition, enemyRank } from "../registry/enemies";
+
+const DODECAHEDRON_COMPANION_KIND: Enemy["kind"] = "dodecahedronCompanion";
+const DODECAHEDRON_COMPANION_COUNT = 3;
+const DODECAHEDRON_COMPANION_ORBIT_RADIUS = CELL_WIDTH * 1.95;
+const DODECAHEDRON_COMPANION_ORBIT_SPEED = 0.55;
+const DODECAHEDRON_COMPANION_ARMOR_BREAK = 1_800;
+const DODECAHEDRON_COMPANION_ATTACK_DELAYS: Record<BossCompanionActionPhase, number> = {
+  laser: 20_000,
+  mortar: 30_000,
+  wings: 30_000
+};
+const DODECAHEDRON_COMPANION_LASER_FIRE_RATE = 4_000;
+const DODECAHEDRON_COMPANION_MORTAR_FIRE_RATE = 15_000;
+const DODECAHEDRON_COMPANION_MOTION_HOLD = 47_000;
+const DODECAHEDRON_COMPANION_MOTION_TRANSITION = 1_000;
+const DODECAHEDRON_COMPANION_MOTION_CYCLE = DODECAHEDRON_COMPANION_MOTION_HOLD * 2 + DODECAHEDRON_COMPANION_MOTION_TRANSITION * 2;
+const DODECAHEDRON_COMPANION_FORMATION_LANE_OFFSETS = [0, -2, 2] as const;
+const DODECAHEDRON_COMPANION_DEATH_INVINCIBLE_DURATION = 10_000;
+const DODECAHEDRON_COMPANION_DEATH_LASER_SHOTS = 7;
+const DODECAHEDRON_COMPANION_DEATH_MORTAR_TARGETS = 4;
+const DODECAHEDRON_BOSS_ENDLESS_WINGS_DURATION = 7_000;
+const DODECAHEDRON_BOSS_ENDLESS_WINGS_SPEED_MULTIPLIER = 2;
 
 export interface BossRuntime {
   scene: Phaser.Scene;
   enemies: Enemy[];
   towers: Tower[];
+  mortarProjectiles: MortarProjectile[];
   getBoss: () => CubeBoss | null;
   wave: number;
   battleTime: number;
@@ -49,6 +82,7 @@ export interface BossRuntime {
   damageTower: (tower: Tower, damage: number, damageType: DamageType) => void;
   triggerTrapTower: (tower: Tower, target: Enemy | "boss") => void;
   triggerShockTower: (tower: Tower) => void;
+  runWhenBattleActive: (action: () => void) => void;
   endGame: () => void;
 }
 
@@ -59,6 +93,7 @@ export function updateBossRuntime(runtime: BossRuntime, seconds: number) {
   }
 
   updateCubeBossMotion(boss, seconds, bossMovementMultiplier(boss, runtime.battleTime), runtime.battleTime);
+  updateDodecahedronCompanions(runtime, boss, seconds);
   updateBossHasteVisual(runtime, boss);
   triggerTetrahedronHalfHpBurst(runtime, boss);
   triggerTetrahedronCriticalSummon(runtime, boss);
@@ -72,6 +107,387 @@ export function updateBossRuntime(runtime: BossRuntime, seconds: number) {
   if (bossRect(boss).left <= BOARD_X - 20) {
     runtime.endGame();
   }
+}
+
+function updateDodecahedronCompanions(runtime: BossRuntime, boss: CubeBoss, seconds: number) {
+  if (!isDodecahedronBoss(boss)) {
+    return;
+  }
+
+  initializeDodecahedronCompanions(runtime, boss);
+  const companions = runtime.enemies.filter((enemy) => enemy.kind === DODECAHEDRON_COMPANION_KIND);
+  for (const companion of companions) {
+    companion.bossOrbitAngle =
+      (companion.bossOrbitAngle ?? Math.PI) + DODECAHEDRON_COMPANION_ORBIT_SPEED * seconds;
+    syncDodecahedronCompanionPosition(companion, boss, runtime.battleTime);
+    syncDodecahedronCompanionShape(companion.shape, boss, hasStatusEffect(companion, "invincible", runtime.battleTime));
+    updateDodecahedronCompanionAction(runtime, companion);
+  }
+
+  handleDodecahedronCompanionDeaths(runtime, boss, companions);
+  if (boss.companionsInitialized && !boss.companionArmorReduced && companions.length === 0) {
+    boss.companionArmorReduced = true;
+    boss.armor = Math.max(0, boss.armor - DODECAHEDRON_COMPANION_ARMOR_BREAK);
+  }
+  updateDodecahedronEndlessWings(runtime, boss, seconds, companions);
+}
+
+function initializeDodecahedronCompanions(runtime: BossRuntime, boss: CubeBoss) {
+  if (boss.companionsInitialized) {
+    return;
+  }
+
+  boss.companionsInitialized = true;
+  const waveNumber = runtime.wave || 0;
+  for (let index = 0; index < DODECAHEDRON_COMPANION_COUNT; index += 1) {
+    const angle = Math.PI + (Math.PI * 2 * index) / DODECAHEDRON_COMPANION_COUNT;
+    spawnEnemyAt(runtime, {
+      kind: DODECAHEDRON_COMPANION_KIND,
+      waveNumber,
+      time: runtime.battleTime,
+      lane: Math.floor(LANES / 2),
+      x: boss.x,
+      waveWeight: 0,
+      finalDamageReduction: runtime.finalDamageReduction
+    });
+    const companion = runtime.enemies[runtime.enemies.length - 1];
+    companion.bossOrbitAngle = angle;
+    companion.bossOrbitRadius = DODECAHEDRON_COMPANION_ORBIT_RADIUS;
+    companion.bossCompanionIndex = index;
+    companion.bossCompanionActionPhase = "laser";
+    companion.bossCompanionNextActionAt = runtime.battleTime + DODECAHEDRON_COMPANION_ATTACK_DELAYS.laser;
+    companion.body.setDepth(87);
+    syncDodecahedronCompanionPosition(companion, boss, runtime.battleTime);
+    syncDodecahedronCompanionShape(companion.shape, boss);
+  }
+}
+
+function syncDodecahedronCompanionPosition(companion: Enemy, boss: CubeBoss, battleTime: number) {
+  const position = dodecahedronCompanionPosition(companion, boss, battleTime);
+  companion.x = position.x;
+  companion.y = position.y;
+  companion.lane = Phaser.Math.Clamp(Math.round((companion.y - BOARD_Y - CELL_HEIGHT / 2) / CELL_HEIGHT), 0, LANES - 1);
+  companion.body.setPosition(companion.x, companion.y);
+}
+
+function dodecahedronCompanionPosition(companion: Enemy, boss: CubeBoss, battleTime: number) {
+  const orbit = dodecahedronCompanionOrbitPosition(companion, boss);
+  const formation = dodecahedronCompanionFormationPosition(companion, boss);
+  const cycle = battleTime % DODECAHEDRON_COMPANION_MOTION_CYCLE;
+
+  if (cycle < DODECAHEDRON_COMPANION_MOTION_HOLD) {
+    return orbit;
+  }
+
+  if (cycle < DODECAHEDRON_COMPANION_MOTION_HOLD + DODECAHEDRON_COMPANION_MOTION_TRANSITION) {
+    const progress = (cycle - DODECAHEDRON_COMPANION_MOTION_HOLD) / DODECAHEDRON_COMPANION_MOTION_TRANSITION;
+    return lerpPoint(orbit, formation, progress);
+  }
+
+  const formationEnd = DODECAHEDRON_COMPANION_MOTION_HOLD * 2 + DODECAHEDRON_COMPANION_MOTION_TRANSITION;
+  if (cycle < formationEnd) {
+    return formation;
+  }
+
+  const progress = (cycle - formationEnd) / DODECAHEDRON_COMPANION_MOTION_TRANSITION;
+  return lerpPoint(formation, orbit, progress);
+}
+
+function dodecahedronCompanionOrbitPosition(companion: Enemy, boss: CubeBoss) {
+  const angle = companion.bossOrbitAngle ?? Math.PI;
+  const radius = companion.bossOrbitRadius ?? DODECAHEDRON_COMPANION_ORBIT_RADIUS;
+  return {
+    x: boss.x + Math.cos(angle) * radius,
+    y: boss.y + Math.sin(angle) * radius
+  };
+}
+
+function dodecahedronCompanionFormationPosition(companion: Enemy, boss: CubeBoss) {
+  const index = companion.bossCompanionIndex ?? 0;
+  const bossLane = Phaser.Math.Clamp(Math.round((boss.y - BOARD_Y - CELL_HEIGHT / 2) / CELL_HEIGHT), 0, LANES - 1);
+  const offset = DODECAHEDRON_COMPANION_FORMATION_LANE_OFFSETS[index] ?? 0;
+  const lane = Phaser.Math.Clamp(bossLane + offset, 0, LANES - 1);
+  return {
+    x: bossRect(boss).left - CELL_WIDTH / 2,
+    y: BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2
+  };
+}
+
+function lerpPoint(from: { x: number; y: number }, to: { x: number; y: number }, progress: number) {
+  const clamped = Phaser.Math.Clamp(progress, 0, 1);
+  return {
+    x: Phaser.Math.Linear(from.x, to.x, clamped),
+    y: Phaser.Math.Linear(from.y, to.y, clamped)
+  };
+}
+
+function updateDodecahedronCompanionAction(runtime: BossRuntime, companion: Enemy) {
+  const nextActionAt = companion.bossCompanionNextActionAt ?? runtime.battleTime + DODECAHEDRON_COMPANION_ATTACK_DELAYS.laser;
+  if (runtime.battleTime < nextActionAt) {
+    companion.bossCompanionNextActionAt = nextActionAt;
+    return;
+  }
+
+  const phase = companion.bossCompanionActionPhase ?? "laser";
+  if (phase === "laser") {
+    fireDodecahedronCompanionLaserVolley(runtime, companion);
+  } else if (phase === "mortar") {
+    fireDodecahedronCompanionMortarVolley(runtime, companion);
+  } else {
+    triggerAngelWings(runtime.scene, runtime.enemies, companion, runtime.battleTime);
+  }
+
+  const nextPhase = nextDodecahedronCompanionActionPhase(phase);
+  companion.bossCompanionActionPhase = nextPhase;
+  companion.bossCompanionNextActionAt =
+    runtime.battleTime + DODECAHEDRON_COMPANION_ATTACK_DELAYS[nextPhase];
+}
+
+function nextDodecahedronCompanionActionPhase(phase: BossCompanionActionPhase): BossCompanionActionPhase {
+  if (phase === "laser") {
+    return "mortar";
+  }
+
+  if (phase === "mortar") {
+    return "wings";
+  }
+
+  return "laser";
+}
+
+function fireDodecahedronCompanionLaserVolley(runtime: BossRuntime, companion: Enemy) {
+  const shots = 4 * enemyRank(companion.kind);
+  const interval = volleyInterval(DODECAHEDRON_COMPANION_LASER_FIRE_RATE, shots);
+  for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
+    runtime.scene.time.delayedCall(shotIndex * interval, () => {
+      runtime.runWhenBattleActive(() => fireDodecahedronCompanionLaser(runtime, companion));
+    });
+  }
+}
+
+function fireDodecahedronCompanionLaser(runtime: BossRuntime, companion: Enemy) {
+  if (!runtime.enemies.includes(companion)) {
+    return;
+  }
+
+  const definition = getEnemyDefinition("shootingPentagon");
+  const targets = runtime.towers
+    .filter((tower) => tower.lane === companion.lane && tower.x < companion.x)
+    .sort((a, b) => b.x - a.x);
+  const stoppingTarget = targets.find((tower) => tower.magicResistance > 0);
+  const hitTargets = stoppingTarget ? targets.filter((tower) => tower.x >= stoppingTarget.x) : targets;
+  const endX = stoppingTarget?.x ?? BOARD_X;
+
+  makeEnemyLaserEffect(runtime.scene, companion.x - 24, companion.y, endX);
+  for (const tower of hitTargets) {
+    makeEnemyHitShards(runtime.scene, tower.x, tower.y);
+    runtime.damageTower(
+      tower,
+      definition.damage * statusAttackMultiplier(companion, runtime.battleTime),
+      definition.damageType
+    );
+  }
+}
+
+function fireDodecahedronCompanionMortarVolley(runtime: BossRuntime, companion: Enemy) {
+  const target = findDodecahedronCompanionMortarTarget(runtime);
+  if (!target) {
+    return;
+  }
+
+  const shots = 2 * enemyRank(companion.kind);
+  const interval = volleyInterval(DODECAHEDRON_COMPANION_MORTAR_FIRE_RATE, shots);
+  for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
+    runtime.scene.time.delayedCall(shotIndex * interval, () => {
+      runtime.runWhenBattleActive(() => fireDodecahedronCompanionMortar(runtime, companion));
+    });
+  }
+}
+
+function fireDodecahedronCompanionMortar(runtime: BossRuntime, companion: Enemy) {
+  if (!runtime.enemies.includes(companion)) {
+    return;
+  }
+
+  const target = findDodecahedronCompanionMortarTarget(runtime);
+  if (!target) {
+    return;
+  }
+
+  const definition = getEnemyDefinition("pentagon");
+  runtime.mortarProjectiles.push(
+    createMortarProjectile(runtime.scene, {
+      owner: "enemy",
+      fromX: companion.x,
+      fromY: companion.y,
+      targetX: target.x,
+      targetY: target.y,
+      damage: definition.damage * statusAttackMultiplier(companion, runtime.battleTime),
+      damageType: definition.damageType,
+      rangeX: CELL_WIDTH * 1.5,
+      rangeY: CELL_HEIGHT * 1.5,
+      marker: "text",
+      markerText: "#",
+      markerTextColor: "#ff6464",
+      sourceEnemy: companion,
+      targetTower: target
+    })
+  );
+}
+
+function findDodecahedronCompanionMortarTarget(runtime: BossRuntime) {
+  return [...runtime.towers].sort((a, b) => b.level - a.level || b.placedOrder - a.placedOrder)[0];
+}
+
+function handleDodecahedronCompanionDeaths(runtime: BossRuntime, boss: CubeBoss, livingCompanions: Enemy[]) {
+  const deadCount = DODECAHEDRON_COMPANION_COUNT - livingCompanions.length;
+  while (boss.companionDeathsHandled < deadCount) {
+    boss.companionDeathsHandled += 1;
+    triggerDodecahedronCompanionDeath(runtime, boss, boss.companionDeathsHandled, livingCompanions);
+  }
+}
+
+function triggerDodecahedronCompanionDeath(
+  runtime: BossRuntime,
+  boss: CubeBoss,
+  deathNumber: number,
+  livingCompanions: Enemy[]
+) {
+  for (const companion of livingCompanions) {
+    applyStatusEffect(
+      companion,
+      "invincible",
+      DODECAHEDRON_COMPANION_DEATH_INVINCIBLE_DURATION,
+      runtime.battleTime
+    );
+    makeEnemyInvincibleFlash(runtime.scene, companion.x, companion.y);
+  }
+
+  if (deathNumber === 1) {
+    fireDodecahedronDeathLaserVolley(runtime, boss);
+  } else if (deathNumber === 2) {
+    fireDodecahedronDeathMortars(runtime, boss);
+  }
+}
+
+function fireDodecahedronDeathLaserVolley(runtime: BossRuntime, boss: CubeBoss) {
+  const interval = volleyInterval(DODECAHEDRON_COMPANION_LASER_FIRE_RATE, DODECAHEDRON_COMPANION_DEATH_LASER_SHOTS);
+  for (let shotIndex = 0; shotIndex < DODECAHEDRON_COMPANION_DEATH_LASER_SHOTS; shotIndex += 1) {
+    runtime.scene.time.delayedCall(shotIndex * interval, () => {
+      runtime.runWhenBattleActive(() => fireDodecahedronDeathLasers(runtime, boss));
+    });
+  }
+}
+
+function fireDodecahedronDeathLasers(runtime: BossRuntime, boss: CubeBoss) {
+  if (runtime.getBoss() !== boss) {
+    return;
+  }
+
+  const centerLane = bossLane(boss);
+  const lanes = [centerLane - 1, centerLane, centerLane + 1].filter((lane) => lane >= 0 && lane < LANES);
+  const fromX = bossRect(boss).left;
+  for (const lane of lanes) {
+    fireDodecahedronLaserInLane(runtime, fromX, lane);
+  }
+}
+
+function fireDodecahedronLaserInLane(runtime: BossRuntime, fromX: number, lane: number) {
+  const definition = getEnemyDefinition("shootingPentagon");
+  const y = BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2;
+  const targets = runtime.towers
+    .filter((tower) => tower.lane === lane && tower.x < fromX)
+    .sort((a, b) => b.x - a.x);
+  const stoppingTarget = targets.find((tower) => tower.magicResistance > 0);
+  const hitTargets = stoppingTarget ? targets.filter((tower) => tower.x >= stoppingTarget.x) : targets;
+  const endX = stoppingTarget?.x ?? BOARD_X;
+
+  makeEnemyLaserEffect(runtime.scene, fromX, y, endX);
+  for (const tower of hitTargets) {
+    makeEnemyHitShards(runtime.scene, tower.x, tower.y);
+    runtime.damageTower(tower, definition.damage, definition.damageType);
+  }
+}
+
+function fireDodecahedronDeathMortars(runtime: BossRuntime, boss: CubeBoss) {
+  const targets = findDodecahedronPentagonTargets(runtime, DODECAHEDRON_COMPANION_DEATH_MORTAR_TARGETS);
+  const interval = volleyInterval(DODECAHEDRON_COMPANION_MORTAR_FIRE_RATE, DODECAHEDRON_COMPANION_DEATH_MORTAR_TARGETS);
+  targets.forEach((target, index) => {
+    runtime.scene.time.delayedCall(index * interval, () => {
+      runtime.runWhenBattleActive(() => fireDodecahedronBossMortar(runtime, boss, target));
+    });
+  });
+}
+
+function fireDodecahedronBossMortar(runtime: BossRuntime, boss: CubeBoss, target: Tower) {
+  if (runtime.getBoss() !== boss || !runtime.towers.includes(target)) {
+    return;
+  }
+
+  const definition = getEnemyDefinition("pentagon");
+  runtime.mortarProjectiles.push(
+    createMortarProjectile(runtime.scene, {
+      owner: "enemy",
+      fromX: bossRect(boss).left,
+      fromY: boss.y,
+      targetX: target.x,
+      targetY: target.y,
+      damage: definition.damage,
+      damageType: definition.damageType,
+      rangeX: CELL_WIDTH * 1.5,
+      rangeY: CELL_HEIGHT * 1.5,
+      marker: "text",
+      markerText: "#",
+      markerTextColor: "#ff6464",
+      targetTower: target
+    })
+  );
+}
+
+function findDodecahedronPentagonTargets(runtime: BossRuntime, count: number) {
+  return [...runtime.towers].sort((a, b) => b.level - a.level || b.placedOrder - a.placedOrder).slice(0, count);
+}
+
+function updateDodecahedronEndlessWings(
+  runtime: BossRuntime,
+  boss: CubeBoss,
+  seconds: number,
+  livingCompanions: Enemy[]
+) {
+  const skill = boss.skills.endlessWings;
+  if (!skill || livingCompanions.length > 0) {
+    return;
+  }
+
+  chargeBossSkill(skill, seconds);
+  if (!isBossSkillReady(skill)) {
+    return;
+  }
+
+  const rect = bossRect(boss);
+  const targets = runtime.enemies.filter((enemy) => {
+    return rect.contains(enemy.x, enemy.y) && !hasStatusEffect(enemy, "flying", runtime.battleTime);
+  });
+  if (targets.length === 0) {
+    return;
+  }
+
+  spendBossSkill(skill);
+  for (const target of targets) {
+    applyStatusEffect(
+      target,
+      "flying",
+      DODECAHEDRON_BOSS_ENDLESS_WINGS_DURATION,
+      runtime.battleTime,
+      DODECAHEDRON_BOSS_ENDLESS_WINGS_SPEED_MULTIPLIER,
+      true
+    );
+    makeWingPulse(runtime.scene, target.x, target.y);
+  }
+}
+
+function bossLane(boss: CubeBoss) {
+  return Phaser.Math.Clamp(Math.round((boss.y - BOARD_Y - CELL_HEIGHT / 2) / CELL_HEIGHT), 0, LANES - 1);
 }
 
 function bossMovementMultiplier(boss: CubeBoss, time: number) {
@@ -420,6 +836,11 @@ function makeBossCollapse(
 
   if (isDodecahedronBoss(boss)) {
     makeDodecahedronCollapse(runtime.scene, x, y, followTarget, runtime.enemies, runtime.towers);
+    return;
+  }
+
+  if (isSmallStellatedDodecahedronBoss(boss)) {
+    makeSmallStellatedDodecahedronCollapse(runtime.scene, x, y, followTarget, runtime.enemies, runtime.towers);
     return;
   }
 

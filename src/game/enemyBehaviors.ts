@@ -3,6 +3,7 @@ import { ATTACK_INTERVAL, CELL_WIDTH, ENEMY_SPEED, ENEMY_SPEED_VARIANCE, LANES, 
 import {
   enemyFamily,
   enemyIsBlockedDetonator,
+  enemyIsBossCompanion,
   enemyIsLaser,
   enemyIsMortar,
   enemyIsRanged,
@@ -116,7 +117,8 @@ export function canEnemyMelee(enemy: Enemy) {
     !enemyIsMortar(enemy.kind) &&
     !enemyIsLaser(enemy.kind) &&
     !enemyIsBlockedDetonator(enemy.kind) &&
-    !enemyIsSiegeRam(enemy.kind)
+    !enemyIsSiegeRam(enemy.kind) &&
+    !enemyIsBossCompanion(enemy.kind)
   );
 }
 

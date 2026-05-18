@@ -14,6 +14,8 @@ import {
   CUBE_BOSS_PROMOTION_SKILL_COST,
   CUBE_BOSS_PROMOTION_SKILL_MAX,
   CUBE_BOSS_STATS,
+  DODECAHEDRON_BOSS_ENDLESS_WINGS_SKILL_COST,
+  DODECAHEDRON_BOSS_ENDLESS_WINGS_SKILL_MAX,
   TETRAHEDRON_BOSS_CHARGE_SKILL_COST,
   TETRAHEDRON_BOSS_CHARGE_SKILL_MAX,
   TETRAHEDRON_BOSS_DESPERATION_SKILL_COST,
@@ -31,8 +33,10 @@ import type { BossKind, BossSkill, CubeBoss } from "../types";
 
 const CUBE_DRAW_SIZE = 59;
 const DODECAHEDRON_DRAW_SIZE = 47;
+const SMALL_STELLATED_DODECAHEDRON_DRAW_SIZE = 31;
 const PHI = (1 + Math.sqrt(5)) / 2;
 const INV_PHI = 1 / PHI;
+const SMALL_STELLATED_TIP_RADIUS = 2.55;
 const TETRAHEDRON_INITIAL_ROTATION_SPEED = {
   x: 0.56,
   y: -0.42,
@@ -63,6 +67,11 @@ export const DODECAHEDRON_UNIT_VERTICES = [
 ] as const;
 
 export const DODECAHEDRON_EDGES = buildDodecahedronEdges();
+export const DODECAHEDRON_FACES = buildDodecahedronFaces();
+export const SMALL_STELLATED_DODECAHEDRON_SPIKES = DODECAHEDRON_FACES.map((face) => ({
+  face,
+  tip: dodecahedronFaceTip(face)
+}));
 
 function buildDodecahedronEdges() {
   const edges: Array<[number, number]> = [];
@@ -77,6 +86,56 @@ function buildDodecahedronEdges() {
     }
   }
   return edges;
+}
+
+function buildDodecahedronFaces() {
+  const adjacency = DODECAHEDRON_UNIT_VERTICES.map(() => new Set<number>());
+  for (const [from, to] of DODECAHEDRON_EDGES) {
+    adjacency[from].add(to);
+    adjacency[to].add(from);
+  }
+
+  const faces: number[][] = [];
+  const seen = new Set<string>();
+  const search = (start: number, path: number[]) => {
+    const last = path[path.length - 1];
+    if (path.length === 5) {
+      if (adjacency[last].has(start)) {
+        const key = [...path].sort((a, b) => a - b).join(":");
+        if (!seen.has(key)) {
+          seen.add(key);
+          faces.push([...path]);
+        }
+      }
+      return;
+    }
+
+    for (const next of adjacency[last]) {
+      if (next < start || path.includes(next)) {
+        continue;
+      }
+      search(start, [...path, next]);
+    }
+  };
+
+  for (let start = 0; start < DODECAHEDRON_UNIT_VERTICES.length; start += 1) {
+    search(start, [start]);
+  }
+
+  return faces;
+}
+
+function dodecahedronFaceTip(face: number[]) {
+  const center = face.reduce(
+    (sum, index) => {
+      const [x, y, z] = DODECAHEDRON_UNIT_VERTICES[index];
+      return [sum[0] + x, sum[1] + y, sum[2] + z] as [number, number, number];
+    },
+    [0, 0, 0] as [number, number, number]
+  );
+  const averaged = center.map((value) => value / face.length) as [number, number, number];
+  const length = Math.hypot(averaged[0], averaged[1], averaged[2]) || 1;
+  return averaged.map((value) => (value / length) * SMALL_STELLATED_TIP_RADIUS) as [number, number, number];
 }
 
 export function createCubeBoss(scene: Phaser.Scene, kind: BossKind, finalDamageReduction: number) {
@@ -108,7 +167,7 @@ export function createCubeBoss(scene: Phaser.Scene, kind: BossKind, finalDamageR
     finalDamageReduction,
     speed: stats.speed,
     advanceMinionKind: rank >= 2 ? "square2" : "square",
-    hasSkills: !isDodecahedronBossKind(kind),
+    hasSkills: !isSkilllessBossKind(kind),
     skills: {
       promotion: {
         name: "promotion",
@@ -166,6 +225,17 @@ export function createCubeBoss(scene: Phaser.Scene, kind: BossKind, finalDamageR
               gainBuffer: 0
             }
           }
+        : {}),
+      ...(isDodecahedronBossKind(kind)
+        ? {
+            endlessWings: {
+              name: "endlessWings" as const,
+              sp: 0,
+              maxSp: DODECAHEDRON_BOSS_ENDLESS_WINGS_SKILL_MAX,
+              cost: DODECAHEDRON_BOSS_ENDLESS_WINGS_SKILL_COST,
+              gainBuffer: 0
+            }
+          }
         : {})
     },
     contactAttackBuffer: 0,
@@ -173,6 +243,9 @@ export function createCubeBoss(scene: Phaser.Scene, kind: BossKind, finalDamageR
     halfHpTriggered: false,
     criticalHpTriggered: false,
     pendingCriticalSummon: false,
+    companionsInitialized: false,
+    companionArmorReduced: false,
+    companionDeathsHandled: 0,
     invincibleUntil: 0,
     bossHasteUntil: 0,
     nextBossHasteTrailAt: 0,
@@ -265,6 +338,11 @@ function drawCubeBoss(boss: CubeBoss, time: number) {
     return;
   }
 
+  if (isSmallStellatedDodecahedronBoss(boss)) {
+    drawSmallStellatedDodecahedronBoss(boss, time);
+    return;
+  }
+
   const vertices = [
     [-1, -1, -1],
     [1, -1, -1],
@@ -319,6 +397,18 @@ export function isDodecahedronBoss(boss: CubeBoss) {
   return isDodecahedronBossKind(boss.kind);
 }
 
+export function isSmallStellatedDodecahedronBossKind(kind: BossKind) {
+  return kind === "smallStellatedDodecahedron";
+}
+
+export function isSmallStellatedDodecahedronBoss(boss: CubeBoss) {
+  return isSmallStellatedDodecahedronBossKind(boss.kind);
+}
+
+function isSkilllessBossKind(kind: BossKind) {
+  return isDodecahedronBossKind(kind) || isSmallStellatedDodecahedronBossKind(kind);
+}
+
 function drawTetrahedronBoss(boss: CubeBoss, time: number) {
   const vertices = [
     [1, 1, 1],
@@ -356,6 +446,42 @@ function drawDodecahedronBoss(boss: CubeBoss, time: number) {
   for (const [from, to] of DODECAHEDRON_EDGES) {
     boss.frame.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
   }
+}
+
+function drawSmallStellatedDodecahedronBoss(boss: CubeBoss, time: number) {
+  const baseVertices = DODECAHEDRON_UNIT_VERTICES.map(([x, y, z]) =>
+    projectCubePoint(
+      x * SMALL_STELLATED_DODECAHEDRON_DRAW_SIZE,
+      y * SMALL_STELLATED_DODECAHEDRON_DRAW_SIZE,
+      z * SMALL_STELLATED_DODECAHEDRON_DRAW_SIZE,
+      boss
+    )
+  );
+  const spikeTips = SMALL_STELLATED_DODECAHEDRON_SPIKES.map(({ tip }) =>
+    projectCubePoint(
+      tip[0] * SMALL_STELLATED_DODECAHEDRON_DRAW_SIZE,
+      tip[1] * SMALL_STELLATED_DODECAHEDRON_DRAW_SIZE,
+      tip[2] * SMALL_STELLATED_DODECAHEDRON_DRAW_SIZE,
+      boss
+    )
+  );
+
+  const color = boss.invincibleUntil > time ? palette.gold : palette.white;
+  boss.labelText.setColor(boss.invincibleUntil > time ? "#ffd75a" : "#f5f5f5");
+  boss.frame.clear();
+  boss.frame.lineStyle(1.4, color, 0.34);
+  for (const [from, to] of DODECAHEDRON_EDGES) {
+    boss.frame.lineBetween(baseVertices[from].x, baseVertices[from].y, baseVertices[to].x, baseVertices[to].y);
+  }
+
+  boss.frame.lineStyle(1.8, color, 0.92);
+  SMALL_STELLATED_DODECAHEDRON_SPIKES.forEach(({ face }, index) => {
+    const tip = spikeTips[index];
+    for (const vertexIndex of face) {
+      const vertex = baseVertices[vertexIndex];
+      boss.frame.lineBetween(tip.x, tip.y, vertex.x, vertex.y);
+    }
+  });
 }
 
 function projectCubePoint(x: number, y: number, z: number, boss: CubeBoss) {

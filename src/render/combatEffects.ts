@@ -1,5 +1,9 @@
 import Phaser from "phaser";
-import { DODECAHEDRON_EDGES, DODECAHEDRON_UNIT_VERTICES } from "../bosses/cubeBoss";
+import {
+  DODECAHEDRON_EDGES,
+  DODECAHEDRON_UNIT_VERTICES,
+  SMALL_STELLATED_DODECAHEDRON_SPIKES
+} from "../bosses/cubeBoss";
 import { BOSS_HITBOX_HEIGHT, BOSS_HITBOX_WIDTH, CELL_HEIGHT, palette } from "../config";
 import { EFFECT_SYMBOLS } from "../i18n";
 import type { DamageType, Enemy, Tower } from "../types";
@@ -396,6 +400,18 @@ export function makeBossInvincibleFlash(scene: Phaser.Scene, x: number, y: numbe
   });
 }
 
+export function makeEnemyInvincibleFlash(scene: Phaser.Scene, x: number, y: number) {
+  const shield = scene.add.circle(x, y, 28, palette.black, 0).setStrokeStyle(3, palette.gold, 0.9).setDepth(110);
+  scene.tweens.add({
+    targets: shield,
+    alpha: 0,
+    scale: 1.2,
+    duration: 220,
+    ease: "Quad.easeOut",
+    onComplete: () => shield.destroy()
+  });
+}
+
 export function makeBossHitFlash(scene: Phaser.Scene, x: number, y: number, damageType: DamageType) {
   const flash = scene.add
     .rectangle(x, y, BOSS_HITBOX_WIDTH, BOSS_HITBOX_HEIGHT, palette.black, 0)
@@ -444,11 +460,22 @@ export function makeDodecahedronCollapse(
   makePolyhedronCollapse(scene, x, y, "dodecahedron", followTarget, activeEnemies, activeTowers);
 }
 
+export function makeSmallStellatedDodecahedronCollapse(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  followTarget?: Enemy | Tower,
+  activeEnemies: Enemy[] = [],
+  activeTowers: Tower[] = []
+) {
+  makePolyhedronCollapse(scene, x, y, "smallStellatedDodecahedron", followTarget, activeEnemies, activeTowers);
+}
+
 function makePolyhedronCollapse(
   scene: Phaser.Scene,
   x: number,
   y: number,
-  shape: "cube" | "tetrahedron" | "dodecahedron",
+  shape: "cube" | "tetrahedron" | "dodecahedron" | "smallStellatedDodecahedron",
   followTarget?: Enemy | Tower,
   activeEnemies: Enemy[] = [],
   activeTowers: Tower[] = []
@@ -459,8 +486,10 @@ function makePolyhedronCollapse(
     drawProjectedCube(collapse, 34, rotation);
   } else if (shape === "tetrahedron") {
     drawProjectedTetrahedron(collapse, 39, rotation);
-  } else {
+  } else if (shape === "dodecahedron") {
     drawProjectedDodecahedron(collapse, 29, rotation);
+  } else {
+    drawProjectedSmallStellatedDodecahedron(collapse, 21, rotation);
   }
 
   scene.tweens.add({
@@ -556,6 +585,33 @@ function drawProjectedDodecahedron(graphics: Phaser.GameObjects.Graphics, size: 
   for (const [from, to] of DODECAHEDRON_EDGES) {
     graphics.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
   }
+}
+
+function drawProjectedSmallStellatedDodecahedron(
+  graphics: Phaser.GameObjects.Graphics,
+  size: number,
+  rotation: CollapseRotation
+) {
+  const baseVertices = DODECAHEDRON_UNIT_VERTICES.map(([x, y, z]) =>
+    projectCollapsePoint(x * size, y * size, z * size, rotation)
+  );
+  const spikeTips = SMALL_STELLATED_DODECAHEDRON_SPIKES.map(({ tip }) =>
+    projectCollapsePoint(tip[0] * size, tip[1] * size, tip[2] * size, rotation)
+  );
+
+  graphics.lineStyle(1.4, palette.white, 0.32);
+  for (const [from, to] of DODECAHEDRON_EDGES) {
+    graphics.lineBetween(baseVertices[from].x, baseVertices[from].y, baseVertices[to].x, baseVertices[to].y);
+  }
+
+  graphics.lineStyle(1.8, palette.white, 0.86);
+  SMALL_STELLATED_DODECAHEDRON_SPIKES.forEach(({ face }, index) => {
+    const tip = spikeTips[index];
+    for (const vertexIndex of face) {
+      const vertex = baseVertices[vertexIndex];
+      graphics.lineBetween(tip.x, tip.y, vertex.x, vertex.y);
+    }
+  });
 }
 
 function projectCollapsePoint(x: number, y: number, z: number, rotation: CollapseRotation) {

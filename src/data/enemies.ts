@@ -247,6 +247,16 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     speedMultiplier: 0.4,
     weight: 100
   },
+  dodecahedronCompanion: {
+    kind: "dodecahedronCompanion",
+    hp: 32_000,
+    armor: 2_000,
+    magicResistance: 40,
+    damage: 0,
+    damageType: "physical",
+    speedMultiplier: 0,
+    weight: 1
+  },
   square: {
     kind: "square",
     label: "1",

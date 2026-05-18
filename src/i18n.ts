@@ -21,6 +21,7 @@ const dictionaries: Record<Language, Record<string, string>> = {
     "chapter.0": "CHAPTER 0",
     "chapter.1": "CHAPTER 1",
     "chapter.2": "CHAPTER 2",
+    "chapter.3": "CHAPTER 3",
     "button.start": "START",
     "button.back": "BACK",
     "button.restart": "RESTART",
@@ -100,12 +101,14 @@ const dictionaries: Record<Language, Record<string, string>> = {
     "enemy.invertedTriangle2": "INVERTED TRIANGLE 2",
     "enemy.shootingTriangle": "SHOOTING TRIANGLE 1",
     "enemy.shootingTriangle2": "SHOOTING TRIANGLE 2",
+    "enemy.dodecahedronCompanion": "DODECAHEDRON COMPANION",
     "enemy.square": "SQUARE 1",
     "enemy.square2": "SQUARE 2",
     "enemy.square3": "SQUARE 3",
     "enemy.bossCube": "BOSS CUBE",
     "enemy.bossTetrahedron": "BOSS TETRAHEDRON",
-    "enemy.bossDodecahedron": "BOSS DODECAHEDRON"
+    "enemy.bossDodecahedron": "BOSS DODECAHEDRON",
+    "enemy.bossSmallStellatedDodecahedron": "BOSS SMALL STELLATED DODECAHEDRON"
   },
   "zh-CN": {
     "app.title": "字符大战几何体",
@@ -114,6 +117,7 @@ const dictionaries: Record<Language, Record<string, string>> = {
     "chapter.0": "第零章",
     "chapter.1": "第一章",
     "chapter.2": "第二章",
+    "chapter.3": "第三章",
     "button.start": "开始",
     "button.back": "返回",
     "button.restart": "重开",
@@ -192,12 +196,14 @@ const dictionaries: Record<Language, Record<string, string>> = {
     "enemy.invertedTriangle2": "倒三角 2",
     "enemy.shootingTriangle": "射击三角 1",
     "enemy.shootingTriangle2": "射击三角 2",
+    "enemy.dodecahedronCompanion": "正十二面体眷属",
     "enemy.square": "正方形 1",
     "enemy.square2": "正方形 2",
     "enemy.square3": "正方形 3",
     "enemy.bossCube": "Boss 立方体",
     "enemy.bossTetrahedron": "Boss 正四面体",
-    "enemy.bossDodecahedron": "Boss 正十二面体"
+    "enemy.bossDodecahedron": "Boss 正十二面体",
+    "enemy.bossSmallStellatedDodecahedron": "Boss 小星形十二面体"
   }
 };
 

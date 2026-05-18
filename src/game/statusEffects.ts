@@ -1,10 +1,12 @@
+import { palette } from "../config";
 import type { Enemy, StatusEffectName } from "../types";
 
 const STATUS_SPEED_MULTIPLIERS: Record<StatusEffectName, number> = {
   stasis: 1 / 3,
   haste: 2,
   power: 1,
-  flying: 1
+  flying: 1,
+  invincible: 1
 };
 const STATUS_ATTACK_MULTIPLIERS: Partial<Record<StatusEffectName, number>> = {
   power: 1.3
@@ -77,6 +79,7 @@ function syncStatusVisuals(enemy: Enemy, time: number) {
   enemy.powerIcon.setVisible(powerActive);
   enemy.flyingHalo.setVisible(angelFlyingActive);
   if (stasisActive) {
+    enemy.statusBorder.setStrokeStyle(2, palette.magic, 0.92);
     enemy.statusBorder.setScale(1 + Math.sin(time / 80) * 0.04);
   }
   if (powerActive) {

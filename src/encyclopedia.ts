@@ -17,7 +17,7 @@ export interface EncyclopediaEntry {
   description: string;
   enemyKind?: EnemyKind;
   card?: CardDefinition;
-  icon?: "cube" | "tetrahedron" | "dodecahedron";
+  icon?: "cube" | "tetrahedron" | "dodecahedron" | "smallStellatedDodecahedron";
 }
 
 export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
@@ -40,6 +40,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
   const invertedTriangle2 = getEnemyDefinition("invertedTriangle2");
   const shootingTriangle = getEnemyDefinition("shootingTriangle");
   const shootingTriangle2 = getEnemyDefinition("shootingTriangle2");
+  const dodecahedronCompanion = getEnemyDefinition("dodecahedronCompanion");
   const square = getEnemyDefinition("square");
 
   return [
@@ -348,7 +349,39 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.speed"), CUBE_BOSS_STATS.dodecahedron.speed],
           [t("label.atk"), `${damageText(CUBE_BOSS_CONTACT_DAMAGE, "physical")} / ${CUBE_BOSS_CONTACT_INTERVAL}s`]
         ]),
-        zh ? "白板 Boss：没有技力技能。" : "Whiteboard Boss: no SP skills."
+        zh
+          ? `开局拥有 3 个环绕眷属：${dodecahedronCompanion.hp} 生命 / ${dodecahedronCompanion.armor} 护甲 / ${dodecahedronCompanion.magicResistance} 法抗`
+          : `Starts with 3 orbiting companions: ${dodecahedronCompanion.hp} HP / ${dodecahedronCompanion.armor} armor / ${dodecahedronCompanion.magicResistance} MR`,
+        zh ? "眷属中心带有 I；所有眷属死亡后，正十二面体基础护甲 -1800。" : "Companions show I at the center; after all companions die, Dodecahedron base armor is reduced by 1800.",
+        zh
+          ? "眷属攻击循环：20s 后连射 4 发射击五边形激光；再 30s 后连射 2 发五边形迫击；再 30s 后释放 3x3 羽翼。"
+          : "Companion attack loop: after 20s, fires 4 Shooting-Pentagon lasers; after 30s, fires 2 Pentagon mortars; after 30s, casts 3x3 Wings.",
+        zh
+          ? "眷属运动循环：旋转 47s，1s 平移到 Boss 前方一列并分布在本行/上二行/下二行，停留 47s，再 1s 回到旋转。"
+          : "Companion motion loop: orbits for 47s, spends 1s shifting to the front column on the boss lane / two lanes up / two lanes down, holds 47s, then spends 1s returning to orbit.",
+        zh
+          ? "第 1 个眷属死亡时，Boss 在自身三行连射 7 次射击五边形激光；第 2 个眷属死亡时，按五边形规则依次瞄准 4 个不同目标发射法术迫击弹。"
+          : "When the 1st companion dies, the Boss fires 7 volleys of Shooting-Pentagon lasers across its 3 lanes. When the 2nd dies, it fires magic mortars at 4 different Pentagon-rule targets in order.",
+        zh
+          ? "每次眷属死亡时，存活眷属获得 10s 无敌。全部眷属死亡后，无尽羽翼开始回技：4 技力满后消耗 4，使接触 Boss 碰撞体且未飞行的敌怪获得 7s 羽翼飞行。"
+          : "Each companion death gives surviving companions 10s Invincible. After all companions die, Endless Wings starts charging: at 4 SP, spend 4 to give 7s Wings Flying to non-flying enemies touching the Boss hitbox."
+      ],
+      description: zh
+        ? "Boss 本体不会被阻挡，也不会随血量缩小；眷属不会被阻挡，但会像普通敌怪一样随血量变小。到达底线会失败，死亡会直接胜利。"
+        : "The Boss body cannot be blocked and does not shrink with HP. Companions cannot be blocked, but shrink with HP like ordinary enemies. Reaching the base is defeat; killing it clears the stage."
+    },
+    {
+      title: zh ? "小星形十二面体 Boss 系列" : "Small Stellated Dodecahedron Boss Series",
+      icon: "smallStellatedDodecahedron",
+      lines: [
+        statLine([
+          [t("label.hp"), CUBE_BOSS_STATS.smallStellatedDodecahedron.hp],
+          [t("label.armor"), CUBE_BOSS_STATS.smallStellatedDodecahedron.armor],
+          [t("label.mr"), CUBE_BOSS_STATS.smallStellatedDodecahedron.magicResistance],
+          [t("label.speed"), CUBE_BOSS_STATS.smallStellatedDodecahedron.speed],
+          [t("label.atk"), `${damageText(CUBE_BOSS_CONTACT_DAMAGE, "physical")} / ${CUBE_BOSS_CONTACT_INTERVAL}s`]
+        ]),
+        zh ? "白板 Boss：没有技力技能。当前用于测试小星形十二面体线框绘制。" : "Whiteboard Boss: no SP skills. Currently used to test the small stellated dodecahedron wireframe."
       ],
       description: zh
         ? "Boss 不会被阻挡，也不会随血量缩小；到达底线会失败，死亡会直接胜利。"

@@ -13,8 +13,10 @@ import {
 import {
   DODECAHEDRON_EDGES,
   DODECAHEDRON_UNIT_VERTICES,
+  SMALL_STELLATED_DODECAHEDRON_SPIKES,
   bossRank,
   isDodecahedronBossKind,
+  isSmallStellatedDodecahedronBossKind,
   isTetrahedronBossKind
 } from "../bosses/cubeBoss";
 import {
@@ -30,6 +32,7 @@ import {
   createCubeIcon,
   createDodecahedronIcon,
   createEnemyShape,
+  createSmallStellatedDodecahedronIcon,
   createTetrahedronIcon,
   createUnitBorder
 } from "../render/unitShapes";
@@ -74,7 +77,7 @@ export class LevelSelectScene extends Phaser.Scene {
   private unlimitedFirepower = false;
   private mapContainer!: Phaser.GameObjects.Container;
   private mapBounds!: Phaser.Geom.Rectangle;
-  private readonly chapters = [0, 1, 2];
+  private readonly chapters = [0, 1, 2, 3];
   private readonly mapViewport = new Phaser.Geom.Rectangle(38, 156, GAME_WIDTH - 76, GAME_HEIGHT - 246);
   private readonly footerY = 715;
   private mapDragPointer: Phaser.Input.Pointer | null = null;
@@ -471,6 +474,11 @@ export class LevelSelectScene extends Phaser.Scene {
       return;
     }
 
+    if (isSmallStellatedDodecahedronBossKind(preview.kind)) {
+      this.drawSmallStellatedDodecahedronNodePreview(preview);
+      return;
+    }
+
     const vertices = [
       [-1, -1, -1],
       [1, -1, -1],
@@ -540,6 +548,35 @@ export class LevelSelectScene extends Phaser.Scene {
     for (const [from, to] of DODECAHEDRON_EDGES) {
       preview.frame.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
     }
+  }
+
+  private drawSmallStellatedDodecahedronNodePreview(preview: BossNodePreview) {
+    const baseVertices = DODECAHEDRON_UNIT_VERTICES.map(([x, y, z]) => {
+      return this.projectBossNodePoint(x * preview.size * 0.62, y * preview.size * 0.62, z * preview.size * 0.62, preview);
+    });
+    const spikeTips = SMALL_STELLATED_DODECAHEDRON_SPIKES.map(({ tip }) => {
+      return this.projectBossNodePoint(
+        tip[0] * preview.size * 0.62,
+        tip[1] * preview.size * 0.62,
+        tip[2] * preview.size * 0.62,
+        preview
+      );
+    });
+
+    preview.frame.clear();
+    preview.frame.lineStyle(1.1, palette.white, 0.32);
+    for (const [from, to] of DODECAHEDRON_EDGES) {
+      preview.frame.lineBetween(baseVertices[from].x, baseVertices[from].y, baseVertices[to].x, baseVertices[to].y);
+    }
+
+    preview.frame.lineStyle(1.35, palette.white, 0.92);
+    SMALL_STELLATED_DODECAHEDRON_SPIKES.forEach(({ face }, index) => {
+      const tip = spikeTips[index];
+      for (const vertexIndex of face) {
+        const vertex = baseVertices[vertexIndex];
+        preview.frame.lineBetween(tip.x, tip.y, vertex.x, vertex.y);
+      }
+    });
   }
 
   private projectBossNodePoint(x: number, y: number, z: number, preview: BossNodePreview) {
@@ -854,6 +891,8 @@ export class LevelSelectScene extends Phaser.Scene {
       container.add(createTetrahedronIcon(this).setPosition(48, 72));
     } else if (entry.icon === "dodecahedron") {
       container.add(createDodecahedronIcon(this).setPosition(48, 72));
+    } else if (entry.icon === "smallStellatedDodecahedron") {
+      container.add(createSmallStellatedDodecahedronIcon(this).setPosition(48, 72));
     } else if (entry.card) {
       const border = createUnitBorder(this, entry.card.category, 23, 2).setPosition(48, 70);
       const label = this.add

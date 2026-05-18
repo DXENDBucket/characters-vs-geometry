@@ -6,13 +6,14 @@ import {
   TETRAHEDRON_BOSS_INVINCIBLE_DURATION
 } from "../config";
 import { isTetrahedronBoss } from "../bosses/cubeBoss";
-import { makeBossHitFlash, makeBossInvincibleFlash, makeShockPulse } from "../render/combatEffects";
+import { makeBossHitFlash, makeBossInvincibleFlash, makeEnemyInvincibleFlash, makeShockPulse } from "../render/combatEffects";
 import type { CubeBoss, DamageType, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower, WaveTracker } from "../types";
 import { calculateDamage } from "./damage";
 import { enemyScaleFromHp } from "./enemyBehaviors";
 import { spawnSplitEnemies } from "./enemyRuntime";
 import { hexArmorBonus, hexBossArmorBonus } from "./enemySupport";
 import { isPointInSlowAura } from "./slowAura";
+import { hasStatusEffect } from "./statusEffects";
 import { gridCellKey } from "./targeting";
 import { syncTowerHpBar } from "./towers";
 
@@ -98,6 +99,11 @@ function shouldTriggerTetrahedronCritical(boss: CubeBoss, nextHp: number) {
 
 export function damageEnemy(runtime: UnitLifecycleRuntime, enemy: Enemy, damage: number, damageType: DamageType) {
   if (!runtime.enemies.includes(enemy)) {
+    return;
+  }
+
+  if (hasStatusEffect(enemy, "invincible", runtime.battleTime)) {
+    makeEnemyInvincibleFlash(runtime.scene, enemy.x, enemy.y);
     return;
   }
 

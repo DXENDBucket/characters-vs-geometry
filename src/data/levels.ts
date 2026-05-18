@@ -33,7 +33,8 @@ export const levelNodes: LevelNode[] = [
   { id: "2-7", x: 1550, y: 430, unlocked: true },
   { id: "2-8", x: 1770, y: 330, unlocked: true },
   { id: "2-9", x: 1990, y: 430, unlocked: true },
-  { id: "2-10", x: 2210, y: 330, unlocked: true }
+  { id: "2-10", x: 2210, y: 330, unlocked: true },
+  { id: "3-1", x: 230, y: 405, unlocked: true }
 ];
 
 export const levelConfigs: Record<string, LevelConfig> = {
@@ -352,7 +353,7 @@ export const levelConfigs: Record<string, LevelConfig> = {
   },
   "2-10": {
     id: "2-10",
-    enemyKinds: ["circle", "pentagon", "shootingPentagon", "hexagon", "chargingHexagon", "triangleRam3"],
+    enemyKinds: ["circle", "square", "pentagon", "angelPentagon", "shootingPentagon", "hexagon", "chargingHexagon", "triangleRam3"],
     firstWaveWeight: 25,
     waveWeightIncrement: 16,
     waveWeightIncrementGrowth: 2,
@@ -361,6 +362,16 @@ export const levelConfigs: Record<string, LevelConfig> = {
     startingChars: CHAPTER_TWO_STARTING_CHARS,
     bossKind: "dodecahedron",
     endless: true
+  },
+  "3-1": {
+    id: "3-1",
+    enemyKinds: [],
+    firstWaveWeight: 25,
+    waveWeightIncrement: 16,
+    waveWeightIncrementGrowth: 2,
+    wavesPerFlag: WAVES_PER_FLAG,
+    startingChars: CHAPTER_TWO_STARTING_CHARS,
+    bossKind: "smallStellatedDodecahedron"
   }
 };
 

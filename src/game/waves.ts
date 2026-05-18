@@ -50,6 +50,10 @@ export function waveScheduleAction(
   enemyCount: number,
   levelElapsed: number
 ) {
+  if (levelConfig.enemyKinds.length === 0) {
+    return "wait";
+  }
+
   if (!levelConfig.endless && levelConfig.totalWaves && wave >= levelConfig.totalWaves) {
     return enemyCount === 0 ? "complete" : "wait";
   }

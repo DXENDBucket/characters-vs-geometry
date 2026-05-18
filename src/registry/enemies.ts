@@ -15,8 +15,9 @@ export type EnemyFamily =
   | "chargingHexagon"
   | "invertedTriangle"
   | "shootingTriangle"
+  | "dodecahedronCompanion"
   | "square";
-export type EnemyAttackMode = "melee" | "ranged" | "mortar" | "laser" | "blockedDetonator" | "siegeRam";
+export type EnemyAttackMode = "melee" | "ranged" | "mortar" | "laser" | "blockedDetonator" | "siegeRam" | "companion";
 
 export interface BlockedDetonation {
   delay: number;
@@ -211,6 +212,13 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     nameKey: "enemy.shootingTriangle2",
     attackMode: "ranged"
   },
+  dodecahedronCompanion: {
+    definition: rawEnemyDefinitions.dodecahedronCompanion,
+    family: "dodecahedronCompanion",
+    rank: 1,
+    nameKey: "enemy.dodecahedronCompanion",
+    attackMode: "companion"
+  },
   square: {
     definition: rawEnemyDefinitions.square,
     family: "square",
@@ -285,6 +293,10 @@ export function enemyIsBlockedDetonator(kind: EnemyKind) {
 
 export function enemyIsSiegeRam(kind: EnemyKind) {
   return enemyRegistrations[kind].attackMode === "siegeRam";
+}
+
+export function enemyIsBossCompanion(kind: EnemyKind) {
+  return enemyRegistrations[kind].attackMode === "companion";
 }
 
 export function enemyBlockedDetonation(kind: EnemyKind) {

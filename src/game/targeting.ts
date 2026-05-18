@@ -9,6 +9,7 @@ import {
   LANES
 } from "../config";
 import type { CardDefinition, CubeBoss, Enemy, Tower } from "../types";
+import { enemyIsBossCompanion } from "../registry/enemies";
 import { getCardAttackArea, type AttackAreaConfig } from "./cardAttackConfigs";
 
 export function gridCellKey(lane: number, column: number) {
@@ -88,7 +89,7 @@ export function getShiftTargets(tower: Tower, enemies: Enemy[]) {
 }
 
 export function getBlockingTower(towers: Tower[], enemy: Enemy) {
-  if (enemy.statusEffects.some((effect) => effect.name === "flying")) {
+  if (enemyIsBossCompanion(enemy.kind) || enemy.statusEffects.some((effect) => effect.name === "flying")) {
     return undefined;
   }
 

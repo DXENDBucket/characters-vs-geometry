@@ -1,9 +1,15 @@
 import Phaser from "phaser";
-import { DODECAHEDRON_EDGES, DODECAHEDRON_UNIT_VERTICES } from "../bosses/cubeBoss";
+import {
+  DODECAHEDRON_EDGES,
+  DODECAHEDRON_UNIT_VERTICES,
+  SMALL_STELLATED_DODECAHEDRON_SPIKES
+} from "../bosses/cubeBoss";
 import { palette } from "../config";
 import { romanLabel, toRomanNumeral } from "../format";
 import { enemyFamily, getEnemyDefinition } from "../registry/enemies";
 import type { EnemyKind, UnitCategory } from "../types";
+
+const DODECAHEDRON_COMPANION_DRAW_SIZE = 18;
 
 interface EnemyShapeOptions {
   squareSize?: number;
@@ -69,6 +75,24 @@ export function createUnitBorder(
 
 export function createEnemyShape(scene: Phaser.Scene, kind: EnemyKind, options: EnemyShapeOptions = {}) {
   const family = enemyFamily(kind);
+  if (family === "dodecahedronCompanion") {
+    const shape = scene.add.container(0, 0);
+    const frame = scene.add.graphics();
+    const label = scene.add
+      .text(0, 0, toRomanNumeral(1), {
+        color: "#f5f5f5",
+        fontFamily: "monospace",
+        fontSize: "14px",
+        fontStyle: "700"
+    })
+      .setOrigin(0.5);
+    drawDodecahedronCompanionFrame(frame, -0.42, 0.62, -0.12);
+    shape.setData("dodecahedronFrame", frame);
+    shape.setData("dodecahedronLabel", label);
+    shape.add([frame, label]);
+    return shape;
+  }
+
   if (family === "circle") {
     const shape = scene.add.container(0, 0);
     const circle = scene.add.circle(0, 0, 20, palette.black, 1).setStrokeStyle(2, palette.white, 1);
@@ -401,6 +425,83 @@ export function createDodecahedronIcon(scene: Phaser.Scene) {
   for (const [from, to] of DODECAHEDRON_EDGES) {
     frame.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
   }
+
+  const label = scene.add
+    .text(0, 0, toRomanNumeral(1), {
+      color: "#f5f5f5",
+      fontFamily: "monospace",
+      fontSize: "14px",
+      fontStyle: "700"
+    })
+    .setOrigin(0.5);
+  icon.add([frame, label]);
+  return icon;
+}
+
+export function syncDodecahedronCompanionShape(
+  shape: Phaser.GameObjects.GameObject,
+  rotation: { rotationX: number; rotationY: number; rotationZ: number },
+  invincible = false
+) {
+  const frame = shape.getData("dodecahedronFrame") as Phaser.GameObjects.Graphics | undefined;
+  if (!frame) {
+    return;
+  }
+
+  const label = shape.getData("dodecahedronLabel") as Phaser.GameObjects.Text | undefined;
+  const color = invincible ? palette.gold : palette.white;
+  drawDodecahedronCompanionFrame(frame, rotation.rotationX, rotation.rotationY, rotation.rotationZ, color);
+  label?.setColor(invincible ? "#ffd75a" : "#f5f5f5");
+}
+
+function drawDodecahedronCompanionFrame(
+  frame: Phaser.GameObjects.Graphics,
+  rotationX: number,
+  rotationY: number,
+  rotationZ: number,
+  color = palette.white
+) {
+  const vertices = DODECAHEDRON_UNIT_VERTICES.map(([x, y, z]) =>
+    projectIconPoint(
+      x * DODECAHEDRON_COMPANION_DRAW_SIZE,
+      y * DODECAHEDRON_COMPANION_DRAW_SIZE,
+      z * DODECAHEDRON_COMPANION_DRAW_SIZE,
+      rotationX,
+      rotationY,
+      rotationZ
+    )
+  );
+
+  frame.clear();
+  frame.lineStyle(1.7, color, 0.95);
+  for (const [from, to] of DODECAHEDRON_EDGES) {
+    frame.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
+  }
+}
+
+export function createSmallStellatedDodecahedronIcon(scene: Phaser.Scene) {
+  const icon = scene.add.container(0, 0);
+  const frame = scene.add.graphics();
+  const baseVertices = DODECAHEDRON_UNIT_VERTICES.map(([x, y, z]) =>
+    projectIconPoint(x * 10, y * 10, z * 10, -0.42, 0.62, -0.12)
+  );
+  const spikeTips = SMALL_STELLATED_DODECAHEDRON_SPIKES.map(({ tip }) =>
+    projectIconPoint(tip[0] * 10, tip[1] * 10, tip[2] * 10, -0.42, 0.62, -0.12)
+  );
+
+  frame.lineStyle(1.1, palette.white, 0.35);
+  for (const [from, to] of DODECAHEDRON_EDGES) {
+    frame.lineBetween(baseVertices[from].x, baseVertices[from].y, baseVertices[to].x, baseVertices[to].y);
+  }
+
+  frame.lineStyle(1.5, palette.white, 0.95);
+  SMALL_STELLATED_DODECAHEDRON_SPIKES.forEach(({ face }, index) => {
+    const tip = spikeTips[index];
+    for (const vertexIndex of face) {
+      const vertex = baseVertices[vertexIndex];
+      frame.lineBetween(tip.x, tip.y, vertex.x, vertex.y);
+    }
+  });
 
   const label = scene.add
     .text(0, 0, toRomanNumeral(1), {

@@ -4,6 +4,7 @@ import { getCardDefinition } from "../registry/cards";
 import {
   allEnemyDefinitions,
   enemyBlockedDetonation,
+  enemyIsBossCompanion,
   enemyIsLaser,
   enemyIsMortar,
   enemyIsSiegeRam,
@@ -215,6 +216,10 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
     }
 
     if (!runtime.enemies.includes(enemy)) {
+      continue;
+    }
+
+    if (enemyIsBossCompanion(enemy.kind)) {
       continue;
     }
 

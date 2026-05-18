@@ -55,10 +55,17 @@ export type EnemyKind =
   | "invertedTriangle2"
   | "shootingTriangle"
   | "shootingTriangle2"
+  | "dodecahedronCompanion"
   | "square"
   | "square2"
   | "square3";
-export type BossKind = "cube" | "cube2" | "tetrahedron" | "tetrahedron2" | "dodecahedron";
+export type BossKind =
+  | "cube"
+  | "cube2"
+  | "tetrahedron"
+  | "tetrahedron2"
+  | "dodecahedron"
+  | "smallStellatedDodecahedron";
 export type BossSkillName =
   | "promotion"
   | "advance"
@@ -66,11 +73,13 @@ export type BossSkillName =
   | "charge"
   | "impact"
   | "suppression"
-  | "desperation";
+  | "desperation"
+  | "endlessWings";
 export type ProjectileKind = "bolt" | "shell" | "star" | "hash" | "dollar";
 export type UnitCategory = "production" | "attack" | "defense" | "function" | "healing";
 export type DamageType = "physical" | "magic" | "true";
-export type StatusEffectName = "stasis" | "haste" | "power" | "flying";
+export type StatusEffectName = "stasis" | "haste" | "power" | "flying" | "invincible";
+export type BossCompanionActionPhase = "laser" | "mortar" | "wings";
 export type AlphaGameObject = Phaser.GameObjects.GameObject & { setAlpha(alpha: number): unknown };
 
 export interface DifficultyConfig {
@@ -193,6 +202,11 @@ export interface Enemy {
   nextHasteTrailAt: number;
   body: Phaser.GameObjects.Container;
   shape: Phaser.GameObjects.GameObject & { setScale(scale: number): unknown };
+  bossOrbitAngle?: number;
+  bossOrbitRadius?: number;
+  bossCompanionIndex?: number;
+  bossCompanionNextActionAt?: number;
+  bossCompanionActionPhase?: BossCompanionActionPhase;
 }
 
 export interface Projectile {
@@ -315,12 +329,16 @@ export interface CubeBoss {
     impact?: BossSkill<"impact">;
     suppression?: BossSkill<"suppression">;
     desperation?: BossSkill<"desperation">;
+    endlessWings?: BossSkill<"endlessWings">;
   };
   contactAttackBuffer: number;
   chargeExpiresAt: number;
   halfHpTriggered: boolean;
   criticalHpTriggered: boolean;
   pendingCriticalSummon: boolean;
+  companionsInitialized: boolean;
+  companionArmorReduced: boolean;
+  companionDeathsHandled: number;
   invincibleUntil: number;
   bossHasteUntil: number;
   nextBossHasteTrailAt: number;

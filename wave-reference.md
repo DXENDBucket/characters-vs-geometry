@@ -50,7 +50,9 @@ Enemy body labels are displayed as Roman numerals in-game.
 | Cube II | 200000 | 600 | 20 | 0.6 | `2.95x2.95` cells | Same baseline behavior as Cube I. Advance becomes Advance II and summons Square 2 minions. Also has Promotion II. |
 | Tetrahedron I | 120000 | 150 | 20 | 1.2 | `2.95x2.95` cells | Fast-attack Boss with quicker visual rotation. Same baseline behavior as Cube I, but uses tetrahedron-collapse effects. At first `50%` HP or lower, summons Inverted Triangle 1 in every cell of the two columns farthest from the base and immediately fills Charge SP. At first `10%` HP or lower, its HP is held at `10%`, gains `15s` Invincible, gains `60s` Boss Haste at `300%` speed, summons Inverted Triangle 1 in every cell of the five columns farthest from the base, and permanently doubles all skill natural SP gain. If it would die before this triggers, it instead locks at `1` HP and triggers the same effect package. |
 | Tetrahedron II | 120000 | 150 | 20 | 1.2 | `2.95x2.95` cells | Same baseline behavior as Tetrahedron I. All Inverted Triangles and Shooting Triangles summoned by its Boss mechanics are rank II. |
-| Dodecahedron I | 200000 | 200 | 80 | 0.6 | `2.95x2.95` cells | Whiteboard Boss. Same baseline behavior as Cube I, but has no SP skills. |
+| Dodecahedron I | 100000 | 2000 | 90 | 0.6 | `2.95x2.95` cells | Whiteboard Boss. Same baseline behavior as Cube I, but has no SP skills. Starts with 3 orbiting Dodecahedron Companions; after all companions die, its base armor is reduced by `1800`. |
+| Dodecahedron Companion | 32000 | 2000 | 40 | orbiting | `0.95x0.95` cells | Special Boss companion. Body label `I`; cannot be blocked, syncs Dodecahedron I's 3D rotation, and shrinks visually with HP like ordinary enemies. Attack loop: after `20s`, fires `4 x label` Shooting-Pentagon lasers; after `30s`, fires `2 x label` Pentagon mortars; after `30s`, casts Angel-Pentagon Wings on enemies in a `3x3` area. Motion loop: orbits for `47s`, shifts over `1s` to the front column on the Boss lane / two lanes up / two lanes down, holds `47s`, then shifts back over `1s`. Each companion death gives surviving companions `10s` Invincible. |
+| Small Stellated Dodecahedron I | 100000 | 200 | 90 | 0.6 | `2.95x2.95` cells | Whiteboard Boss. Same contact/base behavior as Cube I, currently used to test the small stellated dodecahedron wireframe. |
 
 Cube skills:
 
@@ -64,6 +66,14 @@ Cube skills:
 - Advance: starts at `0/120` SP, gains `1` SP per second, max `120`.
 - At full SP, consumes `120` SP and summons one Square 1 minion in every lane, one cell in front of its hitbox.
 - Advance II, Cube II only: same SP rules as Advance, but summons Square 2 minions.
+
+Dodecahedron mechanics:
+
+- When the first companion dies, Dodecahedron I fires Shooting-Pentagon lasers across its own 3 occupied lanes, `7` volleys total.
+- When the second companion dies, Dodecahedron I uses Pentagon targeting to select up to `4` different towers, then fires one magic Pentagon mortar at each in order.
+- After all companions die, Dodecahedron I loses `1800` base armor and Endless Wings starts charging.
+- Endless Wings: starts at `0/4` SP, gains `1` SP per second after all companions are dead, and consumes `4` SP at full.
+- On activation, Endless Wings gives `7s` Wings Flying to all currently non-flying enemies touching Dodecahedron I's hitbox, with the same `+100%` movement speed as Angel Pentagon 1 Wings.
 
 Tetrahedron skills:
 
@@ -1359,7 +1369,9 @@ Base rule:
 Enemy pool:
 
 - Circle 1
+- Square 1
 - Pentagon 1
+- Angel Pentagon 1
 - Shooting Pentagon 1
 - Hexagon 1
 - Charging Hexagon 1
@@ -1376,7 +1388,7 @@ Base rule:
 - A wave may leave unused weight, but never exceeds its cap.
 - Difficulty modifies the final cap after flag doubling and the level cap. The result is floored and never lower than `10`.
 - Boss stage: endless waves until Dodecahedron I dies or reaches the base.
-- Pentagon 1 and Shooting Pentagon 1 have a minimum Flag 1 gate, so they can first enter the random pool on wave 10.
+- Pentagon 1, Angel Pentagon 1, and Shooting Pentagon 1 have a minimum Flag 1 gate, so they can first enter the random pool on wave 10.
 
 | Wave | Flag | Base Cap | Final Cap |
 | ---: | ---: | ---: | ---: |
@@ -1410,6 +1422,18 @@ Base rule:
 | 28 | - | 1159 | 800 |
 | 29 | - | 1229 | 800 |
 | 30 | 3 | 1301 | 800 |
+
+## Level 3-1 Weight Growth
+
+Enemy pool:
+
+- Boss: Small Stellated Dodecahedron I
+
+Base rule:
+
+- Starting characters: `350`.
+- No ordinary waves are scheduled.
+- Boss stage: clear the level by killing Small Stellated Dodecahedron I. This stage currently exists to test the Boss wireframe drawing.
 
 ## Spawn Trigger
 

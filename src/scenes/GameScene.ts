@@ -645,6 +645,7 @@ export class GameScene extends Phaser.Scene {
       scene: this,
       enemies: this.enemies,
       towers: this.towers,
+      mortarProjectiles: this.mortarProjectiles,
       getBoss: () => this.boss,
       wave: this.wave,
       battleTime: this.battleTime,
@@ -652,6 +653,7 @@ export class GameScene extends Phaser.Scene {
       damageTower: (tower, damage, damageType) => damageTower(this.unitLifecycleRuntime(), tower, damage, damageType),
       triggerTrapTower: (tower, target) => this.triggerTrapTower(tower, target),
       triggerShockTower: (tower) => this.triggerShockTower(tower),
+      runWhenBattleActive: (action) => this.runWhenBattleActive(action),
       endGame: () => this.endGame()
     };
   }

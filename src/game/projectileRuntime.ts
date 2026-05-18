@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { CELL_WIDTH, palette } from "../config";
 import { getCardDefinition } from "../registry/cards";
+import { enemyIsBossCompanion } from "../registry/enemies";
 import {
   damageEffectColor,
   damageEffectTextColor,
@@ -46,9 +47,9 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
     projectile.y += projectile.vy * seconds * speedMultiplier;
     projectile.body.setPosition(projectile.x, projectile.y);
 
-    const hit = runtime.enemies.find(
-      (enemy) => Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y) < 22
-    );
+    const hit = runtime.enemies.find((enemy) => {
+      return Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y) < enemyProjectileHitRadius(enemy);
+    });
     const hitBoss = isPointInBossHitbox(runtime.getBoss(), projectile.x, projectile.y);
 
     if (!hit && !hitBoss) {
@@ -161,6 +162,10 @@ function projectileShiftDistance(tower: Tower) {
 function removeProjectile(projectiles: Projectile[], projectile: Projectile) {
   Phaser.Utils.Array.Remove(projectiles, projectile);
   projectile.body.destroy();
+}
+
+function enemyProjectileHitRadius(enemy: Enemy) {
+  return enemyIsBossCompanion(enemy.kind) ? CELL_WIDTH * 0.475 : 22;
 }
 
 function removeEnemyProjectile(projectiles: EnemyProjectile[], projectile: EnemyProjectile) {

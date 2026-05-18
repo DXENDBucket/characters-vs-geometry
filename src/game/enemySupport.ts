@@ -118,7 +118,7 @@ function isAngelPentagon(enemy: Enemy) {
   return enemyFamily(enemy.kind) === "angelPentagon";
 }
 
-function triggerAngelWings(scene: Phaser.Scene, enemies: Enemy[], caster: Enemy, time: number) {
+export function triggerAngelWings(scene: Phaser.Scene, enemies: Enemy[], caster: Enemy, time: number) {
   caster.skillSp = Math.max(0, caster.skillSp - ANGEL_WINGS_SKILL_COST);
   caster.skillActiveUntil = time + ANGEL_WINGS_DURATION;
   for (const target of enemies) {
@@ -131,7 +131,7 @@ function triggerAngelWings(scene: Phaser.Scene, enemies: Enemy[], caster: Enemy,
   }
 }
 
-function makeWingPulse(scene: Phaser.Scene, x: number, y: number) {
+export function makeWingPulse(scene: Phaser.Scene, x: number, y: number) {
   const halo = scene.add.ellipse(x, y - 28, 34, 10, 0x000000, 0).setStrokeStyle(2, 0xf5f5f5, 0.9).setDepth(109);
   const lift = scene.add.graphics().setDepth(108);
   lift.lineStyle(2, 0xf5f5f5, 0.65);
