@@ -108,6 +108,9 @@ export interface MortarProjectileSpec {
   sourceEnemy?: Enemy;
   targetEnemy?: Enemy;
   targetTower?: Tower;
+  duration?: number;
+  singleTarget?: boolean;
+  hitRadius?: number;
 }
 
 export function createMortarProjectile(scene: Phaser.Scene, spec: MortarProjectileSpec): MortarProjectile {
@@ -134,7 +137,7 @@ export function createMortarProjectile(scene: Phaser.Scene, spec: MortarProjecti
     targetX: spec.targetX,
     targetY: spec.targetY,
     progress: 0,
-    duration: 3_240,
+    duration: spec.duration ?? 3_240,
     damage: spec.damage,
     damageType: spec.damageType,
     rangeX: spec.rangeX,
@@ -145,6 +148,8 @@ export function createMortarProjectile(scene: Phaser.Scene, spec: MortarProjecti
     sourceEnemy: spec.sourceEnemy,
     targetEnemy: spec.targetEnemy,
     targetTower: spec.targetTower,
+    singleTarget: spec.singleTarget,
+    hitRadius: spec.hitRadius,
     body
   };
 }

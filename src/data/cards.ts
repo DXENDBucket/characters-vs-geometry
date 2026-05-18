@@ -388,6 +388,19 @@ export const cardDefinitions: CardDefinition[] = [
     stats: "LEVEL AURA / 3x3"
   },
   {
+    id: "V",
+    category: "attack",
+    cost: 775,
+    cooldown: 6_000,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 40,
+    fireRate: 2_000,
+    damage: 1_300,
+    damageType: "magic",
+    stats: `1300${DAMAGE_SYMBOLS.magic} / PREDICT`
+  },
+  {
     id: "P",
     category: "healing",
     cost: 125,

@@ -111,6 +111,13 @@ export function getAttackTarget(tower: Tower, definition: CardDefinition, enemie
     .sort((a, b) => attackTargetPriority(tower, area, a) - attackTargetPriority(tower, area, b))[0];
 }
 
+export function getLowestMaxHpAttackTarget(tower: Tower, definition: CardDefinition, enemies: Enemy[]) {
+  const area = getCardAttackArea(tower.type);
+  return enemies
+    .filter((enemy) => enemyIsInAttackArea(tower, definition, area, enemy))
+    .sort((a, b) => a.maxHp - b.maxHp || attackTargetPriority(tower, area, a) - attackTargetPriority(tower, area, b))[0];
+}
+
 export function attackRangeRight(tower: Tower, definition: CardDefinition) {
   const area = getCardAttackArea(tower.type);
   const rangeCells =

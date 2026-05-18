@@ -29,6 +29,7 @@ export type CardId =
   | "N"
   | "T"
   | "U"
+  | "V"
   | "P"
   | "Y"
   | "Z";
@@ -255,6 +256,8 @@ export interface MortarProjectile {
   sourceEnemy?: Enemy;
   targetEnemy?: Enemy;
   targetTower?: Tower;
+  singleTarget?: boolean;
+  hitRadius?: number;
   shiftSelfDamageApplied?: boolean;
   body: Phaser.GameObjects.Shape | Phaser.GameObjects.Text;
 }

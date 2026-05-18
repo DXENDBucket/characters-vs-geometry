@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, COLUMNS, LANES } from "../config";
+import { damageEffectTextColor } from "../render/combatEffects";
 import { makeArcWaveEffect, makeHealParticles, makeShiftEffect, makeSlashEffect } from "../render/combatEffects";
 import type { CardDefinition, CardId, CubeBoss, Enemy, Tower } from "../types";
 import {
@@ -9,14 +10,19 @@ import {
   type ProjectilePatternConfig
 } from "./cardAttackConfigs";
 import type { CardBehaviorRuntime, CardReadinessRuntime } from "./combatRuntime";
-import { createTowerProjectile, type TowerProjectileSpec } from "./projectiles";
+import { chargingHexSpeedMultiplier } from "./enemySupport";
+import { createMortarProjectile, createTowerProjectile, type TowerProjectileSpec } from "./projectiles";
+import { movementSpeedMultiplier } from "./slowAura";
+import { statusSpeedMultiplier } from "./statusEffects";
 import {
   attackRangeRight,
   bossRect,
   canAttackBoss,
   getAttackTarget,
   getBlockedEnemies,
+  getBlockingTower,
   getHealTarget,
+  getLowestMaxHpAttackTarget,
   getShiftTargets,
   hasAttackTarget
 } from "./targeting";
@@ -94,6 +100,13 @@ export const arcWaveCardBehavior: CardBehavior = {
   execute: fireArcWave
 };
 
+export const predictiveMortarCardBehavior: CardBehavior = {
+  canUse: (tower, definition, time, runtime) => {
+    return cooldownReady(tower, time) && Boolean(definition.damage && hasPredictiveMortarTarget(tower, definition, runtime));
+  },
+  execute: firePredictiveMortar
+};
+
 export const cardBehaviorsById: Record<CardId, CardBehavior> = {
   A: projectileCardBehavior,
   a: projectileCardBehavior,
@@ -123,10 +136,14 @@ export const cardBehaviorsById: Record<CardId, CardBehavior> = {
   N: blockedPushCardBehavior,
   T: slowAuraCardBehavior,
   U: idleCardBehavior,
+  V: predictiveMortarCardBehavior,
   P: healingCardBehavior,
   Y: idleCardBehavior,
   Z: slashCardBehavior
 };
+
+const PREDICTIVE_MORTAR_DURATION = 1_200;
+const PREDICTIVE_MORTAR_HIT_RADIUS = 22;
 
 function cooldownReady(tower: Tower, time: number) {
   return time >= tower.lastFire + tower.fireRate;
@@ -225,6 +242,74 @@ function fireArcWave(tower: Tower, definition: CardDefinition, runtime: CardBeha
   if (arcWaveHitsBoss(tower, runtime.boss)) {
     runtime.damageBoss(damage, damageType);
   }
+}
+
+function hasPredictiveMortarTarget(
+  tower: Tower,
+  definition: CardDefinition,
+  runtime: CardReadinessRuntime
+) {
+  return Boolean(getLowestMaxHpAttackTarget(tower, definition, runtime.enemies) || canAttackBoss(tower, definition, runtime.boss));
+}
+
+function firePredictiveMortar(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {
+  const damage = scaledByEffectiveUpgrades(definition.damage ?? 0, effectiveTowerLevel(tower));
+  const damageType = definition.damageType ?? "magic";
+  const enemy = getLowestMaxHpAttackTarget(tower, definition, runtime.enemies);
+  const target = enemy
+    ? predictedEnemyMortarTarget(enemy, runtime)
+    : predictedBossMortarTarget(tower, runtime.boss);
+
+  if (!target) {
+    return;
+  }
+
+  runtime.mortarProjectiles.push(
+    createMortarProjectile(runtime.scene, {
+      owner: "tower",
+      fromX: tower.x + 18,
+      fromY: tower.y,
+      targetX: target.x,
+      targetY: target.y,
+      damage,
+      damageType,
+      rangeX: PREDICTIVE_MORTAR_HIT_RADIUS,
+      rangeY: PREDICTIVE_MORTAR_HIT_RADIUS,
+      marker: "text",
+      markerText: "*",
+      markerTextColor: damageEffectTextColor(damageType),
+      duration: PREDICTIVE_MORTAR_DURATION,
+      singleTarget: true,
+      hitRadius: PREDICTIVE_MORTAR_HIT_RADIUS
+    })
+  );
+}
+
+function predictedEnemyMortarTarget(enemy: Enemy, runtime: CardBehaviorRuntime) {
+  const durationSeconds = PREDICTIVE_MORTAR_DURATION / 1_000;
+  const speed = getBlockingTower(runtime.towers, enemy)
+    ? 0
+    : enemy.speed *
+      statusSpeedMultiplier(enemy, runtime.battleTime) *
+      movementSpeedMultiplier(runtime.towers, enemy.x, enemy.y) *
+      chargingHexSpeedMultiplier(runtime.enemies, enemy);
+  return {
+    x: enemy.x - speed * durationSeconds,
+    y: enemy.y
+  };
+}
+
+function predictedBossMortarTarget(tower: Tower, boss: CubeBoss | null) {
+  if (!boss) {
+    return null;
+  }
+
+  const rect = bossRect(boss);
+  const durationSeconds = PREDICTIVE_MORTAR_DURATION / 1_000;
+  return {
+    x: boss.x - boss.speed * durationSeconds,
+    y: Phaser.Math.Clamp(tower.y, rect.top, rect.bottom)
+  };
 }
 
 function hasArcWaveTarget(tower: Tower, enemies: Enemy[], boss: CubeBoss | null) {

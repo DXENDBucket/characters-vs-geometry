@@ -273,12 +273,40 @@ function detonateTowerMortar(runtime: ProjectileRuntime, projectile: MortarProje
     markerText: projectile.markerText,
     markerTextColor: projectile.marker === "text" ? damageEffectTextColor(projectile.damageType) : undefined
   });
+
+  if (projectile.singleTarget) {
+    detonateSingleTargetTowerMortar(runtime, projectile);
+    return;
+  }
+
   for (const enemy of [...runtime.enemies]) {
     if (Math.abs(enemy.x - projectile.targetX) <= projectile.rangeX && Math.abs(enemy.y - projectile.targetY) <= projectile.rangeY) {
       runtime.damageEnemy(enemy, projectile.damage, projectile.damageType);
     }
   }
   if (isBossInRect(runtime.getBoss(), projectile.targetX - projectile.rangeX, projectile.targetY - projectile.rangeY, projectile.rangeX * 2, projectile.rangeY * 2)) {
+    runtime.damageBoss(projectile.damage, projectile.damageType);
+  }
+}
+
+function detonateSingleTargetTowerMortar(runtime: ProjectileRuntime, projectile: MortarProjectile) {
+  const hitRadius = projectile.hitRadius ?? 22;
+  const target = [...runtime.enemies]
+    .filter((enemy) => {
+      return Math.hypot(enemy.x - projectile.targetX, enemy.y - projectile.targetY) <= Math.max(hitRadius, enemyProjectileHitRadius(enemy));
+    })
+    .sort((a, b) => {
+      const distanceA = Math.hypot(a.x - projectile.targetX, a.y - projectile.targetY);
+      const distanceB = Math.hypot(b.x - projectile.targetX, b.y - projectile.targetY);
+      return distanceA - distanceB;
+    })[0];
+
+  if (target) {
+    runtime.damageEnemy(target, projectile.damage, projectile.damageType);
+    return;
+  }
+
+  if (isBossInRadius(runtime.getBoss(), projectile.targetX, projectile.targetY, hitRadius)) {
     runtime.damageBoss(projectile.damage, projectile.damageType);
   }
 }

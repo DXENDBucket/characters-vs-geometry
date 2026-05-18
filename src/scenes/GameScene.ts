@@ -626,6 +626,7 @@ export class GameScene extends Phaser.Scene {
       towers: this.towers,
       boss: this.boss,
       occupied: this.occupied,
+      battleTime: this.battleTime,
       projectiles: this.projectiles,
       enemyProjectiles: this.enemyProjectiles,
       mortarProjectiles: this.mortarProjectiles,

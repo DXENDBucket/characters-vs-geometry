@@ -7,6 +7,7 @@ export interface CombatRuntime {
   towers: Tower[];
   boss: CubeBoss | null;
   occupied: Map<string, Tower>;
+  battleTime: number;
   projectiles: Projectile[];
   enemyProjectiles: EnemyProjectile[];
   mortarProjectiles: MortarProjectile[];
@@ -29,7 +30,9 @@ export type CardBehaviorRuntime = Pick<
   | "towers"
   | "boss"
   | "occupied"
+  | "battleTime"
   | "projectiles"
+  | "mortarProjectiles"
   | "damageEnemy"
   | "damageBoss"
   | "damageTower"
