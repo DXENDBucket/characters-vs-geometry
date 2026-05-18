@@ -255,6 +255,7 @@ export interface MortarProjectile {
   sourceEnemy?: Enemy;
   targetEnemy?: Enemy;
   targetTower?: Tower;
+  shiftSelfDamageApplied?: boolean;
   body: Phaser.GameObjects.Shape | Phaser.GameObjects.Text;
 }
 

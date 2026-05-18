@@ -107,6 +107,7 @@ export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: numb
         shiftEnemyProjectile(projectile, hit);
         makeShiftEffect(runtime.scene, projectile.x + projectileShiftDistance(hit), projectile.y, projectile.x, projectile.y);
         projectile.body.setPosition(projectile.x, projectile.y);
+        damageShiftTowerSelf(runtime, hit);
         if (isEnemyProjectileOutOfBounds(projectile)) {
           removeEnemyProjectile(runtime.enemyProjectiles, projectile);
         }
@@ -181,12 +182,30 @@ function syncMortarTarget(runtime: ProjectileRuntime, projectile: MortarProjecti
   }
 
   if (projectile.targetTower && runtime.towers.includes(projectile.targetTower)) {
-    projectile.targetX =
-      projectile.owner === "enemy" && projectile.targetTower.type === "N"
-        ? projectile.targetTower.x - projectileShiftDistance(projectile.targetTower)
-        : projectile.targetTower.x;
-    projectile.targetY = projectile.targetTower.y;
+    const targetTower = projectile.targetTower;
+    if (projectile.owner === "enemy" && targetTower.type === "N") {
+      if (!projectile.shiftSelfDamageApplied) {
+        projectile.shiftSelfDamageApplied = true;
+        damageShiftTowerSelf(runtime, targetTower);
+      }
+      projectile.targetX = targetTower.x - projectileShiftDistance(targetTower);
+      projectile.targetY = targetTower.y;
+      return;
+    }
+
+    projectile.targetX = targetTower.x;
+    projectile.targetY = targetTower.y;
   }
+}
+
+function damageShiftTowerSelf(runtime: ProjectileRuntime, tower: Tower) {
+  const definition = getCardDefinition(tower.type);
+  const damage = definition.selfDamage ?? 0;
+  if (damage <= 0) {
+    return;
+  }
+
+  runtime.damageTower(tower, damage, definition.selfDamageType ?? "true");
 }
 
 function positionMortarProjectile(projectile: MortarProjectile) {
