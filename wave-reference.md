@@ -1452,14 +1452,14 @@ Difficulty is selected from `0` to `8` on the level-select screen. Default is `3
 | Difficulty | Weight Multiplier | Enemy Final Damage Reduction |
 | ---: | ---: | ---: |
 | 0 | 10% | 0% |
-| 1 | 40% | 0% |
-| 2 | 70% | 0% |
-| 3 | 100% | 0% |
-| 4 | 140% | 0% |
-| 5 | 180% | 30% |
-| 6 | 220% | 60% |
+| 1 | 50% | 0% |
+| 2 | 100% | 0% |
+| 3 | 140% | 10% |
+| 4 | 180% | 30% |
+| 5 | 220% | 50% |
+| 6 | 260% | 65% |
 | 7 | 300% | 75% |
-| 8 | 500% | 85% |
+| 8 | 400% | 80% |
 
 Enemy final damage reduction is applied after armor, magic resistance, and minimum-damage rules. It also reduces true damage.
 

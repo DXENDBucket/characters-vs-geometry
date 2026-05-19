@@ -103,14 +103,14 @@ export const palette = {
 
 export const difficultyConfigs: Record<number, DifficultyConfig> = {
   0: { weightMultiplier: 0.1, finalDamageReduction: 0 },
-  1: { weightMultiplier: 0.4, finalDamageReduction: 0 },
-  2: { weightMultiplier: 0.7, finalDamageReduction: 0 },
-  3: { weightMultiplier: 1, finalDamageReduction: 0 },
-  4: { weightMultiplier: 1.4, finalDamageReduction: 0 },
-  5: { weightMultiplier: 1.8, finalDamageReduction: 0.3 },
-  6: { weightMultiplier: 2.2, finalDamageReduction: 0.6 },
+  1: { weightMultiplier: 0.5, finalDamageReduction: 0 },
+  2: { weightMultiplier: 1, finalDamageReduction: 0 },
+  3: { weightMultiplier: 1.4, finalDamageReduction: 0.1 },
+  4: { weightMultiplier: 1.8, finalDamageReduction: 0.3 },
+  5: { weightMultiplier: 2.2, finalDamageReduction: 0.5 },
+  6: { weightMultiplier: 2.6, finalDamageReduction: 0.65 },
   7: { weightMultiplier: 3, finalDamageReduction: 0.75 },
-  8: { weightMultiplier: 5, finalDamageReduction: 0.85 }
+  8: { weightMultiplier: 4, finalDamageReduction: 0.8 }
 };
 
 export function clampDifficulty(difficulty?: number) {
