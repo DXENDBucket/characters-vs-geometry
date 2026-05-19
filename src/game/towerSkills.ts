@@ -15,7 +15,10 @@ import {
   palette
 } from "../config";
 import { makeHealParticles, makeSpellMortarImpact, makeSpellMortarShot } from "../render/combatEffects";
-import type { CardDefinition, CardId, CubeBoss, DamageType, Enemy, Tower } from "../types";
+import type { CardDefinition, CardId, CubeBoss, DamageType, Enemy, SkillState, Tower } from "../types";
+import { updateRegisteredSkills } from "./skillRegistry";
+import { gainSkillSp, getTowerSkillState, resetSkillCharge } from "./skillState";
+import { createTowerSkillRegistry, type TowerSkillDefinition } from "./towerSkillRegistry";
 import { isBossInRect } from "./targeting";
 import { effectiveTowerLevel, getSpellMortarDamage, syncTowerHpBar } from "./towers";
 
@@ -37,16 +40,33 @@ export class TowerSkillController {
   private spellMortarTargetingTowers: Tower[] = [];
   private spellMortarReticle: Phaser.GameObjects.Container | null = null;
   private activeSpellMortarTweens: Phaser.Tweens.Tween[] = [];
+  private readonly skillDefinitions: Partial<Record<CardId, TowerSkillDefinition>>;
 
   constructor(
     private readonly scene: Phaser.Scene,
     private readonly runtime: () => TowerSkillRuntime
-  ) {}
+  ) {
+    this.skillDefinitions = createTowerSkillRegistry({
+      updateClockTower: (tower, state, seconds, time) => this.updateClockTower(tower, state, seconds, time),
+      resetClockTower: (tower, state) => this.resetClockTower(tower, state),
+      updateGuardianTower: (tower, state, seconds, time) => this.updateGuardianTower(tower, state, seconds, time),
+      updateSpellMortarTower: (tower, state, seconds, time) => this.updateSpellMortarTower(tower, state, seconds, time),
+      resetSpellMortarTower: (tower, state) => this.resetSpellMortarTower(tower, state)
+    });
+  }
 
   update(seconds: number, time: number) {
-    this.updateClockTowers(seconds, time);
-    this.updateSpellMortarTowers(seconds, time);
-    this.updateGuardianTowers(seconds, time);
+    this.syncSpellMortarTargetingTowers();
+    updateRegisteredSkills(
+      this.runtime().towers,
+      (tower) => {
+        const definition = this.skillDefinitions[tower.type];
+        return definition ? [definition] : [];
+      },
+      undefined,
+      seconds,
+      time
+    );
   }
 
   hasSpellMortarTargeting() {
@@ -56,14 +76,15 @@ export class TowerSkillController {
   cardCooldownMultiplier() {
     const runtime = this.runtime();
     const activeClockLevelSum = runtime.towers
-      .filter((tower) => tower.type === "c" && runtime.battleTime < tower.skillActiveUntil)
+      .filter((tower) => tower.type === "c" && runtime.battleTime < getTowerSkillState(tower, "clock").activeUntil)
       .reduce((sum, tower) => sum + effectiveTowerLevel(tower), 0);
     return activeClockLevelSum + 1;
   }
 
   isClockTowerReady(tower: Tower) {
     const runtime = this.runtime();
-    return tower.type === "c" && runtime.battleTime >= tower.skillActiveUntil && tower.skillSp >= CLOCK_TOWER_SKILL_MAX;
+    const state = getTowerSkillState(tower, "clock");
+    return tower.type === "c" && runtime.battleTime >= state.activeUntil && state.sp >= CLOCK_TOWER_SKILL_MAX;
   }
 
   activateReadyClockTowers() {
@@ -75,15 +96,16 @@ export class TowerSkillController {
   }
 
   activateClockTower(tower: Tower) {
-    tower.skillSp = 0;
-    tower.skillSpBuffer = 0;
-    tower.skillActiveUntil = this.runtime().battleTime + CLOCK_TOWER_SKILL_DURATION;
+    const state = getTowerSkillState(tower, "clock");
+    resetSkillCharge(state);
+    state.activeUntil = this.runtime().battleTime + CLOCK_TOWER_SKILL_DURATION;
     tower.border.setVisible(true);
   }
 
   isSpellMortarReady(tower: Tower) {
     const runtime = this.runtime();
-    return tower.type === "S" && runtime.battleTime >= tower.skillActiveUntil && tower.skillSp >= SPELL_MORTAR_SKILL_MAX;
+    const state = getTowerSkillState(tower, "spellMortar");
+    return tower.type === "S" && runtime.battleTime >= state.activeUntil && state.sp >= SPELL_MORTAR_SKILL_MAX;
   }
 
   activateReadySpellMortars(x: number, y: number) {
@@ -136,24 +158,11 @@ export class TowerSkillController {
   }
 
   resetTowerSkill(tower: Tower) {
-    if (tower.type === "c") {
-      resetChargeSkill(tower);
-      tower.skillActiveUntil = 0;
-      tower.border.setVisible(false);
+    const definition = this.skillDefinitions[tower.type];
+    if (!definition?.reset) {
       return;
     }
-
-    if (tower.type === "S") {
-      resetChargeSkill(tower);
-      tower.skillActiveUntil = 0;
-      tower.border.setVisible(false);
-      if (this.spellMortarTargetingTowers.includes(tower)) {
-        this.spellMortarTargetingTowers = this.spellMortarTargetingTowers.filter((target) => target !== tower);
-        if (this.spellMortarTargetingTowers.length === 0) {
-          this.destroySpellMortarReticle();
-        }
-      }
-    }
+    definition.reset(tower, getTowerSkillState(tower, definition.stateKey), undefined);
   }
 
   syncSpellMortarTweenPause(paused: boolean) {
@@ -166,55 +175,43 @@ export class TowerSkillController {
     }
   }
 
-  private updateClockTowers(seconds: number, time: number) {
-    for (const tower of this.runtime().towers) {
-      if (tower.type !== "c") {
-        continue;
-      }
+  private updateClockTower(tower: Tower, state: SkillState, seconds: number, time: number) {
+    if (time < state.activeUntil) {
+      tower.border.setVisible(true);
+      tower.border.setAlpha(0.35 + Math.sin(time / 70) * 0.32 + 0.32);
+      return;
+    }
 
-      if (time < tower.skillActiveUntil) {
-        tower.border.setVisible(true);
-        tower.border.setAlpha(0.35 + Math.sin(time / 70) * 0.32 + 0.32);
-        continue;
-      }
+    tower.border.setAlpha(1);
+    if (state.sp >= CLOCK_TOWER_SKILL_MAX) {
+      tower.border.setVisible(true);
+      return;
+    }
 
-      tower.border.setAlpha(1);
-      if (tower.skillSp >= CLOCK_TOWER_SKILL_MAX) {
-        tower.border.setVisible(true);
-        continue;
-      }
-
-      tower.border.setVisible(false);
-      gainTowerSp(tower, seconds, CLOCK_TOWER_SKILL_MAX);
-      if (tower.skillSp >= CLOCK_TOWER_SKILL_MAX) {
-        tower.border.setVisible(true);
-      }
+    tower.border.setVisible(false);
+    gainSkillSp(state, seconds, CLOCK_TOWER_SKILL_MAX);
+    if (state.sp >= CLOCK_TOWER_SKILL_MAX) {
+      tower.border.setVisible(true);
     }
   }
 
-  private updateGuardianTowers(seconds: number, time: number) {
-    for (const tower of this.runtime().towers) {
-      if (tower.type !== "h") {
-        continue;
-      }
-
-      if (tower.skillSp < GUARDIAN_TOWER_SKILL_MAX) {
-        tower.border.setAlpha(1);
-        gainTowerSp(tower, seconds, GUARDIAN_TOWER_SKILL_MAX);
-      }
-
-      if (tower.skillSp < GUARDIAN_TOWER_SKILL_MAX) {
-        continue;
-      }
-
-      const targets = this.guardianHealTargets(tower);
-      if (targets.length === 0) {
-        tower.border.setAlpha(0.62 + Math.sin(time / 90) * 0.28);
-        continue;
-      }
-
-      this.triggerGuardianSkill(tower, targets);
+  private updateGuardianTower(tower: Tower, state: SkillState, seconds: number, time: number) {
+    if (state.sp < GUARDIAN_TOWER_SKILL_MAX) {
+      tower.border.setAlpha(1);
+      gainSkillSp(state, seconds, GUARDIAN_TOWER_SKILL_MAX);
     }
+
+    if (state.sp < GUARDIAN_TOWER_SKILL_MAX) {
+      return;
+    }
+
+    const targets = this.guardianHealTargets(tower);
+    if (targets.length === 0) {
+      tower.border.setAlpha(0.62 + Math.sin(time / 90) * 0.28);
+      return;
+    }
+
+    this.triggerGuardianSkill(tower, state, targets);
   }
 
   private guardianHealTargets(tower: Tower) {
@@ -240,9 +237,9 @@ export class TowerSkillController {
     return targets;
   }
 
-  private triggerGuardianSkill(tower: Tower, targets: Tower[]) {
-    tower.skillSp = Math.max(0, tower.skillSp - GUARDIAN_TOWER_SKILL_COST);
-    tower.skillSpBuffer = 0;
+  private triggerGuardianSkill(tower: Tower, state: SkillState, targets: Tower[]) {
+    state.sp = Math.max(0, state.sp - GUARDIAN_TOWER_SKILL_COST);
+    state.spBuffer = 0;
     tower.border.setAlpha(1);
 
     const amount = Math.round(tower.maxHp * GUARDIAN_TOWER_HEAL_RATIO);
@@ -251,35 +248,31 @@ export class TowerSkillController {
     }
   }
 
-  private updateSpellMortarTowers(seconds: number, time: number) {
+  private syncSpellMortarTargetingTowers() {
     const runtime = this.runtime();
     this.spellMortarTargetingTowers = this.spellMortarTargetingTowers.filter((tower) => runtime.towers.includes(tower));
     if (this.spellMortarTargetingTowers.length === 0) {
       this.destroySpellMortarReticle();
     }
+  }
 
-    for (const tower of runtime.towers) {
-      if (tower.type !== "S") {
-        continue;
-      }
+  private updateSpellMortarTower(tower: Tower, state: SkillState, seconds: number, time: number) {
+    if (time < state.activeUntil || this.spellMortarTargetingTowers.includes(tower)) {
+      tower.border.setVisible(true);
+      tower.border.setAlpha(0.35 + Math.sin(time / 70) * 0.32 + 0.32);
+      return;
+    }
 
-      if (time < tower.skillActiveUntil || this.spellMortarTargetingTowers.includes(tower)) {
-        tower.border.setVisible(true);
-        tower.border.setAlpha(0.35 + Math.sin(time / 70) * 0.32 + 0.32);
-        continue;
-      }
+    tower.border.setAlpha(1);
+    if (state.sp >= SPELL_MORTAR_SKILL_MAX) {
+      tower.border.setVisible(true);
+      return;
+    }
 
-      tower.border.setAlpha(1);
-      if (tower.skillSp >= SPELL_MORTAR_SKILL_MAX) {
-        tower.border.setVisible(true);
-        continue;
-      }
-
-      tower.border.setVisible(false);
-      gainTowerSp(tower, seconds, SPELL_MORTAR_SKILL_MAX);
-      if (tower.skillSp >= SPELL_MORTAR_SKILL_MAX) {
-        tower.border.setVisible(true);
-      }
+    tower.border.setVisible(false);
+    gainSkillSp(state, seconds, SPELL_MORTAR_SKILL_MAX);
+    if (state.sp >= SPELL_MORTAR_SKILL_MAX) {
+      tower.border.setVisible(true);
     }
   }
 
@@ -288,9 +281,10 @@ export class TowerSkillController {
     const definition = runtime.getDefinition(tower.type);
     const damage = getSpellMortarDamage(tower, definition);
     const damageType = definition.damageType ?? "magic";
-    tower.skillSp = Math.max(0, tower.skillSp - SPELL_MORTAR_SKILL_COST);
-    tower.skillSpBuffer = 0;
-    tower.skillActiveUntil = runtime.battleTime + (SPELL_MORTAR_SHOT_COUNT - 1) * SPELL_MORTAR_SHOT_INTERVAL;
+    const state = getTowerSkillState(tower, "spellMortar");
+    state.sp = Math.max(0, state.sp - SPELL_MORTAR_SKILL_COST);
+    state.spBuffer = 0;
+    state.activeUntil = runtime.battleTime + (SPELL_MORTAR_SHOT_COUNT - 1) * SPELL_MORTAR_SHOT_INTERVAL;
     tower.border.setVisible(true);
 
     for (let shotIndex = 0; shotIndex < SPELL_MORTAR_SHOT_COUNT; shotIndex += 1) {
@@ -369,24 +363,26 @@ export class TowerSkillController {
     this.spellMortarReticle?.destroy();
     this.spellMortarReticle = null;
   }
-}
 
-function gainTowerSp(tower: Tower, seconds: number, maxSp: number) {
-  tower.skillSpBuffer += seconds;
-  while (tower.skillSpBuffer >= 1 && tower.skillSp < maxSp) {
-    tower.skillSp += 1;
-    tower.skillSpBuffer -= 1;
+  private resetClockTower(tower: Tower, state: SkillState) {
+    resetSkillCharge(state);
+    state.activeUntil = 0;
+    tower.border.setVisible(false);
+    tower.border.setAlpha(1);
   }
-  if (tower.skillSp >= maxSp) {
-    tower.skillSp = maxSp;
-    tower.skillSpBuffer = 0;
-  }
-}
 
-function resetChargeSkill(tower: Tower) {
-  tower.skillSp = 0;
-  tower.skillSpBuffer = 0;
-  tower.border.setAlpha(1);
+  private resetSpellMortarTower(tower: Tower, state: SkillState) {
+    resetSkillCharge(state);
+    state.activeUntil = 0;
+    tower.border.setVisible(false);
+    tower.border.setAlpha(1);
+    if (this.spellMortarTargetingTowers.includes(tower)) {
+      this.spellMortarTargetingTowers = this.spellMortarTargetingTowers.filter((target) => target !== tower);
+      if (this.spellMortarTargetingTowers.length === 0) {
+        this.destroySpellMortarReticle();
+      }
+    }
+  }
 }
 
 function healTower(scene: Phaser.Scene, tower: Tower, amount: number) {

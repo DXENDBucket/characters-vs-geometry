@@ -133,6 +133,12 @@ export interface StatusEffect {
   showHalo?: boolean;
 }
 
+export interface SkillState {
+  sp: number;
+  spBuffer: number;
+  activeUntil: number;
+}
+
 export interface CardState {
   definition: CardDefinition;
   frame: Phaser.GameObjects.Rectangle;
@@ -159,9 +165,7 @@ export interface Tower {
   levelBonus: number;
   nextProduceAt: number;
   armedAt: number;
-  skillSp: number;
-  skillSpBuffer: number;
-  skillActiveUntil: number;
+  skills: Record<string, SkillState>;
   autoUpgrade: boolean;
   reflectProjectiles: boolean;
   placedOrder: number;
@@ -192,9 +196,7 @@ export interface Enemy {
   attackAt: number;
   blockedByTowerId?: string;
   blockedSince?: number;
-  skillSp: number;
-  skillSpBuffer: number;
-  skillActiveUntil: number;
+  skills: Record<string, SkillState>;
   statusEffects: StatusEffect[];
   statusBorder: Phaser.GameObjects.Arc;
   powerIcon: Phaser.GameObjects.Text;
@@ -303,12 +305,10 @@ export interface LevelConfig {
   endless?: boolean;
 }
 
-export interface BossSkill<Name extends BossSkillName = BossSkillName> {
+export interface BossSkill<Name extends BossSkillName = BossSkillName> extends SkillState {
   name: Name;
-  sp: number;
   maxSp: number;
   cost: number;
-  gainBuffer: number;
 }
 
 export interface CubeBoss {

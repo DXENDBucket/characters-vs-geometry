@@ -92,9 +92,7 @@ export function applyEnemyPromotion(scene: Phaser.Scene, enemy: Enemy, kind: Ene
   enemy.flyingHalo = scene.add.ellipse(0, -42, 30, 8, palette.black, 0).setStrokeStyle(2, palette.white, 0.94);
   enemy.flyingHalo.setVisible(false);
   enemy.shape = createEnemyShape(scene, kind, { squareSize: 42, shootingNoseX: -24 });
-  enemy.skillSp = 0;
-  enemy.skillSpBuffer = 0;
-  enemy.skillActiveUntil = 0;
+  enemy.skills = {};
   enemy.body.add([enemy.statusBorder, enemy.flyingHalo, enemy.shape, enemy.powerIcon, enemy.armorIcon]);
   enemy.shape.setScale(enemyScaleFromHp(enemy.hp / enemy.maxHp));
 }

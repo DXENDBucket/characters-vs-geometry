@@ -35,29 +35,17 @@ import {
   updateTowerProjectiles,
   type ProjectileRuntime
 } from "../game/projectileRuntime";
+import { gridCellKey } from "../game/targeting";
 import {
-  gridCellKey,
-  isBossInRect
-} from "../game/targeting";
-import {
-  applyTowerUpgradeStats,
-  createTower,
   effectiveTowerLevel,
-  findAutoUpgradeTarget,
   getHitProductionAmount,
   getProductionAmount,
-  getShockCount,
-  getTriggerDebuffDuration,
-  getTrapDamage,
-  isCardReadyForAutoUpgrade,
   setTowerAutoUpgradeState,
   syncTowerDerivedStats,
-  syncTowerAutoUpgradeVisual,
-  syncTowerLevelText,
-  upgradeTowerLevel
+  syncTowerLevelText
 } from "../game/towers";
+import { TowerDeploymentController, type TowerDeploymentRuntime } from "../game/towerDeployment";
 import { TowerSkillController, type TowerSkillRuntime } from "../game/towerSkills";
-import { applyStatusEffect } from "../game/statusEffects";
 import {
   damageBoss,
   damageEnemy,
@@ -66,16 +54,15 @@ import {
   removeTower,
   type UnitLifecycleRuntime
 } from "../game/unitLifecycle";
+import {
+  triggerShockTower as runTriggerShockTower,
+  triggerTrapTower as runTriggerTrapTower,
+  type TriggerTowerRuntime
+} from "../game/triggerTowers";
 import { volleyInterval, volleyShotCount } from "../game/upgrades";
 import { waveScheduleAction } from "../game/waves";
 import { t } from "../i18n";
-import {
-  makeAutoUpgradePulse,
-  makeEraseMark,
-  makeProductionPulse,
-  makeShockPulse,
-  makeTrapBurst
-} from "../render/combatEffects";
+import { makeEraseMark, makeProductionPulse } from "../render/combatEffects";
 import {
   createCardStates,
   createGameHud,
@@ -138,6 +125,7 @@ export class GameScene extends Phaser.Scene {
   private autoUpgradeReserveChars = 0;
   private autoUpgradeReserveInputFocused = false;
   private towerSkills!: TowerSkillController;
+  private deployment!: TowerDeploymentController;
   private ui!: GameHudElements;
   private overlay!: GameOverlayElements;
 
@@ -176,6 +164,7 @@ export class GameScene extends Phaser.Scene {
     this.autoUpgradeReserveChars = 0;
     this.autoUpgradeReserveInputFocused = false;
     this.towerSkills = new TowerSkillController(this, () => this.towerSkillRuntime());
+    this.deployment = new TowerDeploymentController(() => this.towerDeploymentRuntime());
     this.levelElapsed = 0;
     this.battleTime = 0;
     this.cardTime = 0;
@@ -390,9 +379,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    const deployed = this.unlimitedFirepower
-      ? this.deployColumn(definition, column)
-      : this.deploySingle(definition, lane, column);
+    const deployed = this.deployment.deploy(definition, lane, column);
     if (!deployed) {
       this.showToast(t("toast.occupied"));
       return;
@@ -400,64 +387,6 @@ export class GameScene extends Phaser.Scene {
 
     this.chars -= definition.cost;
     cardState.readyAt = this.cardTimeFor(definition.id) + definition.cooldown;
-  }
-
-  private deploySingle(definition: CardDefinition, lane: number, column: number) {
-    const existingTower = this.occupied.get(gridCellKey(lane, column));
-    if (existingTower) {
-      if (existingTower.type !== definition.id) {
-        return false;
-      }
-
-      this.upgradeTower(existingTower);
-      return true;
-    }
-
-    this.placeTower(definition, lane, column);
-    return true;
-  }
-
-  private deployColumn(definition: CardDefinition, column: number) {
-    let deployed = false;
-    for (let lane = 0; lane < LANES; lane += 1) {
-      const existingTower = this.occupied.get(gridCellKey(lane, column));
-      if (existingTower) {
-        if (existingTower.type === definition.id) {
-          this.upgradeTower(existingTower);
-          deployed = true;
-        }
-        continue;
-      }
-
-      this.placeTower(definition, lane, column);
-      deployed = true;
-    }
-
-    return deployed;
-  }
-
-  private placeTower(definition: CardDefinition, lane: number, column: number) {
-    const tower = createTower(this, definition, lane, column, this.battleTime, this.towerOrder);
-    this.towerOrder += 1;
-
-    this.towers.push(tower);
-    this.occupied.set(gridCellKey(lane, column), tower);
-    this.updateLevelAuras();
-  }
-
-  private upgradeTower(tower: Tower) {
-    const definition = this.getDefinition(tower.type);
-    const gainedEffectiveUpgrades = upgradeTowerLevel(tower);
-    applyTowerUpgradeStats(tower, definition, gainedEffectiveUpgrades, this.battleTime);
-    this.towerSkills.resetTowerSkill(tower);
-    this.updateLevelAuras();
-    this.tweens.add({
-      targets: tower.body,
-      scale: 1.08,
-      yoyo: true,
-      duration: 90,
-      ease: "Quad.easeOut"
-    });
   }
 
   private updateProducers(time: number) {
@@ -619,6 +548,34 @@ export class GameScene extends Phaser.Scene {
     };
   }
 
+  private towerDeploymentRuntime(): TowerDeploymentRuntime {
+    return {
+      scene: this,
+      towers: this.towers,
+      occupied: this.occupied,
+      cardStates: this.cardStates,
+      battleTime: this.battleTime,
+      unlimitedFirepower: this.unlimitedFirepower,
+      autoUpgradeEnabled: this.autoUpgradeEnabled,
+      autoUpgradeReserveChars: this.autoUpgradeReserveChars,
+      autoUpgradeReserveInputFocused: this.autoUpgradeReserveInputFocused,
+      getDefinition: (id) => this.getDefinition(id),
+      cardTimeFor: (id) => this.cardTimeFor(id),
+      getChars: () => this.chars,
+      spendChars: (amount) => {
+        this.chars -= amount;
+      },
+      nextTowerOrder: () => {
+        const order = this.towerOrder;
+        this.towerOrder += 1;
+        return order;
+      },
+      resetTowerSkill: (tower) => this.towerSkills.resetTowerSkill(tower),
+      updateLevelAuras: () => this.updateLevelAuras(),
+      updateCards: () => this.updateCards(this.cardTime)
+    };
+  }
+
   private combatRuntime(): CombatRuntime {
     return {
       scene: this,
@@ -696,6 +653,21 @@ export class GameScene extends Phaser.Scene {
       },
       onTowerDamaged: (tower) => this.handleTowerDamaged(tower),
       endLevel: () => this.endLevel()
+    };
+  }
+
+  private triggerTowerRuntime(): TriggerTowerRuntime {
+    return {
+      scene: this,
+      enemies: this.enemies,
+      boss: this.boss,
+      battleTime: this.battleTime,
+      gameOver: this.gameOver,
+      getDefinition: (id) => this.getDefinition(id),
+      removeTower: (tower) => removeTower(this.unitLifecycleRuntime(), tower),
+      damageEnemy: (enemy, damage, damageType) => damageEnemy(this.unitLifecycleRuntime(), enemy, damage, damageType),
+      damageBoss: (damage, damageType) => damageBoss(this.unitLifecycleRuntime(), damage, damageType),
+      runWhenBattleActive: (action) => this.runWhenBattleActive(action)
     };
   }
 
@@ -783,66 +755,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private triggerShockTower(tower: Tower) {
-    const definition = this.getDefinition(tower.type);
-    const interval = definition.triggerInterval ?? 50;
-    const damage = tower.type === "l" ? getTrapDamage(tower, definition) : definition.triggerDamage ?? 100;
-    const damageType = definition.triggerDamageType ?? "physical";
-    const rangeX = definition.triggerRangeX ?? CELL_WIDTH;
-    const rangeY = definition.triggerRangeY ?? CELL_HEIGHT;
-    const x = tower.x;
-    const y = tower.y;
-    const area = this.triggerEffectArea(x, y, rangeX, rangeY);
-
-    removeTower(this.unitLifecycleRuntime(), tower);
-
-    if (definition.triggerDebuff) {
-      makeShockPulse(this, area.x, area.y, area.rangeX, area.rangeY, damageType);
-      for (const enemy of [...this.enemies]) {
-        if (Math.abs(enemy.x - x) <= rangeX && Math.abs(enemy.y - y) <= rangeY) {
-          applyStatusEffect(enemy, definition.triggerDebuff, getTriggerDebuffDuration(tower, definition), this.battleTime);
-        }
-      }
-      return;
-    }
-
-    const count = getShockCount(tower, definition);
-    for (let index = 0; index < count; index += 1) {
-      this.time.delayedCall(index * interval, () => {
-        this.runWhenBattleActive(() => {
-          if (this.gameOver) {
-            return;
-          }
-
-          makeShockPulse(this, area.x, area.y, area.rangeX, area.rangeY, damageType);
-          for (const enemy of [...this.enemies]) {
-            if (Math.abs(enemy.x - x) <= rangeX && Math.abs(enemy.y - y) <= rangeY) {
-              damageEnemy(this.unitLifecycleRuntime(), enemy, damage, damageType);
-            }
-          }
-          if (isBossInRect(this.boss, area.left, area.top, area.width, area.height)) {
-            damageBoss(this.unitLifecycleRuntime(), damage, damageType);
-          }
-        });
-      });
-    }
-  }
-
-  private triggerEffectArea(x: number, y: number, rangeX: number, rangeY: number) {
-    const left = Number.isFinite(rangeX) ? x - rangeX : BOARD_X;
-    const top = Number.isFinite(rangeY) ? y - rangeY : BOARD_Y;
-    const width = Number.isFinite(rangeX) ? rangeX * 2 : BOARD_WIDTH;
-    const height = Number.isFinite(rangeY) ? rangeY * 2 : BOARD_HEIGHT;
-
-    return {
-      x: left + width / 2,
-      y: top + height / 2,
-      rangeX: width / 2,
-      rangeY: height / 2,
-      left,
-      top,
-      width,
-      height
-    };
+    runTriggerShockTower(this.triggerTowerRuntime(), tower);
   }
 
   private runWhenBattleActive(action: () => void) {
@@ -859,20 +772,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private triggerTrapTower(tower: Tower, target: Enemy | "boss") {
-    const definition = this.getDefinition(tower.type);
-    const damage = getTrapDamage(tower, definition);
-    const damageType = definition.triggerDamageType ?? "magic";
-    const x = tower.x;
-    const y = tower.y;
-
-    removeTower(this.unitLifecycleRuntime(), tower);
-    makeTrapBurst(this, x, y, damageType);
-    if (target === "boss") {
-      damageBoss(this.unitLifecycleRuntime(), damage, damageType);
-      return;
-    }
-
-    damageEnemy(this.unitLifecycleRuntime(), target, damage, damageType);
+    runTriggerTrapTower(this.triggerTowerRuntime(), tower, target);
   }
 
   private updateCards(time: number) {
@@ -966,48 +866,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private attemptAutoUpgrades() {
-    if (!this.autoUpgradeEnabled || this.autoUpgradeReserveInputFocused || this.chars <= this.autoUpgradeReserveChars) {
-      return;
-    }
-
-    let upgraded = false;
-    for (const cardState of this.cardStates) {
-      if (this.chars <= this.autoUpgradeReserveChars) {
-        break;
-      }
-
-      if (!isCardReadyForAutoUpgrade(cardState, this.cardTimeFor(cardState.definition.id))) {
-        continue;
-      }
-
-      const target = findAutoUpgradeTarget(this.towers, cardState.definition.id);
-
-      if (!target || !this.canSpendForAutoUpgrade(cardState.definition.cost)) {
-        continue;
-      }
-
-      this.chars -= cardState.definition.cost;
-      if (this.unlimitedFirepower) {
-        this.deployColumn(cardState.definition, target.column);
-      } else {
-        this.upgradeTower(target);
-      }
-      makeAutoUpgradePulse(this, target.x, target.y);
-      cardState.readyAt = this.cardTimeFor(cardState.definition.id) + cardState.definition.cooldown;
-      upgraded = true;
-    }
-
-    if (upgraded) {
-      this.updateCards(this.cardTime);
-    }
+    this.deployment.attemptAutoUpgrades();
   }
 
   private syncAutoUpgradeBorders() {
-    this.towers.forEach((tower) => syncTowerAutoUpgradeVisual(tower, this.autoUpgradeEnabled));
-  }
-
-  private canSpendForAutoUpgrade(cost: number) {
-    return this.chars - cost >= this.autoUpgradeReserveChars;
+    this.deployment.syncAutoUpgradeBorders();
   }
 
   private toggleBattlePause() {

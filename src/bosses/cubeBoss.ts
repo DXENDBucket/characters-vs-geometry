@@ -28,8 +28,9 @@ import {
   palette
 } from "../config";
 import { toRomanNumeral } from "../format";
+import { gainSkillSp, isSkillReady, spendSkillSp } from "../game/skillState";
 import { bossRect } from "../game/targeting";
-import type { BossKind, BossSkill, CubeBoss } from "../types";
+import type { BossKind, BossSkill, BossSkillName, CubeBoss } from "../types";
 
 const CUBE_DRAW_SIZE = 59;
 const DODECAHEDRON_DRAW_SIZE = 47;
@@ -42,6 +43,17 @@ const TETRAHEDRON_INITIAL_ROTATION_SPEED = {
   y: -0.42,
   z: 0.36
 };
+
+function createBossSkill<Name extends BossSkillName>(name: Name, maxSp: number, cost: number): BossSkill<Name> {
+  return {
+    name,
+    sp: 0,
+    spBuffer: 0,
+    activeUntil: 0,
+    maxSp,
+    cost
+  };
+}
 
 export const DODECAHEDRON_UNIT_VERTICES = [
   [-1, -1, -1],
@@ -169,72 +181,36 @@ export function createCubeBoss(scene: Phaser.Scene, kind: BossKind, finalDamageR
     advanceMinionKind: rank >= 2 ? "square2" : "square",
     hasSkills: !isSkilllessBossKind(kind),
     skills: {
-      promotion: {
-        name: "promotion",
-        sp: 0,
-        maxSp: CUBE_BOSS_PROMOTION_SKILL_MAX,
-        cost: CUBE_BOSS_PROMOTION_SKILL_COST,
-        gainBuffer: 0
-      },
-      advance: {
-        name: "advance",
-        sp: 0,
-        maxSp: CUBE_BOSS_ADVANCE_SKILL_MAX,
-        cost: CUBE_BOSS_ADVANCE_SKILL_COST,
-        gainBuffer: 0
-      },
+      promotion: createBossSkill("promotion", CUBE_BOSS_PROMOTION_SKILL_MAX, CUBE_BOSS_PROMOTION_SKILL_COST),
+      advance: createBossSkill("advance", CUBE_BOSS_ADVANCE_SKILL_MAX, CUBE_BOSS_ADVANCE_SKILL_COST),
       ...(rank >= 2
         ? {
-            promotion2: {
-              name: "promotion2" as const,
-              sp: 0,
-              maxSp: CUBE_BOSS_PROMOTION2_SKILL_MAX,
-              cost: CUBE_BOSS_PROMOTION2_SKILL_COST,
-              gainBuffer: 0
-            }
+            promotion2: createBossSkill("promotion2", CUBE_BOSS_PROMOTION2_SKILL_MAX, CUBE_BOSS_PROMOTION2_SKILL_COST)
           }
         : {}),
       ...(isTetrahedronBossKind(kind)
         ? {
-            charge: {
-              name: "charge" as const,
-              sp: 0,
-              maxSp: TETRAHEDRON_BOSS_CHARGE_SKILL_MAX,
-              cost: TETRAHEDRON_BOSS_CHARGE_SKILL_COST,
-              gainBuffer: 0
-            },
-            impact: {
-              name: "impact" as const,
-              sp: 0,
-              maxSp: TETRAHEDRON_BOSS_IMPACT_SKILL_MAX,
-              cost: TETRAHEDRON_BOSS_IMPACT_SKILL_COST,
-              gainBuffer: 0
-            },
-            suppression: {
-              name: "suppression" as const,
-              sp: 0,
-              maxSp: TETRAHEDRON_BOSS_SUPPRESSION_SKILL_MAX,
-              cost: TETRAHEDRON_BOSS_SUPPRESSION_SKILL_COST,
-              gainBuffer: 0
-            },
-            desperation: {
-              name: "desperation" as const,
-              sp: 0,
-              maxSp: TETRAHEDRON_BOSS_DESPERATION_SKILL_MAX,
-              cost: TETRAHEDRON_BOSS_DESPERATION_SKILL_COST,
-              gainBuffer: 0
-            }
+            charge: createBossSkill("charge", TETRAHEDRON_BOSS_CHARGE_SKILL_MAX, TETRAHEDRON_BOSS_CHARGE_SKILL_COST),
+            impact: createBossSkill("impact", TETRAHEDRON_BOSS_IMPACT_SKILL_MAX, TETRAHEDRON_BOSS_IMPACT_SKILL_COST),
+            suppression: createBossSkill(
+              "suppression",
+              TETRAHEDRON_BOSS_SUPPRESSION_SKILL_MAX,
+              TETRAHEDRON_BOSS_SUPPRESSION_SKILL_COST
+            ),
+            desperation: createBossSkill(
+              "desperation",
+              TETRAHEDRON_BOSS_DESPERATION_SKILL_MAX,
+              TETRAHEDRON_BOSS_DESPERATION_SKILL_COST
+            )
           }
         : {}),
       ...(isDodecahedronBossKind(kind)
         ? {
-            endlessWings: {
-              name: "endlessWings" as const,
-              sp: 0,
-              maxSp: DODECAHEDRON_BOSS_ENDLESS_WINGS_SKILL_MAX,
-              cost: DODECAHEDRON_BOSS_ENDLESS_WINGS_SKILL_COST,
-              gainBuffer: 0
-            }
+            endlessWings: createBossSkill(
+              "endlessWings",
+              DODECAHEDRON_BOSS_ENDLESS_WINGS_SKILL_MAX,
+              DODECAHEDRON_BOSS_ENDLESS_WINGS_SKILL_COST
+            )
           }
         : {})
     },
@@ -303,19 +279,15 @@ function randomSignedRotationSpeed(min: number, max: number) {
 }
 
 export function chargeBossSkill(skill: BossSkill, seconds: number) {
-  skill.gainBuffer += seconds;
-  while (skill.gainBuffer >= 1) {
-    skill.sp = Math.min(skill.maxSp, skill.sp + 1);
-    skill.gainBuffer -= 1;
-  }
+  gainSkillSp(skill, seconds, skill.maxSp);
 }
 
 export function isBossSkillReady(skill: BossSkill) {
-  return skill.sp >= skill.maxSp;
+  return isSkillReady(skill, skill.maxSp);
 }
 
 export function spendBossSkill(skill: BossSkill) {
-  skill.sp = Math.max(0, skill.sp - skill.cost);
+  spendSkillSp(skill, skill.cost);
 }
 
 export function bossAdvanceSpawnPoints(boss: CubeBoss) {

@@ -38,6 +38,7 @@ import {
 } from "../render/combatEffects";
 import { syncDodecahedronCompanionShape } from "../render/unitShapes";
 import type { BossCompanionActionPhase, BossSkill, CubeBoss, DamageType, Enemy, MortarProjectile, Tower } from "../types";
+import { createBossSkillRegistry, runRegisteredBossSkills } from "./bossSkillRegistry";
 import { applyEnemyPromotion, findPromotionTargets, promotedKind } from "./enemyBehaviors";
 import { spawnEnemyAt } from "./enemyRuntime";
 import { createMortarProjectile } from "./projectiles";
@@ -85,6 +86,59 @@ export interface BossRuntime {
   runWhenBattleActive: (action: () => void) => void;
   endGame: () => void;
 }
+
+const bossSkillRegistry = createBossSkillRegistry<BossRuntime>({
+  cube: [
+    {
+      skillKey: "promotion2",
+      canUse: (runtime, boss) => canUsePromotionSkill(runtime, boss, 2),
+      use: (runtime, boss) => usePromotionSkill(runtime, boss, 2)
+    },
+    {
+      skillKey: "promotion",
+      canUse: (runtime, boss) => canUsePromotionSkill(runtime, boss, 1),
+      use: (runtime, boss) => usePromotionSkill(runtime, boss, 1)
+    },
+    {
+      skillKey: "advance",
+      use: (runtime, boss) => summonBossAdvanceMinions(runtime, boss)
+    }
+  ],
+  tetrahedron: [
+    {
+      skillKey: "charge",
+      chargeSeconds: tetrahedronSkillChargeSeconds,
+      use: (runtime, boss) => {
+        boss.chargeExpiresAt = runtime.battleTime + TETRAHEDRON_BOSS_CHARGE_DURATION;
+        gainBossSkillSp(boss.skills.suppression, TETRAHEDRON_BOSS_CHARGE_SUPPRESSION_SP_GAIN);
+      }
+    },
+    {
+      skillKey: "impact",
+      chargeSeconds: tetrahedronSkillChargeSeconds,
+      use: (runtime, boss) => {
+        summonTetrahedronImpactMinions(runtime, boss);
+        gainBossSkillSp(boss.skills.charge, TETRAHEDRON_BOSS_IMPACT_CHARGE_SP_GAIN);
+      }
+    },
+    {
+      skillKey: "suppression",
+      chargeSeconds: tetrahedronSkillChargeSeconds,
+      use: (runtime, boss) => {
+        summonTetrahedronSuppressionMinions(runtime, boss);
+        gainBossSkillSp(boss.skills.impact, TETRAHEDRON_BOSS_SUPPRESSION_IMPACT_SP_GAIN);
+      }
+    },
+    {
+      skillKey: "desperation",
+      chargeSeconds: tetrahedronSkillChargeSeconds,
+      use: (runtime, boss) => {
+        empowerEnemiesTouchingBoss(runtime, boss);
+        gainBossSkillSp(boss.skills.charge, TETRAHEDRON_BOSS_DESPERATION_CHARGE_SP_GAIN);
+      }
+    }
+  ]
+});
 
 export function updateBossRuntime(runtime: BossRuntime, seconds: number) {
   const boss = runtime.getBoss();
@@ -614,70 +668,11 @@ function updateBossSkills(runtime: BossRuntime, boss: CubeBoss, seconds: number)
     return;
   }
 
-  chargeBossSkill(boss.skills.promotion, seconds);
-  chargeBossSkill(boss.skills.advance, seconds);
-  if (boss.skills.promotion2) {
-    chargeBossSkill(boss.skills.promotion2, seconds);
-    tryUsePromotionSkill(runtime, boss, boss.skills.promotion2, 2);
-  }
-  tryUsePromotionSkill(runtime, boss, boss.skills.promotion, 1);
-  tryUseAdvanceSkill(runtime, boss);
+  runRegisteredBossSkills(runtime, boss, bossSkillRegistry.cube, seconds);
 }
 
 function updateTetrahedronSkills(runtime: BossRuntime, boss: CubeBoss, seconds: number) {
-  const charge = boss.skills.charge;
-  const impact = boss.skills.impact;
-  const suppression = boss.skills.suppression;
-  const desperation = boss.skills.desperation;
-  if (!charge || !impact || !suppression || !desperation) {
-    return;
-  }
-
-  const naturalSkillSeconds = seconds * tetrahedronNaturalSkillRegenMultiplier(boss);
-  chargeBossSkill(charge, naturalSkillSeconds);
-  chargeBossSkill(impact, naturalSkillSeconds);
-  chargeBossSkill(suppression, naturalSkillSeconds);
-  if (boss.hp <= boss.maxHp * 0.5) {
-    chargeBossSkill(desperation, naturalSkillSeconds);
-  }
-
-  const useCharge = isBossSkillReady(charge);
-  const useImpact = isBossSkillReady(impact);
-  const useSuppression = isBossSkillReady(suppression);
-  const useDesperation = isBossSkillReady(desperation);
-
-  if (useCharge) {
-    spendBossSkill(charge);
-  }
-  if (useImpact) {
-    spendBossSkill(impact);
-  }
-  if (useSuppression) {
-    spendBossSkill(suppression);
-  }
-  if (useDesperation) {
-    spendBossSkill(desperation);
-  }
-
-  if (useCharge) {
-    boss.chargeExpiresAt = runtime.battleTime + TETRAHEDRON_BOSS_CHARGE_DURATION;
-    gainBossSkillSp(suppression, TETRAHEDRON_BOSS_CHARGE_SUPPRESSION_SP_GAIN);
-  }
-
-  if (useImpact) {
-    summonTetrahedronImpactMinions(runtime, boss);
-    gainBossSkillSp(charge, TETRAHEDRON_BOSS_IMPACT_CHARGE_SP_GAIN);
-  }
-
-  if (useSuppression) {
-    summonTetrahedronSuppressionMinions(runtime, boss);
-    gainBossSkillSp(impact, TETRAHEDRON_BOSS_SUPPRESSION_IMPACT_SP_GAIN);
-  }
-
-  if (useDesperation) {
-    empowerEnemiesTouchingBoss(runtime, boss);
-    gainBossSkillSp(charge, TETRAHEDRON_BOSS_DESPERATION_CHARGE_SP_GAIN);
-  }
+  runRegisteredBossSkills(runtime, boss, bossSkillRegistry.tetrahedron, seconds);
 
   if (runtime.battleTime >= boss.chargeExpiresAt) {
     return;
@@ -692,6 +687,14 @@ function updateTetrahedronSkills(runtime: BossRuntime, boss: CubeBoss, seconds: 
       tetrahedronChargeSpeedMultiplier(boss)
     );
   }
+}
+
+function tetrahedronSkillChargeSeconds(_runtime: BossRuntime, boss: CubeBoss, skill: BossSkill, seconds: number) {
+  if (skill.name === "desperation" && boss.hp > boss.maxHp * 0.5) {
+    return 0;
+  }
+
+  return seconds * tetrahedronNaturalSkillRegenMultiplier(boss);
 }
 
 function tetrahedronNaturalSkillRegenMultiplier(boss: CubeBoss) {
@@ -765,35 +768,15 @@ function summonTetrahedronSuppressionMinions(runtime: BossRuntime, boss: CubeBos
   }
 }
 
-function tryUsePromotionSkill(
-  runtime: BossRuntime,
-  boss: CubeBoss,
-  skill: CubeBoss["skills"]["promotion"] | NonNullable<CubeBoss["skills"]["promotion2"]>,
-  fromRank: number
-) {
-  if (!isBossSkillReady(skill)) {
-    return;
-  }
-
+function canUsePromotionSkill(runtime: BossRuntime, boss: CubeBoss, fromRank: number) {
   const targets = findPromotionTargets(boss, runtime.enemies, fromRank, 3);
-  if (targets.length < 3) {
-    return;
-  }
-
-  spendBossSkill(skill);
-  for (const target of targets) {
-    promoteEnemy(runtime, target);
-  }
+  return targets.length >= 3;
 }
 
-function tryUseAdvanceSkill(runtime: BossRuntime, boss: CubeBoss) {
-  const skill = boss.skills.advance;
-  if (!isBossSkillReady(skill)) {
-    return;
+function usePromotionSkill(runtime: BossRuntime, boss: CubeBoss, fromRank: number) {
+  for (const target of findPromotionTargets(boss, runtime.enemies, fromRank, 3)) {
+    promoteEnemy(runtime, target);
   }
-
-  spendBossSkill(skill);
-  summonBossAdvanceMinions(runtime, boss);
 }
 
 function promoteEnemy(runtime: BossRuntime, enemy: Enemy) {

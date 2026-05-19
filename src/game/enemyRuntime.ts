@@ -24,7 +24,7 @@ import {
 } from "./enemyBehaviors";
 import { createEnemy } from "./enemyFactory";
 import { createEnemyProjectile, createMortarProjectile } from "./projectiles";
-import { chargingHexSpeedMultiplier, syncHexArmorAuras, updateAngelPentagons, updateHexHealers } from "./enemySupport";
+import { chargingHexSpeedMultiplier, syncHexArmorAuras, updateEnemySkills } from "./enemySupport";
 import { movementSpeedMultiplier } from "./slowAura";
 import { hasStatusEffect, statusAttackMultiplier, statusSpeedMultiplier, syncEnemyBodyPosition } from "./statusEffects";
 import { getBlockingTower } from "./targeting";
@@ -148,8 +148,7 @@ function triangleKindForRank(rank: number): EnemyKind {
 
 export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, seconds: number) {
   syncHexArmorAuras(runtime.enemies, time);
-  updateHexHealers(runtime.scene, runtime.enemies, seconds);
-  updateAngelPentagons(runtime.scene, runtime.enemies, seconds, time);
+  updateEnemySkills(runtime, seconds, time);
 
   for (const enemy of [...runtime.enemies]) {
     const statusMultiplier = statusSpeedMultiplier(enemy, time);
