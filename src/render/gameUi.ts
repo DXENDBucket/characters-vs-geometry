@@ -24,6 +24,8 @@ export interface GameHudElements {
   speedText: Phaser.GameObjects.Text;
   speedFill: Phaser.GameObjects.Rectangle;
   speedKnob: Phaser.GameObjects.Rectangle;
+  debugDamageButton: Phaser.GameObjects.Rectangle;
+  debugDamageText: Phaser.GameObjects.Text;
   debugButton: Phaser.GameObjects.Rectangle;
   debugText: Phaser.GameObjects.Text;
   autoUpgradeButton: Phaser.GameObjects.Rectangle;
@@ -46,6 +48,7 @@ export interface GameOverlayElements {
 
 interface GameHudActions {
   onDebug: () => void;
+  onDebugDamage: () => void;
   onAutoUpgrade: () => void;
   onAutoUpgradeEnabled: () => void;
   onAutoUpgradeReserveFocus: () => void;
@@ -60,6 +63,7 @@ interface CardUpdateState {
   chars: number;
   eraserMode: boolean;
   autoUpgradeMode: boolean;
+  debugDamageMode: boolean;
 }
 
 interface HudUpdateState {
@@ -154,6 +158,13 @@ export function createGameHud(
     })
     .setOrigin(0.5, 0.5);
 
+  const { button: debugDamageButton, text: debugDamageText } = createToolButton(
+    scene,
+    GAME_WIDTH - 460,
+    42,
+    126,
+    t("button.debugDamage")
+  );
   const { button: debugButton, text: debugText } = createToolButton(scene, GAME_WIDTH - 332, 42, 110, t("button.debug"));
   const { button: autoUpgradeButton, text: autoUpgradeText } = createToolButton(
     scene,
@@ -201,6 +212,9 @@ export function createGameHud(
     .setDepth(31)
     .setInteractive({ useHandCursor: true });
 
+  bindPointerAction(debugDamageButton, actions.onDebugDamage);
+  debugDamageText.setInteractive({ useHandCursor: true });
+  bindPointerAction(debugDamageText, actions.onDebugDamage);
   debugButton.on("pointerdown", actions.onDebug);
   debugText.setInteractive({ useHandCursor: true }).on("pointerdown", actions.onDebug);
   autoUpgradeButton.on("pointerdown", actions.onAutoUpgrade);
@@ -221,6 +235,8 @@ export function createGameHud(
     speedText,
     speedFill,
     speedKnob,
+    debugDamageButton,
+    debugDamageText,
     debugButton,
     debugText,
     autoUpgradeButton,
@@ -319,7 +335,8 @@ export function createGameOverlay(scene: Phaser.Scene, onAction: () => void): Ga
 
 export function updateCardStates(cardStates: CardState[], state: CardUpdateState) {
   for (const card of cardStates) {
-    const isSelected = !state.eraserMode && !state.autoUpgradeMode && card.definition.id === state.selectedCardId;
+    const isSelected =
+      !state.eraserMode && !state.autoUpgradeMode && !state.debugDamageMode && card.definition.id === state.selectedCardId;
     const isAffordable = state.chars >= card.definition.cost;
     const cardTime = state.timeForCard?.(card.definition.id) ?? state.time;
     const cooldownRatio = Phaser.Math.Clamp((card.readyAt - cardTime) / card.definition.cooldown, 0, 1);
@@ -343,10 +360,16 @@ export function updateToolButtonStates(
   ui: GameHudElements,
   eraserMode: boolean,
   autoUpgradeMode: boolean,
+  debugDamageMode: boolean,
   autoUpgradeEnabled: boolean,
   autoUpgradeReserve: number,
   reserveInputFocused: boolean
 ) {
+  ui.debugDamageButton.setStrokeStyle(debugDamageMode ? 4 : 2, debugDamageMode ? palette.gold : palette.mid, 1);
+  ui.debugDamageButton.setFillStyle(debugDamageMode ? palette.panel : palette.black, debugDamageMode ? 1 : 0.82);
+  ui.debugDamageButton.setAlpha(debugDamageMode ? 1 : 0.78);
+  ui.debugDamageText.setAlpha(debugDamageMode ? 1 : 0.78);
+
   ui.autoUpgradeButton.setStrokeStyle(autoUpgradeMode ? 4 : 2, autoUpgradeMode ? palette.green : palette.mid, 1);
   ui.autoUpgradeButton.setFillStyle(autoUpgradeMode ? palette.panel : palette.black, autoUpgradeMode ? 1 : 0.82);
   ui.autoUpgradeButton.setAlpha(autoUpgradeMode ? 1 : 0.78);
@@ -437,4 +460,14 @@ function createToolButton(scene: Phaser.Scene, x: number, y: number, width: numb
     .setDepth(31);
 
   return { button, text };
+}
+
+function bindPointerAction(target: Phaser.GameObjects.GameObject, action: () => void) {
+  target.on(
+    "pointerdown",
+    (_pointer: Phaser.Input.Pointer, _localX: number, _localY: number, event: Phaser.Types.Input.EventData) => {
+      event.stopPropagation();
+      action();
+    }
+  );
 }

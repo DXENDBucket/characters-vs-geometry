@@ -117,7 +117,7 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     magicResistance: 0,
     damage: 1_150,
     damageType: "physical",
-    speedMultiplier: 0.38,
+    speedMultiplier: 0.55,
     weight: 180,
     minFlag: 1
   },
@@ -129,7 +129,7 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     magicResistance: 40,
     damage: 800,
     damageType: "magic",
-    speedMultiplier: 0.38,
+    speedMultiplier: 0.55,
     weight: 120,
     minFlag: 1
   },

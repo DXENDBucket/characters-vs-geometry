@@ -22,6 +22,7 @@ import {
   getBlockedEnemies,
   getBlockingTower,
   getHealTarget,
+  getLaneRepelTargets,
   getLowestMaxHpAttackTarget,
   getShiftTargets,
   hasAttackTarget
@@ -68,6 +69,13 @@ export const shiftCardBehavior: CardBehavior = {
     return cooldownReady(tower, time) && getShiftTargets(tower, runtime.enemies).length > 0;
   },
   execute: fireShiftPulse
+};
+
+export const laneRepelCardBehavior: CardBehavior = {
+  canUse: (tower, _definition, time, runtime) => {
+    return cooldownReady(tower, time) && Boolean(resolveRepelDirection(tower)) && getLaneRepelTargets(tower, runtime.enemies).length > 0;
+  },
+  execute: fireLaneRepelPulse
 };
 
 export const blockedPushCardBehavior: CardBehavior = {
@@ -134,6 +142,7 @@ export const cardBehaviorsById: Record<CardId, CardBehavior> = {
   S: idleCardBehavior,
   L: shiftCardBehavior,
   N: blockedPushCardBehavior,
+  n: laneRepelCardBehavior,
   T: slowAuraCardBehavior,
   U: idleCardBehavior,
   V: predictiveMortarCardBehavior,
@@ -184,6 +193,33 @@ function fireShiftPulse(tower: Tower, definition: CardDefinition, runtime: CardB
   }
 }
 
+function fireLaneRepelPulse(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {
+  const targets = getLaneRepelTargets(tower, runtime.enemies);
+  const direction = resolveRepelDirection(tower);
+  if (targets.length === 0 || !direction) {
+    return;
+  }
+
+  const targetLane = tower.lane + direction;
+  const targetY = BOARD_Y + targetLane * CELL_HEIGHT + CELL_HEIGHT / 2;
+  for (const target of targets) {
+    const previousY = target.y;
+    target.lane = targetLane;
+    target.y = targetY;
+    target.body.setDepth(60 + target.lane);
+    syncEnemyBodyPosition(target);
+    makeShiftEffect(runtime.scene, target.x, previousY, target.x, target.y);
+  }
+  tower.nextRepelDirection = direction === -1 ? 1 : -1;
+
+  for (let index = 0; index < targets.length; index += 1) {
+    if (!runtime.towers.includes(tower)) {
+      break;
+    }
+    runtime.damageTower(tower, definition.selfDamage ?? 400, definition.selfDamageType ?? "true");
+  }
+}
+
 function fireBlockedPushPulse(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {
   const targets = getBlockedEnemies(tower, runtime.towers, runtime.enemies);
   if (targets.length === 0) {
@@ -204,6 +240,19 @@ function fireBlockedPushPulse(tower: Tower, definition: CardDefinition, runtime:
     }
     runtime.damageTower(tower, definition.selfDamage ?? 400, definition.selfDamageType ?? "true");
   }
+}
+
+function resolveRepelDirection(tower: Tower) {
+  if (laneIsInBoard(tower.lane + tower.nextRepelDirection)) {
+    return tower.nextRepelDirection;
+  }
+
+  const fallbackDirection = (tower.nextRepelDirection === -1 ? 1 : -1) as -1 | 1;
+  return laneIsInBoard(tower.lane + fallbackDirection) ? fallbackDirection : null;
+}
+
+function laneIsInBoard(lane: number) {
+  return lane >= 0 && lane < LANES;
 }
 
 function fireSlash(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {

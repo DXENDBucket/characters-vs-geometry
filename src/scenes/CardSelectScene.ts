@@ -14,6 +14,7 @@ import {
   isSmallStellatedDodecahedronBossKind,
   isTetrahedronBossKind
 } from "../bosses/cubeBoss";
+import { chapterIdForLevelId } from "../data/chapters";
 import { getLevelConfig } from "../data/levels";
 import { toRomanNumeral } from "../format";
 import { DAMAGE_SYMBOLS, t } from "../i18n";
@@ -30,6 +31,7 @@ interface CardPoolCaseButton {
 
 export class CardSelectScene extends Phaser.Scene {
   private levelId = "0-1";
+  private chapterId = "0";
   private difficulty = DEFAULT_DIFFICULTY;
   private unlimitedFirepower = false;
   private selectedCards: CardId[] = [...defaultCardLoadout];
@@ -63,8 +65,9 @@ export class CardSelectScene extends Phaser.Scene {
     super("CardSelectScene");
   }
 
-  init(data: { levelId?: string; difficulty?: number; unlimitedFirepower?: boolean }) {
+  init(data: { levelId?: string; chapterId?: string; difficulty?: number; unlimitedFirepower?: boolean }) {
     this.levelId = data.levelId ?? "0-1";
+    this.chapterId = data.chapterId ?? chapterIdForLevelId(this.levelId);
     this.difficulty = clampDifficulty(data.difficulty);
     this.unlimitedFirepower = Boolean(data.unlimitedFirepower);
     this.selectedCards = [...defaultCardLoadout];
@@ -496,8 +499,8 @@ export class CardSelectScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    this.backButton.on("pointerdown", () => this.scene.start("LevelSelectScene"));
-    this.backText.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.scene.start("LevelSelectScene"));
+    this.backButton.on("pointerdown", () => this.backToLevelSelect());
+    this.backText.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.backToLevelSelect());
     this.startButton.on("pointerdown", () => this.startLevel());
     this.startText.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.startLevel());
   }
@@ -537,7 +540,16 @@ export class CardSelectScene extends Phaser.Scene {
     }
     this.scene.start("GameScene", {
       levelId: this.levelId,
+      chapterId: this.chapterId,
       selectedCards: this.selectedCards,
+      difficulty: this.difficulty,
+      unlimitedFirepower: this.unlimitedFirepower
+    });
+  }
+
+  private backToLevelSelect() {
+    this.scene.start("LevelSelectScene", {
+      chapterId: this.chapterId,
       difficulty: this.difficulty,
       unlimitedFirepower: this.unlimitedFirepower
     });

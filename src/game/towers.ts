@@ -69,6 +69,7 @@ export function createTower(
     skills: {},
     autoUpgrade: false,
     reflectProjectiles: Boolean(definition.reflectProjectiles),
+    nextRepelDirection: placedOrder % 2 === 0 ? -1 : 1,
     placedOrder,
     body,
     border,

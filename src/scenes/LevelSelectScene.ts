@@ -19,24 +19,11 @@ import {
   isSmallStellatedDodecahedronBossKind,
   isTetrahedronBossKind
 } from "../bosses/cubeBoss";
-import {
-  enemyEncyclopediaEntries,
-  towerEncyclopediaEntries,
-  type EncyclopediaEntry,
-  type EncyclopediaTab
-} from "../encyclopedia";
-import { getLevelConfig, levelNodes } from "../data/levels";
+import { defaultChapterId, getChapterDefinition, levelNodesForChapter } from "../data/chapters";
+import { getLevelConfig } from "../data/levels";
 import { toRomanNumeral } from "../format";
 import { t, toggleLanguage } from "../i18n";
-import {
-  createCubeIcon,
-  createDodecahedronIcon,
-  createEnemyShape,
-  createSmallStellatedDodecahedronIcon,
-  createTetrahedronIcon,
-  createUnitBorder
-} from "../render/unitShapes";
-import { cardLetterCase, type CardLetterCase } from "../registry/cards";
+import { EncyclopediaPanel } from "../render/encyclopediaPanel";
 import type { BossKind, LevelNode } from "../types";
 
 interface BossNodePreview {
@@ -52,32 +39,13 @@ interface BossNodePreview {
   size: number;
 }
 
-interface ChapterButton {
-  chapter: number;
-  frame: Phaser.GameObjects.Rectangle;
-  label: Phaser.GameObjects.Text;
-}
-
-interface EncyclopediaTabButton {
-  tab: EncyclopediaTab;
-  frame: Phaser.GameObjects.Rectangle;
-  label: Phaser.GameObjects.Text;
-}
-
-interface EncyclopediaCardCaseButton {
-  letterCase: CardLetterCase;
-  frame: Phaser.GameObjects.Rectangle;
-  label: Phaser.GameObjects.Text;
-}
-
 export class LevelSelectScene extends Phaser.Scene {
-  private selectedChapter = 0;
+  private selectedChapterId = defaultChapterId();
   private selectedLevelId: string | null = "0-1";
   private difficulty = DEFAULT_DIFFICULTY;
   private unlimitedFirepower = false;
   private mapContainer!: Phaser.GameObjects.Container;
   private mapBounds!: Phaser.Geom.Rectangle;
-  private readonly chapters = [0, 1, 2, 3];
   private readonly mapViewport = new Phaser.Geom.Rectangle(38, 156, GAME_WIDTH - 76, GAME_HEIGHT - 246);
   private readonly footerY = 715;
   private mapDragPointer: Phaser.Input.Pointer | null = null;
@@ -92,8 +60,8 @@ export class LevelSelectScene extends Phaser.Scene {
   private lockGraphics!: Phaser.GameObjects.Graphics;
   private startButton!: Phaser.GameObjects.Rectangle;
   private startText!: Phaser.GameObjects.Text;
-  private chapterTitleText!: Phaser.GameObjects.Text;
-  private chapterButtons: ChapterButton[] = [];
+  private backButton!: Phaser.GameObjects.Rectangle;
+  private backText!: Phaser.GameObjects.Text;
   private difficultyText!: Phaser.GameObjects.Text;
   private difficultyKnob!: Phaser.GameObjects.Rectangle;
   private unlimitedFirepowerBox!: Phaser.GameObjects.Rectangle;
@@ -103,44 +71,33 @@ export class LevelSelectScene extends Phaser.Scene {
   private encyclopediaText!: Phaser.GameObjects.Text;
   private languageButton!: Phaser.GameObjects.Rectangle;
   private languageText!: Phaser.GameObjects.Text;
-  private encyclopediaOverlay!: Phaser.GameObjects.Container;
-  private encyclopediaList!: Phaser.GameObjects.Container;
-  private encyclopediaViewport!: Phaser.Geom.Rectangle;
-  private encyclopediaContentHeight = 0;
-  private encyclopediaScrollY = 0;
-  private encyclopediaDragPointer: Phaser.Input.Pointer | null = null;
-  private encyclopediaDragStartY = 0;
-  private encyclopediaDragStartScrollY = 0;
-  private encyclopediaOpen = false;
-  private encyclopediaTab: EncyclopediaTab = "enemies";
-  private encyclopediaTabs: EncyclopediaTabButton[] = [];
-  private encyclopediaCardCase: CardLetterCase = "uppercase";
-  private encyclopediaCardCaseButtons: EncyclopediaCardCaseButton[] = [];
+  private encyclopediaPanel!: EncyclopediaPanel;
 
   constructor() {
     super("LevelSelectScene");
   }
 
+  init(data: { chapterId?: string; difficulty?: number; unlimitedFirepower?: boolean }) {
+    this.selectedChapterId = data.chapterId ?? defaultChapterId();
+    this.difficulty = clampDifficulty(data.difficulty);
+    this.unlimitedFirepower = Boolean(data.unlimitedFirepower);
+    const nodes = this.chapterNodes();
+    this.selectedLevelId = nodes.find((node) => node.unlocked)?.id ?? nodes[0]?.id ?? null;
+  }
+
   create() {
     this.bossNodePreviews = [];
-    this.chapterButtons = [];
-    this.encyclopediaTabs = [];
-    this.encyclopediaCardCaseButtons = [];
-    this.encyclopediaOpen = false;
-    this.encyclopediaContentHeight = 0;
-    this.encyclopediaScrollY = 0;
-    this.encyclopediaDragPointer = null;
     this.cameras.main.setBackgroundColor(palette.black);
     this.drawBackdrop();
-    this.createChapterSelector();
     this.createMapContainer();
     this.drawLevelPath();
     this.createMapDragControls();
+    this.encyclopediaPanel = new EncyclopediaPanel(this);
     this.createEncyclopediaButton();
     this.createLanguageButton();
+    this.createBackButton();
     this.createStartButton();
     this.createDifficultySlider();
-    this.createEncyclopediaOverlay();
     this.updateSelection();
 
     this.input.keyboard?.on("keydown-ENTER", () => this.startSelectedLevel());
@@ -166,8 +123,8 @@ export class LevelSelectScene extends Phaser.Scene {
       })
       .setOrigin(0, 0);
 
-    this.chapterTitleText = this.add
-      .text(50, 86, this.chapterLabel(this.selectedChapter), {
+    this.add
+      .text(50, 86, this.chapterLabel(), {
         color: "#8c8c8c",
         fontFamily: "monospace",
         fontSize: "17px"
@@ -177,35 +134,6 @@ export class LevelSelectScene extends Phaser.Scene {
     const frame = this.add.graphics();
     frame.lineStyle(1, palette.dim, 1);
     frame.strokeRect(this.mapViewport.x, this.mapViewport.y, this.mapViewport.width, this.mapViewport.height);
-  }
-
-  private createChapterSelector() {
-    const startX = 50;
-    const y = 122;
-    const width = 136;
-    const gap = 14;
-    this.chapters.forEach((chapter, index) => {
-      const x = startX + index * (width + gap);
-      const frame = this.add
-        .rectangle(x, y, width, 34, palette.black, 1)
-        .setOrigin(0, 0.5)
-        .setStrokeStyle(2, palette.dim, 1)
-        .setInteractive({ useHandCursor: true });
-      const label = this.add
-        .text(x + width / 2, y - 1, this.chapterLabel(chapter), {
-          color: "#f5f5f5",
-          fontFamily: "monospace",
-          fontSize: "15px",
-          fontStyle: "700"
-        })
-        .setOrigin(0.5);
-
-      frame.on("pointerdown", () => this.selectChapter(chapter));
-      label.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.selectChapter(chapter));
-      this.chapterButtons.push({ chapter, frame, label });
-    });
-
-    this.updateChapterSelector();
   }
 
   private createMapContainer() {
@@ -240,7 +168,7 @@ export class LevelSelectScene extends Phaser.Scene {
 
   private createMapDragControls() {
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
-      if (this.encyclopediaOpen || !this.mapViewport.contains(pointer.x, pointer.y)) {
+      if (this.encyclopediaPanel.isOpen() || !this.mapViewport.contains(pointer.x, pointer.y)) {
         return;
       }
 
@@ -342,46 +270,12 @@ export class LevelSelectScene extends Phaser.Scene {
     this.mapContainer.add(this.lockGraphics);
   }
 
-  private selectChapter(chapter: number) {
-    if (chapter === this.selectedChapter) {
-      return;
-    }
-
-    this.selectedChapter = chapter;
-    this.selectedLevelId = this.chapterNodes().find((node) => node.unlocked)?.id ?? this.chapterNodes()[0]?.id ?? null;
-    this.rebuildMap();
-    this.updateChapterSelector();
-    this.updateSelection();
-  }
-
-  private rebuildMap() {
-    this.mapDragTimer?.remove(false);
-    this.mapDragTimer = null;
-    this.mapDragPointer = null;
-    this.mapDragging = false;
-    this.input.setDefaultCursor("default");
-    this.bossNodePreviews = [];
-    this.mapContainer.destroy(true);
-    this.createMapContainer();
-    this.drawLevelPath();
-  }
-
-  private updateChapterSelector() {
-    this.chapterTitleText?.setText(this.chapterLabel(this.selectedChapter));
-    for (const button of this.chapterButtons) {
-      const selected = button.chapter === this.selectedChapter;
-      button.frame.setStrokeStyle(selected ? 3 : 2, selected ? palette.white : palette.dim, selected ? 1 : 0.8);
-      button.frame.setFillStyle(selected ? palette.panel : palette.black, selected ? 1 : 0.86);
-      button.label.setAlpha(selected ? 1 : 0.55);
-    }
-  }
-
   private chapterNodes() {
-    return levelNodes.filter((node) => node.id.startsWith(`${this.selectedChapter}-`));
+    return levelNodesForChapter(this.selectedChapterId);
   }
 
-  private chapterLabel(chapter: number) {
-    return t(`chapter.${chapter}`);
+  private chapterLabel() {
+    return t(getChapterDefinition(this.selectedChapterId).labelKey);
   }
 
   private createLevelNode(node: LevelNode) {
@@ -414,9 +308,9 @@ export class LevelSelectScene extends Phaser.Scene {
 
   private selectLevelNode(node: LevelNode, pointer: Phaser.Input.Pointer) {
     if (
-      this.encyclopediaOpen ||
       this.mapDragging ||
       this.time.now < this.suppressNodeClickUntil ||
+      this.encyclopediaPanel.isOpen() ||
       !this.mapViewport.contains(pointer.x, pointer.y)
     ) {
       return;
@@ -611,8 +505,28 @@ export class LevelSelectScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    this.encyclopediaButton.on("pointerdown", () => this.openEncyclopedia("enemies"));
-    this.encyclopediaText.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.openEncyclopedia("enemies"));
+    this.encyclopediaButton.on("pointerdown", () => this.encyclopediaPanel.open("enemies"));
+    this.encyclopediaText
+      .setInteractive({ useHandCursor: true })
+      .on("pointerdown", () => this.encyclopediaPanel.open("enemies"));
+  }
+
+  private createBackButton() {
+    this.backButton = this.add
+      .rectangle(GAME_WIDTH - 344, 52, 110, 34, palette.black, 1)
+      .setStrokeStyle(2, palette.mid, 0.85)
+      .setInteractive({ useHandCursor: true });
+    this.backText = this.add
+      .text(GAME_WIDTH - 344, 50, t("button.back"), {
+        color: "#f5f5f5",
+        fontFamily: "monospace",
+        fontSize: "15px",
+        fontStyle: "700"
+      })
+      .setOrigin(0.5);
+
+    this.backButton.on("pointerdown", () => this.scene.start("ChapterSelectScene"));
+    this.backText.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.scene.start("ChapterSelectScene"));
   }
 
   private createStartButton() {
@@ -655,297 +569,11 @@ export class LevelSelectScene extends Phaser.Scene {
 
   private switchLanguage() {
     toggleLanguage();
-    this.scene.restart();
-  }
-
-  private createEncyclopediaOverlay() {
-    this.encyclopediaTabs = [];
-    const backdrop = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, palette.black, 0.78);
-    backdrop.setInteractive();
-    const panel = this.add
-      .rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 10, 1060, 616, palette.black, 0.98)
-      .setStrokeStyle(2, palette.white, 0.95);
-    const title = this.add
-      .text(144, 86, t("encyclopedia.title"), {
-        color: "#f5f5f5",
-        fontFamily: "monospace",
-        fontSize: "26px",
-        fontStyle: "700"
-      })
-      .setOrigin(0, 0);
-    const closeButton = this.add
-      .rectangle(1128, 102, 54, 34, palette.black, 1)
-      .setStrokeStyle(2, palette.mid, 0.9)
-      .setInteractive({ useHandCursor: true });
-    const closeText = this.add
-      .text(1128, 100, "X", {
-        color: "#f5f5f5",
-        fontFamily: "monospace",
-        fontSize: "18px",
-        fontStyle: "700"
-      })
-      .setOrigin(0.5);
-
-    const enemyTab = this.createEncyclopediaTabButton("enemies", 144, 136);
-    const towerTab = this.createEncyclopediaTabButton("towers", 294, 136);
-    const upperCaseButton = this.createEncyclopediaCardCaseButton("uppercase", 452, 136, "A");
-    const lowerCaseButton = this.createEncyclopediaCardCaseButton("lowercase", 504, 136, "a");
-
-    this.encyclopediaViewport = new Phaser.Geom.Rectangle(144, 180, 992, 418);
-    this.encyclopediaList = this.add.container(this.encyclopediaViewport.x, this.encyclopediaViewport.y);
-    const maskGraphics = this.add.graphics().setVisible(false);
-    maskGraphics.fillStyle(0xffffff, 1);
-    maskGraphics.fillRect(
-      this.encyclopediaViewport.x,
-      this.encyclopediaViewport.y,
-      this.encyclopediaViewport.width,
-      this.encyclopediaViewport.height
-    );
-    this.encyclopediaList.setMask(maskGraphics.createGeometryMask());
-    const scrollZone = this.add
-      .zone(
-        this.encyclopediaViewport.x,
-        this.encyclopediaViewport.y,
-        this.encyclopediaViewport.width,
-        this.encyclopediaViewport.height
-      )
-      .setOrigin(0, 0)
-      .setInteractive();
-
-    closeButton.on("pointerdown", () => this.closeEncyclopedia());
-    closeText.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.closeEncyclopedia());
-    scrollZone.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
-      if (!this.encyclopediaOpen) {
-        return;
-      }
-
-      this.encyclopediaDragPointer = pointer;
-      this.encyclopediaDragStartY = pointer.y;
-      this.encyclopediaDragStartScrollY = this.encyclopediaScrollY;
+    this.scene.restart({
+      chapterId: this.selectedChapterId,
+      difficulty: this.difficulty,
+      unlimitedFirepower: this.unlimitedFirepower
     });
-    this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
-      if (this.encyclopediaDragPointer !== pointer || !pointer.isDown) {
-        return;
-      }
-
-      this.setEncyclopediaScroll(this.encyclopediaDragStartScrollY - (pointer.y - this.encyclopediaDragStartY));
-    });
-    this.input.on("pointerup", (pointer: Phaser.Input.Pointer) => this.stopEncyclopediaDrag(pointer));
-    this.input.on("pointerupoutside", (pointer: Phaser.Input.Pointer) => this.stopEncyclopediaDrag(pointer));
-    this.input.on(
-      "wheel",
-      (pointer: Phaser.Input.Pointer, _gameObjects: Phaser.GameObjects.GameObject[], _deltaX: number, deltaY: number) => {
-        if (!this.encyclopediaOpen || !this.encyclopediaViewport.contains(pointer.x, pointer.y)) {
-          return;
-        }
-
-        this.setEncyclopediaScroll(this.encyclopediaScrollY + deltaY);
-      }
-    );
-
-    this.encyclopediaOverlay = this.add.container(0, 0, [
-      backdrop,
-      panel,
-      title,
-      closeButton,
-      closeText,
-      enemyTab.frame,
-      enemyTab.label,
-      towerTab.frame,
-      towerTab.label,
-      upperCaseButton.frame,
-      upperCaseButton.label,
-      lowerCaseButton.frame,
-      lowerCaseButton.label,
-      maskGraphics,
-      this.encyclopediaList,
-      scrollZone
-    ]);
-    this.encyclopediaOverlay.setDepth(260);
-    this.encyclopediaOverlay.setVisible(false);
-  }
-
-  private createEncyclopediaTabButton(tab: EncyclopediaTab, x: number, y: number) {
-    const frame = this.add
-      .rectangle(x, y, 132, 36, palette.black, 1)
-      .setOrigin(0, 0.5)
-      .setStrokeStyle(2, palette.dim, 0.9)
-      .setInteractive({ useHandCursor: true });
-    const label = this.add
-      .text(x + 66, y - 1, t(tab === "enemies" ? "encyclopedia.enemies" : "encyclopedia.towers"), {
-        color: "#f5f5f5",
-        fontFamily: "monospace",
-        fontSize: "15px",
-        fontStyle: "700"
-      })
-      .setOrigin(0.5);
-
-    frame.on("pointerdown", () => this.setEncyclopediaTab(tab));
-    label.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.setEncyclopediaTab(tab));
-    const button = { tab, frame, label };
-    this.encyclopediaTabs.push(button);
-    return button;
-  }
-
-  private createEncyclopediaCardCaseButton(letterCase: CardLetterCase, x: number, y: number, text: string) {
-    const frame = this.add
-      .rectangle(x, y, 42, 30, palette.black, 1)
-      .setOrigin(0, 0.5)
-      .setStrokeStyle(2, palette.dim, 0.9)
-      .setInteractive({ useHandCursor: true });
-    const label = this.add
-      .text(x + 21, y - 1, text, {
-        color: "#f5f5f5",
-        fontFamily: "monospace",
-        fontSize: "16px",
-        fontStyle: "700"
-      })
-      .setOrigin(0.5);
-
-    frame.on("pointerdown", () => this.setEncyclopediaCardCase(letterCase));
-    label.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.setEncyclopediaCardCase(letterCase));
-    const button = { letterCase, frame, label };
-    this.encyclopediaCardCaseButtons.push(button);
-    return button;
-  }
-
-  private openEncyclopedia(tab: EncyclopediaTab) {
-    this.encyclopediaOpen = true;
-    this.encyclopediaOverlay.setVisible(true);
-    this.setEncyclopediaTab(tab);
-  }
-
-  private closeEncyclopedia() {
-    this.encyclopediaOpen = false;
-    this.encyclopediaDragPointer = null;
-    this.encyclopediaOverlay.setVisible(false);
-  }
-
-  private setEncyclopediaTab(tab: EncyclopediaTab) {
-    this.encyclopediaTab = tab;
-    this.updateEncyclopediaTabs();
-    this.updateEncyclopediaCardCaseButtons();
-    this.rebuildEncyclopediaList();
-  }
-
-  private setEncyclopediaCardCase(letterCase: CardLetterCase) {
-    if (letterCase === this.encyclopediaCardCase) {
-      return;
-    }
-
-    this.encyclopediaCardCase = letterCase;
-    this.updateEncyclopediaCardCaseButtons();
-    if (this.encyclopediaTab === "towers") {
-      this.rebuildEncyclopediaList();
-    }
-  }
-
-  private updateEncyclopediaTabs() {
-    for (const button of this.encyclopediaTabs) {
-      const selected = button.tab === this.encyclopediaTab;
-      button.frame.setStrokeStyle(selected ? 3 : 2, selected ? palette.white : palette.dim, selected ? 1 : 0.75);
-      button.frame.setFillStyle(selected ? palette.panel : palette.black, selected ? 1 : 0.86);
-      button.label.setAlpha(selected ? 1 : 0.55);
-    }
-  }
-
-  private updateEncyclopediaCardCaseButtons() {
-    const visible = this.encyclopediaTab === "towers";
-    for (const button of this.encyclopediaCardCaseButtons) {
-      const selected = button.letterCase === this.encyclopediaCardCase;
-      button.frame.setVisible(visible);
-      button.label.setVisible(visible);
-      button.frame.setStrokeStyle(selected ? 3 : 2, selected ? palette.white : palette.dim, selected ? 1 : 0.7);
-      button.frame.setFillStyle(selected ? palette.panel : palette.black, selected ? 1 : 0.78);
-      button.label.setAlpha(selected ? 1 : 0.55);
-    }
-  }
-
-  private rebuildEncyclopediaList() {
-    this.encyclopediaList.removeAll(true);
-    const entries = this.encyclopediaTab === "enemies"
-      ? enemyEncyclopediaEntries()
-      : towerEncyclopediaEntries().filter((entry) => {
-          return entry.card && cardLetterCase(entry.card.id) === this.encyclopediaCardCase;
-        });
-    const entryHeight = 206;
-    entries.forEach((entry, index) => {
-      this.drawEncyclopediaEntry(entry, index * entryHeight);
-    });
-    this.encyclopediaContentHeight = entries.length * entryHeight + 14;
-    this.setEncyclopediaScroll(0);
-  }
-
-  private drawEncyclopediaEntry(entry: EncyclopediaEntry, y: number) {
-    const container = this.add.container(0, y);
-    const frame = this.add
-      .rectangle(this.encyclopediaViewport.width / 2, 96, this.encyclopediaViewport.width - 6, 186, palette.black, 1)
-      .setStrokeStyle(1, palette.dim, 0.95);
-    container.add(frame);
-
-    if (entry.enemyKind) {
-      container.add(createEnemyShape(this, entry.enemyKind).setPosition(48, 72).setScale(1.05));
-    } else if (entry.icon === "cube") {
-      container.add(createCubeIcon(this).setPosition(48, 72));
-    } else if (entry.icon === "tetrahedron") {
-      container.add(createTetrahedronIcon(this).setPosition(48, 72));
-    } else if (entry.icon === "dodecahedron") {
-      container.add(createDodecahedronIcon(this).setPosition(48, 72));
-    } else if (entry.icon === "smallStellatedDodecahedron") {
-      container.add(createSmallStellatedDodecahedronIcon(this).setPosition(48, 72));
-    } else if (entry.card) {
-      const border = createUnitBorder(this, entry.card.category, 23, 2).setPosition(48, 70);
-      const label = this.add
-        .text(48, 67, entry.card.id, {
-          color: "#f5f5f5",
-          fontFamily: "monospace",
-          fontSize: "28px",
-          fontStyle: "700"
-        })
-        .setOrigin(0.5);
-      container.add([border, label]);
-    }
-
-    const title = this.add
-      .text(92, 18, entry.title, {
-        color: "#f5f5f5",
-        fontFamily: "monospace",
-        fontSize: "18px",
-        fontStyle: "700"
-      })
-      .setOrigin(0, 0);
-    const stats = this.add
-      .text(92, 46, entry.lines.join("\n"), {
-        color: "#cfcfcf",
-        fontFamily: "monospace",
-        fontSize: "13px",
-        lineSpacing: 3,
-        wordWrap: { width: 850 }
-      })
-      .setOrigin(0, 0);
-    const description = this.add
-      .text(92, 134, entry.description, {
-        color: "#8c8c8c",
-        fontFamily: "monospace",
-        fontSize: "13px",
-        wordWrap: { width: 850 }
-      })
-      .setOrigin(0, 0);
-
-    container.add([title, stats, description]);
-    this.encyclopediaList.add(container);
-  }
-
-  private stopEncyclopediaDrag(pointer: Phaser.Input.Pointer) {
-    if (this.encyclopediaDragPointer === pointer) {
-      this.encyclopediaDragPointer = null;
-    }
-  }
-
-  private setEncyclopediaScroll(scrollY: number) {
-    const maxScroll = Math.max(0, this.encyclopediaContentHeight - this.encyclopediaViewport.height);
-    this.encyclopediaScrollY = Math.round(Phaser.Math.Clamp(scrollY, 0, maxScroll));
-    this.encyclopediaList.y = this.encyclopediaViewport.y - this.encyclopediaScrollY;
   }
 
   private createDifficultySlider() {
@@ -1083,7 +711,7 @@ export class LevelSelectScene extends Phaser.Scene {
   }
 
   private startSelectedLevel() {
-    if (this.encyclopediaOpen) {
+    if (this.encyclopediaPanel.isOpen()) {
       return;
     }
 
@@ -1091,6 +719,7 @@ export class LevelSelectScene extends Phaser.Scene {
     if (selected?.unlocked) {
       this.scene.start("CardSelectScene", {
         levelId: selected.id,
+        chapterId: this.selectedChapterId,
         difficulty: this.difficulty,
         unlimitedFirepower: this.unlimitedFirepower
       });

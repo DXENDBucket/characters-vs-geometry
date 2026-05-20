@@ -88,6 +88,20 @@ export function getShiftTargets(tower: Tower, enemies: Enemy[]) {
     .sort((a, b) => a.x - b.x || Math.abs(a.lane - tower.lane) - Math.abs(b.lane - tower.lane));
 }
 
+export function getLaneRepelTargets(tower: Tower, enemies: Enemy[]) {
+  const targetColumns = [tower.column, tower.column + 1].filter((column) => column >= 0 && column < COLUMNS);
+  const ranges = targetColumns.map((column) => ({
+    left: BOARD_X + column * CELL_WIDTH,
+    right: BOARD_X + (column + 1) * CELL_WIDTH
+  }));
+
+  return enemies
+    .filter((enemy) => {
+      return enemy.lane === tower.lane && ranges.some((range) => enemy.x >= range.left && enemy.x < range.right);
+    })
+    .sort((a, b) => a.x - b.x);
+}
+
 export function getBlockingTower(towers: Tower[], enemy: Enemy) {
   if (enemyIsBossCompanion(enemy.kind) || enemy.statusEffects.some((effect) => effect.name === "flying")) {
     return undefined;

@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import "./styles.css";
 import { GAME_HEIGHT, GAME_WIDTH } from "./config";
 import { CardSelectScene } from "./scenes/CardSelectScene";
+import { ChapterSelectScene } from "./scenes/ChapterSelectScene";
 import { GameScene } from "./scenes/GameScene";
 import { LevelSelectScene } from "./scenes/LevelSelectScene";
 
@@ -11,7 +12,7 @@ const game = new Phaser.Game({
   width: GAME_WIDTH,
   height: GAME_HEIGHT,
   pixelArt: true,
-  scene: [LevelSelectScene, CardSelectScene, GameScene],
+  scene: [ChapterSelectScene, LevelSelectScene, CardSelectScene, GameScene],
   scale: {
     mode: Phaser.Scale.NONE,
     autoCenter: Phaser.Scale.CENTER_BOTH,

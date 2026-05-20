@@ -24,6 +24,7 @@ import {
   palette
 } from "../config";
 import { createCubeBoss } from "../bosses/cubeBoss";
+import { chapterIdForLevelId } from "../data/chapters";
 import { getLevelConfig } from "../data/levels";
 import { updateBossRuntime, type BossRuntime } from "../game/bossRuntime";
 import type { CardBehavior } from "../game/cardBehaviors";
@@ -35,7 +36,7 @@ import {
   updateTowerProjectiles,
   type ProjectileRuntime
 } from "../game/projectileRuntime";
-import { gridCellKey } from "../game/targeting";
+import { gridCellKey, isBossInRect } from "../game/targeting";
 import {
   effectiveTowerLevel,
   getHitProductionAmount,
@@ -62,7 +63,7 @@ import {
 import { volleyInterval, volleyShotCount } from "../game/upgrades";
 import { waveScheduleAction } from "../game/waves";
 import { t } from "../i18n";
-import { makeEraseMark, makeProductionPulse } from "../render/combatEffects";
+import { makeEraseMark, makeProductionPulse, makeShellBurst, makeShockPulse } from "../render/combatEffects";
 import {
   createCardStates,
   createGameHud,
@@ -92,6 +93,7 @@ import type {
 
 export class GameScene extends Phaser.Scene {
   private levelId = "0-1";
+  private chapterId = "0";
   private levelConfig = getLevelConfig("0-1");
   private difficulty = DEFAULT_DIFFICULTY;
   private difficultyConfig = getDifficultyConfig(DEFAULT_DIFFICULTY);
@@ -121,6 +123,7 @@ export class GameScene extends Phaser.Scene {
   private gameSpeed = DEFAULT_GAME_SPEED;
   private eraserMode = false;
   private autoUpgradeMode = false;
+  private debugDamageMode = false;
   private autoUpgradeEnabled = true;
   private autoUpgradeReserveChars = 0;
   private autoUpgradeReserveInputFocused = false;
@@ -133,8 +136,9 @@ export class GameScene extends Phaser.Scene {
     super("GameScene");
   }
 
-  init(data: { levelId?: string; selectedCards?: CardId[]; difficulty?: number; unlimitedFirepower?: boolean }) {
+  init(data: { levelId?: string; chapterId?: string; selectedCards?: CardId[]; difficulty?: number; unlimitedFirepower?: boolean }) {
     this.levelId = data.levelId ?? "0-1";
+    this.chapterId = data.chapterId ?? chapterIdForLevelId(this.levelId);
     this.levelConfig = getLevelConfig(this.levelId);
     this.difficulty = clampDifficulty(data.difficulty);
     this.unlimitedFirepower = Boolean(data.unlimitedFirepower);
@@ -160,6 +164,7 @@ export class GameScene extends Phaser.Scene {
     this.gameSpeed = DEFAULT_GAME_SPEED;
     this.eraserMode = false;
     this.autoUpgradeMode = false;
+    this.debugDamageMode = false;
     this.autoUpgradeEnabled = true;
     this.autoUpgradeReserveChars = 0;
     this.autoUpgradeReserveInputFocused = false;
@@ -176,6 +181,7 @@ export class GameScene extends Phaser.Scene {
     this.drawBoard();
     this.ui = createGameHud(this, this.levelId, this.difficulty, {
       onDebug: () => this.grantDebugChars(),
+      onDebugDamage: () => this.toggleDebugDamageMode(),
       onAutoUpgrade: () => this.toggleAutoUpgradeMode(),
       onAutoUpgradeEnabled: () => this.toggleAutoUpgradeEnabled(),
       onAutoUpgradeReserveFocus: () => this.focusAutoUpgradeReserveInput(),
@@ -283,6 +289,11 @@ export class GameScene extends Phaser.Scene {
       } else {
         this.towerSkills.cancelSpellMortarTargeting();
       }
+      return;
+    }
+
+    if (this.debugDamageMode) {
+      this.applyDebugDamage(x, y);
       return;
     }
 
@@ -498,6 +509,7 @@ export class GameScene extends Phaser.Scene {
   private prepareSpellMortarTargeting() {
     this.eraserMode = false;
     this.autoUpgradeMode = false;
+    this.debugDamageMode = false;
     this.autoUpgradeReserveInputFocused = false;
   }
 
@@ -782,12 +794,14 @@ export class GameScene extends Phaser.Scene {
       selectedCardId: this.selectedCardId,
       chars: this.chars,
       eraserMode: this.eraserMode,
-      autoUpgradeMode: this.autoUpgradeMode
+      autoUpgradeMode: this.autoUpgradeMode,
+      debugDamageMode: this.debugDamageMode
     });
     updateToolButtonStates(
       this.ui,
       this.eraserMode,
       this.autoUpgradeMode,
+      this.debugDamageMode,
       this.autoUpgradeEnabled,
       this.autoUpgradeReserveChars,
       this.autoUpgradeReserveInputFocused
@@ -801,6 +815,7 @@ export class GameScene extends Phaser.Scene {
 
     this.eraserMode = false;
     this.autoUpgradeMode = false;
+    this.debugDamageMode = false;
     this.autoUpgradeReserveInputFocused = false;
     this.cancelSpellMortarTargeting();
     this.cardStates.forEach((cardState) => {
@@ -823,6 +838,7 @@ export class GameScene extends Phaser.Scene {
     this.cancelSpellMortarTargeting();
     if (this.eraserMode) {
       this.autoUpgradeMode = false;
+      this.debugDamageMode = false;
     }
     this.updateCards(this.cardTime);
   }
@@ -837,6 +853,7 @@ export class GameScene extends Phaser.Scene {
     this.cancelSpellMortarTargeting();
     if (this.autoUpgradeMode) {
       this.eraserMode = false;
+      this.debugDamageMode = false;
     }
     this.updateCards(this.cardTime);
   }
@@ -860,6 +877,7 @@ export class GameScene extends Phaser.Scene {
 
     this.eraserMode = false;
     this.autoUpgradeMode = false;
+    this.debugDamageMode = false;
     this.autoUpgradeReserveInputFocused = true;
     this.cancelSpellMortarTargeting();
     this.updateCards(this.cardTime);
@@ -867,6 +885,39 @@ export class GameScene extends Phaser.Scene {
 
   private attemptAutoUpgrades() {
     this.deployment.attemptAutoUpgrades();
+  }
+
+  private toggleDebugDamageMode() {
+    if (this.gameOver) {
+      return;
+    }
+
+    this.debugDamageMode = !this.debugDamageMode;
+    this.autoUpgradeReserveInputFocused = false;
+    this.cancelSpellMortarTargeting();
+    if (this.debugDamageMode) {
+      this.eraserMode = false;
+      this.autoUpgradeMode = false;
+    }
+    this.updateCards(this.cardTime);
+  }
+
+  private applyDebugDamage(x: number, y: number) {
+    const rangeX = CELL_WIDTH / 2;
+    const rangeY = CELL_HEIGHT / 2;
+    const damage = 15_000;
+    makeShellBurst(this, x, y, Math.min(CELL_WIDTH, CELL_HEIGHT) * 0.5, "true");
+    makeShockPulse(this, x, y, CELL_WIDTH, CELL_HEIGHT);
+
+    for (const enemy of [...this.enemies]) {
+      if (Math.abs(enemy.x - x) <= rangeX && Math.abs(enemy.y - y) <= rangeY) {
+        damageEnemy(this.unitLifecycleRuntime(), enemy, damage, "true");
+      }
+    }
+
+    if (isBossInRect(this.boss, x - rangeX, y - rangeY, rangeX * 2, rangeY * 2)) {
+      damageBoss(this.unitLifecycleRuntime(), damage, "true");
+    }
   }
 
   private syncAutoUpgradeBorders() {
@@ -920,7 +971,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handleOverlayAction() {
-    this.scene.start("LevelSelectScene");
+    this.scene.start("LevelSelectScene", {
+      chapterId: this.chapterId,
+      difficulty: this.difficulty,
+      unlimitedFirepower: this.unlimitedFirepower
+    });
   }
 
   private handleAutoUpgradeReserveKey(event: KeyboardEvent) {
@@ -1034,6 +1089,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.eraserMode = false;
     this.autoUpgradeMode = false;
+    this.debugDamageMode = false;
     this.autoUpgradeReserveInputFocused = false;
     this.cancelSpellMortarTargeting();
     this.selectedCardId = id;

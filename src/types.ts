@@ -27,6 +27,7 @@ export type CardId =
   | "L"
   | "l"
   | "N"
+  | "n"
   | "T"
   | "U"
   | "V"
@@ -168,6 +169,7 @@ export interface Tower {
   skills: Record<string, SkillState>;
   autoUpgrade: boolean;
   reflectProjectiles: boolean;
+  nextRepelDirection: -1 | 1;
   placedOrder: number;
   body: Phaser.GameObjects.Container;
   border: Phaser.GameObjects.Graphics;
