@@ -68,6 +68,8 @@ interface CardUpdateState {
 
 interface HudUpdateState {
   chars: number;
+  rawChars: number;
+  charsSoftcapped: boolean;
   wave: number;
   wavesPerFlag: number;
   totalWaves: number;
@@ -399,7 +401,8 @@ export function updateGameHud(ui: GameHudElements, state: HudUpdateState) {
   const pauseText = state.battlePaused ? `    ${t("label.paused")}` : "";
   const speedRatio = Phaser.Math.Clamp((state.gameSpeed - GAME_SPEED_MIN) / (GAME_SPEED_MAX - GAME_SPEED_MIN), 0, 1);
 
-  ui.charsText.setText(`${t("label.chars")} ${Math.floor(state.chars)}`);
+  const rawCharsText = state.charsSoftcapped ? ` (${Math.floor(state.rawChars)})` : "";
+  ui.charsText.setText(`${t("label.chars")} ${Math.floor(state.chars)}${rawCharsText}`);
   ui.statusText.setText(
     `${t("label.wave")} ${waveText}    ${t("label.base")} ${state.baseIntegrity}    ${t("label.ko")} ${state.enemiesDefeated}${pauseText}`
   );

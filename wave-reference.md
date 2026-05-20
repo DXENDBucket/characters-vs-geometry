@@ -31,6 +31,7 @@
 
 Damage symbols: `◆` physical, `✦` magic, `◇` true. Magic-damage projectiles and related hit effects use light blue.
 Effect symbols: `Aa` character production, `♡` healing.
+Character resources use layered softcaps. Raw resources above `9999` apply one smooth `p=0.7` softcap layer. Above `99999`, the already-softcapped effective value receives a second `p=0.7` layer. Above `999999`, it receives a third layer, and later decade thresholds keep adding one more identical layer. This keeps marginal gains decreasing as raw resources grow. When softcapped, the HUD shows effective resources with raw resources in parentheses.
 Stasis gives enemies a blue border and reduces their movement speed to `1/3`. Haste gives enemies light-blue wind trails and raises movement speed to `200%` unless specified otherwise. Power gives enemies a red `!` icon and increases outgoing attack damage by `30%` without changing their base attack stat.
 Armor from Hexagons gives ordinary enemies a `⬡` icon and stacks additively as bonus armor. Bosses also gain the bonus armor while their hitbox is within a Hexagon aura.
 Charging Hexagon speed aura is dynamic, non-stacking, and multiplies with other speed modifiers.

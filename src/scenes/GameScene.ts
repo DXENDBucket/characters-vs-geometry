@@ -47,6 +47,7 @@ import {
 } from "../game/towers";
 import { TowerDeploymentController, type TowerDeploymentRuntime } from "../game/towerDeployment";
 import { TowerSkillController, type TowerSkillRuntime } from "../game/towerSkills";
+import { charsAreSoftcapped, rawCharsForSoftcapped, softcapChars } from "../game/charSoftcap";
 import {
   damageBoss,
   damageEnemy,
@@ -112,6 +113,7 @@ export class GameScene extends Phaser.Scene {
   private enemyProjectiles: EnemyProjectile[] = [];
   private mortarProjectiles: MortarProjectile[] = [];
   private occupied = new Map<string, Tower>();
+  // Stored as raw resources; affordability and spending use the softcapped effective value.
   private chars = STARTING_CHARS;
   private baseIntegrity = BASE_INTEGRITY;
   private wave = 0;
@@ -370,10 +372,11 @@ export class GameScene extends Phaser.Scene {
 
     const definition = this.getSelectedDefinition();
     const cardState = this.cardStates.find((card) => card.definition.id === definition.id);
+    const effectiveChars = this.effectiveChars();
     const canUpgradeManualShockTower =
       Boolean(existingTower && existingTower.type === definition.id) &&
       Boolean(cardState && this.cardTimeFor(definition.id) >= cardState.readyAt) &&
-      this.chars >= definition.cost;
+      effectiveChars >= definition.cost;
 
     if (this.isManualShockTower(existingTower) && !canUpgradeManualShockTower) {
       this.triggerShockTower(existingTower);
@@ -385,7 +388,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    if (this.chars < definition.cost) {
+    if (effectiveChars < definition.cost) {
       this.showToast(t("toast.noChars"));
       return;
     }
@@ -396,7 +399,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    this.chars -= definition.cost;
+    this.spendChars(definition.cost);
     cardState.readyAt = this.cardTimeFor(definition.id) + definition.cooldown;
   }
 
@@ -479,9 +482,20 @@ export class GameScene extends Phaser.Scene {
   }
 
   private gainChars(amount: number, x: number, y: number) {
+    const previousEffectiveChars = this.effectiveChars();
     this.chars += amount;
-    makeProductionPulse(this, x, y, amount);
+    const gainedEffectiveChars = Math.max(0, this.effectiveChars() - previousEffectiveChars);
+    makeProductionPulse(this, x, y, Math.floor(gainedEffectiveChars));
     this.attemptAutoUpgrades();
+  }
+
+  private effectiveChars() {
+    return softcapChars(this.chars);
+  }
+
+  private spendChars(amount: number) {
+    const nextEffectiveChars = Math.max(0, this.effectiveChars() - amount);
+    this.chars = rawCharsForSoftcapped(nextEffectiveChars);
   }
 
   private handleTowerDamaged(tower: Tower) {
@@ -573,10 +587,8 @@ export class GameScene extends Phaser.Scene {
       autoUpgradeReserveInputFocused: this.autoUpgradeReserveInputFocused,
       getDefinition: (id) => this.getDefinition(id),
       cardTimeFor: (id) => this.cardTimeFor(id),
-      getChars: () => this.chars,
-      spendChars: (amount) => {
-        this.chars -= amount;
-      },
+      getChars: () => this.effectiveChars(),
+      spendChars: (amount) => this.spendChars(amount),
       nextTowerOrder: () => {
         const order = this.towerOrder;
         this.towerOrder += 1;
@@ -792,7 +804,7 @@ export class GameScene extends Phaser.Scene {
       time,
       timeForCard: (id) => this.cardTimeFor(id),
       selectedCardId: this.selectedCardId,
-      chars: this.chars,
+      chars: this.effectiveChars(),
       eraserMode: this.eraserMode,
       autoUpgradeMode: this.autoUpgradeMode,
       debugDamageMode: this.debugDamageMode
@@ -944,7 +956,9 @@ export class GameScene extends Phaser.Scene {
 
   private updateHud() {
     updateGameHud(this.ui, {
-      chars: this.chars,
+      chars: this.effectiveChars(),
+      rawChars: this.chars,
+      charsSoftcapped: charsAreSoftcapped(this.chars),
       wave: this.wave,
       wavesPerFlag: this.levelConfig.wavesPerFlag,
       totalWaves: this.levelConfig.totalWaves ?? this.wave,
