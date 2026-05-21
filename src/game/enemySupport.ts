@@ -1,13 +1,13 @@
 import Phaser from "phaser";
-import { CELL_HEIGHT, CELL_WIDTH } from "../config";
-import { makeHealParticles } from "../render/combatEffects";
+import { BOARD_X, CELL_HEIGHT, CELL_WIDTH } from "../config";
+import { makeHealParticles, makeShiftEffect } from "../render/combatEffects";
 import type { CubeBoss, Enemy, SkillState } from "../types";
-import { enemyFamily } from "../registry/enemies";
-import { enemyScaleFromHp } from "./enemyBehaviors";
+import { enemyFamily, enemyIsBossCompanion, enemyIsLeader } from "../registry/enemies";
+import { syncEnemyVisualScale } from "./enemyBehaviors";
 import { createEnemySkillRegistry, enemySkillDefinitions, type EnemySkillRuntime } from "./enemySkillRegistry";
 import { updateRegisteredSkills } from "./skillRegistry";
 import { gainSkillSp, getEnemySkillState, isSkillReady, spendSkillSp } from "./skillState";
-import { applyStatusEffect } from "./statusEffects";
+import { applyStatusEffect, syncEnemyBodyPosition } from "./statusEffects";
 import { isBossInRadius } from "./targeting";
 
 const HEX_ARMOR_RADIUS = CELL_WIDTH * 1.4;
@@ -17,6 +17,12 @@ const HEX_HEAL_SKILL_COST = 20;
 const HEX_HEAL_SKILL_REGEN_PER_SECOND = 1;
 const HEX_HEAL_RATIO = 0.3;
 const CHARGING_HEX_SPEED_MULTIPLIER = 1.5;
+const LEADER_SPEED_MULTIPLIER = 1.5;
+const HEART_LEAD_SKILL_MAX = 5;
+const HEART_LEAD_SKILL_COST = 5;
+const HEART_LEAD_REGEN_PER_SECOND = 1;
+const HEART_LEAD_COLUMN_SPAN = 5;
+const HEART_LEAD_LANE_RADIUS = 2;
 const ANGEL_WINGS_SKILL_MAX = 15;
 const ANGEL_WINGS_SKILL_COST = 15;
 const ANGEL_WINGS_REGEN_PER_SECOND = 1;
@@ -27,7 +33,8 @@ const ANGEL_WINGS_SPEED_MULTIPLIER = 2;
 
 const enemySkillRegistry = createEnemySkillRegistry({
   updateHexHeal,
-  updateAngelWings
+  updateAngelWings,
+  updateHeartLead
 });
 
 export function hexArmorBonus(enemies: Enemy[], target: Enemy) {
@@ -56,10 +63,15 @@ export function syncHexArmorAuras(enemies: Enemy[], time: number) {
 }
 
 export function chargingHexSpeedMultiplier(enemies: Enemy[], target: Enemy) {
-  return enemies.some((enemy) => {
+  const hasChargingHexBuff = enemies.some((enemy) => {
     return enemyFamily(enemy.kind) === "chargingHexagon" && enemy.lane === target.lane && enemy.x < target.x;
-  })
-    ? CHARGING_HEX_SPEED_MULTIPLIER
+  });
+  const hasLeaderBuff = enemies.some((enemy) => {
+    return enemyFamily(enemy.kind) === "heart" && enemy.lane === target.lane && enemy.x < target.x;
+  });
+
+  return hasChargingHexBuff || hasLeaderBuff
+    ? Math.max(CHARGING_HEX_SPEED_MULTIPLIER, LEADER_SPEED_MULTIPLIER)
     : 1;
 }
 
@@ -89,6 +101,15 @@ function updateAngelWings(enemy: Enemy, state: SkillState, seconds: number, time
   }
 }
 
+function updateHeartLead(enemy: Enemy, state: SkillState, seconds: number, _time: number, runtime: EnemySkillRuntime) {
+  gainSkillSp(state, seconds * HEART_LEAD_REGEN_PER_SECOND, HEART_LEAD_SKILL_MAX);
+  if (!isSkillReady(state, HEART_LEAD_SKILL_MAX)) {
+    return;
+  }
+
+  tryUseHeartLead(runtime.scene, runtime.enemies, enemy, state);
+}
+
 function tryUseHexHeal(scene: Phaser.Scene, enemies: Enemy[], healer: Enemy, skill: SkillState) {
   if (!isSkillReady(skill, HEX_HEAL_SKILL_MAX)) {
     return;
@@ -110,7 +131,7 @@ function tryUseHexHeal(scene: Phaser.Scene, enemies: Enemy[], healer: Enemy, ski
     return;
   }
 
-  target.shape.setScale(enemyScaleFromHp(target.hp / target.maxHp));
+  syncEnemyVisualScale(target);
   makeHealParticles(scene, target.x, target.y);
 }
 
@@ -120,6 +141,39 @@ function hexArmorStacks(enemies: Enemy[], target: Enemy) {
 
 function isHexagon(enemy: Enemy) {
   return enemyFamily(enemy.kind) === "hexagon";
+}
+
+function tryUseHeartLead(scene: Phaser.Scene, enemies: Enemy[], caster: Enemy, skill: SkillState) {
+  const casterColumn = Math.floor((caster.x - BOARD_X) / CELL_WIDTH);
+  const left = BOARD_X + casterColumn * CELL_WIDTH;
+  const right = left + HEART_LEAD_COLUMN_SPAN * CELL_WIDTH;
+  const targets = enemies.filter((enemy) => {
+    return (
+      enemy !== caster &&
+      isOrdinaryLeadTarget(enemy) &&
+      enemy.x >= left &&
+      enemy.x < right &&
+      Math.abs(enemy.lane - caster.lane) <= HEART_LEAD_LANE_RADIUS &&
+      enemy.lane !== caster.lane
+    );
+  });
+
+  if (targets.length === 0) {
+    return;
+  }
+
+  spendSkillSp(skill, HEART_LEAD_SKILL_COST);
+  for (const target of targets) {
+    const previousY = target.y;
+    target.lane = caster.lane;
+    target.y = caster.y;
+    syncEnemyBodyPosition(target);
+    makeShiftEffect(scene, target.x, previousY, target.x, target.y);
+  }
+}
+
+function isOrdinaryLeadTarget(enemy: Enemy) {
+  return !enemyIsLeader(enemy.kind) && !enemyIsBossCompanion(enemy.kind);
 }
 
 export function triggerAngelWings(

@@ -227,6 +227,36 @@ export function makeShockPulse(
   });
 }
 
+export function makeHeartPulse(scene: Phaser.Scene, x: number, y: number, radius: number) {
+  const heart = scene.add
+    .text(x, y + 2, "♥", {
+      color: "#ff7eb6",
+      fontFamily: "Georgia, 'Times New Roman', serif",
+      fontSize: "42px",
+      fontStyle: "bold"
+    })
+    .setOrigin(0.5)
+    .setDepth(111);
+  const ring = scene.add.circle(x, y, radius * 0.25, palette.black, 0).setStrokeStyle(2, palette.heart, 0.78).setDepth(110);
+
+  scene.tweens.add({
+    targets: heart,
+    scale: radius / 18,
+    alpha: 0,
+    duration: 420,
+    ease: "Quad.easeOut",
+    onComplete: () => heart.destroy()
+  });
+  scene.tweens.add({
+    targets: ring,
+    scale: 4,
+    alpha: 0,
+    duration: 420,
+    ease: "Quad.easeOut",
+    onComplete: () => ring.destroy()
+  });
+}
+
 export function makeTrapBurst(scene: Phaser.Scene, x: number, y: number, damageType: DamageType) {
   const ring = scene.add
     .circle(x, y, 14, palette.black, 0)
@@ -264,25 +294,32 @@ export function makeSlashEffect(scene: Phaser.Scene, x: number, y: number, damag
   });
 }
 
-export function makeArcWaveEffect(scene: Phaser.Scene, x: number, y: number, damageType: DamageType) {
+export function makeArcWaveEffect(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  damageType: DamageType,
+  direction: -1 | 1 = 1
+) {
   const color = damageEffectColor(damageType);
   const wave = scene.add.graphics().setPosition(x, y).setDepth(110);
   const arcs = [
-    { x: -10, radius: CELL_HEIGHT * 0.9, angle: 1.38, width: 4, alpha: 0.95 },
-    { x: -34, radius: CELL_HEIGHT * 1.3, angle: 1.2, width: 3, alpha: 0.72 },
-    { x: -60, radius: CELL_HEIGHT * 1.72, angle: 1.04, width: 2, alpha: 0.52 }
+    { x: -10 * direction, radius: CELL_HEIGHT * 0.9, angle: 1.38, width: 4, alpha: 0.95 },
+    { x: -34 * direction, radius: CELL_HEIGHT * 1.3, angle: 1.2, width: 3, alpha: 0.72 },
+    { x: -60 * direction, radius: CELL_HEIGHT * 1.72, angle: 1.04, width: 2, alpha: 0.52 }
   ];
+  const forwardAngle = direction > 0 ? 0 : Math.PI;
 
   for (const arc of arcs) {
     wave.lineStyle(arc.width, color, arc.alpha);
     wave.beginPath();
-    wave.arc(arc.x, 0, arc.radius, -arc.angle, arc.angle, false);
+    wave.arc(arc.x, 0, arc.radius, forwardAngle - arc.angle, forwardAngle + arc.angle, false);
     wave.strokePath();
   }
 
   scene.tweens.add({
     targets: wave,
-    x: x + 56,
+    x: x + 56 * direction,
     scaleX: 1.26,
     scaleY: 1.12,
     alpha: 0,

@@ -9,8 +9,8 @@ import { isTetrahedronBoss } from "../bosses/cubeBoss";
 import { makeBossHitFlash, makeBossInvincibleFlash, makeEnemyInvincibleFlash, makeShockPulse } from "../render/combatEffects";
 import type { CubeBoss, DamageType, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower, WaveTracker } from "../types";
 import { calculateDamage } from "./damage";
-import { enemyScaleFromHp } from "./enemyBehaviors";
-import { spawnSplitEnemies } from "./enemyRuntime";
+import { syncEnemyVisualScale } from "./enemyBehaviors";
+import { releaseBurrowCargo, spawnSplitEnemies } from "./enemyRuntime";
 import { hexArmorBonus, hexBossArmorBonus } from "./enemySupport";
 import { isPointInSlowAura } from "./slowAura";
 import { hasStatusEffect } from "./statusEffects";
@@ -111,8 +111,7 @@ export function damageEnemy(runtime: UnitLifecycleRuntime, enemy: Enemy, damage:
     calculateDamage(damage, damageType, enemy.armor + hexArmorBonus(runtime.enemies, enemy), enemy.magicResistance) *
     (1 - enemy.finalDamageReduction);
   enemy.hp -= actualDamage;
-  const hpRatio = Phaser.Math.Clamp(enemy.hp / enemy.maxHp, 0, 1);
-  enemy.shape.setScale(enemyScaleFromHp(hpRatio));
+  syncEnemyVisualScale(enemy);
 
   if (enemy.hp <= 0) {
     const waveTracker = runtime.getWaveTracker();
@@ -121,6 +120,7 @@ export function damageEnemy(runtime: UnitLifecycleRuntime, enemy: Enemy, damage:
     }
 
     runtime.onEnemyDefeated();
+    releaseBurrowCargo(runtime, enemy);
     spawnSplitEnemies(runtime, enemy, runtime.battleTime, runtime.finalDamageReduction);
     removeEnemy(runtime, enemy, true);
   }
@@ -145,6 +145,12 @@ export function removeBoss(runtime: UnitLifecycleRuntime) {
 
 export function removeEnemy(runtime: UnitLifecycleRuntime, enemy: Enemy, animate: boolean) {
   Phaser.Utils.Array.Remove(runtime.enemies, enemy);
+  for (const cargo of enemy.burrowCargo ?? []) {
+    if (!runtime.enemies.includes(cargo)) {
+      cargo.body.destroy();
+    }
+  }
+  enemy.burrowCargo = [];
   if (animate) {
     runtime.scene.tweens.add({
       targets: enemy.body,
@@ -160,7 +166,9 @@ export function removeEnemy(runtime: UnitLifecycleRuntime, enemy: Enemy, animate
 
 export function removeTower(runtime: UnitLifecycleRuntime, tower: Tower) {
   Phaser.Utils.Array.Remove(runtime.towers, tower);
-  runtime.occupied.delete(gridCellKey(tower.lane, tower.column));
+  if (!tower.transient) {
+    runtime.occupied.delete(gridCellKey(tower.lane, tower.column));
+  }
   runtime.scene.tweens.add({
     targets: tower.body,
     alpha: 0,

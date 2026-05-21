@@ -17,7 +17,7 @@ export const BASE_INTEGRITY = 6;
 export const ENEMY_SPEED = 10;
 export const ENEMY_SPEED_VARIANCE = 0.1;
 export const ATTACK_INTERVAL = 1_000;
-export const NEXT_WAVE_DELAY = 20_000;
+export const NEXT_WAVE_DELAY = 25_000;
 export const NATURAL_PRODUCE_INTERVAL = 5_000;
 export const NATURAL_PRODUCE_AMOUNT = 25;
 export const TOTAL_WAVES = 10;
@@ -97,6 +97,7 @@ export const palette = {
   magic: 0x9fdcff,
   green: 0x48ff88,
   gold: 0xffd75a,
+  heart: 0xff7eb6,
   time: 0x5b2a91,
   enemyShot: 0xff6464
 };

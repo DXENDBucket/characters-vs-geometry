@@ -10,7 +10,9 @@ import {
 } from "../config";
 import type { CardDefinition, CubeBoss, Enemy, Tower } from "../types";
 import { enemyIsBossCompanion } from "../registry/enemies";
+import { enemyIsBurrowed } from "./enemyBehaviors";
 import { getCardAttackArea, type AttackAreaConfig } from "./cardAttackConfigs";
+import { towerFacingDirection } from "./towers";
 
 export function gridCellKey(lane: number, column: number) {
   return `${lane}:${column}`;
@@ -58,10 +60,7 @@ export function isBossInRect(boss: CubeBoss | null, x: number, y: number, width:
 }
 
 export function getHealTarget(tower: Tower, definition: CardDefinition, occupied: Map<string, Tower>) {
-  const rangeCells = definition.rangeCells ?? 2;
-  const targetColumns = Array.from({ length: rangeCells }, (_value, index) => tower.column + index).filter(
-    (column) => column >= 0 && column < COLUMNS
-  );
+  const targetColumns = healTargetColumns(tower, definition);
   const targetLanes = [tower.lane - 1, tower.lane, tower.lane + 1].filter((lane) => lane >= 0 && lane < LANES);
 
   return targetLanes
@@ -73,9 +72,22 @@ export function getHealTarget(tower: Tower, definition: CardDefinition, occupied
     })[0];
 }
 
+function healTargetColumns(tower: Tower, definition: CardDefinition) {
+  if (tower.type === "H") {
+    return [tower.column - 1, tower.column, tower.column + 1].filter((column) => column >= 0 && column < COLUMNS);
+  }
+
+  const rangeCells = definition.rangeCells ?? 2;
+  const direction = towerFacingDirection(tower);
+  return Array.from({ length: rangeCells }, (_value, index) => tower.column + index * direction).filter(
+    (column) => column >= 0 && column < COLUMNS
+  );
+}
+
 export function getShiftTargets(tower: Tower, enemies: Enemy[]) {
   const targetLanes = [tower.lane - 1, tower.lane + 1].filter((lane) => lane >= 0 && lane < LANES);
-  const targetColumns = [tower.column, tower.column + 1].filter((column) => column >= 0 && column < COLUMNS);
+  const direction = towerFacingDirection(tower);
+  const targetColumns = [tower.column, tower.column + direction].filter((column) => column >= 0 && column < COLUMNS);
   const ranges = targetColumns.map((column) => ({
     left: BOARD_X + column * CELL_WIDTH,
     right: BOARD_X + (column + 1) * CELL_WIDTH
@@ -89,7 +101,8 @@ export function getShiftTargets(tower: Tower, enemies: Enemy[]) {
 }
 
 export function getLaneRepelTargets(tower: Tower, enemies: Enemy[]) {
-  const targetColumns = [tower.column, tower.column + 1].filter((column) => column >= 0 && column < COLUMNS);
+  const direction = towerFacingDirection(tower);
+  const targetColumns = [tower.column, tower.column + direction].filter((column) => column >= 0 && column < COLUMNS);
   const ranges = targetColumns.map((column) => ({
     left: BOARD_X + column * CELL_WIDTH,
     right: BOARD_X + (column + 1) * CELL_WIDTH
@@ -103,12 +116,12 @@ export function getLaneRepelTargets(tower: Tower, enemies: Enemy[]) {
 }
 
 export function getBlockingTower(towers: Tower[], enemy: Enemy) {
-  if (enemyIsBossCompanion(enemy.kind) || enemy.statusEffects.some((effect) => effect.name === "flying")) {
+  if (enemyIsBossCompanion(enemy.kind) || enemyIsBurrowed(enemy) || enemy.statusEffects.some((effect) => effect.name === "flying")) {
     return undefined;
   }
 
   return towers
-    .filter((tower) => tower.lane === enemy.lane && Math.abs(enemy.x - tower.x) < 38)
+    .filter((tower) => !tower.transient && tower.lane === enemy.lane && Math.abs(enemy.x - tower.x) < 38)
     .sort((a, b) => b.x - a.x)[0];
 }
 
@@ -133,12 +146,32 @@ export function getLowestMaxHpAttackTarget(tower: Tower, definition: CardDefinit
 }
 
 export function attackRangeRight(tower: Tower, definition: CardDefinition) {
+  return attackRangeBounds(tower, definition).right;
+}
+
+export function attackRangeLimitX(tower: Tower, definition: CardDefinition) {
+  const bounds = attackRangeBounds(tower, definition);
+  return towerFacingDirection(tower) < 0 ? bounds.left : bounds.right;
+}
+
+function attackRangeBounds(tower: Tower, definition: CardDefinition) {
   const area = getCardAttackArea(tower.type);
   const rangeCells =
     area.kind === "laneRectangle" || area.kind === "laneForward"
       ? area.rangeCells ?? definition.rangeCells ?? COLUMNS
       : definition.rangeCells ?? COLUMNS;
-  return BOARD_X + Math.min(COLUMNS, tower.column + rangeCells) * CELL_WIDTH;
+  const direction = towerFacingDirection(tower);
+  if (direction < 0) {
+    return {
+      left: BOARD_X + Math.max(0, tower.column - rangeCells + 1) * CELL_WIDTH,
+      right: BOARD_X + (tower.column + 1) * CELL_WIDTH
+    };
+  }
+
+  return {
+    left: BOARD_X + tower.column * CELL_WIDTH,
+    right: BOARD_X + Math.min(COLUMNS, tower.column + rangeCells) * CELL_WIDTH
+  };
 }
 
 export function hasAttackTarget(
@@ -174,12 +207,16 @@ export function canAttackBoss(tower: Tower, definition: CardDefinition, boss: Cu
   }
 
   if (area.kind === "laneRectangle") {
-    const rangeLeft = BOARD_X + tower.column * CELL_WIDTH;
-    const rangeRight = attackRangeRight(tower, definition);
-    return rect.right >= rangeLeft && rect.left <= rangeRight;
+    const range = attackRangeBounds(tower, definition);
+    return rect.right >= range.left && rect.left <= range.right;
   }
 
-  return rect.right > tower.x + (area.startOffsetX ?? 12) && rect.left <= attackRangeRight(tower, definition);
+  const direction = towerFacingDirection(tower);
+  const startOffset = area.startOffsetX ?? 12;
+  const range = attackRangeBounds(tower, definition);
+  return direction > 0
+    ? rect.right > tower.x + startOffset && rect.left <= range.right
+    : rect.left < tower.x - startOffset && rect.right >= range.left;
 }
 
 function enemyIsInAttackArea(
@@ -188,6 +225,10 @@ function enemyIsInAttackArea(
   area: AttackAreaConfig,
   enemy: Enemy
 ) {
+  if (enemyIsBurrowed(enemy)) {
+    return false;
+  }
+
   if (area.kind === "verticalFan") {
     const verticalDirection = area.direction === "down" ? 1 : -1;
     const dy = enemy.y - tower.y;
@@ -204,11 +245,16 @@ function enemyIsInAttackArea(
   }
 
   if (area.kind === "laneRectangle") {
-    const rangeLeft = BOARD_X + tower.column * CELL_WIDTH;
-    return enemy.x >= rangeLeft && enemy.x <= attackRangeRight(tower, definition);
+    const range = attackRangeBounds(tower, definition);
+    return enemy.x >= range.left && enemy.x <= range.right;
   }
 
-  return enemy.x > tower.x + (area.startOffsetX ?? 24) && enemy.x <= attackRangeRight(tower, definition);
+  const direction = towerFacingDirection(tower);
+  const startOffset = area.startOffsetX ?? 24;
+  const range = attackRangeBounds(tower, definition);
+  return direction > 0
+    ? enemy.x > tower.x + startOffset && enemy.x <= range.right
+    : enemy.x < tower.x - startOffset && enemy.x >= range.left;
 }
 
 function attackTargetPriority(tower: Tower, area: AttackAreaConfig, enemy: Enemy) {
@@ -216,5 +262,5 @@ function attackTargetPriority(tower: Tower, area: AttackAreaConfig, enemy: Enemy
     return Math.abs(enemy.y - tower.y);
   }
 
-  return enemy.x;
+  return towerFacingDirection(tower) > 0 ? enemy.x : -enemy.x;
 }

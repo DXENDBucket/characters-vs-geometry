@@ -16,7 +16,8 @@ export function createTower(
   lane: number,
   column: number,
   battleTime: number,
-  placedOrder: number
+  placedOrder: number,
+  options: { transient?: boolean; turnTargetId?: string } = {}
 ): Tower {
   const x = BOARD_X + column * CELL_WIDTH + CELL_WIDTH / 2;
   const y = BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2;
@@ -32,6 +33,15 @@ export function createTower(
       fontStyle: "700"
     })
     .setOrigin(0.5);
+  const facingIcon = scene.add
+    .text(-37, -4, "<", {
+      color: "#ffd75a",
+      fontFamily: "monospace",
+      fontSize: "24px",
+      fontStyle: "700"
+    })
+    .setOrigin(0.5)
+    .setVisible(false);
   const hpBack = scene.add.rectangle(0, 31, 42, 4, palette.dim, 1);
   const hpFill = scene.add.rectangle(-21, 31, 42, 4, palette.white, 1).setOrigin(0, 0.5);
   const levelText = scene.add
@@ -43,7 +53,7 @@ export function createTower(
     })
     .setOrigin(0.5);
 
-  body.add([...(rangeBorder ? [rangeBorder] : []), autoUpgradeBorder, border, label, levelText, hpBack, hpFill]);
+  body.add([...(rangeBorder ? [rangeBorder] : []), autoUpgradeBorder, border, label, facingIcon, levelText, hpBack, hpFill]);
   if (definition.id === "G" || definition.id === "c" || definition.id === "S") {
     border.setVisible(false);
   }
@@ -70,13 +80,38 @@ export function createTower(
     autoUpgrade: false,
     reflectProjectiles: Boolean(definition.reflectProjectiles),
     nextRepelDirection: placedOrder % 2 === 0 ? -1 : 1,
+    facingDirection: 1,
+    transient: Boolean(options.transient),
+    turnTargetId: options.turnTargetId,
     placedOrder,
     body,
     border,
+    label,
+    facingIcon,
     autoUpgradeBorder,
     hpFill,
     levelText
   };
+}
+
+export function towerFacingDirection(tower: Tower) {
+  return tower.facingDirection ?? 1;
+}
+
+export function toggleTowerFacing(tower: Tower) {
+  setTowerFacing(tower, towerFacingDirection(tower) === -1 ? 1 : -1);
+}
+
+export function setTowerFacing(tower: Tower, direction: -1 | 1) {
+  tower.facingDirection = direction;
+  syncTowerFacingVisual(tower);
+}
+
+export function syncTowerFacingVisual(tower: Tower) {
+  const reversed = towerFacingDirection(tower) === -1;
+  tower.border.setScale(reversed ? -1 : 1, 1);
+  tower.label.setScale(reversed ? -1 : 1, 1);
+  tower.facingIcon.setVisible(reversed);
 }
 
 export function upgradeTowerLevel(tower: Tower) {

@@ -6,21 +6,34 @@ import {
   enemyBlockedDetonation,
   enemyIsBossCompanion,
   enemyIsLaser,
+  enemyIsLeader,
+  enemyIsMace,
   enemyIsMortar,
   enemyIsSiegeRam,
   enemyRank,
   getEnemyDefinition
 } from "../registry/enemies";
-import { makeEnemyHitShards, makeEnemyLaserEffect, makeHasteTrail, makeReflectFlash, makeShellBurst, makeShockPulse } from "../render/combatEffects";
+import {
+  makeEnemyHitShards,
+  makeEnemyLaserEffect,
+  makeHasteTrail,
+  makeHeartPulse,
+  makeReflectFlash,
+  makeShellBurst,
+  makeShiftEffect,
+  makeShockPulse
+} from "../render/combatEffects";
 import type { DifficultyConfig, Enemy, EnemyKind, LevelConfig, Tower, WaveTracker } from "../types";
 import type { EnemyAdvanceRuntime, EnemySpawnRuntime } from "./combatRuntime";
 import {
   canEnemyMelee,
+  enemyIsBurrowed,
   enemyVolleyShotCount,
   shouldEnemyShoot,
   siegeRamSpeed,
   splitSpawnKind,
-  splitSpawnLanes
+  splitSpawnLanes,
+  syncEnemyVisualScale
 } from "./enemyBehaviors";
 import { createEnemy } from "./enemyFactory";
 import { createEnemyProjectile, createMortarProjectile } from "./projectiles";
@@ -81,12 +94,34 @@ export function spawnWaveEnemies(runtime: EnemySpawnRuntime, options: SpawnWaveO
     });
   });
 
+  flagLeaderKinds(options.levelConfig.enemyKinds, options.waveNumber, options.levelConfig.wavesPerFlag).forEach((kind, index) => {
+    const lane = Phaser.Math.Between(0, LANES - 1);
+    const x = BOARD_X + BOARD_WIDTH + 58 + Phaser.Math.Between(0, 16) + index * 8;
+    spawnEnemyAt(runtime, {
+      kind,
+      waveNumber: options.waveNumber,
+      time: options.gameTime,
+      lane,
+      x,
+      waveWeight: 0,
+      finalDamageReduction: options.difficultyConfig.finalDamageReduction
+    });
+  });
+
   return {
     number: options.waveNumber,
     totalWeight,
     defeatedWeight: 0,
     spawnedAt: options.levelElapsed
   };
+}
+
+function flagLeaderKinds(enemyKinds: EnemyKind[], waveNumber: number, wavesPerFlag: number) {
+  if (waveNumber % wavesPerFlag !== 0) {
+    return [];
+  }
+
+  return enemyKinds.filter(enemyIsLeader);
 }
 
 export function spawnSplitEnemies(
@@ -151,11 +186,26 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
   updateEnemySkills(runtime, seconds, time);
 
   for (const enemy of [...runtime.enemies]) {
+    if (!runtime.enemies.includes(enemy)) {
+      continue;
+    }
+
     const statusMultiplier = statusSpeedMultiplier(enemy, time);
     const chargingHexMultiplier = chargingHexSpeedMultiplier(runtime.enemies, enemy);
     if ((hasStatusEffect(enemy, "haste", time) || chargingHexMultiplier > 1) && time >= enemy.nextHasteTrailAt) {
       makeHasteTrail(runtime.scene, enemy.x, enemy.y);
       enemy.nextHasteTrailAt = time + 120;
+    }
+
+    if (advanceBurrowArrow(runtime, enemy, time, seconds, statusMultiplier, chargingHexMultiplier)) {
+      if (enemy.x < BOARD_X - 34 && runtime.onEnemyReachedBase(enemy)) {
+        return;
+      }
+
+      if (enemy.x > BOARD_X + BOARD_WIDTH + 70) {
+        removeEscapedReverseEnemy(runtime, enemy);
+      }
+      continue;
     }
 
     if (shouldEnemyShoot(enemy, time)) {
@@ -170,6 +220,11 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
         fireEnemyVolley(runtime, enemy, time);
         enemy.attackAt = time + enemy.attackInterval + (shots - 1) * volleyInterval(enemy.attackInterval, shots);
       }
+    }
+
+    if (enemy.kind === "heart" && time >= enemy.attackAt) {
+      fireLeaderAreaAttack(runtime, enemy, time);
+      enemy.attackAt = time + enemy.attackInterval;
     }
 
     const blocker = getBlockingTower(runtime.towers, enemy);
@@ -189,6 +244,10 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
         continue;
       }
 
+      if (advanceHexMace(runtime, enemy, blocker, time, statusMultiplier, chargingHexMultiplier)) {
+        continue;
+      }
+
       if (canEnemyMelee(enemy) && time >= enemy.attackAt) {
         runtime.damageTower(blocker, enemy.damage * statusAttackMultiplier(enemy, time), enemy.damageType);
         if (blocker.type === "B") {
@@ -205,7 +264,19 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
     }
 
     if (!blocker) {
-      enemy.x -=
+      if (advanceHexMaceMovement(runtime, enemy, seconds, statusMultiplier, chargingHexMultiplier)) {
+        if (!runtime.enemies.includes(enemy)) {
+          continue;
+        }
+
+        if (enemy.x < BOARD_X - 34 && runtime.onEnemyReachedBase(enemy)) {
+          return;
+        }
+        continue;
+      }
+
+      enemy.x +=
+        enemyMovementDirection(enemy) *
         siegeRamSpeed(enemy) *
         seconds *
         movementSpeedMultiplier(runtime.towers, enemy.x, enemy.y) *
@@ -222,10 +293,256 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
       continue;
     }
 
-    if (enemy.x < BOARD_X - 34 && runtime.onEnemyReachedBase(enemy)) {
+    if (enemyMovementDirection(enemy) < 0 && enemy.x < BOARD_X - 34 && runtime.onEnemyReachedBase(enemy)) {
       return;
     }
+
+    if (enemyMovementDirection(enemy) > 0 && enemy.x > BOARD_X + BOARD_WIDTH + 70) {
+      removeEscapedReverseEnemy(runtime, enemy);
+    }
   }
+}
+
+function advanceBurrowArrow(
+  runtime: EnemyAdvanceRuntime,
+  enemy: Enemy,
+  time: number,
+  seconds: number,
+  statusMultiplier: number,
+  supportMultiplier: number
+) {
+  if (enemy.kind !== "burrowArrow") {
+    return false;
+  }
+
+  if (enemy.burrowed) {
+    enemy.x +=
+      enemyMovementDirection(enemy) *
+      enemy.speed *
+      4 *
+      seconds *
+      movementSpeedMultiplier(runtime.towers, enemy.x, enemy.y) *
+      statusMultiplier *
+      supportMultiplier;
+
+    if (enemy.x <= BOARD_X + CELL_WIDTH / 2) {
+      emergeBurrowArrow(runtime, enemy);
+    } else {
+      syncEnemyBodyPosition(enemy);
+    }
+    return true;
+  }
+
+  if (!enemy.burrowUnloaded) {
+    loadTouchingBurrowCargo(runtime, enemy);
+    if (burrowCargoRank(enemy) >= burrowCargoCapacity(enemy) || time >= (enemy.burrowAt ?? Number.POSITIVE_INFINITY)) {
+      startBurrow(runtime, enemy);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function loadTouchingBurrowCargo(runtime: EnemyAdvanceRuntime, carrier: Enemy) {
+  const remainingCapacity = burrowCargoCapacity(carrier) - burrowCargoRank(carrier);
+  if (remainingCapacity <= 0) {
+    return;
+  }
+
+  const targets = runtime.enemies
+    .filter((enemy) => enemy !== carrier && canLoadBurrowCargo(enemy) && Math.hypot(enemy.x - carrier.x, enemy.y - carrier.y) < 34)
+    .sort((a, b) => a.x - b.x);
+
+  for (const target of targets) {
+    const rank = enemyRank(target.kind);
+    if (burrowCargoRank(carrier) + rank > burrowCargoCapacity(carrier)) {
+      continue;
+    }
+
+    Phaser.Utils.Array.Remove(runtime.enemies, target);
+    carrier.burrowCargo ??= [];
+    carrier.burrowCargo.push(target);
+    target.blockedByTowerId = undefined;
+    target.blockedSince = undefined;
+    target.body.setVisible(false);
+    makeShiftEffect(runtime.scene, target.x, target.y, carrier.x, carrier.y);
+  }
+}
+
+function canLoadBurrowCargo(enemy: Enemy) {
+  return !enemyIsLeader(enemy.kind) && !enemyIsBossCompanion(enemy.kind) && !enemyIsBurrowed(enemy);
+}
+
+function startBurrow(runtime: EnemyAdvanceRuntime, enemy: Enemy) {
+  enemy.burrowed = true;
+  enemy.blockedByTowerId = undefined;
+  enemy.blockedSince = undefined;
+  enemy.body.setAlpha(0.82);
+  setBurrowArrowTipVisible(enemy, true);
+  syncEnemyVisualScale(enemy);
+  makeShellBurst(runtime.scene, enemy.x, enemy.y, CELL_WIDTH * 0.6, "physical");
+  syncEnemyBodyPosition(enemy);
+}
+
+function emergeBurrowArrow(runtime: EnemyAdvanceRuntime, carrier: Enemy) {
+  carrier.x = BOARD_X + CELL_WIDTH / 2;
+  carrier.burrowed = false;
+  carrier.burrowUnloaded = true;
+  carrier.movementDirection = 1;
+  carrier.body.setAlpha(1);
+  setBurrowArrowTipVisible(carrier, false);
+  syncBurrowArrowFacing(carrier);
+  syncEnemyVisualScale(carrier);
+  syncEnemyBodyPosition(carrier);
+  makeShockPulse(runtime.scene, carrier.x, carrier.y, CELL_WIDTH * 0.72, CELL_HEIGHT * 0.72);
+
+  releaseBurrowCargo(runtime, carrier, { reverseDirection: true });
+}
+
+export function releaseBurrowCargo(
+  runtime: EnemySpawnRuntime,
+  carrier: Enemy,
+  options: { reverseDirection?: boolean } = {}
+) {
+  const cargo = carrier.burrowCargo ?? [];
+  carrier.burrowCargo = [];
+  cargo.forEach((enemy, index) => {
+    if (runtime.enemies.includes(enemy)) {
+      return;
+    }
+
+    enemy.lane = carrier.lane;
+    enemy.y = carrier.y;
+    enemy.x = carrier.x + 22 + index * 10;
+    if (options.reverseDirection) {
+      enemy.movementDirection = 1;
+    }
+    enemy.blockedByTowerId = undefined;
+    enemy.blockedSince = undefined;
+    enemy.body.setVisible(true);
+    enemy.body.setAlpha(1);
+    enemy.body.setDepth(60 + enemy.lane);
+    syncEnemyBodyPosition(enemy);
+    runtime.enemies.push(enemy);
+    makeShiftEffect(runtime.scene, carrier.x, carrier.y, enemy.x, enemy.y);
+  });
+}
+
+function burrowCargoCapacity(enemy: Enemy) {
+  return enemyRank(enemy.kind) * 5;
+}
+
+function setBurrowArrowTipVisible(enemy: Enemy, visible: boolean) {
+  const fullShape = enemy.shape.getData("burrowFull") as Phaser.GameObjects.GameObject[] | undefined;
+  const tip = enemy.shape.getData("burrowTip") as Phaser.GameObjects.GameObject | undefined;
+  fullShape?.forEach((part) => {
+    const visiblePart = part as Phaser.GameObjects.GameObject & { setVisible(value: boolean): unknown };
+    visiblePart.setVisible(!visible);
+  });
+  const visibleTip = tip as (Phaser.GameObjects.GameObject & { setVisible(value: boolean): unknown }) | undefined;
+  visibleTip?.setVisible(visible);
+}
+
+function syncBurrowArrowFacing(enemy: Enemy) {
+  const frame = enemy.shape.getData("burrowFrame") as
+    | (Phaser.GameObjects.GameObject & { setScale(x: number, y?: number): unknown })
+    | undefined;
+  frame?.setScale(enemyMovementDirection(enemy) > 0 ? -1 : 1, 1);
+}
+
+function burrowCargoRank(enemy: Enemy) {
+  return (enemy.burrowCargo ?? []).reduce((total, cargo) => total + enemyRank(cargo.kind), 0);
+}
+
+function enemyMovementDirection(enemy: Enemy) {
+  return enemy.movementDirection ?? -1;
+}
+
+function removeEscapedReverseEnemy(runtime: EnemyAdvanceRuntime, enemy: Enemy) {
+  Phaser.Utils.Array.Remove(runtime.enemies, enemy);
+  enemy.body.destroy();
+}
+
+function fireLeaderAreaAttack(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number) {
+  const radius = CELL_WIDTH * 1.75;
+  makeHeartPulse(runtime.scene, enemy.x, enemy.y, radius);
+  for (const tower of runtime.towers) {
+    const distance = Math.hypot(tower.x - enemy.x, tower.y - enemy.y);
+    if (distance > radius) {
+      continue;
+    }
+
+    const falloff = 1 - distance / radius;
+    runtime.damageTower(tower, enemy.damage * statusAttackMultiplier(enemy, time) * falloff, enemy.damageType);
+  }
+}
+
+function advanceHexMace(
+  runtime: EnemyAdvanceRuntime,
+  enemy: Enemy,
+  blocker: Tower,
+  time: number,
+  statusMultiplier: number,
+  supportMultiplier: number
+) {
+  if (!enemyIsMace(enemy.kind)) {
+    return false;
+  }
+
+  const movementMultiplier = movementSpeedMultiplier(runtime.towers, enemy.x, enemy.y) * statusMultiplier * supportMultiplier;
+  const rawVelocity = enemy.maceVelocity ?? 0;
+  const actualSpeed = Math.abs(rawVelocity) * movementMultiplier;
+  const damage = enemy.damage * (actualSpeed / 10) * statusAttackMultiplier(enemy, time);
+  makeShellBurst(runtime.scene, enemy.x, enemy.y, CELL_WIDTH * 0.85, enemy.damageType);
+  makeShockPulse(runtime.scene, enemy.x, enemy.y, CELL_WIDTH * 0.9, CELL_HEIGHT * 0.72);
+  if (damage > 0) {
+    runtime.damageTower(blocker, damage, enemy.damageType);
+  }
+
+  const bounceDirection = -Math.sign(rawVelocity) || -(enemy.maceFacingDirection ?? -1);
+  enemy.maceVelocity = 0;
+  enemy.x = blocker.x + bounceDirection * 39;
+  syncEnemyBodyPosition(enemy);
+  return true;
+}
+
+function advanceHexMaceMovement(
+  runtime: EnemyAdvanceRuntime,
+  enemy: Enemy,
+  seconds: number,
+  statusMultiplier: number,
+  supportMultiplier: number
+) {
+  if (!enemyIsMace(enemy.kind)) {
+    return false;
+  }
+
+  const velocity = enemy.maceVelocity ?? 0;
+  const facingDirection = enemy.maceFacingDirection ?? -1;
+  const nextVelocity = Phaser.Math.Clamp(
+    velocity + facingDirection * hexMaceAcceleration(enemy) * seconds,
+    -hexMaceMaxSpeed(enemy),
+    hexMaceMaxSpeed(enemy)
+  );
+  enemy.maceVelocity = nextVelocity;
+  enemy.x +=
+    nextVelocity *
+    seconds *
+    movementSpeedMultiplier(runtime.towers, enemy.x, enemy.y) *
+    statusMultiplier *
+    supportMultiplier;
+  syncEnemyBodyPosition(enemy);
+  return true;
+}
+
+function hexMaceAcceleration(enemy: Enemy) {
+  const maxSpeed = hexMaceMaxSpeed(enemy);
+  return (maxSpeed * maxSpeed) / (2 * 7 * CELL_WIDTH);
+}
+
+function hexMaceMaxSpeed(enemy: Enemy) {
+  return enemy.speed * 4;
 }
 
 function advanceSiegeRam(
@@ -325,14 +642,17 @@ function fireEnemyLaser(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number
     return;
   }
 
+  const direction = enemyMovementDirection(enemy);
   const targets = runtime.towers
-    .filter((tower) => tower.lane === enemy.lane && tower.x < enemy.x)
-    .sort((a, b) => b.x - a.x);
+    .filter((tower) => tower.lane === enemy.lane && (direction < 0 ? tower.x < enemy.x : tower.x > enemy.x))
+    .sort((a, b) => (direction < 0 ? b.x - a.x : a.x - b.x));
   const stoppingTarget = targets.find((tower) => tower.magicResistance > 0);
-  const hitTargets = stoppingTarget ? targets.filter((tower) => tower.x >= stoppingTarget.x) : targets;
-  const endX = stoppingTarget?.x ?? BOARD_X;
+  const hitTargets = stoppingTarget
+    ? targets.filter((tower) => (direction < 0 ? tower.x >= stoppingTarget.x : tower.x <= stoppingTarget.x))
+    : targets;
+  const endX = stoppingTarget?.x ?? (direction < 0 ? BOARD_X : BOARD_X + BOARD_WIDTH);
 
-  makeEnemyLaserEffect(runtime.scene, enemy.x - 24, enemy.y, endX);
+  makeEnemyLaserEffect(runtime.scene, enemy.x + direction * 24, enemy.y, endX);
   for (const tower of hitTargets) {
     makeEnemyHitShards(runtime.scene, tower.x, tower.y);
     runtime.damageTower(tower, enemy.damage * statusAttackMultiplier(enemy, time), enemy.damageType);

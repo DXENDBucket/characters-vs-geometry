@@ -27,6 +27,7 @@ export interface TowerProjectileSpec {
   splashRadius: number;
   angleDegrees: number;
   maxX: number;
+  limitDirection?: -1 | 1;
 }
 
 export function createTowerProjectile(scene: Phaser.Scene, spec: TowerProjectileSpec): Projectile {
@@ -63,15 +64,18 @@ export function createTowerProjectile(scene: Phaser.Scene, spec: TowerProjectile
     debuffDuration: spec.debuffDuration,
     splashRadius: spec.splashRadius,
     maxX: spec.maxX,
+    limitDirection: spec.limitDirection ?? (Math.cos(angle) < 0 ? -1 : 1),
     body
   };
 }
 
 export function createEnemyProjectile(scene: Phaser.Scene, enemy: Enemy, time: number): EnemyProjectile {
   const isDiamondShot = enemyFamily(enemy.kind) === "diamond";
+  const direction = enemy.movementDirection ?? -1;
+  const shotX = enemy.x + direction * 22;
   const body = isDiamondShot
     ? scene.add
-        .text(enemy.x - 22, enemy.y - 1, "*", {
+        .text(shotX, enemy.y - 1, "*", {
           color: "#ff6464",
           fontFamily: "monospace",
           fontSize: "22px",
@@ -79,12 +83,12 @@ export function createEnemyProjectile(scene: Phaser.Scene, enemy: Enemy, time: n
         })
         .setOrigin(0.5)
         .setDepth(91)
-    : scene.add.rectangle(enemy.x - 22, enemy.y, 18, 4, palette.enemyShot, 1).setDepth(91);
-  body.rotation = isDiamondShot ? 0 : Math.PI;
+    : scene.add.rectangle(shotX, enemy.y, 18, 4, palette.enemyShot, 1).setDepth(91);
+  body.rotation = isDiamondShot ? 0 : direction < 0 ? Math.PI : 0;
   return {
-    x: enemy.x - 22,
+    x: shotX,
     y: enemy.y,
-    vx: -430,
+    vx: direction * 430,
     damage: enemy.damage * statusAttackMultiplier(enemy, time),
     damageType: enemy.damageType,
     sourceLane: enemy.lane,
@@ -155,6 +159,7 @@ export function createMortarProjectile(scene: Phaser.Scene, spec: MortarProjecti
 }
 
 export function createReflectedProjectile(scene: Phaser.Scene, projectile: EnemyProjectile): Projectile {
+  const reflectedAngle = projectile.vx < 0 ? 0 : 180;
   return createTowerProjectile(scene, {
     type: "bolt",
     x: projectile.x,
@@ -164,14 +169,15 @@ export function createReflectedProjectile(scene: Phaser.Scene, projectile: Enemy
     damage: projectile.damage,
     damageType: projectile.damageType,
     splashRadius: 0,
-    angleDegrees: projectile.vx < 0 ? 0 : 180,
-    maxX: Number.POSITIVE_INFINITY
+    angleDegrees: reflectedAngle,
+    maxX: reflectedAngle === 180 ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY,
+    limitDirection: reflectedAngle === 180 ? -1 : 1
   });
 }
 
-export function isTowerProjectileOutOfBounds(projectile: Projectile, reachedMaxX: boolean) {
+export function isTowerProjectileOutOfBounds(projectile: Projectile, reachedLimitX: boolean) {
   return (
-    reachedMaxX ||
+    reachedLimitX ||
     projectile.x < BOARD_X - 60 ||
     projectile.x > BOARD_X + BOARD_WIDTH + 52 ||
     projectile.y < BOARD_Y - 60 ||

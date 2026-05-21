@@ -26,7 +26,7 @@ export function buildWaveKinds(
   const currentFlag = Math.floor(waveNumber / wavesPerFlag);
   const enemyPool = enemyKinds
     .map((kind) => enemies[kind])
-    .filter((enemy) => currentFlag >= (enemy.minFlag ?? 0));
+    .filter((enemy) => enemy.weight > 0 && currentFlag >= (enemy.minFlag ?? 0));
   if (enemyPool.length === 0) {
     return kinds;
   }

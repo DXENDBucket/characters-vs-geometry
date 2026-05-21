@@ -13,11 +13,23 @@ export type EnemyFamily =
   | "diamond"
   | "hexagon"
   | "chargingHexagon"
+  | "hexMace"
+  | "heart"
+  | "burrowArrow"
   | "invertedTriangle"
   | "shootingTriangle"
   | "dodecahedronCompanion"
   | "square";
-export type EnemyAttackMode = "melee" | "ranged" | "mortar" | "laser" | "blockedDetonator" | "siegeRam" | "companion";
+export type EnemyAttackMode =
+  | "melee"
+  | "ranged"
+  | "mortar"
+  | "laser"
+  | "blockedDetonator"
+  | "siegeRam"
+  | "mace"
+  | "leader"
+  | "companion";
 
 export interface BlockedDetonation {
   delay: number;
@@ -34,6 +46,7 @@ export interface EnemyRegistration {
   blockedDetonation?: BlockedDetonation;
   promotionKind?: EnemyKind;
   splitSpawnKind?: EnemyKind;
+  leader?: boolean;
 }
 
 const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
@@ -173,6 +186,29 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     nameKey: "enemy.chargingHexagon",
     attackMode: "melee"
   },
+  hexMace: {
+    definition: rawEnemyDefinitions.hexMace,
+    family: "hexMace",
+    rank: 1,
+    nameKey: "enemy.hexMace",
+    attackMode: "mace"
+  },
+  heart: {
+    definition: rawEnemyDefinitions.heart,
+    family: "heart",
+    rank: 1,
+    nameKey: "enemy.heart",
+    attackMode: "leader",
+    leader: true
+  },
+  burrowArrow: {
+    definition: rawEnemyDefinitions.burrowArrow,
+    family: "burrowArrow",
+    rank: 1,
+    nameKey: "enemy.burrowArrow",
+    attackMode: "melee",
+    leader: true
+  },
   invertedTriangle: {
     definition: rawEnemyDefinitions.invertedTriangle,
     family: "invertedTriangle",
@@ -293,6 +329,14 @@ export function enemyIsBlockedDetonator(kind: EnemyKind) {
 
 export function enemyIsSiegeRam(kind: EnemyKind) {
   return enemyRegistrations[kind].attackMode === "siegeRam";
+}
+
+export function enemyIsMace(kind: EnemyKind) {
+  return enemyRegistrations[kind].attackMode === "mace";
+}
+
+export function enemyIsLeader(kind: EnemyKind) {
+  return enemyRegistrations[kind].leader === true || enemyRegistrations[kind].attackMode === "leader";
 }
 
 export function enemyIsBossCompanion(kind: EnemyKind) {

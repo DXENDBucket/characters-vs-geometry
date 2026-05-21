@@ -1,6 +1,6 @@
 import type Phaser from "phaser";
 import { BOARD_Y, CELL_HEIGHT, palette } from "../config";
-import { getEnemyDefinition } from "../registry/enemies";
+import { enemyIsMace, getEnemyDefinition } from "../registry/enemies";
 import { createEnemyShape } from "../render/unitShapes";
 import type { Enemy, EnemyKind } from "../types";
 import { enemyAttackInterval, randomizedEnemySpeed } from "./enemyBehaviors";
@@ -19,6 +19,8 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
   const definition = getEnemyDefinition(options.kind);
   const y = BOARD_Y + options.lane * CELL_HEIGHT + CELL_HEIGHT / 2;
   const attackInterval = enemyAttackInterval(options.kind);
+  const speed = randomizedEnemySpeed(options.kind);
+  const isBurrowArrow = options.kind === "burrowArrow";
   const body = scene.add.container(options.x, y).setDepth(60 + options.lane);
   const statusBorder = scene.add.circle(0, 0, 28, palette.black, 0).setStrokeStyle(2, palette.magic, 0.92);
   const powerIcon = scene.add
@@ -58,7 +60,14 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
     maxHp: definition.hp,
     armor: definition.armor,
     magicResistance: definition.magicResistance,
-    speed: randomizedEnemySpeed(options.kind),
+    speed,
+    movementDirection: -1,
+    maceVelocity: enemyIsMace(options.kind) ? 0 : undefined,
+    maceFacingDirection: enemyIsMace(options.kind) ? -1 : undefined,
+    burrowAt: isBurrowArrow ? options.time + 6_000 : undefined,
+    burrowed: false,
+    burrowUnloaded: false,
+    burrowCargo: isBurrowArrow ? [] : undefined,
     damage: definition.damage,
     damageType: definition.damageType,
     finalDamageReduction: options.finalDamageReduction,

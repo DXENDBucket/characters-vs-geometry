@@ -5,6 +5,8 @@ import {
   enemyIsBlockedDetonator,
   enemyIsBossCompanion,
   enemyIsLaser,
+  enemyIsLeader,
+  enemyIsMace,
   enemyIsMortar,
   enemyIsRanged,
   enemyIsSiegeRam,
@@ -29,6 +31,10 @@ export function enemyAttackInterval(kind: EnemyKind) {
     return 2_000;
   }
 
+  if (enemyFamily(kind) === "heart") {
+    return 5_000;
+  }
+
   if (enemyFamily(kind) === "chargingHexagon") {
     return 2_000;
   }
@@ -42,6 +48,18 @@ export function enemyAttackInterval(kind: EnemyKind) {
 
 export function enemyScaleFromHp(hpRatio: number) {
   return 0.4 + Phaser.Math.Clamp(hpRatio, 0, 1) * 0.6;
+}
+
+export function enemyVisualScale(enemy: Enemy) {
+  return enemyScaleFromHp(enemy.hp / enemy.maxHp);
+}
+
+export function syncEnemyVisualScale(enemy: Enemy) {
+  enemy.shape.setScale(enemyVisualScale(enemy));
+}
+
+export function enemyIsBurrowed(enemy: Enemy) {
+  return enemy.burrowed === true;
 }
 
 export function promotedKind(kind: EnemyKind) {
@@ -68,6 +86,8 @@ export function applyEnemyPromotion(scene: Phaser.Scene, enemy: Enemy, kind: Ene
   enemy.attackInterval = enemyAttackInterval(kind);
   enemy.attackAt = Math.min(enemy.attackAt, battleTime + enemy.attackInterval);
   enemy.speed = randomizedEnemySpeed(kind);
+  enemy.maceVelocity = enemyIsMace(kind) ? 0 : undefined;
+  enemy.maceFacingDirection = enemyIsMace(kind) ? -1 : undefined;
   enemy.body.removeAll(true);
   enemy.statusBorder = scene.add.circle(0, 0, 28, palette.black, 0).setStrokeStyle(2, palette.magic, 0.92);
   enemy.statusBorder.setVisible(false);
@@ -94,7 +114,7 @@ export function applyEnemyPromotion(scene: Phaser.Scene, enemy: Enemy, kind: Ene
   enemy.shape = createEnemyShape(scene, kind, { squareSize: 42, shootingNoseX: -24 });
   enemy.skills = {};
   enemy.body.add([enemy.statusBorder, enemy.flyingHalo, enemy.shape, enemy.powerIcon, enemy.armorIcon]);
-  enemy.shape.setScale(enemyScaleFromHp(enemy.hp / enemy.maxHp));
+  syncEnemyVisualScale(enemy);
 }
 
 export function splitSpawnKind(kind: EnemyKind) {
@@ -116,6 +136,8 @@ export function canEnemyMelee(enemy: Enemy) {
     !enemyIsLaser(enemy.kind) &&
     !enemyIsBlockedDetonator(enemy.kind) &&
     !enemyIsSiegeRam(enemy.kind) &&
+    !enemyIsMace(enemy.kind) &&
+    enemyFamily(enemy.kind) !== "heart" &&
     !enemyIsBossCompanion(enemy.kind)
   );
 }
@@ -126,11 +148,12 @@ export function enemyVolleyShotCount(enemy: Enemy) {
 
 export function randomizedEnemySpeed(kind: EnemyKind) {
   const definition = getEnemyDefinition(kind);
-  return (
-    ENEMY_SPEED *
-    (definition.speedMultiplier ?? 1) *
-    Phaser.Math.FloatBetween(1 - ENEMY_SPEED_VARIANCE, 1 + ENEMY_SPEED_VARIANCE)
-  );
+  const baseSpeed = ENEMY_SPEED * (definition.speedMultiplier ?? 1);
+  if (enemyIsLeader(kind)) {
+    return baseSpeed;
+  }
+
+  return baseSpeed * Phaser.Math.FloatBetween(1 - ENEMY_SPEED_VARIANCE, 1 + ENEMY_SPEED_VARIANCE);
 }
 
 export function siegeRamSpeed(enemy: Enemy) {

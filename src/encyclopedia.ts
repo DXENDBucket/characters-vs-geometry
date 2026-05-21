@@ -36,6 +36,9 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
   const diamond2 = getEnemyDefinition("diamond2");
   const hexagon = getEnemyDefinition("hexagon");
   const chargingHexagon = getEnemyDefinition("chargingHexagon");
+  const hexMace = getEnemyDefinition("hexMace");
+  const heart = getEnemyDefinition("heart");
+  const burrowArrow = getEnemyDefinition("burrowArrow");
   const invertedTriangle = getEnemyDefinition("invertedTriangle");
   const invertedTriangle2 = getEnemyDefinition("invertedTriangle2");
   const shootingTriangle = getEnemyDefinition("shootingTriangle");
@@ -286,6 +289,66 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
         : "Fast melee support enemy. Its hexagon point faces the base, and its melee attack deals magic damage. It pushes enemies in the same lane that are farther from the base."
     },
     {
+      title: zh ? "六边形重锤系列" : "Hex Mace Series",
+      enemyKind: "hexMace",
+      lines: [
+        statLine([
+          [t("label.hp"), hexMace.hp],
+          [t("label.armor"), hexMace.armor],
+          [t("label.mr"), hexMace.magicResistance],
+          [t("label.atk"), damageText(hexMace.damage, hexMace.damageType)],
+          [t("label.speed"), speedText("hexMace")],
+          [t("label.weight"), hexMace.weight]
+        ]),
+        zh
+          ? "第 1 旗前不会自然出现；初始速度为 0，移动中持续朝面朝方向加速，7 格达到 4 倍基础速度"
+          : "Does not naturally appear before Flag 1; starts at 0 velocity and continuously accelerates toward its facing direction, reaching 4x base speed after 7 cells"
+      ],
+      description: zh
+        ? "冲撞型小怪，外观为两个共边六边形。被塔阻挡时不会自毁，而是按当前实际移速造成伤害：10 速度为 100% 基础攻击，20 速度为 200%，以此类推；随后弹开并把当前速度重置为 0，再重新朝面朝方向加速。"
+        : "Ramming minion drawn as two edge-linked hexagons. When blocked, it does not self-destruct; it deals damage based on current actual speed: 10 speed is 100% base attack, 20 speed is 200%, and so on. It then bounces away, resets current velocity to 0, and accelerates again toward its facing direction."
+    },
+    {
+      title: zh ? "潜地箭头领袖系列" : "Burrow Arrow Leader Series",
+      enemyKind: "burrowArrow",
+      lines: [
+        statLine([
+          [t("label.hp"), burrowArrow.hp],
+          [t("label.armor"), burrowArrow.armor],
+          [t("label.mr"), burrowArrow.magicResistance],
+          [t("label.atk"), damageText(burrowArrow.damage, burrowArrow.damageType)],
+          [t("label.speed"), speedText("burrowArrow")],
+          [t("label.weight"), zh ? "旗帜固定" : "flag fixed"]
+        ]),
+        zh
+          ? "领袖敌人：不计入常规出怪权重；等级 I 最多装载总等级 5 的非领袖小怪"
+          : "Leader enemy: does not count toward regular wave weight; rank I can load non-leader minions with total rank up to 5"
+      ],
+      description: zh
+        ? "碰到它的非领袖小怪会被装载。装满或出场 6 秒后潜地，只露出上侧小角；潜地期间不会被常规弹幕锁定或直接命中，但仍会被 AOE 波及，并获得 +300% 移速。在底线前一格中心出土后，它和装载的小怪都会转向另一侧，卸载只会发生一次。若它在装载期间死亡，装载的小怪会立刻在原地出现且不会反转朝向。"
+        : "Non-leader minions that touch it are loaded. Once full or after 6s on the field, it burrows and only its upper tip remains visible; while burrowed it cannot be targeted or directly hit by normal projectiles, but AOE still affects it, and it gains +300% movement speed. It resurfaces at the center of the cell before the base, turns itself and loaded minions around, and unloads only once. If it dies while carrying cargo, loaded minions immediately appear without reversing direction."
+    },
+    {
+      title: zh ? "心形领袖系列" : "Heart Leader Series",
+      enemyKind: "heart",
+      lines: [
+        statLine([
+          [t("label.hp"), heart.hp],
+          [t("label.armor"), heart.armor],
+          [t("label.mr"), heart.magicResistance],
+          [t("label.atk"), `${damageText(heart.damage, heart.damageType)} / 5s`],
+          [t("label.speed"), speedText("heart")],
+          [t("label.weight"), zh ? "旗帜固定" : "flag fixed"]
+        ]),
+        zh
+          ? "领袖敌人：不计入常规出怪权重；若在关卡出怪池中，只会在旗帜波固定刷出 1 个，且没有随机移速浮动"
+          : "Leader enemy: does not count toward regular wave weight; if present in a level pool, one fixed spawn appears on flag waves and it has no random speed variance"
+      ],
+      description: zh
+        ? "心形 I 会让同一行且位于自己身后的敌怪获得 50% 移速加成。每 5 秒以自身为中心释放半径 1.75 格、向外衰减的粉色爱心 AOE，造成真实伤害。引领技能每秒回复 1 技力，5 技力满时把本列和身后四列、上下两行内的普通小怪牵引到本行；领袖、Boss 和 Boss 眷属不会被牵引。"
+        : "Heart I gives same-lane enemies behind it +50% movement speed. Every 5s it releases a pink heart AOE centered on itself with 1.75-cell radius and outward falloff, dealing true damage. Lead gains 1 SP/s; at 5 SP, it pulls ordinary minions in its column plus four columns behind, within two lanes up/down, into its lane. Leaders, Bosses, and Boss companions are not pulled."
+    },
+    {
       title: zh ? "正方体 Boss 系列" : "Cube Boss Series",
       icon: "cube",
       lines: [
@@ -430,7 +493,8 @@ function towerDescription(id: CardId) {
     A: zh ? "直线物理射手。沿本行平射，命中后有碎片粒子。" : "Straight physical shooter. Fires along its lane with hit shards.",
     a: zh ? "短程免费物理射手。机制类似 A，但只攻击自身和前方 4 格内的目标。" : "Free short-range physical shooter. Similar to A, but only attacks within itself plus 4 tiles ahead.",
     B: zh ? "防御塔。阻挡敌怪，只会对近战伤害反伤 400 物理伤害。" : "Defender. Blocks enemies and reflects 400 physical damage only against melee hits.",
-    C: zh ? "物理溅射炮。沿本行发射炮弹，命中后对 1.75 格半径造成范围伤害。" : "Physical splash cannon. Fires down its lane and deals 1.75-cell radius splash on hit.",
+    b: zh ? "小 b。放在已有塔上，短暂占格后让目标塔切换朝向；反向塔会镜像边框和字符，并显示黄色 < 标记。再次使用可转回正向。" : "Turn card. Place it on an existing tower; it briefly occupies the cell, then toggles that tower's facing. Reversed towers mirror their border and letter and show a yellow < marker. Use it again to turn the tower back.",
+    C: zh ? "物理溅射炮。沿本行发射炮弹，命中后对 1.75 格半径造成随距离衰减的范围伤害。" : "Physical splash cannon. Fires down its lane and deals 1.75-cell radius splash with distance falloff on hit.",
     c: zh ? "极速钟。每秒回复 1 技力，20 满后显示边框；点击消耗全部技力，使自身进入 10 秒闪烁状态。所有激活的 c 会让其他卡槽冷却速度变为等级和 +1 倍，c 自身卡槽冷却不受影响；Shift+点击可同时激活所有满技力的 c。" : "Speed clock. Gains 1 SP/s up to 20 and shows its border when full; clicking it spends all SP and makes it flash for 10s. Active c towers make other card-slot cooldown speed equal active level sum + 1; c's own card cooldown is unaffected. Shift-click activates all full c towers.",
     D: zh ? "纯防御塔。高护甲，用来拖住近战敌怪。" : "Pure defender with high armor for stalling melee enemies.",
     O: zh ? "抗法防御塔。机制和 D 类似，拥有高护甲和中等法术抗性。" : "Magic-resistant defender. Similar to D, with high armor and moderate magic resistance.",
@@ -445,12 +509,12 @@ function towerDescription(id: CardId) {
     f: zh ? "全场凝滞触发器。机制和 F 类似，触发时消失，不造成伤害，而是让全场普通敌怪获得凝滞。" : "Global Stasis trigger. Similar trigger rules to F; disappears on trigger and deals no damage, applying Stasis to all ordinary enemies on the field.",
     l: zh ? "列式法术触发器。机制和 F 类似，可被点击主动引爆；触发时消失，对整列横向 0.75 格范围造成一次法术伤害。" : "Column magic trigger. Similar to F and can be clicked to detonate manually; disappears on trigger and deals one magic hit to a full-column area with 0.75-cell horizontal range.",
     G: zh ? "延迟触发器。放置 15 秒后准备完成，接触敌怪时消失并造成高额法术伤害。" : "Delayed trigger. Arms after 15s, then disappears on contact to deal heavy magic damage.",
-    H: zh ? "治疗塔。治疗自身列和前方一列、以自己为中心三行内生命百分比最低的一座塔。" : "Healer. Heals the lowest-HP-percent tower in a 2x3 area covering its column and the front column.",
+    H: zh ? "治疗塔。治疗以自身为中心 3x3 范围内生命百分比最低的一座塔。" : "Healer. Heals the lowest-HP-percent tower in a centered 3x3 area.",
     h: zh ? "守护者。每秒回复 1 技力，20 技力满后若自己或 3x3 范围内有缺血塔，会自动消耗 20 技力治疗自己，并治疗范围内生命百分比最低的一座缺血塔。" : "Guardian. Gains 1 SP/s up to 20; when full, if itself or a tower in its 3x3 area is damaged, it spends 20 SP to heal itself and the lowest-HP-percent damaged tower in that area.",
     P: zh ? "广域治疗塔。治疗自身列和前方四列、以自己为中心三行内生命百分比最低的一座塔。" : "Wide healer. Heals the lowest-HP-percent tower in a 5x3 area covering its column plus four forward columns.",
     I: zh ? "短程法术射手。只攻击自身和前方 5 格内的目标。" : "Short-range magic shooter. Attacks only within itself plus five tiles ahead.",
     Q: zh ? "整行控制射手。沿本行发射 $ 法术弹幕；命中普通敌怪后施加 1 秒凝滞，使其移动速度变为三分之一。Boss 不会受到凝滞影响。" : "Full-lane control shooter. Fires $ magic projectiles along its lane; hits apply 1s Stasis to ordinary enemies, reducing movement speed to one third. Bosses ignore Stasis.",
-    J: zh ? "短程法术溅射。范围和 I 一致，发射 # 弹幕并造成 1.75 格半径范围法术伤害。" : "Short-range magic splash attacker. Same range as I, firing # projectiles with 1.75-cell radius splash.",
+    J: zh ? "短程法术溅射。范围和 I 一致，发射 # 弹幕并造成 1.75 格半径、随距离衰减的范围法术伤害。" : "Short-range magic splash attacker. Same range as I, firing # projectiles with 1.75-cell radius splash and distance falloff.",
     K: zh ? "近程斩击塔。攻击自身一格和前方两格内的单体目标，释放十字斩特效。" : "Close-range slasher. Hits one target within itself plus two tiles ahead, with a cross slash.",
     k: zh ? "近程推波塔。攻击自身列和前方一列的上下三行，并额外覆盖本行更前方一格；每秒释放弧形推波，对范围内所有敌怪造成法术伤害。" : "Close-range wave attacker. Covers a 2x3 area over its column and the next column plus one extra forward cell in its lane; every second releases an arc wave that deals magic damage to all enemies in range.",
     S: zh ? "主动术法迫击塔。30 技力满后显示边框；点击进入瞄准，指定任意落点后连射三发 S 形抛物线迫击弹，每发造成 3x3 范围法术伤害。右键或点击其他 UI 可取消瞄准。" : "Active spell mortar. At 30 SP, shows its border; click to aim, then choose any target point to fire three arcing S shells, each dealing 3x3 magic AOE damage. Right-click or clicking other UI cancels aiming.",
@@ -468,6 +532,9 @@ function towerUpgradeText(id: CardId) {
   const zh = isZh();
   if (id === "U") {
     return zh ? "每级提高自身等级，因此光环提供的额外等级也会提高。" : "Each level raises U's own level, increasing the bonus levels its aura grants.";
+  }
+  if (id === "b") {
+    return zh ? "每级提高自身等级；生效后会返还冷却，最终剩余冷却为基础冷却 / 有效等级。" : "Each level raises b's level; after it resolves, it refunds cooldown so the remaining cooldown is base cooldown / effective level.";
   }
   if (id === "A" || id === "a" || id === "C" || id === "E" || id === "M" || id === "W" || id === "I" || id === "Q" || id === "J" || id === "H" || id === "P" || id === "K" || id === "Z") {
     return zh ? "增加连发次数；整段连射固定占攻击/治疗间隔的五分之一。" : "Adds burst count; the whole volley always takes one fifth of the attack/heal interval.";

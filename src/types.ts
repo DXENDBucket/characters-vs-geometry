@@ -4,6 +4,7 @@ export type CardId =
   | "A"
   | "a"
   | "B"
+  | "b"
   | "C"
   | "c"
   | "D"
@@ -53,6 +54,9 @@ export type EnemyKind =
   | "diamond2"
   | "hexagon"
   | "chargingHexagon"
+  | "hexMace"
+  | "heart"
+  | "burrowArrow"
   | "invertedTriangle"
   | "invertedTriangle2"
   | "shootingTriangle"
@@ -170,9 +174,14 @@ export interface Tower {
   autoUpgrade: boolean;
   reflectProjectiles: boolean;
   nextRepelDirection: -1 | 1;
+  facingDirection: -1 | 1;
+  transient: boolean;
+  turnTargetId?: string;
   placedOrder: number;
   body: Phaser.GameObjects.Container;
   border: Phaser.GameObjects.Graphics;
+  label: Phaser.GameObjects.Text;
+  facingIcon: Phaser.GameObjects.Text;
   autoUpgradeBorder: Phaser.GameObjects.Graphics;
   hpFill: Phaser.GameObjects.Rectangle;
   levelText: Phaser.GameObjects.Text;
@@ -191,6 +200,13 @@ export interface Enemy {
   armor: number;
   magicResistance: number;
   speed: number;
+  movementDirection?: -1 | 1;
+  maceVelocity?: number;
+  maceFacingDirection?: -1 | 1;
+  burrowAt?: number;
+  burrowed?: boolean;
+  burrowUnloaded?: boolean;
+  burrowCargo?: Enemy[];
   damage: number;
   damageType: DamageType;
   finalDamageReduction: number;
@@ -227,6 +243,7 @@ export interface Projectile {
   debuffDuration?: number;
   splashRadius: number;
   maxX: number;
+  limitDirection: -1 | 1;
   body: Phaser.GameObjects.Shape | Phaser.GameObjects.Text;
 }
 

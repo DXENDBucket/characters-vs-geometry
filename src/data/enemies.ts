@@ -203,6 +203,40 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     speedMultiplier: 2.5,
     weight: 150
   },
+  hexMace: {
+    kind: "hexMace",
+    label: "1",
+    hp: 18_000,
+    armor: 150,
+    magicResistance: 0,
+    damage: 400,
+    damageType: "physical",
+    speedMultiplier: 2,
+    weight: 275,
+    minFlag: 1
+  },
+  heart: {
+    kind: "heart",
+    label: "1",
+    hp: 9_999,
+    armor: 399,
+    magicResistance: 60,
+    damage: 2_100,
+    damageType: "true",
+    speedMultiplier: 3,
+    weight: 0
+  },
+  burrowArrow: {
+    kind: "burrowArrow",
+    label: "1",
+    hp: 16_500,
+    armor: 250,
+    magicResistance: 0,
+    damage: 400,
+    damageType: "physical",
+    speedMultiplier: 2,
+    weight: 0
+  },
   invertedTriangle: {
     kind: "invertedTriangle",
     label: "1",

@@ -13,6 +13,7 @@ export type EnemySkillDefinition = RegisteredSkillDefinition<Enemy, EnemySkillRu
 export interface EnemySkillActions {
   updateHexHeal: EnemySkillDefinition["update"];
   updateAngelWings: EnemySkillDefinition["update"];
+  updateHeartLead: EnemySkillDefinition["update"];
 }
 
 export function createEnemySkillRegistry(
@@ -29,6 +30,12 @@ export function createEnemySkillRegistry(
       {
         stateKey: "wings",
         update: actions.updateAngelWings
+      }
+    ],
+    heart: [
+      {
+        stateKey: "lead",
+        update: actions.updateHeartLead
       }
     ]
   };

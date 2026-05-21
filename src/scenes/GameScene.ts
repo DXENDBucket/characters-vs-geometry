@@ -41,9 +41,13 @@ import {
   effectiveTowerLevel,
   getHitProductionAmount,
   getProductionAmount,
+  applyTowerUpgradeStats,
+  createTower,
   setTowerAutoUpgradeState,
   syncTowerDerivedStats,
-  syncTowerLevelText
+  syncTowerLevelText,
+  toggleTowerFacing,
+  upgradeTowerLevel
 } from "../game/towers";
 import { TowerDeploymentController, type TowerDeploymentRuntime } from "../game/towerDeployment";
 import { TowerSkillController, type TowerSkillRuntime } from "../game/towerSkills";
@@ -350,6 +354,12 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    const definition = this.getSelectedDefinition();
+    if (definition.id === "b") {
+      this.handleTurnCardPlacement(definition, lane, column, existingTower);
+      return;
+    }
+
     if (existingTower?.type === "c" && this.towerSkills.isClockTowerReady(existingTower)) {
       if (this.isShiftPointer(pointer)) {
         this.towerSkills.activateReadyClockTowers();
@@ -370,7 +380,6 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    const definition = this.getSelectedDefinition();
     const cardState = this.cardStates.find((card) => card.definition.id === definition.id);
     const effectiveChars = this.effectiveChars();
     const canUpgradeManualShockTower =
@@ -401,6 +410,123 @@ export class GameScene extends Phaser.Scene {
 
     this.spendChars(definition.cost);
     cardState.readyAt = this.cardTimeFor(definition.id) + definition.cooldown;
+  }
+
+  private handleTurnCardPlacement(definition: CardDefinition, lane: number, column: number, target?: Tower) {
+    const cardState = this.cardStates.find((card) => card.definition.id === definition.id);
+    if (!cardState || this.cardTimeFor(definition.id) < cardState.readyAt) {
+      this.showToast(t("toast.cooldown"));
+      return;
+    }
+
+    if (this.effectiveChars() < definition.cost) {
+      this.showToast(t("toast.noChars"));
+      return;
+    }
+
+    if (!target) {
+      this.showToast(t("toast.empty"));
+      return;
+    }
+
+    const pendingTurnCard = this.findPendingTurnCard(lane, column);
+    if (pendingTurnCard) {
+      this.upgradePendingTurnCard(pendingTurnCard, definition);
+    } else {
+      this.placePendingTurnCard(definition, lane, column, target);
+    }
+
+    this.spendChars(definition.cost);
+    cardState.readyAt = this.cardTimeFor(definition.id) + definition.cooldown;
+    this.updateCards(this.cardTime);
+  }
+
+  private placePendingTurnCard(definition: CardDefinition, lane: number, column: number, target: Tower) {
+    const turnCard = createTower(
+      this,
+      definition,
+      lane,
+      column,
+      this.battleTime,
+      this.nextTowerOrder(),
+      { transient: true, turnTargetId: target.id }
+    );
+
+    turnCard.body.setDepth(45 + lane);
+    this.towers.push(turnCard);
+    this.updateLevelAuras();
+    this.time.delayedCall(0, () => this.runWhenBattleActive(() => this.resolvePendingTurnCard(turnCard)));
+  }
+
+  private upgradePendingTurnCard(tower: Tower, definition: CardDefinition) {
+    const gainedEffectiveUpgrades = upgradeTowerLevel(tower);
+    applyTowerUpgradeStats(tower, definition, gainedEffectiveUpgrades, this.battleTime);
+    this.updateLevelAuras();
+    this.tweens.add({
+      targets: tower.body,
+      scale: 1.08,
+      yoyo: true,
+      duration: 90,
+      ease: "Quad.easeOut"
+    });
+  }
+
+  private resolvePendingTurnCard(turnCard: Tower) {
+    if (!this.towers.includes(turnCard)) {
+      return;
+    }
+
+    const definition = this.getDefinition(turnCard.type);
+    const level = effectiveTowerLevel(turnCard);
+    const target = this.towers.find((tower) => tower.id === turnCard.turnTargetId);
+    if (target) {
+      toggleTowerFacing(target);
+      this.makeTurnCardPulse(target);
+    }
+
+    removeTower(this.unitLifecycleRuntime(), turnCard);
+    this.updateLevelAuras();
+
+    const cardState = this.cardStates.find((card) => card.definition.id === definition.id);
+    if (cardState) {
+      cardState.readyAt = Math.min(cardState.readyAt, this.cardTimeFor(definition.id) + definition.cooldown / level);
+      this.updateCards(this.cardTime);
+    }
+  }
+
+  private findPendingTurnCard(lane: number, column: number) {
+    return this.towers.find((tower) => tower.transient && tower.type === "b" && tower.lane === lane && tower.column === column);
+  }
+
+  private makeTurnCardPulse(tower: Tower) {
+    const ring = this.add.circle(tower.x, tower.y, 24, palette.black, 0).setStrokeStyle(2, palette.gold, 0.95);
+    ring.setDepth(108);
+    const marker = this.add
+      .text(tower.x - 36, tower.y - 4, tower.facingDirection === -1 ? "<" : ">", {
+        color: "#ffd75a",
+        fontFamily: "monospace",
+        fontSize: "24px",
+        fontStyle: "700"
+      })
+      .setOrigin(0.5)
+      .setDepth(109);
+
+    this.tweens.add({
+      targets: ring,
+      scale: 1.75,
+      alpha: 0,
+      duration: 260,
+      ease: "Quad.easeOut",
+      onComplete: () => ring.destroy()
+    });
+    this.tweens.add({
+      targets: marker,
+      alpha: 0,
+      y: marker.y - 12,
+      duration: 300,
+      ease: "Quad.easeOut",
+      onComplete: () => marker.destroy()
+    });
   }
 
   private updateProducers(time: number) {
@@ -589,11 +715,7 @@ export class GameScene extends Phaser.Scene {
       cardTimeFor: (id) => this.cardTimeFor(id),
       getChars: () => this.effectiveChars(),
       spendChars: (amount) => this.spendChars(amount),
-      nextTowerOrder: () => {
-        const order = this.towerOrder;
-        this.towerOrder += 1;
-        return order;
-      },
+      nextTowerOrder: () => this.nextTowerOrder(),
       resetTowerSkill: (tower) => this.towerSkills.resetTowerSkill(tower),
       updateLevelAuras: () => this.updateLevelAuras(),
       updateCards: () => this.updateCards(this.cardTime)
@@ -693,6 +815,12 @@ export class GameScene extends Phaser.Scene {
       damageBoss: (damage, damageType) => damageBoss(this.unitLifecycleRuntime(), damage, damageType),
       runWhenBattleActive: (action) => this.runWhenBattleActive(action)
     };
+  }
+
+  private nextTowerOrder() {
+    const order = this.towerOrder;
+    this.towerOrder += 1;
+    return order;
   }
 
   private updateTowers(time: number) {
@@ -1031,6 +1159,11 @@ export class GameScene extends Phaser.Scene {
   private handleKey(key: string) {
     if (key === "c" && this.selectedCardIds.includes("c")) {
       this.selectCard("c");
+      return;
+    }
+
+    if (key === "b" && this.selectedCardIds.includes("b")) {
+      this.selectCard("b");
       return;
     }
 

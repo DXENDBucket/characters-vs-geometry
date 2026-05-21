@@ -20,9 +20,10 @@ import {
   isEnemyProjectileOutOfBounds,
   isTowerProjectileOutOfBounds
 } from "./projectiles";
+import { enemyIsBurrowed } from "./enemyBehaviors";
 import { movementSpeedMultiplier } from "./slowAura";
 import { applyStatusEffect } from "./statusEffects";
-import { isBossInRadius, isBossInRect, isPointInBossHitbox, towerRect } from "./targeting";
+import { bossRect, isBossInRadius, isBossInRect, isPointInBossHitbox, towerRect } from "./targeting";
 
 export interface ProjectileRuntime {
   scene: Phaser.Scene;
@@ -42,18 +43,18 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
   for (const projectile of [...runtime.projectiles]) {
     const speedMultiplier = movementSpeedMultiplier(runtime.towers, projectile.x, projectile.y);
     const nextX = projectile.x + projectile.vx * seconds * speedMultiplier;
-    const reachedMaxX = nextX >= projectile.maxX;
-    projectile.x = reachedMaxX ? projectile.maxX : nextX;
+    const reachedLimitX = projectile.limitDirection < 0 ? nextX <= projectile.maxX : nextX >= projectile.maxX;
+    projectile.x = reachedLimitX ? projectile.maxX : nextX;
     projectile.y += projectile.vy * seconds * speedMultiplier;
     projectile.body.setPosition(projectile.x, projectile.y);
 
     const hit = runtime.enemies.find((enemy) => {
-      return Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y) < enemyProjectileHitRadius(enemy);
+      return !enemyIsBurrowed(enemy) && Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y) < enemyProjectileHitRadius(enemy);
     });
     const hitBoss = isPointInBossHitbox(runtime.getBoss(), projectile.x, projectile.y);
 
     if (!hit && !hitBoss) {
-      if (isTowerProjectileOutOfBounds(projectile, reachedMaxX)) {
+      if (isTowerProjectileOutOfBounds(projectile, reachedLimitX)) {
         removeProjectile(runtime.projectiles, projectile);
       }
       continue;
@@ -77,15 +78,17 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
       for (const enemy of [...runtime.enemies]) {
         const dx = enemy.x - burstX;
         const dy = enemy.y - burstY;
-        if (Math.hypot(dx, dy) <= projectile.splashRadius) {
-          runtime.damageEnemy(enemy, projectile.damage, projectile.damageType);
+        const falloff = radiusFalloff(Math.hypot(dx, dy), projectile.splashRadius);
+        if (falloff > 0) {
+          runtime.damageEnemy(enemy, projectile.damage * falloff, projectile.damageType);
           if (runtime.enemies.includes(enemy)) {
             applyProjectileDebuff(runtime.scene, projectile, enemy, runtime.battleTime);
           }
         }
       }
-      if (isBossInRadius(runtime.getBoss(), burstX, burstY, projectile.splashRadius)) {
-        runtime.damageBoss(projectile.damage, projectile.damageType);
+      const bossFalloff = bossRadiusFalloff(runtime.getBoss(), burstX, burstY, projectile.splashRadius);
+      if (bossFalloff > 0) {
+        runtime.damageBoss(projectile.damage * bossFalloff, projectile.damageType);
       }
     }
 
@@ -172,6 +175,25 @@ function enemyProjectileHitRadius(enemy: Enemy) {
 function removeEnemyProjectile(projectiles: EnemyProjectile[], projectile: EnemyProjectile) {
   Phaser.Utils.Array.Remove(projectiles, projectile);
   projectile.body.destroy();
+}
+
+function radiusFalloff(distance: number, radius: number) {
+  if (radius <= 0) {
+    return 0;
+  }
+
+  return Phaser.Math.Clamp(1 - distance / radius, 0, 1);
+}
+
+function bossRadiusFalloff(boss: CubeBoss | null, x: number, y: number, radius: number) {
+  if (!boss) {
+    return 0;
+  }
+
+  const rect = bossRect(boss);
+  const closestX = Phaser.Math.Clamp(x, rect.left, rect.right);
+  const closestY = Phaser.Math.Clamp(y, rect.top, rect.bottom);
+  return radiusFalloff(Math.hypot(x - closestX, y - closestY), radius);
 }
 
 function syncMortarTarget(runtime: ProjectileRuntime, projectile: MortarProjectile) {
@@ -293,7 +315,10 @@ function detonateSingleTargetTowerMortar(runtime: ProjectileRuntime, projectile:
   const hitRadius = projectile.hitRadius ?? 22;
   const target = [...runtime.enemies]
     .filter((enemy) => {
-      return Math.hypot(enemy.x - projectile.targetX, enemy.y - projectile.targetY) <= Math.max(hitRadius, enemyProjectileHitRadius(enemy));
+      return (
+        !enemyIsBurrowed(enemy) &&
+        Math.hypot(enemy.x - projectile.targetX, enemy.y - projectile.targetY) <= Math.max(hitRadius, enemyProjectileHitRadius(enemy))
+      );
     })
     .sort((a, b) => {
       const distanceA = Math.hypot(a.x - projectile.targetX, a.y - projectile.targetY);

@@ -5,6 +5,7 @@ import { makeArcWaveEffect, makeHealParticles, makeShiftEffect, makeSlashEffect 
 import type { CardDefinition, CardId, CubeBoss, Enemy, Tower } from "../types";
 import {
   getProjectilePattern,
+  getCardAttackArea,
   muzzleFaceOffsets,
   type MuzzlePoint,
   type ProjectilePatternConfig
@@ -15,7 +16,7 @@ import { createMortarProjectile, createTowerProjectile, type TowerProjectileSpec
 import { movementSpeedMultiplier } from "./slowAura";
 import { statusSpeedMultiplier } from "./statusEffects";
 import {
-  attackRangeRight,
+  attackRangeLimitX,
   bossRect,
   canAttackBoss,
   getAttackTarget,
@@ -28,7 +29,7 @@ import {
   hasAttackTarget
 } from "./targeting";
 import { syncEnemyBodyPosition } from "./statusEffects";
-import { effectiveTowerLevel, syncTowerHpBar } from "./towers";
+import { effectiveTowerLevel, syncTowerHpBar, towerFacingDirection } from "./towers";
 import { scaledByEffectiveUpgrades } from "./upgrades";
 
 export interface CardBehavior {
@@ -119,6 +120,7 @@ export const cardBehaviorsById: Record<CardId, CardBehavior> = {
   A: projectileCardBehavior,
   a: projectileCardBehavior,
   B: idleCardBehavior,
+  b: idleCardBehavior,
   C: projectileCardBehavior,
   c: idleCardBehavior,
   D: idleCardBehavior,
@@ -272,7 +274,7 @@ function fireSlash(tower: Tower, definition: CardDefinition, runtime: CardBehavi
   }
 
   const rect = bossRect(boss);
-  const x = Phaser.Math.Clamp(tower.x + CELL_WIDTH, rect.left, rect.right);
+  const x = Phaser.Math.Clamp(tower.x + towerFacingDirection(tower) * CELL_WIDTH, rect.left, rect.right);
   const y = Phaser.Math.Clamp(tower.y, rect.top, rect.bottom);
   makeSlashEffect(runtime.scene, x, y, damageType);
   runtime.damageBoss(damage, damageType);
@@ -282,7 +284,8 @@ function fireSlash(tower: Tower, definition: CardDefinition, runtime: CardBehavi
 function fireArcWave(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {
   const damage = scaledByEffectiveUpgrades(definition.damage ?? 0, effectiveTowerLevel(tower));
   const damageType = definition.damageType ?? "magic";
-  makeArcWaveEffect(runtime.scene, tower.x - CELL_WIDTH * 0.24, tower.y, damageType);
+  const direction = towerFacingDirection(tower);
+  makeArcWaveEffect(runtime.scene, tower.x - direction * CELL_WIDTH * 0.24, tower.y, damageType, direction);
 
   for (const enemy of arcWaveEnemyTargets(tower, runtime.enemies)) {
     runtime.damageEnemy(enemy, damage, damageType);
@@ -316,7 +319,7 @@ function firePredictiveMortar(tower: Tower, definition: CardDefinition, runtime:
   runtime.mortarProjectiles.push(
     createMortarProjectile(runtime.scene, {
       owner: "tower",
-      fromX: tower.x + 18,
+      fromX: tower.x + towerFacingDirection(tower) * 18,
       fromY: tower.y,
       targetX: target.x,
       targetY: target.y,
@@ -381,12 +384,13 @@ function arcWaveHitsBoss(tower: Tower, boss: CubeBoss | null) {
 
 function arcWaveCells(tower: Tower) {
   const cells: Phaser.Geom.Rectangle[] = [];
+  const direction = towerFacingDirection(tower);
   for (const lane of [tower.lane - 1, tower.lane, tower.lane + 1]) {
-    for (const column of [tower.column, tower.column + 1]) {
+    for (const column of [tower.column, tower.column + direction]) {
       addBoardCell(cells, lane, column);
     }
   }
-  addBoardCell(cells, tower.lane, tower.column + 2);
+  addBoardCell(cells, tower.lane, tower.column + direction * 2);
   return cells;
 }
 
@@ -429,15 +433,19 @@ function towerProjectileSpecs(tower: Tower, definition: CardDefinition): TowerPr
   }
 
   return pattern.shots.map((shot) => {
-    const muzzle = projectileMuzzlePoint(tower, shot.muzzle ?? pattern.defaultMuzzle);
+    const mirrored = shouldMirrorProjectilePattern(tower, pattern);
+    const angleDegrees = mirrored ? 180 - shot.angleDegrees : shot.angleDegrees;
+    const muzzle = projectileMuzzlePoint(tower, shot.muzzle ?? pattern.defaultMuzzle, mirrored);
+    const limitDirection = Math.cos(Phaser.Math.DegToRad(angleDegrees)) < 0 ? -1 : 1;
     return makeProjectileSpec(
       pattern,
       muzzle.x,
       muzzle.y,
       tower.lane,
       definition,
-      shot.angleDegrees,
-      projectileMaxX(tower, definition, pattern)
+      angleDegrees,
+      projectileLimitX(tower, definition, pattern, limitDirection),
+      limitDirection
     );
   });
 }
@@ -449,7 +457,8 @@ function makeProjectileSpec(
   lane: number,
   definition: CardDefinition,
   angleDegrees: number,
-  maxX = Number.POSITIVE_INFINITY
+  maxX = Number.POSITIVE_INFINITY,
+  limitDirection: -1 | 1 = 1
 ): TowerProjectileSpec {
   return {
     type: pattern.projectileKind,
@@ -463,16 +472,49 @@ function makeProjectileSpec(
     debuffDuration: definition.projectileDebuffDuration,
     splashRadius: projectileSplashRadius(pattern, definition),
     angleDegrees,
-    maxX
+    maxX,
+    limitDirection
   };
 }
 
-function projectileMuzzlePoint(tower: Tower, muzzle: MuzzlePoint) {
-  const faceOffset = muzzleFaceOffsets[muzzle.face];
+function projectileMuzzlePoint(tower: Tower, muzzle: MuzzlePoint, mirrored: boolean) {
+  const adjustedMuzzle = mirrored ? mirrorMuzzle(muzzle) : muzzle;
+  const faceOffset = muzzleFaceOffsets[adjustedMuzzle.face];
   return {
-    x: tower.x + faceOffset.x + (muzzle.offsetX ?? 0),
-    y: tower.y + faceOffset.y + (muzzle.offsetY ?? 0)
+    x: tower.x + faceOffset.x + (adjustedMuzzle.offsetX ?? 0),
+    y: tower.y + faceOffset.y + (adjustedMuzzle.offsetY ?? 0)
   };
+}
+
+function shouldMirrorProjectilePattern(tower: Tower, pattern: ProjectilePatternConfig) {
+  if (towerFacingDirection(tower) > 0) {
+    return false;
+  }
+
+  const area = pattern.maxTravelArea ?? getCardAttackArea(tower.type);
+  if (area.kind === "verticalFan") {
+    return false;
+  }
+
+  return true;
+}
+
+function mirrorMuzzle(muzzle: MuzzlePoint): MuzzlePoint {
+  return {
+    ...muzzle,
+    face: mirrorMuzzleFace(muzzle.face),
+    offsetX: muzzle.offsetX ? -muzzle.offsetX : muzzle.offsetX
+  };
+}
+
+function mirrorMuzzleFace(face: MuzzlePoint["face"]): MuzzlePoint["face"] {
+  if (face === "right") {
+    return "left";
+  }
+  if (face === "left") {
+    return "right";
+  }
+  return face;
 }
 
 function projectileSplashRadius(pattern: ProjectilePatternConfig, definition: CardDefinition) {
@@ -482,10 +524,15 @@ function projectileSplashRadius(pattern: ProjectilePatternConfig, definition: Ca
   return pattern.splashRadius ?? 0;
 }
 
-function projectileMaxX(tower: Tower, definition: CardDefinition, pattern: ProjectilePatternConfig) {
+function projectileLimitX(
+  tower: Tower,
+  definition: CardDefinition,
+  pattern: ProjectilePatternConfig,
+  limitDirection: -1 | 1
+) {
   if (pattern.maxTravelArea) {
-    return attackRangeRight(tower, definition);
+    return attackRangeLimitX(tower, definition);
   }
 
-  return Number.POSITIVE_INFINITY;
+  return limitDirection < 0 ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY;
 }

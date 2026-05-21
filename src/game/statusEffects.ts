@@ -1,4 +1,4 @@
-import { palette } from "../config";
+import { CELL_HEIGHT, palette } from "../config";
 import type { Enemy, StatusEffectName } from "../types";
 
 const STATUS_SPEED_MULTIPLIERS: Record<StatusEffectName, number> = {
@@ -12,6 +12,7 @@ const STATUS_ATTACK_MULTIPLIERS: Partial<Record<StatusEffectName, number>> = {
   power: 1.3
 };
 const FLYING_DISPLAY_OFFSET_Y = -14;
+const BURROW_DISPLAY_OFFSET_Y = CELL_HEIGHT * 0.75;
 
 export function applyStatusEffect(
   enemy: Enemy,
@@ -63,7 +64,7 @@ export function isEnemyFlying(enemy: Enemy, time: number) {
 }
 
 export function syncEnemyBodyPosition(enemy: Enemy) {
-  enemy.body.setPosition(enemy.x, enemy.y + enemyFlyingVisualOffset(enemy));
+  enemy.body.setPosition(enemy.x, enemy.y + enemyDisplayOffsetY(enemy));
 }
 
 function removeExpiredStatusEffects(enemy: Enemy, time: number) {
@@ -89,9 +90,15 @@ function syncStatusVisuals(enemy: Enemy, time: number) {
     enemy.flyingHalo.setY(-42 + Math.sin(time / 110) * 2);
     enemy.flyingHalo.setScale(1 + Math.sin(time / 150) * 0.05, 1);
   }
-  enemy.body.setPosition(enemy.x, enemy.y + enemyFlyingVisualOffset(enemy, flyingActive, time));
+  enemy.body.setPosition(enemy.x, enemy.y + enemyDisplayOffsetY(enemy, flyingActive, time));
 }
 
-function enemyFlyingVisualOffset(enemy: Enemy, active = enemy.statusEffects.some((effect) => effect.name === "flying"), time = 0) {
-  return active ? FLYING_DISPLAY_OFFSET_Y + Math.sin(time / 130) * 2 : 0;
+function enemyDisplayOffsetY(
+  enemy: Enemy,
+  flyingActive = enemy.statusEffects.some((effect) => effect.name === "flying"),
+  time = 0
+) {
+  const flyingOffset = flyingActive ? FLYING_DISPLAY_OFFSET_Y + Math.sin(time / 130) * 2 : 0;
+  const burrowOffset = enemy.burrowed ? BURROW_DISPLAY_OFFSET_Y : 0;
+  return flyingOffset + burrowOffset;
 }

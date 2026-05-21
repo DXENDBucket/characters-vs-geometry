@@ -319,6 +319,96 @@ export function createEnemyShape(scene: Phaser.Scene, kind: EnemyKind, options: 
     return shape;
   }
 
+  if (family === "hexMace") {
+    const shape = scene.add.container(0, 0);
+    const mace = scene.add.graphics();
+    mace.fillStyle(palette.black, 1);
+    mace.lineStyle(2, palette.white, 1);
+    for (const centerX of [-22, 22]) {
+      mace.beginPath();
+      for (let index = 0; index < 6; index += 1) {
+        const angle = Phaser.Math.DegToRad(30 + index * 60);
+        const x = centerX + Math.cos(angle) * 25;
+        const y = Math.sin(angle) * 25;
+        if (index === 0) {
+          mace.moveTo(x, y);
+        } else {
+          mace.lineTo(x, y);
+        }
+      }
+      mace.closePath();
+      mace.fillPath();
+      mace.strokePath();
+    }
+    const leftLabel = createEnemyLabel(scene, -22, -1, kind, 15);
+    const rightLabel = createEnemyLabel(scene, 22, -1, kind, 15);
+    shape.add([mace, leftLabel, rightLabel]);
+    return shape;
+  }
+
+  if (family === "heart") {
+    const shape = scene.add.container(0, 0);
+    const heart = scene.add.graphics();
+    heart.fillStyle(palette.black, 1);
+    heart.lineStyle(2, palette.heart, 1);
+    heart.beginPath();
+    for (let index = 0; index <= 48; index += 1) {
+      const t = (Math.PI * 2 * index) / 48;
+      const x = 1.65 * 16 * Math.sin(t) ** 3;
+      const y = -1.65 * (13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)) + 3;
+      if (index === 0) {
+        heart.moveTo(x, y);
+      } else {
+        heart.lineTo(x, y);
+      }
+    }
+    heart.closePath();
+    heart.fillPath();
+    heart.strokePath();
+    const label = createEnemyLabel(scene, 0, 5, kind, 18, "#ff7eb6");
+    shape.add([heart, label]);
+    return shape;
+  }
+
+  if (family === "burrowArrow") {
+    const shape = scene.add.container(0, 0);
+    const arrow = scene.add.graphics();
+    arrow.fillStyle(palette.black, 1);
+    arrow.lineStyle(2, palette.white, 1);
+    arrow.beginPath();
+    arrow.moveTo(-30, 0);
+    arrow.lineTo(-7, -26);
+    arrow.lineTo(-2, -10);
+    arrow.lineTo(26, -10);
+    arrow.lineTo(12, 0);
+    arrow.lineTo(26, 10);
+    arrow.lineTo(-2, 10);
+    arrow.lineTo(-7, 26);
+    arrow.closePath();
+    arrow.fillPath();
+    arrow.strokePath();
+    arrow.lineStyle(1, palette.white, 0.52);
+    arrow.lineBetween(-7, -26, 12, 0);
+    arrow.lineBetween(-7, 26, 12, 0);
+    const label = createEnemyLabel(scene, -4, 0, kind);
+    const tip = scene.add.graphics();
+    tip.fillStyle(palette.black, 1);
+    tip.lineStyle(2, palette.white, 1);
+    tip.beginPath();
+    tip.moveTo(0, -27);
+    tip.lineTo(10, -11);
+    tip.lineTo(-10, -11);
+    tip.closePath();
+    tip.fillPath();
+    tip.strokePath();
+    tip.setVisible(false);
+    shape.setData("burrowFrame", arrow);
+    shape.setData("burrowFull", [arrow, label]);
+    shape.setData("burrowTip", tip);
+    shape.add([arrow, label, tip]);
+    return shape;
+  }
+
   if (family === "invertedTriangle") {
     const shape = scene.add.container(0, 0);
     const triangle = scene.add.graphics();
@@ -533,12 +623,12 @@ function projectIconPoint(x: number, y: number, z: number, rotationX: number, ro
   return { x: x3 * scale, y: y3 * scale };
 }
 
-function createEnemyLabel(scene: Phaser.Scene, x: number, y: number, kind: EnemyKind, size = 18) {
+function createEnemyLabel(scene: Phaser.Scene, x: number, y: number, kind: EnemyKind, size = 18, color = "#f5f5f5") {
   const label = romanLabel(getEnemyDefinition(kind).label);
 
   return scene.add
     .text(x, y, label, {
-      color: "#f5f5f5",
+      color,
       fontFamily: "Georgia, 'Times New Roman', serif",
       fontSize: `${size}px`,
       fontStyle: "bold"
