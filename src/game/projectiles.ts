@@ -115,6 +115,9 @@ export interface MortarProjectileSpec {
   duration?: number;
   singleTarget?: boolean;
   hitRadius?: number;
+  radialFalloff?: boolean;
+  debuff?: StatusEffectName;
+  debuffDuration?: number;
 }
 
 export function createMortarProjectile(scene: Phaser.Scene, spec: MortarProjectileSpec): MortarProjectile {
@@ -154,6 +157,9 @@ export function createMortarProjectile(scene: Phaser.Scene, spec: MortarProjecti
     targetTower: spec.targetTower,
     singleTarget: spec.singleTarget,
     hitRadius: spec.hitRadius,
+    radialFalloff: spec.radialFalloff,
+    debuff: spec.debuff,
+    debuffDuration: spec.debuffDuration,
     body
   };
 }

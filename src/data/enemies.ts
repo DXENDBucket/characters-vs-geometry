@@ -97,6 +97,18 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     speedMultiplier: 2.5,
     weight: 375
   },
+  angelPentagonRam: {
+    kind: "angelPentagonRam",
+    label: "1",
+    hp: 5_000,
+    armor: 200,
+    magicResistance: 40,
+    damage: 1_400,
+    damageType: "magic",
+    speedMultiplier: 1.5,
+    weight: 320,
+    minFlag: 1
+  },
   mortarTriangle: {
     kind: "mortarTriangle",
     label: "1",
@@ -206,13 +218,13 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
   hexMace: {
     kind: "hexMace",
     label: "1",
-    hp: 18_000,
+    hp: 9_000,
     armor: 150,
     magicResistance: 0,
     damage: 400,
     damageType: "physical",
     speedMultiplier: 2,
-    weight: 275,
+    weight: 375,
     minFlag: 1
   },
   heart: {

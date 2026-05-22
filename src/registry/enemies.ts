@@ -6,6 +6,7 @@ export type EnemyFamily =
   | "circle"
   | "triangle"
   | "triangleRam"
+  | "angelPentagonRam"
   | "mortarTriangle"
   | "pentagon"
   | "angelPentagon"
@@ -119,6 +120,13 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     family: "triangleRam",
     rank: 3,
     nameKey: "enemy.triangleRam3",
+    attackMode: "siegeRam"
+  },
+  angelPentagonRam: {
+    definition: rawEnemyDefinitions.angelPentagonRam,
+    family: "angelPentagonRam",
+    rank: 1,
+    nameKey: "enemy.angelPentagonRam",
     attackMode: "siegeRam"
   },
   mortarTriangle: {

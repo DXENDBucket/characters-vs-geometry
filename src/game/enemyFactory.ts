@@ -13,6 +13,8 @@ interface CreateEnemyOptions {
   x: number;
   waveWeight: number;
   finalDamageReduction: number;
+  movementDirection?: -1 | 1;
+  maceFacingDirection?: -1 | 1;
 }
 
 export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): Enemy {
@@ -61,13 +63,16 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
     armor: definition.armor,
     magicResistance: definition.magicResistance,
     speed,
-    movementDirection: -1,
+    movementDirection: options.movementDirection ?? -1,
     maceVelocity: enemyIsMace(options.kind) ? 0 : undefined,
-    maceFacingDirection: enemyIsMace(options.kind) ? -1 : undefined,
+    maceFacingDirection: enemyIsMace(options.kind)
+      ? options.maceFacingDirection ?? options.movementDirection ?? -1
+      : undefined,
     burrowAt: isBurrowArrow ? options.time + 6_000 : undefined,
     burrowed: false,
     burrowUnloaded: false,
     burrowCargo: isBurrowArrow ? [] : undefined,
+    angelRamWingsTriggered: false,
     damage: definition.damage,
     damageType: definition.damageType,
     finalDamageReduction: options.finalDamageReduction,

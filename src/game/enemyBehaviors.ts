@@ -88,6 +88,7 @@ export function applyEnemyPromotion(scene: Phaser.Scene, enemy: Enemy, kind: Ene
   enemy.speed = randomizedEnemySpeed(kind);
   enemy.maceVelocity = enemyIsMace(kind) ? 0 : undefined;
   enemy.maceFacingDirection = enemyIsMace(kind) ? -1 : undefined;
+  enemy.angelRamWingsTriggered = false;
   enemy.body.removeAll(true);
   enemy.statusBorder = scene.add.circle(0, 0, 28, palette.black, 0).setStrokeStyle(2, palette.magic, 0.92);
   enemy.statusBorder.setVisible(false);

@@ -13,6 +13,7 @@
 | Triangle Ram 1 | 75 | 5000 | 200 | 1400 | ◆ | Body label `I/I`; base average speed `15`, uniformly accelerates while moving and reaches `60` after `7` cells. The first time it is blocked, it rams the blocker for physical damage. When it dies for any reason, it spawns two Triangle 1 enemies slightly ahead/behind |
 | Triangle Ram 2 | 225 | 5000 | 200 | 1400 | ◆ | Body label `II/II`; base average speed `20`, uniformly accelerates while moving and reaches `80` after `7` cells. The first time it is blocked, it rams the blocker for physical damage. When it dies for any reason, it spawns two Triangle 2 enemies slightly ahead/behind |
 | Triangle Ram 3 | 375 | 5000 | 200 | 1400 | ◆ | Body label `III/III`; base average speed `25`, uniformly accelerates while moving and reaches `100` after `7` cells. The first time it is blocked, it rams the blocker for physical damage. When it dies for any reason, it spawns two Triangle 3 enemies slightly ahead/behind |
+| Angel Pentagon Ram 1 | 320 | 5000 | 200 | 1400 | ✦ | Body label `I/I`; MR `40`; base average speed `15`, uniformly accelerates like Triangle Ram and reaches `60` after `7` cells. Does not naturally appear before Flag 1. Its body is two face-linked pentagons. The first time it is blocked, it deals no damage and gains `2s` Flying with a halo. After that effect has triggered, the next block rams for magic damage, disappears, and spawns a same-rank Angel Pentagon in the forward position plus a same-rank Pentagon in the rear position |
 | Inverted Triangle 1 | 50 | 1000 | 70 | 2000 | ✦ | Body label `I`; MR `60`; average speed `40`; after being blocked by the same tower for `2s`, disappears and detonates against that tower |
 | Inverted Triangle 2 | 100 | 1000 | 70 | 2600 | ✦ | Body label `II`; MR `60`; average speed `45`; after being blocked by the same tower for `2s`, disappears and detonates against that tower |
 | Shooting Triangle 1 | 50 | 2000 | 70 | 400 | ◆ | Body label `I`; average speed `4`; points toward the base and fires red-tinted bolts every `2s` |
@@ -25,7 +26,7 @@
 | Diamond 2 | 200 | 2000 | 70 | 400 | ✦ | Body label `II`; MR `40`; average speed `4`; fires 2 red `*` magic projectiles every `2s`; volley window is fixed at one fifth of its attack interval; does not naturally appear before Flag 1 |
 | Hexagon 1 | 160 | 18000 | 150 | 400 | ◆ | Body label `I`; MR `20`; average speed `5`; melee attack every `1s`; flat side faces the base. Enemies within `1.4` cells, including itself, and Bosses touching that aura gain Armor: `+80` armor per Hexagon aura, stacking additively and shown as `⬡` on ordinary enemies. Gains `1` SP/s up to `20`; at full SP, heals the lowest HP% damaged enemy within `1.4` cells for `30%` of Hexagon max HP, consuming `20` SP |
 | Charging Hexagon 1 | 150 | 12000 | 150 | 500 | ✦ | Body label `I`; MR `40`; average speed `25`; point faces the base. Melee magic attack every `2s`. Enemies in the same lane and farther from the base gain a non-stacking `+50%` movement speed bonus |
-| Hex Mace 1 | 275 | 18000 | 150 | 400 | ◆ | Body label `I/I`; MR `0`; base average speed `20`; does not naturally appear before Flag 1. Shape is two edge-linked hexagons. It starts at `0` current velocity, continuously accelerates toward its facing direction, and reaches `80` after `7` cells. When blocked, it does not self-destruct: it deals collision damage based on current actual speed (`10` speed = `100%` attack, `20` speed = `200%`, `30` speed = `300%`, etc.), then bounces away and resets current velocity to `0` before accelerating again |
+| Hex Mace 1 | 375 | 9000 | 150 | 400 | ◆ | Body label `I/I`; MR `0`; base average speed `20`; does not naturally appear before Flag 1. Shape is two edge-linked hexagons. It starts at `0` current velocity, continuously accelerates toward its facing direction, and reaches `80` after `7` cells. When blocked, it does not self-destruct: it deals collision damage based on current actual speed (`10` speed = `100%` attack, `20` speed = `200%`, `30` speed = `300%`, etc.), then bounces away by reflecting its current velocity while keeping its facing direction. On death, it spawns Charging Hexagon 1 ahead of its facing direction and Hexagon 1 behind |
 | Square 1 | 50 | 12000 | 300 | 400 | ◆ | Body label `I`; average speed `6` |
 | Square 2 | 150 | 12000 | 600 | 400 | ◆ | Body label `II`; average speed `6` |
 | Square 3 | 250 | 12000 | 900 | 400 | ◆ | Body label `III`; average speed `6` |
@@ -40,7 +41,7 @@ Triangle enemies all deal Triangle 1's `600◆`; Triangle N attacks every `1/N` 
 Shooting Triangle is a separate ranged enemy and does not use Triangle N attack scaling.
 Locked attacks, including Triangle Mortars, target the tower blocking the attacker if the attacker is currently blocked; otherwise they use their normal targeting rule.
 Flying units cannot be blocked and render slightly higher than grounded enemies. Flying itself does not always show a halo; Wings-granted Flying shows a halo.
-Enemies with a minimum flag gate are excluded from random wave pools before that flag wave. All Diamonds, Triangle Mortars, Pentagons, Angel Pentagons, Shooting Pentagons, and Hex Maces require Flag 1, so they can start appearing on wave 10 of standard 10-wave flags.
+Enemies with a minimum flag gate are excluded from random wave pools before that flag wave. All Diamonds, Triangle Mortars, Pentagons, Angel Pentagons, Shooting Pentagons, Hex Maces, and Angel Pentagon Rams require Flag 1, so they can start appearing on wave 10 of standard 10-wave flags.
 Numbered minion weights use fixed additive steps: circles `+40`, triangles `+60`, squares `+100`.
 Enemy body labels are displayed as Roman numerals in-game.
 
@@ -49,7 +50,7 @@ Enemy body labels are displayed as Roman numerals in-game.
 | Enemy | Spawn Rule | HP | Armor | Attack | DMG | Notes |
 | --- | --- | ---: | ---: | ---: | --- | --- |
 | Heart 1 | 1 per flag wave if included in the level pool; no wave weight | 9999 | 399 | 2100 | True | Body label `I`; MR `60`; fixed speed `30` with no random speed variance. Enemies in the same lane and farther from the base gain a non-stacking `+50%` movement speed bonus. Every `5s`, emits a growing pink heart AOE centered on itself with `1.75` cell radius and outward falloff. Lead starts at `0/5` SP, gains `1` SP/s, then pulls ordinary minions in its column plus four columns behind, within two lanes up/down, into its lane; leaders, Bosses, and Boss companions are not pulled |
-| Burrow Arrow 1 | 1 per flag wave if included in the level pool; no wave weight | 16500 | 250 | 400 | Physical | Body label `I`; MR `0`; fixed speed `20` with no random speed variance. Touching non-leader minions are loaded; rank I can carry total minion rank `5`. Once full or after `6s` on the field, it burrows, shows only its upper tip about `0.75` cells lower, ignores normal projectile targeting/direct hits, but can still be damaged by AOE. While burrowed it gains `+300%` movement speed. It resurfaces at the center of the cell before the base, turns itself and loaded enemies around, unloads once, and can no longer load or burrow. If it dies while carrying loaded enemies, they immediately appear without reversing direction |
+| Burrow Arrow 1 | 1 per flag wave if included in the level pool; no wave weight | 16500 | 250 | 400 | Physical | Body label `I`; MR `0`; fixed speed `20` with no random speed variance. Touching non-leader minions are loaded; rank I can carry total minion rank `5`. Once full or after `6s` on the field, it burrows, shows only its upper tip about `0.55` cells lower, ignores normal projectile targeting/direct hits, but can still be damaged by AOE. While burrowed it gains `+300%` movement speed. It resurfaces at the center of the cell before the base, turns itself and loaded enemies around, unloads once, and can no longer load or burrow. If it dies while carrying loaded enemies, they immediately appear without reversing direction |
 
 Leader enemies are fixed flag-wave spawns when included in a level pool. They do not consume wave weight and do not receive random speed variance.
 
@@ -130,6 +131,7 @@ Tetrahedron skills:
 | H | Healing | Hexagon | 150 | 20s | 1200 | 150 | 0 | Heals the lowest HP% damaged ally in a centered `3x3` area for `700`, every `2s`, shown as `♡`; ties prefer earlier placement | +1 healing volley per level |
 | h | Defense | Square | 175 | 20s | 3000 | 550 | 0 | Guardian: gains `1` SP/s, max `20`; when full, waits until itself or a tower in its centered `3x3` area is damaged, then spends `20` SP to heal itself and the lowest HP% damaged tower in that area for `40%` of h's max HP | +`2400` max/current HP per level |
 | P | Healing | Hexagon | 125 | 20s | 1200 | 150 | 0 | Heals the lowest HP% damaged ally in a `5x3` area covering its column and the next 4 columns for `250`, every `2s`, shown as `♡`; ties prefer earlier placement | +1 healing volley per level |
+| p | Healing | Hexagon | 225 | 20s | 1200 | 150 | 0 | Heals the three lowest HP% damaged allies in a centered `3x3` area for `250` each, every `2s`, shown as `♡`; ties prefer earlier placement | +1 healing volley per level |
 | I | Attack | Diamond | 50 | 2s | 1200 | 150 | 20 | Fires 1 `*` projectile, `400✦`, every `2s`; range is self plus 5 cells ahead | +1 volley per level |
 | Q | Attack | Diamond | 175 | 4s | 1200 | 150 | 20 | Fires 1 `$` projectile, `400✦`, every `2s`; range is the full lane ahead. On hit, applies `Stasis` for `1s`, reducing ordinary enemy movement speed to `1/3`; Bosses ignore this debuff | +1 volley per level |
 | J | Attack | Diamond | 200 | 4s | 1200 | 150 | 20 | Fires 1 `#` shell, `600✦`, `1.75` tile radius AOE with distance falloff, every `4s`; range is self plus 5 cells ahead | +1 volley per level |
@@ -138,12 +140,13 @@ Tetrahedron skills:
 | S | Attack | Diamond | 925 | 50s | 1200 | 150 | 40 | Active skill: Spell Mortar. Gains `1` SP/s, max `30`; at full SP gains a border. Click a ready S, or Shift-click to select all ready S, then click any board point to fire 3 arcing `S` shells at `0.5s` intervals. Each shell deals `5000✦` in a `3x3` area. Right-click or clicking UI cancels aiming | +`4000✦` per shell per level; resets SP |
 | Z | Production | Circle | 175 | 4s | 2500 | 300 | 0 | Slashes 1 target for `400◆`, every `2s`; range is self plus 2 cells ahead. Each slash hit produces `Aa15` | +1 volley per level |
 | L | Function | Triangle | 200 | 20s | 3000 | 200 | 0 | Every `1s`, shifts all enemies in upper/lower lanes within its column and the front column into its own lane; takes `400◇` per shifted enemy | +`2400` max/current HP per level |
-| N | Defense | Square | 125 | 20s | 3000 | 500 | 0 | Every `1s`, pushes all enemies it is blocking `5` cells left; takes `400◇` per pushed enemy. Enemy projectiles that would hit N are shifted left by `5` cells instead of dealing projectile damage, and N takes `400◇` per shifted projectile. Locked mortar shots targeting N have their landing point shifted left by the same distance and also cost N `400◇` once | +`2400` max/current HP per level |
+| N | Defense | Square | 125 | 20s | 3000 | 500 | 0 | Every `1s`, pushes all enemies it is blocking `5` cells in its push direction: normal N pushes left, reversed N pushes right. Takes `400◇` per pushed enemy. Enemy projectiles that would hit N are shifted `5` cells in that same direction instead of dealing projectile damage, and N takes `400◇` per shifted projectile. Locked mortar shots targeting N have their landing point shifted by the same distance and also cost N `400◇` once | +`2400` max/current HP per level |
 | n | Function | Triangle | 375 | 20s | 3000 | 200 | 0 | Every `1s`, repels all enemies in its own lane within its column and the front column to an adjacent upper/lower lane; odd placement order starts upward, even starts downward, then alternates. Takes `400◇` per shifted enemy | +`2400` max/current HP per level |
 | T | Function | Triangle | 650 | 50s | 4000 | 150 | 20 | Every `1s`, takes `700◇`; ordinary units and projectiles in a centered `5x5` no-corner area move at `1/6` speed. Bosses ignore the slow. The area is shown with a deep-purple time border. On death, clears projectiles in that area; eraser removal does not trigger this | +`3200` max/current HP per level |
 
 | U | Function | Triangle | 1275 | 50s | 1200 | 150 | 40 | Grants towers in a centered `3x3` area, excluding itself, bonus levels equal to U's real level. Only affects towers whose base cost is lower than U's base cost. Multiple U auras stack additively | Each level raises U's aura bonus by `+1` level |
 | V | Attack | Diamond | 775 | 6s | 1200 | 150 | 40 | Every `2s`, lobs a single-target `*` magic shell for `1300` damage along its lane. It prefers the attackable enemy with the lowest max HP, predicts the landing point from target speed at lock time, and can miss | +`1040` magic attack per level |
+| v | Attack | Diamond | 450 | 6s | 1200 | 150 | 40 | Every `4s`, lobs a `#` magic shell at the first enemy ahead. It predicts the landing point from target speed at lock time, then deals `800✦` in a circular `1.75` tile radius AOE with distance falloff and applies `2s` Stasis to ordinary enemies hit | +1 volley per level |
 
 Volley upgrades spread consecutive shots or heals across a fixed total volley duration of `interval / 5`, regardless of shot count. The attack/heal interval itself is unchanged and starts after the volley finishes.
 
@@ -1450,7 +1453,7 @@ Base rule:
 
 - Starting characters: `500`.
 - Wave 1 starts at weight cap `25`.
-- Wave 2 adds `+20`; each later increment grows by `+4` (`+24`, `+28`, ...).
+- Wave 2 adds `+20`; each later increment grows by `+3` (`+23`, `+26`, ...).
 - Every flag wave, currently every `10`th wave, doubles that wave's final cap.
 - A wave may leave unused weight, but never exceeds its cap.
 - Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
@@ -1462,14 +1465,14 @@ Base rule:
 | ---: | ---: | ---: | ---: |
 | 1 | - | 25 | 25 |
 | 2 | - | 45 | 45 |
-| 3 | - | 69 | 69 |
-| 4 | - | 97 | 97 |
-| 5 | - | 129 | 129 |
-| 6 | - | 165 | 165 |
-| 7 | - | 205 | 205 |
-| 8 | - | 249 | 249 |
-| 9 | - | 297 | 297 |
-| 10 | 1 | 349 | 698 |
+| 3 | - | 68 | 68 |
+| 4 | - | 94 | 94 |
+| 5 | - | 123 | 123 |
+| 6 | - | 155 | 155 |
+| 7 | - | 190 | 190 |
+| 8 | - | 228 | 228 |
+| 9 | - | 269 | 269 |
+| 10 | 1 | 313 | 626 |
 
 ## Level 3-2 Weight Growth
 
@@ -1485,7 +1488,7 @@ Base rule:
 
 - Starting characters: `500`.
 - Wave 1 starts at weight cap `25`.
-- Wave 2 adds `+20`; each later increment grows by `+4` (`+24`, `+28`, ...).
+- Wave 2 adds `+20`; each later increment grows by `+3` (`+23`, `+26`, ...).
 - Every flag wave, currently every `10`th wave, doubles that wave's final cap.
 - A wave may leave unused weight, but never exceeds its cap.
 - Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
@@ -1496,24 +1499,24 @@ Base rule:
 | ---: | ---: | ---: | ---: |
 | 1 | - | 25 | 25 |
 | 2 | - | 45 | 45 |
-| 3 | - | 69 | 69 |
-| 4 | - | 97 | 97 |
-| 5 | - | 129 | 129 |
-| 6 | - | 165 | 165 |
-| 7 | - | 205 | 205 |
-| 8 | - | 249 | 249 |
-| 9 | - | 297 | 297 |
-| 10 | 1 | 349 | 698 |
-| 11 | - | 405 | 405 |
-| 12 | - | 465 | 465 |
-| 13 | - | 529 | 529 |
-| 14 | - | 597 | 597 |
-| 15 | - | 669 | 669 |
-| 16 | - | 745 | 745 |
-| 17 | - | 825 | 825 |
-| 18 | - | 909 | 909 |
-| 19 | - | 997 | 997 |
-| 20 | 2 | 1089 | 2178 |
+| 3 | - | 68 | 68 |
+| 4 | - | 94 | 94 |
+| 5 | - | 123 | 123 |
+| 6 | - | 155 | 155 |
+| 7 | - | 190 | 190 |
+| 8 | - | 228 | 228 |
+| 9 | - | 269 | 269 |
+| 10 | 1 | 313 | 626 |
+| 11 | - | 360 | 360 |
+| 12 | - | 410 | 410 |
+| 13 | - | 463 | 463 |
+| 14 | - | 519 | 519 |
+| 15 | - | 578 | 578 |
+| 16 | - | 640 | 640 |
+| 17 | - | 705 | 705 |
+| 18 | - | 773 | 773 |
+| 19 | - | 844 | 844 |
+| 20 | 2 | 918 | 1836 |
 
 ## Level 3-3 Weight Growth
 
@@ -1529,7 +1532,7 @@ Base rule:
 
 - Starting characters: `500`.
 - Wave 1 starts at weight cap `25`.
-- Wave 2 adds `+20`; each later increment grows by `+4` (`+24`, `+28`, ...).
+- Wave 2 adds `+20`; each later increment grows by `+3` (`+23`, `+26`, ...).
 - Every flag wave, currently every `10`th wave, doubles that wave's final cap.
 - A wave may leave unused weight, but never exceeds its cap.
 - Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
@@ -1540,21 +1543,65 @@ Base rule:
 | ---: | ---: | ---: | ---: |
 | 1 | - | 25 | 25 |
 | 2 | - | 45 | 45 |
-| 3 | - | 69 | 69 |
-| 4 | - | 97 | 97 |
-| 5 | - | 129 | 129 |
-| 6 | - | 165 | 165 |
-| 7 | - | 205 | 205 |
-| 8 | - | 249 | 249 |
-| 9 | - | 297 | 297 |
-| 10 | 1 | 349 | 698 |
+| 3 | - | 68 | 68 |
+| 4 | - | 94 | 94 |
+| 5 | - | 123 | 123 |
+| 6 | - | 155 | 155 |
+| 7 | - | 190 | 190 |
+| 8 | - | 228 | 228 |
+| 9 | - | 269 | 269 |
+| 10 | 1 | 313 | 626 |
+
+## Level 3-4 Weight Growth
+
+Enemy pool:
+
+- Circle 1
+- Triangle 1
+- Triangle Ram 1
+- Angel Pentagon Ram 1
+- Hex Mace 1
+
+Base rule:
+
+- Starting characters: `500`.
+- Wave 1 starts at weight cap `25`.
+- Wave 2 adds `+20`; each later increment grows by `+3` (`+23`, `+26`, ...).
+- Every flag wave, currently every `10`th wave, doubles that wave's final cap.
+- A wave may leave unused weight, but never exceeds its cap.
+- Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
+- The level has `20` total waves.
+- Angel Pentagon Ram 1 and Hex Mace 1 have a minimum Flag 1 gate, so they can first enter the random pool on wave 10.
+
+| Wave | Flag | Base Cap | Final Cap |
+| ---: | ---: | ---: | ---: |
+| 1 | - | 25 | 25 |
+| 2 | - | 45 | 45 |
+| 3 | - | 68 | 68 |
+| 4 | - | 94 | 94 |
+| 5 | - | 123 | 123 |
+| 6 | - | 155 | 155 |
+| 7 | - | 190 | 190 |
+| 8 | - | 228 | 228 |
+| 9 | - | 269 | 269 |
+| 10 | 1 | 313 | 626 |
+| 11 | - | 360 | 360 |
+| 12 | - | 410 | 410 |
+| 13 | - | 463 | 463 |
+| 14 | - | 519 | 519 |
+| 15 | - | 578 | 578 |
+| 16 | - | 640 | 640 |
+| 17 | - | 705 | 705 |
+| 18 | - | 773 | 773 |
+| 19 | - | 844 | 844 |
+| 20 | 2 | 918 | 1836 |
 
 ## Spawn Trigger
 
 After the first wave appears, the next wave spawns when either condition is met:
 
 - The latest wave has lost at least half of its spawned weight.
-- `25s` has passed since that wave spawned.
+- `30s` has passed since that wave spawned.
 
 The first wave starts `20s` after entering combat.
 

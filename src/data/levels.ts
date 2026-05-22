@@ -5,7 +5,7 @@ const CHAPTER_TWO_STARTING_CHARS = 350;
 const CHAPTER_THREE_STARTING_CHARS = 500;
 const CHAPTER_THREE_FIRST_WAVE_WEIGHT = 25;
 const CHAPTER_THREE_WAVE_WEIGHT_INCREMENT = 20;
-const CHAPTER_THREE_WAVE_WEIGHT_INCREMENT_GROWTH = 4;
+const CHAPTER_THREE_WAVE_WEIGHT_INCREMENT_GROWTH = 3;
 
 export const levelNodes: LevelNode[] = [
   { id: "0-1", x: 230, y: 405, unlocked: true },
@@ -40,7 +40,8 @@ export const levelNodes: LevelNode[] = [
   { id: "2-10", x: 2210, y: 330, unlocked: true },
   { id: "3-1", x: 230, y: 405, unlocked: true },
   { id: "3-2", x: 450, y: 310, unlocked: true },
-  { id: "3-3", x: 670, y: 430, unlocked: true }
+  { id: "3-3", x: 670, y: 430, unlocked: true },
+  { id: "3-4", x: 890, y: 330, unlocked: true }
 ];
 
 export const levelConfigs: Record<string, LevelConfig> = {
@@ -396,6 +397,16 @@ export const levelConfigs: Record<string, LevelConfig> = {
     waveWeightIncrement: CHAPTER_THREE_WAVE_WEIGHT_INCREMENT,
     waveWeightIncrementGrowth: CHAPTER_THREE_WAVE_WEIGHT_INCREMENT_GROWTH,
     totalWaves: 10,
+    wavesPerFlag: WAVES_PER_FLAG,
+    startingChars: CHAPTER_THREE_STARTING_CHARS
+  },
+  "3-4": {
+    id: "3-4",
+    enemyKinds: ["circle", "triangle", "triangleRam", "angelPentagonRam", "hexMace"],
+    firstWaveWeight: CHAPTER_THREE_FIRST_WAVE_WEIGHT,
+    waveWeightIncrement: CHAPTER_THREE_WAVE_WEIGHT_INCREMENT,
+    waveWeightIncrementGrowth: CHAPTER_THREE_WAVE_WEIGHT_INCREMENT_GROWTH,
+    totalWaves: 20,
     wavesPerFlag: WAVES_PER_FLAG,
     startingChars: CHAPTER_THREE_STARTING_CHARS
   }

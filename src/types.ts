@@ -32,7 +32,9 @@ export type CardId =
   | "T"
   | "U"
   | "V"
+  | "v"
   | "P"
+  | "p"
   | "Y"
   | "Z";
 export type EnemyKind =
@@ -45,6 +47,7 @@ export type EnemyKind =
   | "triangleRam"
   | "triangleRam2"
   | "triangleRam3"
+  | "angelPentagonRam"
   | "mortarTriangle"
   | "mortarTriangle2"
   | "pentagon"
@@ -106,6 +109,7 @@ export interface CardDefinition {
   damageType?: DamageType;
   rangeCells?: number;
   healAmount?: number;
+  healTargets?: number;
   splashRadius?: number;
   reflectDamage?: number;
   reflectDamageType?: DamageType;
@@ -128,6 +132,11 @@ export interface CardDefinition {
   produceAmount?: number;
   hitProduceAmount?: number;
   attackProduceAmount?: number;
+  mortarTargeting?: "lowestMaxHp" | "first";
+  mortarSingleTarget?: boolean;
+  mortarAoeFalloff?: boolean;
+  mortarHitRadius?: number;
+  mortarMarkerText?: string;
   stats: string;
 }
 
@@ -214,6 +223,7 @@ export interface Enemy {
   attackAt: number;
   blockedByTowerId?: string;
   blockedSince?: number;
+  angelRamWingsTriggered?: boolean;
   skills: Record<string, SkillState>;
   statusEffects: StatusEffect[];
   statusBorder: Phaser.GameObjects.Arc;
@@ -279,6 +289,9 @@ export interface MortarProjectile {
   targetTower?: Tower;
   singleTarget?: boolean;
   hitRadius?: number;
+  radialFalloff?: boolean;
+  debuff?: StatusEffectName;
+  debuffDuration?: number;
   shiftSelfDamageApplied?: boolean;
   body: Phaser.GameObjects.Shape | Phaser.GameObjects.Text;
 }

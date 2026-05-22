@@ -421,7 +421,29 @@ export const cardDefinitions: CardDefinition[] = [
     fireRate: 2_000,
     damage: 1_300,
     damageType: "magic",
+    mortarTargeting: "lowestMaxHp",
+    mortarSingleTarget: true,
     stats: `1300${DAMAGE_SYMBOLS.magic} / PREDICT`
+  },
+  {
+    id: "v",
+    category: "attack",
+    cost: 450,
+    cooldown: 6_000,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 40,
+    fireRate: 4_000,
+    damage: 800,
+    damageType: "magic",
+    splashRadius: CELL_WIDTH * 1.75,
+    projectileDebuff: "stasis",
+    projectileDebuffDuration: 2_000,
+    mortarTargeting: "first",
+    mortarSingleTarget: false,
+    mortarAoeFalloff: true,
+    mortarMarkerText: "#",
+    stats: `800${DAMAGE_SYMBOLS.magic} / AOE / STASIS`
   },
   {
     id: "P",
@@ -435,6 +457,19 @@ export const cardDefinitions: CardDefinition[] = [
     healAmount: 250,
     rangeCells: 5,
     stats: `${EFFECT_SYMBOLS.heal}250 / R5`
+  },
+  {
+    id: "p",
+    category: "healing",
+    cost: 225,
+    cooldown: 20_000,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 0,
+    fireRate: 2_000,
+    healAmount: 250,
+    healTargets: 3,
+    stats: `3x${EFFECT_SYMBOLS.heal}250 / 3x3`
   }
 ];
 

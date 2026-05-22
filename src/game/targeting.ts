@@ -59,7 +59,12 @@ export function isBossInRect(boss: CubeBoss | null, x: number, y: number, width:
   return Phaser.Geom.Intersects.RectangleToRectangle(bossRect(boss), new Phaser.Geom.Rectangle(x, y, width, height));
 }
 
-export function getHealTarget(tower: Tower, definition: CardDefinition, occupied: Map<string, Tower>) {
+export function getHealTargets(
+  tower: Tower,
+  definition: CardDefinition,
+  occupied: Map<string, Tower>,
+  count = 1
+) {
   const targetColumns = healTargetColumns(tower, definition);
   const targetLanes = [tower.lane - 1, tower.lane, tower.lane + 1].filter((lane) => lane >= 0 && lane < LANES);
 
@@ -69,11 +74,16 @@ export function getHealTarget(tower: Tower, definition: CardDefinition, occupied
     .sort((a, b) => {
       const hpRatioDelta = a.hp / a.maxHp - b.hp / b.maxHp;
       return hpRatioDelta || a.placedOrder - b.placedOrder;
-    })[0];
+    })
+    .slice(0, count);
+}
+
+export function getHealTarget(tower: Tower, definition: CardDefinition, occupied: Map<string, Tower>) {
+  return getHealTargets(tower, definition, occupied, 1)[0];
 }
 
 function healTargetColumns(tower: Tower, definition: CardDefinition) {
-  if (tower.type === "H") {
+  if (tower.type === "H" || tower.type === "p") {
     return [tower.column - 1, tower.column, tower.column + 1].filter((column) => column >= 0 && column < COLUMNS);
   }
 

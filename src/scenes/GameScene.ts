@@ -1177,6 +1177,16 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    if (key === "p" && this.selectedCardIds.includes("p")) {
+      this.selectCard("p");
+      return;
+    }
+
+    if (key === "v" && this.selectedCardIds.includes("v")) {
+      this.selectCard("v");
+      return;
+    }
+
     if (key === "1") {
       this.toggleEraser();
       return;

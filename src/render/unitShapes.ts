@@ -152,6 +152,23 @@ export function createEnemyShape(scene: Phaser.Scene, kind: EnemyKind, options: 
     return shape;
   }
 
+  if (family === "angelPentagonRam") {
+    const shape = scene.add.container(0, 0);
+    const pentagons = scene.add.graphics();
+    pentagons.fillStyle(palette.black, 1);
+    pentagons.lineStyle(2, palette.white, 1);
+    drawPentagonPath(pentagons, -18, 0, 24, 180);
+    pentagons.fillPath();
+    pentagons.strokePath();
+    drawPentagonPath(pentagons, 18, 0, 24, 0);
+    pentagons.fillPath();
+    pentagons.strokePath();
+    const leftLabel = createEnemyLabel(scene, -18, -1, kind, 15);
+    const rightLabel = createEnemyLabel(scene, 18, -1, kind, 15);
+    shape.add([pentagons, leftLabel, rightLabel]);
+    return shape;
+  }
+
   if (family === "mortarTriangle") {
     const shape = scene.add.container(0, 0);
     const triangles = scene.add.graphics();
@@ -635,4 +652,25 @@ function createEnemyLabel(scene: Phaser.Scene, x: number, y: number, kind: Enemy
     })
     .setOrigin(0.5)
     .setScale(0.64, 1);
+}
+
+function drawPentagonPath(
+  graphics: Phaser.GameObjects.Graphics,
+  centerX: number,
+  centerY: number,
+  radius: number,
+  rotationDegrees: number
+) {
+  graphics.beginPath();
+  for (let index = 0; index < 5; index += 1) {
+    const angle = Phaser.Math.DegToRad(rotationDegrees + index * 72);
+    const x = centerX + Math.cos(angle) * radius;
+    const y = centerY + Math.sin(angle) * radius;
+    if (index === 0) {
+      graphics.moveTo(x, y);
+    } else {
+      graphics.lineTo(x, y);
+    }
+  }
+  graphics.closePath();
 }

@@ -24,6 +24,7 @@ import { enemyIsBurrowed } from "./enemyBehaviors";
 import { movementSpeedMultiplier } from "./slowAura";
 import { applyStatusEffect } from "./statusEffects";
 import { bossRect, isBossInRadius, isBossInRect, isPointInBossHitbox, towerRect } from "./targeting";
+import { towerFacingDirection } from "./towers";
 
 export interface ProjectileRuntime {
   scene: Phaser.Scene;
@@ -107,8 +108,9 @@ export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: numb
 
     if (hit) {
       if (hit.type === "N") {
+        const previousX = projectile.x;
         shiftEnemyProjectile(projectile, hit);
-        makeShiftEffect(runtime.scene, projectile.x + projectileShiftDistance(hit), projectile.y, projectile.x, projectile.y);
+        makeShiftEffect(runtime.scene, previousX, projectile.y, projectile.x, projectile.y);
         projectile.body.setPosition(projectile.x, projectile.y);
         damageShiftTowerSelf(runtime, hit);
         if (isEnemyProjectileOutOfBounds(projectile)) {
@@ -155,12 +157,16 @@ export function updateMortarProjectiles(runtime: ProjectileRuntime, seconds: num
 }
 
 function shiftEnemyProjectile(projectile: EnemyProjectile, tower: Tower) {
-  projectile.x -= projectileShiftDistance(tower);
+  projectile.x += projectileShiftDirection(tower) * projectileShiftDistance(tower);
 }
 
 function projectileShiftDistance(tower: Tower) {
   const definition = getCardDefinition(tower.type);
   return (definition.shiftCells ?? 4) * CELL_WIDTH;
+}
+
+function projectileShiftDirection(tower: Tower) {
+  return -towerFacingDirection(tower);
 }
 
 function removeProjectile(projectiles: Projectile[], projectile: Projectile) {
@@ -210,7 +216,7 @@ function syncMortarTarget(runtime: ProjectileRuntime, projectile: MortarProjecti
         projectile.shiftSelfDamageApplied = true;
         damageShiftTowerSelf(runtime, targetTower);
       }
-      projectile.targetX = targetTower.x - projectileShiftDistance(targetTower);
+      projectile.targetX = targetTower.x + projectileShiftDirection(targetTower) * projectileShiftDistance(targetTower);
       projectile.targetY = targetTower.y;
       return;
     }
@@ -293,7 +299,8 @@ function detonateTowerMortar(runtime: ProjectileRuntime, projectile: MortarProje
     color: damageEffectColor(projectile.damageType),
     marker: projectile.marker ?? "shell",
     markerText: projectile.markerText,
-    markerTextColor: projectile.marker === "text" ? damageEffectTextColor(projectile.damageType) : undefined
+    markerTextColor: projectile.marker === "text" ? damageEffectTextColor(projectile.damageType) : undefined,
+    shape: projectile.radialFalloff ? "circle" : "rectangle"
   });
 
   if (projectile.singleTarget) {
@@ -301,13 +308,41 @@ function detonateTowerMortar(runtime: ProjectileRuntime, projectile: MortarProje
     return;
   }
 
+  if (projectile.radialFalloff) {
+    detonateRadialFalloffTowerMortar(runtime, projectile);
+    return;
+  }
+
   for (const enemy of [...runtime.enemies]) {
     if (Math.abs(enemy.x - projectile.targetX) <= projectile.rangeX && Math.abs(enemy.y - projectile.targetY) <= projectile.rangeY) {
       runtime.damageEnemy(enemy, projectile.damage, projectile.damageType);
+      if (runtime.enemies.includes(enemy)) {
+        applyMortarDebuff(runtime.scene, projectile, enemy, runtime.battleTime);
+      }
     }
   }
   if (isBossInRect(runtime.getBoss(), projectile.targetX - projectile.rangeX, projectile.targetY - projectile.rangeY, projectile.rangeX * 2, projectile.rangeY * 2)) {
     runtime.damageBoss(projectile.damage, projectile.damageType);
+  }
+}
+
+function detonateRadialFalloffTowerMortar(runtime: ProjectileRuntime, projectile: MortarProjectile) {
+  const radius = projectile.rangeX;
+  for (const enemy of [...runtime.enemies]) {
+    const falloff = radiusFalloff(Math.hypot(enemy.x - projectile.targetX, enemy.y - projectile.targetY), radius);
+    if (falloff <= 0) {
+      continue;
+    }
+
+    runtime.damageEnemy(enemy, projectile.damage * falloff, projectile.damageType);
+    if (runtime.enemies.includes(enemy)) {
+      applyMortarDebuff(runtime.scene, projectile, enemy, runtime.battleTime);
+    }
+  }
+
+  const bossFalloff = bossRadiusFalloff(runtime.getBoss(), projectile.targetX, projectile.targetY, radius);
+  if (bossFalloff > 0) {
+    runtime.damageBoss(projectile.damage * bossFalloff, projectile.damageType);
   }
 }
 
@@ -328,6 +363,9 @@ function detonateSingleTargetTowerMortar(runtime: ProjectileRuntime, projectile:
 
   if (target) {
     runtime.damageEnemy(target, projectile.damage, projectile.damageType);
+    if (runtime.enemies.includes(target)) {
+      applyMortarDebuff(runtime.scene, projectile, target, runtime.battleTime);
+    }
     return;
   }
 
@@ -342,12 +380,26 @@ function removeMortarProjectile(projectiles: MortarProjectile[], projectile: Mor
 }
 
 function applyProjectileDebuff(scene: Phaser.Scene, projectile: Projectile, enemy: Enemy, time: number) {
-  if (!projectile.debuff || !projectile.debuffDuration) {
+  applyDebuff(scene, enemy, time, projectile.debuff, projectile.debuffDuration);
+}
+
+function applyMortarDebuff(scene: Phaser.Scene, projectile: MortarProjectile, enemy: Enemy, time: number) {
+  applyDebuff(scene, enemy, time, projectile.debuff, projectile.debuffDuration);
+}
+
+function applyDebuff(
+  scene: Phaser.Scene,
+  enemy: Enemy,
+  time: number,
+  debuff?: Projectile["debuff"],
+  debuffDuration?: number
+) {
+  if (!debuff || !debuffDuration) {
     return;
   }
 
-  applyStatusEffect(enemy, projectile.debuff, projectile.debuffDuration, time);
-  if (projectile.debuff === "stasis") {
+  applyStatusEffect(enemy, debuff, debuffDuration, time);
+  if (debuff === "stasis") {
     makeStasisEffect(scene, enemy.x, enemy.y);
   }
 }

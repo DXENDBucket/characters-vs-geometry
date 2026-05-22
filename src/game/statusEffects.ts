@@ -12,7 +12,7 @@ const STATUS_ATTACK_MULTIPLIERS: Partial<Record<StatusEffectName, number>> = {
   power: 1.3
 };
 const FLYING_DISPLAY_OFFSET_Y = -14;
-const BURROW_DISPLAY_OFFSET_Y = CELL_HEIGHT * 0.75;
+const BURROW_DISPLAY_OFFSET_Y = CELL_HEIGHT * 0.55;
 
 export function applyStatusEffect(
   enemy: Enemy,

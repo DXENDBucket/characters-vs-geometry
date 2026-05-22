@@ -22,7 +22,7 @@ import {
   getAttackTarget,
   getBlockedEnemies,
   getBlockingTower,
-  getHealTarget,
+  getHealTargets,
   getLaneRepelTargets,
   getLowestMaxHpAttackTarget,
   getShiftTargets,
@@ -60,7 +60,10 @@ export const projectileCardBehavior: CardBehavior = {
 
 export const healingCardBehavior: CardBehavior = {
   canUse: (tower, definition, time, runtime) => {
-    return cooldownReady(tower, time) && Boolean(definition.healAmount && getHealTarget(tower, definition, runtime.occupied));
+    return (
+      cooldownReady(tower, time) &&
+      Boolean(definition.healAmount && getHealTargets(tower, definition, runtime.occupied, definition.healTargets ?? 1).length > 0)
+    );
   },
   execute: fireHealingPulse
 };
@@ -148,7 +151,9 @@ export const cardBehaviorsById: Record<CardId, CardBehavior> = {
   T: slowAuraCardBehavior,
   U: idleCardBehavior,
   V: predictiveMortarCardBehavior,
+  v: predictiveMortarCardBehavior,
   P: healingCardBehavior,
+  p: healingCardBehavior,
   Y: idleCardBehavior,
   Z: slashCardBehavior
 };
@@ -165,12 +170,14 @@ function fireHealingPulse(
   definition: CardDefinition,
   runtime: Pick<CardBehaviorRuntime, "scene" | "occupied">
 ) {
-  const target = getHealTarget(tower, definition, runtime.occupied);
-  if (!target) {
+  const targets = getHealTargets(tower, definition, runtime.occupied, definition.healTargets ?? 1);
+  if (targets.length === 0) {
     return;
   }
 
-  healTower(runtime.scene, target, definition.healAmount ?? 60);
+  for (const target of targets) {
+    healTower(runtime.scene, target, definition.healAmount ?? 60);
+  }
 }
 
 function fireShiftPulse(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {
@@ -229,9 +236,10 @@ function fireBlockedPushPulse(tower: Tower, definition: CardDefinition, runtime:
   }
 
   const shiftDistance = (definition.shiftCells ?? 4) * CELL_WIDTH;
+  const shiftDirection = blockedPushDirection(tower);
   for (const target of targets) {
     const previousX = target.x;
-    target.x -= shiftDistance;
+    target.x += shiftDirection * shiftDistance;
     syncEnemyBodyPosition(target);
     makeShiftEffect(runtime.scene, previousX, target.y, target.x, target.y);
   }
@@ -242,6 +250,10 @@ function fireBlockedPushPulse(tower: Tower, definition: CardDefinition, runtime:
     }
     runtime.damageTower(tower, definition.selfDamage ?? 400, definition.selfDamageType ?? "true");
   }
+}
+
+function blockedPushDirection(tower: Tower) {
+  return -towerFacingDirection(tower);
 }
 
 function resolveRepelDirection(tower: Tower) {
@@ -301,13 +313,13 @@ function hasPredictiveMortarTarget(
   definition: CardDefinition,
   runtime: CardReadinessRuntime
 ) {
-  return Boolean(getLowestMaxHpAttackTarget(tower, definition, runtime.enemies) || canAttackBoss(tower, definition, runtime.boss));
+  return Boolean(getPredictiveMortarEnemyTarget(tower, definition, runtime.enemies) || canAttackBoss(tower, definition, runtime.boss));
 }
 
 function firePredictiveMortar(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {
   const damage = scaledByEffectiveUpgrades(definition.damage ?? 0, effectiveTowerLevel(tower));
   const damageType = definition.damageType ?? "magic";
-  const enemy = getLowestMaxHpAttackTarget(tower, definition, runtime.enemies);
+  const enemy = getPredictiveMortarEnemyTarget(tower, definition, runtime.enemies);
   const target = enemy
     ? predictedEnemyMortarTarget(enemy, runtime)
     : predictedBossMortarTarget(tower, runtime.boss);
@@ -328,13 +340,30 @@ function firePredictiveMortar(tower: Tower, definition: CardDefinition, runtime:
       rangeX: PREDICTIVE_MORTAR_HIT_RADIUS,
       rangeY: PREDICTIVE_MORTAR_HIT_RADIUS,
       marker: "text",
-      markerText: "*",
+      markerText: definition.mortarMarkerText ?? "*",
       markerTextColor: damageEffectTextColor(damageType),
       duration: PREDICTIVE_MORTAR_DURATION,
-      singleTarget: true,
-      hitRadius: PREDICTIVE_MORTAR_HIT_RADIUS
+      singleTarget: definition.mortarSingleTarget ?? true,
+      hitRadius: definition.mortarHitRadius ?? PREDICTIVE_MORTAR_HIT_RADIUS,
+      radialFalloff: definition.mortarAoeFalloff,
+      debuff: definition.projectileDebuff,
+      debuffDuration: definition.projectileDebuffDuration,
+      ...(definition.splashRadius
+        ? {
+            rangeX: definition.splashRadius,
+            rangeY: definition.splashRadius
+          }
+        : {})
     })
   );
+}
+
+function getPredictiveMortarEnemyTarget(tower: Tower, definition: CardDefinition, enemies: Enemy[]) {
+  if (definition.mortarTargeting === "first") {
+    return getAttackTarget(tower, definition, enemies);
+  }
+
+  return getLowestMaxHpAttackTarget(tower, definition, enemies);
 }
 
 function predictedEnemyMortarTarget(enemy: Enemy, runtime: CardBehaviorRuntime) {
@@ -345,8 +374,9 @@ function predictedEnemyMortarTarget(enemy: Enemy, runtime: CardBehaviorRuntime) 
       statusSpeedMultiplier(enemy, runtime.battleTime) *
       movementSpeedMultiplier(runtime.towers, enemy.x, enemy.y) *
       chargingHexSpeedMultiplier(runtime.enemies, enemy);
+  const direction = Math.sign(enemy.maceVelocity ?? 0) || (enemy.movementDirection ?? -1);
   return {
-    x: enemy.x - speed * durationSeconds,
+    x: enemy.x + direction * speed * durationSeconds,
     y: enemy.y
   };
 }

@@ -158,6 +158,7 @@ interface MortarImpactStyle {
   marker?: "text" | "shell";
   markerText?: string;
   markerTextColor?: string;
+  shape?: "rectangle" | "circle";
 }
 
 export function makeSpellMortarImpact(
@@ -169,10 +170,13 @@ export function makeSpellMortarImpact(
   style: MortarImpactStyle = {}
 ) {
   const color = style.color ?? palette.magic;
-  const blast = scene.add
-    .rectangle(x, y, rangeX * 2, rangeY * 2, palette.black, 0)
-    .setStrokeStyle(3, color, 0.92)
-    .setDepth(112);
+  const blast =
+    style.shape === "circle"
+      ? scene.add.circle(x, y, rangeX, palette.black, 0).setStrokeStyle(3, color, 0.92).setDepth(112)
+      : scene.add
+          .rectangle(x, y, rangeX * 2, rangeY * 2, palette.black, 0)
+          .setStrokeStyle(3, color, 0.92)
+          .setDepth(112);
   const marker =
     style.marker === "shell"
       ? scene.add.circle(x, y, 9, palette.black, 1).setStrokeStyle(3, color, 0.96).setDepth(113)
