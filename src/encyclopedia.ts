@@ -513,6 +513,7 @@ function towerDescription(id: CardId) {
     a: zh ? "短程免费物理射手。机制类似 A，但只攻击自身和前方 4 格内的目标。" : "Free short-range physical shooter. Similar to A, but only attacks within itself plus 4 tiles ahead.",
     B: zh ? "防御塔。阻挡敌怪，只会对近战伤害反伤 400 物理伤害。" : "Defender. Blocks enemies and reflects 400 physical damage only against melee hits.",
     b: zh ? "小 b。放在已有塔上，短暂占格后让目标塔切换朝向；反向塔会镜像边框和字符，并显示黄色 < 标记。再次使用可转回正向。" : "Turn card. Place it on an existing tower; it briefly occupies the cell, then toggles that tower's facing. Reversed towers mirror their border and letter and show a yellow < marker. Use it again to turn the tower back.",
+    t: zh ? "真实伤害增幅。放在已有塔上，短暂占格后让目标塔在持续时间内造成的所有伤害变为真实伤害；目标塔会显示比自动升级更外侧的金色光环。" : "True-damage amplifier. Place it on an existing tower; it briefly occupies the cell, then makes all damage dealt by the target tower become true damage for the duration. The target shows a gold ring outside the auto-upgrade ring.",
     C: zh ? "物理溅射炮。沿本行发射炮弹，命中后对 1.75 格半径造成随距离衰减的范围伤害。" : "Physical splash cannon. Fires down its lane and deals 1.75-cell radius splash with distance falloff on hit.",
     c: zh ? "极速钟。每秒回复 1 技力，20 满后显示边框；点击消耗全部技力，使自身进入 10 秒闪烁状态。所有激活的 c 会让其他卡槽冷却速度变为等级和 +1 倍，c 自身卡槽冷却不受影响；Shift+点击可同时激活所有满技力的 c。" : "Speed clock. Gains 1 SP/s up to 20 and shows its border when full; clicking it spends all SP and makes it flash for 10s. Active c towers make other card-slot cooldown speed equal active level sum + 1; c's own card cooldown is unaffected. Shift-click activates all full c towers.",
     D: zh ? "纯防御塔。高护甲，用来拖住近战敌怪。" : "Pure defender with high armor for stalling melee enemies.",
@@ -556,6 +557,9 @@ function towerUpgradeText(id: CardId) {
   }
   if (id === "b") {
     return zh ? "每级提高自身等级；生效后会返还冷却，最终剩余冷却为基础冷却 / 有效等级。" : "Each level raises b's level; after it resolves, it refunds cooldown so the remaining cooldown is base cooldown / effective level.";
+  }
+  if (id === "t") {
+    return zh ? "每个有效等级提供 12 秒真实伤害持续时间；生效后冷却返还方式与 b 相同。" : "Each effective level grants 12 seconds of true-damage duration; after it resolves, cooldown refund works like b.";
   }
   if (id === "A" || id === "a" || id === "C" || id === "E" || id === "M" || id === "W" || id === "I" || id === "Q" || id === "J" || id === "H" || id === "P" || id === "p" || id === "K" || id === "v" || id === "Z") {
     return zh ? "增加连发次数；整段连射固定占攻击/治疗间隔的五分之一。" : "Adds burst count; the whole volley always takes one fifth of the attack/heal interval.";

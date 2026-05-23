@@ -20,7 +20,7 @@ import { updateRegisteredSkills } from "./skillRegistry";
 import { gainSkillSp, getTowerSkillState, resetSkillCharge } from "./skillState";
 import { createTowerSkillRegistry, type TowerSkillDefinition } from "./towerSkillRegistry";
 import { isBossInRect } from "./targeting";
-import { effectiveTowerLevel, getSpellMortarDamage, syncTowerHpBar } from "./towers";
+import { effectiveTowerLevel, getSpellMortarDamage, syncTowerHpBar, towerDamageType } from "./towers";
 
 export interface TowerSkillRuntime {
   towers: Tower[];
@@ -280,7 +280,7 @@ export class TowerSkillController {
     const runtime = this.runtime();
     const definition = runtime.getDefinition(tower.type);
     const damage = getSpellMortarDamage(tower, definition);
-    const damageType = definition.damageType ?? "magic";
+    const damageType = towerDamageType(tower, definition.damageType ?? "magic", runtime.battleTime);
     const state = getTowerSkillState(tower, "spellMortar");
     state.sp = Math.max(0, state.sp - SPELL_MORTAR_SKILL_COST);
     state.spBuffer = 0;

@@ -47,7 +47,7 @@ import {
   syncEnemyBodyPosition
 } from "./statusEffects";
 import { getBlockingTower } from "./targeting";
-import { isTrapArmed } from "./towers";
+import { isTrapArmed, towerDamageType } from "./towers";
 import { volleyInterval } from "./upgrades";
 import { buildWaveKinds, waveWeightLimit } from "./waves";
 
@@ -325,7 +325,11 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
         runtime.damageTower(blocker, enemy.damage * statusAttackMultiplier(enemy, time), enemy.damageType);
         if (blocker.type === "B") {
           const definition = getCardDefinition(blocker.type);
-          runtime.damageEnemy(enemy, definition.reflectDamage ?? 20, definition.reflectDamageType ?? "physical");
+          runtime.damageEnemy(
+            enemy,
+            definition.reflectDamage ?? 20,
+            towerDamageType(blocker, definition.reflectDamageType ?? "physical", time)
+          );
           makeReflectFlash(runtime.scene, blocker.x, blocker.y);
         }
         enemy.attackAt = time + enemy.attackInterval;

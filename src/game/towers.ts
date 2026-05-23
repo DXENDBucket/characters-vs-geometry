@@ -10,6 +10,8 @@ import {
   scaledByEffectiveUpgrades
 } from "./upgrades";
 
+const TRUE_DAMAGE_DURATION_PER_LEVEL = 12_000;
+
 export function createTower(
   scene: Phaser.Scene,
   definition: CardDefinition,
@@ -25,6 +27,7 @@ export function createTower(
   const border = createUnitBorder(scene, definition.category, 24, definition.category === "defense" ? 3 : 2);
   const rangeBorder = definition.id === "T" ? createSlowAuraRangeBorder(scene) : null;
   const autoUpgradeBorder = createAutoUpgradeBorder(scene);
+  const trueDamageBorder = createTrueDamageBorder(scene);
   const label = scene.add
     .text(0, -3, definition.id, {
       color: "#f5f5f5",
@@ -53,7 +56,17 @@ export function createTower(
     })
     .setOrigin(0.5);
 
-  body.add([...(rangeBorder ? [rangeBorder] : []), autoUpgradeBorder, border, label, facingIcon, levelText, hpBack, hpFill]);
+  body.add([
+    ...(rangeBorder ? [rangeBorder] : []),
+    trueDamageBorder,
+    autoUpgradeBorder,
+    border,
+    label,
+    facingIcon,
+    levelText,
+    hpBack,
+    hpFill
+  ]);
   if (definition.id === "G" || definition.id === "c" || definition.id === "S") {
     border.setVisible(false);
   }
@@ -89,8 +102,10 @@ export function createTower(
     label,
     facingIcon,
     autoUpgradeBorder,
+    trueDamageBorder,
     hpFill,
-    levelText
+    levelText,
+    trueDamageUntil: 0
   };
 }
 
@@ -224,10 +239,36 @@ export function isCardReadyForAutoUpgrade(cardState: CardState, cardTime: number
   return cardTime >= cardState.readyAt;
 }
 
+export function applyTowerTrueDamage(tower: Tower, battleTime: number, level: number) {
+  const duration = TRUE_DAMAGE_DURATION_PER_LEVEL * Math.max(1, level);
+  tower.trueDamageUntil = Math.max(tower.trueDamageUntil, battleTime) + duration;
+  syncTowerTrueDamageVisual(tower, battleTime);
+}
+
+export function towerDamageType(tower: Tower, damageType: CardDefinition["damageType"], battleTime: number) {
+  return towerHasTrueDamage(tower, battleTime) ? "true" : damageType ?? "physical";
+}
+
+export function syncTowerTrueDamageVisual(tower: Tower, battleTime: number) {
+  const active = towerHasTrueDamage(tower, battleTime);
+  tower.trueDamageBorder.setVisible(active);
+  if (active) {
+    tower.trueDamageBorder.setAlpha(0.72 + Math.sin(battleTime / 120) * 0.18);
+  }
+}
+
 function createAutoUpgradeBorder(scene: Phaser.Scene) {
   const border = scene.add.graphics();
   border.lineStyle(2, palette.green, 0.95);
   border.strokeCircle(0, 0, 31);
+  border.setVisible(false);
+  return border;
+}
+
+function createTrueDamageBorder(scene: Phaser.Scene) {
+  const border = scene.add.graphics();
+  border.lineStyle(2, palette.gold, 0.95);
+  border.strokeCircle(0, 0, 36);
   border.setVisible(false);
   return border;
 }
@@ -254,6 +295,10 @@ function createSlowAuraRangeBorder(scene: Phaser.Scene) {
   border.closePath();
   border.strokePath();
   return border;
+}
+
+function towerHasTrueDamage(tower: Tower, battleTime: number) {
+  return battleTime < tower.trueDamageUntil;
 }
 
 function resetTrapArming(tower: Tower, definition: CardDefinition, battleTime: number) {

@@ -24,7 +24,7 @@ import { enemyIsBurrowed } from "./enemyBehaviors";
 import { movementSpeedMultiplier } from "./slowAura";
 import { applyStatusEffect } from "./statusEffects";
 import { bossRect, isBossInRadius, isBossInRect, isPointInBossHitbox, towerRect } from "./targeting";
-import { towerFacingDirection } from "./towers";
+import { towerDamageType, towerFacingDirection } from "./towers";
 
 export interface ProjectileRuntime {
   scene: Phaser.Scene;
@@ -123,7 +123,9 @@ export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: numb
       const reflectsProjectile = hit.reflectProjectiles;
       runtime.damageTower(hit, projectile.damage, projectile.damageType);
       if (reflectsProjectile) {
-        runtime.projectiles.push(createReflectedProjectile(runtime.scene, projectile));
+        runtime.projectiles.push(
+          createReflectedProjectile(runtime.scene, projectile, towerDamageType(hit, projectile.damageType, runtime.battleTime))
+        );
         makeReflectFlash(runtime.scene, projectile.x, projectile.y);
       }
       removeEnemyProjectile(runtime.enemyProjectiles, projectile);
@@ -273,6 +275,7 @@ function detonateEnemyMortar(runtime: ProjectileRuntime, projectile: MortarProje
       continue;
     }
 
+    const reflectedDamageType = towerDamageType(tower, projectile.damageType, runtime.battleTime);
     runtime.mortarProjectiles.push(
       createMortarProjectile(runtime.scene, {
         owner: "tower",
@@ -281,12 +284,12 @@ function detonateEnemyMortar(runtime: ProjectileRuntime, projectile: MortarProje
         targetX: projectile.sourceEnemy.x,
         targetY: projectile.sourceEnemy.y,
         damage: projectile.damage,
-        damageType: projectile.damageType,
+        damageType: reflectedDamageType,
         rangeX: projectile.rangeX,
         rangeY: projectile.rangeY,
         marker: projectile.marker,
         markerText: projectile.markerText,
-        markerTextColor: projectile.marker === "text" ? damageEffectTextColor(projectile.damageType) : undefined,
+        markerTextColor: projectile.marker === "text" ? damageEffectTextColor(reflectedDamageType) : undefined,
         targetEnemy: projectile.sourceEnemy
       })
     );

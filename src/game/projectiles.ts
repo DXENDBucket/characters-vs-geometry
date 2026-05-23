@@ -164,7 +164,11 @@ export function createMortarProjectile(scene: Phaser.Scene, spec: MortarProjecti
   };
 }
 
-export function createReflectedProjectile(scene: Phaser.Scene, projectile: EnemyProjectile): Projectile {
+export function createReflectedProjectile(
+  scene: Phaser.Scene,
+  projectile: EnemyProjectile,
+  damageType: DamageType = projectile.damageType
+): Projectile {
   const reflectedAngle = projectile.vx < 0 ? 0 : 180;
   return createTowerProjectile(scene, {
     type: "bolt",
@@ -173,7 +177,7 @@ export function createReflectedProjectile(scene: Phaser.Scene, projectile: Enemy
     lane: projectile.sourceLane,
     speed: Math.abs(projectile.vx),
     damage: projectile.damage,
-    damageType: projectile.damageType,
+    damageType,
     splashRadius: 0,
     angleDegrees: reflectedAngle,
     maxX: reflectedAngle === 180 ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY,

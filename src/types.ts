@@ -30,6 +30,7 @@ export type CardId =
   | "N"
   | "n"
   | "T"
+  | "t"
   | "U"
   | "V"
   | "v"
@@ -192,8 +193,10 @@ export interface Tower {
   label: Phaser.GameObjects.Text;
   facingIcon: Phaser.GameObjects.Text;
   autoUpgradeBorder: Phaser.GameObjects.Graphics;
+  trueDamageBorder: Phaser.GameObjects.Graphics;
   hpFill: Phaser.GameObjects.Rectangle;
   levelText: Phaser.GameObjects.Text;
+  trueDamageUntil: number;
 }
 
 export interface Enemy {

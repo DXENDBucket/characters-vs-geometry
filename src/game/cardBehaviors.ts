@@ -29,7 +29,7 @@ import {
   hasAttackTarget
 } from "./targeting";
 import { syncEnemyBodyPosition } from "./statusEffects";
-import { effectiveTowerLevel, syncTowerHpBar, towerFacingDirection } from "./towers";
+import { effectiveTowerLevel, syncTowerHpBar, towerDamageType, towerFacingDirection } from "./towers";
 import { scaledByEffectiveUpgrades } from "./upgrades";
 
 export interface CardBehavior {
@@ -52,7 +52,7 @@ export const projectileCardBehavior: CardBehavior = {
     return cooldownReady(tower, time) && Boolean(definition.damage && hasAttackTarget(tower, definition, runtime.enemies, runtime.boss));
   },
   execute: (tower, definition, runtime) => {
-    for (const spec of towerProjectileSpecs(tower, definition)) {
+    for (const spec of towerProjectileSpecs(tower, definition, runtime.battleTime)) {
       runtime.projectiles.push(createTowerProjectile(runtime.scene, spec));
     }
   }
@@ -137,6 +137,7 @@ export const cardBehaviorsById: Record<CardId, CardBehavior> = {
   f: idleCardBehavior,
   l: idleCardBehavior,
   G: idleCardBehavior,
+  t: idleCardBehavior,
   H: healingCardBehavior,
   h: idleCardBehavior,
   I: projectileCardBehavior,
@@ -271,7 +272,7 @@ function laneIsInBoard(lane: number) {
 
 function fireSlash(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {
   const damage = definition.damage ?? 0;
-  const damageType = definition.damageType ?? "physical";
+  const damageType = towerDamageType(tower, definition.damageType, runtime.battleTime);
   const target = getAttackTarget(tower, definition, runtime.enemies);
   if (target) {
     makeSlashEffect(runtime.scene, target.x, target.y, damageType);
@@ -295,7 +296,7 @@ function fireSlash(tower: Tower, definition: CardDefinition, runtime: CardBehavi
 
 function fireArcWave(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {
   const damage = scaledByEffectiveUpgrades(definition.damage ?? 0, effectiveTowerLevel(tower));
-  const damageType = definition.damageType ?? "magic";
+  const damageType = towerDamageType(tower, definition.damageType ?? "magic", runtime.battleTime);
   const direction = towerFacingDirection(tower);
   makeArcWaveEffect(runtime.scene, tower.x - direction * CELL_WIDTH * 0.24, tower.y, damageType, direction);
 
@@ -318,7 +319,7 @@ function hasPredictiveMortarTarget(
 
 function firePredictiveMortar(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {
   const damage = scaledByEffectiveUpgrades(definition.damage ?? 0, effectiveTowerLevel(tower));
-  const damageType = definition.damageType ?? "magic";
+  const damageType = towerDamageType(tower, definition.damageType ?? "magic", runtime.battleTime);
   const enemy = getPredictiveMortarEnemyTarget(tower, definition, runtime.enemies);
   const target = enemy
     ? predictedEnemyMortarTarget(enemy, runtime)
@@ -456,12 +457,13 @@ function healTower(scene: Phaser.Scene, tower: Tower, amount: number) {
   makeHealParticles(scene, tower.x, tower.y);
 }
 
-function towerProjectileSpecs(tower: Tower, definition: CardDefinition): TowerProjectileSpec[] {
+function towerProjectileSpecs(tower: Tower, definition: CardDefinition, battleTime: number): TowerProjectileSpec[] {
   const pattern = getProjectilePattern(tower.type);
   if (!pattern) {
     return [];
   }
 
+  const damageType = towerDamageType(tower, definition.damageType, battleTime);
   return pattern.shots.map((shot) => {
     const mirrored = shouldMirrorProjectilePattern(tower, pattern);
     const angleDegrees = mirrored ? 180 - shot.angleDegrees : shot.angleDegrees;
@@ -473,6 +475,7 @@ function towerProjectileSpecs(tower: Tower, definition: CardDefinition): TowerPr
       muzzle.y,
       tower.lane,
       definition,
+      damageType,
       angleDegrees,
       projectileLimitX(tower, definition, pattern, limitDirection),
       limitDirection
@@ -486,6 +489,7 @@ function makeProjectileSpec(
   y: number,
   lane: number,
   definition: CardDefinition,
+  damageType: TowerProjectileSpec["damageType"],
   angleDegrees: number,
   maxX = Number.POSITIVE_INFINITY,
   limitDirection: -1 | 1 = 1
@@ -497,7 +501,7 @@ function makeProjectileSpec(
     lane,
     speed: pattern.speed,
     damage: definition.damage ?? 0,
-    damageType: definition.damageType ?? "physical",
+    damageType,
     debuff: definition.projectileDebuff,
     debuffDuration: definition.projectileDebuffDuration,
     splashRadius: projectileSplashRadius(pattern, definition),

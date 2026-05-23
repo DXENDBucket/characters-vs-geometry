@@ -217,7 +217,7 @@ export const cardDefinitions: CardDefinition[] = [
   {
     id: "G",
     category: "function",
-    cost: 25,
+    cost: 15,
     cooldown: 30_000,
     maxHp: 1_200,
     armor: 150,
@@ -226,6 +226,16 @@ export const cardDefinitions: CardDefinition[] = [
     triggerDamageType: "magic",
     armTime: 15_000,
     stats: `15000${DAMAGE_SYMBOLS.magic} / 15s`
+  },
+  {
+    id: "t",
+    category: "function",
+    cost: 925,
+    cooldown: 10_000,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 0,
+    stats: `${DAMAGE_SYMBOLS.true} DMG / 12s/LV`
   },
   {
     id: "H",
