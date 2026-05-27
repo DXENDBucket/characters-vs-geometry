@@ -39,7 +39,7 @@ import {
 import { syncDodecahedronCompanionShape } from "../render/unitShapes";
 import type { BossCompanionActionPhase, BossSkill, CubeBoss, DamageType, Enemy, MortarProjectile, Tower } from "../types";
 import { createBossSkillRegistry, runRegisteredBossSkills } from "./bossSkillRegistry";
-import { applyEnemyPromotion, findPromotionTargets, promotedKind } from "./enemyBehaviors";
+import { applyEnemyPromotion, enemyIsHighFlying, findPromotionTargets, promotedKind } from "./enemyBehaviors";
 import { spawnEnemyAt } from "./enemyRuntime";
 import { createMortarProjectile } from "./projectiles";
 import { makeWingPulse, triggerAngelWings } from "./enemySupport";
@@ -520,7 +520,7 @@ function updateDodecahedronEndlessWings(
 
   const rect = bossRect(boss);
   const targets = runtime.enemies.filter((enemy) => {
-    return rect.contains(enemy.x, enemy.y) && !hasStatusEffect(enemy, "flying", runtime.battleTime);
+    return rect.contains(enemy.x, enemy.y) && !enemyIsHighFlying(enemy) && !hasStatusEffect(enemy, "flying", runtime.battleTime);
   });
   if (targets.length === 0) {
     return;

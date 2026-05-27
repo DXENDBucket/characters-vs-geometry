@@ -17,6 +17,7 @@ export type EnemyFamily =
   | "hexMace"
   | "heart"
   | "burrowArrow"
+  | "slopeTriangle"
   | "invertedTriangle"
   | "shootingTriangle"
   | "dodecahedronCompanion"
@@ -215,6 +216,14 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     rank: 1,
     nameKey: "enemy.burrowArrow",
     attackMode: "melee",
+    leader: true
+  },
+  slopeTriangle: {
+    definition: rawEnemyDefinitions.slopeTriangle,
+    family: "slopeTriangle",
+    rank: 1,
+    nameKey: "enemy.slopeTriangle",
+    attackMode: "leader",
     leader: true
   },
   invertedTriangle: {

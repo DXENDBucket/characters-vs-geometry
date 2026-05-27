@@ -62,13 +62,17 @@ export function enemyIsBurrowed(enemy: Enemy) {
   return enemy.burrowed === true;
 }
 
+export function enemyIsHighFlying(enemy: Enemy) {
+  return enemy.highFlightUntil !== undefined;
+}
+
 export function promotedKind(kind: EnemyKind) {
   return enemyPromotionKind(kind);
 }
 
 export function findPromotionTargets(boss: CubeBoss, enemies: Enemy[], fromRank: number, count: number) {
   return enemies
-    .filter((enemy) => enemyRank(enemy.kind) === fromRank && promotedKind(enemy.kind))
+    .filter((enemy) => !enemyIsHighFlying(enemy) && enemyRank(enemy.kind) === fromRank && promotedKind(enemy.kind))
     .sort((a, b) => Math.hypot(a.x - boss.x, a.y - boss.y) - Math.hypot(b.x - boss.x, b.y - boss.y))
     .slice(0, count);
 }
@@ -88,6 +92,14 @@ export function applyEnemyPromotion(scene: Phaser.Scene, enemy: Enemy, kind: Ene
   enemy.speed = randomizedEnemySpeed(kind);
   enemy.maceVelocity = enemyIsMace(kind) ? 0 : undefined;
   enemy.maceFacingDirection = enemyIsMace(kind) ? -1 : undefined;
+  enemy.slopeFacingDirection = kind === "slopeTriangle" ? enemy.movementDirection ?? -1 : undefined;
+  enemy.highFlightStartedAt = undefined;
+  enemy.highFlightUntil = undefined;
+  enemy.highFlightStartX = undefined;
+  enemy.highFlightStartY = undefined;
+  enemy.highFlightTargetX = undefined;
+  enemy.highFlightTargetY = undefined;
+  enemy.highFlightPeakHeight = undefined;
   enemy.angelRamWingsTriggered = false;
   enemy.body.removeAll(true);
   enemy.statusBorder = scene.add.circle(0, 0, 28, palette.black, 0).setStrokeStyle(2, palette.magic, 0.92);
@@ -139,6 +151,7 @@ export function canEnemyMelee(enemy: Enemy) {
     !enemyIsSiegeRam(enemy.kind) &&
     !enemyIsMace(enemy.kind) &&
     enemyFamily(enemy.kind) !== "heart" &&
+    enemyFamily(enemy.kind) !== "slopeTriangle" &&
     !enemyIsBossCompanion(enemy.kind)
   );
 }

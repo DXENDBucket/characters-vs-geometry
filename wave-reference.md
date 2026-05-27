@@ -41,6 +41,7 @@ Triangle enemies all deal Triangle 1's `600◆`; Triangle N attacks every `1/N` 
 Shooting Triangle is a separate ranged enemy and does not use Triangle N attack scaling.
 Locked attacks, including Triangle Mortars, target the tower blocking the attacker if the attacker is currently blocked; otherwise they use their normal targeting rule.
 Flying units cannot be blocked and render slightly higher than grounded enemies. Flying itself does not always show a halo; Wings-granted Flying shows a halo.
+High Flight is a separate airborne state used by Slope Triangle launches. High Flight enemies travel along a parabola and cannot be blocked, targeted, directly hit, or damaged by tower AOE until they land.
 Enemies with a minimum flag gate are excluded from random wave pools before that flag wave. All Diamonds, Triangle Mortars, Pentagons, Angel Pentagons, Shooting Pentagons, Hex Maces, and Angel Pentagon Rams require Flag 1, so they can start appearing on wave 10 of standard 10-wave flags.
 Numbered minion weights use fixed additive steps: circles `+40`, triangles `+60`, squares `+100`.
 Enemy body labels are displayed as Roman numerals in-game.
@@ -51,6 +52,7 @@ Enemy body labels are displayed as Roman numerals in-game.
 | --- | --- | ---: | ---: | ---: | --- | --- |
 | Heart 1 | 1 per flag wave if included in the level pool; no wave weight | 9999 | 399 | 2100 | True | Body label `I`; MR `60`; fixed speed `30` with no random speed variance. Enemies in the same lane and farther from the base gain a non-stacking `+50%` movement speed bonus. Every `5s`, emits a growing pink heart AOE centered on itself with `1.75` cell radius and outward falloff. Lead starts at `0/5` SP, gains `1` SP/s, then pulls ordinary minions in its column plus four columns behind, within two lanes up/down, into its lane; leaders, Bosses, and Boss companions are not pulled |
 | Burrow Arrow 1 | 1 per flag wave if included in the level pool; no wave weight | 16500 | 250 | 400 | Physical | Body label `I`; MR `0`; fixed speed `20` with no random speed variance. Touching non-leader minions are loaded; rank I can carry total minion rank `5`. Once full or after `6s` on the field, it burrows, shows only its upper tip about `0.55` cells lower, ignores normal projectile targeting/direct hits, but can still be damaged by AOE. While burrowed it gains `+300%` movement speed. It resurfaces at the center of the cell before the base, turns itself and loaded enemies around, unloads once, and can no longer load or burrow. If it dies while carrying loaded enemies, they immediately appear without reversing direction |
+| Slope Triangle 1 | 1 per flag wave if included in the level pool; no wave weight | 21000 | 500 | 0 | Physical | Body label `I`; MR `0`; fixed speed `6` with no random speed variance. It does not attack. While currently blocked, it stays in place and acts as a ramp; if unblocked, it keeps moving at its own speed. Only while blocked, touching non-leader minions whose current velocity direction matches the Slope Triangle facing direction enter High Flight and fly forward in a parabola. This checks the minion velocity direction, not the minion facing direction. Flight distance is based on current actual speed: every `10` speed sends the minion `1.5` cells. High Flight enemies cannot be blocked, targeted, directly hit, or damaged by tower AOE before landing. Leaders, Bosses, and Boss companions are not launched |
 
 Leader enemies are fixed flag-wave spawns when included in a level pool. They do not consume wave weight and do not receive random speed variance.
 
@@ -124,9 +126,9 @@ Tetrahedron skills:
 | E | Attack | Diamond | 150 | 2s | 1200 | 150 | 0 | Fires 3 bolts at `-10/0/+10` degrees, `400◆` each, every `2s` | +1 volley per level |
 | M | Attack | Diamond | 75 | 2s | 1200 | 150 | 0 | Fires 3 bolts downward at `80/90/100` degrees, `400◆` each, every `2s`; all shots start from the cell center | +1 volley per level |
 | W | Attack | Diamond | 75 | 2s | 1200 | 150 | 0 | Fires 3 bolts upward at `-100/-90/-80` degrees, `400◆` each, every `2s`; all shots start from the cell center | +1 volley per level |
-| F | Function | Triangle | 125 | 30s | 1200 | 150 | 0 | On enemy or Boss contact, disappears and emits `10` shockwaves; each deals `1400◆` in a `4x4` area | +`8` shockwaves per level |
-| f | Function | Triangle | 125 | 30s | 1200 | 150 | 0 | On enemy or Boss contact, disappears, deals no damage, and applies `10s` Stasis to all enemies on the field | +`8s` Stasis duration per level |
-| l | Function | Triangle | 175 | 30s | 1200 | 150 | 40 | On enemy or Boss contact, or when clicked, disappears and deals `15000✦` once to a full-column area with `0.75` cells horizontal range. F and l borders flash while ready to click | +`12000✦` per level |
+| F | Function | Triangle | 125 | 30s | 1200 | 150 | 0 | On enemy or Boss contact, or when clicked, disappears and emits `10` shockwaves; each deals `1400◆` in a `4x4` area | +`8` shockwaves per level |
+| f | Function | Triangle | 125 | 30s | 1200 | 150 | 0 | On enemy or Boss contact, or when clicked, disappears, deals no damage, and applies `10s` Stasis to all enemies on the field | +`8s` Stasis duration per level |
+| l | Function | Triangle | 175 | 30s | 1200 | 150 | 40 | On enemy or Boss contact, or when clicked, disappears and deals `15000✦` once to a full-column area with `0.75` cells horizontal range. F, f, and l borders flash while ready to click | +`12000✦` per level |
 | G | Function | Triangle | 15 | 30s | 1200 | 150 | 0 | Arms after `15s`; on enemy or Boss contact, disappears and deals `15000✦` | +`12000✦` per level; resets arming |
 | t | Function | Triangle | 925 | 10s | 1200 | 150 | 0 | Instant true-damage amplifier. Place it on an occupied tower; it briefly occupies that cell, then makes all damage dealt by the target tower become true damage. The target shows a gold ring outside the auto-upgrade ring | Each effective level grants `12s` duration and refunds cooldown like b |
 | H | Healing | Hexagon | 150 | 20s | 1200 | 150 | 0 | Heals the lowest HP% damaged ally in a centered `3x3` area for `700`, every `2s`, shown as `♡`; ties prefer earlier placement | +1 healing volley per level |
@@ -144,10 +146,9 @@ Tetrahedron skills:
 | N | Defense | Square | 125 | 20s | 3000 | 500 | 0 | Every `1s`, pushes all enemies it is blocking `5` cells in its push direction: normal N pushes left, reversed N pushes right. Takes `400◇` per pushed enemy. Enemy projectiles that would hit N are shifted `5` cells in that same direction instead of dealing projectile damage, and N takes `400◇` per shifted projectile. Locked mortar shots targeting N have their landing point shifted by the same distance and also cost N `400◇` once | +`2400` max/current HP per level |
 | n | Function | Triangle | 375 | 20s | 3000 | 200 | 0 | Every `1s`, repels all enemies in its own lane within its column and the front column to an adjacent upper/lower lane; odd placement order starts upward, even starts downward, then alternates. Takes `400◇` per shifted enemy | +`2400` max/current HP per level |
 | T | Function | Triangle | 650 | 50s | 4000 | 150 | 20 | Every `1s`, takes `700◇`; ordinary units and projectiles in a centered `5x5` no-corner area move at `1/6` speed. Bosses ignore the slow. The area is shown with a deep-purple time border. On death, clears projectiles in that area; eraser removal does not trigger this | +`3200` max/current HP per level |
-
 | U | Function | Triangle | 1275 | 50s | 1200 | 150 | 40 | Grants towers in a centered `3x3` area, excluding itself, bonus levels equal to U's real level. Only affects towers whose base cost is lower than U's base cost. Multiple U auras stack additively | Each level raises U's aura bonus by `+1` level |
 | V | Attack | Diamond | 775 | 6s | 1200 | 150 | 40 | Every `2s`, lobs a single-target `*` magic shell for `1300` damage along its lane. It prefers the attackable enemy with the lowest max HP, predicts the landing point from target speed at lock time, and can miss | +`1040` magic attack per level |
-| v | Attack | Diamond | 450 | 6s | 1200 | 150 | 40 | Every `4s`, lobs a `#` magic shell at the first enemy ahead. It predicts the landing point from target speed at lock time, then deals `800✦` in a circular `1.75` tile radius AOE with distance falloff and applies `2s` Stasis to ordinary enemies hit | +1 volley per level |
+| v | Attack | Diamond | 500 | 6s | 1200 | 150 | 40 | Every `4s`, lobs a `#` magic shell at the first enemy ahead. It predicts the landing point from target speed at lock time, then deals `500✦` in a circular `1.75` tile radius AOE with distance falloff and applies `2s` Stasis to ordinary enemies hit | +1 volley per level |
 
 Volley upgrades spread consecutive shots or heals across a fixed total volley duration of `interval / 5`, regardless of shot count. The attack/heal interval itself is unchanged and starts after the volley finishes.
 
@@ -1562,6 +1563,7 @@ Enemy pool:
 - Triangle Ram 1
 - Angel Pentagon Ram 1
 - Hex Mace 1
+- Slope Triangle 1
 
 Base rule:
 
@@ -1573,6 +1575,54 @@ Base rule:
 - Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
 - The level has `20` total waves.
 - Angel Pentagon Ram 1 and Hex Mace 1 have a minimum Flag 1 gate, so they can first enter the random pool on wave 10.
+- Slope Triangle 1 is a leader enemy and fixed-spawns once on flag waves if included in the level pool; it does not consume wave weight.
+
+| Wave | Flag | Base Cap | Final Cap |
+| ---: | ---: | ---: | ---: |
+| 1 | - | 25 | 25 |
+| 2 | - | 45 | 45 |
+| 3 | - | 68 | 68 |
+| 4 | - | 94 | 94 |
+| 5 | - | 123 | 123 |
+| 6 | - | 155 | 155 |
+| 7 | - | 190 | 190 |
+| 8 | - | 228 | 228 |
+| 9 | - | 269 | 269 |
+| 10 | 1 | 313 | 626 |
+| 11 | - | 360 | 360 |
+| 12 | - | 410 | 410 |
+| 13 | - | 463 | 463 |
+| 14 | - | 519 | 519 |
+| 15 | - | 578 | 578 |
+| 16 | - | 640 | 640 |
+| 17 | - | 705 | 705 |
+| 18 | - | 773 | 773 |
+| 19 | - | 844 | 844 |
+| 20 | 2 | 918 | 1836 |
+
+## Level 3-5 Weight Growth
+
+Enemy pool:
+
+- Circle 1
+- Triangle 1
+- Triangle 2
+- Triangle 3
+- Angel Pentagon 1
+- Slope Triangle 1
+- Burrow Arrow 1
+
+Base rule:
+
+- Starting characters: `500`.
+- Wave 1 starts at weight cap `25`.
+- Wave 2 adds `+20`; each later increment grows by `+3` (`+23`, `+26`, ...).
+- Every flag wave, currently every `10`th wave, doubles that wave's final cap.
+- A wave may leave unused weight, but never exceeds its cap.
+- Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
+- The level has `20` total waves.
+- Angel Pentagon 1 has a minimum Flag 1 gate, so it can first enter the random pool on wave 10.
+- Slope Triangle 1 and Burrow Arrow 1 are leader enemies and fixed-spawn once each on flag waves if included in the level pool; they do not consume wave weight.
 
 | Wave | Flag | Base Cap | Final Cap |
 | ---: | ---: | ---: | ---: |

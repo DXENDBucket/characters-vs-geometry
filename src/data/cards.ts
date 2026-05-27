@@ -438,13 +438,13 @@ export const cardDefinitions: CardDefinition[] = [
   {
     id: "v",
     category: "attack",
-    cost: 450,
+    cost: 500,
     cooldown: 6_000,
     maxHp: 1_200,
     armor: 150,
     magicResistance: 40,
     fireRate: 4_000,
-    damage: 800,
+    damage: 500,
     damageType: "magic",
     splashRadius: CELL_WIDTH * 1.75,
     projectileDebuff: "stasis",
@@ -453,7 +453,7 @@ export const cardDefinitions: CardDefinition[] = [
     mortarSingleTarget: false,
     mortarAoeFalloff: true,
     mortarMarkerText: "#",
-    stats: `800${DAMAGE_SYMBOLS.magic} / AOE / STASIS`
+    stats: `500${DAMAGE_SYMBOLS.magic} / AOE / STASIS`
   },
   {
     id: "P",

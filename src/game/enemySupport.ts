@@ -3,7 +3,7 @@ import { BOARD_X, CELL_HEIGHT, CELL_WIDTH } from "../config";
 import { makeHealParticles, makeShiftEffect } from "../render/combatEffects";
 import type { CubeBoss, Enemy, SkillState } from "../types";
 import { enemyFamily, enemyIsBossCompanion, enemyIsLeader } from "../registry/enemies";
-import { syncEnemyVisualScale } from "./enemyBehaviors";
+import { enemyIsHighFlying, syncEnemyVisualScale } from "./enemyBehaviors";
 import { createEnemySkillRegistry, enemySkillDefinitions, type EnemySkillRuntime } from "./enemySkillRegistry";
 import { updateRegisteredSkills } from "./skillRegistry";
 import { gainSkillSp, getEnemySkillState, isSkillReady, spendSkillSp } from "./skillState";
@@ -47,14 +47,14 @@ export function hexBossArmorBonus(enemies: Enemy[], boss: CubeBoss | null) {
   }
 
   return (
-    enemies.filter((enemy) => isHexagon(enemy) && isBossInRadius(boss, enemy.x, enemy.y, HEX_ARMOR_RADIUS)).length *
+    enemies.filter((enemy) => !enemyIsHighFlying(enemy) && isHexagon(enemy) && isBossInRadius(boss, enemy.x, enemy.y, HEX_ARMOR_RADIUS)).length *
     HEX_ARMOR_BONUS
   );
 }
 
 export function syncHexArmorAuras(enemies: Enemy[], time: number) {
   for (const enemy of enemies) {
-    const stacks = hexArmorStacks(enemies, enemy);
+    const stacks = enemyIsHighFlying(enemy) ? 0 : hexArmorStacks(enemies, enemy);
     enemy.armorIcon.setVisible(stacks > 0);
     if (stacks > 0) {
       enemy.armorIcon.setY(-38 + Math.sin(time / 110) * 2);
@@ -64,10 +64,10 @@ export function syncHexArmorAuras(enemies: Enemy[], time: number) {
 
 export function chargingHexSpeedMultiplier(enemies: Enemy[], target: Enemy) {
   const hasChargingHexBuff = enemies.some((enemy) => {
-    return enemyFamily(enemy.kind) === "chargingHexagon" && enemy.lane === target.lane && enemy.x < target.x;
+    return !enemyIsHighFlying(enemy) && enemyFamily(enemy.kind) === "chargingHexagon" && enemy.lane === target.lane && enemy.x < target.x;
   });
   const hasLeaderBuff = enemies.some((enemy) => {
-    return enemyFamily(enemy.kind) === "heart" && enemy.lane === target.lane && enemy.x < target.x;
+    return !enemyIsHighFlying(enemy) && enemyFamily(enemy.kind) === "heart" && enemy.lane === target.lane && enemy.x < target.x;
   });
 
   return hasChargingHexBuff || hasLeaderBuff
@@ -77,12 +77,16 @@ export function chargingHexSpeedMultiplier(enemies: Enemy[], target: Enemy) {
 
 export function updateEnemySkills(runtime: EnemySkillRuntime, seconds: number, time: number) {
   updateRegisteredSkills(
-    [...runtime.enemies],
+    runtime.enemies.filter((enemy) => !enemyIsHighFlying(enemy)),
     (enemy) => enemySkillDefinitions(enemySkillRegistry, enemy),
     runtime,
     seconds,
     time
   );
+}
+
+function hexArmorStacks(enemies: Enemy[], target: Enemy) {
+  return enemies.filter((enemy) => !enemyIsHighFlying(enemy) && isHexagon(enemy) && Math.hypot(enemy.x - target.x, enemy.y - target.y) <= HEX_ARMOR_RADIUS).length;
 }
 
 function updateHexHeal(enemy: Enemy, state: SkillState, seconds: number, _time: number, runtime: EnemySkillRuntime) {
@@ -117,7 +121,11 @@ function tryUseHexHeal(scene: Phaser.Scene, enemies: Enemy[], healer: Enemy, ski
 
   const target = enemies
     .filter((enemy) => {
-      return enemy.hp < enemy.maxHp && Math.hypot(enemy.x - healer.x, enemy.y - healer.y) <= HEX_ARMOR_RADIUS;
+      return (
+        !enemyIsHighFlying(enemy) &&
+        enemy.hp < enemy.maxHp &&
+        Math.hypot(enemy.x - healer.x, enemy.y - healer.y) <= HEX_ARMOR_RADIUS
+      );
     })
     .sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
   if (!target) {
@@ -133,10 +141,6 @@ function tryUseHexHeal(scene: Phaser.Scene, enemies: Enemy[], healer: Enemy, ski
 
   syncEnemyVisualScale(target);
   makeHealParticles(scene, target.x, target.y);
-}
-
-function hexArmorStacks(enemies: Enemy[], target: Enemy) {
-  return enemies.filter((enemy) => isHexagon(enemy) && Math.hypot(enemy.x - target.x, enemy.y - target.y) <= HEX_ARMOR_RADIUS).length;
 }
 
 function isHexagon(enemy: Enemy) {
@@ -173,7 +177,7 @@ function tryUseHeartLead(scene: Phaser.Scene, enemies: Enemy[], caster: Enemy, s
 }
 
 function isOrdinaryLeadTarget(enemy: Enemy) {
-  return !enemyIsLeader(enemy.kind) && !enemyIsBossCompanion(enemy.kind);
+  return !enemyIsLeader(enemy.kind) && !enemyIsBossCompanion(enemy.kind) && !enemyIsHighFlying(enemy);
 }
 
 export function triggerAngelWings(
@@ -186,6 +190,10 @@ export function triggerAngelWings(
   spendSkillSp(skill, ANGEL_WINGS_SKILL_COST);
   skill.activeUntil = time + ANGEL_WINGS_DURATION;
   for (const target of enemies) {
+    if (enemyIsHighFlying(target)) {
+      continue;
+    }
+
     if (Math.abs(target.x - caster.x) > ANGEL_WINGS_RANGE_X || Math.abs(target.y - caster.y) > ANGEL_WINGS_RANGE_Y) {
       continue;
     }

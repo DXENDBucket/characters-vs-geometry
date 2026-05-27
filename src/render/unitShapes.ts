@@ -426,6 +426,23 @@ export function createEnemyShape(scene: Phaser.Scene, kind: EnemyKind, options: 
     return shape;
   }
 
+  if (family === "slopeTriangle") {
+    const shape = scene.add.container(0, 0);
+    const triangle = scene.add.graphics();
+    triangle.fillStyle(palette.black, 1);
+    triangle.lineStyle(2, palette.white, 1);
+    triangle.beginPath();
+    triangle.moveTo(-30, 28);
+    triangle.lineTo(-30, -28);
+    triangle.lineTo(28, 28);
+    triangle.closePath();
+    triangle.fillPath();
+    triangle.strokePath();
+    const label = createEnemyLabel(scene, -13, 9, kind, 18);
+    shape.add([triangle, label]);
+    return shape;
+  }
+
   if (family === "invertedTriangle") {
     const shape = scene.add.container(0, 0);
     const triangle = scene.add.graphics();

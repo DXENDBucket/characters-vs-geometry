@@ -463,7 +463,7 @@ export class GameScene extends Phaser.Scene {
         continue;
       }
 
-      if (tower.type === "F" || tower.type === "l") {
+      if (tower.type === "F" || tower.type === "f" || tower.type === "l") {
         tower.border.setVisible(true);
         tower.border.setAlpha(0.55 + Math.sin(time / 95) * 0.27);
       }
@@ -1095,6 +1095,11 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    if (key === "f" && this.selectedCardIds.includes("f")) {
+      this.selectCard("f");
+      return;
+    }
+
     if (key === "k" && this.selectedCardIds.includes("k")) {
       this.selectCard("k");
       return;
@@ -1186,7 +1191,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private isManualShockTower(tower?: Tower): tower is Tower {
-    return tower?.type === "F" || tower?.type === "l";
+    return tower?.type === "F" || tower?.type === "f" || tower?.type === "l";
   }
 
   private getDefinition(id: CardId) {

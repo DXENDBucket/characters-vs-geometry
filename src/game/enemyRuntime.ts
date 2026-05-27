@@ -28,6 +28,7 @@ import type { EnemyAdvanceRuntime, EnemySpawnRuntime } from "./combatRuntime";
 import {
   canEnemyMelee,
   enemyIsBurrowed,
+  enemyIsHighFlying,
   enemyVolleyShotCount,
   shouldEnemyShoot,
   siegeRamSpeed,
@@ -39,6 +40,7 @@ import { createEnemy } from "./enemyFactory";
 import { createEnemyProjectile, createMortarProjectile } from "./projectiles";
 import { chargingHexSpeedMultiplier, makeWingPulse, syncHexArmorAuras, updateEnemySkills } from "./enemySupport";
 import { movementSpeedMultiplier } from "./slowAura";
+import { advanceHighFlyingEnemy, advanceSlopeTriangle } from "./slopeTriangle";
 import {
   applyStatusEffect,
   hasStatusEffect,
@@ -263,6 +265,10 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
       continue;
     }
 
+    if (advanceHighFlyingEnemy(enemy, time)) {
+      continue;
+    }
+
     const statusMultiplier = statusSpeedMultiplier(enemy, time);
     const chargingHexMultiplier = chargingHexSpeedMultiplier(runtime.enemies, enemy);
     if ((hasStatusEffect(enemy, "haste", time) || chargingHexMultiplier > 1) && time >= enemy.nextHasteTrailAt) {
@@ -313,6 +319,10 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
         continue;
       }
 
+      if (advanceSlopeTriangle(runtime, enemy, blocker, time)) {
+        continue;
+      }
+
       if (advanceSiegeRam(runtime, enemy, blocker, time)) {
         continue;
       }
@@ -334,6 +344,10 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
         }
         enemy.attackAt = time + enemy.attackInterval;
       }
+    }
+
+    if (advanceSlopeTriangle(runtime, enemy, blocker, time)) {
+      continue;
     }
 
     if (advanceBlockedDetonator(runtime, enemy, blocker, time)) {
@@ -448,7 +462,7 @@ function loadTouchingBurrowCargo(runtime: EnemyAdvanceRuntime, carrier: Enemy) {
 }
 
 function canLoadBurrowCargo(enemy: Enemy) {
-  return !enemyIsLeader(enemy.kind) && !enemyIsBossCompanion(enemy.kind) && !enemyIsBurrowed(enemy);
+  return !enemyIsLeader(enemy.kind) && !enemyIsBossCompanion(enemy.kind) && !enemyIsBurrowed(enemy) && !enemyIsHighFlying(enemy);
 }
 
 function startBurrow(runtime: EnemyAdvanceRuntime, enemy: Enemy) {

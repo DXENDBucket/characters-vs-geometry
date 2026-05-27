@@ -20,7 +20,7 @@ import {
   isEnemyProjectileOutOfBounds,
   isTowerProjectileOutOfBounds
 } from "./projectiles";
-import { enemyIsBurrowed } from "./enemyBehaviors";
+import { enemyIsBurrowed, enemyIsHighFlying } from "./enemyBehaviors";
 import { movementSpeedMultiplier } from "./slowAura";
 import { applyStatusEffect } from "./statusEffects";
 import { bossRect, isBossInRadius, isBossInRect, isPointInBossHitbox, towerRect } from "./targeting";
@@ -50,7 +50,10 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
     projectile.body.setPosition(projectile.x, projectile.y);
 
     const hit = runtime.enemies.find((enemy) => {
-      return !enemyIsBurrowed(enemy) && Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y) < enemyProjectileHitRadius(enemy);
+      return (
+        canEnemyBeDirectlyHit(enemy) &&
+        Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y) < enemyProjectileHitRadius(enemy)
+      );
     });
     const hitBoss = isPointInBossHitbox(runtime.getBoss(), projectile.x, projectile.y);
 
@@ -77,6 +80,10 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
       const burstY = hit ? hit.y : projectile.y;
       makeShellBurst(runtime.scene, burstX, burstY, projectile.splashRadius, projectile.damageType);
       for (const enemy of [...runtime.enemies]) {
+        if (enemyIsHighFlying(enemy)) {
+          continue;
+        }
+
         const dx = enemy.x - burstX;
         const dy = enemy.y - burstY;
         const falloff = radiusFalloff(Math.hypot(dx, dy), projectile.splashRadius);
@@ -178,6 +185,10 @@ function removeProjectile(projectiles: Projectile[], projectile: Projectile) {
 
 function enemyProjectileHitRadius(enemy: Enemy) {
   return enemyIsBossCompanion(enemy.kind) ? CELL_WIDTH * 0.475 : 22;
+}
+
+function canEnemyBeDirectlyHit(enemy: Enemy) {
+  return !enemyIsBurrowed(enemy) && !enemyIsHighFlying(enemy);
 }
 
 function removeEnemyProjectile(projectiles: EnemyProjectile[], projectile: EnemyProjectile) {
@@ -317,6 +328,10 @@ function detonateTowerMortar(runtime: ProjectileRuntime, projectile: MortarProje
   }
 
   for (const enemy of [...runtime.enemies]) {
+    if (enemyIsHighFlying(enemy)) {
+      continue;
+    }
+
     if (Math.abs(enemy.x - projectile.targetX) <= projectile.rangeX && Math.abs(enemy.y - projectile.targetY) <= projectile.rangeY) {
       runtime.damageEnemy(enemy, projectile.damage, projectile.damageType);
       if (runtime.enemies.includes(enemy)) {
@@ -332,6 +347,10 @@ function detonateTowerMortar(runtime: ProjectileRuntime, projectile: MortarProje
 function detonateRadialFalloffTowerMortar(runtime: ProjectileRuntime, projectile: MortarProjectile) {
   const radius = projectile.rangeX;
   for (const enemy of [...runtime.enemies]) {
+    if (enemyIsHighFlying(enemy)) {
+      continue;
+    }
+
     const falloff = radiusFalloff(Math.hypot(enemy.x - projectile.targetX, enemy.y - projectile.targetY), radius);
     if (falloff <= 0) {
       continue;
@@ -355,6 +374,7 @@ function detonateSingleTargetTowerMortar(runtime: ProjectileRuntime, projectile:
     .filter((enemy) => {
       return (
         !enemyIsBurrowed(enemy) &&
+        !enemyIsHighFlying(enemy) &&
         Math.hypot(enemy.x - projectile.targetX, enemy.y - projectile.targetY) <= Math.max(hitRadius, enemyProjectileHitRadius(enemy))
       );
     })

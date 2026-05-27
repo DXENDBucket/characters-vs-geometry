@@ -40,6 +40,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
   const hexMace = getEnemyDefinition("hexMace");
   const heart = getEnemyDefinition("heart");
   const burrowArrow = getEnemyDefinition("burrowArrow");
+  const slopeTriangle = getEnemyDefinition("slopeTriangle");
   const invertedTriangle = getEnemyDefinition("invertedTriangle");
   const invertedTriangle2 = getEnemyDefinition("invertedTriangle2");
   const shootingTriangle = getEnemyDefinition("shootingTriangle");
@@ -348,6 +349,26 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
         : "Non-leader minions that touch it are loaded. Once full or after 6s on the field, it burrows and only its upper tip remains visible; while burrowed it cannot be targeted or directly hit by normal projectiles, but AOE still affects it, and it gains +300% movement speed. It resurfaces at the center of the cell before the base, turns itself and loaded minions around, and unloads only once. If it dies while carrying cargo, loaded minions immediately appear without reversing direction."
     },
     {
+      title: zh ? "斜坡三角形领袖系列" : "Slope Triangle Leader Series",
+      enemyKind: "slopeTriangle",
+      lines: [
+        statLine([
+          [t("label.hp"), slopeTriangle.hp],
+          [t("label.armor"), slopeTriangle.armor],
+          [t("label.mr"), slopeTriangle.magicResistance],
+          [t("label.atk"), damageText(slopeTriangle.damage, slopeTriangle.damageType)],
+          [t("label.speed"), speedText("slopeTriangle")],
+          [t("label.weight"), zh ? "旗帜固定" : "flag fixed"]
+        ]),
+        zh
+          ? "被阻挡期间停在原地且不攻击；只有此时才会让接触它、速度方向与斜坡朝向一致的非领袖小怪进入高空飞行"
+          : "While blocked, it stays in place and does not attack; only then can it launch touching non-leader minions whose velocity direction matches its facing direction into High Flight"
+      ],
+      description: zh
+        ? "斜坡三角形 I 不进行攻击。它只有在当前被塔阻挡时才作为斜坡生效，本体被阻挡在原地；若阻挡解除，它会继续按自身速度移动。生效期间，接触到它、且当前速度方向与斜坡三角形面朝方向一致的普通小怪会沿速度方向抛物线飞出；这里比较的是小怪的速度方向，不是小怪面朝方向。高空飞行落地前不会被阻挡、锁定、直接命中或受到塔 AOE。飞行距离按当前实际速度计算：每 10 速度飞 1.5 格。领袖、Boss 和 Boss 眷属不会被发射。"
+        : "Slope Triangle I does not attack. It acts as a ramp only while currently blocked by a tower, staying in place while blocked; once unblocked, it keeps moving at its own speed. During that block, ordinary minions touching it are launched forward only if their current velocity direction matches the Slope Triangle's facing direction. This checks the minion's velocity direction, not the minion's facing direction. Before landing, High Flight enemies cannot be blocked, targeted, directly hit, or damaged by tower AOE. Flight distance uses current actual speed: every 10 speed sends it 1.5 cells. Leaders, Bosses, and Boss companions are not launched."
+    },
+    {
       title: zh ? "心形领袖系列" : "Heart Leader Series",
       enemyKind: "heart",
       lines: [
@@ -526,8 +547,8 @@ function towerDescription(id: CardId) {
     V: zh ? "预判术法炮。沿本行投掷 * 炮弹，优先锁定可攻击目标中最大生命值最低的敌怪，并按锁定瞬间的移速预判落点；落点没有命中目标时会打空。" : "Predictive magic cannon. Lobs * shells along its lane, prioritizing the attackable enemy with the lowest max HP and predicting the landing point from target speed at lock time; it can miss.",
     v: zh ? "预判凝滞炮。沿本行投掷 * 炮弹，锁定自身前方第一个敌怪并按锁定瞬间的移速预判落点；落地造成 1.75 格半径衰减法术范围伤害，并对命中的普通敌怪施加 2 秒凝滞。" : "Predictive Stasis cannon. Lobs * shells along its lane, targeting the first enemy ahead and predicting the landing point from target speed at lock time. On impact, it deals 1.75-cell falloff magic AOE and applies 2s Stasis to ordinary enemies hit.",
     W: zh ? "上向三连物理射手。攻击方向朝上，出弹点保持在列中心。" : "Upward triple physical shooter. Fires upward from the column center.",
-    F: zh ? "触发器。阻挡敌怪时立刻消失，并在 4x4 范围内连续释放冲击波。" : "Trigger. Disappears on blocking and releases rapid shockwaves in a 4x4 area.",
-    f: zh ? "全场凝滞触发器。机制和 F 类似，触发时消失，不造成伤害，而是让全场普通敌怪获得凝滞。" : "Global Stasis trigger. Similar trigger rules to F; disappears on trigger and deals no damage, applying Stasis to all ordinary enemies on the field.",
+    F: zh ? "触发器。阻挡敌怪或被点击时立刻消失，并在 4x4 范围内连续释放冲击波。" : "Trigger. Disappears on blocking or when clicked, then releases rapid shockwaves in a 4x4 area.",
+    f: zh ? "全场凝滞触发器。机制和 F 类似，可被点击主动触发；触发时消失，不造成伤害，而是让全场普通敌怪获得凝滞。" : "Global Stasis trigger. Similar trigger rules to F and can be clicked manually; disappears on trigger and deals no damage, applying Stasis to all ordinary enemies on the field.",
     l: zh ? "列式法术触发器。机制和 F 类似，可被点击主动引爆；触发时消失，对整列横向 0.75 格范围造成一次法术伤害。" : "Column magic trigger. Similar to F and can be clicked to detonate manually; disappears on trigger and deals one magic hit to a full-column area with 0.75-cell horizontal range.",
     G: zh ? "延迟触发器。放置 15 秒后准备完成，接触敌怪时消失并造成高额法术伤害。" : "Delayed trigger. Arms after 15s, then disappears on contact to deal heavy magic damage.",
     H: zh ? "治疗塔。治疗以自身为中心 3x3 范围内生命百分比最低的一座塔。" : "Healer. Heals the lowest-HP-percent tower in a centered 3x3 area.",

@@ -6,7 +6,8 @@ const STATUS_SPEED_MULTIPLIERS: Record<StatusEffectName, number> = {
   haste: 2,
   power: 1,
   flying: 1,
-  invincible: 1
+  invincible: 1,
+  highFlying: 1
 };
 const STATUS_ATTACK_MULTIPLIERS: Partial<Record<StatusEffectName, number>> = {
   power: 1.3
@@ -59,6 +60,10 @@ export function hasStatusEffect(enemy: Enemy, name: StatusEffectName, time: numb
   return enemy.statusEffects.some((effect) => effect.name === name);
 }
 
+export function removeStatusEffect(enemy: Enemy, name: StatusEffectName) {
+  enemy.statusEffects = enemy.statusEffects.filter((effect) => effect.name !== name);
+}
+
 export function isEnemyFlying(enemy: Enemy, time: number) {
   return hasStatusEffect(enemy, "flying", time);
 }
@@ -76,9 +81,11 @@ function syncStatusVisuals(enemy: Enemy, time: number) {
   const powerActive = enemy.statusEffects.some((effect) => effect.name === "power");
   const flyingActive = enemy.statusEffects.some((effect) => effect.name === "flying");
   const angelFlyingActive = enemy.statusEffects.some((effect) => effect.name === "flying" && effect.showHalo);
+  const highFlyingActive = enemy.statusEffects.some((effect) => effect.name === "highFlying");
+  const haloActive = angelFlyingActive || highFlyingActive;
   enemy.statusBorder.setVisible(stasisActive);
   enemy.powerIcon.setVisible(powerActive);
-  enemy.flyingHalo.setVisible(angelFlyingActive);
+  enemy.flyingHalo.setVisible(haloActive);
   if (stasisActive) {
     enemy.statusBorder.setStrokeStyle(2, palette.magic, 0.92);
     enemy.statusBorder.setScale(1 + Math.sin(time / 80) * 0.04);
@@ -86,7 +93,8 @@ function syncStatusVisuals(enemy: Enemy, time: number) {
   if (powerActive) {
     enemy.powerIcon.setY(-38 + Math.sin(time / 120) * 2);
   }
-  if (angelFlyingActive) {
+  if (haloActive) {
+    enemy.flyingHalo.setStrokeStyle(2, highFlyingActive ? palette.gold : palette.white, 0.94);
     enemy.flyingHalo.setY(-42 + Math.sin(time / 110) * 2);
     enemy.flyingHalo.setScale(1 + Math.sin(time / 150) * 0.05, 1);
   }

@@ -23,6 +23,7 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
   const attackInterval = enemyAttackInterval(options.kind);
   const speed = randomizedEnemySpeed(options.kind);
   const isBurrowArrow = options.kind === "burrowArrow";
+  const movementDirection = options.movementDirection ?? -1;
   const body = scene.add.container(options.x, y).setDepth(60 + options.lane);
   const statusBorder = scene.add.circle(0, 0, 28, palette.black, 0).setStrokeStyle(2, palette.magic, 0.92);
   const powerIcon = scene.add
@@ -63,15 +64,16 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
     armor: definition.armor,
     magicResistance: definition.magicResistance,
     speed,
-    movementDirection: options.movementDirection ?? -1,
+    movementDirection,
     maceVelocity: enemyIsMace(options.kind) ? 0 : undefined,
     maceFacingDirection: enemyIsMace(options.kind)
-      ? options.maceFacingDirection ?? options.movementDirection ?? -1
+      ? options.maceFacingDirection ?? movementDirection
       : undefined,
     burrowAt: isBurrowArrow ? options.time + 6_000 : undefined,
     burrowed: false,
     burrowUnloaded: false,
     burrowCargo: isBurrowArrow ? [] : undefined,
+    slopeFacingDirection: options.kind === "slopeTriangle" ? movementDirection : undefined,
     angelRamWingsTriggered: false,
     damage: definition.damage,
     damageType: definition.damageType,

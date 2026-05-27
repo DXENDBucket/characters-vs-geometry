@@ -9,7 +9,7 @@ import { isTetrahedronBoss } from "../bosses/cubeBoss";
 import { makeBossHitFlash, makeBossInvincibleFlash, makeEnemyInvincibleFlash, makeShockPulse } from "../render/combatEffects";
 import type { CubeBoss, DamageType, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower, WaveTracker } from "../types";
 import { calculateDamage } from "./damage";
-import { syncEnemyVisualScale } from "./enemyBehaviors";
+import { enemyIsHighFlying, syncEnemyVisualScale } from "./enemyBehaviors";
 import { releaseBurrowCargo, spawnSplitEnemies } from "./enemyRuntime";
 import { hexArmorBonus, hexBossArmorBonus } from "./enemySupport";
 import { isPointInSlowAura } from "./slowAura";
@@ -99,6 +99,10 @@ function shouldTriggerTetrahedronCritical(boss: CubeBoss, nextHp: number) {
 
 export function damageEnemy(runtime: UnitLifecycleRuntime, enemy: Enemy, damage: number, damageType: DamageType) {
   if (!runtime.enemies.includes(enemy)) {
+    return;
+  }
+
+  if (enemyIsHighFlying(enemy)) {
     return;
   }
 

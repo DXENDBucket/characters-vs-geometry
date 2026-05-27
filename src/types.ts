@@ -61,6 +61,7 @@ export type EnemyKind =
   | "hexMace"
   | "heart"
   | "burrowArrow"
+  | "slopeTriangle"
   | "invertedTriangle"
   | "invertedTriangle2"
   | "shootingTriangle"
@@ -88,7 +89,7 @@ export type BossSkillName =
 export type ProjectileKind = "bolt" | "shell" | "star" | "hash" | "dollar";
 export type UnitCategory = "production" | "attack" | "defense" | "function" | "healing";
 export type DamageType = "physical" | "magic" | "true";
-export type StatusEffectName = "stasis" | "haste" | "power" | "flying" | "invincible";
+export type StatusEffectName = "stasis" | "haste" | "power" | "flying" | "invincible" | "highFlying";
 export type BossCompanionActionPhase = "laser" | "mortar" | "wings";
 export type AlphaGameObject = Phaser.GameObjects.GameObject & { setAlpha(alpha: number): unknown };
 
@@ -219,6 +220,14 @@ export interface Enemy {
   burrowed?: boolean;
   burrowUnloaded?: boolean;
   burrowCargo?: Enemy[];
+  slopeFacingDirection?: -1 | 1;
+  highFlightStartedAt?: number;
+  highFlightUntil?: number;
+  highFlightStartX?: number;
+  highFlightStartY?: number;
+  highFlightTargetX?: number;
+  highFlightTargetY?: number;
+  highFlightPeakHeight?: number;
   damage: number;
   damageType: DamageType;
   finalDamageReduction: number;

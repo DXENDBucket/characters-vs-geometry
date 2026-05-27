@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { BOARD_HEIGHT, BOARD_WIDTH, BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH } from "../config";
 import { makeShockPulse, makeTrapBurst } from "../render/combatEffects";
 import type { CardDefinition, CardId, CubeBoss, DamageType, Enemy, Tower } from "../types";
+import { enemyIsHighFlying } from "./enemyBehaviors";
 import { applyStatusEffect } from "./statusEffects";
 import { isBossInRect } from "./targeting";
 import { getShockCount, getTriggerDebuffDuration, getTrapDamage, towerDamageType } from "./towers";
@@ -35,7 +36,7 @@ export function triggerShockTower(runtime: TriggerTowerRuntime, tower: Tower) {
   if (definition.triggerDebuff) {
     makeShockPulse(runtime.scene, area.x, area.y, area.rangeX, area.rangeY, damageType);
     for (const enemy of [...runtime.enemies]) {
-      if (Math.abs(enemy.x - x) <= rangeX && Math.abs(enemy.y - y) <= rangeY) {
+      if (!enemyIsHighFlying(enemy) && Math.abs(enemy.x - x) <= rangeX && Math.abs(enemy.y - y) <= rangeY) {
         applyStatusEffect(enemy, definition.triggerDebuff, getTriggerDebuffDuration(tower, definition), runtime.battleTime);
       }
     }
@@ -52,7 +53,7 @@ export function triggerShockTower(runtime: TriggerTowerRuntime, tower: Tower) {
 
         makeShockPulse(runtime.scene, area.x, area.y, area.rangeX, area.rangeY, damageType);
         for (const enemy of [...runtime.enemies]) {
-          if (Math.abs(enemy.x - x) <= rangeX && Math.abs(enemy.y - y) <= rangeY) {
+          if (!enemyIsHighFlying(enemy) && Math.abs(enemy.x - x) <= rangeX && Math.abs(enemy.y - y) <= rangeY) {
             runtime.damageEnemy(enemy, damage, damageType);
           }
         }

@@ -16,6 +16,7 @@ import {
 } from "../config";
 import { makeHealParticles, makeSpellMortarImpact, makeSpellMortarShot } from "../render/combatEffects";
 import type { CardDefinition, CardId, CubeBoss, DamageType, Enemy, SkillState, Tower } from "../types";
+import { enemyIsHighFlying } from "./enemyBehaviors";
 import { updateRegisteredSkills } from "./skillRegistry";
 import { gainSkillSp, getTowerSkillState, resetSkillCharge } from "./skillState";
 import { createTowerSkillRegistry, type TowerSkillDefinition } from "./towerSkillRegistry";
@@ -326,7 +327,11 @@ export class TowerSkillController {
 
     makeSpellMortarImpact(this.scene, x, y, SPELL_MORTAR_AOE_RANGE_X, SPELL_MORTAR_AOE_RANGE_Y);
     for (const enemy of [...runtime.enemies]) {
-      if (Math.abs(enemy.x - x) <= SPELL_MORTAR_AOE_RANGE_X && Math.abs(enemy.y - y) <= SPELL_MORTAR_AOE_RANGE_Y) {
+      if (
+        !enemyIsHighFlying(enemy) &&
+        Math.abs(enemy.x - x) <= SPELL_MORTAR_AOE_RANGE_X &&
+        Math.abs(enemy.y - y) <= SPELL_MORTAR_AOE_RANGE_Y
+      ) {
         runtime.damageEnemy(enemy, damage, damageType);
       }
     }

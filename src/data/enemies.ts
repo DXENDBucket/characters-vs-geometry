@@ -249,6 +249,17 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     speedMultiplier: 2,
     weight: 0
   },
+  slopeTriangle: {
+    kind: "slopeTriangle",
+    label: "1",
+    hp: 21_000,
+    armor: 500,
+    magicResistance: 0,
+    damage: 0,
+    damageType: "physical",
+    speedMultiplier: 0.6,
+    weight: 0
+  },
   invertedTriangle: {
     kind: "invertedTriangle",
     label: "1",

@@ -10,7 +10,7 @@ import {
 } from "../config";
 import type { CardDefinition, CubeBoss, Enemy, Tower } from "../types";
 import { enemyIsBossCompanion } from "../registry/enemies";
-import { enemyIsBurrowed } from "./enemyBehaviors";
+import { enemyIsBurrowed, enemyIsHighFlying } from "./enemyBehaviors";
 import { getCardAttackArea, type AttackAreaConfig } from "./cardAttackConfigs";
 import { towerFacingDirection } from "./towers";
 
@@ -105,7 +105,11 @@ export function getShiftTargets(tower: Tower, enemies: Enemy[]) {
 
   return enemies
     .filter((enemy) => {
-      return targetLanes.includes(enemy.lane) && ranges.some((range) => enemy.x >= range.left && enemy.x < range.right);
+      return (
+        !enemyIsHighFlying(enemy) &&
+        targetLanes.includes(enemy.lane) &&
+        ranges.some((range) => enemy.x >= range.left && enemy.x < range.right)
+      );
     })
     .sort((a, b) => a.x - b.x || Math.abs(a.lane - tower.lane) - Math.abs(b.lane - tower.lane));
 }
@@ -120,13 +124,22 @@ export function getLaneRepelTargets(tower: Tower, enemies: Enemy[]) {
 
   return enemies
     .filter((enemy) => {
-      return enemy.lane === tower.lane && ranges.some((range) => enemy.x >= range.left && enemy.x < range.right);
+      return (
+        !enemyIsHighFlying(enemy) &&
+        enemy.lane === tower.lane &&
+        ranges.some((range) => enemy.x >= range.left && enemy.x < range.right)
+      );
     })
     .sort((a, b) => a.x - b.x);
 }
 
 export function getBlockingTower(towers: Tower[], enemy: Enemy) {
-  if (enemyIsBossCompanion(enemy.kind) || enemyIsBurrowed(enemy) || enemy.statusEffects.some((effect) => effect.name === "flying")) {
+  if (
+    enemyIsBossCompanion(enemy.kind) ||
+    enemyIsBurrowed(enemy) ||
+    enemyIsHighFlying(enemy) ||
+    enemy.statusEffects.some((effect) => effect.name === "flying")
+  ) {
     return undefined;
   }
 
@@ -235,7 +248,7 @@ function enemyIsInAttackArea(
   area: AttackAreaConfig,
   enemy: Enemy
 ) {
-  if (enemyIsBurrowed(enemy)) {
+  if (enemyIsBurrowed(enemy) || enemyIsHighFlying(enemy)) {
     return false;
   }
 

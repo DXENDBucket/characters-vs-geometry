@@ -11,6 +11,7 @@ import {
   type ProjectilePatternConfig
 } from "./cardAttackConfigs";
 import type { CardBehaviorRuntime, CardReadinessRuntime } from "./combatRuntime";
+import { enemyIsHighFlying } from "./enemyBehaviors";
 import { chargingHexSpeedMultiplier } from "./enemySupport";
 import { createMortarProjectile, createTowerProjectile, type TowerProjectileSpec } from "./projectiles";
 import { movementSpeedMultiplier } from "./slowAura";
@@ -401,7 +402,7 @@ function hasArcWaveTarget(tower: Tower, enemies: Enemy[], boss: CubeBoss | null)
 
 function arcWaveEnemyTargets(tower: Tower, enemies: Enemy[]) {
   const cells = arcWaveCells(tower);
-  return enemies.filter((enemy) => cells.some((cell) => cell.contains(enemy.x, enemy.y)));
+  return enemies.filter((enemy) => !enemyIsHighFlying(enemy) && cells.some((cell) => cell.contains(enemy.x, enemy.y)));
 }
 
 function arcWaveHitsBoss(tower: Tower, boss: CubeBoss | null) {
