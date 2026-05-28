@@ -333,12 +333,12 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
 
       if (canEnemyMelee(enemy) && time >= enemy.attackAt) {
         runtime.damageTower(blocker, enemy.damage * statusAttackMultiplier(enemy, time), enemy.damageType);
-        if (blocker.type === "B") {
-          const definition = getCardDefinition(blocker.type);
+        const blockerDefinition = getCardDefinition(blocker.type);
+        if (blockerDefinition.reflectDamage) {
           runtime.damageEnemy(
             enemy,
-            definition.reflectDamage ?? 20,
-            towerDamageType(blocker, definition.reflectDamageType ?? "physical", time)
+            blockerDefinition.reflectDamage,
+            towerDamageType(blocker, blockerDefinition.reflectDamageType ?? "physical", time)
           );
           makeReflectFlash(runtime.scene, blocker.x, blocker.y);
         }

@@ -32,6 +32,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
   const mortarTriangle2 = getEnemyDefinition("mortarTriangle2");
   const pentagon = getEnemyDefinition("pentagon");
   const angelPentagon = getEnemyDefinition("angelPentagon");
+  const archangelHeptagon = getEnemyDefinition("archangelHeptagon");
   const shootingPentagon = getEnemyDefinition("shootingPentagon");
   const diamond = getEnemyDefinition("diamond");
   const diamond2 = getEnemyDefinition("diamond2");
@@ -213,6 +214,26 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
       description: zh
         ? "支援型近战敌怪，外观为端点朝下且带小光环的五边形。飞行单位不会被阻挡，显示位置会更靠上。羽翼持续期间不会回复技力，结束后才重新蓄力。"
         : "Support melee enemy. Its pentagon point faces downward and it has a small halo. Flying units cannot be blocked and render slightly higher. It does not regenerate SP while Wings is active, then starts charging again after the effect ends."
+    },
+    {
+      title: zh ? "大天使七边形领袖系列" : "Archangel Heptagon Leader Series",
+      enemyKind: "archangelHeptagon",
+      lines: [
+        statLine([
+          [t("label.hp"), archangelHeptagon.hp],
+          [t("label.armor"), archangelHeptagon.armor],
+          [t("label.mr"), archangelHeptagon.magicResistance],
+          [t("label.atk"), `${damageText(archangelHeptagon.damage, archangelHeptagon.damageType)} / 2s`],
+          [t("label.speed"), speedText("archangelHeptagon")],
+          [t("label.weight"), zh ? "旗帜固定" : "flag fixed"]
+        ]),
+        zh
+          ? "领袖敌人；常态飞行，外观为两层光环七边形。出生后 3 秒内获得 +150% 移速和高空飞行。升华：初始 10 技力，15 技力满后，让自身和半径 2.5 格内敌怪飞行并获得 +100% 移速，持续 6s"
+          : "Leader enemy with permanent Flying and a two-layer halo. For 3s after spawning, gains +150% movement speed and High Flight. Ascension: starts at 10 SP; at 15 SP, gives itself and enemies within a 2.5-cell radius Flying and +100% movement speed for 6s"
+      ],
+      description: zh
+        ? "大天使七边形会每 2 秒对阻挡者造成一次 100% 攻击力的法术伤害。若出现在关卡出怪池中，会在旗帜波固定刷新 1 个且不计入常规波次权重。它不会因其他技能或小怪获得额外飞行光环；收到飞行效果时改为高空飞行，高空飞行期间自身两层光环变为金色，且不会被阻挡、锁定、直接命中或受到塔 AOE。"
+        : "Archangel Heptagon attacks its blocker every 2s for 100% attack as magic damage. If present in a level pool, one fixed spawn appears on flag waves and it does not consume regular wave weight. It does not gain extra Flying halos from other skills or minions; incoming Flying effects become High Flight instead, turning its own two halos gold while it cannot be blocked, targeted, directly hit, or damaged by tower AOE."
     },
     {
       title: zh ? "射击三角系列" : "Shooting Triangle Series",
@@ -541,12 +562,14 @@ function towerDescription(id: CardId) {
     O: zh ? "抗法防御塔。机制和 D 类似，拥有高护甲和中等法术抗性。" : "Magic-resistant defender. Similar to D, with high armor and moderate magic resistance.",
     R: zh ? "反弹防御塔。机制和 O 类似；敌方弹幕击中它时仍会造成伤害，但弹幕会被反射为同伤害、同类型的我方弹幕。锁定迫击弹命中 R 时会被反射回发射者。" : "Reflect defender. Similar to O; enemy projectiles still damage it on hit, then reflect into friendly projectiles with the same damage and damage type. Locked mortars that hit R are reflected back at the shooter.",
     X: zh ? `生产塔。每 10 秒产生 ${EFFECT_SYMBOLS.chars}25，也是主要字符来源之一。` : `Producer. Generates ${EFFECT_SYMBOLS.chars}25 every 10s.`,
+    x: zh ? "追踪法术射手。每次从攻击形四角发射 4 枚 > 法术追踪弹。小 x 开火时优先锁定离小 x 最近的可攻击飞行敌怪；没有飞行敌怪时锁定离小 x 最近的可攻击敌怪。追踪弹只追锁定目标，目标死亡或消失后才改为锁定离子弹最近的可攻击敌怪。" : "Homing magic attacker. Fires four > magic homing shots from the attack-shape corners. When x fires, it prioritizes the attackable Flying enemy nearest to x; if none exist, it locks the attackable enemy nearest to x. Shots keep chasing their locked target and only retarget to the nearest attackable enemy to the shot if that target dies or disappears.",
     Y: zh ? `受击生产塔。不攻击；每次受到攻击时产生 ${EFFECT_SYMBOLS.chars}12。` : `Hit producer. Does not attack; generates ${EFFECT_SYMBOLS.chars}12 each time it is attacked.`,
     E: zh ? "三连物理射手。向前平射，并向上/下各偏转 10 度发射一发。" : "Triple physical shooter. Fires one straight shot plus two shots at +/-10 degrees.",
     M: zh ? "下向三连物理射手。攻击方向朝下，出弹点保持在列中心。" : "Downward triple physical shooter. Fires downward from the column center.",
     V: zh ? "预判术法炮。沿本行投掷 * 炮弹，优先锁定可攻击目标中最大生命值最低的敌怪，并按锁定瞬间的移速预判落点；落点没有命中目标时会打空。" : "Predictive magic cannon. Lobs * shells along its lane, prioritizing the attackable enemy with the lowest max HP and predicting the landing point from target speed at lock time; it can miss.",
     v: zh ? "预判凝滞炮。沿本行投掷 * 炮弹，锁定自身前方第一个敌怪并按锁定瞬间的移速预判落点；落地造成 1.75 格半径衰减法术范围伤害，并对命中的普通敌怪施加 2 秒凝滞。" : "Predictive Stasis cannon. Lobs * shells along its lane, targeting the first enemy ahead and predicting the landing point from target speed at lock time. On impact, it deals 1.75-cell falloff magic AOE and applies 2s Stasis to ordinary enemies hit.",
     W: zh ? "上向三连物理射手。攻击方向朝上，出弹点保持在列中心。" : "Upward triple physical shooter. Fires upward from the column center.",
+    w: zh ? "巡空防御塔。数值和 B 相同；初始 8 技力，每秒回复 1 技力，上限 10。满技力时外框闪烁；点击消耗 10 技力，获得 6 秒飞行和光环。飞行期间不阻挡地面敌人，但可以阻挡普通飞行敌人；高空飞行不会被阻挡。技能结束后才重新回技，升级会重置技力。" : "Air patrol defender. Same baseline stats as B; starts at 8 SP, gains 1 SP/s up to 10. At full SP its border flashes; click to spend 10 SP and gain 6s Flying with a halo. While flying it no longer blocks ground enemies, but can block regular Flying enemies; High Flight is never blocked. SP regeneration resumes only after the skill ends, and upgrades reset SP.",
     F: zh ? "触发器。阻挡敌怪或被点击时立刻消失，并在 4x4 范围内连续释放冲击波。" : "Trigger. Disappears on blocking or when clicked, then releases rapid shockwaves in a 4x4 area.",
     f: zh ? "全场凝滞触发器。机制和 F 类似，可被点击主动触发；触发时消失，不造成伤害，而是让全场普通敌怪获得凝滞。" : "Global Stasis trigger. Similar trigger rules to F and can be clicked manually; disappears on trigger and deals no damage, applying Stasis to all ordinary enemies on the field.",
     l: zh ? "列式法术触发器。机制和 F 类似，可被点击主动引爆；触发时消失，对整列横向 0.75 格范围造成一次法术伤害。" : "Column magic trigger. Similar to F and can be clicked to detonate manually; disappears on trigger and deals one magic hit to a full-column area with 0.75-cell horizontal range.",
@@ -582,6 +605,9 @@ function towerUpgradeText(id: CardId) {
   if (id === "t") {
     return zh ? "每个有效等级提供 12 秒真实伤害持续时间；生效后冷却返还方式与 b 相同。" : "Each effective level grants 12 seconds of true-damage duration; after it resolves, cooldown refund works like b.";
   }
+  if (id === "x") {
+    return zh ? "每级追踪弹伤害增加基础值的 80%。" : "Each level adds 80% of base homing-shot damage.";
+  }
   if (id === "A" || id === "a" || id === "C" || id === "E" || id === "M" || id === "W" || id === "I" || id === "Q" || id === "J" || id === "H" || id === "P" || id === "p" || id === "K" || id === "v" || id === "Z") {
     return zh ? "增加连发次数；整段连射固定占攻击/治疗间隔的五分之一。" : "Adds burst count; the whole volley always takes one fifth of the attack/heal interval.";
   }
@@ -608,6 +634,9 @@ function towerUpgradeText(id: CardId) {
   }
   if (id === "G") {
     return zh ? "每级伤害增加基础值的 80%，并重置准备倒计时。" : "Each level adds 80% of base damage and resets arming.";
+  }
+  if (id === "w") {
+    return zh ? "每级最大生命增加基础值的 80%，当前生命同步补充，并重置巡空技力。" : "Each level adds 80% of base max HP, heals by the same amount, and resets Air Patrol SP.";
   }
   return zh ? "每级最大生命增加基础值的 80%，当前生命同步补充。" : "Each level adds 80% of base max HP and heals by the same amount.";
 }

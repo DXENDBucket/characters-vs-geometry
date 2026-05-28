@@ -120,6 +120,19 @@ export const cardDefinitions: CardDefinition[] = [
     stats: `${EFFECT_SYMBOLS.chars}25 / 10s`
   },
   {
+    id: "x",
+    category: "attack",
+    cost: 475,
+    cooldown: 10_000,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 0,
+    fireRate: 1_000,
+    damage: 200,
+    damageType: "magic",
+    stats: `4x200${DAMAGE_SYMBOLS.magic} / HOMING`
+  },
+  {
     id: "Y",
     category: "production",
     cost: 125,
@@ -168,6 +181,18 @@ export const cardDefinitions: CardDefinition[] = [
     damage: 400,
     damageType: "physical",
     stats: `3x400${DAMAGE_SYMBOLS.physical} / UP`
+  },
+  {
+    id: "w",
+    category: "defense",
+    cost: 175,
+    cooldown: 20_000,
+    maxHp: 3_000,
+    armor: 500,
+    magicResistance: 0,
+    reflectDamage: 400,
+    reflectDamageType: "physical",
+    stats: `PATROL / 10SP / R400${DAMAGE_SYMBOLS.physical}`
   },
   {
     id: "F",

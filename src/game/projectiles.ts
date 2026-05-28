@@ -30,13 +30,25 @@ export interface TowerProjectileSpec {
   limitDirection?: -1 | 1;
 }
 
+export interface HomingTowerProjectileSpec {
+  x: number;
+  y: number;
+  lane: number;
+  speed: number;
+  acceleration: number;
+  maxSpeed: number;
+  damage: number;
+  damageType: DamageType;
+  targetEnemy?: Enemy;
+}
+
 export function createTowerProjectile(scene: Phaser.Scene, spec: TowerProjectileSpec): Projectile {
   const angle = Phaser.Math.DegToRad(spec.angleDegrees);
   const projectileColor = damageEffectColor(spec.damageType);
   let body: Phaser.GameObjects.Shape | Phaser.GameObjects.Text;
   if (spec.type === "bolt") {
     body = scene.add.rectangle(spec.x, spec.y, 18, 4, projectileColor, 1);
-  } else if (spec.type === "star" || spec.type === "hash" || spec.type === "dollar") {
+  } else if (spec.type === "star" || spec.type === "hash" || spec.type === "dollar" || spec.type === "chevron") {
     body = scene.add
       .text(spec.x, spec.y - 1, projectileText(spec.type), {
         color: damageEffectTextColor(spec.damageType),
@@ -67,6 +79,28 @@ export function createTowerProjectile(scene: Phaser.Scene, spec: TowerProjectile
     limitDirection: spec.limitDirection ?? (Math.cos(angle) < 0 ? -1 : 1),
     body
   };
+}
+
+export function createHomingTowerProjectile(scene: Phaser.Scene, spec: HomingTowerProjectileSpec): Projectile {
+  const angle = spec.targetEnemy ? Math.atan2(spec.targetEnemy.y - spec.y, spec.targetEnemy.x - spec.x) : 0;
+  const projectile = createTowerProjectile(scene, {
+    type: "chevron",
+    x: spec.x,
+    y: spec.y,
+    lane: spec.lane,
+    speed: spec.speed,
+    damage: spec.damage,
+    damageType: spec.damageType,
+    splashRadius: 0,
+    angleDegrees: Phaser.Math.RadToDeg(angle),
+    maxX: Number.POSITIVE_INFINITY,
+    limitDirection: 1
+  });
+  projectile.targetEnemy = spec.targetEnemy;
+  projectile.speed = spec.speed;
+  projectile.acceleration = spec.acceleration;
+  projectile.maxSpeed = spec.maxSpeed;
+  return projectile;
 }
 
 export function createEnemyProjectile(scene: Phaser.Scene, enemy: Enemy, time: number): EnemyProjectile {
@@ -205,6 +239,9 @@ function projectileText(type: ProjectileKind) {
   }
   if (type === "hash") {
     return "#";
+  }
+  if (type === "chevron") {
+    return ">";
   }
   return "$";
 }

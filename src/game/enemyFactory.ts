@@ -2,8 +2,13 @@ import type Phaser from "phaser";
 import { BOARD_Y, CELL_HEIGHT, palette } from "../config";
 import { enemyIsMace, getEnemyDefinition } from "../registry/enemies";
 import { createEnemyShape } from "../render/unitShapes";
-import type { Enemy, EnemyKind } from "../types";
+import type { Enemy, EnemyKind, SkillState } from "../types";
 import { enemyAttackInterval, randomizedEnemySpeed } from "./enemyBehaviors";
+import { applyStatusEffect, statusSpeedMultiplier } from "./statusEffects";
+
+const ARCHANGEL_INITIAL_WINGS_SP = 10;
+const ARCHANGEL_SPAWN_HIGH_FLIGHT_DURATION = 3_000;
+const ARCHANGEL_SPAWN_SPEED_MULTIPLIER = 2.5;
 
 interface CreateEnemyOptions {
   kind: EnemyKind;
@@ -51,7 +56,16 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
   flyingHalo.setVisible(false);
   body.add([statusBorder, flyingHalo, shape, powerIcon, armorIcon]);
 
-  return {
+  const skills: Record<string, SkillState> = {};
+  if (options.kind === "archangelHeptagon") {
+    skills.ascension = {
+      sp: ARCHANGEL_INITIAL_WINGS_SP,
+      spBuffer: 0,
+      activeUntil: 0
+    };
+  }
+
+  const enemy: Enemy = {
     kind: options.kind,
     waveNumber: options.waveNumber,
     weight: options.waveWeight,
@@ -80,7 +94,7 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
     finalDamageReduction: options.finalDamageReduction,
     attackInterval,
     attackAt: options.time + attackInterval,
-    skills: {},
+    skills,
     statusEffects: [],
     statusBorder,
     powerIcon,
@@ -90,4 +104,20 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
     body,
     shape
   };
+
+  if (options.kind === "archangelHeptagon") {
+    enemy.statusEffects.push({ name: "flying", expiresAt: Number.POSITIVE_INFINITY, speedMultiplier: 1, showHalo: false });
+    applyStatusEffect(
+      enemy,
+      "highFlying",
+      ARCHANGEL_SPAWN_HIGH_FLIGHT_DURATION,
+      options.time,
+      ARCHANGEL_SPAWN_SPEED_MULTIPLIER,
+      false
+    );
+    statusSpeedMultiplier(enemy, options.time);
+    enemy.body.setDepth(85 + enemy.lane);
+  }
+
+  return enemy;
 }

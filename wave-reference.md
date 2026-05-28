@@ -40,8 +40,8 @@ Charging Hexagon speed aura is dynamic, non-stacking, and multiplies with other 
 Triangle enemies all deal Triangle 1's `600◆`; Triangle N attacks every `1/N` seconds.
 Shooting Triangle is a separate ranged enemy and does not use Triangle N attack scaling.
 Locked attacks, including Triangle Mortars, target the tower blocking the attacker if the attacker is currently blocked; otherwise they use their normal targeting rule.
-Flying units cannot be blocked and render slightly higher than grounded enemies. Flying itself does not always show a halo; Wings-granted Flying shows a halo.
-High Flight is a separate airborne state used by Slope Triangle launches. High Flight enemies travel along a parabola and cannot be blocked, targeted, directly hit, or damaged by tower AOE until they land.
+Flying units cannot be blocked by grounded towers and render slightly higher than grounded enemies. Flying itself does not always show a halo; Wings-granted Flying shows a halo. Flying towers do not block grounded enemies, but can block regular Flying enemies.
+High Flight is a separate airborne state used by Slope Triangle launches and Archangel Heptagon's spawn boost. High Flight enemies cannot be blocked, targeted, directly hit, or damaged by tower AOE until they land or the boost ends.
 Enemies with a minimum flag gate are excluded from random wave pools before that flag wave. All Diamonds, Triangle Mortars, Pentagons, Angel Pentagons, Shooting Pentagons, Hex Maces, and Angel Pentagon Rams require Flag 1, so they can start appearing on wave 10 of standard 10-wave flags.
 Numbered minion weights use fixed additive steps: circles `+40`, triangles `+60`, squares `+100`.
 Enemy body labels are displayed as Roman numerals in-game.
@@ -53,6 +53,7 @@ Enemy body labels are displayed as Roman numerals in-game.
 | Heart 1 | 1 per flag wave if included in the level pool; no wave weight | 9999 | 399 | 2100 | True | Body label `I`; MR `60`; fixed speed `30` with no random speed variance. Enemies in the same lane and farther from the base gain a non-stacking `+50%` movement speed bonus. Every `5s`, emits a growing pink heart AOE centered on itself with `1.75` cell radius and outward falloff. Lead starts at `0/5` SP, gains `1` SP/s, then pulls ordinary minions in its column plus four columns behind, within two lanes up/down, into its lane; leaders, Bosses, and Boss companions are not pulled |
 | Burrow Arrow 1 | 1 per flag wave if included in the level pool; no wave weight | 16500 | 250 | 400 | Physical | Body label `I`; MR `0`; fixed speed `20` with no random speed variance. Touching non-leader minions are loaded; rank I can carry total minion rank `5`. Once full or after `6s` on the field, it burrows, shows only its upper tip about `0.55` cells lower, ignores normal projectile targeting/direct hits, but can still be damaged by AOE. While burrowed it gains `+300%` movement speed. It resurfaces at the center of the cell before the base, turns itself and loaded enemies around, unloads once, and can no longer load or burrow. If it dies while carrying loaded enemies, they immediately appear without reversing direction |
 | Slope Triangle 1 | 1 per flag wave if included in the level pool; no wave weight | 21000 | 500 | 0 | Physical | Body label `I`; MR `0`; fixed speed `6` with no random speed variance. It does not attack. While currently blocked, it stays in place and acts as a ramp; if unblocked, it keeps moving at its own speed. Only while blocked, touching non-leader minions whose current velocity direction matches the Slope Triangle facing direction enter High Flight and fly forward in a parabola. This checks the minion velocity direction, not the minion facing direction. Flight distance is based on current actual speed: every `10` speed sends the minion `1.5` cells. High Flight enemies cannot be blocked, targeted, directly hit, or damaged by tower AOE before landing. Leaders, Bosses, and Boss companions are not launched |
+| Archangel Heptagon 1 | 1 per flag wave if included in the level pool; no wave weight | 4000 | 50 | 1400 | Magic | Body label `I`; MR `20`; fixed speed `30` with no random speed variance. It is always Flying, attacks every `2s`, dealing `100%` attack as magic damage, and has two visual halos. For the first `3s` after spawning, it has `+150%` movement speed and High Flight. It does not gain extra Flying halos from other skills or minions; incoming Flying effects become High Flight instead, turning its own two halos gold. Ascension: starts at `10/15` SP, gains `1` SP/s, then gives itself and enemies within a `2.5` cell radius Flying with a halo and `+100%` movement speed for `6s`; SP regeneration pauses while Ascension is active |
 
 Leader enemies are fixed flag-wave spawns when included in a level pool. They do not consume wave weight and do not receive random speed variance.
 
@@ -122,10 +123,12 @@ Tetrahedron skills:
 | O | Defense | Square | 125 | 20s | 3000 | 500 | 40 | Armor-heavy magic-resistant blocker | +`2400` max/current HP per level |
 | R | Defense | Square | 225 | 15s | 3000 | 350 | 35 | Enemy projectiles still damage it, then reflect into friendly projectiles with the same damage and damage type. Locked mortars that hit R are reflected back at the shooter | +`2400` max/current HP per level |
 | X | Production | Circle | 50 | 1.5s | 1200 | 150 | 0 | Produces `25` chars every `10s`, shown as `Aa` | +`20` chars per production per level |
+| x | Attack | Diamond | 475 | 10s | 1200 | 150 | 0 | Every `1s`, fires four fast accelerating `>` magic homing shots from the four attack-shape corners. Each shot deals `200✦`; x locks the Flying enemy nearest to x when firing, or the enemy nearest to x if no Flying enemy exists. Shots only retarget after their target dies or disappears, then choose the nearest enemy to the shot regardless of Flying | +`160✦` projectile damage per level |
 | Y | Production | Circle | 125 | 8s | 2000 | 250 | 0 | Does not attack; produces `12` chars every time it is attacked | +80% base production per hit per level |
 | E | Attack | Diamond | 150 | 2s | 1200 | 150 | 0 | Fires 3 bolts at `-10/0/+10` degrees, `400◆` each, every `2s` | +1 volley per level |
 | M | Attack | Diamond | 75 | 2s | 1200 | 150 | 0 | Fires 3 bolts downward at `80/90/100` degrees, `400◆` each, every `2s`; all shots start from the cell center | +1 volley per level |
 | W | Attack | Diamond | 75 | 2s | 1200 | 150 | 0 | Fires 3 bolts upward at `-100/-90/-80` degrees, `400◆` each, every `2s`; all shots start from the cell center | +1 volley per level |
+| w | Defense | Square | 175 | 20s | 3000 | 500 | 0 | Blocks and reflects `400◆` when hit by melee attacks like B. Air Patrol: starts at `8/10` SP, gains `1` SP/s only while inactive, flashes its border at full SP, and can be clicked to spend `10` SP for `6s` Flying with a halo. While flying, w does not block grounded enemies but can block regular Flying enemies; High Flight is never blocked | +`2400` max/current HP per level; resets Air Patrol SP |
 | F | Function | Triangle | 125 | 30s | 1200 | 150 | 0 | On enemy or Boss contact, or when clicked, disappears and emits `10` shockwaves; each deals `1400◆` in a `4x4` area | +`8` shockwaves per level |
 | f | Function | Triangle | 125 | 30s | 1200 | 150 | 0 | On enemy or Boss contact, or when clicked, disappears, deals no damage, and applies `10s` Stasis to all enemies on the field | +`8s` Stasis duration per level |
 | l | Function | Triangle | 175 | 30s | 1200 | 150 | 40 | On enemy or Boss contact, or when clicked, disappears and deals `15000✦` once to a full-column area with `0.75` cells horizontal range. F, f, and l borders flash while ready to click | +`12000✦` per level |
@@ -158,11 +161,11 @@ Current loadout slots: `9`.
 
 Upgrade scaling:
 
-- Up to `+10`, every level grants one effective upgrade.
-- Above `+10`, every `2` levels grant one effective upgrade until `+30`.
-- Above `+30`, every `4` levels grant one effective upgrade until `+70`.
-- Above `+70`, every `8` levels grant one effective upgrade until `+150`.
-- Above `+150`, every `16` levels grant one effective upgrade, and the softcap positions keep following `next = current * 2 + 10`.
+- Up to `+20`, every level grants one effective upgrade.
+- Above `+20`, every `2` levels grant one effective upgrade until `+60`.
+- Above `+60`, every `4` levels grant one effective upgrade until `+140`.
+- Above `+140`, every `8` levels grant one effective upgrade until `+300`.
+- Above `+300`, every `16` levels grant one effective upgrade, and the softcap positions keep following `next = current * 2 + 20`.
 
 ## Tools
 
@@ -1455,7 +1458,7 @@ Base rule:
 
 - Starting characters: `500`.
 - Wave 1 starts at weight cap `25`.
-- Wave 2 adds `+20`; each later increment grows by `+3` (`+23`, `+26`, ...).
+- Wave 2 adds `+4`; each later wave also adds `+4`.
 - Every flag wave, currently every `10`th wave, doubles that wave's final cap.
 - A wave may leave unused weight, but never exceeds its cap.
 - Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
@@ -1466,15 +1469,15 @@ Base rule:
 | Wave | Flag | Base Cap | Final Cap |
 | ---: | ---: | ---: | ---: |
 | 1 | - | 25 | 25 |
-| 2 | - | 45 | 45 |
-| 3 | - | 68 | 68 |
-| 4 | - | 94 | 94 |
-| 5 | - | 123 | 123 |
-| 6 | - | 155 | 155 |
-| 7 | - | 190 | 190 |
-| 8 | - | 228 | 228 |
-| 9 | - | 269 | 269 |
-| 10 | 1 | 313 | 626 |
+| 2 | - | 29 | 29 |
+| 3 | - | 33 | 33 |
+| 4 | - | 37 | 37 |
+| 5 | - | 41 | 41 |
+| 6 | - | 45 | 45 |
+| 7 | - | 49 | 49 |
+| 8 | - | 53 | 53 |
+| 9 | - | 57 | 57 |
+| 10 | 1 | 61 | 122 |
 
 ## Level 3-2 Weight Growth
 
@@ -1490,7 +1493,7 @@ Base rule:
 
 - Starting characters: `500`.
 - Wave 1 starts at weight cap `25`.
-- Wave 2 adds `+20`; each later increment grows by `+3` (`+23`, `+26`, ...).
+- Wave 2 adds `+4`; each later wave also adds `+4`.
 - Every flag wave, currently every `10`th wave, doubles that wave's final cap.
 - A wave may leave unused weight, but never exceeds its cap.
 - Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
@@ -1500,25 +1503,71 @@ Base rule:
 | Wave | Flag | Base Cap | Final Cap |
 | ---: | ---: | ---: | ---: |
 | 1 | - | 25 | 25 |
-| 2 | - | 45 | 45 |
-| 3 | - | 68 | 68 |
-| 4 | - | 94 | 94 |
-| 5 | - | 123 | 123 |
-| 6 | - | 155 | 155 |
-| 7 | - | 190 | 190 |
-| 8 | - | 228 | 228 |
-| 9 | - | 269 | 269 |
-| 10 | 1 | 313 | 626 |
-| 11 | - | 360 | 360 |
-| 12 | - | 410 | 410 |
-| 13 | - | 463 | 463 |
-| 14 | - | 519 | 519 |
-| 15 | - | 578 | 578 |
-| 16 | - | 640 | 640 |
-| 17 | - | 705 | 705 |
-| 18 | - | 773 | 773 |
-| 19 | - | 844 | 844 |
-| 20 | 2 | 918 | 1836 |
+| 2 | - | 29 | 29 |
+| 3 | - | 33 | 33 |
+| 4 | - | 37 | 37 |
+| 5 | - | 41 | 41 |
+| 6 | - | 45 | 45 |
+| 7 | - | 49 | 49 |
+| 8 | - | 53 | 53 |
+| 9 | - | 57 | 57 |
+| 10 | 1 | 61 | 122 |
+| 11 | - | 65 | 65 |
+| 12 | - | 69 | 69 |
+| 13 | - | 73 | 73 |
+| 14 | - | 77 | 77 |
+| 15 | - | 81 | 81 |
+| 16 | - | 85 | 85 |
+| 17 | - | 89 | 89 |
+| 18 | - | 93 | 93 |
+| 19 | - | 97 | 97 |
+| 20 | 2 | 101 | 202 |
+
+## Level 3-6 Weight Growth
+
+Enemy pool:
+
+- Circle 1
+- Triangle 1
+- Triangle 3
+- Angel Pentagon 1
+- Hex Mace 1
+- Archangel Heptagon 1
+
+Base rule:
+
+- Starting characters: `500`.
+- Wave 1 starts at weight cap `25`.
+- Wave 2 adds `+4`; each later wave also adds `+4`.
+- Every flag wave, currently every `10`th wave, doubles that wave's final cap.
+- A wave may leave unused weight, but never exceeds its cap.
+- Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
+- The level has `20` total waves.
+- Angel Pentagon 1 and Hex Mace 1 have a minimum Flag 1 gate, so they can first enter the random pool on wave 10.
+- Archangel Heptagon 1 is a leader enemy and fixed-spawns once on flag waves if included in the level pool; it does not consume wave weight.
+
+| Wave | Flag | Base Cap | Final Cap |
+| ---: | ---: | ---: | ---: |
+| 1 | - | 25 | 25 |
+| 2 | - | 29 | 29 |
+| 3 | - | 33 | 33 |
+| 4 | - | 37 | 37 |
+| 5 | - | 41 | 41 |
+| 6 | - | 45 | 45 |
+| 7 | - | 49 | 49 |
+| 8 | - | 53 | 53 |
+| 9 | - | 57 | 57 |
+| 10 | 1 | 61 | 122 |
+| 11 | - | 65 | 65 |
+| 12 | - | 69 | 69 |
+| 13 | - | 73 | 73 |
+| 14 | - | 77 | 77 |
+| 15 | - | 81 | 81 |
+| 16 | - | 85 | 85 |
+| 17 | - | 89 | 89 |
+| 18 | - | 93 | 93 |
+| 19 | - | 97 | 97 |
+| 20 | 2 | 101 | 202 |
 
 ## Level 3-3 Weight Growth
 
@@ -1534,7 +1583,7 @@ Base rule:
 
 - Starting characters: `500`.
 - Wave 1 starts at weight cap `25`.
-- Wave 2 adds `+20`; each later increment grows by `+3` (`+23`, `+26`, ...).
+- Wave 2 adds `+4`; each later wave also adds `+4`.
 - Every flag wave, currently every `10`th wave, doubles that wave's final cap.
 - A wave may leave unused weight, but never exceeds its cap.
 - Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
@@ -1544,15 +1593,15 @@ Base rule:
 | Wave | Flag | Base Cap | Final Cap |
 | ---: | ---: | ---: | ---: |
 | 1 | - | 25 | 25 |
-| 2 | - | 45 | 45 |
-| 3 | - | 68 | 68 |
-| 4 | - | 94 | 94 |
-| 5 | - | 123 | 123 |
-| 6 | - | 155 | 155 |
-| 7 | - | 190 | 190 |
-| 8 | - | 228 | 228 |
-| 9 | - | 269 | 269 |
-| 10 | 1 | 313 | 626 |
+| 2 | - | 29 | 29 |
+| 3 | - | 33 | 33 |
+| 4 | - | 37 | 37 |
+| 5 | - | 41 | 41 |
+| 6 | - | 45 | 45 |
+| 7 | - | 49 | 49 |
+| 8 | - | 53 | 53 |
+| 9 | - | 57 | 57 |
+| 10 | 1 | 61 | 122 |
 
 ## Level 3-4 Weight Growth
 
@@ -1569,7 +1618,7 @@ Base rule:
 
 - Starting characters: `500`.
 - Wave 1 starts at weight cap `25`.
-- Wave 2 adds `+20`; each later increment grows by `+3` (`+23`, `+26`, ...).
+- Wave 2 adds `+4`; each later wave also adds `+4`.
 - Every flag wave, currently every `10`th wave, doubles that wave's final cap.
 - A wave may leave unused weight, but never exceeds its cap.
 - Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
@@ -1580,25 +1629,25 @@ Base rule:
 | Wave | Flag | Base Cap | Final Cap |
 | ---: | ---: | ---: | ---: |
 | 1 | - | 25 | 25 |
-| 2 | - | 45 | 45 |
-| 3 | - | 68 | 68 |
-| 4 | - | 94 | 94 |
-| 5 | - | 123 | 123 |
-| 6 | - | 155 | 155 |
-| 7 | - | 190 | 190 |
-| 8 | - | 228 | 228 |
-| 9 | - | 269 | 269 |
-| 10 | 1 | 313 | 626 |
-| 11 | - | 360 | 360 |
-| 12 | - | 410 | 410 |
-| 13 | - | 463 | 463 |
-| 14 | - | 519 | 519 |
-| 15 | - | 578 | 578 |
-| 16 | - | 640 | 640 |
-| 17 | - | 705 | 705 |
-| 18 | - | 773 | 773 |
-| 19 | - | 844 | 844 |
-| 20 | 2 | 918 | 1836 |
+| 2 | - | 29 | 29 |
+| 3 | - | 33 | 33 |
+| 4 | - | 37 | 37 |
+| 5 | - | 41 | 41 |
+| 6 | - | 45 | 45 |
+| 7 | - | 49 | 49 |
+| 8 | - | 53 | 53 |
+| 9 | - | 57 | 57 |
+| 10 | 1 | 61 | 122 |
+| 11 | - | 65 | 65 |
+| 12 | - | 69 | 69 |
+| 13 | - | 73 | 73 |
+| 14 | - | 77 | 77 |
+| 15 | - | 81 | 81 |
+| 16 | - | 85 | 85 |
+| 17 | - | 89 | 89 |
+| 18 | - | 93 | 93 |
+| 19 | - | 97 | 97 |
+| 20 | 2 | 101 | 202 |
 
 ## Level 3-5 Weight Growth
 
@@ -1616,7 +1665,7 @@ Base rule:
 
 - Starting characters: `500`.
 - Wave 1 starts at weight cap `25`.
-- Wave 2 adds `+20`; each later increment grows by `+3` (`+23`, `+26`, ...).
+- Wave 2 adds `+4`; each later wave also adds `+4`.
 - Every flag wave, currently every `10`th wave, doubles that wave's final cap.
 - A wave may leave unused weight, but never exceeds its cap.
 - Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
@@ -1627,25 +1676,25 @@ Base rule:
 | Wave | Flag | Base Cap | Final Cap |
 | ---: | ---: | ---: | ---: |
 | 1 | - | 25 | 25 |
-| 2 | - | 45 | 45 |
-| 3 | - | 68 | 68 |
-| 4 | - | 94 | 94 |
-| 5 | - | 123 | 123 |
-| 6 | - | 155 | 155 |
-| 7 | - | 190 | 190 |
-| 8 | - | 228 | 228 |
-| 9 | - | 269 | 269 |
-| 10 | 1 | 313 | 626 |
-| 11 | - | 360 | 360 |
-| 12 | - | 410 | 410 |
-| 13 | - | 463 | 463 |
-| 14 | - | 519 | 519 |
-| 15 | - | 578 | 578 |
-| 16 | - | 640 | 640 |
-| 17 | - | 705 | 705 |
-| 18 | - | 773 | 773 |
-| 19 | - | 844 | 844 |
-| 20 | 2 | 918 | 1836 |
+| 2 | - | 29 | 29 |
+| 3 | - | 33 | 33 |
+| 4 | - | 37 | 37 |
+| 5 | - | 41 | 41 |
+| 6 | - | 45 | 45 |
+| 7 | - | 49 | 49 |
+| 8 | - | 53 | 53 |
+| 9 | - | 57 | 57 |
+| 10 | 1 | 61 | 122 |
+| 11 | - | 65 | 65 |
+| 12 | - | 69 | 69 |
+| 13 | - | 73 | 73 |
+| 14 | - | 77 | 77 |
+| 15 | - | 81 | 81 |
+| 16 | - | 85 | 85 |
+| 17 | - | 89 | 89 |
+| 18 | - | 93 | 93 |
+| 19 | - | 97 | 97 |
+| 20 | 2 | 101 | 202 |
 
 ## Spawn Trigger
 

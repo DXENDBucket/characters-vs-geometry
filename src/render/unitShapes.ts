@@ -263,6 +263,34 @@ export function createEnemyShape(scene: Phaser.Scene, kind: EnemyKind, options: 
     return shape;
   }
 
+  if (family === "archangelHeptagon") {
+    const shape = scene.add.container(0, 0);
+    const heptagon = scene.add.graphics();
+    heptagon.fillStyle(palette.black, 1);
+    heptagon.lineStyle(2, palette.white, 1);
+    heptagon.beginPath();
+    const radius = 27;
+    for (let index = 0; index < 7; index += 1) {
+      const angle = Phaser.Math.DegToRad(90 + index * (360 / 7));
+      const x = Math.cos(angle) * radius;
+      const y = Math.sin(angle) * radius;
+      if (index === 0) {
+        heptagon.moveTo(x, y);
+      } else {
+        heptagon.lineTo(x, y);
+      }
+    }
+    heptagon.closePath();
+    heptagon.fillPath();
+    heptagon.strokePath();
+    const outerHalo = scene.add.ellipse(0, -43, 37, 9, palette.black, 0).setStrokeStyle(2, palette.white, 0.86);
+    const innerHalo = scene.add.ellipse(0, -34, 27, 7, palette.black, 0).setStrokeStyle(2, palette.white, 0.95);
+    const label = createEnemyLabel(scene, 0, -1, kind);
+    shape.setData("archangelHalos", [outerHalo, innerHalo]);
+    shape.add([outerHalo, innerHalo, heptagon, label]);
+    return shape;
+  }
+
   if (family === "shootingPentagon") {
     const shape = scene.add.container(0, 0);
     const pentagon = scene.add.graphics();

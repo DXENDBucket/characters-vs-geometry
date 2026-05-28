@@ -12,7 +12,7 @@ import type { CardDefinition, CubeBoss, Enemy, Tower } from "../types";
 import { enemyIsBossCompanion } from "../registry/enemies";
 import { enemyIsBurrowed, enemyIsHighFlying } from "./enemyBehaviors";
 import { getCardAttackArea, type AttackAreaConfig } from "./cardAttackConfigs";
-import { towerFacingDirection } from "./towers";
+import { towerFacingDirection, towerIsFlying } from "./towers";
 
 export function gridCellKey(lane: number, column: number) {
   return `${lane}:${column}`;
@@ -134,17 +134,20 @@ export function getLaneRepelTargets(tower: Tower, enemies: Enemy[]) {
 }
 
 export function getBlockingTower(towers: Tower[], enemy: Enemy) {
-  if (
-    enemyIsBossCompanion(enemy.kind) ||
-    enemyIsBurrowed(enemy) ||
-    enemyIsHighFlying(enemy) ||
-    enemy.statusEffects.some((effect) => effect.name === "flying")
-  ) {
+  if (enemyIsBossCompanion(enemy.kind) || enemyIsBurrowed(enemy) || enemyIsHighFlying(enemy)) {
     return undefined;
   }
 
+  const enemyFlying = enemy.statusEffects.some((effect) => effect.name === "flying");
   return towers
-    .filter((tower) => !tower.transient && tower.lane === enemy.lane && Math.abs(enemy.x - tower.x) < 38)
+    .filter((tower) => {
+      return (
+        !tower.transient &&
+        tower.lane === enemy.lane &&
+        Math.abs(enemy.x - tower.x) < 38 &&
+        (enemyFlying ? towerIsFlying(tower) : !towerIsFlying(tower))
+      );
+    })
     .sort((a, b) => b.x - a.x)[0];
 }
 

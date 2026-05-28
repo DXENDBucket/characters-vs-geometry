@@ -11,9 +11,14 @@ import {
   type ProjectilePatternConfig
 } from "./cardAttackConfigs";
 import type { CardBehaviorRuntime, CardReadinessRuntime } from "./combatRuntime";
-import { enemyIsHighFlying } from "./enemyBehaviors";
+import { enemyIsBurrowed, enemyIsHighFlying } from "./enemyBehaviors";
 import { chargingHexSpeedMultiplier } from "./enemySupport";
-import { createMortarProjectile, createTowerProjectile, type TowerProjectileSpec } from "./projectiles";
+import {
+  createHomingTowerProjectile,
+  createMortarProjectile,
+  createTowerProjectile,
+  type TowerProjectileSpec
+} from "./projectiles";
 import { movementSpeedMultiplier } from "./slowAura";
 import { statusSpeedMultiplier } from "./statusEffects";
 import {
@@ -57,6 +62,13 @@ export const projectileCardBehavior: CardBehavior = {
       runtime.projectiles.push(createTowerProjectile(runtime.scene, spec));
     }
   }
+};
+
+export const homingCardBehavior: CardBehavior = {
+  canUse: (tower, definition, time, runtime) => {
+    return cooldownReady(tower, time) && Boolean(definition.damage && selectSmallXTarget(runtime.enemies, tower.x, tower.y));
+  },
+  execute: fireHomingVolley
 };
 
 export const healingCardBehavior: CardBehavior = {
@@ -131,9 +143,11 @@ export const cardBehaviorsById: Record<CardId, CardBehavior> = {
   O: idleCardBehavior,
   R: idleCardBehavior,
   X: idleCardBehavior,
+  x: homingCardBehavior,
   E: projectileCardBehavior,
   M: projectileCardBehavior,
   W: projectileCardBehavior,
+  w: idleCardBehavior,
   F: idleCardBehavior,
   f: idleCardBehavior,
   l: idleCardBehavior,
@@ -162,9 +176,70 @@ export const cardBehaviorsById: Record<CardId, CardBehavior> = {
 
 const PREDICTIVE_MORTAR_DURATION = 1_200;
 const PREDICTIVE_MORTAR_HIT_RADIUS = 22;
+const HOMING_PROJECTILE_SPEED = 620;
+const HOMING_PROJECTILE_ACCELERATION = 420;
+const HOMING_PROJECTILE_MAX_SPEED = 1_200;
+const HOMING_PROJECTILE_MUZZLES = [
+  { x: 0, y: -24 },
+  { x: 24, y: 0 },
+  { x: 0, y: 24 },
+  { x: -24, y: 0 }
+] as const;
 
 function cooldownReady(tower: Tower, time: number) {
   return time >= tower.lastFire + tower.fireRate;
+}
+
+function fireHomingVolley(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {
+  const target = selectSmallXTarget(runtime.enemies, tower.x, tower.y);
+  if (!target) {
+    return;
+  }
+
+  const damage = scaledByEffectiveUpgrades(definition.damage ?? 0, effectiveTowerLevel(tower));
+  const damageType = towerDamageType(tower, definition.damageType ?? "magic", runtime.battleTime);
+  for (const muzzle of HOMING_PROJECTILE_MUZZLES) {
+    runtime.projectiles.push(
+      createHomingTowerProjectile(runtime.scene, {
+        x: tower.x + muzzle.x,
+        y: tower.y + muzzle.y,
+        lane: tower.lane,
+        speed: HOMING_PROJECTILE_SPEED,
+        acceleration: HOMING_PROJECTILE_ACCELERATION,
+        maxSpeed: HOMING_PROJECTILE_MAX_SPEED,
+        damage,
+        damageType,
+        targetEnemy: target
+      })
+    );
+  }
+}
+
+function selectSmallXTarget(enemies: Enemy[], x: number, y: number) {
+  const candidates = enemies.filter(canHomingProjectileTarget);
+  const flyingCandidates = candidates.filter(enemyIsRegularFlying);
+  return closestEnemyTo(flyingCandidates.length > 0 ? flyingCandidates : candidates, x, y);
+}
+
+function canHomingProjectileTarget(enemy: Enemy) {
+  return !enemyIsBurrowed(enemy) && !enemyIsHighFlying(enemy);
+}
+
+function enemyIsRegularFlying(enemy: Enemy) {
+  return enemy.statusEffects.some((effect) => effect.name === "flying");
+}
+
+function closestEnemyTo(enemies: Enemy[], x: number, y: number) {
+  let closest: Enemy | undefined;
+  let closestDistance = Number.POSITIVE_INFINITY;
+  for (const enemy of enemies) {
+    const distance = Math.hypot(enemy.x - x, enemy.y - y);
+    if (distance < closestDistance) {
+      closest = enemy;
+      closestDistance = distance;
+    }
+  }
+  return closest;
 }
 
 function fireHealingPulse(

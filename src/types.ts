@@ -11,9 +11,11 @@ export type CardId =
   | "O"
   | "R"
   | "X"
+  | "x"
   | "E"
   | "M"
   | "W"
+  | "w"
   | "F"
   | "f"
   | "G"
@@ -53,6 +55,7 @@ export type EnemyKind =
   | "mortarTriangle2"
   | "pentagon"
   | "angelPentagon"
+  | "archangelHeptagon"
   | "shootingPentagon"
   | "diamond"
   | "diamond2"
@@ -86,7 +89,7 @@ export type BossSkillName =
   | "suppression"
   | "desperation"
   | "endlessWings";
-export type ProjectileKind = "bolt" | "shell" | "star" | "hash" | "dollar";
+export type ProjectileKind = "bolt" | "shell" | "star" | "hash" | "dollar" | "chevron";
 export type UnitCategory = "production" | "attack" | "defense" | "function" | "healing";
 export type DamageType = "physical" | "magic" | "true";
 export type StatusEffectName = "stasis" | "haste" | "power" | "flying" | "invincible" | "highFlying";
@@ -195,9 +198,11 @@ export interface Tower {
   facingIcon: Phaser.GameObjects.Text;
   autoUpgradeBorder: Phaser.GameObjects.Graphics;
   trueDamageBorder: Phaser.GameObjects.Graphics;
+  flyingHalo: Phaser.GameObjects.Ellipse;
   hpFill: Phaser.GameObjects.Rectangle;
   levelText: Phaser.GameObjects.Text;
   trueDamageUntil: number;
+  flyingUntil: number;
 }
 
 export interface Enemy {
@@ -266,6 +271,10 @@ export interface Projectile {
   splashRadius: number;
   maxX: number;
   limitDirection: -1 | 1;
+  targetEnemy?: Enemy;
+  speed?: number;
+  acceleration?: number;
+  maxSpeed?: number;
   body: Phaser.GameObjects.Shape | Phaser.GameObjects.Text;
 }
 

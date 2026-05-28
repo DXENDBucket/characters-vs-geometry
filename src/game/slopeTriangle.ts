@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { CELL_HEIGHT, CELL_WIDTH, palette } from "../config";
+import { CELL_HEIGHT, CELL_WIDTH, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
 import { enemyIsBossCompanion, enemyIsLeader, enemyIsMace } from "../registry/enemies";
 import { makeShiftEffect, makeShockPulse } from "../render/combatEffects";
 import type { Enemy, Tower } from "../types";
@@ -17,6 +17,19 @@ const HIGH_FLIGHT_STATUS_BUFFER = 80;
 
 export function advanceHighFlyingEnemy(enemy: Enemy, time: number) {
   if (!enemyIsHighFlying(enemy)) {
+    return false;
+  }
+
+  if (enemy.highFlightUntil === undefined) {
+    statusSpeedMultiplier(enemy, time);
+    if (!enemy.statusEffects.some((effect) => effect.name === "highFlying")) {
+      landHighFlyingEnemy(enemy);
+      return false;
+    }
+
+    enemy.body.setDepth(85 + enemy.lane);
+    syncHighFlyingHalo(enemy, time);
+    enemy.body.setPosition(enemy.x, enemy.y + FLYING_DISPLAY_OFFSET_Y + Math.sin(time / 130) * 2);
     return false;
   }
 
@@ -184,6 +197,11 @@ function landHighFlyingEnemy(enemy: Enemy) {
 }
 
 function syncHighFlyingHalo(enemy: Enemy, time: number) {
+  if (enemy.kind === "archangelHeptagon") {
+    enemy.flyingHalo.setVisible(false);
+    return;
+  }
+
   enemy.flyingHalo.setVisible(true);
   enemy.flyingHalo.setStrokeStyle(2, palette.gold, 0.94);
   enemy.flyingHalo.setY(-44 + Math.sin(time / 95) * 2);

@@ -1,7 +1,7 @@
 import Phaser from "phaser";
-import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, palette } from "../config";
+import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
 import { createUnitBorder } from "../render/unitShapes";
-import type { CardDefinition, CardId, CardState, Tower } from "../types";
+import type { CardDefinition, CardId, CardState, SkillState, Tower } from "../types";
 import {
   effectiveUpgradeCountForLevel,
   effectiveUpgradeDelta,
@@ -11,6 +11,7 @@ import {
 } from "./upgrades";
 
 const TRUE_DAMAGE_DURATION_PER_LEVEL = 12_000;
+const AIR_PATROL_INITIAL_SP = 8;
 
 export function createTower(
   scene: Phaser.Scene,
@@ -28,6 +29,7 @@ export function createTower(
   const rangeBorder = definition.id === "T" ? createSlowAuraRangeBorder(scene) : null;
   const autoUpgradeBorder = createAutoUpgradeBorder(scene);
   const trueDamageBorder = createTrueDamageBorder(scene);
+  const flyingHalo = createTowerFlyingHalo(scene);
   const label = scene.add
     .text(0, -3, definition.id, {
       color: "#f5f5f5",
@@ -60,6 +62,7 @@ export function createTower(
     ...(rangeBorder ? [rangeBorder] : []),
     trueDamageBorder,
     autoUpgradeBorder,
+    flyingHalo,
     border,
     label,
     facingIcon,
@@ -69,6 +72,15 @@ export function createTower(
   ]);
   if (definition.id === "G" || definition.id === "c" || definition.id === "S") {
     border.setVisible(false);
+  }
+
+  const skills: Record<string, SkillState> = {};
+  if (definition.id === "w") {
+    skills.airPatrol = {
+      sp: AIR_PATROL_INITIAL_SP,
+      spBuffer: 0,
+      activeUntil: 0
+    };
   }
 
   return {
@@ -89,7 +101,7 @@ export function createTower(
     levelBonus: 0,
     nextProduceAt: definition.produceEvery ? battleTime + definition.produceEvery : Number.POSITIVE_INFINITY,
     armedAt: definition.armTime ? battleTime + definition.armTime : 0,
-    skills: {},
+    skills,
     autoUpgrade: false,
     reflectProjectiles: Boolean(definition.reflectProjectiles),
     nextRepelDirection: placedOrder % 2 === 0 ? -1 : 1,
@@ -103,9 +115,11 @@ export function createTower(
     facingIcon,
     autoUpgradeBorder,
     trueDamageBorder,
+    flyingHalo,
     hpFill,
     levelText,
-    trueDamageUntil: 0
+    trueDamageUntil: 0,
+    flyingUntil: 0
   };
 }
 
@@ -249,6 +263,28 @@ export function towerDamageType(tower: Tower, damageType: CardDefinition["damage
   return towerHasTrueDamage(tower, battleTime) ? "true" : damageType ?? "physical";
 }
 
+export function towerIsFlying(tower: Tower) {
+  return tower.flyingUntil > 0;
+}
+
+export function setTowerFlyingUntil(tower: Tower, until: number) {
+  tower.flyingUntil = until;
+}
+
+export function syncTowerFlyingVisual(tower: Tower, time: number) {
+  const active = towerIsFlying(tower);
+  tower.flyingHalo.setVisible(active);
+  if (!active) {
+    tower.body.setPosition(tower.x, tower.y);
+    tower.flyingHalo.setScale(1, 1);
+    return;
+  }
+
+  tower.body.setPosition(tower.x, tower.y + FLYING_DISPLAY_OFFSET_Y + Math.sin(time / 130) * 2);
+  tower.flyingHalo.setY(-38 + Math.sin(time / 110) * 2);
+  tower.flyingHalo.setScale(1 + Math.sin(time / 150) * 0.05, 1);
+}
+
 export function syncTowerTrueDamageVisual(tower: Tower, battleTime: number) {
   const active = towerHasTrueDamage(tower, battleTime);
   tower.trueDamageBorder.setVisible(active);
@@ -271,6 +307,12 @@ function createTrueDamageBorder(scene: Phaser.Scene) {
   border.strokeCircle(0, 0, 36);
   border.setVisible(false);
   return border;
+}
+
+function createTowerFlyingHalo(scene: Phaser.Scene) {
+  const halo = scene.add.ellipse(0, -38, 34, 10, palette.black, 0).setStrokeStyle(2, palette.white, 0.94);
+  halo.setVisible(false);
+  return halo;
 }
 
 function createSlowAuraRangeBorder(scene: Phaser.Scene) {

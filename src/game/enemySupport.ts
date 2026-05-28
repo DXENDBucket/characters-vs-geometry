@@ -29,11 +29,17 @@ const ANGEL_WINGS_REGEN_PER_SECOND = 1;
 const ANGEL_WINGS_DURATION = 3_000;
 const ANGEL_WINGS_RANGE_X = CELL_WIDTH * 1.5;
 const ANGEL_WINGS_RANGE_Y = CELL_HEIGHT * 1.5;
+const ARCHANGEL_ASCENSION_SKILL_MAX = 15;
+const ARCHANGEL_ASCENSION_SKILL_COST = 15;
+const ARCHANGEL_ASCENSION_REGEN_PER_SECOND = 1;
+const ARCHANGEL_ASCENSION_DURATION = 6_000;
+const ARCHANGEL_ASCENSION_RADIUS = CELL_WIDTH * 2.5;
 const ANGEL_WINGS_SPEED_MULTIPLIER = 2;
 
 const enemySkillRegistry = createEnemySkillRegistry({
   updateHexHeal,
   updateAngelWings,
+  updateArchangelAscension,
   updateHeartLead
 });
 
@@ -102,6 +108,17 @@ function updateAngelWings(enemy: Enemy, state: SkillState, seconds: number, time
   gainSkillSp(state, seconds * ANGEL_WINGS_REGEN_PER_SECOND, ANGEL_WINGS_SKILL_MAX);
   if (isSkillReady(state, ANGEL_WINGS_SKILL_MAX)) {
     triggerAngelWings(runtime.scene, runtime.enemies, enemy, time, state);
+  }
+}
+
+function updateArchangelAscension(enemy: Enemy, state: SkillState, seconds: number, time: number, runtime: EnemySkillRuntime) {
+  if (time < state.activeUntil) {
+    return;
+  }
+
+  gainSkillSp(state, seconds * ARCHANGEL_ASCENSION_REGEN_PER_SECOND, ARCHANGEL_ASCENSION_SKILL_MAX);
+  if (isSkillReady(state, ARCHANGEL_ASCENSION_SKILL_MAX)) {
+    triggerArchangelAscension(runtime.scene, runtime.enemies, enemy, time, state);
   }
 }
 
@@ -187,20 +204,61 @@ export function triggerAngelWings(
   time: number,
   skill = getEnemySkillState(caster, "wings")
 ) {
-  spendSkillSp(skill, ANGEL_WINGS_SKILL_COST);
-  skill.activeUntil = time + ANGEL_WINGS_DURATION;
+  triggerWingsEffect(scene, enemies, caster, time, skill, {
+    cost: ANGEL_WINGS_SKILL_COST,
+    duration: ANGEL_WINGS_DURATION,
+    inRange: isInAngelWingsRange
+  });
+}
+
+export function triggerArchangelAscension(
+  scene: Phaser.Scene,
+  enemies: Enemy[],
+  caster: Enemy,
+  time: number,
+  skill = getEnemySkillState(caster, "ascension")
+) {
+  triggerWingsEffect(scene, enemies, caster, time, skill, {
+    cost: ARCHANGEL_ASCENSION_SKILL_COST,
+    duration: ARCHANGEL_ASCENSION_DURATION,
+    inRange: isInArchangelAscensionRange
+  });
+}
+
+function triggerWingsEffect(
+  scene: Phaser.Scene,
+  enemies: Enemy[],
+  caster: Enemy,
+  time: number,
+  skill: SkillState,
+  options: {
+    cost: number;
+    duration: number;
+    inRange: (caster: Enemy, target: Enemy) => boolean;
+  }
+) {
+  spendSkillSp(skill, options.cost);
+  skill.activeUntil = time + options.duration;
   for (const target of enemies) {
     if (enemyIsHighFlying(target)) {
       continue;
     }
 
-    if (Math.abs(target.x - caster.x) > ANGEL_WINGS_RANGE_X || Math.abs(target.y - caster.y) > ANGEL_WINGS_RANGE_Y) {
+    if (!options.inRange(caster, target)) {
       continue;
     }
 
-    applyStatusEffect(target, "flying", ANGEL_WINGS_DURATION, time, ANGEL_WINGS_SPEED_MULTIPLIER, true);
+    applyStatusEffect(target, "flying", options.duration, time, ANGEL_WINGS_SPEED_MULTIPLIER, true);
     makeWingPulse(scene, target.x, target.y);
   }
+}
+
+function isInAngelWingsRange(caster: Enemy, target: Enemy) {
+  return Math.abs(target.x - caster.x) <= ANGEL_WINGS_RANGE_X && Math.abs(target.y - caster.y) <= ANGEL_WINGS_RANGE_Y;
+}
+
+function isInArchangelAscensionRange(caster: Enemy, target: Enemy) {
+  return Math.hypot(target.x - caster.x, target.y - caster.y) <= ARCHANGEL_ASCENSION_RADIUS;
 }
 
 export function makeWingPulse(scene: Phaser.Scene, x: number, y: number) {

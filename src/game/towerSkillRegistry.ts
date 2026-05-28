@@ -9,6 +9,8 @@ export interface TowerSkillActions {
   updateGuardianTower: TowerSkillDefinition["update"];
   updateSpellMortarTower: TowerSkillDefinition["update"];
   resetSpellMortarTower: NonNullable<TowerSkillDefinition["reset"]>;
+  updateAirPatrolTower: TowerSkillDefinition["update"];
+  resetAirPatrolTower: NonNullable<TowerSkillDefinition["reset"]>;
 }
 
 export function createTowerSkillRegistry(actions: TowerSkillActions): Partial<Record<CardId, TowerSkillDefinition>> {
@@ -26,6 +28,11 @@ export function createTowerSkillRegistry(actions: TowerSkillActions): Partial<Re
       stateKey: "spellMortar",
       update: actions.updateSpellMortarTower,
       reset: actions.resetSpellMortarTower
+    },
+    w: {
+      stateKey: "airPatrol",
+      update: actions.updateAirPatrolTower,
+      reset: actions.resetAirPatrolTower
     }
   };
 }

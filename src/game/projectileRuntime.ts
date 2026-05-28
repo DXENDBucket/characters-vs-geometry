@@ -42,6 +42,10 @@ export interface ProjectileRuntime {
 
 export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: number) {
   for (const projectile of [...runtime.projectiles]) {
+    if (projectile.type === "chevron") {
+      updateHomingProjectile(runtime, projectile, seconds);
+    }
+
     const speedMultiplier = movementSpeedMultiplier(runtime.towers, projectile.x, projectile.y);
     const nextX = projectile.x + projectile.vx * seconds * speedMultiplier;
     const reachedLimitX = projectile.limitDirection < 0 ? nextX <= projectile.maxX : nextX >= projectile.maxX;
@@ -49,13 +53,16 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
     projectile.y += projectile.vy * seconds * speedMultiplier;
     projectile.body.setPosition(projectile.x, projectile.y);
 
-    const hit = runtime.enemies.find((enemy) => {
-      return (
-        canEnemyBeDirectlyHit(enemy) &&
-        Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y) < enemyProjectileHitRadius(enemy)
-      );
-    });
-    const hitBoss = isPointInBossHitbox(runtime.getBoss(), projectile.x, projectile.y);
+    const hit =
+      projectile.type === "chevron"
+        ? getHomingProjectileHit(projectile)
+        : runtime.enemies.find((enemy) => {
+            return (
+              canEnemyBeDirectlyHit(enemy) &&
+              Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y) < enemyProjectileHitRadius(enemy)
+            );
+          });
+    const hitBoss = projectile.type === "chevron" ? false : isPointInBossHitbox(runtime.getBoss(), projectile.x, projectile.y);
 
     if (!hit && !hitBoss) {
       if (isTowerProjectileOutOfBounds(projectile, reachedLimitX)) {
@@ -64,7 +71,7 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
       continue;
     }
 
-    if (projectile.type === "bolt" || projectile.type === "star" || projectile.type === "dollar") {
+    if (projectile.type === "bolt" || projectile.type === "star" || projectile.type === "dollar" || projectile.type === "chevron") {
       if (hit) {
         makeHitShards(runtime.scene, hit.x, hit.y, projectile.damageType);
         runtime.damageEnemy(hit, projectile.damage, projectile.damageType);
@@ -189,6 +196,66 @@ function enemyProjectileHitRadius(enemy: Enemy) {
 
 function canEnemyBeDirectlyHit(enemy: Enemy) {
   return !enemyIsBurrowed(enemy) && !enemyIsHighFlying(enemy);
+}
+
+function updateHomingProjectile(runtime: ProjectileRuntime, projectile: Projectile, seconds: number) {
+  const target = resolveHomingTarget(runtime, projectile);
+  const currentSpeed = projectile.speed ?? Math.hypot(projectile.vx, projectile.vy);
+  const maxSpeed = projectile.maxSpeed ?? currentSpeed;
+  const acceleration = projectile.acceleration ?? 0;
+  const nextSpeed = Math.min(maxSpeed, currentSpeed + acceleration * seconds);
+  projectile.speed = nextSpeed;
+
+  if (target) {
+    const angle = Math.atan2(target.y - projectile.y, target.x - projectile.x);
+    projectile.vx = Math.cos(angle) * nextSpeed;
+    projectile.vy = Math.sin(angle) * nextSpeed;
+    projectile.body.rotation = angle;
+    return;
+  }
+
+  if (currentSpeed <= 0) {
+    projectile.vx = nextSpeed;
+    projectile.vy = 0;
+  } else {
+    const speedScale = nextSpeed / currentSpeed;
+    projectile.vx *= speedScale;
+    projectile.vy *= speedScale;
+  }
+  projectile.body.rotation = Math.atan2(projectile.vy, projectile.vx);
+}
+
+function resolveHomingTarget(runtime: ProjectileRuntime, projectile: Projectile) {
+  const currentTarget = projectile.targetEnemy;
+  if (currentTarget && runtime.enemies.includes(currentTarget) && canEnemyBeDirectlyHit(currentTarget)) {
+    return currentTarget;
+  }
+
+  const nextTarget = closestEnemyTo(runtime.enemies.filter(canEnemyBeDirectlyHit), projectile.x, projectile.y);
+  projectile.targetEnemy = nextTarget;
+  return nextTarget;
+}
+
+function getHomingProjectileHit(projectile: Projectile) {
+  const target = projectile.targetEnemy;
+  if (!target || !canEnemyBeDirectlyHit(target)) {
+    return undefined;
+  }
+
+  return Math.hypot(target.x - projectile.x, target.y - projectile.y) < enemyProjectileHitRadius(target) ? target : undefined;
+}
+
+function closestEnemyTo(enemies: Enemy[], x: number, y: number) {
+  let closest: Enemy | undefined;
+  let closestDistance = Number.POSITIVE_INFINITY;
+  for (const enemy of enemies) {
+    const distance = Math.hypot(enemy.x - x, enemy.y - y);
+    if (distance < closestDistance) {
+      closest = enemy;
+      closestDistance = distance;
+    }
+  }
+  return closest;
 }
 
 function removeEnemyProjectile(projectiles: EnemyProjectile[], projectile: EnemyProjectile) {

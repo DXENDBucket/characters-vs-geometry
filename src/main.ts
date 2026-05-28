@@ -14,9 +14,8 @@ const game = new Phaser.Game({
   pixelArt: true,
   scene: [ChapterSelectScene, LevelSelectScene, CardSelectScene, GameScene],
   scale: {
-    mode: Phaser.Scale.NONE,
+    mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
-    zoom: Phaser.Scale.MAX_ZOOM,
     autoRound: true
   },
   render: {
@@ -26,7 +25,3 @@ const game = new Phaser.Game({
 });
 
 window.addEventListener("contextmenu", (event) => event.preventDefault());
-
-window.addEventListener("resize", () => {
-  game.scale.setMaxZoom();
-});

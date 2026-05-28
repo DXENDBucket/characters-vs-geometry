@@ -157,6 +157,17 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     weight: 200,
     minFlag: 1
   },
+  archangelHeptagon: {
+    kind: "archangelHeptagon",
+    label: "1",
+    hp: 4_000,
+    armor: 50,
+    magicResistance: 20,
+    damage: 1_400,
+    damageType: "magic",
+    speedMultiplier: 3,
+    weight: 0
+  },
   shootingPentagon: {
     kind: "shootingPentagon",
     label: "1",

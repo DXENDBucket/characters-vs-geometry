@@ -39,6 +39,10 @@ export function enemyAttackInterval(kind: EnemyKind) {
     return 2_000;
   }
 
+  if (enemyFamily(kind) === "archangelHeptagon") {
+    return 2_000;
+  }
+
   if (enemyFamily(kind) === "triangle") {
     return ATTACK_INTERVAL / enemyRank(kind);
   }
@@ -63,7 +67,7 @@ export function enemyIsBurrowed(enemy: Enemy) {
 }
 
 export function enemyIsHighFlying(enemy: Enemy) {
-  return enemy.highFlightUntil !== undefined;
+  return enemy.highFlightUntil !== undefined || enemy.statusEffects.some((effect) => effect.name === "highFlying");
 }
 
 export function promotedKind(kind: EnemyKind) {

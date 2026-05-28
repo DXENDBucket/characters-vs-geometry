@@ -10,6 +10,7 @@ export type EnemyFamily =
   | "mortarTriangle"
   | "pentagon"
   | "angelPentagon"
+  | "archangelHeptagon"
   | "shootingPentagon"
   | "diamond"
   | "hexagon"
@@ -158,6 +159,14 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     rank: 1,
     nameKey: "enemy.angelPentagon",
     attackMode: "melee"
+  },
+  archangelHeptagon: {
+    definition: rawEnemyDefinitions.archangelHeptagon,
+    family: "archangelHeptagon",
+    rank: 1,
+    nameKey: "enemy.archangelHeptagon",
+    attackMode: "melee",
+    leader: true
   },
   shootingPentagon: {
     definition: rawEnemyDefinitions.shootingPentagon,

@@ -18,10 +18,21 @@ import { makeHealParticles, makeSpellMortarImpact, makeSpellMortarShot } from ".
 import type { CardDefinition, CardId, CubeBoss, DamageType, Enemy, SkillState, Tower } from "../types";
 import { enemyIsHighFlying } from "./enemyBehaviors";
 import { updateRegisteredSkills } from "./skillRegistry";
-import { gainSkillSp, getTowerSkillState, resetSkillCharge } from "./skillState";
+import { gainSkillSp, getTowerSkillState, resetSkillCharge, spendSkillSp } from "./skillState";
 import { createTowerSkillRegistry, type TowerSkillDefinition } from "./towerSkillRegistry";
 import { isBossInRect } from "./targeting";
-import { effectiveTowerLevel, getSpellMortarDamage, syncTowerHpBar, towerDamageType } from "./towers";
+import {
+  effectiveTowerLevel,
+  getSpellMortarDamage,
+  setTowerFlyingUntil,
+  syncTowerFlyingVisual,
+  syncTowerHpBar,
+  towerDamageType
+} from "./towers";
+
+const AIR_PATROL_SKILL_MAX = 10;
+const AIR_PATROL_SKILL_COST = 10;
+const AIR_PATROL_SKILL_DURATION = 6_000;
 
 export interface TowerSkillRuntime {
   towers: Tower[];
@@ -52,7 +63,9 @@ export class TowerSkillController {
       resetClockTower: (tower, state) => this.resetClockTower(tower, state),
       updateGuardianTower: (tower, state, seconds, time) => this.updateGuardianTower(tower, state, seconds, time),
       updateSpellMortarTower: (tower, state, seconds, time) => this.updateSpellMortarTower(tower, state, seconds, time),
-      resetSpellMortarTower: (tower, state) => this.resetSpellMortarTower(tower, state)
+      resetSpellMortarTower: (tower, state) => this.resetSpellMortarTower(tower, state),
+      updateAirPatrolTower: (tower, state, seconds, time) => this.updateAirPatrolTower(tower, state, seconds, time),
+      resetAirPatrolTower: (tower, state) => this.resetAirPatrolTower(tower, state)
     });
   }
 
@@ -101,6 +114,27 @@ export class TowerSkillController {
     resetSkillCharge(state);
     state.activeUntil = this.runtime().battleTime + CLOCK_TOWER_SKILL_DURATION;
     tower.border.setVisible(true);
+  }
+
+  isAirPatrolReady(tower: Tower) {
+    const runtime = this.runtime();
+    const state = getTowerSkillState(tower, "airPatrol");
+    return tower.type === "w" && runtime.battleTime >= state.activeUntil && state.sp >= AIR_PATROL_SKILL_MAX;
+  }
+
+  activateAirPatrolTower(tower: Tower) {
+    if (!this.isAirPatrolReady(tower)) {
+      return;
+    }
+
+    const runtime = this.runtime();
+    const state = getTowerSkillState(tower, "airPatrol");
+    spendSkillSp(state, AIR_PATROL_SKILL_COST);
+    state.activeUntil = runtime.battleTime + AIR_PATROL_SKILL_DURATION;
+    setTowerFlyingUntil(tower, state.activeUntil);
+    tower.border.setVisible(true);
+    tower.border.setAlpha(1);
+    syncTowerFlyingVisual(tower, runtime.battleTime);
   }
 
   isSpellMortarReady(tower: Tower) {
@@ -213,6 +247,34 @@ export class TowerSkillController {
     }
 
     this.triggerGuardianSkill(tower, state, targets);
+  }
+
+  private updateAirPatrolTower(tower: Tower, state: SkillState, seconds: number, time: number) {
+    if (time < state.activeUntil) {
+      setTowerFlyingUntil(tower, state.activeUntil);
+      tower.border.setVisible(true);
+      tower.border.setAlpha(1);
+      syncTowerFlyingVisual(tower, time);
+      return;
+    }
+
+    if (tower.flyingUntil > 0) {
+      setTowerFlyingUntil(tower, 0);
+      syncTowerFlyingVisual(tower, time);
+    }
+
+    if (state.sp < AIR_PATROL_SKILL_MAX) {
+      tower.border.setAlpha(1);
+      gainSkillSp(state, seconds, AIR_PATROL_SKILL_MAX);
+    }
+
+    if (state.sp >= AIR_PATROL_SKILL_MAX) {
+      tower.border.setVisible(true);
+      tower.border.setAlpha(0.62 + Math.sin(time / 90) * 0.28);
+      return;
+    }
+
+    tower.border.setVisible(true);
   }
 
   private guardianHealTargets(tower: Tower) {
@@ -387,6 +449,15 @@ export class TowerSkillController {
         this.destroySpellMortarReticle();
       }
     }
+  }
+
+  private resetAirPatrolTower(tower: Tower, state: SkillState) {
+    resetSkillCharge(state);
+    state.activeUntil = 0;
+    setTowerFlyingUntil(tower, 0);
+    syncTowerFlyingVisual(tower, 0);
+    tower.border.setVisible(true);
+    tower.border.setAlpha(1);
   }
 }
 

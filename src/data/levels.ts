@@ -4,8 +4,8 @@ import type { LevelConfig, LevelNode } from "../types";
 const CHAPTER_TWO_STARTING_CHARS = 350;
 const CHAPTER_THREE_STARTING_CHARS = 500;
 const CHAPTER_THREE_FIRST_WAVE_WEIGHT = 25;
-const CHAPTER_THREE_WAVE_WEIGHT_INCREMENT = 20;
-const CHAPTER_THREE_WAVE_WEIGHT_INCREMENT_GROWTH = 3;
+const CHAPTER_THREE_WAVE_WEIGHT_INCREMENT = 4;
+const CHAPTER_THREE_WAVE_WEIGHT_INCREMENT_GROWTH = 0;
 
 export const levelNodes: LevelNode[] = [
   { id: "0-1", x: 230, y: 405, unlocked: true },
@@ -42,7 +42,8 @@ export const levelNodes: LevelNode[] = [
   { id: "3-2", x: 450, y: 310, unlocked: true },
   { id: "3-3", x: 670, y: 430, unlocked: true },
   { id: "3-4", x: 890, y: 330, unlocked: true },
-  { id: "3-5", x: 1110, y: 430, unlocked: true }
+  { id: "3-5", x: 1110, y: 430, unlocked: true },
+  { id: "3-6", x: 1330, y: 330, unlocked: true }
 ];
 
 export const levelConfigs: Record<string, LevelConfig> = {
@@ -414,6 +415,16 @@ export const levelConfigs: Record<string, LevelConfig> = {
   "3-5": {
     id: "3-5",
     enemyKinds: ["circle", "triangle", "triangle2", "triangle3", "angelPentagon", "slopeTriangle", "burrowArrow"],
+    firstWaveWeight: CHAPTER_THREE_FIRST_WAVE_WEIGHT,
+    waveWeightIncrement: CHAPTER_THREE_WAVE_WEIGHT_INCREMENT,
+    waveWeightIncrementGrowth: CHAPTER_THREE_WAVE_WEIGHT_INCREMENT_GROWTH,
+    totalWaves: 20,
+    wavesPerFlag: WAVES_PER_FLAG,
+    startingChars: CHAPTER_THREE_STARTING_CHARS
+  },
+  "3-6": {
+    id: "3-6",
+    enemyKinds: ["circle", "triangle", "triangle3", "angelPentagon", "hexMace", "archangelHeptagon"],
     firstWaveWeight: CHAPTER_THREE_FIRST_WAVE_WEIGHT,
     waveWeightIncrement: CHAPTER_THREE_WAVE_WEIGHT_INCREMENT,
     waveWeightIncrementGrowth: CHAPTER_THREE_WAVE_WEIGHT_INCREMENT_GROWTH,

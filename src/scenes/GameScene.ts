@@ -384,6 +384,12 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    if (existingTower?.type === "w" && this.towerSkills.isAirPatrolReady(existingTower)) {
+      this.towerSkills.activateAirPatrolTower(existingTower);
+      this.updateCards(this.cardTime);
+      return;
+    }
+
     const cardState = this.cardStates.find((card) => card.definition.id === definition.id);
     const effectiveChars = this.effectiveChars();
     const canUpgradeManualShockTower =
@@ -1117,6 +1123,16 @@ export class GameScene extends Phaser.Scene {
 
     if (key === "t" && this.selectedCardIds.includes("t")) {
       this.selectCard("t");
+      return;
+    }
+
+    if (key === "w" && this.selectedCardIds.includes("w")) {
+      this.selectCard("w");
+      return;
+    }
+
+    if (key === "x" && this.selectedCardIds.includes("x")) {
+      this.selectCard("x");
       return;
     }
 

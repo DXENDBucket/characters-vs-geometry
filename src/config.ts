@@ -2,6 +2,7 @@ import type { BossKind, DifficultyConfig } from "./types";
 
 export const GAME_WIDTH = 1280;
 export const GAME_HEIGHT = 760;
+export const FLYING_DISPLAY_OFFSET_Y = -14;
 export const LANES = 7;
 export const COLUMNS = 13;
 export const CELL_SIZE = 78;

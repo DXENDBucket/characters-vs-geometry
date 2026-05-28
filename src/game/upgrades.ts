@@ -19,12 +19,13 @@ const VOLLEY_UPGRADEABLE_CARDS = new Set<CardId>([
 ]);
 const MAX_HP_UPGRADEABLE_CARDS = new Set<CardId>(["B", "D", "O", "R", "h", "L", "N", "n", "T"]);
 const UPGRADE_SCALE = 0.8;
+const UPGRADE_SOFTCAP_START = 20;
 
 export function effectiveUpgradeCountForLevel(level: number) {
   let remainingLevels = Math.max(0, Math.floor(level) - 1);
   let effectiveUpgrades = 0;
   let levelsPerUpgrade = 1;
-  let effectiveBandSize = 10;
+  let effectiveBandSize = UPGRADE_SOFTCAP_START;
 
   while (remainingLevels > 0) {
     const levelsInBand = effectiveBandSize * levelsPerUpgrade;
