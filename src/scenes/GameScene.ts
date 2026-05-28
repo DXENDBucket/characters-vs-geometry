@@ -67,6 +67,7 @@ import {
   triggerTrapTower as runTriggerTrapTower,
   type TriggerTowerRuntime
 } from "../game/triggerTowers";
+import { syncBossBaseStats, towerFinalStats } from "../game/unitStats";
 import { volleyInterval, volleyShotCount } from "../game/upgrades";
 import { waveScheduleAction } from "../game/waves";
 import { t } from "../i18n";
@@ -590,8 +591,9 @@ export class GameScene extends Phaser.Scene {
 
     this.boss = createCubeBoss(this, this.levelConfig.bossKind, this.difficultyConfig.finalDamageReduction);
     if (this.unlimitedFirepower) {
-      this.boss.maxHp *= 10;
-      this.boss.hp = this.boss.maxHp;
+      this.boss.baseStats.maxHp *= 10;
+      syncBossBaseStats(this.boss);
+      this.boss.hp = this.boss.finalStats.maxHp;
     }
   }
 
@@ -767,7 +769,7 @@ export class GameScene extends Phaser.Scene {
 
   private startTowerVolley(tower: Tower, definition: CardDefinition, behavior: CardBehavior, time: number) {
     const shots = volleyShotCount(tower.type, effectiveTowerLevel(tower));
-    const interval = volleyInterval(tower.fireRate, shots);
+    const interval = volleyInterval(towerFinalStats(tower).fireRate, shots);
 
     for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
       this.time.delayedCall(shotIndex * interval, () => {

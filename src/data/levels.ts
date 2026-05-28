@@ -43,7 +43,8 @@ export const levelNodes: LevelNode[] = [
   { id: "3-3", x: 670, y: 430, unlocked: true },
   { id: "3-4", x: 890, y: 330, unlocked: true },
   { id: "3-5", x: 1110, y: 430, unlocked: true },
-  { id: "3-6", x: 1330, y: 330, unlocked: true }
+  { id: "3-6", x: 1330, y: 330, unlocked: true },
+  { id: "3-7", x: 1550, y: 430, unlocked: true }
 ];
 
 export const levelConfigs: Record<string, LevelConfig> = {
@@ -424,11 +425,37 @@ export const levelConfigs: Record<string, LevelConfig> = {
   },
   "3-6": {
     id: "3-6",
-    enemyKinds: ["circle", "triangle", "triangle3", "angelPentagon", "hexMace", "archangelHeptagon"],
+    enemyKinds: ["circle", "triangle", "triangle2", "triangle3", "angelPentagon", "hexMace", "archangelHeptagon"],
     firstWaveWeight: CHAPTER_THREE_FIRST_WAVE_WEIGHT,
     waveWeightIncrement: CHAPTER_THREE_WAVE_WEIGHT_INCREMENT,
     waveWeightIncrementGrowth: CHAPTER_THREE_WAVE_WEIGHT_INCREMENT_GROWTH,
     totalWaves: 20,
+    wavesPerFlag: WAVES_PER_FLAG,
+    startingChars: CHAPTER_THREE_STARTING_CHARS
+  },
+  "3-7": {
+    id: "3-7",
+    enemyKinds: [
+      "circle",
+      "triangle",
+      "triangle2",
+      "shootingTriangle",
+      "diamond",
+      "shootingPentagon",
+      "triangleRam3",
+      "square",
+      "angelPentagonRam",
+      "hexMace",
+      "hexSpellBulwark",
+      "heart",
+      "archangelHeptagon",
+      "slopeTriangle",
+      "burrowArrow"
+    ],
+    firstWaveWeight: CHAPTER_THREE_FIRST_WAVE_WEIGHT,
+    waveWeightIncrement: CHAPTER_THREE_WAVE_WEIGHT_INCREMENT,
+    waveWeightIncrementGrowth: CHAPTER_THREE_WAVE_WEIGHT_INCREMENT_GROWTH,
+    totalWaves: 30,
     wavesPerFlag: WAVES_PER_FLAG,
     startingChars: CHAPTER_THREE_STARTING_CHARS
   }

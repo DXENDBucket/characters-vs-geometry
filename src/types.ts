@@ -62,6 +62,7 @@ export type EnemyKind =
   | "hexagon"
   | "chargingHexagon"
   | "hexMace"
+  | "hexSpellBulwark"
   | "heart"
   | "burrowArrow"
   | "slopeTriangle"
@@ -100,6 +101,40 @@ export interface DifficultyConfig {
   weightMultiplier: number;
   finalDamageReduction: number;
 }
+
+export interface TowerBaseStats {
+  maxHp: number;
+  armor: number;
+  magicResistance: number;
+  fireRate: number;
+  damage?: number;
+  damageType?: DamageType;
+}
+
+export interface TowerFinalStats extends TowerBaseStats {}
+
+export interface EnemyBaseStats {
+  maxHp: number;
+  armor: number;
+  magicResistance: number;
+  speed: number;
+  damage: number;
+  damageType: DamageType;
+  finalDamageReduction: number;
+  attackInterval: number;
+}
+
+export interface EnemyFinalStats extends EnemyBaseStats {}
+
+export interface BossBaseStats {
+  maxHp: number;
+  armor: number;
+  magicResistance: number;
+  speed: number;
+  finalDamageReduction: number;
+}
+
+export interface BossFinalStats extends BossBaseStats {}
 
 export interface CardDefinition {
   id: CardId;
@@ -174,6 +209,8 @@ export interface Tower {
   x: number;
   y: number;
   hp: number;
+  baseStats: TowerBaseStats;
+  finalStats: TowerFinalStats;
   maxHp: number;
   baseMaxHp: number;
   armor: number;
@@ -214,6 +251,8 @@ export interface Enemy {
   x: number;
   y: number;
   hp: number;
+  baseStats: EnemyBaseStats;
+  finalStats: EnemyFinalStats;
   maxHp: number;
   armor: number;
   magicResistance: number;
@@ -246,6 +285,7 @@ export interface Enemy {
   statusBorder: Phaser.GameObjects.Arc;
   powerIcon: Phaser.GameObjects.Text;
   armorIcon: Phaser.GameObjects.Text;
+  magicResistanceIcon: Phaser.GameObjects.Text;
   flyingHalo: Phaser.GameObjects.Ellipse;
   nextHasteTrailAt: number;
   body: Phaser.GameObjects.Container;
@@ -371,6 +411,8 @@ export interface CubeBoss {
   x: number;
   y: number;
   hp: number;
+  baseStats: BossBaseStats;
+  finalStats: BossFinalStats;
   maxHp: number;
   armor: number;
   magicResistance: number;

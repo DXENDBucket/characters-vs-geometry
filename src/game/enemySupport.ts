@@ -12,6 +12,7 @@ import { isBossInRadius } from "./targeting";
 
 const HEX_ARMOR_RADIUS = CELL_WIDTH * 1.4;
 const HEX_ARMOR_BONUS = 80;
+const HEX_SPELL_BULWARK_MAGIC_RESISTANCE_BONUS = 50;
 const HEX_HEAL_SKILL_MAX = 20;
 const HEX_HEAL_SKILL_COST = 20;
 const HEX_HEAL_SKILL_REGEN_PER_SECOND = 1;
@@ -47,6 +48,10 @@ export function hexArmorBonus(enemies: Enemy[], target: Enemy) {
   return hexArmorStacks(enemies, target) * HEX_ARMOR_BONUS;
 }
 
+export function hexMagicResistanceBonus(enemies: Enemy[], target: Enemy) {
+  return hexMagicResistanceStacks(enemies, target) * HEX_SPELL_BULWARK_MAGIC_RESISTANCE_BONUS;
+}
+
 export function hexBossArmorBonus(enemies: Enemy[], boss: CubeBoss | null) {
   if (!boss) {
     return 0;
@@ -60,10 +65,19 @@ export function hexBossArmorBonus(enemies: Enemy[], boss: CubeBoss | null) {
 
 export function syncHexArmorAuras(enemies: Enemy[], time: number) {
   for (const enemy of enemies) {
-    const stacks = enemyIsHighFlying(enemy) ? 0 : hexArmorStacks(enemies, enemy);
-    enemy.armorIcon.setVisible(stacks > 0);
-    if (stacks > 0) {
-      enemy.armorIcon.setY(-38 + Math.sin(time / 110) * 2);
+    const armorStacks = enemyIsHighFlying(enemy) ? 0 : hexArmorStacks(enemies, enemy);
+    const magicResistanceStacks = enemyIsHighFlying(enemy) ? 0 : hexMagicResistanceStacks(enemies, enemy);
+    const hasArmorBonus = armorStacks > 0;
+    const hasMagicResistanceBonus = magicResistanceStacks > 0;
+    const iconY = -38 + Math.sin(time / 110) * 2;
+
+    enemy.armorIcon.setVisible(hasArmorBonus);
+    enemy.magicResistanceIcon.setVisible(hasMagicResistanceBonus);
+    if (hasArmorBonus) {
+      enemy.armorIcon.setPosition(hasMagicResistanceBonus ? -10 : 0, iconY);
+    }
+    if (hasMagicResistanceBonus) {
+      enemy.magicResistanceIcon.setPosition(hasArmorBonus ? 10 : 0, iconY);
     }
   }
 }
@@ -93,6 +107,17 @@ export function updateEnemySkills(runtime: EnemySkillRuntime, seconds: number, t
 
 function hexArmorStacks(enemies: Enemy[], target: Enemy) {
   return enemies.filter((enemy) => !enemyIsHighFlying(enemy) && isHexagon(enemy) && Math.hypot(enemy.x - target.x, enemy.y - target.y) <= HEX_ARMOR_RADIUS).length;
+}
+
+function hexMagicResistanceStacks(enemies: Enemy[], target: Enemy) {
+  return enemies.filter((enemy) => {
+    return (
+      enemy !== target &&
+      !enemyIsHighFlying(enemy) &&
+      enemyFamily(enemy.kind) === "hexSpellBulwark" &&
+      enemy.lane === target.lane
+    );
+  }).length;
 }
 
 function updateHexHeal(enemy: Enemy, state: SkillState, seconds: number, _time: number, runtime: EnemySkillRuntime) {
@@ -140,18 +165,18 @@ function tryUseHexHeal(scene: Phaser.Scene, enemies: Enemy[], healer: Enemy, ski
     .filter((enemy) => {
       return (
         !enemyIsHighFlying(enemy) &&
-        enemy.hp < enemy.maxHp &&
+        enemy.hp < enemy.baseStats.maxHp &&
         Math.hypot(enemy.x - healer.x, enemy.y - healer.y) <= HEX_ARMOR_RADIUS
       );
     })
-    .sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
+    .sort((a, b) => a.hp / a.baseStats.maxHp - b.hp / b.baseStats.maxHp)[0];
   if (!target) {
     return;
   }
 
   spendSkillSp(skill, HEX_HEAL_SKILL_COST);
   const previousHp = target.hp;
-  target.hp = Math.min(target.maxHp, target.hp + healer.maxHp * HEX_HEAL_RATIO);
+  target.hp = Math.min(target.baseStats.maxHp, target.hp + healer.baseStats.maxHp * HEX_HEAL_RATIO);
   if (target.hp <= previousHp) {
     return;
   }

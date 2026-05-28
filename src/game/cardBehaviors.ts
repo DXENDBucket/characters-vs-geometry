@@ -11,16 +11,14 @@ import {
   type ProjectilePatternConfig
 } from "./cardAttackConfigs";
 import type { CardBehaviorRuntime, CardReadinessRuntime } from "./combatRuntime";
-import { enemyIsBurrowed, enemyIsHighFlying } from "./enemyBehaviors";
-import { chargingHexSpeedMultiplier } from "./enemySupport";
+import { enemyMovementSpeed } from "./combatStats";
+import { enemyIsBurrowed, enemyIsHighFlying, siegeRamSpeed } from "./enemyBehaviors";
 import {
   createHomingTowerProjectile,
   createMortarProjectile,
   createTowerProjectile,
   type TowerProjectileSpec
 } from "./projectiles";
-import { movementSpeedMultiplier } from "./slowAura";
-import { statusSpeedMultiplier } from "./statusEffects";
 import {
   attackRangeLimitX,
   bossRect,
@@ -36,6 +34,7 @@ import {
 } from "./targeting";
 import { syncEnemyBodyPosition } from "./statusEffects";
 import { effectiveTowerLevel, syncTowerHpBar, towerDamageType, towerFacingDirection } from "./towers";
+import { towerFinalStats } from "./unitStats";
 import { scaledByEffectiveUpgrades } from "./upgrades";
 
 export interface CardBehavior {
@@ -187,7 +186,7 @@ const HOMING_PROJECTILE_MUZZLES = [
 ] as const;
 
 function cooldownReady(tower: Tower, time: number) {
-  return time >= tower.lastFire + tower.fireRate;
+  return time >= tower.lastFire + towerFinalStats(tower).fireRate;
 }
 
 function fireHomingVolley(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {
@@ -447,10 +446,11 @@ function predictedEnemyMortarTarget(enemy: Enemy, runtime: CardBehaviorRuntime) 
   const durationSeconds = PREDICTIVE_MORTAR_DURATION / 1_000;
   const speed = getBlockingTower(runtime.towers, enemy)
     ? 0
-    : enemy.speed *
-      statusSpeedMultiplier(enemy, runtime.battleTime) *
-      movementSpeedMultiplier(runtime.towers, enemy.x, enemy.y) *
-      chargingHexSpeedMultiplier(runtime.enemies, enemy);
+    : enemyMovementSpeed(
+        enemy,
+        { enemies: runtime.enemies, towers: runtime.towers, time: runtime.battleTime },
+        siegeRamSpeed(enemy)
+      );
   const direction = Math.sign(enemy.maceVelocity ?? 0) || (enemy.movementDirection ?? -1);
   return {
     x: enemy.x + direction * speed * durationSeconds,
@@ -466,7 +466,7 @@ function predictedBossMortarTarget(tower: Tower, boss: CubeBoss | null) {
   const rect = bossRect(boss);
   const durationSeconds = PREDICTIVE_MORTAR_DURATION / 1_000;
   return {
-    x: boss.x - boss.speed * durationSeconds,
+    x: boss.x - boss.finalStats.speed * durationSeconds,
     y: Phaser.Math.Clamp(tower.y, rect.top, rect.bottom)
   };
 }
@@ -524,7 +524,7 @@ function gainAttackProduction(definition: CardDefinition, runtime: CardBehaviorR
 
 function healTower(scene: Phaser.Scene, tower: Tower, amount: number) {
   const previousHp = tower.hp;
-  tower.hp = Math.min(tower.maxHp, tower.hp + amount);
+  tower.hp = Math.min(towerFinalStats(tower).maxHp, tower.hp + amount);
   if (tower.hp <= previousHp) {
     return;
   }

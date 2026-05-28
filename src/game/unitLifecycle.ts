@@ -8,14 +8,15 @@ import {
 import { isTetrahedronBoss } from "../bosses/cubeBoss";
 import { makeBossHitFlash, makeBossInvincibleFlash, makeEnemyInvincibleFlash, makeShockPulse } from "../render/combatEffects";
 import type { CubeBoss, DamageType, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower, WaveTracker } from "../types";
+import { bossFinalStats, enemyDefenseStats } from "./combatStats";
 import { calculateDamage } from "./damage";
 import { enemyIsHighFlying, syncEnemyVisualScale } from "./enemyBehaviors";
 import { releaseBurrowCargo, spawnSplitEnemies } from "./enemyRuntime";
-import { hexArmorBonus, hexBossArmorBonus } from "./enemySupport";
 import { isPointInSlowAura } from "./slowAura";
 import { hasStatusEffect } from "./statusEffects";
 import { gridCellKey } from "./targeting";
 import { syncTowerHpBar } from "./towers";
+import { towerFinalStats } from "./unitStats";
 
 export interface UnitLifecycleRuntime {
   scene: Phaser.Scene;
@@ -40,7 +41,8 @@ export function damageTower(runtime: UnitLifecycleRuntime, tower: Tower, damage:
     return;
   }
 
-  const actualDamage = calculateDamage(damage, damageType, tower.armor, tower.magicResistance);
+  const stats = towerFinalStats(tower);
+  const actualDamage = calculateDamage(damage, damageType, stats.armor, stats.magicResistance);
   tower.hp -= actualDamage;
   runtime.onTowerDamaged(tower);
   syncTowerHpBar(tower);
@@ -67,9 +69,10 @@ export function damageBoss(runtime: UnitLifecycleRuntime, damage: number, damage
     return;
   }
 
+  const stats = bossFinalStats(boss, runtime.enemies);
   const actualDamage =
-    calculateDamage(damage, damageType, boss.armor + hexBossArmorBonus(runtime.enemies, boss), boss.magicResistance) *
-    (1 - boss.finalDamageReduction);
+    calculateDamage(damage, damageType, stats.armor, stats.magicResistance) *
+    (1 - stats.finalDamageReduction);
   const nextHp = boss.hp - actualDamage;
   if (shouldTriggerTetrahedronCritical(boss, nextHp)) {
     boss.criticalHpTriggered = true;
@@ -111,9 +114,10 @@ export function damageEnemy(runtime: UnitLifecycleRuntime, enemy: Enemy, damage:
     return;
   }
 
+  const stats = enemyDefenseStats(enemy, runtime.enemies);
   const actualDamage =
-    calculateDamage(damage, damageType, enemy.armor + hexArmorBonus(runtime.enemies, enemy), enemy.magicResistance) *
-    (1 - enemy.finalDamageReduction);
+    calculateDamage(damage, damageType, stats.armor, stats.magicResistance) *
+    (1 - stats.finalDamageReduction);
   enemy.hp -= actualDamage;
   syncEnemyVisualScale(enemy);
 

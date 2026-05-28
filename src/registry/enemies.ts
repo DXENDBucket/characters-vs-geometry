@@ -16,6 +16,7 @@ export type EnemyFamily =
   | "hexagon"
   | "chargingHexagon"
   | "hexMace"
+  | "hexSpellBulwark"
   | "heart"
   | "burrowArrow"
   | "slopeTriangle"
@@ -210,6 +211,14 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     rank: 1,
     nameKey: "enemy.hexMace",
     attackMode: "mace"
+  },
+  hexSpellBulwark: {
+    definition: rawEnemyDefinitions.hexSpellBulwark,
+    family: "hexSpellBulwark",
+    rank: 1,
+    nameKey: "enemy.hexSpellBulwark",
+    attackMode: "leader",
+    leader: true
   },
   heart: {
     definition: rawEnemyDefinitions.heart,

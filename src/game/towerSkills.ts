@@ -29,6 +29,7 @@ import {
   syncTowerHpBar,
   towerDamageType
 } from "./towers";
+import { towerFinalStats } from "./unitStats";
 
 const AIR_PATROL_SKILL_MAX = 10;
 const AIR_PATROL_SKILL_COST = 10;
@@ -279,7 +280,7 @@ export class TowerSkillController {
 
   private guardianHealTargets(tower: Tower) {
     const targets: Tower[] = [];
-    if (tower.hp < tower.maxHp) {
+    if (tower.hp < towerFinalStats(tower).maxHp) {
       targets.push(tower);
     }
 
@@ -287,12 +288,12 @@ export class TowerSkillController {
       .towers.filter((candidate) => {
         return (
           candidate !== tower &&
-          candidate.hp < candidate.maxHp &&
+          candidate.hp < towerFinalStats(candidate).maxHp &&
           Math.abs(candidate.lane - tower.lane) <= 1 &&
           Math.abs(candidate.column - tower.column) <= 1
         );
       })
-      .sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp || a.placedOrder - b.placedOrder)[0];
+      .sort((a, b) => a.hp / towerFinalStats(a).maxHp - b.hp / towerFinalStats(b).maxHp || a.placedOrder - b.placedOrder)[0];
 
     if (ally) {
       targets.push(ally);
@@ -305,7 +306,7 @@ export class TowerSkillController {
     state.spBuffer = 0;
     tower.border.setAlpha(1);
 
-    const amount = Math.round(tower.maxHp * GUARDIAN_TOWER_HEAL_RATIO);
+    const amount = Math.round(towerFinalStats(tower).maxHp * GUARDIAN_TOWER_HEAL_RATIO);
     for (const target of targets) {
       healTower(this.scene, target, amount);
     }
@@ -463,7 +464,7 @@ export class TowerSkillController {
 
 function healTower(scene: Phaser.Scene, tower: Tower, amount: number) {
   const previousHp = tower.hp;
-  tower.hp = Math.min(tower.maxHp, tower.hp + amount);
+  tower.hp = Math.min(towerFinalStats(tower).maxHp, tower.hp + amount);
   if (tower.hp <= previousHp) {
     return;
   }

@@ -2,11 +2,9 @@ import Phaser from "phaser";
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
 import { createUnitBorder } from "../render/unitShapes";
 import type { CardDefinition, CardId, CardState, SkillState, Tower } from "../types";
+import { syncTowerFinalStats, towerBaseStatsFromDefinition, towerFinalStats } from "./unitStats";
 import {
-  effectiveUpgradeCountForLevel,
   effectiveUpgradeDelta,
-  isMaxHpUpgradeable,
-  maxHpGainForEffectiveUpgrades,
   scaledByEffectiveUpgrades
 } from "./upgrades";
 
@@ -30,6 +28,7 @@ export function createTower(
   const autoUpgradeBorder = createAutoUpgradeBorder(scene);
   const trueDamageBorder = createTrueDamageBorder(scene);
   const flyingHalo = createTowerFlyingHalo(scene);
+  const baseStats = towerBaseStatsFromDefinition(definition);
   const label = scene.add
     .text(0, -3, definition.id, {
       color: "#f5f5f5",
@@ -90,12 +89,14 @@ export function createTower(
     column,
     x,
     y,
-    hp: definition.maxHp,
-    maxHp: definition.maxHp,
-    baseMaxHp: definition.maxHp,
-    armor: definition.armor ?? 0,
-    magicResistance: definition.magicResistance ?? 0,
-    fireRate: definition.fireRate ?? Number.POSITIVE_INFINITY,
+    hp: baseStats.maxHp,
+    baseStats,
+    finalStats: { ...baseStats },
+    maxHp: baseStats.maxHp,
+    baseMaxHp: baseStats.maxHp,
+    armor: baseStats.armor,
+    magicResistance: baseStats.magicResistance,
+    fireRate: baseStats.fireRate,
     lastFire: -Number.POSITIVE_INFINITY,
     level: 1,
     levelBonus: 0,
@@ -165,23 +166,12 @@ export function applyTowerUpgradeStats(
 }
 
 export function syncTowerDerivedStats(tower: Tower, healMaxHpIncrease = false) {
-  if (!isMaxHpUpgradeable(tower.type)) {
-    return;
-  }
-
-  const previousMaxHp = tower.maxHp;
-  const effectiveUpgrades = effectiveUpgradeCountForLevel(effectiveTowerLevel(tower));
-  tower.maxHp = tower.baseMaxHp + maxHpGainForEffectiveUpgrades(tower.baseMaxHp, effectiveUpgrades);
-  if (healMaxHpIncrease && tower.maxHp > previousMaxHp) {
-    tower.hp = Math.min(tower.maxHp, tower.hp + tower.maxHp - previousMaxHp);
-  } else {
-    tower.hp = Math.min(tower.hp, tower.maxHp);
-  }
+  syncTowerFinalStats(tower, { healMaxHpIncrease });
   syncTowerHpBar(tower);
 }
 
 export function syncTowerHpBar(tower: Tower) {
-  tower.hpFill.width = 42 * Phaser.Math.Clamp(tower.hp / tower.maxHp, 0, 1);
+  tower.hpFill.width = 42 * Phaser.Math.Clamp(tower.hp / towerFinalStats(tower).maxHp, 0, 1);
 }
 
 export function effectiveTowerLevel(tower: Tower) {

@@ -391,6 +391,33 @@ export function createEnemyShape(scene: Phaser.Scene, kind: EnemyKind, options: 
     return shape;
   }
 
+  if (family === "hexSpellBulwark") {
+    const shape = scene.add.container(0, 0);
+    const bulwark = scene.add.graphics();
+    bulwark.fillStyle(palette.black, 1);
+    bulwark.lineStyle(2, palette.white, 1);
+    for (const centerY of [-22, 22]) {
+      bulwark.beginPath();
+      for (let index = 0; index < 6; index += 1) {
+        const angle = Phaser.Math.DegToRad(30 + index * 60);
+        const x = Math.cos(angle) * 25;
+        const y = centerY + Math.sin(angle) * 25;
+        if (index === 0) {
+          bulwark.moveTo(x, y);
+        } else {
+          bulwark.lineTo(x, y);
+        }
+      }
+      bulwark.closePath();
+      bulwark.fillPath();
+      bulwark.strokePath();
+    }
+    const topLabel = createEnemyLabel(scene, 0, -22, kind, 15);
+    const bottomLabel = createEnemyLabel(scene, 0, 22, kind, 15);
+    shape.add([bulwark, topLabel, bottomLabel]);
+    return shape;
+  }
+
   if (family === "heart") {
     const shape = scene.add.container(0, 0);
     const heart = scene.add.graphics();

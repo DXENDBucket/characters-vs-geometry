@@ -39,6 +39,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
   const hexagon = getEnemyDefinition("hexagon");
   const chargingHexagon = getEnemyDefinition("chargingHexagon");
   const hexMace = getEnemyDefinition("hexMace");
+  const hexSpellBulwark = getEnemyDefinition("hexSpellBulwark");
   const heart = getEnemyDefinition("heart");
   const burrowArrow = getEnemyDefinition("burrowArrow");
   const slopeTriangle = getEnemyDefinition("slopeTriangle");
@@ -348,6 +349,26 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
       description: zh
         ? "冲撞型小怪，外观为两个共边六边形。被塔阻挡时不会自毁，而是按当前实际移速造成伤害：10 速度为 100% 基础攻击，20 速度为 200%，以此类推；随后反弹当前速度，但面朝方向不变，并继续朝面朝方向加速。死亡时会在面朝方向前方生成冲锋六边形，后方生成普通六边形。"
         : "Ramming minion drawn as two edge-linked hexagons. When blocked, it does not self-destruct; it deals damage based on current actual speed: 10 speed is 100% base attack, 20 speed is 200%, and so on. It then reflects its current velocity while keeping its facing direction, and keeps accelerating toward that facing direction. On death, it spawns Charging Hexagon ahead of its facing direction and Hexagon behind."
+    },
+    {
+      title: zh ? "六边形术战壁垒领袖系列" : "Hex Spell Bulwark Leader Series",
+      enemyKind: "hexSpellBulwark",
+      lines: [
+        statLine([
+          [t("label.hp"), hexSpellBulwark.hp],
+          [t("label.armor"), hexSpellBulwark.armor],
+          [t("label.mr"), hexSpellBulwark.magicResistance],
+          [t("label.atk"), damageText(hexSpellBulwark.damage, hexSpellBulwark.damageType)],
+          [t("label.speed"), speedText("hexSpellBulwark")],
+          [t("label.weight"), zh ? "旗帜固定" : "flag fixed"]
+        ]),
+        zh
+          ? "领袖敌人；不计入常规出怪权重。为本行其他敌怪提供可加算的 +50 法抗"
+          : "Leader enemy; does not count toward regular wave weight. Grants other enemies in its lane additive +50 MR"
+      ],
+      description: zh
+        ? "外观为竖起来的六边形重锤。它本身不攻击；同一行的其他敌怪获得法抗加成，多个六边形术战壁垒可以叠加。获得加成的敌怪会显示浅蓝色法术标识，位置和六边形加甲标识类似。"
+        : "Drawn as a vertical Hex Mace. It does not attack; other enemies in the same lane gain additive magic resistance, and multiple Hex Spell Bulwarks stack. Affected enemies show a light-blue magic icon similar to the Hexagon armor icon."
     },
     {
       title: zh ? "潜地箭头领袖系列" : "Burrow Arrow Leader Series",

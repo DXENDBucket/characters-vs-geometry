@@ -4,9 +4,8 @@ import { enemyIsBossCompanion, enemyIsLeader, enemyIsMace } from "../registry/en
 import { makeShiftEffect, makeShockPulse } from "../render/combatEffects";
 import type { Enemy, Tower } from "../types";
 import type { EnemyAdvanceRuntime } from "./combatRuntime";
+import { enemyMovementSpeed } from "./combatStats";
 import { enemyIsBurrowed, enemyIsHighFlying, siegeRamSpeed } from "./enemyBehaviors";
-import { chargingHexSpeedMultiplier } from "./enemySupport";
-import { movementSpeedMultiplier } from "./slowAura";
 import { applyStatusEffect, removeStatusEffect, statusSpeedMultiplier, syncEnemyBodyPosition } from "./statusEffects";
 
 const SLOPE_TOUCH_RANGE_X = CELL_WIDTH * 0.58;
@@ -122,11 +121,11 @@ function currentMotion(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number)
     return null;
   }
 
-  const speed =
-    currentBaseSpeed(enemy) *
-    movementSpeedMultiplier(runtime.towers, enemy.x, enemy.y) *
-    statusSpeedMultiplier(enemy, time) *
-    chargingHexSpeedMultiplier(runtime.enemies, enemy);
+  const speed = enemyMovementSpeed(
+    enemy,
+    { enemies: runtime.enemies, towers: runtime.towers, time },
+    currentBaseSpeed(enemy)
+  );
 
   return speed > 0 ? { direction, speed } : null;
 }

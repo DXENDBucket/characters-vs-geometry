@@ -238,6 +238,17 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     weight: 375,
     minFlag: 1
   },
+  hexSpellBulwark: {
+    kind: "hexSpellBulwark",
+    label: "1",
+    hp: 24_000,
+    armor: 100,
+    magicResistance: 80,
+    damage: 0,
+    damageType: "magic",
+    speedMultiplier: 1.5,
+    weight: 0
+  },
   heart: {
     kind: "heart",
     label: "1",

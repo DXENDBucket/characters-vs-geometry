@@ -5,6 +5,7 @@ import { createEnemyShape } from "../render/unitShapes";
 import type { Enemy, EnemyKind, SkillState } from "../types";
 import { enemyAttackInterval, randomizedEnemySpeed } from "./enemyBehaviors";
 import { applyStatusEffect, statusSpeedMultiplier } from "./statusEffects";
+import { enemyBaseStatsFromDefinition } from "./unitStats";
 
 const ARCHANGEL_INITIAL_WINGS_SP = 10;
 const ARCHANGEL_SPAWN_HIGH_FLIGHT_DURATION = 3_000;
@@ -27,6 +28,11 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
   const y = BOARD_Y + options.lane * CELL_HEIGHT + CELL_HEIGHT / 2;
   const attackInterval = enemyAttackInterval(options.kind);
   const speed = randomizedEnemySpeed(options.kind);
+  const baseStats = enemyBaseStatsFromDefinition(definition, {
+    speed,
+    attackInterval,
+    finalDamageReduction: options.finalDamageReduction
+  });
   const isBurrowArrow = options.kind === "burrowArrow";
   const movementDirection = options.movementDirection ?? -1;
   const body = scene.add.container(options.x, y).setDepth(60 + options.lane);
@@ -47,14 +53,23 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
       fontStyle: "700"
     })
     .setOrigin(0.5);
+  const magicResistanceIcon = scene.add
+    .text(0, -38, "✦", {
+      color: "#9fdcff",
+      fontFamily: "monospace",
+      fontSize: "22px",
+      fontStyle: "700"
+    })
+    .setOrigin(0.5);
   const flyingHalo = scene.add.ellipse(0, -42, 30, 8, palette.black, 0).setStrokeStyle(2, palette.white, 0.94);
   const shape = createEnemyShape(scene, options.kind, { squareSize: 42, shootingNoseX: -24 });
 
   statusBorder.setVisible(false);
   powerIcon.setVisible(false);
   armorIcon.setVisible(false);
+  magicResistanceIcon.setVisible(false);
   flyingHalo.setVisible(false);
-  body.add([statusBorder, flyingHalo, shape, powerIcon, armorIcon]);
+  body.add([statusBorder, flyingHalo, shape, powerIcon, armorIcon, magicResistanceIcon]);
 
   const skills: Record<string, SkillState> = {};
   if (options.kind === "archangelHeptagon") {
@@ -73,11 +88,13 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
     spawnX: options.x,
     x: options.x,
     y,
-    hp: definition.hp,
-    maxHp: definition.hp,
-    armor: definition.armor,
-    magicResistance: definition.magicResistance,
-    speed,
+    hp: baseStats.maxHp,
+    baseStats,
+    finalStats: { ...baseStats },
+    maxHp: baseStats.maxHp,
+    armor: baseStats.armor,
+    magicResistance: baseStats.magicResistance,
+    speed: baseStats.speed,
     movementDirection,
     maceVelocity: enemyIsMace(options.kind) ? 0 : undefined,
     maceFacingDirection: enemyIsMace(options.kind)
@@ -89,16 +106,17 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
     burrowCargo: isBurrowArrow ? [] : undefined,
     slopeFacingDirection: options.kind === "slopeTriangle" ? movementDirection : undefined,
     angelRamWingsTriggered: false,
-    damage: definition.damage,
-    damageType: definition.damageType,
-    finalDamageReduction: options.finalDamageReduction,
-    attackInterval,
-    attackAt: options.time + attackInterval,
+    damage: baseStats.damage,
+    damageType: baseStats.damageType,
+    finalDamageReduction: baseStats.finalDamageReduction,
+    attackInterval: baseStats.attackInterval,
+    attackAt: options.time + baseStats.attackInterval,
     skills,
     statusEffects: [],
     statusBorder,
     powerIcon,
     armorIcon,
+    magicResistanceIcon,
     flyingHalo,
     nextHasteTrailAt: options.time,
     body,

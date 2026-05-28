@@ -30,6 +30,7 @@ import {
 import { toRomanNumeral } from "../format";
 import { gainSkillSp, isSkillReady, spendSkillSp } from "../game/skillState";
 import { bossRect } from "../game/targeting";
+import { bossBaseStatsFromValues } from "../game/unitStats";
 import type { BossKind, BossSkill, BossSkillName, CubeBoss } from "../types";
 
 const CUBE_DRAW_SIZE = 59;
@@ -153,6 +154,7 @@ function dodecahedronFaceTip(face: number[]) {
 export function createCubeBoss(scene: Phaser.Scene, kind: BossKind, finalDamageReduction: number) {
   const rank = bossRank(kind);
   const stats = CUBE_BOSS_STATS[kind];
+  const baseStats = bossBaseStatsFromValues(stats, finalDamageReduction);
   const x = BOARD_X + BOARD_WIDTH - BOSS_HITBOX_WIDTH / 2;
   const y = BOARD_Y + BOARD_HEIGHT / 2;
   const frame = scene.add.graphics();
@@ -172,12 +174,14 @@ export function createCubeBoss(scene: Phaser.Scene, kind: BossKind, finalDamageR
     label: toRomanNumeral(rank),
     x,
     y,
-    hp: stats.hp,
-    maxHp: stats.hp,
-    armor: stats.armor,
-    magicResistance: stats.magicResistance,
-    finalDamageReduction,
-    speed: stats.speed,
+    hp: baseStats.maxHp,
+    baseStats,
+    finalStats: { ...baseStats },
+    maxHp: baseStats.maxHp,
+    armor: baseStats.armor,
+    magicResistance: baseStats.magicResistance,
+    finalDamageReduction: baseStats.finalDamageReduction,
+    speed: baseStats.speed,
     advanceMinionKind: rank >= 2 ? "square2" : "square",
     hasSkills: !isSkilllessBossKind(kind),
     skills: {
@@ -245,7 +249,7 @@ export function createCubeBoss(scene: Phaser.Scene, kind: BossKind, finalDamageR
 }
 
 export function updateCubeBossMotion(boss: CubeBoss, seconds: number, movementMultiplier = 1, time = 0) {
-  boss.x -= boss.speed * seconds * movementMultiplier;
+  boss.x -= boss.finalStats.speed * seconds * movementMultiplier;
   boss.body.setPosition(boss.x, boss.y);
 
   boss.nextTurnIn -= seconds;

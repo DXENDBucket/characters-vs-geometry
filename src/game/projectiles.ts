@@ -12,7 +12,7 @@ import type {
   StatusEffectName,
   Tower
 } from "../types";
-import { statusAttackMultiplier } from "./statusEffects";
+import { enemyAttackDamage } from "./combatStats";
 
 export interface TowerProjectileSpec {
   type: ProjectileKind;
@@ -123,7 +123,7 @@ export function createEnemyProjectile(scene: Phaser.Scene, enemy: Enemy, time: n
     x: shotX,
     y: enemy.y,
     vx: direction * 430,
-    damage: enemy.damage * statusAttackMultiplier(enemy, time),
+    damage: enemyAttackDamage(enemy, time),
     damageType: enemy.damageType,
     sourceLane: enemy.lane,
     body

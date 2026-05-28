@@ -38,18 +38,17 @@ import {
 } from "./enemyBehaviors";
 import { createEnemy } from "./enemyFactory";
 import { createEnemyProjectile, createMortarProjectile } from "./projectiles";
+import { enemyAttackDamage, enemyAttackMultiplier, enemyMovementMultiplier, enemyMovementSpeed } from "./combatStats";
 import { chargingHexSpeedMultiplier, makeWingPulse, syncHexArmorAuras, updateEnemySkills } from "./enemySupport";
-import { movementSpeedMultiplier } from "./slowAura";
 import { advanceHighFlyingEnemy, advanceSlopeTriangle } from "./slopeTriangle";
 import {
   applyStatusEffect,
   hasStatusEffect,
-  statusAttackMultiplier,
-  statusSpeedMultiplier,
   syncEnemyBodyPosition
 } from "./statusEffects";
 import { getBlockingTower } from "./targeting";
 import { isTrapArmed, towerDamageType } from "./towers";
+import { towerFinalStats } from "./unitStats";
 import { volleyInterval } from "./upgrades";
 import { buildWaveKinds, waveWeightLimit } from "./waves";
 
@@ -185,7 +184,7 @@ function spawnSiegeRamTriangles(runtime: EnemySpawnRuntime, enemy: Enemy, time: 
       lane: enemy.lane,
       x: enemy.x + offset,
       waveWeight: 0,
-      finalDamageReduction: enemy.finalDamageReduction,
+      finalDamageReduction: enemy.baseStats.finalDamageReduction,
       movementDirection: direction
     });
   }
@@ -210,7 +209,7 @@ function spawnAngelPentagonRamSplit(runtime: EnemySpawnRuntime, enemy: Enemy, ti
       lane: enemy.lane,
       x: enemy.x + spawn.offset,
       waveWeight: 0,
-      finalDamageReduction: enemy.finalDamageReduction,
+      finalDamageReduction: enemy.baseStats.finalDamageReduction,
       movementDirection: direction
     });
   }
@@ -230,7 +229,7 @@ function spawnHexMaceSplit(runtime: EnemySpawnRuntime, enemy: Enemy, time: numbe
       lane: enemy.lane,
       x: enemy.x + spawn.offset,
       waveWeight: 0,
-      finalDamageReduction: enemy.finalDamageReduction,
+      finalDamageReduction: enemy.baseStats.finalDamageReduction,
       movementDirection: direction
     });
   }
@@ -269,14 +268,19 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
       continue;
     }
 
-    const statusMultiplier = statusSpeedMultiplier(enemy, time);
+    const baseMovementSpeed = siegeRamSpeed(enemy);
+    const movementSpeed = enemyMovementSpeed(
+      enemy,
+      { enemies: runtime.enemies, towers: runtime.towers, time },
+      baseMovementSpeed
+    );
     const chargingHexMultiplier = chargingHexSpeedMultiplier(runtime.enemies, enemy);
     if ((hasStatusEffect(enemy, "haste", time) || chargingHexMultiplier > 1) && time >= enemy.nextHasteTrailAt) {
       makeHasteTrail(runtime.scene, enemy.x, enemy.y);
       enemy.nextHasteTrailAt = time + 120;
     }
 
-    if (advanceBurrowArrow(runtime, enemy, time, seconds, statusMultiplier, chargingHexMultiplier)) {
+    if (advanceBurrowArrow(runtime, enemy, time, seconds)) {
       if (enemy.x < BOARD_X - 34 && runtime.onEnemyReachedBase(enemy)) {
         return;
       }
@@ -289,21 +293,21 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
 
     if (shouldEnemyShoot(enemy, time)) {
       const shots = enemyVolleyShotCount(enemy);
-      const interval = volleyInterval(enemy.attackInterval, shots);
+      const interval = volleyInterval(enemy.finalStats.attackInterval, shots);
       if (enemyIsMortar(enemy.kind)) {
-        enemy.attackAt = fireEnemyMortarVolley(runtime, enemy, time) ? time + enemy.attackInterval + (shots - 1) * interval : time + 1_000;
+        enemy.attackAt = fireEnemyMortarVolley(runtime, enemy, time) ? time + enemy.finalStats.attackInterval + (shots - 1) * interval : time + 1_000;
       } else if (enemyIsLaser(enemy.kind)) {
         fireEnemyLaserVolley(runtime, enemy, time);
-        enemy.attackAt = time + enemy.attackInterval + (shots - 1) * interval;
+        enemy.attackAt = time + enemy.finalStats.attackInterval + (shots - 1) * interval;
       } else {
         fireEnemyVolley(runtime, enemy, time);
-        enemy.attackAt = time + enemy.attackInterval + (shots - 1) * volleyInterval(enemy.attackInterval, shots);
+        enemy.attackAt = time + enemy.finalStats.attackInterval + (shots - 1) * volleyInterval(enemy.finalStats.attackInterval, shots);
       }
     }
 
     if (enemy.kind === "heart" && time >= enemy.attackAt) {
       fireLeaderAreaAttack(runtime, enemy, time);
-      enemy.attackAt = time + enemy.attackInterval;
+      enemy.attackAt = time + enemy.finalStats.attackInterval;
     }
 
     const blocker = getBlockingTower(runtime.towers, enemy);
@@ -327,12 +331,12 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
         continue;
       }
 
-      if (advanceHexMace(runtime, enemy, blocker, time, statusMultiplier, chargingHexMultiplier)) {
+      if (advanceHexMace(runtime, enemy, blocker, time)) {
         continue;
       }
 
       if (canEnemyMelee(enemy) && time >= enemy.attackAt) {
-        runtime.damageTower(blocker, enemy.damage * statusAttackMultiplier(enemy, time), enemy.damageType);
+        runtime.damageTower(blocker, enemyAttackDamage(enemy, time), enemy.damageType);
         const blockerDefinition = getCardDefinition(blocker.type);
         if (blockerDefinition.reflectDamage) {
           runtime.damageEnemy(
@@ -342,7 +346,7 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
           );
           makeReflectFlash(runtime.scene, blocker.x, blocker.y);
         }
-        enemy.attackAt = time + enemy.attackInterval;
+        enemy.attackAt = time + enemy.finalStats.attackInterval;
       }
     }
 
@@ -355,7 +359,7 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
     }
 
     if (!blocker) {
-      if (advanceHexMaceMovement(runtime, enemy, seconds, statusMultiplier, chargingHexMultiplier)) {
+      if (advanceHexMaceMovement(runtime, enemy, seconds, time)) {
         if (!runtime.enemies.includes(enemy)) {
           continue;
         }
@@ -368,11 +372,8 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
 
       enemy.x +=
         enemyMovementDirection(enemy) *
-        siegeRamSpeed(enemy) *
-        seconds *
-        movementSpeedMultiplier(runtime.towers, enemy.x, enemy.y) *
-        statusMultiplier *
-        chargingHexMultiplier;
+        movementSpeed *
+        seconds;
       syncEnemyBodyPosition(enemy);
     }
 
@@ -398,23 +399,22 @@ function advanceBurrowArrow(
   runtime: EnemyAdvanceRuntime,
   enemy: Enemy,
   time: number,
-  seconds: number,
-  statusMultiplier: number,
-  supportMultiplier: number
+  seconds: number
 ) {
   if (enemy.kind !== "burrowArrow") {
     return false;
   }
 
   if (enemy.burrowed) {
+    const speed = enemyMovementSpeed(
+      enemy,
+      { enemies: runtime.enemies, towers: runtime.towers, time },
+      enemy.baseStats.speed * 4
+    );
     enemy.x +=
       enemyMovementDirection(enemy) *
-      enemy.speed *
-      4 *
-      seconds *
-      movementSpeedMultiplier(runtime.towers, enemy.x, enemy.y) *
-      statusMultiplier *
-      supportMultiplier;
+      speed *
+      seconds;
 
     if (enemy.x <= BOARD_X + CELL_WIDTH / 2) {
       emergeBurrowArrow(runtime, enemy);
@@ -569,7 +569,7 @@ function fireLeaderAreaAttack(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: 
     }
 
     const falloff = 1 - distance / radius;
-    runtime.damageTower(tower, enemy.damage * statusAttackMultiplier(enemy, time) * falloff, enemy.damageType);
+    runtime.damageTower(tower, enemyAttackDamage(enemy, time) * falloff, enemy.damageType);
   }
 }
 
@@ -577,18 +577,20 @@ function advanceHexMace(
   runtime: EnemyAdvanceRuntime,
   enemy: Enemy,
   blocker: Tower,
-  time: number,
-  statusMultiplier: number,
-  supportMultiplier: number
+  time: number
 ) {
   if (!enemyIsMace(enemy.kind)) {
     return false;
   }
 
-  const movementMultiplier = movementSpeedMultiplier(runtime.towers, enemy.x, enemy.y) * statusMultiplier * supportMultiplier;
   const rawVelocity = enemy.maceVelocity ?? 0;
+  const movementMultiplier = enemyMovementMultiplier(
+    enemy,
+    { enemies: runtime.enemies, towers: runtime.towers, time },
+    Math.abs(rawVelocity)
+  );
   const actualSpeed = Math.abs(rawVelocity) * movementMultiplier;
-  const damage = enemy.damage * (actualSpeed / 10) * statusAttackMultiplier(enemy, time);
+  const damage = enemyAttackDamage(enemy, time) * (actualSpeed / 10);
   makeShellBurst(runtime.scene, enemy.x, enemy.y, CELL_WIDTH * 0.85, enemy.damageType);
   makeShockPulse(runtime.scene, enemy.x, enemy.y, CELL_WIDTH * 0.9, CELL_HEIGHT * 0.72);
   if (damage > 0) {
@@ -609,8 +611,7 @@ function advanceHexMaceMovement(
   runtime: EnemyAdvanceRuntime,
   enemy: Enemy,
   seconds: number,
-  statusMultiplier: number,
-  supportMultiplier: number
+  time: number
 ) {
   if (!enemyIsMace(enemy.kind)) {
     return false;
@@ -624,12 +625,15 @@ function advanceHexMaceMovement(
     hexMaceMaxSpeed(enemy)
   );
   enemy.maceVelocity = nextVelocity;
+  const speedMultiplier = enemyMovementMultiplier(
+    enemy,
+    { enemies: runtime.enemies, towers: runtime.towers, time },
+    Math.abs(nextVelocity)
+  );
   enemy.x +=
     nextVelocity *
-    seconds *
-    movementSpeedMultiplier(runtime.towers, enemy.x, enemy.y) *
-    statusMultiplier *
-    supportMultiplier;
+    speedMultiplier *
+    seconds;
   syncEnemyBodyPosition(enemy);
   return true;
 }
@@ -640,7 +644,7 @@ function hexMaceAcceleration(enemy: Enemy) {
 }
 
 function hexMaceMaxSpeed(enemy: Enemy) {
-  return enemy.speed * 4;
+  return enemy.baseStats.speed * 4;
 }
 
 function advanceSiegeRam(
@@ -665,8 +669,8 @@ function advanceSiegeRam(
 
   makeShellBurst(runtime.scene, enemy.x, enemy.y, CELL_WIDTH * 0.85, enemy.damageType);
   makeShockPulse(runtime.scene, enemy.x, enemy.y, CELL_WIDTH * 0.82, CELL_HEIGHT * 0.62);
-  runtime.damageTower(blocker, enemy.damage * statusAttackMultiplier(enemy, time), enemy.damageType);
-  runtime.damageEnemy(enemy, enemy.maxHp * 10_000, "true");
+  runtime.damageTower(blocker, enemyAttackDamage(enemy, time), enemy.damageType);
+  runtime.damageEnemy(enemy, enemy.baseStats.maxHp * 10_000, "true");
   return true;
 }
 
@@ -687,8 +691,8 @@ function advanceBlockedDetonator(
     if (blocker && blocker.id === startedByTowerId) {
       makeShellBurst(runtime.scene, enemy.x, enemy.y, CELL_WIDTH, detonation.damageType);
       makeShockPulse(runtime.scene, enemy.x, enemy.y, CELL_WIDTH * 0.72, CELL_HEIGHT * 0.72);
-      runtime.damageTower(blocker, detonation.damage * statusAttackMultiplier(enemy, time), detonation.damageType);
-      runtime.damageEnemy(enemy, enemy.maxHp * 10_000, "true");
+      runtime.damageTower(blocker, detonation.damage * enemyAttackMultiplier(enemy, time), detonation.damageType);
+      runtime.damageEnemy(enemy, enemy.baseStats.maxHp * 10_000, "true");
       return true;
     }
 
@@ -719,7 +723,7 @@ function resetBlockedDetonation(enemy: Enemy) {
 
 function fireEnemyVolley(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number) {
   const shots = enemyVolleyShotCount(enemy);
-  const interval = volleyInterval(enemy.attackInterval, shots);
+  const interval = volleyInterval(enemy.finalStats.attackInterval, shots);
   for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
     runtime.scene.time.delayedCall(shotIndex * interval, () => {
       runtime.runWhenBattleActive(() => fireEnemyShot(runtime, enemy, time));
@@ -737,7 +741,7 @@ function fireEnemyShot(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number)
 
 function fireEnemyLaserVolley(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number) {
   const shots = enemyVolleyShotCount(enemy);
-  const interval = volleyInterval(enemy.attackInterval, shots);
+  const interval = volleyInterval(enemy.finalStats.attackInterval, shots);
   for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
     runtime.scene.time.delayedCall(shotIndex * interval, () => {
       runtime.runWhenBattleActive(() => fireEnemyLaser(runtime, enemy, time));
@@ -754,7 +758,7 @@ function fireEnemyLaser(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number
   const targets = runtime.towers
     .filter((tower) => tower.lane === enemy.lane && (direction < 0 ? tower.x < enemy.x : tower.x > enemy.x))
     .sort((a, b) => (direction < 0 ? b.x - a.x : a.x - b.x));
-  const stoppingTarget = targets.find((tower) => tower.magicResistance > 0);
+  const stoppingTarget = targets.find((tower) => towerFinalStats(tower).magicResistance > 0);
   const hitTargets = stoppingTarget
     ? targets.filter((tower) => (direction < 0 ? tower.x >= stoppingTarget.x : tower.x <= stoppingTarget.x))
     : targets;
@@ -763,7 +767,7 @@ function fireEnemyLaser(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number
   makeEnemyLaserEffect(runtime.scene, enemy.x + direction * 24, enemy.y, endX);
   for (const tower of hitTargets) {
     makeEnemyHitShards(runtime.scene, tower.x, tower.y);
-    runtime.damageTower(tower, enemy.damage * statusAttackMultiplier(enemy, time), enemy.damageType);
+    runtime.damageTower(tower, enemyAttackDamage(enemy, time), enemy.damageType);
   }
 }
 
@@ -778,7 +782,7 @@ function fireEnemyMortarVolley(runtime: EnemyAdvanceRuntime, enemy: Enemy, time:
   }
 
   const shots = enemyVolleyShotCount(enemy);
-  const interval = volleyInterval(enemy.attackInterval, shots);
+  const interval = volleyInterval(enemy.finalStats.attackInterval, shots);
   for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
     runtime.scene.time.delayedCall(shotIndex * interval, () => {
       runtime.runWhenBattleActive(() => fireEnemyMortarShot(runtime, enemy, time));
@@ -804,7 +808,7 @@ function fireEnemyMortarShot(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: n
       fromY: enemy.y,
       targetX: target.x,
       targetY: target.y,
-      damage: enemy.damage * statusAttackMultiplier(enemy, time),
+      damage: enemyAttackDamage(enemy, time),
       damageType: enemy.damageType,
       rangeX: CELL_WIDTH * 1.5,
       rangeY: CELL_HEIGHT * 1.5,

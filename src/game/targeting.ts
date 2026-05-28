@@ -13,6 +13,7 @@ import { enemyIsBossCompanion } from "../registry/enemies";
 import { enemyIsBurrowed, enemyIsHighFlying } from "./enemyBehaviors";
 import { getCardAttackArea, type AttackAreaConfig } from "./cardAttackConfigs";
 import { towerFacingDirection, towerIsFlying } from "./towers";
+import { towerFinalStats } from "./unitStats";
 
 export function gridCellKey(lane: number, column: number) {
   return `${lane}:${column}`;
@@ -70,9 +71,9 @@ export function getHealTargets(
 
   return targetLanes
     .flatMap((lane) => targetColumns.map((column) => occupied.get(gridCellKey(lane, column))))
-    .filter((target): target is Tower => Boolean(target && target.hp < target.maxHp))
+    .filter((target): target is Tower => Boolean(target && target.hp < towerFinalStats(target).maxHp))
     .sort((a, b) => {
-      const hpRatioDelta = a.hp / a.maxHp - b.hp / b.maxHp;
+      const hpRatioDelta = a.hp / towerFinalStats(a).maxHp - b.hp / towerFinalStats(b).maxHp;
       return hpRatioDelta || a.placedOrder - b.placedOrder;
     })
     .slice(0, count);
@@ -168,7 +169,7 @@ export function getLowestMaxHpAttackTarget(tower: Tower, definition: CardDefinit
   const area = getCardAttackArea(tower.type);
   return enemies
     .filter((enemy) => enemyIsInAttackArea(tower, definition, area, enemy))
-    .sort((a, b) => a.maxHp - b.maxHp || attackTargetPriority(tower, area, a) - attackTargetPriority(tower, area, b))[0];
+    .sort((a, b) => a.baseStats.maxHp - b.baseStats.maxHp || attackTargetPriority(tower, area, a) - attackTargetPriority(tower, area, b))[0];
 }
 
 export function attackRangeRight(tower: Tower, definition: CardDefinition) {

@@ -337,10 +337,10 @@ export const cardDefinitions: CardDefinition[] = [
     armor: 300,
     magicResistance: 0,
     fireRate: 4_000,
-    damage: 1_600,
+    damage: 1_800,
     damageType: "physical",
     rangeCells: 3,
-    stats: `1600${DAMAGE_SYMBOLS.physical} / R3`
+    stats: `1800${DAMAGE_SYMBOLS.physical} / R3`
   },
   {
     id: "k",

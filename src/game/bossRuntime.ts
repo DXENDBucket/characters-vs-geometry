@@ -39,13 +39,15 @@ import {
 import { syncDodecahedronCompanionShape } from "../render/unitShapes";
 import type { BossCompanionActionPhase, BossSkill, CubeBoss, DamageType, Enemy, MortarProjectile, Tower } from "../types";
 import { createBossSkillRegistry, runRegisteredBossSkills } from "./bossSkillRegistry";
+import { enemyAttackMultiplier } from "./combatStats";
 import { applyEnemyPromotion, enemyIsHighFlying, findPromotionTargets, promotedKind } from "./enemyBehaviors";
 import { spawnEnemyAt } from "./enemyRuntime";
 import { createMortarProjectile } from "./projectiles";
 import { makeWingPulse, triggerAngelWings } from "./enemySupport";
-import { applyStatusEffect, hasStatusEffect, statusAttackMultiplier } from "./statusEffects";
+import { applyStatusEffect, hasStatusEffect } from "./statusEffects";
 import { bossRect, towerRect } from "./targeting";
 import { isTrapArmed } from "./towers";
+import { setBossBaseArmor, towerFinalStats } from "./unitStats";
 import { volleyInterval } from "./upgrades";
 import { getEnemyDefinition, enemyRank } from "../registry/enemies";
 
@@ -181,7 +183,7 @@ function updateDodecahedronCompanions(runtime: BossRuntime, boss: CubeBoss, seco
   handleDodecahedronCompanionDeaths(runtime, boss, companions);
   if (boss.companionsInitialized && !boss.companionArmorReduced && companions.length === 0) {
     boss.companionArmorReduced = true;
-    boss.armor = Math.max(0, boss.armor - DODECAHEDRON_COMPANION_ARMOR_BREAK);
+    setBossBaseArmor(boss, boss.baseStats.armor - DODECAHEDRON_COMPANION_ARMOR_BREAK);
   }
   updateDodecahedronEndlessWings(runtime, boss, seconds, companions);
 }
@@ -328,7 +330,7 @@ function fireDodecahedronCompanionLaser(runtime: BossRuntime, companion: Enemy) 
   const targets = runtime.towers
     .filter((tower) => tower.lane === companion.lane && tower.x < companion.x)
     .sort((a, b) => b.x - a.x);
-  const stoppingTarget = targets.find((tower) => tower.magicResistance > 0);
+  const stoppingTarget = targets.find((tower) => towerFinalStats(tower).magicResistance > 0);
   const hitTargets = stoppingTarget ? targets.filter((tower) => tower.x >= stoppingTarget.x) : targets;
   const endX = stoppingTarget?.x ?? BOARD_X;
 
@@ -337,7 +339,7 @@ function fireDodecahedronCompanionLaser(runtime: BossRuntime, companion: Enemy) 
     makeEnemyHitShards(runtime.scene, tower.x, tower.y);
     runtime.damageTower(
       tower,
-      definition.damage * statusAttackMultiplier(companion, runtime.battleTime),
+      definition.damage * enemyAttackMultiplier(companion, runtime.battleTime),
       definition.damageType
     );
   }
@@ -376,7 +378,7 @@ function fireDodecahedronCompanionMortar(runtime: BossRuntime, companion: Enemy)
       fromY: companion.y,
       targetX: target.x,
       targetY: target.y,
-      damage: definition.damage * statusAttackMultiplier(companion, runtime.battleTime),
+      damage: definition.damage * enemyAttackMultiplier(companion, runtime.battleTime),
       damageType: definition.damageType,
       rangeX: CELL_WIDTH * 1.5,
       rangeY: CELL_HEIGHT * 1.5,
@@ -452,7 +454,7 @@ function fireDodecahedronLaserInLane(runtime: BossRuntime, fromX: number, lane: 
   const targets = runtime.towers
     .filter((tower) => tower.lane === lane && tower.x < fromX)
     .sort((a, b) => b.x - a.x);
-  const stoppingTarget = targets.find((tower) => tower.magicResistance > 0);
+  const stoppingTarget = targets.find((tower) => towerFinalStats(tower).magicResistance > 0);
   const hitTargets = stoppingTarget ? targets.filter((tower) => tower.x >= stoppingTarget.x) : targets;
   const endX = stoppingTarget?.x ?? BOARD_X;
 

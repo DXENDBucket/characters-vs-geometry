@@ -17,6 +17,7 @@ import {
 } from "../registry/enemies";
 import { createEnemyShape } from "../render/unitShapes";
 import type { CubeBoss, Enemy, EnemyKind } from "../types";
+import { applyEnemyBaseStats, enemyBaseStatsFromDefinition } from "./unitStats";
 
 export function enemyAttackInterval(kind: EnemyKind) {
   if (enemyIsLaser(kind)) {
@@ -55,7 +56,7 @@ export function enemyScaleFromHp(hpRatio: number) {
 }
 
 export function enemyVisualScale(enemy: Enemy) {
-  return enemyScaleFromHp(enemy.hp / enemy.maxHp);
+  return enemyScaleFromHp(enemy.hp / enemy.baseStats.maxHp);
 }
 
 export function syncEnemyVisualScale(enemy: Enemy) {
@@ -82,18 +83,16 @@ export function findPromotionTargets(boss: CubeBoss, enemies: Enemy[], fromRank:
 }
 
 export function applyEnemyPromotion(scene: Phaser.Scene, enemy: Enemy, kind: EnemyKind, battleTime: number) {
-  const hpRatio = Phaser.Math.Clamp(enemy.hp / enemy.maxHp, 0, 1);
+  const hpRatio = Phaser.Math.Clamp(enemy.hp / enemy.baseStats.maxHp, 0, 1);
   const definition = getEnemyDefinition(kind);
+  const baseStats = enemyBaseStatsFromDefinition(definition, {
+    speed: randomizedEnemySpeed(kind),
+    attackInterval: enemyAttackInterval(kind),
+    finalDamageReduction: enemy.baseStats.finalDamageReduction
+  });
   enemy.kind = kind;
-  enemy.maxHp = definition.hp;
-  enemy.hp = Math.max(1, definition.hp * hpRatio);
-  enemy.armor = definition.armor;
-  enemy.magicResistance = definition.magicResistance;
-  enemy.damage = definition.damage;
-  enemy.damageType = definition.damageType;
-  enemy.attackInterval = enemyAttackInterval(kind);
-  enemy.attackAt = Math.min(enemy.attackAt, battleTime + enemy.attackInterval);
-  enemy.speed = randomizedEnemySpeed(kind);
+  applyEnemyBaseStats(enemy, baseStats, { hpRatio });
+  enemy.attackAt = Math.min(enemy.attackAt, battleTime + enemy.baseStats.attackInterval);
   enemy.maceVelocity = enemyIsMace(kind) ? 0 : undefined;
   enemy.maceFacingDirection = enemyIsMace(kind) ? -1 : undefined;
   enemy.slopeFacingDirection = kind === "slopeTriangle" ? enemy.movementDirection ?? -1 : undefined;
@@ -126,11 +125,20 @@ export function applyEnemyPromotion(scene: Phaser.Scene, enemy: Enemy, kind: Ene
     })
     .setOrigin(0.5);
   enemy.armorIcon.setVisible(false);
+  enemy.magicResistanceIcon = scene.add
+    .text(0, -38, "✦", {
+      color: "#9fdcff",
+      fontFamily: "monospace",
+      fontSize: "22px",
+      fontStyle: "700"
+    })
+    .setOrigin(0.5);
+  enemy.magicResistanceIcon.setVisible(false);
   enemy.flyingHalo = scene.add.ellipse(0, -42, 30, 8, palette.black, 0).setStrokeStyle(2, palette.white, 0.94);
   enemy.flyingHalo.setVisible(false);
   enemy.shape = createEnemyShape(scene, kind, { squareSize: 42, shootingNoseX: -24 });
   enemy.skills = {};
-  enemy.body.add([enemy.statusBorder, enemy.flyingHalo, enemy.shape, enemy.powerIcon, enemy.armorIcon]);
+  enemy.body.add([enemy.statusBorder, enemy.flyingHalo, enemy.shape, enemy.powerIcon, enemy.armorIcon, enemy.magicResistanceIcon]);
   syncEnemyVisualScale(enemy);
 }
 
@@ -155,6 +163,7 @@ export function canEnemyMelee(enemy: Enemy) {
     !enemyIsSiegeRam(enemy.kind) &&
     !enemyIsMace(enemy.kind) &&
     enemyFamily(enemy.kind) !== "heart" &&
+    enemyFamily(enemy.kind) !== "hexSpellBulwark" &&
     enemyFamily(enemy.kind) !== "slopeTriangle" &&
     !enemyIsBossCompanion(enemy.kind)
   );
@@ -176,12 +185,12 @@ export function randomizedEnemySpeed(kind: EnemyKind) {
 
 export function siegeRamSpeed(enemy: Enemy) {
   if (!enemyIsSiegeRam(enemy.kind)) {
-    return enemy.speed;
+    return enemy.baseStats.speed;
   }
 
   const accelerationDistance = 7 * CELL_WIDTH;
   const traveled = Math.max(0, enemy.spawnX - enemy.x);
   const progress = Phaser.Math.Clamp(traveled / accelerationDistance, 0, 1);
   const multiplier = Math.sqrt(1 + 15 * progress);
-  return enemy.speed * multiplier;
+  return enemy.baseStats.speed * multiplier;
 }

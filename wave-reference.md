@@ -54,6 +54,7 @@ Enemy body labels are displayed as Roman numerals in-game.
 | Burrow Arrow 1 | 1 per flag wave if included in the level pool; no wave weight | 16500 | 250 | 400 | Physical | Body label `I`; MR `0`; fixed speed `20` with no random speed variance. Touching non-leader minions are loaded; rank I can carry total minion rank `5`. Once full or after `6s` on the field, it burrows, shows only its upper tip about `0.55` cells lower, ignores normal projectile targeting/direct hits, but can still be damaged by AOE. While burrowed it gains `+300%` movement speed. It resurfaces at the center of the cell before the base, turns itself and loaded enemies around, unloads once, and can no longer load or burrow. If it dies while carrying loaded enemies, they immediately appear without reversing direction |
 | Slope Triangle 1 | 1 per flag wave if included in the level pool; no wave weight | 21000 | 500 | 0 | Physical | Body label `I`; MR `0`; fixed speed `6` with no random speed variance. It does not attack. While currently blocked, it stays in place and acts as a ramp; if unblocked, it keeps moving at its own speed. Only while blocked, touching non-leader minions whose current velocity direction matches the Slope Triangle facing direction enter High Flight and fly forward in a parabola. This checks the minion velocity direction, not the minion facing direction. Flight distance is based on current actual speed: every `10` speed sends the minion `1.5` cells. High Flight enemies cannot be blocked, targeted, directly hit, or damaged by tower AOE before landing. Leaders, Bosses, and Boss companions are not launched |
 | Archangel Heptagon 1 | 1 per flag wave if included in the level pool; no wave weight | 4000 | 50 | 1400 | Magic | Body label `I`; MR `20`; fixed speed `30` with no random speed variance. It is always Flying, attacks every `2s`, dealing `100%` attack as magic damage, and has two visual halos. For the first `3s` after spawning, it has `+150%` movement speed and High Flight. It does not gain extra Flying halos from other skills or minions; incoming Flying effects become High Flight instead, turning its own two halos gold. Ascension: starts at `10/15` SP, gains `1` SP/s, then gives itself and enemies within a `2.5` cell radius Flying with a halo and `+100%` movement speed for `6s`; SP regeneration pauses while Ascension is active |
+| Hex Spell Bulwark 1 | 1 per flag wave if included in the level pool; no wave weight | 24000 | 100 | 0 | Magic | Body label `I/I`; MR `80`; fixed speed `15` with no random speed variance. It does not attack. Its body is a vertical Hex Mace. Other enemies in the same lane gain additive `+50` MR; multiple bulwarks stack. Affected enemies show a light-blue magic icon similar to the Hexagon armor icon |
 
 Leader enemies are fixed flag-wave spawns when included in a level pool. They do not consume wave weight and do not receive random speed variance.
 
@@ -141,7 +142,7 @@ Tetrahedron skills:
 | I | Attack | Diamond | 50 | 2s | 1200 | 150 | 20 | Fires 1 `*` projectile, `400✦`, every `2s`; range is self plus 5 cells ahead | +1 volley per level |
 | Q | Attack | Diamond | 175 | 4s | 1200 | 150 | 20 | Fires 1 `$` projectile, `400✦`, every `2s`; range is the full lane ahead. On hit, applies `Stasis` for `1s`, reducing ordinary enemy movement speed to `1/3`; Bosses ignore this debuff | +1 volley per level |
 | J | Attack | Diamond | 200 | 4s | 1200 | 150 | 20 | Fires 1 `#` shell, `600✦`, `1.75` tile radius AOE with distance falloff, every `4s`; range is self plus 5 cells ahead | +1 volley per level |
-| K | Attack | Diamond | 375 | 4s | 2500 | 300 | 0 | Slashes 1 target for `1600◆`, every `4s`; range is self plus 2 cells ahead | +1 volley per level |
+| K | Attack | Diamond | 375 | 4s | 2500 | 300 | 0 | Slashes 1 target for `1800◆`, every `4s`; range is self plus 2 cells ahead | +1 volley per level |
 | k | Attack | Diamond | 625 | 10s | 2500 | 300 | 40 | Every `1s`, releases an arc wave that deals `280✦` to all enemies in a `2x3+1` area: its column and next column across 3 lanes, plus one extra forward cell in its lane | +`224✦` attack per level |
 | S | Attack | Diamond | 925 | 50s | 1200 | 150 | 40 | Active skill: Spell Mortar. Gains `1` SP/s, max `30`; at full SP gains a border. Click a ready S, or Shift-click to select all ready S, then click any board point to fire 3 arcing `S` shells at `0.5s` intervals. Each shell deals `5000✦` in a `3x3` area. Right-click or clicking UI cancels aiming | +`4000✦` per shell per level; resets SP |
 | Z | Production | Circle | 175 | 4s | 2500 | 300 | 0 | Slashes 1 target for `400◆`, every `2s`; range is self plus 2 cells ahead. Each slash hit produces `Aa15` | +1 volley per level |
@@ -1529,6 +1530,7 @@ Enemy pool:
 
 - Circle 1
 - Triangle 1
+- Triangle 2
 - Triangle 3
 - Angel Pentagon 1
 - Hex Mace 1
@@ -1695,6 +1697,71 @@ Base rule:
 | 18 | - | 93 | 93 |
 | 19 | - | 97 | 97 |
 | 20 | 2 | 101 | 202 |
+
+## Level 3-7 Weight Growth
+
+Enemy pool:
+
+- Circle 1
+- Triangle 1
+- Triangle 2
+- Shooting Triangle 1
+- Diamond 1
+- Shooting Pentagon 1
+- Triangle Ram 3
+- Square 1
+- Angel Pentagon Ram 1
+- Hex Mace 1
+- Hex Spell Bulwark 1
+- Heart 1
+- Archangel Heptagon 1
+- Slope Triangle 1
+- Burrow Arrow 1
+
+Base rule:
+
+- Starting characters: `500`.
+- Wave 1 starts at weight cap `25`.
+- Wave 2 adds `+4`; each later wave also adds `+4`.
+- Every flag wave, currently every `10`th wave, doubles that wave's final cap.
+- A wave may leave unused weight, but never exceeds its cap.
+- Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
+- The level has `30` total waves.
+- Diamond 1, Shooting Pentagon 1, Angel Pentagon Ram 1, and Hex Mace 1 have a minimum Flag 1 gate, so they can first enter the random pool on wave 10.
+- Hex Spell Bulwark 1, Heart 1, Archangel Heptagon 1, Slope Triangle 1, and Burrow Arrow 1 are leader enemies and fixed-spawn once each on flag waves if included in the level pool; they do not consume wave weight.
+
+| Wave | Flag | Base Cap | Final Cap |
+| ---: | ---: | ---: | ---: |
+| 1 | - | 25 | 25 |
+| 2 | - | 29 | 29 |
+| 3 | - | 33 | 33 |
+| 4 | - | 37 | 37 |
+| 5 | - | 41 | 41 |
+| 6 | - | 45 | 45 |
+| 7 | - | 49 | 49 |
+| 8 | - | 53 | 53 |
+| 9 | - | 57 | 57 |
+| 10 | 1 | 61 | 122 |
+| 11 | - | 65 | 65 |
+| 12 | - | 69 | 69 |
+| 13 | - | 73 | 73 |
+| 14 | - | 77 | 77 |
+| 15 | - | 81 | 81 |
+| 16 | - | 85 | 85 |
+| 17 | - | 89 | 89 |
+| 18 | - | 93 | 93 |
+| 19 | - | 97 | 97 |
+| 20 | 2 | 101 | 202 |
+| 21 | - | 105 | 105 |
+| 22 | - | 109 | 109 |
+| 23 | - | 113 | 113 |
+| 24 | - | 117 | 117 |
+| 25 | - | 121 | 121 |
+| 26 | - | 125 | 125 |
+| 27 | - | 129 | 129 |
+| 28 | - | 133 | 133 |
+| 29 | - | 137 | 137 |
+| 30 | 3 | 141 | 282 |
 
 ## Spawn Trigger
 
