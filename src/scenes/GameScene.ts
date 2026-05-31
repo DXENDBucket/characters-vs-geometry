@@ -383,6 +383,13 @@ export class GameScene extends Phaser.Scene {
     }
 
     const definition = this.getSelectedDefinition();
+    const cardState = this.cardStates.find((card) => card.definition.id === definition.id);
+    const effectiveChars = this.effectiveChars();
+    if (this.canUpgradeSelectedTower(existingTower, definition, cardState, effectiveChars)) {
+      this.deploySelectedCard(definition, cardState!, lane, column, pointer);
+      return;
+    }
+
     if (this.targetedEffects.canHandle(definition.id)) {
       this.handleTargetedEffectCardResult(this.targetedEffects.use(definition, lane, column, existingTower));
       return;
@@ -414,14 +421,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    const cardState = this.cardStates.find((card) => card.definition.id === definition.id);
-    const effectiveChars = this.effectiveChars();
-    const canUpgradeManualShockTower =
-      Boolean(existingTower && existingTower.type === definition.id) &&
-      Boolean(cardState && this.cardTimeFor(definition.id) >= cardState.readyAt) &&
-      effectiveChars >= definition.cost;
-
-    if (this.isManualShockTower(existingTower) && !canUpgradeManualShockTower) {
+    if (this.isManualShockTower(existingTower)) {
       this.triggerShockTower(existingTower);
       return;
     }
@@ -436,6 +436,29 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    this.deploySelectedCard(definition, cardState, lane, column, pointer);
+  }
+
+  private canUpgradeSelectedTower(
+    tower: Tower | undefined,
+    definition: CardDefinition,
+    cardState: CardState | undefined,
+    effectiveChars: number
+  ) {
+    return (
+      Boolean(tower && tower.type === definition.id) &&
+      Boolean(cardState && this.cardTimeFor(definition.id) >= cardState.readyAt) &&
+      effectiveChars >= definition.cost
+    );
+  }
+
+  private deploySelectedCard(
+    definition: CardDefinition,
+    cardState: CardState,
+    lane: number,
+    column: number,
+    pointer: Phaser.Input.Pointer
+  ) {
     const deployed = this.deployment.deploy(definition, lane, column);
     if (!deployed) {
       this.showToast(t("toast.occupied"));

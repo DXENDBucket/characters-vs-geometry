@@ -1,11 +1,11 @@
 import Phaser from "phaser";
 import { CELL_HEIGHT, CELL_WIDTH, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
-import { enemyIsBossCompanion, enemyIsLeader, enemyIsMace } from "../registry/enemies";
+import { enemyIsBossCompanion, enemyIsMace } from "../registry/enemies";
 import { makeShiftEffect, makeShockPulse } from "../render/combatEffects";
 import type { Enemy, Tower } from "../types";
 import type { EnemyAdvanceRuntime } from "./combatRuntime";
 import { enemyMovementSpeed } from "./combatStats";
-import { enemyIsBurrowed, enemyIsHighFlying, siegeRamSpeed } from "./enemyBehaviors";
+import { enemyIgnoresLeaderRestrictedMechanics, enemyIsBurrowed, enemyIsHighFlying, siegeRamSpeed } from "./enemyBehaviors";
 import { applyStatusEffect, removeStatusEffect, statusSpeedMultiplier, syncEnemyBodyPosition } from "./statusEffects";
 
 const SLOPE_TOUCH_RANGE_X = CELL_WIDTH * 0.58;
@@ -105,7 +105,7 @@ function launchTouchingEnemies(runtime: EnemyAdvanceRuntime, slope: Enemy, time:
 function canSlopeLaunchEnemy(target: Enemy, slope: Enemy) {
   return (
     target !== slope &&
-    !enemyIsLeader(target.kind) &&
+    !enemyIgnoresLeaderRestrictedMechanics(target) &&
     !enemyIsBossCompanion(target.kind) &&
     !enemyIsBurrowed(target) &&
     !enemyIsHighFlying(target) &&

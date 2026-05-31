@@ -189,6 +189,10 @@ export function canEnemyMelee(enemy: Enemy) {
   );
 }
 
+export function enemyIgnoresLeaderRestrictedMechanics(enemy: Enemy) {
+  return enemyIsLeader(enemy.kind) || enemyIsSolarBomb(enemy);
+}
+
 export function enemyVolleyShotCount(enemy: Enemy) {
   return enemyIsRanged(enemy.kind) || enemyIsMortar(enemy.kind) || enemyIsLaser(enemy.kind) ? enemyRank(enemy.kind) : 1;
 }

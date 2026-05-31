@@ -2,8 +2,8 @@ import Phaser from "phaser";
 import { BOARD_X, CELL_HEIGHT, CELL_WIDTH } from "../config";
 import { makeHealParticles, makeShiftEffect } from "../render/combatEffects";
 import type { CubeBoss, Enemy, SkillState } from "../types";
-import { enemyFamily, enemyIsBossCompanion, enemyIsLeader } from "../registry/enemies";
-import { enemyIsHighFlying, syncEnemyVisualScale } from "./enemyBehaviors";
+import { enemyFamily, enemyIsBossCompanion } from "../registry/enemies";
+import { enemyIgnoresLeaderRestrictedMechanics, enemyIsHighFlying, syncEnemyVisualScale } from "./enemyBehaviors";
 import { createEnemySkillRegistry, enemySkillDefinitions, type EnemySkillRuntime } from "./enemySkillRegistry";
 import { updateRegisteredSkills } from "./skillRegistry";
 import { gainSkillSp, getEnemySkillState, isSkillReady, spendSkillSp } from "./skillState";
@@ -225,7 +225,7 @@ function tryUseHeartLead(scene: Phaser.Scene, enemies: Enemy[], caster: Enemy, s
 }
 
 function isOrdinaryLeadTarget(enemy: Enemy) {
-  return !enemyIsLeader(enemy.kind) && !enemyIsBossCompanion(enemy.kind) && !enemyIsHighFlying(enemy);
+  return !enemyIgnoresLeaderRestrictedMechanics(enemy) && !enemyIsBossCompanion(enemy.kind) && !enemyIsHighFlying(enemy);
 }
 
 export function triggerAngelWings(

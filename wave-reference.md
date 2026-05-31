@@ -47,7 +47,7 @@ High Flight is a separate airborne state used by Slope Triangle launches and Arc
 Enemies with a minimum flag gate are excluded from random wave pools before that flag wave. All Diamonds, Triangle Mortars, Pentagons, Angel Pentagons, Shooting Pentagons, Hex Maces, and Angel Pentagon Rams require Flag 1, so they can start appearing on wave 10 of standard 10-wave flags.
 Numbered minion weights use fixed additive steps: circles `+40`, triangles `+60`, squares `+100`.
 Enemy body labels are displayed as Roman numerals in-game.
-Mirage Sun Bomb is a Boss-only Octahedron mechanic with weight `0`, HP `12000`, Armor `0`, MR `0`, average speed `45`, and `900` true collision damage. Its larger sun-shaped body rotates and does not shrink with HP. Above `50%` HP, it takes only `5%` magic damage before difficulty reduction; below `50%`, it takes only `5%` physical damage instead and its border turns light blue. At `0` HP, it locks at `1` HP, turns gold, and becomes invincible. Colliding with towers or enemies, including Bosses, bounces it, shows small gold true-damage collision particles, and deals `900` true damage to the collision target. Tower hits bounce it away from the attacking tower position, independent of projectile angle or speed.
+Mirage Sun Bomb is a Boss-only Octahedron mechanic with weight `0`, HP `12000`, Armor `0`, MR `0`, average speed `45`, and `900` true collision damage. Its larger sun-shaped body rotates and does not shrink with HP. Above `50%` HP, it takes only `5%` magic damage before difficulty reduction; below `50%`, it takes only `5%` physical damage instead and its border turns light blue. At `0` HP, it locks at `1` HP, turns gold, and becomes invincible. Colliding with towers or enemies, including Bosses, bounces it, shows small gold true-damage collision particles, and deals `900` true damage to the collision target. Tower hits bounce it away from the attacking tower position, independent of projectile angle or speed. It ignores mechanics that do not affect leaders, such as Burrow Arrow loading, Heart Lead pulling, and Slope Triangle launching.
 
 ## Leader Fixed Spawns
 
@@ -71,7 +71,7 @@ Leader enemies are fixed flag-wave spawns when included in a level pool. They do
 | Tetrahedron II | 120000 | 150 | 20 | 1.2 | `2.95x2.95` cells | Same baseline behavior as Tetrahedron I. All Inverted Triangles and Shooting Triangles summoned by its Boss mechanics are rank II. |
 | Dodecahedron I | 100000 | 2000 | 90 | 0.6 | `2.95x2.95` cells | Whiteboard Boss. Same baseline behavior as Cube I, but has no SP skills. Starts with 3 orbiting Dodecahedron Companions; after all companions die, its base armor is reduced by `1800`. |
 | Dodecahedron Companion | 32000 | 2000 | 40 | orbiting | `0.95x0.95` cells | Special Boss companion. Body label `I`; cannot be blocked, syncs Dodecahedron I's 3D rotation, and shrinks visually with HP like ordinary enemies. Attack loop: after `20s`, fires `4 x label` Shooting-Pentagon lasers; after `30s`, fires `2 x label` Pentagon mortars; after `30s`, casts Angel-Pentagon Wings on enemies in a `3x3` area. Motion loop: orbits for `47s`, shifts over `1s` to the front column on the Boss lane / two lanes up / two lanes down, holds `47s`, then shifts back over `1s`. Each companion death gives surviving companions `10s` Invincible. |
-| Octahedron I | 200000 | 200 | 60 | 0.6 | `2.95x2.95` cells | Multi-body Boss for 3-10. Same contact behavior as Cube I, but has no SP skills. At `75%`, `50%`, and `25%` HP thresholds, spawns an additional Octahedron body. All bodies share one HP bar; each body keeps independent effects and movement. Each new invincibility cycle spawns two Mirage Sun Bombs from the rightmost column in rows 2 and 6. |
+| Octahedron I | 120000 | 200 | 60 | 0.6 | `2.95x2.95` cells | Multi-body Boss for 3-10. Same contact behavior as Cube I, but has no SP skills. At `75%`, `50%`, and `25%` HP thresholds, spawns an additional Octahedron body. All bodies share one HP bar; each body keeps independent effects and movement. Each new invincibility cycle spawns two Mirage Sun Bombs from the rightmost column in rows 2 and 6. |
 | Small Stellated Dodecahedron I | 100000 | 200 | 90 | 0.6 | `2.95x2.95` cells | Whiteboard Boss. Same contact/base behavior as Cube I, currently used to test the small stellated dodecahedron wireframe. |
 
 Cube skills:
@@ -1930,7 +1930,7 @@ Boss:
 
 Base rule:
 
-- Starting characters: `1500`.
+- Starting characters: `5000`.
 - Wave 1 starts at weight cap `25`.
 - Wave 2 adds `+18`; each later increment grows by `+4` (`+22`, `+26`, ...).
 - Every flag wave, currently every `10`th wave, doubles that wave's final cap.
@@ -2009,7 +2009,7 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 - Chapter 2 starting characters: `350`.
 - Chapter 2 Boss stage 2-10 starting characters: `500`.
 - Chapter 3 starting characters: `500`.
-- Chapter 3 Boss stage 3-10 starting characters: `1500`.
+- Chapter 3 Boss stage 3-10 starting characters: `5000`.
 - Natural income: `25` every `5s`.
 
 ## Recent Enemy Additions

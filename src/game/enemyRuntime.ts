@@ -28,6 +28,7 @@ import type { CubeBoss, DifficultyConfig, Enemy, EnemyKind, LevelConfig, Tower, 
 import type { EnemyAdvanceRuntime, EnemySpawnRuntime } from "./combatRuntime";
 import {
   canEnemyMelee,
+  enemyIgnoresLeaderRestrictedMechanics,
   enemyIsBurrowed,
   enemyIsHighFlying,
   enemyVolleyShotCount,
@@ -667,7 +668,12 @@ function loadTouchingBurrowCargo(runtime: EnemyAdvanceRuntime, carrier: Enemy) {
 }
 
 function canLoadBurrowCargo(enemy: Enemy) {
-  return !enemyIsLeader(enemy.kind) && !enemyIsBossCompanion(enemy.kind) && !enemyIsBurrowed(enemy) && !enemyIsHighFlying(enemy);
+  return (
+    !enemyIgnoresLeaderRestrictedMechanics(enemy) &&
+    !enemyIsBossCompanion(enemy.kind) &&
+    !enemyIsBurrowed(enemy) &&
+    !enemyIsHighFlying(enemy)
+  );
 }
 
 function startBurrow(runtime: EnemyAdvanceRuntime, enemy: Enemy) {
