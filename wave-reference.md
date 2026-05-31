@@ -34,7 +34,9 @@
 Damage symbols: `◆` physical, `✦` magic, `◇` true. Magic-damage projectiles and related hit effects use light blue.
 Effect symbols: `Aa` character production, `♡` healing.
 Character resources use layered softcaps. Raw resources above `9999` apply one smooth `p=0.7` softcap layer. Above `99999`, the already-softcapped effective value receives a second `p=0.7` layer. Above `999999`, it receives a third layer, and later decade thresholds keep adding one more identical layer. This keeps marginal gains decreasing as raw resources grow. When softcapped, the HUD shows effective resources with raw resources in parentheses.
-Stasis gives enemies a blue border and reduces their movement speed to `1/3`. Haste gives enemies light-blue wind trails and raises movement speed to `200%` unless specified otherwise. Power gives enemies a red `!` icon and increases outgoing attack damage by `30%` without changing their base attack stat.
+Attack speed `x` means one attack every `60 / x` seconds. Attack speeds below `1` are capped to `1`; units with no attack speed do not attack.
+Stasis gives enemies a blue border and reduces their movement speed to `1/2`. Haste gives enemies light-blue wind trails and raises movement speed to `200%` unless specified otherwise. Power gives enemies a red `!` icon and increases outgoing attack damage by `30%` without changing their base attack stat.
+Sunder gives enemies a white `▣` icon and reduces final armor by `35%`; repeated applications refresh its duration.
 Armor from Hexagons gives ordinary enemies a `⬡` icon and stacks additively as bonus armor. Bosses also gain the bonus armor while their hitbox is within a Hexagon aura.
 Charging Hexagon speed aura is dynamic, non-stacking, and multiplies with other speed modifiers.
 Triangle enemies all deal Triangle 1's `600◆`; Triangle N attacks every `1/N` seconds.
@@ -45,6 +47,7 @@ High Flight is a separate airborne state used by Slope Triangle launches and Arc
 Enemies with a minimum flag gate are excluded from random wave pools before that flag wave. All Diamonds, Triangle Mortars, Pentagons, Angel Pentagons, Shooting Pentagons, Hex Maces, and Angel Pentagon Rams require Flag 1, so they can start appearing on wave 10 of standard 10-wave flags.
 Numbered minion weights use fixed additive steps: circles `+40`, triangles `+60`, squares `+100`.
 Enemy body labels are displayed as Roman numerals in-game.
+Mirage Sun Bomb is a Boss-only Octahedron mechanic with weight `0`, HP `12000`, Armor `0`, MR `0`, average speed `45`, and `900` true collision damage. Its larger sun-shaped body rotates and does not shrink with HP. Above `50%` HP, it takes only `5%` magic damage before difficulty reduction; below `50%`, it takes only `5%` physical damage instead and its border turns light blue. At `0` HP, it locks at `1` HP, turns gold, and becomes invincible. Colliding with towers or enemies, including Bosses, bounces it, shows small gold true-damage collision particles, and deals `900` true damage to the collision target. Tower hits bounce it away from the attacking tower position, independent of projectile angle or speed.
 
 ## Leader Fixed Spawns
 
@@ -68,6 +71,7 @@ Leader enemies are fixed flag-wave spawns when included in a level pool. They do
 | Tetrahedron II | 120000 | 150 | 20 | 1.2 | `2.95x2.95` cells | Same baseline behavior as Tetrahedron I. All Inverted Triangles and Shooting Triangles summoned by its Boss mechanics are rank II. |
 | Dodecahedron I | 100000 | 2000 | 90 | 0.6 | `2.95x2.95` cells | Whiteboard Boss. Same baseline behavior as Cube I, but has no SP skills. Starts with 3 orbiting Dodecahedron Companions; after all companions die, its base armor is reduced by `1800`. |
 | Dodecahedron Companion | 32000 | 2000 | 40 | orbiting | `0.95x0.95` cells | Special Boss companion. Body label `I`; cannot be blocked, syncs Dodecahedron I's 3D rotation, and shrinks visually with HP like ordinary enemies. Attack loop: after `20s`, fires `4 x label` Shooting-Pentagon lasers; after `30s`, fires `2 x label` Pentagon mortars; after `30s`, casts Angel-Pentagon Wings on enemies in a `3x3` area. Motion loop: orbits for `47s`, shifts over `1s` to the front column on the Boss lane / two lanes up / two lanes down, holds `47s`, then shifts back over `1s`. Each companion death gives surviving companions `10s` Invincible. |
+| Octahedron I | 200000 | 200 | 60 | 0.6 | `2.95x2.95` cells | Multi-body Boss for 3-10. Same contact behavior as Cube I, but has no SP skills. At `75%`, `50%`, and `25%` HP thresholds, spawns an additional Octahedron body. All bodies share one HP bar; each body keeps independent effects and movement. Each new invincibility cycle spawns two Mirage Sun Bombs from the rightmost column in rows 2 and 6. |
 | Small Stellated Dodecahedron I | 100000 | 200 | 90 | 0.6 | `2.95x2.95` cells | Whiteboard Boss. Same contact/base behavior as Cube I, currently used to test the small stellated dodecahedron wireframe. |
 
 Cube skills:
@@ -90,6 +94,19 @@ Dodecahedron mechanics:
 - After all companions die, Dodecahedron I loses `1800` base armor and Endless Wings starts charging.
 - Endless Wings: starts at `0/4` SP, gains `1` SP per second after all companions are dead, and consumes `4` SP at full.
 - On activation, Endless Wings gives `7s` Wings Flying to all currently non-flying enemies touching Dodecahedron I's hitbox, with the same `+100%` movement speed as Angel Pentagon 1 Wings.
+
+Octahedron mechanics:
+
+- All Octahedron bodies can be targeted and damaged. Damage to any body subtracts from the same Boss HP bar.
+- Effects are not shared between bodies. A hit resolves defense and temporary effects on the body that was hit.
+- At first `75%` HP or lower, spawns a second Octahedron inside the grid at the base-side middle. It moves in the opposite horizontal direction and cannot trigger base defeat.
+- At first `50%` HP or lower, spawns a third Octahedron inside the grid at the top of the 8th column from the left, moving downward.
+- At first `25%` HP or lower, spawns a fourth Octahedron inside the grid at the bottom of the 5th column from the left, moving upward.
+- Only Octahedron bodies moving toward the base can trigger defeat by crossing the base line.
+- When `2` / `3` / `4` Octahedron bodies exist, all Octahedron bodies gain an additional independent `20%` / `40%` / `60%` all-damage reduction.
+- At combat start and each time a new Octahedron body appears, every Octahedron body becomes invincible and rows 2 and 6 each spawn one Mirage Sun Bomb in the rightmost column, moving left.
+- When the `25%` Octahedron body appears, it also starts a reinforcement sequence from the normal spawn side: immediately one Hex Spell Bulwark in every row; after `0.5s`, one Burrow Arrow in rows 2, 4, and 6; after another `0.5s`, one Heart in rows 2, 4, and 6; after another `0.5s`, one Slope Triangle in every row; after another `0.5s`, one Archangel Heptagon in every row.
+- A gold, depleted Mirage Sun Bomb that collides with an invincible Octahedron body removes invincibility from only the body it hit, deals its collision damage, and then disappears immediately.
 
 Tetrahedron skills:
 
@@ -121,6 +138,7 @@ Tetrahedron skills:
 | C | Attack | Diamond | 250 | 3s | 1200 | 150 | 0 | Fires 1 shell, `500◆`, `1.75` tile radius AOE with distance falloff, every `3s` | +1 volley per level |
 | c | Function | Triangle | 1425 | 70s | 1200 | 150 | 0 | Speed Clock: gains `1` SP/s, max `20`; at full SP gains a border. Clicking a ready c spends all SP and makes it flash for `10s`; active c towers make other card-slot cooldown speed `(active c level sum + 1)x`; c's own card cooldown is not accelerated by this effect. Shift-click a ready c activates all ready c towers | Skill contribution uses its current level |
 | D | Defense | Square | 100 | 20s | 3000 | 800 | 0 | High-armor blocker | +`2400` max/current HP per level |
+| d | Attack | Diamond | 175 | 10s | 1200 | 150 | 20 | Fires a light-blue piercing magic laser, `400✦`, every `3s`. The laser stops after hitting the first enemy with MR. Hit enemies gain `10s` Sunder, reducing final armor by `35%` and showing a white `▣` icon; repeated hits refresh Sunder to `10s` | +`320✦` attack per level |
 | O | Defense | Square | 125 | 20s | 3000 | 500 | 40 | Armor-heavy magic-resistant blocker | +`2400` max/current HP per level |
 | R | Defense | Square | 225 | 15s | 3000 | 350 | 35 | Enemy projectiles still damage it, then reflect into friendly projectiles with the same damage and damage type. Locked mortars that hit R are reflected back at the shooter | +`2400` max/current HP per level |
 | X | Production | Circle | 50 | 1.5s | 1200 | 150 | 0 | Produces `25` chars every `10s`, shown as `Aa` | +`20` chars per production per level |
@@ -140,7 +158,7 @@ Tetrahedron skills:
 | P | Healing | Hexagon | 125 | 20s | 1200 | 150 | 0 | Heals the lowest HP% damaged ally in a `5x3` area covering its column and the next 4 columns for `250`, every `2s`, shown as `♡`; ties prefer earlier placement | +1 healing volley per level |
 | p | Healing | Hexagon | 225 | 20s | 1200 | 150 | 0 | Heals the three lowest HP% damaged allies in a centered `3x3` area for `250` each, every `2s`, shown as `♡`; ties prefer earlier placement | +1 healing volley per level |
 | I | Attack | Diamond | 50 | 2s | 1200 | 150 | 20 | Fires 1 `*` projectile, `400✦`, every `2s`; range is self plus 5 cells ahead | +1 volley per level |
-| Q | Attack | Diamond | 175 | 4s | 1200 | 150 | 20 | Fires 1 `$` projectile, `400✦`, every `2s`; range is the full lane ahead. On hit, applies `Stasis` for `1s`, reducing ordinary enemy movement speed to `1/3`; Bosses ignore this debuff | +1 volley per level |
+| Q | Attack | Diamond | 175 | 4s | 1200 | 150 | 20 | Fires 1 `$` projectile, `400✦`, every `2s`; range is the full lane ahead. On hit, applies `Stasis` for `1s`, reducing ordinary enemy movement speed to `1/2`; Bosses ignore this debuff | +`320✦` damage per level |
 | J | Attack | Diamond | 200 | 4s | 1200 | 150 | 20 | Fires 1 `#` shell, `600✦`, `1.75` tile radius AOE with distance falloff, every `4s`; range is self plus 5 cells ahead | +1 volley per level |
 | K | Attack | Diamond | 375 | 4s | 2500 | 300 | 0 | Slashes 1 target for `1800◆`, every `4s`; range is self plus 2 cells ahead | +1 volley per level |
 | k | Attack | Diamond | 625 | 10s | 2500 | 300 | 40 | Every `1s`, releases an arc wave that deals `280✦` to all enemies in a `2x3+1` area: its column and next column across 3 lanes, plus one extra forward cell in its lane | +`224✦` attack per level |
@@ -149,10 +167,10 @@ Tetrahedron skills:
 | L | Function | Triangle | 200 | 20s | 3000 | 200 | 0 | Every `1s`, shifts all enemies in upper/lower lanes within its column and the front column into its own lane; takes `400◇` per shifted enemy | +`2400` max/current HP per level |
 | N | Defense | Square | 125 | 20s | 3000 | 500 | 0 | Every `1s`, pushes all enemies it is blocking `5` cells in its push direction: normal N pushes left, reversed N pushes right. Takes `400◇` per pushed enemy. Enemy projectiles that would hit N are shifted `5` cells in that same direction instead of dealing projectile damage, and N takes `400◇` per shifted projectile. Locked mortar shots targeting N have their landing point shifted by the same distance and also cost N `400◇` once | +`2400` max/current HP per level |
 | n | Function | Triangle | 375 | 20s | 3000 | 200 | 0 | Every `1s`, repels all enemies in its own lane within its column and the front column to an adjacent upper/lower lane; odd placement order starts upward, even starts downward, then alternates. Takes `400◇` per shifted enemy | +`2400` max/current HP per level |
-| T | Function | Triangle | 650 | 50s | 4000 | 150 | 20 | Every `1s`, takes `700◇`; ordinary units and projectiles in a centered `5x5` no-corner area move at `1/6` speed. Bosses ignore the slow. The area is shown with a deep-purple time border. On death, clears projectiles in that area; eraser removal does not trigger this | +`3200` max/current HP per level |
+| T | Function | Triangle | 650 | 50s | 4000 | 150 | 20 | Every `1s`, takes `700◇`; ordinary units and projectiles in a centered `5x5` no-corner area move at `1/6` speed. Bosses ignore the slow. The area is shown with a deep-purple time border. Whenever it disappears for any reason, clears all projectiles and mortars in that area | +`3200` max/current HP per level |
 | U | Function | Triangle | 1275 | 50s | 1200 | 150 | 40 | Grants towers in a centered `3x3` area, excluding itself, bonus levels equal to U's real level. Only affects towers whose base cost is lower than U's base cost. Multiple U auras stack additively | Each level raises U's aura bonus by `+1` level |
 | V | Attack | Diamond | 775 | 6s | 1200 | 150 | 40 | Every `2s`, lobs a single-target `*` magic shell for `1300` damage along its lane. It prefers the attackable enemy with the lowest max HP, predicts the landing point from target speed at lock time, and can miss | +`1040` magic attack per level |
-| v | Attack | Diamond | 500 | 6s | 1200 | 150 | 40 | Every `4s`, lobs a `#` magic shell at the first enemy ahead. It predicts the landing point from target speed at lock time, then deals `500✦` in a circular `1.75` tile radius AOE with distance falloff and applies `2s` Stasis to ordinary enemies hit | +1 volley per level |
+| v | Attack | Diamond | 500 | 6s | 1200 | 150 | 40 | Every `4s`, lobs a `#` magic shell at the first enemy ahead. It predicts the landing point from target speed at lock time, then deals `500✦` in a circular `1.75` tile radius AOE with distance falloff and applies `2s` Stasis to ordinary enemies hit | +`400✦` damage per level |
 
 Volley upgrades spread consecutive shots or heals across a fixed total volley duration of `interval / 5`, regardless of shot count. The attack/heal interval itself is unchanged and starts after the volley finishes.
 
@@ -1459,7 +1477,7 @@ Base rule:
 
 - Starting characters: `500`.
 - Wave 1 starts at weight cap `25`.
-- Wave 2 adds `+4`; each later wave also adds `+4`.
+- Wave 2 adds `+18`; each later increment grows by `+4` (`+22`, `+26`, ...).
 - Every flag wave, currently every `10`th wave, doubles that wave's final cap.
 - A wave may leave unused weight, but never exceeds its cap.
 - Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
@@ -1470,15 +1488,15 @@ Base rule:
 | Wave | Flag | Base Cap | Final Cap |
 | ---: | ---: | ---: | ---: |
 | 1 | - | 25 | 25 |
-| 2 | - | 29 | 29 |
-| 3 | - | 33 | 33 |
-| 4 | - | 37 | 37 |
-| 5 | - | 41 | 41 |
-| 6 | - | 45 | 45 |
-| 7 | - | 49 | 49 |
-| 8 | - | 53 | 53 |
-| 9 | - | 57 | 57 |
-| 10 | 1 | 61 | 122 |
+| 2 | - | 43 | 43 |
+| 3 | - | 65 | 65 |
+| 4 | - | 91 | 91 |
+| 5 | - | 121 | 121 |
+| 6 | - | 155 | 155 |
+| 7 | - | 193 | 193 |
+| 8 | - | 235 | 235 |
+| 9 | - | 281 | 281 |
+| 10 | 1 | 331 | 662 |
 
 ## Level 3-2 Weight Growth
 
@@ -1494,7 +1512,7 @@ Base rule:
 
 - Starting characters: `500`.
 - Wave 1 starts at weight cap `25`.
-- Wave 2 adds `+4`; each later wave also adds `+4`.
+- Wave 2 adds `+18`; each later increment grows by `+4` (`+22`, `+26`, ...).
 - Every flag wave, currently every `10`th wave, doubles that wave's final cap.
 - A wave may leave unused weight, but never exceeds its cap.
 - Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
@@ -1504,25 +1522,25 @@ Base rule:
 | Wave | Flag | Base Cap | Final Cap |
 | ---: | ---: | ---: | ---: |
 | 1 | - | 25 | 25 |
-| 2 | - | 29 | 29 |
-| 3 | - | 33 | 33 |
-| 4 | - | 37 | 37 |
-| 5 | - | 41 | 41 |
-| 6 | - | 45 | 45 |
-| 7 | - | 49 | 49 |
-| 8 | - | 53 | 53 |
-| 9 | - | 57 | 57 |
-| 10 | 1 | 61 | 122 |
-| 11 | - | 65 | 65 |
-| 12 | - | 69 | 69 |
-| 13 | - | 73 | 73 |
-| 14 | - | 77 | 77 |
-| 15 | - | 81 | 81 |
-| 16 | - | 85 | 85 |
-| 17 | - | 89 | 89 |
-| 18 | - | 93 | 93 |
-| 19 | - | 97 | 97 |
-| 20 | 2 | 101 | 202 |
+| 2 | - | 43 | 43 |
+| 3 | - | 65 | 65 |
+| 4 | - | 91 | 91 |
+| 5 | - | 121 | 121 |
+| 6 | - | 155 | 155 |
+| 7 | - | 193 | 193 |
+| 8 | - | 235 | 235 |
+| 9 | - | 281 | 281 |
+| 10 | 1 | 331 | 662 |
+| 11 | - | 385 | 385 |
+| 12 | - | 443 | 443 |
+| 13 | - | 505 | 505 |
+| 14 | - | 571 | 571 |
+| 15 | - | 641 | 641 |
+| 16 | - | 715 | 715 |
+| 17 | - | 793 | 793 |
+| 18 | - | 875 | 875 |
+| 19 | - | 961 | 961 |
+| 20 | 2 | 1051 | 2102 |
 
 ## Level 3-6 Weight Growth
 
@@ -1540,7 +1558,7 @@ Base rule:
 
 - Starting characters: `500`.
 - Wave 1 starts at weight cap `25`.
-- Wave 2 adds `+4`; each later wave also adds `+4`.
+- Wave 2 adds `+18`; each later increment grows by `+4` (`+22`, `+26`, ...).
 - Every flag wave, currently every `10`th wave, doubles that wave's final cap.
 - A wave may leave unused weight, but never exceeds its cap.
 - Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
@@ -1551,25 +1569,25 @@ Base rule:
 | Wave | Flag | Base Cap | Final Cap |
 | ---: | ---: | ---: | ---: |
 | 1 | - | 25 | 25 |
-| 2 | - | 29 | 29 |
-| 3 | - | 33 | 33 |
-| 4 | - | 37 | 37 |
-| 5 | - | 41 | 41 |
-| 6 | - | 45 | 45 |
-| 7 | - | 49 | 49 |
-| 8 | - | 53 | 53 |
-| 9 | - | 57 | 57 |
-| 10 | 1 | 61 | 122 |
-| 11 | - | 65 | 65 |
-| 12 | - | 69 | 69 |
-| 13 | - | 73 | 73 |
-| 14 | - | 77 | 77 |
-| 15 | - | 81 | 81 |
-| 16 | - | 85 | 85 |
-| 17 | - | 89 | 89 |
-| 18 | - | 93 | 93 |
-| 19 | - | 97 | 97 |
-| 20 | 2 | 101 | 202 |
+| 2 | - | 43 | 43 |
+| 3 | - | 65 | 65 |
+| 4 | - | 91 | 91 |
+| 5 | - | 121 | 121 |
+| 6 | - | 155 | 155 |
+| 7 | - | 193 | 193 |
+| 8 | - | 235 | 235 |
+| 9 | - | 281 | 281 |
+| 10 | 1 | 331 | 662 |
+| 11 | - | 385 | 385 |
+| 12 | - | 443 | 443 |
+| 13 | - | 505 | 505 |
+| 14 | - | 571 | 571 |
+| 15 | - | 641 | 641 |
+| 16 | - | 715 | 715 |
+| 17 | - | 793 | 793 |
+| 18 | - | 875 | 875 |
+| 19 | - | 961 | 961 |
+| 20 | 2 | 1051 | 2102 |
 
 ## Level 3-3 Weight Growth
 
@@ -1585,7 +1603,7 @@ Base rule:
 
 - Starting characters: `500`.
 - Wave 1 starts at weight cap `25`.
-- Wave 2 adds `+4`; each later wave also adds `+4`.
+- Wave 2 adds `+18`; each later increment grows by `+4` (`+22`, `+26`, ...).
 - Every flag wave, currently every `10`th wave, doubles that wave's final cap.
 - A wave may leave unused weight, but never exceeds its cap.
 - Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
@@ -1595,15 +1613,15 @@ Base rule:
 | Wave | Flag | Base Cap | Final Cap |
 | ---: | ---: | ---: | ---: |
 | 1 | - | 25 | 25 |
-| 2 | - | 29 | 29 |
-| 3 | - | 33 | 33 |
-| 4 | - | 37 | 37 |
-| 5 | - | 41 | 41 |
-| 6 | - | 45 | 45 |
-| 7 | - | 49 | 49 |
-| 8 | - | 53 | 53 |
-| 9 | - | 57 | 57 |
-| 10 | 1 | 61 | 122 |
+| 2 | - | 43 | 43 |
+| 3 | - | 65 | 65 |
+| 4 | - | 91 | 91 |
+| 5 | - | 121 | 121 |
+| 6 | - | 155 | 155 |
+| 7 | - | 193 | 193 |
+| 8 | - | 235 | 235 |
+| 9 | - | 281 | 281 |
+| 10 | 1 | 331 | 662 |
 
 ## Level 3-4 Weight Growth
 
@@ -1620,7 +1638,7 @@ Base rule:
 
 - Starting characters: `500`.
 - Wave 1 starts at weight cap `25`.
-- Wave 2 adds `+4`; each later wave also adds `+4`.
+- Wave 2 adds `+18`; each later increment grows by `+4` (`+22`, `+26`, ...).
 - Every flag wave, currently every `10`th wave, doubles that wave's final cap.
 - A wave may leave unused weight, but never exceeds its cap.
 - Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
@@ -1631,25 +1649,25 @@ Base rule:
 | Wave | Flag | Base Cap | Final Cap |
 | ---: | ---: | ---: | ---: |
 | 1 | - | 25 | 25 |
-| 2 | - | 29 | 29 |
-| 3 | - | 33 | 33 |
-| 4 | - | 37 | 37 |
-| 5 | - | 41 | 41 |
-| 6 | - | 45 | 45 |
-| 7 | - | 49 | 49 |
-| 8 | - | 53 | 53 |
-| 9 | - | 57 | 57 |
-| 10 | 1 | 61 | 122 |
-| 11 | - | 65 | 65 |
-| 12 | - | 69 | 69 |
-| 13 | - | 73 | 73 |
-| 14 | - | 77 | 77 |
-| 15 | - | 81 | 81 |
-| 16 | - | 85 | 85 |
-| 17 | - | 89 | 89 |
-| 18 | - | 93 | 93 |
-| 19 | - | 97 | 97 |
-| 20 | 2 | 101 | 202 |
+| 2 | - | 43 | 43 |
+| 3 | - | 65 | 65 |
+| 4 | - | 91 | 91 |
+| 5 | - | 121 | 121 |
+| 6 | - | 155 | 155 |
+| 7 | - | 193 | 193 |
+| 8 | - | 235 | 235 |
+| 9 | - | 281 | 281 |
+| 10 | 1 | 331 | 662 |
+| 11 | - | 385 | 385 |
+| 12 | - | 443 | 443 |
+| 13 | - | 505 | 505 |
+| 14 | - | 571 | 571 |
+| 15 | - | 641 | 641 |
+| 16 | - | 715 | 715 |
+| 17 | - | 793 | 793 |
+| 18 | - | 875 | 875 |
+| 19 | - | 961 | 961 |
+| 20 | 2 | 1051 | 2102 |
 
 ## Level 3-5 Weight Growth
 
@@ -1667,7 +1685,7 @@ Base rule:
 
 - Starting characters: `500`.
 - Wave 1 starts at weight cap `25`.
-- Wave 2 adds `+4`; each later wave also adds `+4`.
+- Wave 2 adds `+18`; each later increment grows by `+4` (`+22`, `+26`, ...).
 - Every flag wave, currently every `10`th wave, doubles that wave's final cap.
 - A wave may leave unused weight, but never exceeds its cap.
 - Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
@@ -1678,25 +1696,25 @@ Base rule:
 | Wave | Flag | Base Cap | Final Cap |
 | ---: | ---: | ---: | ---: |
 | 1 | - | 25 | 25 |
-| 2 | - | 29 | 29 |
-| 3 | - | 33 | 33 |
-| 4 | - | 37 | 37 |
-| 5 | - | 41 | 41 |
-| 6 | - | 45 | 45 |
-| 7 | - | 49 | 49 |
-| 8 | - | 53 | 53 |
-| 9 | - | 57 | 57 |
-| 10 | 1 | 61 | 122 |
-| 11 | - | 65 | 65 |
-| 12 | - | 69 | 69 |
-| 13 | - | 73 | 73 |
-| 14 | - | 77 | 77 |
-| 15 | - | 81 | 81 |
-| 16 | - | 85 | 85 |
-| 17 | - | 89 | 89 |
-| 18 | - | 93 | 93 |
-| 19 | - | 97 | 97 |
-| 20 | 2 | 101 | 202 |
+| 2 | - | 43 | 43 |
+| 3 | - | 65 | 65 |
+| 4 | - | 91 | 91 |
+| 5 | - | 121 | 121 |
+| 6 | - | 155 | 155 |
+| 7 | - | 193 | 193 |
+| 8 | - | 235 | 235 |
+| 9 | - | 281 | 281 |
+| 10 | 1 | 331 | 662 |
+| 11 | - | 385 | 385 |
+| 12 | - | 443 | 443 |
+| 13 | - | 505 | 505 |
+| 14 | - | 571 | 571 |
+| 15 | - | 641 | 641 |
+| 16 | - | 715 | 715 |
+| 17 | - | 793 | 793 |
+| 18 | - | 875 | 875 |
+| 19 | - | 961 | 961 |
+| 20 | 2 | 1051 | 2102 |
 
 ## Level 3-7 Weight Growth
 
@@ -1722,7 +1740,7 @@ Base rule:
 
 - Starting characters: `500`.
 - Wave 1 starts at weight cap `25`.
-- Wave 2 adds `+4`; each later wave also adds `+4`.
+- Wave 2 adds `+18`; each later increment grows by `+4` (`+22`, `+26`, ...).
 - Every flag wave, currently every `10`th wave, doubles that wave's final cap.
 - A wave may leave unused weight, but never exceeds its cap.
 - Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
@@ -1733,35 +1751,228 @@ Base rule:
 | Wave | Flag | Base Cap | Final Cap |
 | ---: | ---: | ---: | ---: |
 | 1 | - | 25 | 25 |
-| 2 | - | 29 | 29 |
-| 3 | - | 33 | 33 |
-| 4 | - | 37 | 37 |
-| 5 | - | 41 | 41 |
-| 6 | - | 45 | 45 |
-| 7 | - | 49 | 49 |
-| 8 | - | 53 | 53 |
-| 9 | - | 57 | 57 |
-| 10 | 1 | 61 | 122 |
-| 11 | - | 65 | 65 |
-| 12 | - | 69 | 69 |
-| 13 | - | 73 | 73 |
-| 14 | - | 77 | 77 |
-| 15 | - | 81 | 81 |
-| 16 | - | 85 | 85 |
-| 17 | - | 89 | 89 |
-| 18 | - | 93 | 93 |
-| 19 | - | 97 | 97 |
-| 20 | 2 | 101 | 202 |
-| 21 | - | 105 | 105 |
-| 22 | - | 109 | 109 |
-| 23 | - | 113 | 113 |
-| 24 | - | 117 | 117 |
-| 25 | - | 121 | 121 |
-| 26 | - | 125 | 125 |
-| 27 | - | 129 | 129 |
-| 28 | - | 133 | 133 |
-| 29 | - | 137 | 137 |
-| 30 | 3 | 141 | 282 |
+| 2 | - | 43 | 43 |
+| 3 | - | 65 | 65 |
+| 4 | - | 91 | 91 |
+| 5 | - | 121 | 121 |
+| 6 | - | 155 | 155 |
+| 7 | - | 193 | 193 |
+| 8 | - | 235 | 235 |
+| 9 | - | 281 | 281 |
+| 10 | 1 | 331 | 662 |
+| 11 | - | 385 | 385 |
+| 12 | - | 443 | 443 |
+| 13 | - | 505 | 505 |
+| 14 | - | 571 | 571 |
+| 15 | - | 641 | 641 |
+| 16 | - | 715 | 715 |
+| 17 | - | 793 | 793 |
+| 18 | - | 875 | 875 |
+| 19 | - | 961 | 961 |
+| 20 | 2 | 1051 | 2102 |
+| 21 | - | 1145 | 1145 |
+| 22 | - | 1243 | 1243 |
+| 23 | - | 1345 | 1345 |
+| 24 | - | 1451 | 1451 |
+| 25 | - | 1561 | 1561 |
+| 26 | - | 1675 | 1675 |
+| 27 | - | 1793 | 1793 |
+| 28 | - | 1915 | 1915 |
+| 29 | - | 2041 | 2041 |
+| 30 | 3 | 2171 | 4342 |
+
+## Level 3-8 Weight Growth
+
+Enemy pool:
+
+- Circle 1
+- Triangle 1
+- Triangle 2
+- Triangle 3
+- Trapezoid 1
+- Diamond 1
+- Angel Pentagon 1
+- Pentagon 1
+- Hex Spell Bulwark 1
+
+Base rule:
+
+- Starting characters: `500`.
+- Wave 1 starts at weight cap `25`.
+- Wave 2 adds `+18`; each later increment grows by `+4` (`+22`, `+26`, ...).
+- Every flag wave, currently every `10`th wave, doubles that wave's final cap.
+- A wave may leave unused weight, but never exceeds its cap.
+- Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
+- The level has `30` total waves.
+- Diamond 1, Angel Pentagon 1, and Pentagon 1 have a minimum Flag 1 gate, so they can first enter the random pool on wave 10.
+- Hex Spell Bulwark 1 is a leader enemy and fixed-spawns once on flag waves if included in the level pool; it does not consume wave weight.
+
+| Wave | Flag | Base Cap | Final Cap |
+| ---: | ---: | ---: | ---: |
+| 1 | - | 25 | 25 |
+| 2 | - | 43 | 43 |
+| 3 | - | 65 | 65 |
+| 4 | - | 91 | 91 |
+| 5 | - | 121 | 121 |
+| 6 | - | 155 | 155 |
+| 7 | - | 193 | 193 |
+| 8 | - | 235 | 235 |
+| 9 | - | 281 | 281 |
+| 10 | 1 | 331 | 662 |
+| 11 | - | 385 | 385 |
+| 12 | - | 443 | 443 |
+| 13 | - | 505 | 505 |
+| 14 | - | 571 | 571 |
+| 15 | - | 641 | 641 |
+| 16 | - | 715 | 715 |
+| 17 | - | 793 | 793 |
+| 18 | - | 875 | 875 |
+| 19 | - | 961 | 961 |
+| 20 | 2 | 1051 | 2102 |
+| 21 | - | 1145 | 1145 |
+| 22 | - | 1243 | 1243 |
+| 23 | - | 1345 | 1345 |
+| 24 | - | 1451 | 1451 |
+| 25 | - | 1561 | 1561 |
+| 26 | - | 1675 | 1675 |
+| 27 | - | 1793 | 1793 |
+| 28 | - | 1915 | 1915 |
+| 29 | - | 2041 | 2041 |
+| 30 | 3 | 2171 | 4342 |
+
+## Level 3-9 Weight Growth
+
+Enemy pool:
+
+- Circle 1
+- Circle 2
+- Circle 3
+- Triangle 1
+- Triangle 2
+- Triangle 3
+- Square 1
+- Trapezoid 1
+- Triangle Mortar 1
+- Pentagon 1
+- Burrow Arrow 1
+
+Base rule:
+
+- Starting characters: `500`.
+- Wave 1 starts at weight cap `25`.
+- Wave 2 adds `+18`; each later increment grows by `+4` (`+22`, `+26`, ...).
+- Every flag wave, currently every `10`th wave, doubles that wave's final cap.
+- A wave may leave unused weight, but never exceeds its cap.
+- Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
+- The level has `30` total waves.
+- Triangle Mortar 1 and Pentagon 1 have a minimum Flag 1 gate, so they can first enter the random pool on wave 10.
+- Burrow Arrow 1 is a leader enemy and fixed-spawns once on flag waves if included in the level pool; it does not consume wave weight.
+
+| Wave | Flag | Base Cap | Final Cap |
+| ---: | ---: | ---: | ---: |
+| 1 | - | 25 | 25 |
+| 2 | - | 43 | 43 |
+| 3 | - | 65 | 65 |
+| 4 | - | 91 | 91 |
+| 5 | - | 121 | 121 |
+| 6 | - | 155 | 155 |
+| 7 | - | 193 | 193 |
+| 8 | - | 235 | 235 |
+| 9 | - | 281 | 281 |
+| 10 | 1 | 331 | 662 |
+| 11 | - | 385 | 385 |
+| 12 | - | 443 | 443 |
+| 13 | - | 505 | 505 |
+| 14 | - | 571 | 571 |
+| 15 | - | 641 | 641 |
+| 16 | - | 715 | 715 |
+| 17 | - | 793 | 793 |
+| 18 | - | 875 | 875 |
+| 19 | - | 961 | 961 |
+| 20 | 2 | 1051 | 2102 |
+| 21 | - | 1145 | 1145 |
+| 22 | - | 1243 | 1243 |
+| 23 | - | 1345 | 1345 |
+| 24 | - | 1451 | 1451 |
+| 25 | - | 1561 | 1561 |
+| 26 | - | 1675 | 1675 |
+| 27 | - | 1793 | 1793 |
+| 28 | - | 1915 | 1915 |
+| 29 | - | 2041 | 2041 |
+| 30 | 3 | 2171 | 4342 |
+
+## Level 3-10 Weight Growth
+
+Enemy pool:
+
+- Circle 1
+- Circle 3
+- Triangle 1
+- Triangle 2
+- Triangle 3
+- Square 1
+- Trapezoid 1
+- Triangle Ram 3
+- Angel Pentagon Ram 1
+- Hex Mace 1
+- Shooting Triangle 1
+- Diamond 1
+- Angel Pentagon 1
+- Heart 1
+- Burrow Arrow 1
+- Slope Triangle 1
+- Hex Spell Bulwark 1
+- Archangel Heptagon 1
+
+Boss:
+
+- Octahedron I
+
+Base rule:
+
+- Starting characters: `1500`.
+- Wave 1 starts at weight cap `25`.
+- Wave 2 adds `+18`; each later increment grows by `+4` (`+22`, `+26`, ...).
+- Every flag wave, currently every `10`th wave, doubles that wave's final cap.
+- This Boss stage caps pre-difficulty wave weight at `1000`.
+- A wave may leave unused weight, but never exceeds its cap.
+- Difficulty modifies the final cap after flag doubling and the Boss-stage cap. The result is floored and never lower than `10`.
+- Boss stage: endless waves until Octahedron I dies or a base-threatening Octahedron body reaches the base.
+- Diamond 1, Angel Pentagon 1, Angel Pentagon Ram 1, and Hex Mace 1 have a minimum Flag 1 gate, so they can first enter the random pool on wave 10.
+- Heart 1, Burrow Arrow 1, Slope Triangle 1, Hex Spell Bulwark 1, and Archangel Heptagon 1 are leader enemies and fixed-spawn once each on flag waves if included in the level pool; they do not consume wave weight.
+
+| Wave | Flag | Base Cap | Final Cap |
+| ---: | ---: | ---: | ---: |
+| 1 | - | 25 | 25 |
+| 2 | - | 43 | 43 |
+| 3 | - | 65 | 65 |
+| 4 | - | 91 | 91 |
+| 5 | - | 121 | 121 |
+| 6 | - | 155 | 155 |
+| 7 | - | 193 | 193 |
+| 8 | - | 235 | 235 |
+| 9 | - | 281 | 281 |
+| 10 | 1 | 331 | 662 |
+| 11 | - | 385 | 385 |
+| 12 | - | 443 | 443 |
+| 13 | - | 505 | 505 |
+| 14 | - | 571 | 571 |
+| 15 | - | 641 | 641 |
+| 16 | - | 715 | 715 |
+| 17 | - | 793 | 793 |
+| 18 | - | 875 | 875 |
+| 19 | - | 961 | 961 |
+| 20 | 2 | 1051 | 1000 |
+| 21 | - | 1145 | 1000 |
+| 22 | - | 1243 | 1000 |
+| 23 | - | 1345 | 1000 |
+| 24 | - | 1451 | 1000 |
+| 25 | - | 1561 | 1000 |
+| 26 | - | 1675 | 1000 |
+| 27 | - | 1793 | 1000 |
+| 28 | - | 1915 | 1000 |
+| 29 | - | 2041 | 1000 |
+| 30 | 3 | 2171 | 1000 |
 
 ## Spawn Trigger
 
@@ -1798,6 +2009,7 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 - Chapter 2 starting characters: `350`.
 - Chapter 2 Boss stage 2-10 starting characters: `500`.
 - Chapter 3 starting characters: `500`.
+- Chapter 3 Boss stage 3-10 starting characters: `1500`.
 - Natural income: `25` every `5s`.
 
 ## Recent Enemy Additions

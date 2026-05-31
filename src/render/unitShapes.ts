@@ -2,6 +2,8 @@ import Phaser from "phaser";
 import {
   DODECAHEDRON_EDGES,
   DODECAHEDRON_UNIT_VERTICES,
+  OCTAHEDRON_EDGES,
+  OCTAHEDRON_UNIT_VERTICES,
   SMALL_STELLATED_DODECAHEDRON_SPIKES
 } from "../bosses/cubeBoss";
 import { palette } from "../config";
@@ -98,6 +100,15 @@ export function createEnemyShape(scene: Phaser.Scene, kind: EnemyKind, options: 
     const circle = scene.add.circle(0, 0, 20, palette.black, 1).setStrokeStyle(2, palette.white, 1);
     const label = createEnemyLabel(scene, 0, -1, kind);
     shape.add([circle, label]);
+    return shape;
+  }
+
+  if (family === "solarBomb") {
+    const shape = scene.add.container(0, 0);
+    const frame = scene.add.graphics();
+    drawSolarBombFrame(frame, palette.white);
+    shape.setData("solarBombFrame", frame);
+    shape.add(frame);
     return shape;
   }
 
@@ -517,6 +528,24 @@ export function createEnemyShape(scene: Phaser.Scene, kind: EnemyKind, options: 
     return shape;
   }
 
+  if (family === "trapezoid") {
+    const shape = scene.add.container(0, 0);
+    const trapezoid = scene.add.graphics();
+    trapezoid.fillStyle(palette.black, 1);
+    trapezoid.lineStyle(2, palette.white, 1);
+    trapezoid.beginPath();
+    trapezoid.moveTo(-18, -22);
+    trapezoid.lineTo(18, -22);
+    trapezoid.lineTo(28, 22);
+    trapezoid.lineTo(-28, 22);
+    trapezoid.closePath();
+    trapezoid.fillPath();
+    trapezoid.strokePath();
+    const label = createEnemyLabel(scene, 0, -1, kind);
+    shape.add([trapezoid, label]);
+    return shape;
+  }
+
   const shape = scene.add.container(0, 0);
   const triangle = scene.add.graphics();
   triangle.fillStyle(palette.black, 1);
@@ -694,6 +723,65 @@ export function createSmallStellatedDodecahedronIcon(scene: Phaser.Scene) {
     .setOrigin(0.5);
   icon.add([frame, label]);
   return icon;
+}
+
+export function createOctahedronIcon(scene: Phaser.Scene) {
+  const icon = scene.add.container(0, 0);
+  const frame = scene.add.graphics();
+  const vertices = OCTAHEDRON_UNIT_VERTICES.map(([x, y, z]) =>
+    projectIconPoint(x * 23, y * 23, z * 23, -0.42, 0.62, -0.12)
+  );
+
+  frame.lineStyle(1.8, palette.white, 0.95);
+  for (const [from, to] of OCTAHEDRON_EDGES) {
+    frame.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
+  }
+
+  const label = scene.add
+    .text(0, 0, toRomanNumeral(1), {
+      color: "#f5f5f5",
+      fontFamily: "monospace",
+      fontSize: "14px",
+      fontStyle: "700"
+    })
+    .setOrigin(0.5);
+  icon.add([frame, label]);
+  return icon;
+}
+
+export function syncSolarBombShape(shape: Phaser.GameObjects.GameObject, color: number) {
+  const frame = shape.getData("solarBombFrame") as Phaser.GameObjects.Graphics | undefined;
+  if (!frame) {
+    return;
+  }
+
+  frame.clear();
+  drawSolarBombFrame(frame, color);
+}
+
+function drawSolarBombFrame(frame: Phaser.GameObjects.Graphics, color: number) {
+  const triangleRadius = 38;
+  const circleRadius = 24;
+  frame.fillStyle(palette.black, 1);
+  frame.lineStyle(2, color, 1);
+  frame.beginPath();
+  for (let index = 0; index < 3; index += 1) {
+    const angle = Phaser.Math.DegToRad(-90 + index * 120);
+    const x = Math.cos(angle) * triangleRadius;
+    const y = Math.sin(angle) * triangleRadius;
+    if (index === 0) {
+      frame.moveTo(x, y);
+    } else {
+      frame.lineTo(x, y);
+    }
+  }
+  frame.closePath();
+  frame.fillPath();
+  frame.strokePath();
+  frame.fillStyle(palette.black, 1);
+  frame.lineStyle(2, color, 1);
+  frame.fillCircle(0, 0, circleRadius);
+  frame.strokeCircle(0, 0, circleRadius);
 }
 
 function projectIconPoint(x: number, y: number, z: number, rotationX: number, rotationY: number, rotationZ: number) {

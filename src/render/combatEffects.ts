@@ -2,6 +2,8 @@ import Phaser from "phaser";
 import {
   DODECAHEDRON_EDGES,
   DODECAHEDRON_UNIT_VERTICES,
+  OCTAHEDRON_EDGES,
+  OCTAHEDRON_UNIT_VERTICES,
   SMALL_STELLATED_DODECAHEDRON_SPIKES
 } from "../bosses/cubeBoss";
 import { BOSS_HITBOX_HEIGHT, BOSS_HITBOX_WIDTH, CELL_HEIGHT, palette } from "../config";
@@ -59,6 +61,34 @@ export function makeEnemyHitShards(scene: Phaser.Scene, x: number, y: number) {
   }
 }
 
+export function makeSolarBombCollisionEffect(scene: Phaser.Scene, x: number, y: number) {
+  const ring = scene.add.circle(x, y, 9, palette.black, 0).setStrokeStyle(2, palette.gold, 0.95).setDepth(112);
+  for (let index = 0; index < 6; index += 1) {
+    const angle = (Math.PI * 2 * index) / 6 + Phaser.Math.FloatBetween(-0.18, 0.18);
+    const distance = Phaser.Math.Between(10, 22);
+    const shard = scene.add.rectangle(x, y, Phaser.Math.Between(3, 7), 2, palette.gold, 1).setDepth(113);
+    shard.rotation = angle;
+    scene.tweens.add({
+      targets: shard,
+      x: x + Math.cos(angle) * distance,
+      y: y + Math.sin(angle) * distance,
+      alpha: 0,
+      duration: 180,
+      ease: "Quad.easeOut",
+      onComplete: () => shard.destroy()
+    });
+  }
+
+  scene.tweens.add({
+    targets: ring,
+    scale: 1.8,
+    alpha: 0,
+    duration: 160,
+    ease: "Quad.easeOut",
+    onComplete: () => ring.destroy()
+  });
+}
+
 export function makeEnemyLaserEffect(scene: Phaser.Scene, fromX: number, y: number, toX: number) {
   const beam = scene.add.graphics().setDepth(109);
   beam.lineStyle(11, palette.enemyShot, 0.18);
@@ -70,6 +100,38 @@ export function makeEnemyLaserEffect(scene: Phaser.Scene, fromX: number, y: numb
 
   const emitter = scene.add.circle(fromX, y, 8, palette.black, 0).setStrokeStyle(3, palette.enemyShot, 0.92).setDepth(110);
   const endpoint = scene.add.circle(toX, y, 10, palette.black, 0).setStrokeStyle(2, palette.enemyShot, 0.72).setDepth(110);
+
+  scene.tweens.add({
+    targets: beam,
+    alpha: 0,
+    duration: 120,
+    ease: "Quad.easeOut",
+    onComplete: () => beam.destroy()
+  });
+  scene.tweens.add({
+    targets: [emitter, endpoint],
+    scale: 1.8,
+    alpha: 0,
+    duration: 160,
+    ease: "Quad.easeOut",
+    onComplete: () => {
+      emitter.destroy();
+      endpoint.destroy();
+    }
+  });
+}
+
+export function makeTowerLaserEffect(scene: Phaser.Scene, fromX: number, y: number, toX: number) {
+  const beam = scene.add.graphics().setDepth(109);
+  beam.lineStyle(11, palette.magic, 0.16);
+  beam.lineBetween(fromX, y, toX, y);
+  beam.lineStyle(6, palette.magic, 0.72);
+  beam.lineBetween(fromX, y, toX, y);
+  beam.lineStyle(2, palette.white, 0.9);
+  beam.lineBetween(fromX, y, toX, y);
+
+  const emitter = scene.add.circle(fromX, y, 8, palette.black, 0).setStrokeStyle(3, palette.magic, 0.92).setDepth(110);
+  const endpoint = scene.add.circle(toX, y, 10, palette.black, 0).setStrokeStyle(2, palette.magic, 0.72).setDepth(110);
 
   scene.tweens.add({
     targets: beam,
@@ -388,6 +450,37 @@ export function makeStasisEffect(scene: Phaser.Scene, x: number, y: number) {
   });
 }
 
+export function makeSunderEffect(scene: Phaser.Scene, x: number, y: number) {
+  const ring = scene.add.circle(x, y, 18, palette.black, 0).setStrokeStyle(2, palette.white, 0.95);
+  const marker = scene.add
+    .text(x, y - 1, "▣", {
+      color: "#f5f5f5",
+      fontFamily: "monospace",
+      fontSize: "18px",
+      fontStyle: "700"
+    })
+    .setOrigin(0.5);
+  ring.setDepth(109);
+  marker.setDepth(110);
+
+  scene.tweens.add({
+    targets: ring,
+    scale: 1.7,
+    alpha: 0,
+    duration: 240,
+    ease: "Quad.easeOut",
+    onComplete: () => ring.destroy()
+  });
+  scene.tweens.add({
+    targets: marker,
+    y: y - 18,
+    alpha: 0,
+    duration: 300,
+    ease: "Quad.easeOut",
+    onComplete: () => marker.destroy()
+  });
+}
+
 export function makeHasteTrail(scene: Phaser.Scene, x: number, y: number) {
   const trail = scene.add.graphics().setDepth(58);
   trail.lineStyle(2, palette.magic, 0.72);
@@ -512,11 +605,22 @@ export function makeSmallStellatedDodecahedronCollapse(
   makePolyhedronCollapse(scene, x, y, "smallStellatedDodecahedron", followTarget, activeEnemies, activeTowers);
 }
 
+export function makeOctahedronCollapse(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  followTarget?: Enemy | Tower,
+  activeEnemies: Enemy[] = [],
+  activeTowers: Tower[] = []
+) {
+  makePolyhedronCollapse(scene, x, y, "octahedron", followTarget, activeEnemies, activeTowers);
+}
+
 function makePolyhedronCollapse(
   scene: Phaser.Scene,
   x: number,
   y: number,
-  shape: "cube" | "tetrahedron" | "dodecahedron" | "smallStellatedDodecahedron",
+  shape: "cube" | "tetrahedron" | "dodecahedron" | "smallStellatedDodecahedron" | "octahedron",
   followTarget?: Enemy | Tower,
   activeEnemies: Enemy[] = [],
   activeTowers: Tower[] = []
@@ -529,6 +633,8 @@ function makePolyhedronCollapse(
     drawProjectedTetrahedron(collapse, 39, rotation);
   } else if (shape === "dodecahedron") {
     drawProjectedDodecahedron(collapse, 29, rotation);
+  } else if (shape === "octahedron") {
+    drawProjectedOctahedron(collapse, 40, rotation);
   } else {
     drawProjectedSmallStellatedDodecahedron(collapse, 21, rotation);
   }
@@ -624,6 +730,17 @@ function drawProjectedDodecahedron(graphics: Phaser.GameObjects.Graphics, size: 
 
   graphics.lineStyle(2, palette.white, 0.86);
   for (const [from, to] of DODECAHEDRON_EDGES) {
+    graphics.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
+  }
+}
+
+function drawProjectedOctahedron(graphics: Phaser.GameObjects.Graphics, size: number, rotation: CollapseRotation) {
+  const vertices = OCTAHEDRON_UNIT_VERTICES.map(([x, y, z]) =>
+    projectCollapsePoint(x * size, y * size, z * size, rotation)
+  );
+
+  graphics.lineStyle(2, palette.white, 0.9);
+  for (const [from, to] of OCTAHEDRON_EDGES) {
     graphics.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
   }
 }

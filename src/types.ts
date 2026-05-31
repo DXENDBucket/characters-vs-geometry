@@ -8,6 +8,7 @@ export type CardId =
   | "C"
   | "c"
   | "D"
+  | "d"
   | "O"
   | "R"
   | "X"
@@ -71,6 +72,8 @@ export type EnemyKind =
   | "shootingTriangle"
   | "shootingTriangle2"
   | "dodecahedronCompanion"
+  | "trapezoid"
+  | "solarBomb"
   | "square"
   | "square2"
   | "square3";
@@ -80,7 +83,8 @@ export type BossKind =
   | "tetrahedron"
   | "tetrahedron2"
   | "dodecahedron"
-  | "smallStellatedDodecahedron";
+  | "smallStellatedDodecahedron"
+  | "octahedron";
 export type BossSkillName =
   | "promotion"
   | "advance"
@@ -93,7 +97,7 @@ export type BossSkillName =
 export type ProjectileKind = "bolt" | "shell" | "star" | "hash" | "dollar" | "chevron";
 export type UnitCategory = "production" | "attack" | "defense" | "function" | "healing";
 export type DamageType = "physical" | "magic" | "true";
-export type StatusEffectName = "stasis" | "haste" | "power" | "flying" | "invincible" | "highFlying";
+export type StatusEffectName = "stasis" | "haste" | "power" | "flying" | "invincible" | "highFlying" | "sunder";
 export type BossCompanionActionPhase = "laser" | "mortar" | "wings";
 export type AlphaGameObject = Phaser.GameObjects.GameObject & { setAlpha(alpha: number): unknown };
 
@@ -106,7 +110,7 @@ export interface TowerBaseStats {
   maxHp: number;
   armor: number;
   magicResistance: number;
-  fireRate: number;
+  attackSpeed?: number;
   damage?: number;
   damageType?: DamageType;
 }
@@ -121,6 +125,7 @@ export interface EnemyBaseStats {
   damage: number;
   damageType: DamageType;
   finalDamageReduction: number;
+  attackSpeed: number;
   attackInterval: number;
 }
 
@@ -144,7 +149,7 @@ export interface CardDefinition {
   maxHp: number;
   armor?: number;
   magicResistance?: number;
-  fireRate?: number;
+  attackSpeed?: number;
   damage?: number;
   damageType?: DamageType;
   rangeCells?: number;
@@ -215,7 +220,7 @@ export interface Tower {
   baseMaxHp: number;
   armor: number;
   magicResistance: number;
-  fireRate: number;
+  attackSpeed?: number;
   lastFire: number;
   level: number;
   levelBonus: number;
@@ -260,6 +265,10 @@ export interface Enemy {
   movementDirection?: -1 | 1;
   maceVelocity?: number;
   maceFacingDirection?: -1 | 1;
+  solarBombVelocityX?: number;
+  solarBombVelocityY?: number;
+  solarBombDepleted?: boolean;
+  solarBombLastCollisionAt?: number;
   burrowAt?: number;
   burrowed?: boolean;
   burrowUnloaded?: boolean;
@@ -275,6 +284,7 @@ export interface Enemy {
   damage: number;
   damageType: DamageType;
   finalDamageReduction: number;
+  attackSpeed: number;
   attackInterval: number;
   attackAt: number;
   blockedByTowerId?: string;
@@ -284,6 +294,7 @@ export interface Enemy {
   statusEffects: StatusEffect[];
   statusBorder: Phaser.GameObjects.Arc;
   powerIcon: Phaser.GameObjects.Text;
+  sunderIcon: Phaser.GameObjects.Text;
   armorIcon: Phaser.GameObjects.Text;
   magicResistanceIcon: Phaser.GameObjects.Text;
   flyingHalo: Phaser.GameObjects.Ellipse;
@@ -312,6 +323,7 @@ export interface Projectile {
   maxX: number;
   limitDirection: -1 | 1;
   targetEnemy?: Enemy;
+  sourceTower?: Tower;
   speed?: number;
   acceleration?: number;
   maxSpeed?: number;
@@ -346,6 +358,7 @@ export interface MortarProjectile {
   markerText?: string;
   markerTextColor?: string;
   sourceEnemy?: Enemy;
+  sourceTower?: Tower;
   targetEnemy?: Enemy;
   targetTower?: Tower;
   singleTarget?: boolean;
@@ -418,6 +431,8 @@ export interface CubeBoss {
   magicResistance: number;
   finalDamageReduction: number;
   speed: number;
+  movementAxis?: "x" | "y";
+  movementDirection?: -1 | 1;
   advanceMinionKind: EnemyKind;
   hasSkills: boolean;
   skills: {
@@ -441,6 +456,11 @@ export interface CubeBoss {
   invincibleUntil: number;
   bossHasteUntil: number;
   nextBossHasteTrailAt: number;
+  octahedronCopies?: CubeBoss[];
+  octahedronSolarBombsInitialized?: boolean;
+  octahedronSpawn75Triggered?: boolean;
+  octahedronSpawn50Triggered?: boolean;
+  octahedronSpawn25Triggered?: boolean;
   body: Phaser.GameObjects.Container;
   frame: Phaser.GameObjects.Graphics;
   labelText: Phaser.GameObjects.Text;

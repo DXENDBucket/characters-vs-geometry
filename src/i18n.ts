@@ -27,6 +27,7 @@ const dictionaries: Record<Language, Record<string, string>> = {
     "button.restart": "RESTART",
     "button.menu": "MENU",
     "button.erase": "ERASE",
+    "button.shifter": "SHIFT",
     "button.autoUpgrade": "AUTO",
     "button.debug": "DEBUG",
     "button.debugDamage": "TRUE",
@@ -81,6 +82,7 @@ const dictionaries: Record<Language, Record<string, string>> = {
     "toast.resume": "RESUME",
     "toast.autoOn": "AUTO ON",
     "toast.autoOff": "AUTO OFF",
+    "toast.invalidMove": "INVALID MOVE",
     "toast.debugChars": "+10000 CHARS / +1000 BASE",
     "enemy.circle": "CIRCLE 1",
     "enemy.circle2": "CIRCLE 2",
@@ -112,13 +114,16 @@ const dictionaries: Record<Language, Record<string, string>> = {
     "enemy.shootingTriangle": "SHOOTING TRIANGLE 1",
     "enemy.shootingTriangle2": "SHOOTING TRIANGLE 2",
     "enemy.dodecahedronCompanion": "DODECAHEDRON COMPANION",
+    "enemy.trapezoid": "TRAPEZOID 1",
+    "enemy.solarBomb": "MIRAGE SUN BOMB",
     "enemy.square": "SQUARE 1",
     "enemy.square2": "SQUARE 2",
     "enemy.square3": "SQUARE 3",
     "enemy.bossCube": "BOSS CUBE",
     "enemy.bossTetrahedron": "BOSS TETRAHEDRON",
     "enemy.bossDodecahedron": "BOSS DODECAHEDRON",
-    "enemy.bossSmallStellatedDodecahedron": "BOSS SMALL STELLATED DODECAHEDRON"
+    "enemy.bossSmallStellatedDodecahedron": "BOSS SMALL STELLATED DODECAHEDRON",
+    "enemy.bossOctahedron": "BOSS OCTAHEDRON"
   },
   "zh-CN": {
     "app.title": "字符大战几何体",
@@ -133,6 +138,7 @@ const dictionaries: Record<Language, Record<string, string>> = {
     "button.restart": "重开",
     "button.menu": "菜单",
     "button.erase": "橡皮擦",
+    "button.shifter": "移位器",
     "button.autoUpgrade": "自动升级",
     "button.debugDamage": "真伤",
     "button.encyclopedia": "图鉴",
@@ -186,6 +192,7 @@ const dictionaries: Record<Language, Record<string, string>> = {
     "toast.resume": "继续",
     "toast.autoOn": "自动升级开启",
     "toast.autoOff": "自动升级关闭",
+    "toast.invalidMove": "无效移动",
     "toast.debugChars": "+10000 字符 / +1000 底线",
     "enemy.circle": "圆 1",
     "enemy.circle2": "圆 2",
@@ -217,13 +224,16 @@ const dictionaries: Record<Language, Record<string, string>> = {
     "enemy.shootingTriangle": "射击三角 1",
     "enemy.shootingTriangle2": "射击三角 2",
     "enemy.dodecahedronCompanion": "正十二面体眷属",
+    "enemy.trapezoid": "梯形 1",
+    "enemy.solarBomb": "阳炎爆弹",
     "enemy.square": "正方形 1",
     "enemy.square2": "正方形 2",
     "enemy.square3": "正方形 3",
     "enemy.bossCube": "Boss 立方体",
     "enemy.bossTetrahedron": "Boss 正四面体",
     "enemy.bossDodecahedron": "Boss 正十二面体",
-    "enemy.bossSmallStellatedDodecahedron": "Boss 小星形十二面体"
+    "enemy.bossSmallStellatedDodecahedron": "Boss 小星形十二面体",
+    "enemy.bossOctahedron": "Boss 正八面体"
   }
 };
 

@@ -17,38 +17,44 @@ import {
 } from "../registry/enemies";
 import { createEnemyShape } from "../render/unitShapes";
 import type { CubeBoss, Enemy, EnemyKind } from "../types";
+import { attackIntervalMs, attackSpeedForIntervalMs } from "./attackSpeed";
+import { enemyIsSolarBomb, isSolarBombKind } from "./solarBomb";
 import { applyEnemyBaseStats, enemyBaseStatsFromDefinition } from "./unitStats";
 
-export function enemyAttackInterval(kind: EnemyKind) {
+export function enemyAttackSpeed(kind: EnemyKind) {
   if (enemyIsLaser(kind)) {
-    return 4_000;
+    return attackSpeedFromInterval(4_000);
   }
 
   if (enemyIsMortar(kind)) {
-    return 15_000;
+    return attackSpeedFromInterval(15_000);
   }
 
   if (enemyIsRanged(kind)) {
-    return 2_000;
+    return attackSpeedFromInterval(2_000);
   }
 
   if (enemyFamily(kind) === "heart") {
-    return 5_000;
+    return attackSpeedFromInterval(5_000);
   }
 
   if (enemyFamily(kind) === "chargingHexagon") {
-    return 2_000;
+    return attackSpeedFromInterval(2_000);
   }
 
   if (enemyFamily(kind) === "archangelHeptagon") {
-    return 2_000;
+    return attackSpeedFromInterval(2_000);
   }
 
   if (enemyFamily(kind) === "triangle") {
-    return ATTACK_INTERVAL / enemyRank(kind);
+    return attackSpeedFromInterval(ATTACK_INTERVAL / enemyRank(kind));
   }
 
-  return ATTACK_INTERVAL;
+  return attackSpeedFromInterval(ATTACK_INTERVAL);
+}
+
+export function enemyAttackInterval(kind: EnemyKind) {
+  return attackIntervalMs(enemyAttackSpeed(kind));
 }
 
 export function enemyScaleFromHp(hpRatio: number) {
@@ -60,6 +66,11 @@ export function enemyVisualScale(enemy: Enemy) {
 }
 
 export function syncEnemyVisualScale(enemy: Enemy) {
+  if (enemyIsSolarBomb(enemy)) {
+    enemy.shape.setScale(1);
+    return;
+  }
+
   enemy.shape.setScale(enemyVisualScale(enemy));
 }
 
@@ -87,7 +98,7 @@ export function applyEnemyPromotion(scene: Phaser.Scene, enemy: Enemy, kind: Ene
   const definition = getEnemyDefinition(kind);
   const baseStats = enemyBaseStatsFromDefinition(definition, {
     speed: randomizedEnemySpeed(kind),
-    attackInterval: enemyAttackInterval(kind),
+    attackSpeed: enemyAttackSpeed(kind),
     finalDamageReduction: enemy.baseStats.finalDamageReduction
   });
   enemy.kind = kind;
@@ -116,6 +127,15 @@ export function applyEnemyPromotion(scene: Phaser.Scene, enemy: Enemy, kind: Ene
     })
     .setOrigin(0.5);
   enemy.powerIcon.setVisible(false);
+  enemy.sunderIcon = scene.add
+    .text(0, -56, "▣", {
+      color: "#f5f5f5",
+      fontFamily: "monospace",
+      fontSize: "20px",
+      fontStyle: "700"
+    })
+    .setOrigin(0.5);
+  enemy.sunderIcon.setVisible(false);
   enemy.armorIcon = scene.add
     .text(0, -38, "⬡", {
       color: "#f5f5f5",
@@ -126,7 +146,7 @@ export function applyEnemyPromotion(scene: Phaser.Scene, enemy: Enemy, kind: Ene
     .setOrigin(0.5);
   enemy.armorIcon.setVisible(false);
   enemy.magicResistanceIcon = scene.add
-    .text(0, -38, "✦", {
+    .text(0, -38, "⬡", {
       color: "#9fdcff",
       fontFamily: "monospace",
       fontSize: "22px",
@@ -138,7 +158,7 @@ export function applyEnemyPromotion(scene: Phaser.Scene, enemy: Enemy, kind: Ene
   enemy.flyingHalo.setVisible(false);
   enemy.shape = createEnemyShape(scene, kind, { squareSize: 42, shootingNoseX: -24 });
   enemy.skills = {};
-  enemy.body.add([enemy.statusBorder, enemy.flyingHalo, enemy.shape, enemy.powerIcon, enemy.armorIcon, enemy.magicResistanceIcon]);
+  enemy.body.add([enemy.statusBorder, enemy.flyingHalo, enemy.shape, enemy.powerIcon, enemy.sunderIcon, enemy.armorIcon, enemy.magicResistanceIcon]);
   syncEnemyVisualScale(enemy);
 }
 
@@ -163,8 +183,8 @@ export function canEnemyMelee(enemy: Enemy) {
     !enemyIsSiegeRam(enemy.kind) &&
     !enemyIsMace(enemy.kind) &&
     enemyFamily(enemy.kind) !== "heart" &&
-    enemyFamily(enemy.kind) !== "hexSpellBulwark" &&
     enemyFamily(enemy.kind) !== "slopeTriangle" &&
+    !enemyIsSolarBomb(enemy) &&
     !enemyIsBossCompanion(enemy.kind)
   );
 }
@@ -177,6 +197,10 @@ export function randomizedEnemySpeed(kind: EnemyKind) {
   const definition = getEnemyDefinition(kind);
   const baseSpeed = ENEMY_SPEED * (definition.speedMultiplier ?? 1);
   if (enemyIsLeader(kind)) {
+    return baseSpeed;
+  }
+
+  if (isSolarBombKind(kind)) {
     return baseSpeed;
   }
 
@@ -193,4 +217,8 @@ export function siegeRamSpeed(enemy: Enemy) {
   const progress = Phaser.Math.Clamp(traveled / accelerationDistance, 0, 1);
   const multiplier = Math.sqrt(1 + 15 * progress);
   return enemy.baseStats.speed * multiplier;
+}
+
+function attackSpeedFromInterval(intervalMs: number) {
+  return attackSpeedForIntervalMs(intervalMs) ?? 0;
 }

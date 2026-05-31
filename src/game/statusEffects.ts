@@ -2,15 +2,19 @@ import { CELL_HEIGHT, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
 import type { Enemy, StatusEffectName } from "../types";
 
 const STATUS_SPEED_MULTIPLIERS: Record<StatusEffectName, number> = {
-  stasis: 1 / 3,
+  stasis: 1 / 2,
   haste: 2,
   power: 1,
   flying: 1,
   invincible: 1,
-  highFlying: 1
+  highFlying: 1,
+  sunder: 1
 };
 const STATUS_ATTACK_MULTIPLIERS: Partial<Record<StatusEffectName, number>> = {
   power: 1.3
+};
+const STATUS_ARMOR_MULTIPLIERS: Partial<Record<StatusEffectName, number>> = {
+  sunder: 0.65
 };
 const BURROW_DISPLAY_OFFSET_Y = CELL_HEIGHT * 0.55;
 
@@ -30,7 +34,7 @@ export function applyStatusEffect(
   const expiresAt = time + duration;
   const existing = enemy.statusEffects.find((effect) => effect.name === name);
   if (existing) {
-    existing.expiresAt = Math.max(existing.expiresAt, expiresAt);
+    existing.expiresAt = name === "sunder" ? expiresAt : Math.max(existing.expiresAt, expiresAt);
     existing.speedMultiplier = Math.max(
       existing.speedMultiplier ?? STATUS_SPEED_MULTIPLIERS[name],
       speedMultiplier ?? STATUS_SPEED_MULTIPLIERS[name]
@@ -55,6 +59,14 @@ export function statusAttackMultiplier(enemy: Enemy, time: number) {
   syncStatusVisuals(enemy, time);
   return enemy.statusEffects.reduce((multiplier, effect) => {
     return multiplier * (STATUS_ATTACK_MULTIPLIERS[effect.name] ?? 1);
+  }, 1);
+}
+
+export function statusArmorMultiplier(enemy: Enemy, time: number) {
+  removeExpiredStatusEffects(enemy, time);
+  syncStatusVisuals(enemy, time);
+  return enemy.statusEffects.reduce((multiplier, effect) => {
+    return multiplier * (STATUS_ARMOR_MULTIPLIERS[effect.name] ?? 1);
   }, 1);
 }
 
@@ -83,6 +95,7 @@ function removeExpiredStatusEffects(enemy: Enemy, time: number) {
 function syncStatusVisuals(enemy: Enemy, time: number) {
   const stasisActive = enemy.statusEffects.some((effect) => effect.name === "stasis");
   const powerActive = enemy.statusEffects.some((effect) => effect.name === "power");
+  const sunderActive = enemy.statusEffects.some((effect) => effect.name === "sunder");
   const flyingActive = enemy.statusEffects.some((effect) => effect.name === "flying");
   const angelFlyingActive = enemy.statusEffects.some((effect) => effect.name === "flying" && effect.showHalo);
   const highFlyingActive = enemy.statusEffects.some((effect) => effect.name === "highFlying");
@@ -91,6 +104,7 @@ function syncStatusVisuals(enemy: Enemy, time: number) {
   const haloActive = !archangelActive && (angelFlyingActive || highFlyingActive);
   enemy.statusBorder.setVisible(stasisActive);
   enemy.powerIcon.setVisible(powerActive);
+  enemy.sunderIcon.setVisible(sunderActive);
   enemy.flyingHalo.setVisible(haloActive);
   syncArchangelHalos(enemy, highFlyingActive);
   if (stasisActive) {
@@ -99,6 +113,9 @@ function syncStatusVisuals(enemy: Enemy, time: number) {
   }
   if (powerActive) {
     enemy.powerIcon.setY(-38 + Math.sin(time / 120) * 2);
+  }
+  if (sunderActive) {
+    enemy.sunderIcon.setY(-56 + Math.sin(time / 125) * 2);
   }
   if (haloActive) {
     enemy.flyingHalo.setStrokeStyle(2, highFlyingActive ? palette.gold : palette.white, 0.94);

@@ -4,7 +4,7 @@ import { makeShockPulse, makeTrapBurst } from "../render/combatEffects";
 import type { CardDefinition, CardId, CubeBoss, DamageType, Enemy, Tower } from "../types";
 import { enemyIsHighFlying } from "./enemyBehaviors";
 import { applyStatusEffect } from "./statusEffects";
-import { isBossInRect } from "./targeting";
+import { bossPartInRect } from "./targeting";
 import { getShockCount, getTriggerDebuffDuration, getTrapDamage, towerDamageType } from "./towers";
 
 export interface TriggerTowerRuntime {
@@ -15,8 +15,8 @@ export interface TriggerTowerRuntime {
   gameOver: boolean;
   getDefinition: (id: CardId) => CardDefinition;
   removeTower: (tower: Tower) => void;
-  damageEnemy: (enemy: Enemy, damage: number, damageType: DamageType) => void;
-  damageBoss: (damage: number, damageType: DamageType) => void;
+  damageEnemy: (enemy: Enemy, damage: number, damageType: DamageType, sourceTower?: Tower) => void;
+  damageBoss: (damage: number, damageType: DamageType, targetPart?: CubeBoss) => void;
   runWhenBattleActive: (action: () => void) => void;
 }
 
@@ -54,18 +54,19 @@ export function triggerShockTower(runtime: TriggerTowerRuntime, tower: Tower) {
         makeShockPulse(runtime.scene, area.x, area.y, area.rangeX, area.rangeY, damageType);
         for (const enemy of [...runtime.enemies]) {
           if (!enemyIsHighFlying(enemy) && Math.abs(enemy.x - x) <= rangeX && Math.abs(enemy.y - y) <= rangeY) {
-            runtime.damageEnemy(enemy, damage, damageType);
+            runtime.damageEnemy(enemy, damage, damageType, tower);
           }
         }
-        if (isBossInRect(runtime.boss, area.left, area.top, area.width, area.height)) {
-          runtime.damageBoss(damage, damageType);
+        const bossPart = bossPartInRect(runtime.boss, area.left, area.top, area.width, area.height);
+        if (bossPart) {
+          runtime.damageBoss(damage, damageType, bossPart);
         }
       });
     });
   }
 }
 
-export function triggerTrapTower(runtime: TriggerTowerRuntime, tower: Tower, target: Enemy | "boss") {
+export function triggerTrapTower(runtime: TriggerTowerRuntime, tower: Tower, target: Enemy | CubeBoss | "boss") {
   const definition = runtime.getDefinition(tower.type);
   const damage = getTrapDamage(tower, definition);
   const damageType = towerDamageType(tower, definition.triggerDamageType ?? "magic", runtime.battleTime);
@@ -79,7 +80,16 @@ export function triggerTrapTower(runtime: TriggerTowerRuntime, tower: Tower, tar
     return;
   }
 
-  runtime.damageEnemy(target, damage, damageType);
+  if (isBossTrapTarget(target)) {
+    runtime.damageBoss(damage, damageType, target);
+    return;
+  }
+
+  runtime.damageEnemy(target, damage, damageType, tower);
+}
+
+function isBossTrapTarget(target: Enemy | CubeBoss): target is CubeBoss {
+  return "rank" in target;
 }
 
 function triggerEffectArea(x: number, y: number, rangeX: number, rangeY: number) {

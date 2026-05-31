@@ -4,8 +4,8 @@ import type { LevelConfig, LevelNode } from "../types";
 const CHAPTER_TWO_STARTING_CHARS = 350;
 const CHAPTER_THREE_STARTING_CHARS = 500;
 const CHAPTER_THREE_FIRST_WAVE_WEIGHT = 25;
-const CHAPTER_THREE_WAVE_WEIGHT_INCREMENT = 4;
-const CHAPTER_THREE_WAVE_WEIGHT_INCREMENT_GROWTH = 0;
+const CHAPTER_THREE_WAVE_WEIGHT_INCREMENT = 18;
+const CHAPTER_THREE_WAVE_WEIGHT_INCREMENT_GROWTH = 4;
 
 export const levelNodes: LevelNode[] = [
   { id: "0-1", x: 230, y: 405, unlocked: true },
@@ -44,7 +44,10 @@ export const levelNodes: LevelNode[] = [
   { id: "3-4", x: 890, y: 330, unlocked: true },
   { id: "3-5", x: 1110, y: 430, unlocked: true },
   { id: "3-6", x: 1330, y: 330, unlocked: true },
-  { id: "3-7", x: 1550, y: 430, unlocked: true }
+  { id: "3-7", x: 1550, y: 430, unlocked: true },
+  { id: "3-8", x: 1770, y: 330, unlocked: true },
+  { id: "3-9", x: 1990, y: 430, unlocked: true },
+  { id: "3-10", x: 2210, y: 330, unlocked: true }
 ];
 
 export const levelConfigs: Record<string, LevelConfig> = {
@@ -458,6 +461,69 @@ export const levelConfigs: Record<string, LevelConfig> = {
     totalWaves: 30,
     wavesPerFlag: WAVES_PER_FLAG,
     startingChars: CHAPTER_THREE_STARTING_CHARS
+  },
+  "3-8": {
+    id: "3-8",
+    enemyKinds: ["circle", "triangle", "triangle2", "triangle3", "trapezoid", "diamond", "angelPentagon", "pentagon", "hexSpellBulwark"],
+    firstWaveWeight: CHAPTER_THREE_FIRST_WAVE_WEIGHT,
+    waveWeightIncrement: CHAPTER_THREE_WAVE_WEIGHT_INCREMENT,
+    waveWeightIncrementGrowth: CHAPTER_THREE_WAVE_WEIGHT_INCREMENT_GROWTH,
+    totalWaves: 30,
+    wavesPerFlag: WAVES_PER_FLAG,
+    startingChars: CHAPTER_THREE_STARTING_CHARS
+  },
+  "3-9": {
+    id: "3-9",
+    enemyKinds: [
+      "circle",
+      "circle2",
+      "circle3",
+      "triangle",
+      "triangle2",
+      "triangle3",
+      "square",
+      "trapezoid",
+      "mortarTriangle",
+      "pentagon",
+      "burrowArrow"
+    ],
+    firstWaveWeight: CHAPTER_THREE_FIRST_WAVE_WEIGHT,
+    waveWeightIncrement: CHAPTER_THREE_WAVE_WEIGHT_INCREMENT,
+    waveWeightIncrementGrowth: CHAPTER_THREE_WAVE_WEIGHT_INCREMENT_GROWTH,
+    totalWaves: 30,
+    wavesPerFlag: WAVES_PER_FLAG,
+    startingChars: CHAPTER_THREE_STARTING_CHARS
+  },
+  "3-10": {
+    id: "3-10",
+    enemyKinds: [
+      "circle",
+      "circle3",
+      "triangle",
+      "triangle2",
+      "triangle3",
+      "square",
+      "trapezoid",
+      "triangleRam3",
+      "angelPentagonRam",
+      "hexMace",
+      "shootingTriangle",
+      "diamond",
+      "angelPentagon",
+      "heart",
+      "burrowArrow",
+      "slopeTriangle",
+      "hexSpellBulwark",
+      "archangelHeptagon"
+    ],
+    firstWaveWeight: CHAPTER_THREE_FIRST_WAVE_WEIGHT,
+    waveWeightIncrement: CHAPTER_THREE_WAVE_WEIGHT_INCREMENT,
+    waveWeightIncrementGrowth: CHAPTER_THREE_WAVE_WEIGHT_INCREMENT_GROWTH,
+    wavesPerFlag: WAVES_PER_FLAG,
+    waveWeightCap: 1000,
+    startingChars: 1500,
+    bossKind: "octahedron",
+    endless: true
   }
 };
 

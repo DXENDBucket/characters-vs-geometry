@@ -11,17 +11,17 @@ export interface CombatRuntime {
   projectiles: Projectile[];
   enemyProjectiles: EnemyProjectile[];
   mortarProjectiles: MortarProjectile[];
-  damageEnemy: (enemy: Enemy, damage: number, damageType: DamageType) => void;
-  damageBoss: (damage: number, damageType: DamageType) => void;
+  damageEnemy: (enemy: Enemy, damage: number, damageType: DamageType, sourceTower?: Tower) => void;
+  damageBoss: (damage: number, damageType: DamageType, targetPart?: CubeBoss) => void;
   damageTower: (tower: Tower, damage: number, damageType: DamageType) => void;
   gainChars: (amount: number, x: number, y: number) => void;
-  triggerTrapTower: (tower: Tower, target: Enemy | "boss") => void;
+  triggerTrapTower: (tower: Tower, target: Enemy | CubeBoss | "boss") => void;
   triggerShockTower: (tower: Tower) => void;
   onEnemyReachedBase: (enemy: Enemy) => boolean;
   runWhenBattleActive: (action: () => void) => void;
 }
 
-export type CardReadinessRuntime = Pick<CombatRuntime, "enemies" | "towers" | "boss" | "occupied">;
+export type CardReadinessRuntime = Pick<CombatRuntime, "enemies" | "towers" | "boss" | "occupied" | "battleTime">;
 
 export type CardBehaviorRuntime = Pick<
   CombatRuntime,
@@ -46,10 +46,12 @@ export type EnemyAdvanceRuntime = Pick<
   | "scene"
   | "enemies"
   | "towers"
+  | "boss"
   | "enemyProjectiles"
   | "mortarProjectiles"
   | "damageTower"
   | "damageEnemy"
+  | "damageBoss"
   | "triggerTrapTower"
   | "triggerShockTower"
   | "onEnemyReachedBase"

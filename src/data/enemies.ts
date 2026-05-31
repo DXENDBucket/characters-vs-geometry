@@ -244,7 +244,7 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     hp: 24_000,
     armor: 100,
     magicResistance: 80,
-    damage: 0,
+    damage: 1_200,
     damageType: "magic",
     speedMultiplier: 1.5,
     weight: 0
@@ -335,6 +335,26 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     damageType: "physical",
     speedMultiplier: 0,
     weight: 1
+  },
+  trapezoid: {
+    kind: "trapezoid",
+    label: "1",
+    hp: 12_000,
+    armor: 100,
+    magicResistance: 80,
+    damage: 400,
+    damageType: "physical",
+    weight: 70
+  },
+  solarBomb: {
+    kind: "solarBomb",
+    hp: 12_000,
+    armor: 0,
+    magicResistance: 0,
+    damage: 900,
+    damageType: "true",
+    speedMultiplier: 4.5,
+    weight: 0
   },
   square: {
     kind: "square",

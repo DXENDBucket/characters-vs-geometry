@@ -3,7 +3,8 @@ import { BOARD_Y, CELL_HEIGHT, palette } from "../config";
 import { enemyIsMace, getEnemyDefinition } from "../registry/enemies";
 import { createEnemyShape } from "../render/unitShapes";
 import type { Enemy, EnemyKind, SkillState } from "../types";
-import { enemyAttackInterval, randomizedEnemySpeed } from "./enemyBehaviors";
+import { enemyAttackSpeed, randomizedEnemySpeed } from "./enemyBehaviors";
+import { enemyIsSolarBomb, syncSolarBombVisual } from "./solarBomb";
 import { applyStatusEffect, statusSpeedMultiplier } from "./statusEffects";
 import { enemyBaseStatsFromDefinition } from "./unitStats";
 
@@ -26,11 +27,11 @@ interface CreateEnemyOptions {
 export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): Enemy {
   const definition = getEnemyDefinition(options.kind);
   const y = BOARD_Y + options.lane * CELL_HEIGHT + CELL_HEIGHT / 2;
-  const attackInterval = enemyAttackInterval(options.kind);
+  const attackSpeed = enemyAttackSpeed(options.kind);
   const speed = randomizedEnemySpeed(options.kind);
   const baseStats = enemyBaseStatsFromDefinition(definition, {
     speed,
-    attackInterval,
+    attackSpeed,
     finalDamageReduction: options.finalDamageReduction
   });
   const isBurrowArrow = options.kind === "burrowArrow";
@@ -45,6 +46,14 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
       fontStyle: "700"
     })
     .setOrigin(0.5);
+  const sunderIcon = scene.add
+    .text(0, -56, "▣", {
+      color: "#f5f5f5",
+      fontFamily: "monospace",
+      fontSize: "20px",
+      fontStyle: "700"
+    })
+    .setOrigin(0.5);
   const armorIcon = scene.add
     .text(0, -38, "⬡", {
       color: "#f5f5f5",
@@ -54,7 +63,7 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
     })
     .setOrigin(0.5);
   const magicResistanceIcon = scene.add
-    .text(0, -38, "✦", {
+    .text(0, -38, "⬡", {
       color: "#9fdcff",
       fontFamily: "monospace",
       fontSize: "22px",
@@ -66,10 +75,11 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
 
   statusBorder.setVisible(false);
   powerIcon.setVisible(false);
+  sunderIcon.setVisible(false);
   armorIcon.setVisible(false);
   magicResistanceIcon.setVisible(false);
   flyingHalo.setVisible(false);
-  body.add([statusBorder, flyingHalo, shape, powerIcon, armorIcon, magicResistanceIcon]);
+  body.add([statusBorder, flyingHalo, shape, powerIcon, sunderIcon, armorIcon, magicResistanceIcon]);
 
   const skills: Record<string, SkillState> = {};
   if (options.kind === "archangelHeptagon") {
@@ -96,6 +106,10 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
     magicResistance: baseStats.magicResistance,
     speed: baseStats.speed,
     movementDirection,
+    solarBombVelocityX: options.kind === "solarBomb" ? movementDirection * baseStats.speed : undefined,
+    solarBombVelocityY: options.kind === "solarBomb" ? 0 : undefined,
+    solarBombDepleted: false,
+    solarBombLastCollisionAt: 0,
     maceVelocity: enemyIsMace(options.kind) ? 0 : undefined,
     maceFacingDirection: enemyIsMace(options.kind)
       ? options.maceFacingDirection ?? movementDirection
@@ -109,12 +123,14 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
     damage: baseStats.damage,
     damageType: baseStats.damageType,
     finalDamageReduction: baseStats.finalDamageReduction,
+    attackSpeed: baseStats.attackSpeed,
     attackInterval: baseStats.attackInterval,
     attackAt: options.time + baseStats.attackInterval,
     skills,
     statusEffects: [],
     statusBorder,
     powerIcon,
+    sunderIcon,
     armorIcon,
     magicResistanceIcon,
     flyingHalo,
@@ -135,6 +151,10 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
     );
     statusSpeedMultiplier(enemy, options.time);
     enemy.body.setDepth(85 + enemy.lane);
+  }
+
+  if (enemyIsSolarBomb(enemy)) {
+    syncSolarBombVisual(enemy);
   }
 
   return enemy;

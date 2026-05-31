@@ -12,6 +12,7 @@ import {
   createCubeIcon,
   createDodecahedronIcon,
   createEnemyShape,
+  createOctahedronIcon,
   createSmallStellatedDodecahedronIcon,
   createTetrahedronIcon,
   createUnitBorder
@@ -277,6 +278,8 @@ export class EncyclopediaPanel {
       container.add(createDodecahedronIcon(this.scene).setPosition(48, 72));
     } else if (entry.icon === "smallStellatedDodecahedron") {
       container.add(createSmallStellatedDodecahedronIcon(this.scene).setPosition(48, 72));
+    } else if (entry.icon === "octahedron") {
+      container.add(createOctahedronIcon(this.scene).setPosition(48, 72));
     } else if (entry.card) {
       const border = createUnitBorder(this.scene, entry.card.category, 23, 2).setPosition(48, 70);
       const label = this.scene.add

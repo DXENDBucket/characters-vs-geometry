@@ -4,6 +4,7 @@ import {
   CUBE_BOSS_STATS,
   ENEMY_SPEED
 } from "./config";
+import { attackIntervalMs } from "./game/attackSpeed";
 import { DAMAGE_SYMBOLS, EFFECT_SYMBOLS, getLanguage, t } from "./i18n";
 import { allCardDefinitions } from "./registry/cards";
 import { getEnemyDefinition } from "./registry/enemies";
@@ -17,7 +18,7 @@ export interface EncyclopediaEntry {
   description: string;
   enemyKind?: EnemyKind;
   card?: CardDefinition;
-  icon?: "cube" | "tetrahedron" | "dodecahedron" | "smallStellatedDodecahedron";
+  icon?: "cube" | "tetrahedron" | "dodecahedron" | "smallStellatedDodecahedron" | "octahedron";
 }
 
 export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
@@ -48,6 +49,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
   const shootingTriangle = getEnemyDefinition("shootingTriangle");
   const shootingTriangle2 = getEnemyDefinition("shootingTriangle2");
   const dodecahedronCompanion = getEnemyDefinition("dodecahedronCompanion");
+  const trapezoid = getEnemyDefinition("trapezoid");
   const square = getEnemyDefinition("square");
 
   return [
@@ -81,7 +83,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.atk"), damageText(triangle.damage, triangle.damageType)]
         ]),
         zh
-          ? "权重 I/II/III：30 / 90 / 150，速度：15 / 20 / 25，攻速间隔：1s / 0.5s / 0.33s"
+          ? "权重 I/II/III：30 / 90 / 150，速度：15 / 20 / 25，攻击间隔：1s / 0.5s / 0.33s"
           : "Weight I/II/III: 30 / 90 / 150, speed: 15 / 20 / 25, attack interval: 1s / 0.5s / 0.33s"
       ],
       description: zh
@@ -121,8 +123,8 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
         zh ? "第 1 旗前不会自然出现；移动加速逻辑和三角攻城锤 I 一致" : "Does not naturally appear before Flag 1; movement acceleration matches Triangle Ram I"
       ],
       description: zh
-        ? "冲锋变体，外观为两个面贴在一起的五边形。第一次被阻挡时不造成伤害，而是获得带光环的 2 秒飞行。此效果触发后，再次被阻挡时会造成法术冲撞伤害并消失，靠前生成同等级天使五边形，靠后生成同等级五边形。若在触发飞行前被击杀，则不会分裂。"
-        : "Charging variant drawn as two face-linked pentagons. The first time it is blocked, it deals no damage and gains 2s Flying with a halo. After that effect has triggered, the next block deals magic ram damage and makes it disappear, spawning a same-rank Angel Pentagon ahead and a same-rank Pentagon behind. If killed before triggering Flying, it does not split."
+        ? "冲锋变体，外观为两个面贴在一起的五边形。第一次被阻挡时不造成伤害，而是获得带光环的 2 秒飞行。此效果触发后，再次被阻挡时会造成法术冲撞伤害并消失。无论是否触发过飞行，死亡时都会靠前生成同等级天使五边形，靠后生成同等级五边形。"
+        : "Charging variant drawn as two face-linked pentagons. The first time it is blocked, it deals no damage and gains 2s Flying with a halo. After that effect has triggered, the next block deals magic ram damage and makes it disappear. Whether or not Flying has triggered, death spawns a same-rank Angel Pentagon ahead and a same-rank Pentagon behind."
     },
     {
       title: zh ? "倒三角系列" : "Inverted Triangle Series",
@@ -143,6 +145,24 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
       description: zh
         ? "高速法抗自爆单位。若 2 秒内一直被同一座塔阻挡，会消失并爆炸，对阻挡者造成法术伤害。"
         : "Fast magic-resistant detonator. If the same tower blocks it for 2 seconds, it disappears and deals magic damage to that blocker."
+    },
+    {
+      title: zh ? "梯形系列" : "Trapezoid Series",
+      enemyKind: "trapezoid",
+      lines: [
+        statLine([
+          [t("label.hp"), trapezoid.hp],
+          [t("label.armor"), trapezoid.armor],
+          [t("label.mr"), trapezoid.magicResistance],
+          [t("label.atk"), damageText(trapezoid.damage, trapezoid.damageType)],
+          [t("label.speed"), speedText("trapezoid")],
+          [t("label.weight"), trapezoid.weight]
+        ]),
+        zh ? "每秒攻击 1 次" : "Attacks once per second"
+      ],
+      description: zh
+        ? "高法抗重装近战单位。攻击造成攻击力 100% 的物理伤害。"
+        : "Heavily magic-resistant melee unit. Attacks deal 100% ATK as physical damage."
     },
     {
       title: zh ? "正方形系列" : "Square Series",
@@ -174,7 +194,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.speed"), speedText("mortarTriangle")],
           [t("label.weight"), `I ${mortarTriangle.weight} / II ${mortarTriangle2.weight}`]
         ]),
-        zh ? "每 15 秒发射 3x3 物理迫击弹；II 连射 2 发，连射窗口固定为攻速五分之一" : "Fires 3x3 physical mortars every 15s; II fires 2 shots with the volley window fixed at one fifth of its attack interval"
+        zh ? "每 15 秒发射 3x3 物理迫击弹；II 连射 2 发，连射窗口固定为攻击间隔五分之一" : "Fires 3x3 physical mortars every 15s; II fires 2 shots with the volley window fixed at one fifth of its attack interval"
       ],
       description: zh
         ? "若自身正被阻挡，会优先锁定阻挡自己的塔；否则锁定场上阻挡敌怪数最多的塔，若相同则瞄准更晚放置的塔。锁定 N 时落点会被 N 改写。命中 R 时，R 会照常受伤并把迫击弹反射回发射者。"
@@ -363,12 +383,12 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.weight"), zh ? "旗帜固定" : "flag fixed"]
         ]),
         zh
-          ? "领袖敌人；不计入常规出怪权重。为本行其他敌怪提供可加算的 +50 法抗"
-          : "Leader enemy; does not count toward regular wave weight. Grants other enemies in its lane additive +50 MR"
+          ? "领袖敌人；不计入常规出怪权重。为本行敌怪提供可加算的 +50 法抗，包括自身"
+          : "Leader enemy; does not count toward regular wave weight. Grants enemies in its lane additive +50 MR, including itself"
       ],
       description: zh
-        ? "外观为竖起来的六边形重锤。它本身不攻击；同一行的其他敌怪获得法抗加成，多个六边形术战壁垒可以叠加。获得加成的敌怪会显示浅蓝色法术标识，位置和六边形加甲标识类似。"
-        : "Drawn as a vertical Hex Mace. It does not attack; other enemies in the same lane gain additive magic resistance, and multiple Hex Spell Bulwarks stack. Affected enemies show a light-blue magic icon similar to the Hexagon armor icon."
+        ? "外观为竖起来的六边形重锤。每秒攻击一次，造成攻击力 100% 的法术伤害；同一行的敌怪获得法抗加成，多个六边形术战壁垒可以叠加。获得加成的敌怪会显示浅蓝色六边形标识。"
+        : "Drawn as a vertical Hex Mace. Attacks once per second, dealing 100% ATK as magic damage. Enemies in the same lane gain additive magic resistance, and multiple Hex Spell Bulwarks stack. Affected enemies show a light-blue hexagon icon."
     },
     {
       title: zh ? "潜地箭头领袖系列" : "Burrow Arrow Leader Series",
@@ -516,6 +536,31 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
         : "The Boss body cannot be blocked and does not shrink with HP. Companions cannot be blocked, but shrink with HP like ordinary enemies. Reaching the base is defeat; killing it clears the stage."
     },
     {
+      title: zh ? "正八面体 Boss 系列" : "Octahedron Boss Series",
+      icon: "octahedron",
+      lines: [
+        statLine([
+          [t("label.hp"), CUBE_BOSS_STATS.octahedron.hp],
+          [t("label.armor"), CUBE_BOSS_STATS.octahedron.armor],
+          [t("label.mr"), CUBE_BOSS_STATS.octahedron.magicResistance],
+          [t("label.speed"), CUBE_BOSS_STATS.octahedron.speed],
+          [t("label.atk"), `${damageText(CUBE_BOSS_CONTACT_DAMAGE, "physical")} / ${CUBE_BOSS_CONTACT_INTERVAL}s`]
+        ]),
+        zh
+          ? "75% / 50% / 25% 生命时各生成一个共享血条的正八面体；每个实体的状态效果独立。"
+          : "At 75% / 50% / 25% HP, spawns another Octahedron that shares the HP bar; each body keeps independent effects.",
+        zh
+          ? "75% 分身出现在网格内底线侧中路并反向移动；50% 分身出现在网格内左起第 8 列顶部并下行；25% 分身出现在网格内左起第 5 列底部并上行。"
+          : "The 75% copy appears inside the grid at the base-side middle and moves backward; the 50% copy appears inside the grid at the top of column 8 and moves down; the 25% copy appears inside the grid at the bottom of column 5 and moves up.",
+        zh
+          ? "2 / 3 / 4 个正八面体本体在场时，所有正八面体获得额外 20% / 40% / 60% 全伤害减免。"
+          : "With 2 / 3 / 4 Octahedron bodies on the field, all Octahedrons gain an additional 20% / 40% / 60% all-damage reduction."
+      ],
+      description: zh
+        ? "所有正八面体都可以被攻击，伤害扣同一条 Boss 血量。只有向底线移动的实体会触发失败。"
+        : "All Octahedron bodies can be attacked and damage the shared Boss HP. Only bodies moving toward the base can trigger defeat."
+    },
+    {
       title: zh ? "小星形十二面体 Boss 系列" : "Small Stellated Dodecahedron Boss Series",
       icon: "smallStellatedDodecahedron",
       lines: [
@@ -553,8 +598,8 @@ function towerLines(card: CardDefinition) {
     [t("label.mr"), card.magicResistance ?? 0]
   ]);
   const effectParts = [card.stats];
-  if (card.fireRate) {
-    effectParts.push(`${isZh() ? "间隔" : "interval"} ${seconds(card.fireRate)}`);
+  if (card.attackSpeed !== undefined) {
+    effectParts.push(`${isZh() ? "攻速" : "AS"} ${card.attackSpeed} (${seconds(attackIntervalMs(card.attackSpeed))})`);
   }
   if (card.rangeCells) {
     effectParts.push(`${isZh() ? "范围" : "range"} ${card.rangeCells}`);
@@ -585,6 +630,7 @@ function towerDescription(id: CardId) {
     X: zh ? `生产塔。每 10 秒产生 ${EFFECT_SYMBOLS.chars}25，也是主要字符来源之一。` : `Producer. Generates ${EFFECT_SYMBOLS.chars}25 every 10s.`,
     x: zh ? "追踪法术射手。每次从攻击形四角发射 4 枚 > 法术追踪弹。小 x 开火时优先锁定离小 x 最近的可攻击飞行敌怪；没有飞行敌怪时锁定离小 x 最近的可攻击敌怪。追踪弹只追锁定目标，目标死亡或消失后才改为锁定离子弹最近的可攻击敌怪。" : "Homing magic attacker. Fires four > magic homing shots from the attack-shape corners. When x fires, it prioritizes the attackable Flying enemy nearest to x; if none exist, it locks the attackable enemy nearest to x. Shots keep chasing their locked target and only retarget to the nearest attackable enemy to the shot if that target dies or disappears.",
     Y: zh ? `受击生产塔。不攻击；每次受到攻击时产生 ${EFFECT_SYMBOLS.chars}12。` : `Hit producer. Does not attack; generates ${EFFECT_SYMBOLS.chars}12 each time it is attacked.`,
+    d: zh ? "碎甲激光射手。沿本行发射浅蓝色法术激光，穿透敌怪，直到命中第一个拥有法术抗性的敌怪后停止。被命中的敌怪获得 10 秒碎甲，最终护甲降低 35%；重复命中会刷新持续时间。碎甲敌怪头顶显示白色 ▣ 图标。" : "Sunder laser attacker. Fires a light-blue magic laser along its lane, piercing enemies until it hits the first enemy with magic resistance. Hit enemies gain 10s Sunder, reducing final armor by 35%; repeated hits refresh the duration. Sundered enemies show a white ▣ icon above them.",
     E: zh ? "三连物理射手。向前平射，并向上/下各偏转 10 度发射一发。" : "Triple physical shooter. Fires one straight shot plus two shots at +/-10 degrees.",
     M: zh ? "下向三连物理射手。攻击方向朝下，出弹点保持在列中心。" : "Downward triple physical shooter. Fires downward from the column center.",
     V: zh ? "预判术法炮。沿本行投掷 * 炮弹，优先锁定可攻击目标中最大生命值最低的敌怪，并按锁定瞬间的移速预判落点；落点没有命中目标时会打空。" : "Predictive magic cannon. Lobs * shells along its lane, prioritizing the attackable enemy with the lowest max HP and predicting the landing point from target speed at lock time; it can miss.",
@@ -600,7 +646,7 @@ function towerDescription(id: CardId) {
     P: zh ? "广域治疗塔。治疗自身列和前方四列、以自己为中心三行内生命百分比最低的一座塔。" : "Wide healer. Heals the lowest-HP-percent tower in a 5x3 area covering its column plus four forward columns.",
     p: zh ? "群体治疗塔。范围和 H 一致，治疗自身 3x3 范围内生命百分比最低的三座缺血塔；目标不足时治疗所有可治疗目标。" : "Group healer. Same range as H: heals the three lowest-HP-percent damaged towers in its centered 3x3 area, or all available targets if fewer than three are damaged.",
     I: zh ? "短程法术射手。只攻击自身和前方 5 格内的目标。" : "Short-range magic shooter. Attacks only within itself plus five tiles ahead.",
-    Q: zh ? "整行控制射手。沿本行发射 $ 法术弹幕；命中普通敌怪后施加 1 秒凝滞，使其移动速度变为三分之一。Boss 不会受到凝滞影响。" : "Full-lane control shooter. Fires $ magic projectiles along its lane; hits apply 1s Stasis to ordinary enemies, reducing movement speed to one third. Bosses ignore Stasis.",
+    Q: zh ? "整行控制射手。沿本行发射 $ 法术弹幕；命中普通敌怪后施加 1 秒凝滞，使其移动速度变为二分之一。Boss 不会受到凝滞影响。" : "Full-lane control shooter. Fires $ magic projectiles along its lane; hits apply 1s Stasis to ordinary enemies, reducing movement speed to one half. Bosses ignore Stasis.",
     J: zh ? "短程法术溅射。范围和 I 一致，发射 # 弹幕并造成 1.75 格半径、随距离衰减的范围法术伤害。" : "Short-range magic splash attacker. Same range as I, firing # projectiles with 1.75-cell radius splash and distance falloff.",
     K: zh ? "近程斩击塔。攻击自身一格和前方两格内的单体目标，释放十字斩特效。" : "Close-range slasher. Hits one target within itself plus two tiles ahead, with a cross slash.",
     k: zh ? "近程推波塔。攻击自身列和前方一列的上下三行，并额外覆盖本行更前方一格；每秒释放弧形推波，对范围内所有敌怪造成法术伤害。" : "Close-range wave attacker. Covers a 2x3 area over its column and the next column plus one extra forward cell in its lane; every second releases an arc wave that deals magic damage to all enemies in range.",
@@ -609,7 +655,7 @@ function towerDescription(id: CardId) {
     L: zh ? "牵引塔。抓取上下两行指定格子的所有敌怪平移到本行，每抓一个自损 400 真实伤害。" : "Shifter. Pulls all enemies from target tiles in adjacent lanes into its lane, taking 400 true self-damage per target.",
     N: zh ? "防御推移塔。每秒把自己正在阻挡的所有敌怪沿推移方向移动 5 格：正常 N 向左，反向 N 向右。每推一个自损 400 真实伤害。敌方弹幕命中它时会沿同方向被推移，不造成弹幕本身的伤害，但会让 N 自损 400 真实伤害；锁定 N 的迫击弹会沿同方向改写落点并造成一次同等自损。" : "Defender-shifter. Every second, pushes all enemies it is blocking 5 cells in its push direction: normal N pushes left, reversed N pushes right. It takes 400 true self-damage per pushed enemy. Enemy projectiles that would hit it are shifted in the same direction and deal no projectile damage, but N takes 400 true self-damage per shifted projectile; locked mortars targeting N have their landing point rewritten in the same direction and cost the same self-damage once.",
     n: zh ? "排斥塔。机制类似 L，但会把本行指定格子的所有敌怪排斥到上/下相邻行；第一次方向按放置顺序决定，奇数先向上、偶数先向下，之后每次生效交替。每排斥一个目标自损 400 真实伤害。" : "Repulsor. Similar to L, but shifts all enemies from target tiles in its own lane to the adjacent lane above or below. Odd placement order starts upward, even starts downward, then alternates after each pulse. Takes 400 true self-damage per shifted target.",
-    T: zh ? "迟滞塔。每秒自损 700 真实伤害；以自身为中心 5x5 去角范围内的普通单位和弹幕移动速度降为六分之一，并显示深紫色时间范围框。Boss 不受减速影响。死亡时清除范围内弹幕；被橡皮擦移除不会触发亡语。" : "Slow field tower. Takes 700 true self-damage every second; ordinary units and projectiles in its centered 5x5 no-corner area move at one sixth speed, shown with a deep-purple time range border. Bosses ignore the slow. On death, clears projectiles in that area; erasing it does not trigger the death effect.",
+    T: zh ? "迟滞塔。每秒自损 700 真实伤害；以自身为中心 5x5 去角范围内的普通单位和弹幕移动速度降为六分之一，并显示深紫色时间范围框。Boss 不受减速影响。无论因任何原因消失，都会清除范围内所有弹幕和抛射体。" : "Slow field tower. Takes 700 true self-damage every second; ordinary units and projectiles in its centered 5x5 no-corner area move at one sixth speed, shown with a deep-purple time range border. Bosses ignore the slow. Whenever it disappears for any reason, it clears all projectiles and mortars in that area.",
     U: zh ? "等级光环塔。为自身 3x3 范围内除自己外、基础费用低于 U 的塔提供等同于自身真实等级的额外等级加成；多个 U 可加算。" : "Level aura tower. Grants towers in its centered 3x3 area, excluding itself, bonus levels equal to U's real level. It only affects towers with a lower base cost than U, and multiple U auras stack additively."
   };
   return descriptions[id];
@@ -629,7 +675,7 @@ function towerUpgradeText(id: CardId) {
   if (id === "x") {
     return zh ? "每级追踪弹伤害增加基础值的 80%。" : "Each level adds 80% of base homing-shot damage.";
   }
-  if (id === "A" || id === "a" || id === "C" || id === "E" || id === "M" || id === "W" || id === "I" || id === "Q" || id === "J" || id === "H" || id === "P" || id === "p" || id === "K" || id === "v" || id === "Z") {
+  if (id === "A" || id === "a" || id === "C" || id === "E" || id === "M" || id === "W" || id === "I" || id === "J" || id === "H" || id === "P" || id === "p" || id === "K" || id === "Z") {
     return zh ? "增加连发次数；整段连射固定占攻击/治疗间隔的五分之一。" : "Adds burst count; the whole volley always takes one fifth of the attack/heal interval.";
   }
   if (id === "X" || id === "Y") {
@@ -650,7 +696,10 @@ function towerUpgradeText(id: CardId) {
   if (id === "l") {
     return zh ? "每级伤害增加基础值的 80%。" : "Each level adds 80% of base damage.";
   }
-  if (id === "k" || id === "V") {
+  if (id === "Q" || id === "v") {
+    return zh ? "每级伤害增加基础值的 80%。" : "Each level adds 80% of base damage.";
+  }
+  if (id === "d" || id === "k" || id === "V") {
     return zh ? "每级攻击力增加基础值的 80%。" : "Each level adds 80% of base attack.";
   }
   if (id === "G") {

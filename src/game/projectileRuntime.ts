@@ -23,7 +23,7 @@ import {
 import { enemyIsBurrowed, enemyIsHighFlying } from "./enemyBehaviors";
 import { movementSpeedMultiplier } from "./slowAura";
 import { applyStatusEffect } from "./statusEffects";
-import { bossRect, isBossInRadius, isBossInRect, isPointInBossHitbox, towerRect } from "./targeting";
+import { bossPartAtPoint, bossPartInRadius, bossPartInRect, bossParts, bossRect, towerRect } from "./targeting";
 import { towerDamageType, towerFacingDirection } from "./towers";
 
 export interface ProjectileRuntime {
@@ -35,8 +35,8 @@ export interface ProjectileRuntime {
   towers: Tower[];
   battleTime: number;
   getBoss: () => CubeBoss | null;
-  damageEnemy: (enemy: Enemy, damage: number, damageType: DamageType) => void;
-  damageBoss: (damage: number, damageType: DamageType) => void;
+  damageEnemy: (enemy: Enemy, damage: number, damageType: DamageType, sourceTower?: Tower) => void;
+  damageBoss: (damage: number, damageType: DamageType, targetPart?: CubeBoss) => void;
   damageTower: (tower: Tower, damage: number, damageType: DamageType) => void;
 }
 
@@ -62,7 +62,7 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
               Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y) < enemyProjectileHitRadius(enemy)
             );
           });
-    const hitBoss = projectile.type === "chevron" ? false : isPointInBossHitbox(runtime.getBoss(), projectile.x, projectile.y);
+    const hitBoss = projectile.type === "chevron" ? undefined : bossPartAtPoint(runtime.getBoss(), projectile.x, projectile.y);
 
     if (!hit && !hitBoss) {
       if (isTowerProjectileOutOfBounds(projectile, reachedLimitX)) {
@@ -74,13 +74,13 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
     if (projectile.type === "bolt" || projectile.type === "star" || projectile.type === "dollar" || projectile.type === "chevron") {
       if (hit) {
         makeHitShards(runtime.scene, hit.x, hit.y, projectile.damageType);
-        runtime.damageEnemy(hit, projectile.damage, projectile.damageType);
+        runtime.damageEnemy(hit, projectile.damage, projectile.damageType, projectile.sourceTower);
         if (runtime.enemies.includes(hit)) {
           applyProjectileDebuff(runtime.scene, projectile, hit, runtime.battleTime);
         }
       } else {
         makeHitShards(runtime.scene, projectile.x, projectile.y, projectile.damageType);
-        runtime.damageBoss(projectile.damage, projectile.damageType);
+        runtime.damageBoss(projectile.damage, projectile.damageType, hitBoss);
       }
     } else {
       const burstX = hit ? hit.x : projectile.x;
@@ -95,15 +95,15 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
         const dy = enemy.y - burstY;
         const falloff = radiusFalloff(Math.hypot(dx, dy), projectile.splashRadius);
         if (falloff > 0) {
-          runtime.damageEnemy(enemy, projectile.damage * falloff, projectile.damageType);
+          runtime.damageEnemy(enemy, projectile.damage * falloff, projectile.damageType, projectile.sourceTower);
           if (runtime.enemies.includes(enemy)) {
             applyProjectileDebuff(runtime.scene, projectile, enemy, runtime.battleTime);
           }
         }
       }
       const bossFalloff = bossRadiusFalloff(runtime.getBoss(), burstX, burstY, projectile.splashRadius);
-      if (bossFalloff > 0) {
-        runtime.damageBoss(projectile.damage * bossFalloff, projectile.damageType);
+      if (bossFalloff.falloff > 0) {
+        runtime.damageBoss(projectile.damage * bossFalloff.falloff, projectile.damageType, bossFalloff.part);
       }
     }
 
@@ -138,7 +138,7 @@ export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: numb
       runtime.damageTower(hit, projectile.damage, projectile.damageType);
       if (reflectsProjectile) {
         runtime.projectiles.push(
-          createReflectedProjectile(runtime.scene, projectile, towerDamageType(hit, projectile.damageType, runtime.battleTime))
+          createReflectedProjectile(runtime.scene, projectile, towerDamageType(hit, projectile.damageType, runtime.battleTime), hit)
         );
         makeReflectFlash(runtime.scene, projectile.x, projectile.y);
       }
@@ -273,13 +273,22 @@ function radiusFalloff(distance: number, radius: number) {
 
 function bossRadiusFalloff(boss: CubeBoss | null, x: number, y: number, radius: number) {
   if (!boss) {
-    return 0;
+    return { falloff: 0, part: undefined as CubeBoss | undefined };
   }
 
-  const rect = bossRect(boss);
-  const closestX = Phaser.Math.Clamp(x, rect.left, rect.right);
-  const closestY = Phaser.Math.Clamp(y, rect.top, rect.bottom);
-  return radiusFalloff(Math.hypot(x - closestX, y - closestY), radius);
+  let bestPart: CubeBoss | undefined;
+  let bestFalloff = 0;
+  for (const part of bossParts(boss)) {
+    const rect = bossRect(part);
+    const closestX = Phaser.Math.Clamp(x, rect.left, rect.right);
+    const closestY = Phaser.Math.Clamp(y, rect.top, rect.bottom);
+    const falloff = radiusFalloff(Math.hypot(x - closestX, y - closestY), radius);
+    if (falloff > bestFalloff) {
+      bestFalloff = falloff;
+      bestPart = part;
+    }
+  }
+  return { falloff: bestFalloff, part: bestPart };
 }
 
 function syncMortarTarget(runtime: ProjectileRuntime, projectile: MortarProjectile) {
@@ -363,6 +372,7 @@ function detonateEnemyMortar(runtime: ProjectileRuntime, projectile: MortarProje
         targetY: projectile.sourceEnemy.y,
         damage: projectile.damage,
         damageType: reflectedDamageType,
+        sourceTower: tower,
         rangeX: projectile.rangeX,
         rangeY: projectile.rangeY,
         marker: projectile.marker,
@@ -400,14 +410,21 @@ function detonateTowerMortar(runtime: ProjectileRuntime, projectile: MortarProje
     }
 
     if (Math.abs(enemy.x - projectile.targetX) <= projectile.rangeX && Math.abs(enemy.y - projectile.targetY) <= projectile.rangeY) {
-      runtime.damageEnemy(enemy, projectile.damage, projectile.damageType);
+      runtime.damageEnemy(enemy, projectile.damage, projectile.damageType, projectile.sourceTower);
       if (runtime.enemies.includes(enemy)) {
         applyMortarDebuff(runtime.scene, projectile, enemy, runtime.battleTime);
       }
     }
   }
-  if (isBossInRect(runtime.getBoss(), projectile.targetX - projectile.rangeX, projectile.targetY - projectile.rangeY, projectile.rangeX * 2, projectile.rangeY * 2)) {
-    runtime.damageBoss(projectile.damage, projectile.damageType);
+  const bossPart = bossPartInRect(
+    runtime.getBoss(),
+    projectile.targetX - projectile.rangeX,
+    projectile.targetY - projectile.rangeY,
+    projectile.rangeX * 2,
+    projectile.rangeY * 2
+  );
+  if (bossPart) {
+    runtime.damageBoss(projectile.damage, projectile.damageType, bossPart);
   }
 }
 
@@ -423,15 +440,15 @@ function detonateRadialFalloffTowerMortar(runtime: ProjectileRuntime, projectile
       continue;
     }
 
-    runtime.damageEnemy(enemy, projectile.damage * falloff, projectile.damageType);
+    runtime.damageEnemy(enemy, projectile.damage * falloff, projectile.damageType, projectile.sourceTower);
     if (runtime.enemies.includes(enemy)) {
       applyMortarDebuff(runtime.scene, projectile, enemy, runtime.battleTime);
     }
   }
 
   const bossFalloff = bossRadiusFalloff(runtime.getBoss(), projectile.targetX, projectile.targetY, radius);
-  if (bossFalloff > 0) {
-    runtime.damageBoss(projectile.damage * bossFalloff, projectile.damageType);
+  if (bossFalloff.falloff > 0) {
+    runtime.damageBoss(projectile.damage * bossFalloff.falloff, projectile.damageType, bossFalloff.part);
   }
 }
 
@@ -452,15 +469,16 @@ function detonateSingleTargetTowerMortar(runtime: ProjectileRuntime, projectile:
     })[0];
 
   if (target) {
-    runtime.damageEnemy(target, projectile.damage, projectile.damageType);
+    runtime.damageEnemy(target, projectile.damage, projectile.damageType, projectile.sourceTower);
     if (runtime.enemies.includes(target)) {
       applyMortarDebuff(runtime.scene, projectile, target, runtime.battleTime);
     }
     return;
   }
 
-  if (isBossInRadius(runtime.getBoss(), projectile.targetX, projectile.targetY, hitRadius)) {
-    runtime.damageBoss(projectile.damage, projectile.damageType);
+  const bossPart = bossPartInRadius(runtime.getBoss(), projectile.targetX, projectile.targetY, hitRadius);
+  if (bossPart) {
+    runtime.damageBoss(projectile.damage, projectile.damageType, bossPart);
   }
 }
 

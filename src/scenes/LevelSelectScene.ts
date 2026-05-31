@@ -13,9 +13,12 @@ import {
 import {
   DODECAHEDRON_EDGES,
   DODECAHEDRON_UNIT_VERTICES,
+  OCTAHEDRON_EDGES,
+  OCTAHEDRON_UNIT_VERTICES,
   SMALL_STELLATED_DODECAHEDRON_SPIKES,
   bossRank,
   isDodecahedronBossKind,
+  isOctahedronBossKind,
   isSmallStellatedDodecahedronBossKind,
   isTetrahedronBossKind
 } from "../bosses/cubeBoss";
@@ -373,6 +376,11 @@ export class LevelSelectScene extends Phaser.Scene {
       return;
     }
 
+    if (isOctahedronBossKind(preview.kind)) {
+      this.drawOctahedronNodePreview(preview);
+      return;
+    }
+
     const vertices = [
       [-1, -1, -1],
       [1, -1, -1],
@@ -471,6 +479,18 @@ export class LevelSelectScene extends Phaser.Scene {
         preview.frame.lineBetween(tip.x, tip.y, vertex.x, vertex.y);
       }
     });
+  }
+
+  private drawOctahedronNodePreview(preview: BossNodePreview) {
+    const vertices = OCTAHEDRON_UNIT_VERTICES.map(([x, y, z]) => {
+      return this.projectBossNodePoint(x * preview.size * 1.18, y * preview.size * 1.18, z * preview.size * 1.18, preview);
+    });
+
+    preview.frame.clear();
+    preview.frame.lineStyle(1.5, palette.white, 0.92);
+    for (const [from, to] of OCTAHEDRON_EDGES) {
+      preview.frame.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
+    }
   }
 
   private projectBossNodePoint(x: number, y: number, z: number, preview: BossNodePreview) {

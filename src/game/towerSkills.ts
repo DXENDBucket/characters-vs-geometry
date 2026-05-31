@@ -20,7 +20,7 @@ import { enemyIsHighFlying } from "./enemyBehaviors";
 import { updateRegisteredSkills } from "./skillRegistry";
 import { gainSkillSp, getTowerSkillState, resetSkillCharge, spendSkillSp } from "./skillState";
 import { createTowerSkillRegistry, type TowerSkillDefinition } from "./towerSkillRegistry";
-import { isBossInRect } from "./targeting";
+import { bossPartInRect } from "./targeting";
 import {
   effectiveTowerLevel,
   getSpellMortarDamage,
@@ -43,8 +43,8 @@ export interface TowerSkillRuntime {
   gameOver: boolean;
   battlePaused: boolean;
   getDefinition: (id: CardId) => CardDefinition;
-  damageEnemy: (enemy: Enemy, damage: number, damageType: DamageType) => void;
-  damageBoss: (damage: number, damageType: DamageType) => void;
+  damageEnemy: (enemy: Enemy, damage: number, damageType: DamageType, sourceTower?: Tower) => void;
+  damageBoss: (damage: number, damageType: DamageType, targetPart?: CubeBoss) => void;
   runWhenBattleActive: (action: () => void) => void;
   onTargetingChanged: () => void;
 }
@@ -367,7 +367,7 @@ export class TowerSkillController {
             targetX,
             targetY,
             () => {
-              this.detonateSpellMortar(targetX, targetY, damage, damageType);
+              this.detonateSpellMortar(targetX, targetY, damage, damageType, tower);
             },
             () => {
               Phaser.Utils.Array.Remove(this.activeSpellMortarTweens, tween);
@@ -382,7 +382,7 @@ export class TowerSkillController {
     }
   }
 
-  private detonateSpellMortar(x: number, y: number, damage: number, damageType: DamageType) {
+  private detonateSpellMortar(x: number, y: number, damage: number, damageType: DamageType, sourceTower: Tower) {
     const runtime = this.runtime();
     if (runtime.gameOver) {
       return;
@@ -395,11 +395,18 @@ export class TowerSkillController {
         Math.abs(enemy.x - x) <= SPELL_MORTAR_AOE_RANGE_X &&
         Math.abs(enemy.y - y) <= SPELL_MORTAR_AOE_RANGE_Y
       ) {
-        runtime.damageEnemy(enemy, damage, damageType);
+        runtime.damageEnemy(enemy, damage, damageType, sourceTower);
       }
     }
-    if (isBossInRect(runtime.boss, x - SPELL_MORTAR_AOE_RANGE_X, y - SPELL_MORTAR_AOE_RANGE_Y, SPELL_MORTAR_AOE_RANGE_X * 2, SPELL_MORTAR_AOE_RANGE_Y * 2)) {
-      runtime.damageBoss(damage, damageType);
+    const bossPart = bossPartInRect(
+      runtime.boss,
+      x - SPELL_MORTAR_AOE_RANGE_X,
+      y - SPELL_MORTAR_AOE_RANGE_Y,
+      SPELL_MORTAR_AOE_RANGE_X * 2,
+      SPELL_MORTAR_AOE_RANGE_Y * 2
+    );
+    if (bossPart) {
+      runtime.damageBoss(damage, damageType, bossPart);
     }
   }
 

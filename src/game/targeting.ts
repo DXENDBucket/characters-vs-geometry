@@ -11,6 +11,7 @@ import {
 import type { CardDefinition, CubeBoss, Enemy, Tower } from "../types";
 import { enemyIsBossCompanion } from "../registry/enemies";
 import { enemyIsBurrowed, enemyIsHighFlying } from "./enemyBehaviors";
+import { enemyIsSolarBomb } from "./solarBomb";
 import { getCardAttackArea, type AttackAreaConfig } from "./cardAttackConfigs";
 import { towerFacingDirection, towerIsFlying } from "./towers";
 import { towerFinalStats } from "./unitStats";
@@ -28,6 +29,10 @@ export function bossRect(boss: CubeBoss) {
   );
 }
 
+export function bossParts(boss: CubeBoss | null) {
+  return boss ? [boss, ...(boss.octahedronCopies ?? [])] : [];
+}
+
 export function towerRect(tower: Tower) {
   return new Phaser.Geom.Rectangle(
     tower.x - CELL_WIDTH / 2,
@@ -38,26 +43,41 @@ export function towerRect(tower: Tower) {
 }
 
 export function isPointInBossHitbox(boss: CubeBoss | null, x: number, y: number) {
-  return Boolean(boss && bossRect(boss).contains(x, y));
+  return Boolean(bossPartAtPoint(boss, x, y));
+}
+
+export function bossPartAtPoint(boss: CubeBoss | null, x: number, y: number) {
+  return bossParts(boss).find((part) => bossRect(part).contains(x, y));
 }
 
 export function isBossInRadius(boss: CubeBoss | null, x: number, y: number, radius: number) {
+  return Boolean(bossPartInRadius(boss, x, y, radius));
+}
+
+export function bossPartInRadius(boss: CubeBoss | null, x: number, y: number, radius: number) {
   if (!boss) {
-    return false;
+    return undefined;
   }
 
-  const rect = bossRect(boss);
-  const closestX = Phaser.Math.Clamp(x, rect.left, rect.right);
-  const closestY = Phaser.Math.Clamp(y, rect.top, rect.bottom);
-  return Math.hypot(x - closestX, y - closestY) <= radius;
+  return bossParts(boss).find((part) => {
+    const rect = bossRect(part);
+    const closestX = Phaser.Math.Clamp(x, rect.left, rect.right);
+    const closestY = Phaser.Math.Clamp(y, rect.top, rect.bottom);
+    return Math.hypot(x - closestX, y - closestY) <= radius;
+  });
 }
 
 export function isBossInRect(boss: CubeBoss | null, x: number, y: number, width: number, height: number) {
+  return Boolean(bossPartInRect(boss, x, y, width, height));
+}
+
+export function bossPartInRect(boss: CubeBoss | null, x: number, y: number, width: number, height: number) {
   if (!boss) {
-    return false;
+    return undefined;
   }
 
-  return Phaser.Geom.Intersects.RectangleToRectangle(bossRect(boss), new Phaser.Geom.Rectangle(x, y, width, height));
+  const rect = new Phaser.Geom.Rectangle(x, y, width, height);
+  return bossParts(boss).find((part) => Phaser.Geom.Intersects.RectangleToRectangle(bossRect(part), rect));
 }
 
 export function getHealTargets(
@@ -135,7 +155,7 @@ export function getLaneRepelTargets(tower: Tower, enemies: Enemy[]) {
 }
 
 export function getBlockingTower(towers: Tower[], enemy: Enemy) {
-  if (enemyIsBossCompanion(enemy.kind) || enemyIsBurrowed(enemy) || enemyIsHighFlying(enemy)) {
+  if (enemyIsBossCompanion(enemy.kind) || enemyIsBurrowed(enemy) || enemyIsHighFlying(enemy) || enemyIsSolarBomb(enemy)) {
     return undefined;
   }
 
@@ -215,6 +235,10 @@ export function canAttackBoss(tower: Tower, definition: CardDefinition, boss: Cu
     return false;
   }
 
+  return bossParts(boss).some((part) => canAttackBossPart(tower, definition, part));
+}
+
+export function canAttackBossPart(tower: Tower, definition: CardDefinition, boss: CubeBoss) {
   const rect = bossRect(boss);
   const area = getCardAttackArea(tower.type);
   if (area.kind === "verticalFan") {

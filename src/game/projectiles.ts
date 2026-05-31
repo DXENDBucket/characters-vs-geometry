@@ -28,6 +28,7 @@ export interface TowerProjectileSpec {
   angleDegrees: number;
   maxX: number;
   limitDirection?: -1 | 1;
+  sourceTower?: Tower;
 }
 
 export interface HomingTowerProjectileSpec {
@@ -40,6 +41,7 @@ export interface HomingTowerProjectileSpec {
   damage: number;
   damageType: DamageType;
   targetEnemy?: Enemy;
+  sourceTower?: Tower;
 }
 
 export function createTowerProjectile(scene: Phaser.Scene, spec: TowerProjectileSpec): Projectile {
@@ -77,6 +79,7 @@ export function createTowerProjectile(scene: Phaser.Scene, spec: TowerProjectile
     splashRadius: spec.splashRadius,
     maxX: spec.maxX,
     limitDirection: spec.limitDirection ?? (Math.cos(angle) < 0 ? -1 : 1),
+    sourceTower: spec.sourceTower,
     body
   };
 }
@@ -94,7 +97,8 @@ export function createHomingTowerProjectile(scene: Phaser.Scene, spec: HomingTow
     splashRadius: 0,
     angleDegrees: Phaser.Math.RadToDeg(angle),
     maxX: Number.POSITIVE_INFINITY,
-    limitDirection: 1
+    limitDirection: 1,
+    sourceTower: spec.sourceTower
   });
   projectile.targetEnemy = spec.targetEnemy;
   projectile.speed = spec.speed;
@@ -144,6 +148,7 @@ export interface MortarProjectileSpec {
   markerText?: string;
   markerTextColor?: string;
   sourceEnemy?: Enemy;
+  sourceTower?: Tower;
   targetEnemy?: Enemy;
   targetTower?: Tower;
   duration?: number;
@@ -187,6 +192,7 @@ export function createMortarProjectile(scene: Phaser.Scene, spec: MortarProjecti
     markerText: spec.markerText,
     markerTextColor: spec.markerTextColor,
     sourceEnemy: spec.sourceEnemy,
+    sourceTower: spec.sourceTower,
     targetEnemy: spec.targetEnemy,
     targetTower: spec.targetTower,
     singleTarget: spec.singleTarget,
@@ -201,7 +207,8 @@ export function createMortarProjectile(scene: Phaser.Scene, spec: MortarProjecti
 export function createReflectedProjectile(
   scene: Phaser.Scene,
   projectile: EnemyProjectile,
-  damageType: DamageType = projectile.damageType
+  damageType: DamageType = projectile.damageType,
+  sourceTower?: Tower
 ): Projectile {
   const reflectedAngle = projectile.vx < 0 ? 0 : 180;
   return createTowerProjectile(scene, {
@@ -215,7 +222,8 @@ export function createReflectedProjectile(
     splashRadius: 0,
     angleDegrees: reflectedAngle,
     maxX: reflectedAngle === 180 ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY,
-    limitDirection: reflectedAngle === 180 ? -1 : 1
+    limitDirection: reflectedAngle === 180 ? -1 : 1,
+    sourceTower
   });
 }
 

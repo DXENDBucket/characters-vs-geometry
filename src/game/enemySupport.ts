@@ -8,7 +8,7 @@ import { createEnemySkillRegistry, enemySkillDefinitions, type EnemySkillRuntime
 import { updateRegisteredSkills } from "./skillRegistry";
 import { gainSkillSp, getEnemySkillState, isSkillReady, spendSkillSp } from "./skillState";
 import { applyStatusEffect, syncEnemyBodyPosition } from "./statusEffects";
-import { isBossInRadius } from "./targeting";
+import { bossRect } from "./targeting";
 
 const HEX_ARMOR_RADIUS = CELL_WIDTH * 1.4;
 const HEX_ARMOR_BONUS = 80;
@@ -58,9 +58,16 @@ export function hexBossArmorBonus(enemies: Enemy[], boss: CubeBoss | null) {
   }
 
   return (
-    enemies.filter((enemy) => !enemyIsHighFlying(enemy) && isHexagon(enemy) && isBossInRadius(boss, enemy.x, enemy.y, HEX_ARMOR_RADIUS)).length *
+    enemies.filter((enemy) => !enemyIsHighFlying(enemy) && isHexagon(enemy) && bossBodyInRadius(boss, enemy.x, enemy.y, HEX_ARMOR_RADIUS)).length *
     HEX_ARMOR_BONUS
   );
+}
+
+function bossBodyInRadius(boss: CubeBoss, x: number, y: number, radius: number) {
+  const rect = bossRect(boss);
+  const closestX = Phaser.Math.Clamp(x, rect.left, rect.right);
+  const closestY = Phaser.Math.Clamp(y, rect.top, rect.bottom);
+  return Math.hypot(x - closestX, y - closestY) <= radius;
 }
 
 export function syncHexArmorAuras(enemies: Enemy[], time: number) {
@@ -112,7 +119,6 @@ function hexArmorStacks(enemies: Enemy[], target: Enemy) {
 function hexMagicResistanceStacks(enemies: Enemy[], target: Enemy) {
   return enemies.filter((enemy) => {
     return (
-      enemy !== target &&
       !enemyIsHighFlying(enemy) &&
       enemyFamily(enemy.kind) === "hexSpellBulwark" &&
       enemy.lane === target.lane

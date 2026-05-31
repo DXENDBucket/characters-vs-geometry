@@ -11,10 +11,8 @@ const VOLLEY_UPGRADEABLE_CARDS = new Set<CardId>([
   "P",
   "p",
   "I",
-  "Q",
   "J",
   "K",
-  "v",
   "Z"
 ]);
 const MAX_HP_UPGRADEABLE_CARDS = new Set<CardId>(["B", "D", "O", "R", "h", "L", "N", "n", "T"]);
@@ -64,12 +62,12 @@ export function volleyShotCount(type: CardId, level: number) {
   return isVolleyUpgradeable(type) ? effectiveLevelForLevel(level) : 1;
 }
 
-export function volleyInterval(fireRate: number, shots: number) {
+export function volleyInterval(attackInterval: number, shots: number) {
   if (shots <= 1) {
     return 0;
   }
 
-  const totalVolleyTime = fireRate / 5;
+  const totalVolleyTime = attackInterval / 5;
   return totalVolleyTime / (shots - 1);
 }
 

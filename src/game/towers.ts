@@ -96,7 +96,7 @@ export function createTower(
     baseMaxHp: baseStats.maxHp,
     armor: baseStats.armor,
     magicResistance: baseStats.magicResistance,
-    fireRate: baseStats.fireRate,
+    attackSpeed: baseStats.attackSpeed,
     lastFire: -Number.POSITIVE_INFINITY,
     level: 1,
     levelBonus: 0,

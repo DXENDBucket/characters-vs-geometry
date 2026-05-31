@@ -1,0 +1,222 @@
+import Phaser from "phaser";
+import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, COLUMNS, LANES, palette } from "../config";
+import type { Tower } from "../types";
+import { gridCellKey } from "./targeting";
+import { syncTowerFlyingVisual } from "./towers";
+
+const SHIFTER_BASE_COOLDOWN = 15_000;
+const SHIFTER_EXTRA_COOLDOWN_MULTIPLIER = 1.2;
+
+export type TowerShifterPointerResult = "selected" | "empty" | "invalid" | "moved" | "cooldown";
+
+export interface TowerShifterMovePosition {
+  tower: Tower;
+  lane: number;
+  column: number;
+}
+
+export interface TowerShifterMovePreview {
+  valid: boolean;
+  positions: TowerShifterMovePosition[];
+}
+
+export interface TowerShifterRuntime {
+  scene: Phaser.Scene;
+  towers: Tower[];
+  occupied: Map<string, Tower>;
+  cardTime: number;
+  battleTime: number;
+}
+
+export class TowerShifterController {
+  private active = false;
+  private readyAt = 0;
+  private cooldownStartedAt = 0;
+  private cooldownDuration = SHIFTER_BASE_COOLDOWN;
+  private selection: Tower[] = [];
+  private selectionMarks = new Map<Tower, Phaser.GameObjects.Graphics>();
+
+  constructor(private readonly runtime: () => TowerShifterRuntime) {}
+
+  reset() {
+    this.active = false;
+    this.readyAt = 0;
+    this.cooldownStartedAt = 0;
+    this.cooldownDuration = SHIFTER_BASE_COOLDOWN;
+    this.clearSelection();
+  }
+
+  isActive() {
+    return this.active;
+  }
+
+  setActive(active: boolean) {
+    this.active = active;
+    if (!active) {
+      this.clearSelection();
+    }
+  }
+
+  deactivate() {
+    this.setActive(false);
+  }
+
+  isReady() {
+    return this.runtime().cardTime >= this.readyAt;
+  }
+
+  cooldownRatio() {
+    if (this.isReady()) {
+      return 1;
+    }
+
+    return Phaser.Math.Clamp(
+      (this.runtime().cardTime - this.cooldownStartedAt) / this.cooldownDuration,
+      0,
+      1
+    );
+  }
+
+  hasSelection() {
+    return this.liveSelection().length > 0;
+  }
+
+  handlePointer(lane: number, column: number, existingTower: Tower | undefined, additive: boolean): TowerShifterPointerResult {
+    if (!this.isReady()) {
+      this.deactivate();
+      return "cooldown";
+    }
+
+    if (existingTower) {
+      this.selectTower(existingTower, additive);
+      return "selected";
+    }
+
+    if (this.selection.length === 0) {
+      return "empty";
+    }
+
+    const move = this.previewMove(lane, column);
+    if (!move.valid) {
+      this.clearSelection();
+      return "invalid";
+    }
+
+    this.applyMove(move.positions);
+    this.cooldownStartedAt = this.runtime().cardTime;
+    this.cooldownDuration = shifterCooldownForCount(move.positions.length);
+    this.readyAt = this.runtime().cardTime + this.cooldownDuration;
+    this.deactivate();
+    return "moved";
+  }
+
+  previewMove(lane: number, column: number): TowerShifterMovePreview {
+    const selection = this.liveSelection();
+    if (selection.length === 0) {
+      return { valid: false, positions: [] };
+    }
+
+    const anchor = selection.reduce((best, tower) =>
+      tower.lane < best.lane || (tower.lane === best.lane && tower.column < best.column) ? tower : best
+    );
+    const selectedSet = new Set(selection);
+    const targetKeys = new Set<string>();
+    const positions = selection.map((tower) => ({
+      tower,
+      lane: lane + tower.lane - anchor.lane,
+      column: column + tower.column - anchor.column
+    }));
+
+    for (const position of positions) {
+      if (position.lane < 0 || position.lane >= LANES || position.column < 0 || position.column >= COLUMNS) {
+        return { valid: false, positions };
+      }
+
+      const key = gridCellKey(position.lane, position.column);
+      if (targetKeys.has(key)) {
+        return { valid: false, positions };
+      }
+      targetKeys.add(key);
+
+      const occupant = this.runtime().occupied.get(key);
+      if (occupant && !selectedSet.has(occupant)) {
+        return { valid: false, positions };
+      }
+    }
+
+    return { valid: true, positions };
+  }
+
+  syncSelectionVisuals() {
+    const runtime = this.runtime();
+    const selected = new Set(this.liveSelection());
+    for (const [tower, mark] of [...this.selectionMarks]) {
+      if (!selected.has(tower)) {
+        mark.destroy();
+        this.selectionMarks.delete(tower);
+      }
+    }
+
+    for (const tower of selected) {
+      let mark = this.selectionMarks.get(tower);
+      if (!mark) {
+        mark = runtime.scene.add.graphics().setDepth(58);
+        mark.lineStyle(2, palette.magic, 0.92);
+        mark.strokeRect(-CELL_WIDTH / 2 + 7, -CELL_HEIGHT / 2 + 7, CELL_WIDTH - 14, CELL_HEIGHT - 14);
+        this.selectionMarks.set(tower, mark);
+      }
+      mark.setPosition(tower.body.x, tower.body.y);
+      mark.setAlpha(0.68 + Math.sin(runtime.battleTime / 95) * 0.18);
+    }
+  }
+
+  clearSelection() {
+    this.selection = [];
+    for (const mark of this.selectionMarks.values()) {
+      mark.destroy();
+    }
+    this.selectionMarks.clear();
+  }
+
+  private selectTower(tower: Tower, additive: boolean) {
+    if (!additive) {
+      this.clearSelection();
+      this.selection = [tower];
+      this.syncSelectionVisuals();
+      return;
+    }
+
+    if (this.selection.includes(tower)) {
+      this.selection = this.selection.filter((selected) => selected !== tower);
+    } else {
+      this.selection.push(tower);
+    }
+    this.syncSelectionVisuals();
+  }
+
+  private applyMove(positions: TowerShifterMovePosition[]) {
+    const runtime = this.runtime();
+    for (const { tower } of positions) {
+      runtime.occupied.delete(gridCellKey(tower.lane, tower.column));
+    }
+
+    for (const { tower, lane, column } of positions) {
+      tower.lane = lane;
+      tower.column = column;
+      tower.x = BOARD_X + column * CELL_WIDTH + CELL_WIDTH / 2;
+      tower.y = BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2;
+      tower.body.setDepth(20 + lane);
+      syncTowerFlyingVisual(tower, runtime.battleTime);
+      runtime.occupied.set(gridCellKey(lane, column), tower);
+    }
+  }
+
+  private liveSelection() {
+    this.selection = this.selection.filter((tower) => this.runtime().towers.includes(tower));
+    return this.selection;
+  }
+}
+
+function shifterCooldownForCount(count: number) {
+  return SHIFTER_BASE_COOLDOWN * SHIFTER_EXTRA_COOLDOWN_MULTIPLIER ** Math.max(0, count - 1);
+}

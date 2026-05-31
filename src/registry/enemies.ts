@@ -23,6 +23,8 @@ export type EnemyFamily =
   | "invertedTriangle"
   | "shootingTriangle"
   | "dodecahedronCompanion"
+  | "trapezoid"
+  | "solarBomb"
   | "square";
 export type EnemyAttackMode =
   | "melee"
@@ -32,6 +34,7 @@ export type EnemyAttackMode =
   | "blockedDetonator"
   | "siegeRam"
   | "mace"
+  | "special"
   | "leader"
   | "companion";
 
@@ -217,7 +220,7 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     family: "hexSpellBulwark",
     rank: 1,
     nameKey: "enemy.hexSpellBulwark",
-    attackMode: "leader",
+    attackMode: "melee",
     leader: true
   },
   heart: {
@@ -289,6 +292,20 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     rank: 1,
     nameKey: "enemy.dodecahedronCompanion",
     attackMode: "companion"
+  },
+  trapezoid: {
+    definition: rawEnemyDefinitions.trapezoid,
+    family: "trapezoid",
+    rank: 1,
+    nameKey: "enemy.trapezoid",
+    attackMode: "melee"
+  },
+  solarBomb: {
+    definition: rawEnemyDefinitions.solarBomb,
+    family: "solarBomb",
+    rank: 1,
+    nameKey: "enemy.solarBomb",
+    attackMode: "special"
   },
   square: {
     definition: rawEnemyDefinitions.square,

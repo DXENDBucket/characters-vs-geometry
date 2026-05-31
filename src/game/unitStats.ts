@@ -13,13 +13,14 @@ import {
   isMaxHpUpgradeable,
   maxHpGainForEffectiveUpgrades
 } from "./upgrades";
+import { attackIntervalMs } from "./attackSpeed";
 
 export function towerBaseStatsFromDefinition(definition: CardDefinition): TowerBaseStats {
   return {
     maxHp: definition.maxHp,
     armor: definition.armor ?? 0,
     magicResistance: definition.magicResistance ?? 0,
-    fireRate: definition.fireRate ?? Number.POSITIVE_INFINITY,
+    attackSpeed: definition.attackSpeed,
     damage: definition.damage,
     damageType: definition.damageType
   };
@@ -32,7 +33,7 @@ export function syncTowerFinalStats(tower: Tower, options: { healMaxHpIncrease?:
   tower.baseMaxHp = tower.baseStats.maxHp;
   tower.armor = tower.finalStats.armor;
   tower.magicResistance = tower.finalStats.magicResistance;
-  tower.fireRate = tower.finalStats.fireRate;
+  tower.attackSpeed = tower.finalStats.attackSpeed;
 
   if (options.healMaxHpIncrease && tower.maxHp > previousMaxHp) {
     tower.hp = Math.min(tower.maxHp, tower.hp + tower.maxHp - previousMaxHp);
@@ -68,7 +69,7 @@ export function effectiveTowerStatLevel(tower: Tower) {
 
 export function enemyBaseStatsFromDefinition(
   definition: EnemyDefinition,
-  options: { speed: number; attackInterval: number; finalDamageReduction: number }
+  options: { speed: number; attackSpeed: number; finalDamageReduction: number }
 ): EnemyBaseStats {
   return {
     maxHp: definition.hp,
@@ -78,7 +79,8 @@ export function enemyBaseStatsFromDefinition(
     damage: definition.damage,
     damageType: definition.damageType,
     finalDamageReduction: options.finalDamageReduction,
-    attackInterval: options.attackInterval
+    attackSpeed: options.attackSpeed,
+    attackInterval: attackIntervalMs(options.attackSpeed)
   };
 }
 
@@ -96,6 +98,7 @@ export function applyEnemyBaseStats(
   enemy.damage = baseStats.damage;
   enemy.damageType = baseStats.damageType;
   enemy.finalDamageReduction = baseStats.finalDamageReduction;
+  enemy.attackSpeed = baseStats.attackSpeed;
   enemy.attackInterval = baseStats.attackInterval;
 
   if (options.hpRatio !== undefined) {

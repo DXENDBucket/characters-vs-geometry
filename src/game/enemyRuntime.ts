@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { BOARD_WIDTH, BOARD_X, CELL_HEIGHT, CELL_WIDTH, LANES } from "../config";
+import { BOARD_HEIGHT, BOARD_WIDTH, BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, LANES } from "../config";
 import { getCardDefinition } from "../registry/cards";
 import {
   allEnemyDefinitions,
@@ -19,11 +19,12 @@ import {
   makeHasteTrail,
   makeHeartPulse,
   makeReflectFlash,
+  makeSolarBombCollisionEffect,
   makeShellBurst,
   makeShiftEffect,
   makeShockPulse
 } from "../render/combatEffects";
-import type { DifficultyConfig, Enemy, EnemyKind, LevelConfig, Tower, WaveTracker } from "../types";
+import type { CubeBoss, DifficultyConfig, Enemy, EnemyKind, LevelConfig, Tower, WaveTracker } from "../types";
 import type { EnemyAdvanceRuntime, EnemySpawnRuntime } from "./combatRuntime";
 import {
   canEnemyMelee,
@@ -42,11 +43,21 @@ import { enemyAttackDamage, enemyAttackMultiplier, enemyMovementMultiplier, enem
 import { chargingHexSpeedMultiplier, makeWingPulse, syncHexArmorAuras, updateEnemySkills } from "./enemySupport";
 import { advanceHighFlyingEnemy, advanceSlopeTriangle } from "./slopeTriangle";
 import {
+  SOLAR_BOMB_BOUNCE_COOLDOWN,
+  SOLAR_BOMB_COLLISION_DAMAGE,
+  SOLAR_BOMB_RADIUS,
+  bounceSolarBombFromPoint,
+  enemyIsSolarBomb,
+  rotateSolarBombVisual,
+  solarBombIsDepleted,
+  syncSolarBombVisual
+} from "./solarBomb";
+import {
   applyStatusEffect,
   hasStatusEffect,
   syncEnemyBodyPosition
 } from "./statusEffects";
-import { getBlockingTower } from "./targeting";
+import { bossParts, bossRect, getBlockingTower, towerRect } from "./targeting";
 import { isTrapArmed, towerDamageType } from "./towers";
 import { towerFinalStats } from "./unitStats";
 import { volleyInterval } from "./upgrades";
@@ -191,10 +202,6 @@ function spawnSiegeRamTriangles(runtime: EnemySpawnRuntime, enemy: Enemy, time: 
 }
 
 function spawnAngelPentagonRamSplit(runtime: EnemySpawnRuntime, enemy: Enemy, time: number) {
-  if (!enemy.angelRamWingsTriggered) {
-    return;
-  }
-
   const rank = enemyRank(enemy.kind);
   const direction = enemyFacingDirection(enemy);
   const spawns: Array<{ kind: EnemyKind; offset: number }> = [
@@ -265,6 +272,10 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
     }
 
     if (advanceHighFlyingEnemy(enemy, time)) {
+      continue;
+    }
+
+    if (advanceSolarBomb(runtime, enemy, time, seconds)) {
       continue;
     }
 
@@ -342,7 +353,8 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
           runtime.damageEnemy(
             enemy,
             blockerDefinition.reflectDamage,
-            towerDamageType(blocker, blockerDefinition.reflectDamageType ?? "physical", time)
+            towerDamageType(blocker, blockerDefinition.reflectDamageType ?? "physical", time),
+            blocker
           );
           makeReflectFlash(runtime.scene, blocker.x, blocker.y);
         }
@@ -393,6 +405,199 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
       removeEscapedReverseEnemy(runtime, enemy);
     }
   }
+}
+
+type SolarBombCollision =
+  | { kind: "tower"; target: Tower; x: number; y: number; distance: number }
+  | { kind: "enemy"; target: Enemy; x: number; y: number; distance: number }
+  | { kind: "boss"; target: CubeBoss; x: number; y: number; distance: number };
+
+function advanceSolarBomb(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number, seconds: number) {
+  if (!enemyIsSolarBomb(enemy)) {
+    return false;
+  }
+
+  initializeSolarBombVelocity(enemy);
+  const rawVelocityX = enemy.solarBombVelocityX ?? 0;
+  const rawVelocityY = enemy.solarBombVelocityY ?? 0;
+  const baseSpeed = Math.max(Math.hypot(rawVelocityX, rawVelocityY), enemy.baseStats.speed || 1);
+  const movementMultiplier = enemyMovementMultiplier(
+    enemy,
+    { enemies: runtime.enemies, towers: runtime.towers, time },
+    baseSpeed
+  );
+
+  enemy.x += rawVelocityX * movementMultiplier * seconds;
+  enemy.y += rawVelocityY * movementMultiplier * seconds;
+  bounceSolarBombOffBoard(enemy);
+  syncSolarBombLane(enemy);
+  rotateSolarBombVisual(enemy, seconds);
+  syncSolarBombVisual(enemy);
+  syncEnemyBodyPosition(enemy);
+
+  if (time < (enemy.solarBombLastCollisionAt ?? 0) + SOLAR_BOMB_BOUNCE_COOLDOWN) {
+    return true;
+  }
+
+  const collision = findSolarBombCollision(runtime, enemy);
+  if (!collision) {
+    return true;
+  }
+
+  enemy.solarBombLastCollisionAt = time;
+  bounceSolarBombFromPoint(enemy, collision.x, collision.y);
+  syncSolarBombLane(enemy);
+  syncEnemyBodyPosition(enemy);
+  makeSolarBombCollisionEffect(runtime.scene, collision.x, collision.y);
+
+  if (collision.kind === "tower") {
+    runtime.damageTower(collision.target, SOLAR_BOMB_COLLISION_DAMAGE, "true");
+  } else if (collision.kind === "enemy") {
+    runtime.damageEnemy(collision.target, SOLAR_BOMB_COLLISION_DAMAGE, "true");
+  } else {
+    const breaksOctahedronShield = solarBombBreaksOctahedronShield(enemy, collision.target, time);
+    if (breaksOctahedronShield) {
+      collision.target.invincibleUntil = 0;
+    }
+    runtime.damageBoss(SOLAR_BOMB_COLLISION_DAMAGE, "true", collision.target);
+    if (breaksOctahedronShield) {
+      removeSolarBomb(runtime, enemy);
+    }
+  }
+
+  return true;
+}
+
+function solarBombBreaksOctahedronShield(enemy: Enemy, boss: CubeBoss, time: number) {
+  return solarBombIsDepleted(enemy) && boss.kind === "octahedron" && boss.invincibleUntil > time;
+}
+
+function removeSolarBomb(runtime: EnemyAdvanceRuntime, enemy: Enemy) {
+  Phaser.Utils.Array.Remove(runtime.enemies, enemy);
+  enemy.body.destroy();
+}
+
+function initializeSolarBombVelocity(enemy: Enemy) {
+  if (enemy.solarBombVelocityX !== undefined && enemy.solarBombVelocityY !== undefined) {
+    return;
+  }
+
+  const direction = enemy.movementDirection ?? -1;
+  enemy.solarBombVelocityX = direction * enemy.baseStats.speed;
+  enemy.solarBombVelocityY = 0;
+}
+
+function bounceSolarBombOffBoard(enemy: Enemy) {
+  const left = BOARD_X + SOLAR_BOMB_RADIUS;
+  const right = BOARD_X + BOARD_WIDTH - SOLAR_BOMB_RADIUS;
+  const top = BOARD_Y + SOLAR_BOMB_RADIUS;
+  const bottom = BOARD_Y + BOARD_HEIGHT - SOLAR_BOMB_RADIUS;
+  let velocityX = enemy.solarBombVelocityX ?? 0;
+  let velocityY = enemy.solarBombVelocityY ?? 0;
+
+  if (enemy.x < left) {
+    enemy.x = left;
+    velocityX = Math.abs(velocityX || enemy.baseStats.speed);
+  } else if (enemy.x > right) {
+    enemy.x = right;
+    velocityX = -Math.abs(velocityX || enemy.baseStats.speed);
+  }
+
+  if (enemy.y < top) {
+    enemy.y = top;
+    velocityY = Math.abs(velocityY || enemy.baseStats.speed);
+  } else if (enemy.y > bottom) {
+    enemy.y = bottom;
+    velocityY = -Math.abs(velocityY || enemy.baseStats.speed);
+  }
+
+  enemy.solarBombVelocityX = velocityX;
+  enemy.solarBombVelocityY = velocityY;
+  enemy.movementDirection = velocityX >= 0 ? 1 : -1;
+}
+
+function syncSolarBombLane(enemy: Enemy) {
+  enemy.lane = Phaser.Math.Clamp(Math.round((enemy.y - BOARD_Y - CELL_HEIGHT / 2) / CELL_HEIGHT), 0, LANES - 1);
+  enemy.body.setDepth(60 + enemy.lane);
+}
+
+function findSolarBombCollision(runtime: EnemyAdvanceRuntime, bomb: Enemy) {
+  const collisions: SolarBombCollision[] = [];
+
+  for (const tower of runtime.towers) {
+    if (tower.transient) {
+      continue;
+    }
+
+    const rect = towerRect(tower);
+    if (!circleIntersectsRect(bomb.x, bomb.y, SOLAR_BOMB_RADIUS, rect)) {
+      continue;
+    }
+
+    collisions.push({
+      kind: "tower",
+      target: tower,
+      x: tower.x,
+      y: tower.y,
+      distance: Math.hypot(bomb.x - tower.x, bomb.y - tower.y)
+    });
+  }
+
+  for (const enemy of runtime.enemies) {
+    if (enemy === bomb || !canSolarBombCollideWithEnemy(enemy)) {
+      continue;
+    }
+
+    const distance = Math.hypot(bomb.x - enemy.x, bomb.y - enemy.y);
+    if (distance > SOLAR_BOMB_RADIUS + solarBombTargetRadius(enemy)) {
+      continue;
+    }
+
+    collisions.push({
+      kind: "enemy",
+      target: enemy,
+      x: enemy.x,
+      y: enemy.y,
+      distance
+    });
+  }
+
+  for (const part of bossParts(runtime.boss)) {
+    const rect = bossRect(part);
+    if (!circleIntersectsRect(bomb.x, bomb.y, SOLAR_BOMB_RADIUS, rect)) {
+      continue;
+    }
+
+    const x = Phaser.Math.Clamp(bomb.x, rect.left, rect.right);
+    const y = Phaser.Math.Clamp(bomb.y, rect.top, rect.bottom);
+    collisions.push({
+      kind: "boss",
+      target: part,
+      x,
+      y,
+      distance: Math.hypot(bomb.x - x, bomb.y - y)
+    });
+  }
+
+  return collisions.sort((a, b) => a.distance - b.distance)[0];
+}
+
+function canSolarBombCollideWithEnemy(enemy: Enemy) {
+  return !enemyIsBurrowed(enemy) && !enemyIsHighFlying(enemy);
+}
+
+function solarBombTargetRadius(enemy: Enemy) {
+  if (enemyIsSolarBomb(enemy)) {
+    return SOLAR_BOMB_RADIUS;
+  }
+
+  return enemyIsBossCompanion(enemy.kind) ? CELL_WIDTH * 0.475 : 24;
+}
+
+function circleIntersectsRect(x: number, y: number, radius: number, rect: Phaser.Geom.Rectangle) {
+  const closestX = Phaser.Math.Clamp(x, rect.left, rect.right);
+  const closestY = Phaser.Math.Clamp(y, rect.top, rect.bottom);
+  return Math.hypot(x - closestX, y - closestY) <= radius;
 }
 
 function advanceBurrowArrow(

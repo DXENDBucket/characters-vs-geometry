@@ -46,7 +46,8 @@ export const CUBE_BOSS_STATS: Record<BossKind, { hp: number; armor: number; magi
   tetrahedron: { hp: 120_000, armor: 150, magicResistance: 20, speed: 1.2 },
   tetrahedron2: { hp: 120_000, armor: 150, magicResistance: 20, speed: 1.2 },
   dodecahedron: { hp: 100_000, armor: 2_000, magicResistance: 90, speed: 0.6 },
-  smallStellatedDodecahedron: { hp: 100_000, armor: 200, magicResistance: 90, speed: 0.6 }
+  smallStellatedDodecahedron: { hp: 100_000, armor: 200, magicResistance: 90, speed: 0.6 },
+  octahedron: { hp: 200_000, armor: 200, magicResistance: 60, speed: 0.6 }
 };
 export const CUBE_BOSS_PROMOTION_SKILL_MAX = 90;
 export const CUBE_BOSS_PROMOTION_SKILL_COST = 30;

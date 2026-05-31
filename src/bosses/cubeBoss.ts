@@ -36,6 +36,7 @@ import type { BossKind, BossSkill, BossSkillName, CubeBoss } from "../types";
 const CUBE_DRAW_SIZE = 59;
 const DODECAHEDRON_DRAW_SIZE = 47;
 const SMALL_STELLATED_DODECAHEDRON_DRAW_SIZE = 31;
+const OCTAHEDRON_DRAW_SIZE = 66;
 const PHI = (1 + Math.sqrt(5)) / 2;
 const INV_PHI = 1 / PHI;
 const SMALL_STELLATED_TIP_RADIUS = 2.55;
@@ -44,6 +45,13 @@ const TETRAHEDRON_INITIAL_ROTATION_SPEED = {
   y: -0.42,
   z: 0.36
 };
+
+interface CreateCubeBossOptions {
+  x?: number;
+  y?: number;
+  movementAxis?: "x" | "y";
+  movementDirection?: -1 | 1;
+}
 
 function createBossSkill<Name extends BossSkillName>(name: Name, maxSp: number, cost: number): BossSkill<Name> {
   return {
@@ -85,6 +93,30 @@ export const SMALL_STELLATED_DODECAHEDRON_SPIKES = DODECAHEDRON_FACES.map((face)
   face,
   tip: dodecahedronFaceTip(face)
 }));
+
+export const OCTAHEDRON_UNIT_VERTICES = [
+  [1, 0, 0],
+  [-1, 0, 0],
+  [0, 1, 0],
+  [0, -1, 0],
+  [0, 0, 1],
+  [0, 0, -1]
+] as const;
+
+export const OCTAHEDRON_EDGES = [
+  [0, 2],
+  [0, 3],
+  [0, 4],
+  [0, 5],
+  [1, 2],
+  [1, 3],
+  [1, 4],
+  [1, 5],
+  [2, 4],
+  [2, 5],
+  [3, 4],
+  [3, 5]
+] as const;
 
 function buildDodecahedronEdges() {
   const edges: Array<[number, number]> = [];
@@ -151,12 +183,17 @@ function dodecahedronFaceTip(face: number[]) {
   return averaged.map((value) => (value / length) * SMALL_STELLATED_TIP_RADIUS) as [number, number, number];
 }
 
-export function createCubeBoss(scene: Phaser.Scene, kind: BossKind, finalDamageReduction: number) {
+export function createCubeBoss(
+  scene: Phaser.Scene,
+  kind: BossKind,
+  finalDamageReduction: number,
+  options: CreateCubeBossOptions = {}
+) {
   const rank = bossRank(kind);
   const stats = CUBE_BOSS_STATS[kind];
   const baseStats = bossBaseStatsFromValues(stats, finalDamageReduction);
-  const x = BOARD_X + BOARD_WIDTH - BOSS_HITBOX_WIDTH / 2;
-  const y = BOARD_Y + BOARD_HEIGHT / 2;
+  const x = options.x ?? BOARD_X + BOARD_WIDTH - BOSS_HITBOX_WIDTH / 2;
+  const y = options.y ?? BOARD_Y + BOARD_HEIGHT / 2;
   const frame = scene.add.graphics();
   const labelText = scene.add
     .text(0, -3, toRomanNumeral(rank), {
@@ -182,6 +219,8 @@ export function createCubeBoss(scene: Phaser.Scene, kind: BossKind, finalDamageR
     magicResistance: baseStats.magicResistance,
     finalDamageReduction: baseStats.finalDamageReduction,
     speed: baseStats.speed,
+    movementAxis: options.movementAxis ?? "x",
+    movementDirection: options.movementDirection ?? -1,
     advanceMinionKind: rank >= 2 ? "square2" : "square",
     hasSkills: !isSkilllessBossKind(kind),
     skills: {
@@ -229,6 +268,10 @@ export function createCubeBoss(scene: Phaser.Scene, kind: BossKind, finalDamageR
     invincibleUntil: 0,
     bossHasteUntil: 0,
     nextBossHasteTrailAt: 0,
+    octahedronCopies: isOctahedronBossKind(kind) ? [] : undefined,
+    octahedronSpawn75Triggered: false,
+    octahedronSpawn50Triggered: false,
+    octahedronSpawn25Triggered: false,
     body,
     frame,
     labelText,
@@ -249,7 +292,13 @@ export function createCubeBoss(scene: Phaser.Scene, kind: BossKind, finalDamageR
 }
 
 export function updateCubeBossMotion(boss: CubeBoss, seconds: number, movementMultiplier = 1, time = 0) {
-  boss.x -= boss.finalStats.speed * seconds * movementMultiplier;
+  const distance = boss.finalStats.speed * seconds * movementMultiplier;
+  const direction = boss.movementDirection ?? -1;
+  if ((boss.movementAxis ?? "x") === "y") {
+    boss.y += direction * distance;
+  } else {
+    boss.x += direction * distance;
+  }
   boss.body.setPosition(boss.x, boss.y);
 
   boss.nextTurnIn -= seconds;
@@ -319,6 +368,11 @@ function drawCubeBoss(boss: CubeBoss, time: number) {
     return;
   }
 
+  if (isOctahedronBoss(boss)) {
+    drawOctahedronBoss(boss, time);
+    return;
+  }
+
   const vertices = [
     [-1, -1, -1],
     [1, -1, -1],
@@ -381,8 +435,16 @@ export function isSmallStellatedDodecahedronBoss(boss: CubeBoss) {
   return isSmallStellatedDodecahedronBossKind(boss.kind);
 }
 
+export function isOctahedronBossKind(kind: BossKind) {
+  return kind === "octahedron";
+}
+
+export function isOctahedronBoss(boss: CubeBoss) {
+  return isOctahedronBossKind(boss.kind);
+}
+
 function isSkilllessBossKind(kind: BossKind) {
-  return isDodecahedronBossKind(kind) || isSmallStellatedDodecahedronBossKind(kind);
+  return isDodecahedronBossKind(kind) || isSmallStellatedDodecahedronBossKind(kind) || isOctahedronBossKind(kind);
 }
 
 function drawTetrahedronBoss(boss: CubeBoss, time: number) {
@@ -458,6 +520,20 @@ function drawSmallStellatedDodecahedronBoss(boss: CubeBoss, time: number) {
       boss.frame.lineBetween(tip.x, tip.y, vertex.x, vertex.y);
     }
   });
+}
+
+function drawOctahedronBoss(boss: CubeBoss, time: number) {
+  const vertices = OCTAHEDRON_UNIT_VERTICES.map(([x, y, z]) =>
+    projectCubePoint(x * OCTAHEDRON_DRAW_SIZE, y * OCTAHEDRON_DRAW_SIZE, z * OCTAHEDRON_DRAW_SIZE, boss)
+  );
+
+  const color = boss.invincibleUntil > time ? palette.gold : palette.white;
+  boss.labelText.setColor(boss.invincibleUntil > time ? "#ffd75a" : "#f5f5f5");
+  boss.frame.clear();
+  boss.frame.lineStyle(2.2, color, 0.95);
+  for (const [from, to] of OCTAHEDRON_EDGES) {
+    boss.frame.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
+  }
 }
 
 function projectCubePoint(x: number, y: number, z: number, boss: CubeBoss) {

@@ -28,6 +28,10 @@ export interface GameHudElements {
   debugDamageText: Phaser.GameObjects.Text;
   debugButton: Phaser.GameObjects.Rectangle;
   debugText: Phaser.GameObjects.Text;
+  shifterButton: Phaser.GameObjects.Rectangle;
+  shifterText: Phaser.GameObjects.Text;
+  shifterCooldownBack: Phaser.GameObjects.Rectangle;
+  shifterCooldownFill: Phaser.GameObjects.Rectangle;
   autoUpgradeButton: Phaser.GameObjects.Rectangle;
   autoUpgradeText: Phaser.GameObjects.Text;
   autoUpgradeEnabledBox: Phaser.GameObjects.Rectangle;
@@ -49,6 +53,7 @@ export interface GameOverlayElements {
 interface GameHudActions {
   onDebug: () => void;
   onDebugDamage: () => void;
+  onShifter: () => void;
   onAutoUpgrade: () => void;
   onAutoUpgradeEnabled: () => void;
   onAutoUpgradeReserveFocus: () => void;
@@ -62,6 +67,7 @@ interface CardUpdateState {
   selectedCardId: CardId;
   chars: number;
   eraserMode: boolean;
+  shifterMode: boolean;
   autoUpgradeMode: boolean;
   debugDamageMode: boolean;
 }
@@ -162,12 +168,21 @@ export function createGameHud(
 
   const { button: debugDamageButton, text: debugDamageText } = createToolButton(
     scene,
-    GAME_WIDTH - 460,
+    GAME_WIDTH - 588,
     42,
     126,
     t("button.debugDamage")
   );
-  const { button: debugButton, text: debugText } = createToolButton(scene, GAME_WIDTH - 332, 42, 110, t("button.debug"));
+  const { button: debugButton, text: debugText } = createToolButton(scene, GAME_WIDTH - 460, 42, 110, t("button.debug"));
+  const { button: shifterButton, text: shifterText } = createToolButton(scene, GAME_WIDTH - 332, 42, 110, t("button.shifter"));
+  const shifterCooldownBack = scene.add
+    .rectangle(GAME_WIDTH - 377, 59, 90, 4, palette.dim, 1)
+    .setOrigin(0, 0.5)
+    .setDepth(32);
+  const shifterCooldownFill = scene.add
+    .rectangle(GAME_WIDTH - 377, 59, 90, 4, palette.white, 1)
+    .setOrigin(0, 0.5)
+    .setDepth(33);
   const { button: autoUpgradeButton, text: autoUpgradeText } = createToolButton(
     scene,
     GAME_WIDTH - 196,
@@ -219,6 +234,8 @@ export function createGameHud(
   bindPointerAction(debugDamageText, actions.onDebugDamage);
   debugButton.on("pointerdown", actions.onDebug);
   debugText.setInteractive({ useHandCursor: true }).on("pointerdown", actions.onDebug);
+  shifterButton.on("pointerdown", actions.onShifter);
+  shifterText.setInteractive({ useHandCursor: true }).on("pointerdown", actions.onShifter);
   autoUpgradeButton.on("pointerdown", actions.onAutoUpgrade);
   autoUpgradeText.setInteractive({ useHandCursor: true }).on("pointerdown", actions.onAutoUpgrade);
   autoUpgradeEnabledBox.on("pointerdown", actions.onAutoUpgradeEnabled);
@@ -241,6 +258,10 @@ export function createGameHud(
     debugDamageText,
     debugButton,
     debugText,
+    shifterButton,
+    shifterText,
+    shifterCooldownBack,
+    shifterCooldownFill,
     autoUpgradeButton,
     autoUpgradeText,
     autoUpgradeEnabledBox,
@@ -338,7 +359,11 @@ export function createGameOverlay(scene: Phaser.Scene, onAction: () => void): Ga
 export function updateCardStates(cardStates: CardState[], state: CardUpdateState) {
   for (const card of cardStates) {
     const isSelected =
-      !state.eraserMode && !state.autoUpgradeMode && !state.debugDamageMode && card.definition.id === state.selectedCardId;
+      !state.eraserMode &&
+      !state.shifterMode &&
+      !state.autoUpgradeMode &&
+      !state.debugDamageMode &&
+      card.definition.id === state.selectedCardId;
     const isAffordable = state.chars >= card.definition.cost;
     const cardTime = state.timeForCard?.(card.definition.id) ?? state.time;
     const cooldownRatio = Phaser.Math.Clamp((card.readyAt - cardTime) / card.definition.cooldown, 0, 1);
@@ -361,6 +386,8 @@ export function updateCardStates(cardStates: CardState[], state: CardUpdateState
 export function updateToolButtonStates(
   ui: GameHudElements,
   eraserMode: boolean,
+  shifterMode: boolean,
+  shifterReadyRatio: number,
   autoUpgradeMode: boolean,
   debugDamageMode: boolean,
   autoUpgradeEnabled: boolean,
@@ -371,6 +398,15 @@ export function updateToolButtonStates(
   ui.debugDamageButton.setFillStyle(debugDamageMode ? palette.panel : palette.black, debugDamageMode ? 1 : 0.82);
   ui.debugDamageButton.setAlpha(debugDamageMode ? 1 : 0.78);
   ui.debugDamageText.setAlpha(debugDamageMode ? 1 : 0.78);
+
+  const shifterReady = shifterReadyRatio >= 1;
+  ui.shifterButton.setStrokeStyle(shifterMode ? 4 : 2, shifterMode ? palette.magic : shifterReady ? palette.mid : palette.dim, 1);
+  ui.shifterButton.setFillStyle(shifterMode ? palette.panel : palette.black, shifterMode ? 1 : shifterReady ? 0.82 : 0.44);
+  ui.shifterButton.setAlpha(shifterMode ? 1 : shifterReady ? 0.78 : 0.42);
+  ui.shifterText.setAlpha(shifterMode ? 1 : shifterReady ? 0.78 : 0.42);
+  ui.shifterCooldownBack.setVisible(!shifterReady);
+  ui.shifterCooldownFill.setVisible(!shifterReady);
+  ui.shifterCooldownFill.width = 90 * Phaser.Math.Clamp(shifterReadyRatio, 0, 1);
 
   ui.autoUpgradeButton.setStrokeStyle(autoUpgradeMode ? 4 : 2, autoUpgradeMode ? palette.green : palette.mid, 1);
   ui.autoUpgradeButton.setFillStyle(autoUpgradeMode ? palette.panel : palette.black, autoUpgradeMode ? 1 : 0.82);

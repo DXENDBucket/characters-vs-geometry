@@ -13,7 +13,15 @@ import { calculateDamage } from "./damage";
 import { enemyIsHighFlying, syncEnemyVisualScale } from "./enemyBehaviors";
 import { releaseBurrowCargo, spawnSplitEnemies } from "./enemyRuntime";
 import { isPointInSlowAura } from "./slowAura";
-import { hasStatusEffect } from "./statusEffects";
+import {
+  bounceSolarBombFromPoint,
+  depleteSolarBomb,
+  enemyIsSolarBomb,
+  solarBombDamageMultiplier,
+  solarBombIsDepleted,
+  syncSolarBombVisual
+} from "./solarBomb";
+import { hasStatusEffect, syncEnemyBodyPosition } from "./statusEffects";
 import { gridCellKey } from "./targeting";
 import { syncTowerHpBar } from "./towers";
 import { towerFinalStats } from "./unitStats";
@@ -48,28 +56,28 @@ export function damageTower(runtime: UnitLifecycleRuntime, tower: Tower, damage:
   syncTowerHpBar(tower);
 
   if (tower.hp <= 0) {
-    if (tower.type === "T") {
-      removeTower(runtime, tower);
-      detonateSlowAuraTower(runtime, tower);
-      return;
-    }
-
     removeTower(runtime, tower);
   }
 }
 
-export function damageBoss(runtime: UnitLifecycleRuntime, damage: number, damageType: DamageType) {
+export function damageBoss(
+  runtime: UnitLifecycleRuntime,
+  damage: number,
+  damageType: DamageType,
+  targetPart?: CubeBoss
+) {
   const boss = runtime.getBoss();
   if (!boss) {
     return;
   }
 
-  if (boss.invincibleUntil > runtime.battleTime) {
-    makeBossInvincibleFlash(runtime.scene, boss.x, boss.y);
+  const damagedPart = targetPart ?? boss;
+  if (damagedPart.invincibleUntil > runtime.battleTime) {
+    makeBossInvincibleFlash(runtime.scene, damagedPart.x, damagedPart.y);
     return;
   }
 
-  const stats = bossFinalStats(boss, runtime.enemies);
+  const stats = bossFinalStats(damagedPart, runtime.enemies, boss);
   const actualDamage =
     calculateDamage(damage, damageType, stats.armor, stats.magicResistance) *
     (1 - stats.finalDamageReduction);
@@ -81,18 +89,28 @@ export function damageBoss(runtime: UnitLifecycleRuntime, damage: number, damage
     boss.bossHasteUntil = runtime.battleTime + TETRAHEDRON_BOSS_HASTE_DURATION;
     boss.nextBossHasteTrailAt = runtime.battleTime;
     boss.hp = nextHp <= 0 ? 1 : boss.maxHp * 0.1;
-    makeBossHitFlash(runtime.scene, boss.x, boss.y, damageType);
-    makeBossInvincibleFlash(runtime.scene, boss.x, boss.y);
+    syncBossCopyHp(boss);
+    makeBossHitFlash(runtime.scene, damagedPart.x, damagedPart.y, damageType);
+    makeBossInvincibleFlash(runtime.scene, damagedPart.x, damagedPart.y);
     return;
   }
 
   boss.hp = nextHp;
-  makeBossHitFlash(runtime.scene, boss.x, boss.y, damageType);
+  syncBossCopyHp(boss);
+  makeBossHitFlash(runtime.scene, damagedPart.x, damagedPart.y, damageType);
 
   if (boss.hp <= 0) {
     boss.hp = 0;
+    syncBossCopyHp(boss);
     removeBoss(runtime);
     runtime.endLevel();
+  }
+}
+
+function syncBossCopyHp(boss: CubeBoss) {
+  for (const copy of boss.octahedronCopies ?? []) {
+    copy.hp = boss.hp;
+    copy.maxHp = boss.maxHp;
   }
 }
 
@@ -100,12 +118,29 @@ function shouldTriggerTetrahedronCritical(boss: CubeBoss, nextHp: number) {
   return isTetrahedronBoss(boss) && !boss.criticalHpTriggered && nextHp <= boss.maxHp * 0.1;
 }
 
-export function damageEnemy(runtime: UnitLifecycleRuntime, enemy: Enemy, damage: number, damageType: DamageType) {
+export function damageEnemy(
+  runtime: UnitLifecycleRuntime,
+  enemy: Enemy,
+  damage: number,
+  damageType: DamageType,
+  sourceTower?: Tower
+) {
   if (!runtime.enemies.includes(enemy)) {
     return;
   }
 
+  if (enemyIsSolarBomb(enemy) && sourceTower) {
+    bounceSolarBombFromPoint(enemy, sourceTower.x, sourceTower.y);
+    syncEnemyBodyPosition(enemy);
+  }
+
   if (enemyIsHighFlying(enemy)) {
+    return;
+  }
+
+  if (solarBombIsDepleted(enemy)) {
+    makeEnemyInvincibleFlash(runtime.scene, enemy.x, enemy.y);
+    syncSolarBombVisual(enemy);
     return;
   }
 
@@ -114,11 +149,19 @@ export function damageEnemy(runtime: UnitLifecycleRuntime, enemy: Enemy, damage:
     return;
   }
 
-  const stats = enemyDefenseStats(enemy, runtime.enemies);
+  const stats = enemyDefenseStats(enemy, runtime.enemies, runtime.battleTime);
   const actualDamage =
     calculateDamage(damage, damageType, stats.armor, stats.magicResistance) *
+    solarBombDamageMultiplier(enemy, damageType) *
     (1 - stats.finalDamageReduction);
   enemy.hp -= actualDamage;
+  if (enemyIsSolarBomb(enemy) && enemy.hp <= 0) {
+    depleteSolarBomb(enemy);
+    syncEnemyBodyPosition(enemy);
+    return;
+  }
+
+  syncSolarBombVisual(enemy);
   syncEnemyVisualScale(enemy);
 
   if (enemy.hp <= 0) {
@@ -140,14 +183,15 @@ export function removeBoss(runtime: UnitLifecycleRuntime) {
     return;
   }
 
+  const bodies = [boss, ...(boss.octahedronCopies ?? [])].map((part) => part.body);
   runtime.setBoss(null);
   runtime.scene.tweens.add({
-    targets: boss.body,
+    targets: bodies,
     alpha: 0,
     scale: 0.82,
     duration: 260,
     ease: "Quad.easeOut",
-    onComplete: () => boss.body.destroy()
+    onComplete: () => bodies.forEach((body) => body.destroy())
   });
 }
 
@@ -173,6 +217,14 @@ export function removeEnemy(runtime: UnitLifecycleRuntime, enemy: Enemy, animate
 }
 
 export function removeTower(runtime: UnitLifecycleRuntime, tower: Tower) {
+  if (!runtime.towers.includes(tower)) {
+    return;
+  }
+
+  if (tower.type === "T") {
+    detonateSlowAuraTower(runtime, tower);
+  }
+
   Phaser.Utils.Array.Remove(runtime.towers, tower);
   if (!tower.transient) {
     runtime.occupied.delete(gridCellKey(tower.lane, tower.column));

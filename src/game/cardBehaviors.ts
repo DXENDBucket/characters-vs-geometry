@@ -1,7 +1,15 @@
 import Phaser from "phaser";
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, COLUMNS, LANES } from "../config";
-import { damageEffectTextColor } from "../render/combatEffects";
-import { makeArcWaveEffect, makeHealParticles, makeShiftEffect, makeSlashEffect } from "../render/combatEffects";
+import {
+  damageEffectTextColor,
+  makeArcWaveEffect,
+  makeHealParticles,
+  makeHitShards,
+  makeShiftEffect,
+  makeSlashEffect,
+  makeSunderEffect,
+  makeTowerLaserEffect
+} from "../render/combatEffects";
 import type { CardDefinition, CardId, CubeBoss, Enemy, Tower } from "../types";
 import {
   getProjectilePattern,
@@ -11,8 +19,9 @@ import {
   type ProjectilePatternConfig
 } from "./cardAttackConfigs";
 import type { CardBehaviorRuntime, CardReadinessRuntime } from "./combatRuntime";
-import { enemyMovementSpeed } from "./combatStats";
+import { enemyDefenseStats, enemyMovementSpeed } from "./combatStats";
 import { enemyIsBurrowed, enemyIsHighFlying, siegeRamSpeed } from "./enemyBehaviors";
+import { attackIntervalMs } from "./attackSpeed";
 import {
   createHomingTowerProjectile,
   createMortarProjectile,
@@ -21,8 +30,10 @@ import {
 } from "./projectiles";
 import {
   attackRangeLimitX,
+  bossParts,
   bossRect,
   canAttackBoss,
+  canAttackBossPart,
   getAttackTarget,
   getBlockedEnemies,
   getBlockingTower,
@@ -32,7 +43,7 @@ import {
   getShiftTargets,
   hasAttackTarget
 } from "./targeting";
-import { syncEnemyBodyPosition } from "./statusEffects";
+import { applyStatusEffect, syncEnemyBodyPosition } from "./statusEffects";
 import { effectiveTowerLevel, syncTowerHpBar, towerDamageType, towerFacingDirection } from "./towers";
 import { towerFinalStats } from "./unitStats";
 import { scaledByEffectiveUpgrades } from "./upgrades";
@@ -68,6 +79,13 @@ export const homingCardBehavior: CardBehavior = {
     return cooldownReady(tower, time) && Boolean(definition.damage && selectSmallXTarget(runtime.enemies, tower.x, tower.y));
   },
   execute: fireHomingVolley
+};
+
+export const magicLaserCardBehavior: CardBehavior = {
+  canUse: (tower, definition, time, runtime) => {
+    return cooldownReady(tower, time) && Boolean(definition.damage && hasMagicLaserTarget(tower, runtime));
+  },
+  execute: fireMagicLaser
 };
 
 export const healingCardBehavior: CardBehavior = {
@@ -139,6 +157,7 @@ export const cardBehaviorsById: Record<CardId, CardBehavior> = {
   C: projectileCardBehavior,
   c: idleCardBehavior,
   D: idleCardBehavior,
+  d: magicLaserCardBehavior,
   O: idleCardBehavior,
   R: idleCardBehavior,
   X: idleCardBehavior,
@@ -178,6 +197,7 @@ const PREDICTIVE_MORTAR_HIT_RADIUS = 22;
 const HOMING_PROJECTILE_SPEED = 620;
 const HOMING_PROJECTILE_ACCELERATION = 420;
 const HOMING_PROJECTILE_MAX_SPEED = 1_200;
+const MAGIC_LASER_START_OFFSET = 24;
 const HOMING_PROJECTILE_MUZZLES = [
   { x: 0, y: -24 },
   { x: 24, y: 0 },
@@ -186,7 +206,7 @@ const HOMING_PROJECTILE_MUZZLES = [
 ] as const;
 
 function cooldownReady(tower: Tower, time: number) {
-  return time >= tower.lastFire + towerFinalStats(tower).fireRate;
+  return time >= tower.lastFire + attackIntervalMs(towerFinalStats(tower).attackSpeed);
 }
 
 function fireHomingVolley(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {
@@ -208,7 +228,8 @@ function fireHomingVolley(tower: Tower, definition: CardDefinition, runtime: Car
         maxSpeed: HOMING_PROJECTILE_MAX_SPEED,
         damage,
         damageType,
-        targetEnemy: target
+        targetEnemy: target,
+        sourceTower: tower
       })
     );
   }
@@ -239,6 +260,87 @@ function closestEnemyTo(enemies: Enemy[], x: number, y: number) {
     }
   }
   return closest;
+}
+
+function hasMagicLaserTarget(tower: Tower, runtime: CardReadinessRuntime) {
+  const endX = magicLaserEndX(tower, runtime.enemies, runtime);
+  return magicLaserTargets(tower, runtime.enemies, runtime).length > 0 || magicLaserHitsBoss(tower, runtime.boss, endX);
+}
+
+function fireMagicLaser(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {
+  const endX = magicLaserEndX(tower, runtime.enemies, runtime);
+  const startX = tower.x + towerFacingDirection(tower) * MAGIC_LASER_START_OFFSET;
+  const targets = magicLaserTargets(tower, runtime.enemies, runtime);
+  const damage = scaledByEffectiveUpgrades(definition.damage ?? 0, effectiveTowerLevel(tower));
+  const damageType = towerDamageType(tower, definition.damageType ?? "magic", runtime.battleTime);
+
+  makeTowerLaserEffect(runtime.scene, startX, tower.y, endX);
+  for (const enemy of targets) {
+    makeHitShards(runtime.scene, enemy.x, enemy.y, damageType);
+    runtime.damageEnemy(enemy, damage, damageType, tower);
+    if (runtime.enemies.includes(enemy) && definition.projectileDebuff && definition.projectileDebuffDuration) {
+      applyStatusEffect(enemy, definition.projectileDebuff, definition.projectileDebuffDuration, runtime.battleTime);
+      if (definition.projectileDebuff === "sunder") {
+        makeSunderEffect(runtime.scene, enemy.x, enemy.y);
+      }
+    }
+  }
+
+  const bossPart = magicLaserBossPart(tower, runtime.boss, endX);
+  if (bossPart) {
+    runtime.damageBoss(damage, damageType, bossPart);
+  }
+}
+
+function magicLaserTargets(tower: Tower, enemies: Enemy[], runtime: CardReadinessRuntime) {
+  const direction = towerFacingDirection(tower);
+  const candidates = enemies
+    .filter((enemy) => canMagicLaserHitEnemy(tower, enemy))
+    .sort((a, b) => (direction > 0 ? a.x - b.x : b.x - a.x));
+  const stoppingTarget = candidates.find((enemy) => enemyDefenseStats(enemy, enemies, runtime.battleTime).magicResistance > 0);
+  if (!stoppingTarget) {
+    return candidates;
+  }
+
+  return candidates.filter((enemy) => direction > 0 ? enemy.x <= stoppingTarget.x : enemy.x >= stoppingTarget.x);
+}
+
+function magicLaserEndX(tower: Tower, enemies: Enemy[], runtime: CardReadinessRuntime) {
+  const direction = towerFacingDirection(tower);
+  const stoppingTarget = enemies
+    .filter((enemy) => canMagicLaserHitEnemy(tower, enemy))
+    .sort((a, b) => (direction > 0 ? a.x - b.x : b.x - a.x))
+    .find((enemy) => enemyDefenseStats(enemy, enemies, runtime.battleTime).magicResistance > 0);
+  return stoppingTarget?.x ?? (direction > 0 ? BOARD_X + COLUMNS * CELL_WIDTH : BOARD_X);
+}
+
+function canMagicLaserHitEnemy(tower: Tower, enemy: Enemy) {
+  if (enemyIsBurrowed(enemy) || enemyIsHighFlying(enemy) || enemy.lane !== tower.lane) {
+    return false;
+  }
+
+  const direction = towerFacingDirection(tower);
+  return direction > 0
+    ? enemy.x > tower.x + MAGIC_LASER_START_OFFSET
+    : enemy.x < tower.x - MAGIC_LASER_START_OFFSET;
+}
+
+function magicLaserHitsBoss(tower: Tower, boss: CubeBoss | null, endX: number) {
+  return Boolean(magicLaserBossPart(tower, boss, endX));
+}
+
+function magicLaserBossPart(tower: Tower, boss: CubeBoss | null, endX: number) {
+  if (!boss) {
+    return undefined;
+  }
+
+  const startX = tower.x + towerFacingDirection(tower) * MAGIC_LASER_START_OFFSET;
+  const left = Math.min(startX, endX);
+  const right = Math.max(startX, endX);
+  return bossParts(boss).find((part) => {
+    const rect = bossRect(part);
+    return tower.y >= rect.top && tower.y <= rect.bottom && rect.right >= left && rect.left <= right;
+  });
 }
 
 function fireHealingPulse(
@@ -351,7 +453,7 @@ function fireSlash(tower: Tower, definition: CardDefinition, runtime: CardBehavi
   const target = getAttackTarget(tower, definition, runtime.enemies);
   if (target) {
     makeSlashEffect(runtime.scene, target.x, target.y, damageType);
-    runtime.damageEnemy(target, damage, damageType);
+    runtime.damageEnemy(target, damage, damageType, tower);
     gainAttackProduction(definition, runtime, target.x, target.y);
     return;
   }
@@ -361,11 +463,12 @@ function fireSlash(tower: Tower, definition: CardDefinition, runtime: CardBehavi
     return;
   }
 
-  const rect = bossRect(boss);
+  const bossPart = bossParts(boss).find((part) => canAttackBossPart(tower, definition, part)) ?? boss;
+  const rect = bossRect(bossPart);
   const x = Phaser.Math.Clamp(tower.x + towerFacingDirection(tower) * CELL_WIDTH, rect.left, rect.right);
   const y = Phaser.Math.Clamp(tower.y, rect.top, rect.bottom);
   makeSlashEffect(runtime.scene, x, y, damageType);
-  runtime.damageBoss(damage, damageType);
+  runtime.damageBoss(damage, damageType, bossPart);
   gainAttackProduction(definition, runtime, x, y);
 }
 
@@ -376,11 +479,12 @@ function fireArcWave(tower: Tower, definition: CardDefinition, runtime: CardBeha
   makeArcWaveEffect(runtime.scene, tower.x - direction * CELL_WIDTH * 0.24, tower.y, damageType, direction);
 
   for (const enemy of arcWaveEnemyTargets(tower, runtime.enemies)) {
-    runtime.damageEnemy(enemy, damage, damageType);
+    runtime.damageEnemy(enemy, damage, damageType, tower);
   }
 
-  if (arcWaveHitsBoss(tower, runtime.boss)) {
-    runtime.damageBoss(damage, damageType);
+  const bossPart = arcWaveBossPart(tower, runtime.boss);
+  if (bossPart) {
+    runtime.damageBoss(damage, damageType, bossPart);
   }
 }
 
@@ -398,7 +502,7 @@ function firePredictiveMortar(tower: Tower, definition: CardDefinition, runtime:
   const enemy = getPredictiveMortarEnemyTarget(tower, definition, runtime.enemies);
   const target = enemy
     ? predictedEnemyMortarTarget(enemy, runtime)
-    : predictedBossMortarTarget(tower, runtime.boss);
+    : predictedBossMortarTarget(tower, definition, runtime.boss);
 
   if (!target) {
     return;
@@ -413,6 +517,7 @@ function firePredictiveMortar(tower: Tower, definition: CardDefinition, runtime:
       targetY: target.y,
       damage,
       damageType,
+      sourceTower: tower,
       rangeX: PREDICTIVE_MORTAR_HIT_RADIUS,
       rangeY: PREDICTIVE_MORTAR_HIT_RADIUS,
       marker: "text",
@@ -458,17 +563,38 @@ function predictedEnemyMortarTarget(enemy: Enemy, runtime: CardBehaviorRuntime) 
   };
 }
 
-function predictedBossMortarTarget(tower: Tower, boss: CubeBoss | null) {
+function predictedBossMortarTarget(tower: Tower, definition: CardDefinition, boss: CubeBoss | null) {
   if (!boss) {
     return null;
   }
 
-  const rect = bossRect(boss);
+  const part = bossParts(boss).find((candidate) => canAttackBossPart(tower, definition, candidate)) ?? boss;
+  const rect = bossRect(part);
   const durationSeconds = PREDICTIVE_MORTAR_DURATION / 1_000;
+  const distance = part.finalStats.speed * durationSeconds;
+  const direction = part.movementDirection ?? -1;
   return {
-    x: boss.x - boss.finalStats.speed * durationSeconds,
-    y: Phaser.Math.Clamp(tower.y, rect.top, rect.bottom)
+    x: part.x + ((part.movementAxis ?? "x") === "x" ? direction * distance : 0),
+    y:
+      (part.movementAxis ?? "x") === "y"
+        ? part.y + direction * distance
+        : Phaser.Math.Clamp(tower.y, rect.top, rect.bottom)
   };
+}
+
+function arcWaveBossPart(tower: Tower, boss: CubeBoss | null) {
+  if (!boss) {
+    return undefined;
+  }
+
+  return bossParts(boss).find((part) => {
+    const rect = bossRect(part);
+    return arcWaveCells(tower).some((cell) => Phaser.Geom.Intersects.RectangleToRectangle(cell, rect));
+  });
+}
+
+function arcWaveHitsBoss(tower: Tower, boss: CubeBoss | null) {
+  return Boolean(arcWaveBossPart(tower, boss));
 }
 
 function hasArcWaveTarget(tower: Tower, enemies: Enemy[], boss: CubeBoss | null) {
@@ -478,15 +604,6 @@ function hasArcWaveTarget(tower: Tower, enemies: Enemy[], boss: CubeBoss | null)
 function arcWaveEnemyTargets(tower: Tower, enemies: Enemy[]) {
   const cells = arcWaveCells(tower);
   return enemies.filter((enemy) => !enemyIsHighFlying(enemy) && cells.some((cell) => cell.contains(enemy.x, enemy.y)));
-}
-
-function arcWaveHitsBoss(tower: Tower, boss: CubeBoss | null) {
-  if (!boss) {
-    return false;
-  }
-
-  const rect = bossRect(boss);
-  return arcWaveCells(tower).some((cell) => Phaser.Geom.Intersects.RectangleToRectangle(cell, rect));
 }
 
 function arcWaveCells(tower: Tower) {
@@ -545,7 +662,7 @@ function towerProjectileSpecs(tower: Tower, definition: CardDefinition, battleTi
     const angleDegrees = mirrored ? 180 - shot.angleDegrees : shot.angleDegrees;
     const muzzle = projectileMuzzlePoint(tower, shot.muzzle ?? pattern.defaultMuzzle, mirrored);
     const limitDirection = Math.cos(Phaser.Math.DegToRad(angleDegrees)) < 0 ? -1 : 1;
-    return makeProjectileSpec(
+    const spec = makeProjectileSpec(
       pattern,
       muzzle.x,
       muzzle.y,
@@ -556,7 +673,20 @@ function towerProjectileSpecs(tower: Tower, definition: CardDefinition, battleTi
       projectileLimitX(tower, definition, pattern, limitDirection),
       limitDirection
     );
+    return {
+      ...spec,
+      damage: towerProjectileDamage(tower, definition),
+      sourceTower: tower
+    };
   });
+}
+
+function towerProjectileDamage(tower: Tower, definition: CardDefinition) {
+  if (tower.type === "Q") {
+    return scaledByEffectiveUpgrades(definition.damage ?? 0, effectiveTowerLevel(tower));
+  }
+
+  return definition.damage ?? 0;
 }
 
 function makeProjectileSpec(

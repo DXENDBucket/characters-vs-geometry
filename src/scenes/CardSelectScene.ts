@@ -11,6 +11,7 @@ import {
 import {
   bossRank,
   isDodecahedronBossKind,
+  isOctahedronBossKind,
   isSmallStellatedDodecahedronBossKind,
   isTetrahedronBossKind
 } from "../bosses/cubeBoss";
@@ -251,6 +252,10 @@ export class CardSelectScene extends Phaser.Scene {
 
     if (isSmallStellatedDodecahedronBossKind(kind)) {
       return `${t("enemy.bossSmallStellatedDodecahedron")} ${toRomanNumeral(bossRank(kind))}`;
+    }
+
+    if (isOctahedronBossKind(kind)) {
+      return `${t("enemy.bossOctahedron")} ${toRomanNumeral(bossRank(kind))}`;
     }
 
     return `${t("enemy.bossCube")} ${toRomanNumeral(bossRank(kind))}`;

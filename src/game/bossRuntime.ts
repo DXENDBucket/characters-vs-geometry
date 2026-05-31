@@ -1,8 +1,11 @@
 import Phaser from "phaser";
 import {
+  BOARD_HEIGHT,
   BOARD_WIDTH,
   BOARD_X,
   BOARD_Y,
+  BOSS_HITBOX_HEIGHT,
+  BOSS_HITBOX_WIDTH,
   CELL_HEIGHT,
   CELL_WIDTH,
   COLUMNS,
@@ -19,7 +22,9 @@ import {
 import {
   bossAdvanceSpawnPoints,
   chargeBossSkill,
+  createCubeBoss,
   isDodecahedronBoss,
+  isOctahedronBoss,
   isSmallStellatedDodecahedronBoss,
   isTetrahedronBoss,
   isBossSkillReady,
@@ -33,6 +38,7 @@ import {
   makeEnemyHitShards,
   makeEnemyInvincibleFlash,
   makeEnemyLaserEffect,
+  makeOctahedronCollapse,
   makeSmallStellatedDodecahedronCollapse,
   makeTetrahedronCollapse
 } from "../render/combatEffects";
@@ -43,9 +49,10 @@ import { enemyAttackMultiplier } from "./combatStats";
 import { applyEnemyPromotion, enemyIsHighFlying, findPromotionTargets, promotedKind } from "./enemyBehaviors";
 import { spawnEnemyAt } from "./enemyRuntime";
 import { createMortarProjectile } from "./projectiles";
+import { SOLAR_BOMB_KIND } from "./solarBomb";
 import { makeWingPulse, triggerAngelWings } from "./enemySupport";
 import { applyStatusEffect, hasStatusEffect } from "./statusEffects";
-import { bossRect, towerRect } from "./targeting";
+import { bossParts, bossRect, towerRect } from "./targeting";
 import { isTrapArmed } from "./towers";
 import { setBossBaseArmor, towerFinalStats } from "./unitStats";
 import { volleyInterval } from "./upgrades";
@@ -61,8 +68,8 @@ const DODECAHEDRON_COMPANION_ATTACK_DELAYS: Record<BossCompanionActionPhase, num
   mortar: 30_000,
   wings: 30_000
 };
-const DODECAHEDRON_COMPANION_LASER_FIRE_RATE = 4_000;
-const DODECAHEDRON_COMPANION_MORTAR_FIRE_RATE = 15_000;
+const DODECAHEDRON_COMPANION_LASER_INTERVAL = 4_000;
+const DODECAHEDRON_COMPANION_MORTAR_INTERVAL = 15_000;
 const DODECAHEDRON_COMPANION_MOTION_HOLD = 47_000;
 const DODECAHEDRON_COMPANION_MOTION_TRANSITION = 1_000;
 const DODECAHEDRON_COMPANION_MOTION_CYCLE = DODECAHEDRON_COMPANION_MOTION_HOLD * 2 + DODECAHEDRON_COMPANION_MOTION_TRANSITION * 2;
@@ -72,6 +79,21 @@ const DODECAHEDRON_COMPANION_DEATH_LASER_SHOTS = 7;
 const DODECAHEDRON_COMPANION_DEATH_MORTAR_TARGETS = 4;
 const DODECAHEDRON_BOSS_ENDLESS_WINGS_DURATION = 7_000;
 const DODECAHEDRON_BOSS_ENDLESS_WINGS_SPEED_MULTIPLIER = 2;
+const OCTAHEDRON_SOLAR_BOMB_LANES = [1, 5] as const;
+const OCTAHEDRON_REINFORCEMENT_DELAY = 500;
+const OCTAHEDRON_HEART_REINFORCEMENT_LANES = [1, 3, 5] as const;
+const OCTAHEDRON_BURROW_REINFORCEMENT_LANES = [1, 3, 5] as const;
+const OCTAHEDRON_REINFORCEMENTS: Array<{
+  delay: number;
+  kind: Enemy["kind"];
+  lanes: readonly number[];
+}> = [
+  { delay: 0, kind: "hexSpellBulwark", lanes: allBoardLanes() },
+  { delay: OCTAHEDRON_REINFORCEMENT_DELAY, kind: "burrowArrow", lanes: OCTAHEDRON_BURROW_REINFORCEMENT_LANES },
+  { delay: OCTAHEDRON_REINFORCEMENT_DELAY * 2, kind: "heart", lanes: OCTAHEDRON_HEART_REINFORCEMENT_LANES },
+  { delay: OCTAHEDRON_REINFORCEMENT_DELAY * 3, kind: "slopeTriangle", lanes: allBoardLanes() },
+  { delay: OCTAHEDRON_REINFORCEMENT_DELAY * 4, kind: "archangelHeptagon", lanes: allBoardLanes() }
+];
 
 export interface BossRuntime {
   scene: Phaser.Scene;
@@ -83,7 +105,7 @@ export interface BossRuntime {
   battleTime: number;
   finalDamageReduction: number;
   damageTower: (tower: Tower, damage: number, damageType: DamageType) => void;
-  triggerTrapTower: (tower: Tower, target: Enemy | "boss") => void;
+  triggerTrapTower: (tower: Tower, target: Enemy | CubeBoss | "boss") => void;
   triggerShockTower: (tower: Tower) => void;
   runWhenBattleActive: (action: () => void) => void;
   endGame: () => void;
@@ -148,21 +170,192 @@ export function updateBossRuntime(runtime: BossRuntime, seconds: number) {
     return;
   }
 
-  updateCubeBossMotion(boss, seconds, bossMovementMultiplier(boss, runtime.battleTime), runtime.battleTime);
+  initializeOctahedronSolarBombs(runtime, boss);
+  updateBossPartsMotion(runtime, boss, seconds);
+  triggerOctahedronSplits(runtime, boss);
+  syncOctahedronSharedHp(boss);
   updateDodecahedronCompanions(runtime, boss, seconds);
   updateBossHasteVisual(runtime, boss);
   triggerTetrahedronHalfHpBurst(runtime, boss);
   triggerTetrahedronCriticalSummon(runtime, boss);
   updateBossSkills(runtime, boss, seconds);
-  triggerFunctionalTowersTouchingBoss(runtime, boss);
+  for (const part of bossParts(boss)) {
+    triggerFunctionalTowersTouchingBoss(runtime, part);
+    if (!runtime.getBoss()) {
+      return;
+    }
+  }
   if (!runtime.getBoss()) {
     return;
   }
-  damageBossTouchingTowers(runtime, boss, seconds);
+  for (const part of bossParts(boss)) {
+    damageBossTouchingTowers(runtime, part, seconds);
+    if (!runtime.getBoss()) {
+      return;
+    }
+  }
 
-  if (bossRect(boss).left <= BOARD_X - 20) {
+  if (bossParts(boss).some(bossPartReachesBase)) {
     runtime.endGame();
   }
+}
+
+function updateBossPartsMotion(runtime: BossRuntime, boss: CubeBoss, seconds: number) {
+  for (const part of bossParts(boss)) {
+    updateCubeBossMotion(part, seconds, bossMovementMultiplier(part, runtime.battleTime), runtime.battleTime);
+  }
+}
+
+function bossPartReachesBase(boss: CubeBoss) {
+  return (boss.movementAxis ?? "x") === "x" && (boss.movementDirection ?? -1) < 0 && bossRect(boss).left <= BOARD_X - 20;
+}
+
+function triggerOctahedronSplits(runtime: BossRuntime, boss: CubeBoss) {
+  if (!isOctahedronBoss(boss)) {
+    return;
+  }
+
+  if (!boss.octahedronSpawn75Triggered && boss.hp <= boss.maxHp * 0.75) {
+    boss.octahedronSpawn75Triggered = true;
+    spawnOctahedronCopy(runtime, boss, {
+      x: BOARD_X + BOSS_HITBOX_WIDTH / 2,
+      y: BOARD_Y + BOARD_HEIGHT / 2,
+      movementAxis: "x",
+      movementDirection: 1
+    });
+  }
+
+  if (!boss.octahedronSpawn50Triggered && boss.hp <= boss.maxHp * 0.5) {
+    boss.octahedronSpawn50Triggered = true;
+    spawnOctahedronCopy(runtime, boss, {
+      x: BOARD_X + 7.5 * CELL_WIDTH,
+      y: BOARD_Y + BOSS_HITBOX_HEIGHT / 2,
+      movementAxis: "y",
+      movementDirection: 1
+    });
+  }
+
+  if (!boss.octahedronSpawn25Triggered && boss.hp <= boss.maxHp * 0.25) {
+    boss.octahedronSpawn25Triggered = true;
+    spawnOctahedronCopy(runtime, boss, {
+      x: BOARD_X + 4.5 * CELL_WIDTH,
+      y: BOARD_Y + BOARD_HEIGHT - BOSS_HITBOX_HEIGHT / 2,
+      movementAxis: "y",
+      movementDirection: -1,
+      triggerReinforcements: true
+    });
+  }
+}
+
+function spawnOctahedronCopy(
+  runtime: BossRuntime,
+  boss: CubeBoss,
+  options: {
+    x: number;
+    y: number;
+    movementAxis: "x" | "y";
+    movementDirection: -1 | 1;
+    triggerReinforcements?: boolean;
+  }
+) {
+  const copy = createCubeBoss(runtime.scene, "octahedron", runtime.finalDamageReduction, options);
+  if (boss.maxHp !== copy.maxHp) {
+    copy.baseStats.maxHp = boss.maxHp;
+    copy.maxHp = boss.maxHp;
+    copy.finalStats.maxHp = boss.maxHp;
+  }
+  copy.hp = boss.hp;
+  copy.body.setDepth(87);
+  copy.octahedronCopies = undefined;
+  boss.octahedronCopies ??= [];
+  boss.octahedronCopies.push(copy);
+  triggerOctahedronInvincibilityCycle(runtime, boss);
+  if (options.triggerReinforcements) {
+    scheduleOctahedronReinforcements(runtime, boss);
+  }
+  makeOctahedronCollapse(runtime.scene, options.x, options.y);
+}
+
+function syncOctahedronSharedHp(boss: CubeBoss) {
+  for (const copy of boss.octahedronCopies ?? []) {
+    copy.hp = boss.hp;
+    copy.maxHp = boss.maxHp;
+  }
+}
+
+function initializeOctahedronSolarBombs(runtime: BossRuntime, boss: CubeBoss) {
+  if (!isOctahedronBoss(boss) || boss.octahedronSolarBombsInitialized) {
+    return;
+  }
+
+  boss.octahedronSolarBombsInitialized = true;
+  triggerOctahedronInvincibilityCycle(runtime, boss);
+}
+
+function triggerOctahedronInvincibilityCycle(runtime: BossRuntime, boss: CubeBoss) {
+  for (const part of bossParts(boss)) {
+    part.invincibleUntil = Number.POSITIVE_INFINITY;
+  }
+
+  spawnOctahedronSolarBombs(runtime);
+}
+
+function spawnOctahedronSolarBombs(runtime: BossRuntime) {
+  const waveNumber = runtime.wave || 0;
+  const x = BOARD_X + (COLUMNS - 0.5) * CELL_WIDTH;
+  for (const lane of OCTAHEDRON_SOLAR_BOMB_LANES) {
+    spawnEnemyAt(runtime, {
+      kind: SOLAR_BOMB_KIND,
+      waveNumber,
+      time: runtime.battleTime,
+      lane,
+      x,
+      waveWeight: 0,
+      finalDamageReduction: runtime.finalDamageReduction,
+      movementDirection: -1
+    });
+  }
+}
+
+function scheduleOctahedronReinforcements(runtime: BossRuntime, boss: CubeBoss) {
+  for (const wave of OCTAHEDRON_REINFORCEMENTS) {
+    runtime.scene.time.delayedCall(wave.delay, () => {
+      runtime.runWhenBattleActive(() => {
+        if (runtime.getBoss() !== boss) {
+          return;
+        }
+
+        spawnOctahedronReinforcementWave(runtime, wave.kind, wave.lanes, runtime.battleTime);
+      });
+    });
+  }
+}
+
+function spawnOctahedronReinforcementWave(
+  runtime: BossRuntime,
+  kind: Enemy["kind"],
+  lanes: readonly number[],
+  time: number
+) {
+  const waveNumber = runtime.wave || 0;
+  const x = BOARD_X + BOARD_WIDTH + 46;
+  for (const lane of lanes) {
+    const y = BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2;
+    spawnEnemyAt(runtime, {
+      kind,
+      waveNumber,
+      time,
+      lane,
+      x,
+      waveWeight: 0,
+      finalDamageReduction: runtime.finalDamageReduction
+    });
+    makeOctahedronCollapse(runtime.scene, x, y);
+  }
+}
+
+function allBoardLanes() {
+  return Array.from({ length: LANES }, (_value, lane) => lane);
 }
 
 function updateDodecahedronCompanions(runtime: BossRuntime, boss: CubeBoss, seconds: number) {
@@ -313,7 +506,7 @@ function nextDodecahedronCompanionActionPhase(phase: BossCompanionActionPhase): 
 
 function fireDodecahedronCompanionLaserVolley(runtime: BossRuntime, companion: Enemy) {
   const shots = 4 * enemyRank(companion.kind);
-  const interval = volleyInterval(DODECAHEDRON_COMPANION_LASER_FIRE_RATE, shots);
+  const interval = volleyInterval(DODECAHEDRON_COMPANION_LASER_INTERVAL, shots);
   for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
     runtime.scene.time.delayedCall(shotIndex * interval, () => {
       runtime.runWhenBattleActive(() => fireDodecahedronCompanionLaser(runtime, companion));
@@ -352,7 +545,7 @@ function fireDodecahedronCompanionMortarVolley(runtime: BossRuntime, companion: 
   }
 
   const shots = 2 * enemyRank(companion.kind);
-  const interval = volleyInterval(DODECAHEDRON_COMPANION_MORTAR_FIRE_RATE, shots);
+  const interval = volleyInterval(DODECAHEDRON_COMPANION_MORTAR_INTERVAL, shots);
   for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
     runtime.scene.time.delayedCall(shotIndex * interval, () => {
       runtime.runWhenBattleActive(() => fireDodecahedronCompanionMortar(runtime, companion));
@@ -427,7 +620,7 @@ function triggerDodecahedronCompanionDeath(
 }
 
 function fireDodecahedronDeathLaserVolley(runtime: BossRuntime, boss: CubeBoss) {
-  const interval = volleyInterval(DODECAHEDRON_COMPANION_LASER_FIRE_RATE, DODECAHEDRON_COMPANION_DEATH_LASER_SHOTS);
+  const interval = volleyInterval(DODECAHEDRON_COMPANION_LASER_INTERVAL, DODECAHEDRON_COMPANION_DEATH_LASER_SHOTS);
   for (let shotIndex = 0; shotIndex < DODECAHEDRON_COMPANION_DEATH_LASER_SHOTS; shotIndex += 1) {
     runtime.scene.time.delayedCall(shotIndex * interval, () => {
       runtime.runWhenBattleActive(() => fireDodecahedronDeathLasers(runtime, boss));
@@ -467,7 +660,7 @@ function fireDodecahedronLaserInLane(runtime: BossRuntime, fromX: number, lane: 
 
 function fireDodecahedronDeathMortars(runtime: BossRuntime, boss: CubeBoss) {
   const targets = findDodecahedronPentagonTargets(runtime, DODECAHEDRON_COMPANION_DEATH_MORTAR_TARGETS);
-  const interval = volleyInterval(DODECAHEDRON_COMPANION_MORTAR_FIRE_RATE, DODECAHEDRON_COMPANION_DEATH_MORTAR_TARGETS);
+  const interval = volleyInterval(DODECAHEDRON_COMPANION_MORTAR_INTERVAL, DODECAHEDRON_COMPANION_DEATH_MORTAR_TARGETS);
   targets.forEach((target, index) => {
     runtime.scene.time.delayedCall(index * interval, () => {
       runtime.runWhenBattleActive(() => fireDodecahedronBossMortar(runtime, boss, target));
@@ -571,7 +764,7 @@ function triggerFunctionalTowersTouchingBoss(runtime: BossRuntime, boss: CubeBos
     }
 
     if (tower.type === "G" && isTrapArmed(tower, runtime.battleTime)) {
-      runtime.triggerTrapTower(tower, "boss");
+      runtime.triggerTrapTower(tower, boss);
       if (!runtime.getBoss()) {
         return;
       }
@@ -826,6 +1019,11 @@ function makeBossCollapse(
 
   if (isSmallStellatedDodecahedronBoss(boss)) {
     makeSmallStellatedDodecahedronCollapse(runtime.scene, x, y, followTarget, runtime.enemies, runtime.towers);
+    return;
+  }
+
+  if (isOctahedronBoss(boss)) {
+    makeOctahedronCollapse(runtime.scene, x, y, followTarget, runtime.enemies, runtime.towers);
     return;
   }
 

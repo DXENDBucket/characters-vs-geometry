@@ -6,7 +6,7 @@ import {
   hexMagicResistanceBonus
 } from "./enemySupport";
 import { movementSpeedMultiplier } from "./slowAura";
-import { statusAttackMultiplier, statusSpeedMultiplier } from "./statusEffects";
+import { statusArmorMultiplier, statusAttackMultiplier, statusSpeedMultiplier } from "./statusEffects";
 
 interface EnemyFinalStatsContext {
   enemies?: Enemy[];
@@ -27,6 +27,7 @@ export function syncEnemyFinalStats(enemy: Enemy, context: EnemyFinalStatsContex
   const includeMovement = context.includeMovement ?? false;
   const includeAttack = context.includeAttack ?? false;
   const statusSpeed = includeMovement && context.time !== undefined ? statusSpeedMultiplier(enemy, context.time) : 1;
+  const statusArmor = includeDefense && context.time !== undefined ? statusArmorMultiplier(enemy, context.time) : 1;
   const supportSpeed = includeMovement && context.enemies ? chargingHexSpeedMultiplier(context.enemies, enemy) : 1;
   const terrainSpeed = includeMovement && context.towers
     ? movementSpeedMultiplier(context.towers, context.x ?? enemy.x, context.y ?? enemy.y)
@@ -36,7 +37,7 @@ export function syncEnemyFinalStats(enemy: Enemy, context: EnemyFinalStatsContex
   enemy.finalStats = {
     ...baseStats,
     armor: includeDefense && context.enemies
-      ? baseStats.armor + hexArmorBonus(context.enemies, enemy)
+      ? (baseStats.armor + hexArmorBonus(context.enemies, enemy)) * statusArmor
       : previousStats.armor,
     magicResistance: includeDefense && context.enemies
       ? baseStats.magicResistance + hexMagicResistanceBonus(context.enemies, enemy)
@@ -49,8 +50,8 @@ export function syncEnemyFinalStats(enemy: Enemy, context: EnemyFinalStatsContex
   return enemy.finalStats;
 }
 
-export function enemyDefenseStats(enemy: Enemy, enemies: Enemy[]) {
-  return syncEnemyFinalStats(enemy, { enemies, includeDefense: true });
+export function enemyDefenseStats(enemy: Enemy, enemies: Enemy[], time?: number) {
+  return syncEnemyFinalStats(enemy, { enemies, time, includeDefense: true });
 }
 
 export function enemyAttackDamage(enemy: Enemy, time: number) {
@@ -93,10 +94,34 @@ export function enemyMovementMultiplier(
   return enemyMovementSpeed(enemy, context, baseSpeed) / baseSpeed;
 }
 
-export function bossFinalStats(boss: CubeBoss, enemies: Enemy[]) {
+export function bossFinalStats(boss: CubeBoss, enemies: Enemy[], rootBoss: CubeBoss = boss) {
+  const bodyCountReduction = octahedronBodyDamageReduction(rootBoss);
   boss.finalStats = {
     ...boss.baseStats,
-    armor: boss.baseStats.armor + hexBossArmorBonus(enemies, boss)
+    armor: boss.baseStats.armor + hexBossArmorBonus(enemies, boss),
+    finalDamageReduction: combineDamageReduction(boss.baseStats.finalDamageReduction, bodyCountReduction)
   };
   return boss.finalStats;
+}
+
+function octahedronBodyDamageReduction(rootBoss: CubeBoss) {
+  if (rootBoss.kind !== "octahedron") {
+    return 0;
+  }
+
+  const bodyCount = 1 + (rootBoss.octahedronCopies?.length ?? 0);
+  if (bodyCount >= 4) {
+    return 0.6;
+  }
+  if (bodyCount === 3) {
+    return 0.4;
+  }
+  if (bodyCount === 2) {
+    return 0.2;
+  }
+  return 0;
+}
+
+function combineDamageReduction(baseReduction: number, extraReduction: number) {
+  return 1 - (1 - baseReduction) * (1 - extraReduction);
 }

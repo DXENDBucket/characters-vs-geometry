@@ -52,6 +52,7 @@ import {
   type TargetedEffectCardRuntime
 } from "../game/targetedEffectCards";
 import { TowerDeploymentController, type TowerDeploymentRuntime } from "../game/towerDeployment";
+import { TowerShifterController, type TowerShifterRuntime } from "../game/towerShifter";
 import { TowerSkillController, type TowerSkillRuntime } from "../game/towerSkills";
 import { charsAreSoftcapped, rawCharsForSoftcapped, softcapChars } from "../game/charSoftcap";
 import {
@@ -70,8 +71,10 @@ import {
 import { syncBossBaseStats, towerFinalStats } from "../game/unitStats";
 import { volleyInterval, volleyShotCount } from "../game/upgrades";
 import { waveScheduleAction } from "../game/waves";
+import { attackIntervalMs } from "../game/attackSpeed";
 import { t } from "../i18n";
 import { makeEraseMark, makeProductionPulse, makeShellBurst, makeShockPulse } from "../render/combatEffects";
+import { createUnitBorder } from "../render/unitShapes";
 import {
   createCardStates,
   createGameHud,
@@ -131,6 +134,7 @@ export class GameScene extends Phaser.Scene {
   private battlePaused = false;
   private gameSpeed = DEFAULT_GAME_SPEED;
   private eraserMode = false;
+  private placementGhosts: Phaser.GameObjects.Container[] = [];
   private autoUpgradeMode = false;
   private debugDamageMode = false;
   private autoUpgradeEnabled = true;
@@ -138,6 +142,7 @@ export class GameScene extends Phaser.Scene {
   private autoUpgradeReserveInputFocused = false;
   private targetedEffects!: TargetedEffectCardController;
   private towerSkills!: TowerSkillController;
+  private shifter!: TowerShifterController;
   private deployment!: TowerDeploymentController;
   private ui!: GameHudElements;
   private overlay!: GameOverlayElements;
@@ -173,6 +178,7 @@ export class GameScene extends Phaser.Scene {
     this.battlePaused = false;
     this.gameSpeed = DEFAULT_GAME_SPEED;
     this.eraserMode = false;
+    this.placementGhosts = [];
     this.autoUpgradeMode = false;
     this.debugDamageMode = false;
     this.autoUpgradeEnabled = true;
@@ -180,6 +186,7 @@ export class GameScene extends Phaser.Scene {
     this.autoUpgradeReserveInputFocused = false;
     this.targetedEffects = new TargetedEffectCardController(() => this.targetedEffectCardRuntime());
     this.towerSkills = new TowerSkillController(this, () => this.towerSkillRuntime());
+    this.shifter = new TowerShifterController(() => this.towerShifterRuntime());
     this.deployment = new TowerDeploymentController(() => this.towerDeploymentRuntime());
     this.levelElapsed = 0;
     this.battleTime = 0;
@@ -193,6 +200,7 @@ export class GameScene extends Phaser.Scene {
     this.ui = createGameHud(this, this.levelId, this.difficulty, {
       onDebug: () => this.grantDebugChars(),
       onDebugDamage: () => this.toggleDebugDamageMode(),
+      onShifter: () => this.toggleShifterMode(),
       onAutoUpgrade: () => this.toggleAutoUpgradeMode(),
       onAutoUpgradeEnabled: () => this.toggleAutoUpgradeEnabled(),
       onAutoUpgradeReserveFocus: () => this.focusAutoUpgradeReserveInput(),
@@ -208,6 +216,7 @@ export class GameScene extends Phaser.Scene {
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => this.handlePointerDown(pointer));
     this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
       this.towerSkills.updateSpellMortarReticlePosition(pointer.x, pointer.y);
+      this.syncPlacementGhost(pointer);
     });
 
     this.input.keyboard?.on("keydown", (event: KeyboardEvent) => {
@@ -230,6 +239,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.battlePaused) {
+      this.shifter.syncSelectionVisuals();
+      this.syncPlacementGhost(this.input.activePointer);
       this.updateCards(this.cardTime);
       this.updateHud();
       return;
@@ -254,6 +265,8 @@ export class GameScene extends Phaser.Scene {
     updateMortarProjectiles(projectileRuntime, seconds);
     this.updateWaveSchedule(this.levelElapsed, this.battleTime);
     this.attemptAutoUpgrades();
+    this.shifter.syncSelectionVisuals();
+    this.syncPlacementGhost(this.input.activePointer);
     this.updateCards(this.cardTime);
     this.updateHud();
   }
@@ -291,6 +304,11 @@ export class GameScene extends Phaser.Scene {
 
     if (this.isRightPointer(pointer)) {
       this.towerSkills.cancelSpellMortarTargeting();
+      if (this.shifter.isActive()) {
+        this.shifter.deactivate();
+        this.clearPlacementGhosts();
+        this.updateCards(this.cardTime);
+      }
       return;
     }
 
@@ -359,6 +377,11 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    if (this.shifter.isActive()) {
+      this.handleShifterPointer(pointer, lane, column, existingTower);
+      return;
+    }
+
     const definition = this.getSelectedDefinition();
     if (this.targetedEffects.canHandle(definition.id)) {
       this.handleTargetedEffectCardResult(this.targetedEffects.use(definition, lane, column, existingTower));
@@ -421,6 +444,117 @@ export class GameScene extends Phaser.Scene {
 
     this.spendChars(definition.cost);
     cardState.readyAt = this.cardTimeFor(definition.id) + definition.cooldown;
+    this.syncPlacementGhost(pointer);
+  }
+
+  private handleShifterPointer(pointer: Phaser.Input.Pointer, lane: number, column: number, existingTower?: Tower) {
+    const result = this.shifter.handlePointer(lane, column, existingTower, this.isCtrlPointer(pointer));
+    if (result === "cooldown") {
+      this.clearPlacementGhosts();
+      this.showToast(t("toast.cooldown"));
+      this.updateCards(this.cardTime);
+      return;
+    }
+
+    if (result === "empty") {
+      this.showToast(t("toast.empty"));
+      return;
+    }
+
+    if (result === "invalid") {
+      this.clearPlacementGhosts();
+      this.showToast(t("toast.invalidMove"));
+      this.updateCards(this.cardTime);
+      return;
+    }
+
+    if (result === "moved") {
+      this.clearPlacementGhosts();
+      this.updateLevelAuras();
+      this.updateCards(this.cardTime);
+      return;
+    }
+
+    this.syncPlacementGhost(pointer);
+    this.updateCards(this.cardTime);
+  }
+
+  private syncPlacementGhost(pointer?: Phaser.Input.Pointer) {
+    this.clearPlacementGhosts();
+    if (!pointer || this.gameOver || this.battlePaused || !this.isInsideBoard(pointer.x, pointer.y)) {
+      return;
+    }
+
+    const lane = Math.floor((pointer.y - BOARD_Y) / CELL_HEIGHT);
+    const column = Math.floor((pointer.x - BOARD_X) / CELL_WIDTH);
+
+    if (this.shifter.isActive() && this.shifter.hasSelection() && !this.occupied.get(gridCellKey(lane, column))) {
+      const move = this.shifter.previewMove(lane, column);
+      if (move.valid) {
+        for (const position of move.positions) {
+          this.addPlacementGhost(position.tower.type, position.lane, position.column);
+        }
+      }
+      return;
+    }
+
+    if (
+      this.eraserMode ||
+      this.shifter.isActive() ||
+      this.autoUpgradeMode ||
+      this.debugDamageMode ||
+      this.towerSkills.hasSpellMortarTargeting()
+    ) {
+      return;
+    }
+
+    const definition = this.getSelectedDefinition();
+    const cardState = this.cardStates.find((card) => card.definition.id === definition.id);
+    if (
+      this.targetedEffects.canHandle(definition.id) ||
+      !cardState ||
+      this.cardTimeFor(definition.id) < cardState.readyAt ||
+      this.effectiveChars() < definition.cost
+    ) {
+      return;
+    }
+
+    if (this.unlimitedFirepower) {
+      for (let targetLane = 0; targetLane < LANES; targetLane += 1) {
+        if (!this.occupied.get(gridCellKey(targetLane, column))) {
+          this.addPlacementGhost(definition.id, targetLane, column);
+        }
+      }
+      return;
+    }
+
+    if (!this.occupied.get(gridCellKey(lane, column))) {
+      this.addPlacementGhost(definition.id, lane, column);
+    }
+  }
+
+  private addPlacementGhost(type: CardId, lane: number, column: number) {
+    const definition = this.getDefinition(type);
+    const x = BOARD_X + column * CELL_WIDTH + CELL_WIDTH / 2;
+    const y = BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2;
+    const border = createUnitBorder(this, definition.category, 24, definition.category === "defense" ? 3 : 2);
+    const label = this.add
+      .text(0, -3, definition.id, {
+        color: "#f5f5f5",
+        fontFamily: "monospace",
+        fontSize: "34px",
+        fontStyle: "700"
+      })
+      .setOrigin(0.5);
+    const ghost = this.add.container(x, y, [border, label]).setDepth(18).setAlpha(0.32);
+    this.placementGhosts.push(ghost);
+  }
+
+  private clearPlacementGhosts() {
+    for (const ghost of this.placementGhosts) {
+      ghost.destroy();
+    }
+    this.placementGhosts = [];
   }
 
   private handleTargetedEffectCardResult(result: TargetedEffectCardResult) {
@@ -560,6 +694,8 @@ export class GameScene extends Phaser.Scene {
 
   private prepareSpellMortarTargeting() {
     this.eraserMode = false;
+    this.shifter.deactivate();
+    this.clearPlacementGhosts();
     this.autoUpgradeMode = false;
     this.debugDamageMode = false;
     this.autoUpgradeReserveInputFocused = false;
@@ -606,8 +742,9 @@ export class GameScene extends Phaser.Scene {
       gameOver: this.gameOver,
       battlePaused: this.battlePaused,
       getDefinition: (id) => this.getDefinition(id),
-      damageEnemy: (enemy, damage, damageType) => damageEnemy(this.unitLifecycleRuntime(), enemy, damage, damageType),
-      damageBoss: (damage, damageType) => damageBoss(this.unitLifecycleRuntime(), damage, damageType),
+      damageEnemy: (enemy, damage, damageType, sourceTower) =>
+        damageEnemy(this.unitLifecycleRuntime(), enemy, damage, damageType, sourceTower),
+      damageBoss: (damage, damageType, targetPart) => damageBoss(this.unitLifecycleRuntime(), damage, damageType, targetPart),
       runWhenBattleActive: (action) => this.runWhenBattleActive(action),
       onTargetingChanged: () => this.updateCards(this.cardTime)
     };
@@ -628,6 +765,16 @@ export class GameScene extends Phaser.Scene {
       runWhenBattleActive: (action) => this.runWhenBattleActive(action),
       updateLevelAuras: () => this.updateLevelAuras(),
       updateCards: () => this.updateCards(this.cardTime)
+    };
+  }
+
+  private towerShifterRuntime(): TowerShifterRuntime {
+    return {
+      scene: this,
+      towers: this.towers,
+      occupied: this.occupied,
+      cardTime: this.cardTime,
+      battleTime: this.battleTime
     };
   }
 
@@ -664,8 +811,9 @@ export class GameScene extends Phaser.Scene {
       projectiles: this.projectiles,
       enemyProjectiles: this.enemyProjectiles,
       mortarProjectiles: this.mortarProjectiles,
-      damageEnemy: (enemy, damage, damageType) => damageEnemy(this.unitLifecycleRuntime(), enemy, damage, damageType),
-      damageBoss: (damage, damageType) => damageBoss(this.unitLifecycleRuntime(), damage, damageType),
+      damageEnemy: (enemy, damage, damageType, sourceTower) =>
+        damageEnemy(this.unitLifecycleRuntime(), enemy, damage, damageType, sourceTower),
+      damageBoss: (damage, damageType, targetPart) => damageBoss(this.unitLifecycleRuntime(), damage, damageType, targetPart),
       damageTower: (tower, damage, damageType) => damageTower(this.unitLifecycleRuntime(), tower, damage, damageType),
       gainChars: (amount, x, y) => this.gainChars(amount, x, y),
       triggerTrapTower: (tower, target) => this.triggerTrapTower(tower, target),
@@ -703,8 +851,9 @@ export class GameScene extends Phaser.Scene {
       towers: this.towers,
       battleTime: this.battleTime,
       getBoss: () => this.boss,
-      damageEnemy: (enemy, damage, damageType) => damageEnemy(this.unitLifecycleRuntime(), enemy, damage, damageType),
-      damageBoss: (damage, damageType) => damageBoss(this.unitLifecycleRuntime(), damage, damageType),
+      damageEnemy: (enemy, damage, damageType, sourceTower) =>
+        damageEnemy(this.unitLifecycleRuntime(), enemy, damage, damageType, sourceTower),
+      damageBoss: (damage, damageType, targetPart) => damageBoss(this.unitLifecycleRuntime(), damage, damageType, targetPart),
       damageTower: (tower, damage, damageType) => damageTower(this.unitLifecycleRuntime(), tower, damage, damageType)
     };
   }
@@ -742,8 +891,9 @@ export class GameScene extends Phaser.Scene {
       gameOver: this.gameOver,
       getDefinition: (id) => this.getDefinition(id),
       removeTower: (tower) => removeTower(this.unitLifecycleRuntime(), tower),
-      damageEnemy: (enemy, damage, damageType) => damageEnemy(this.unitLifecycleRuntime(), enemy, damage, damageType),
-      damageBoss: (damage, damageType) => damageBoss(this.unitLifecycleRuntime(), damage, damageType),
+      damageEnemy: (enemy, damage, damageType, sourceTower) =>
+        damageEnemy(this.unitLifecycleRuntime(), enemy, damage, damageType, sourceTower),
+      damageBoss: (damage, damageType, targetPart) => damageBoss(this.unitLifecycleRuntime(), damage, damageType, targetPart),
       runWhenBattleActive: (action) => this.runWhenBattleActive(action)
     };
   }
@@ -769,7 +919,8 @@ export class GameScene extends Phaser.Scene {
 
   private startTowerVolley(tower: Tower, definition: CardDefinition, behavior: CardBehavior, time: number) {
     const shots = volleyShotCount(tower.type, effectiveTowerLevel(tower));
-    const interval = volleyInterval(towerFinalStats(tower).fireRate, shots);
+    const attackInterval = attackIntervalMs(towerFinalStats(tower).attackSpeed);
+    const interval = volleyInterval(attackInterval, shots);
 
     for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
       this.time.delayedCall(shotIndex * interval, () => {
@@ -854,7 +1005,7 @@ export class GameScene extends Phaser.Scene {
     action();
   }
 
-  private triggerTrapTower(tower: Tower, target: Enemy | "boss") {
+  private triggerTrapTower(tower: Tower, target: Enemy | CubeBoss | "boss") {
     runTriggerTrapTower(this.triggerTowerRuntime(), tower, target);
   }
 
@@ -865,12 +1016,15 @@ export class GameScene extends Phaser.Scene {
       selectedCardId: this.selectedCardId,
       chars: this.effectiveChars(),
       eraserMode: this.eraserMode,
+      shifterMode: this.shifter.isActive(),
       autoUpgradeMode: this.autoUpgradeMode,
       debugDamageMode: this.debugDamageMode
     });
     updateToolButtonStates(
       this.ui,
       this.eraserMode,
+      this.shifter.isActive(),
+      this.shifter.cooldownRatio(),
       this.autoUpgradeMode,
       this.debugDamageMode,
       this.autoUpgradeEnabled,
@@ -885,6 +1039,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.eraserMode = false;
+    this.shifter.deactivate();
+    this.clearPlacementGhosts();
     this.autoUpgradeMode = false;
     this.debugDamageMode = false;
     this.autoUpgradeReserveInputFocused = false;
@@ -908,9 +1064,36 @@ export class GameScene extends Phaser.Scene {
     this.autoUpgradeReserveInputFocused = false;
     this.cancelSpellMortarTargeting();
     if (this.eraserMode) {
+      this.shifter.deactivate();
+      this.clearPlacementGhosts();
       this.autoUpgradeMode = false;
       this.debugDamageMode = false;
     }
+    this.syncPlacementGhost(this.input.activePointer);
+    this.updateCards(this.cardTime);
+  }
+
+  private toggleShifterMode() {
+    if (this.gameOver) {
+      return;
+    }
+
+    if (!this.shifter.isActive() && !this.shifter.isReady()) {
+      this.showToast(t("toast.cooldown"));
+      return;
+    }
+
+    this.shifter.setActive(!this.shifter.isActive());
+    this.autoUpgradeReserveInputFocused = false;
+    this.cancelSpellMortarTargeting();
+    if (this.shifter.isActive()) {
+      this.eraserMode = false;
+      this.autoUpgradeMode = false;
+      this.debugDamageMode = false;
+    } else {
+      this.clearPlacementGhosts();
+    }
+    this.syncPlacementGhost(this.input.activePointer);
     this.updateCards(this.cardTime);
   }
 
@@ -924,8 +1107,11 @@ export class GameScene extends Phaser.Scene {
     this.cancelSpellMortarTargeting();
     if (this.autoUpgradeMode) {
       this.eraserMode = false;
+      this.shifter.deactivate();
+      this.clearPlacementGhosts();
       this.debugDamageMode = false;
     }
+    this.syncPlacementGhost(this.input.activePointer);
     this.updateCards(this.cardTime);
   }
 
@@ -947,6 +1133,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.eraserMode = false;
+    this.shifter.deactivate();
+    this.clearPlacementGhosts();
     this.autoUpgradeMode = false;
     this.debugDamageMode = false;
     this.autoUpgradeReserveInputFocused = true;
@@ -968,8 +1156,11 @@ export class GameScene extends Phaser.Scene {
     this.cancelSpellMortarTargeting();
     if (this.debugDamageMode) {
       this.eraserMode = false;
+      this.shifter.deactivate();
+      this.clearPlacementGhosts();
       this.autoUpgradeMode = false;
     }
+    this.syncPlacementGhost(this.input.activePointer);
     this.updateCards(this.cardTime);
   }
 
@@ -1098,6 +1289,11 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    if (key === "d" && this.selectedCardIds.includes("d")) {
+      this.selectCard("d");
+      return;
+    }
+
     if (key === "l" && this.selectedCardIds.includes("l")) {
       this.selectCard("l");
       return;
@@ -1145,6 +1341,11 @@ export class GameScene extends Phaser.Scene {
 
     if (key === "2") {
       this.toggleAutoUpgradeMode();
+      return;
+    }
+
+    if (key === "3") {
+      this.toggleShifterMode();
       return;
     }
 
@@ -1196,11 +1397,14 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     this.eraserMode = false;
+    this.shifter.deactivate();
+    this.clearPlacementGhosts();
     this.autoUpgradeMode = false;
     this.debugDamageMode = false;
     this.autoUpgradeReserveInputFocused = false;
     this.cancelSpellMortarTargeting();
     this.selectedCardId = id;
+    this.syncPlacementGhost(this.input.activePointer);
     this.updateCards(this.cardTime);
   }
 
@@ -1231,6 +1435,11 @@ export class GameScene extends Phaser.Scene {
   private isShiftPointer(pointer: Phaser.Input.Pointer) {
     const event = pointer.event as MouseEvent | undefined;
     return Boolean(event && "shiftKey" in event && event.shiftKey);
+  }
+
+  private isCtrlPointer(pointer: Phaser.Input.Pointer) {
+    const event = pointer.event as MouseEvent | undefined;
+    return Boolean(event && "ctrlKey" in event && event.ctrlKey);
   }
 
   private isRightPointer(pointer: Phaser.Input.Pointer) {
