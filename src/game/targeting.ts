@@ -110,7 +110,12 @@ function healTargetColumns(tower: Tower, definition: CardDefinition) {
 
   const rangeCells = definition.rangeCells ?? 2;
   const direction = towerFacingDirection(tower);
-  return Array.from({ length: rangeCells }, (_value, index) => tower.column + index * direction).filter(
+  const forwardColumns = Array.from({ length: rangeCells }, (_value, index) => tower.column + index * direction);
+  const rearColumns = tower.type === "P"
+    ? Array.from({ length: 3 }, (_value, index) => tower.column - (index + 1) * direction)
+    : [];
+
+  return [...rearColumns.reverse(), ...forwardColumns].filter(
     (column) => column >= 0 && column < COLUMNS
   );
 }

@@ -253,7 +253,7 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     kind: "heart",
     label: "1",
     hp: 9_999,
-    armor: 399,
+    armor: 299,
     magicResistance: 60,
     damage: 2_100,
     damageType: "true",

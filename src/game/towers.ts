@@ -24,7 +24,7 @@ export function createTower(
   const y = BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2;
   const body = scene.add.container(x, y).setDepth(20 + lane);
   const border = createUnitBorder(scene, definition.category, 24, definition.category === "defense" ? 3 : 2);
-  const rangeBorder = definition.id === "T" ? createSlowAuraRangeBorder(scene) : null;
+  const rangeBorder = createRangeBorder(scene, definition);
   const autoUpgradeBorder = createAutoUpgradeBorder(scene);
   const trueDamageBorder = createTrueDamageBorder(scene);
   const flyingHalo = createTowerFlyingHalo(scene);
@@ -97,7 +97,9 @@ export function createTower(
     armor: baseStats.armor,
     magicResistance: baseStats.magicResistance,
     attackSpeed: baseStats.attackSpeed,
-    lastFire: -Number.POSITIVE_INFINITY,
+    lastFire: definition.category === "production" && definition.attackSpeed && definition.produceAmount
+      ? battleTime
+      : -Number.POSITIVE_INFINITY,
     level: 1,
     levelBonus: 0,
     nextProduceAt: definition.produceEvery ? battleTime + definition.produceEvery : Number.POSITIVE_INFINITY,
@@ -165,8 +167,8 @@ export function applyTowerUpgradeStats(
   }
 }
 
-export function syncTowerDerivedStats(tower: Tower, healMaxHpIncrease = false) {
-  syncTowerFinalStats(tower, { healMaxHpIncrease });
+export function syncTowerDerivedStats(tower: Tower, healMaxHpIncrease = false, towers?: Tower[]) {
+  syncTowerFinalStats(tower, { healMaxHpIncrease, towers });
   syncTowerHpBar(tower);
 }
 
@@ -305,12 +307,24 @@ function createTowerFlyingHalo(scene: Phaser.Scene) {
   return halo;
 }
 
-function createSlowAuraRangeBorder(scene: Phaser.Scene) {
+function createRangeBorder(scene: Phaser.Scene, definition: CardDefinition) {
+  if (definition.id === "T") {
+    return createNoCornerRangeBorder(scene, palette.time, 0.86);
+  }
+
+  if (definition.id === "e") {
+    return createNoCornerRangeBorder(scene, palette.enemyShot, 0.86);
+  }
+
+  return null;
+}
+
+function createNoCornerRangeBorder(scene: Phaser.Scene, color: number, alpha: number) {
   const border = scene.add.graphics();
   const inner = CELL_WIDTH * 1.5;
   const outer = CELL_WIDTH * 2.5;
 
-  border.lineStyle(2, palette.time, 0.86);
+  border.lineStyle(2, color, alpha);
   border.beginPath();
   border.moveTo(-inner, -outer);
   border.lineTo(inner, -outer);

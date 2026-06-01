@@ -45,6 +45,7 @@ import { chargingHexSpeedMultiplier, makeWingPulse, syncHexArmorAuras, updateEne
 import { advanceHighFlyingEnemy, advanceSlopeTriangle } from "./slopeTriangle";
 import {
   SOLAR_BOMB_BOUNCE_COOLDOWN,
+  SOLAR_BOMB_CENTER_ACCELERATION,
   SOLAR_BOMB_COLLISION_DAMAGE,
   SOLAR_BOMB_RADIUS,
   bounceSolarBombFromPoint,
@@ -410,7 +411,6 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
 
 type SolarBombCollision =
   | { kind: "tower"; target: Tower; x: number; y: number; distance: number }
-  | { kind: "enemy"; target: Enemy; x: number; y: number; distance: number }
   | { kind: "boss"; target: CubeBoss; x: number; y: number; distance: number };
 
 function advanceSolarBomb(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number, seconds: number) {
@@ -419,6 +419,7 @@ function advanceSolarBomb(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: numb
   }
 
   initializeSolarBombVelocity(enemy);
+  accelerateSolarBombTowardCenterLane(enemy, seconds);
   const rawVelocityX = enemy.solarBombVelocityX ?? 0;
   const rawVelocityY = enemy.solarBombVelocityY ?? 0;
   const baseSpeed = Math.max(Math.hypot(rawVelocityX, rawVelocityY), enemy.baseStats.speed || 1);
@@ -453,8 +454,6 @@ function advanceSolarBomb(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: numb
 
   if (collision.kind === "tower") {
     runtime.damageTower(collision.target, SOLAR_BOMB_COLLISION_DAMAGE, "true");
-  } else if (collision.kind === "enemy") {
-    runtime.damageEnemy(collision.target, SOLAR_BOMB_COLLISION_DAMAGE, "true");
   } else {
     const breaksOctahedronShield = solarBombBreaksOctahedronShield(enemy, collision.target, time);
     if (breaksOctahedronShield) {
@@ -486,6 +485,16 @@ function initializeSolarBombVelocity(enemy: Enemy) {
   const direction = enemy.movementDirection ?? -1;
   enemy.solarBombVelocityX = direction * enemy.baseStats.speed;
   enemy.solarBombVelocityY = 0;
+}
+
+function accelerateSolarBombTowardCenterLane(enemy: Enemy, seconds: number) {
+  const targetY = BOARD_Y + Math.floor(LANES / 2) * CELL_HEIGHT + CELL_HEIGHT / 2;
+  const deltaY = targetY - enemy.y;
+  if (Math.abs(deltaY) < 1) {
+    return;
+  }
+
+  enemy.solarBombVelocityY = (enemy.solarBombVelocityY ?? 0) + Math.sign(deltaY) * SOLAR_BOMB_CENTER_ACCELERATION * seconds;
 }
 
 function bounceSolarBombOffBoard(enemy: Enemy) {
@@ -544,25 +553,6 @@ function findSolarBombCollision(runtime: EnemyAdvanceRuntime, bomb: Enemy) {
     });
   }
 
-  for (const enemy of runtime.enemies) {
-    if (enemy === bomb || !canSolarBombCollideWithEnemy(enemy)) {
-      continue;
-    }
-
-    const distance = Math.hypot(bomb.x - enemy.x, bomb.y - enemy.y);
-    if (distance > SOLAR_BOMB_RADIUS + solarBombTargetRadius(enemy)) {
-      continue;
-    }
-
-    collisions.push({
-      kind: "enemy",
-      target: enemy,
-      x: enemy.x,
-      y: enemy.y,
-      distance
-    });
-  }
-
   for (const part of bossParts(runtime.boss)) {
     const rect = bossRect(part);
     if (!circleIntersectsRect(bomb.x, bomb.y, SOLAR_BOMB_RADIUS, rect)) {
@@ -581,18 +571,6 @@ function findSolarBombCollision(runtime: EnemyAdvanceRuntime, bomb: Enemy) {
   }
 
   return collisions.sort((a, b) => a.distance - b.distance)[0];
-}
-
-function canSolarBombCollideWithEnemy(enemy: Enemy) {
-  return !enemyIsBurrowed(enemy) && !enemyIsHighFlying(enemy);
-}
-
-function solarBombTargetRadius(enemy: Enemy) {
-  if (enemyIsSolarBomb(enemy)) {
-    return SOLAR_BOMB_RADIUS;
-  }
-
-  return enemyIsBossCompanion(enemy.kind) ? CELL_WIDTH * 0.475 : 24;
 }
 
 function circleIntersectsRect(x: number, y: number, radius: number, rect: Phaser.Geom.Rectangle) {

@@ -6,6 +6,7 @@ export const SOLAR_BOMB_KIND = "solarBomb" as const;
 export const SOLAR_BOMB_COLLISION_DAMAGE = 900;
 export const SOLAR_BOMB_RADIUS = 32;
 export const SOLAR_BOMB_BOUNCE_COOLDOWN = 150;
+export const SOLAR_BOMB_CENTER_ACCELERATION = 4;
 export const SOLAR_BOMB_ROTATION_SPEED = Math.PI * 0.9;
 
 type RotatableShape = {

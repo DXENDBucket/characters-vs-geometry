@@ -44,9 +44,10 @@ import {
   hasAttackTarget
 } from "./targeting";
 import { applyStatusEffect, syncEnemyBodyPosition } from "./statusEffects";
-import { effectiveTowerLevel, syncTowerHpBar, towerDamageType, towerFacingDirection } from "./towers";
+import { effectiveTowerLevel, getProductionAmount, syncTowerHpBar, towerDamageType, towerFacingDirection } from "./towers";
 import { towerFinalStats } from "./unitStats";
 import { scaledByEffectiveUpgrades } from "./upgrades";
+import { isPointInSlowAura } from "./slowAura";
 
 export interface CardBehavior {
   canUse: (
@@ -96,6 +97,22 @@ export const healingCardBehavior: CardBehavior = {
     );
   },
   execute: fireHealingPulse
+};
+
+export const zealHealingCardBehavior: CardBehavior = {
+  canUse: (tower, definition, time, runtime) => {
+    return cooldownReady(tower, time) && Boolean(definition.healAmount && getZealHealTargets(tower, runtime.towers).length > 0);
+  },
+  execute: fireZealHealingPulse
+};
+
+export const productionCardBehavior: CardBehavior = {
+  canUse: (tower, definition, time) => {
+    return cooldownReady(tower, time) && Boolean(definition.produceAmount);
+  },
+  execute: (tower, definition, runtime) => {
+    runtime.gainChars(getProductionAmount(tower, definition), tower.x, tower.y - 28);
+  }
 };
 
 export const shiftCardBehavior: CardBehavior = {
@@ -160,9 +177,10 @@ export const cardBehaviorsById: Record<CardId, CardBehavior> = {
   d: magicLaserCardBehavior,
   O: idleCardBehavior,
   R: idleCardBehavior,
-  X: idleCardBehavior,
+  X: productionCardBehavior,
   x: homingCardBehavior,
   E: projectileCardBehavior,
+  e: zealHealingCardBehavior,
   M: projectileCardBehavior,
   W: projectileCardBehavior,
   w: idleCardBehavior,
@@ -356,6 +374,24 @@ function fireHealingPulse(
   for (const target of targets) {
     healTower(runtime.scene, target, definition.healAmount ?? 60);
   }
+}
+
+function fireZealHealingPulse(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {
+  const targets = getZealHealTargets(tower, runtime.towers);
+  if (targets.length === 0) {
+    return;
+  }
+
+  const amount = definition.healAmount ?? definition.damage ?? 0;
+  for (const target of targets) {
+    healTower(runtime.scene, target, amount);
+  }
+}
+
+function getZealHealTargets(tower: Tower, towers: Tower[]) {
+  return towers.filter((target) => {
+    return !target.transient && isPointInSlowAura(tower, target.x, target.y) && target.hp < towerFinalStats(target).maxHp;
+  });
 }
 
 function fireShiftPulse(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {

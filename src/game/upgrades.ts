@@ -5,6 +5,7 @@ const VOLLEY_UPGRADEABLE_CARDS = new Set<CardId>([
   "a",
   "C",
   "E",
+  "e",
   "M",
   "W",
   "H",

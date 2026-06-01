@@ -14,6 +14,7 @@ import {
   maxHpGainForEffectiveUpgrades
 } from "./upgrades";
 import { attackIntervalMs } from "./attackSpeed";
+import { towerZealAttackSpeedMultiplier } from "./towerAuras";
 
 export function towerBaseStatsFromDefinition(definition: CardDefinition): TowerBaseStats {
   return {
@@ -26,9 +27,9 @@ export function towerBaseStatsFromDefinition(definition: CardDefinition): TowerB
   };
 }
 
-export function syncTowerFinalStats(tower: Tower, options: { healMaxHpIncrease?: boolean } = {}) {
+export function syncTowerFinalStats(tower: Tower, options: { healMaxHpIncrease?: boolean; towers?: Tower[] } = {}) {
   const previousMaxHp = tower.finalStats?.maxHp ?? tower.maxHp;
-  tower.finalStats = calculateTowerFinalStats(tower);
+  tower.finalStats = calculateTowerFinalStats(tower, options.towers);
   tower.maxHp = tower.finalStats.maxHp;
   tower.baseMaxHp = tower.baseStats.maxHp;
   tower.armor = tower.finalStats.armor;
@@ -42,16 +43,20 @@ export function syncTowerFinalStats(tower: Tower, options: { healMaxHpIncrease?:
   }
 }
 
-export function calculateTowerFinalStats(tower: Tower) {
+export function calculateTowerFinalStats(tower: Tower, towers?: Tower[]) {
   const baseStats = tower.baseStats;
   const effectiveUpgrades = effectiveUpgradeCountForLevel(effectiveTowerStatLevel(tower));
   const maxHp = isMaxHpUpgradeable(tower.type)
     ? baseStats.maxHp + maxHpGainForEffectiveUpgrades(baseStats.maxHp, effectiveUpgrades)
     : baseStats.maxHp;
+  const attackSpeed = baseStats.attackSpeed === undefined
+    ? undefined
+    : baseStats.attackSpeed * towerZealAttackSpeedMultiplier(towers, tower);
 
   return {
     ...baseStats,
-    maxHp
+    maxHp,
+    attackSpeed
   };
 }
 

@@ -130,7 +130,7 @@ export const cardDefinitions: CardDefinition[] = [
     maxHp: 1_200,
     armor: 150,
     magicResistance: 0,
-    produceEvery: 10_000,
+    attackSpeed: 6,
     produceAmount: 25,
     stats: `${EFFECT_SYMBOLS.chars}25 / 10s`
   },
@@ -170,6 +170,18 @@ export const cardDefinitions: CardDefinition[] = [
     damage: 400,
     damageType: "physical",
     stats: `3x400${DAMAGE_SYMBOLS.physical} / 2s`
+  },
+  {
+    id: "e",
+    category: "healing",
+    cost: 650,
+    cooldown: 20_000,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 20,
+    attackSpeed: 30,
+    healAmount: 90,
+    stats: `${EFFECT_SYMBOLS.heal}90 / ZEAL / 5x5`
   },
   {
     id: "M",
@@ -506,7 +518,7 @@ export const cardDefinitions: CardDefinition[] = [
     attackSpeed: 30,
     healAmount: 250,
     rangeCells: 5,
-    stats: `${EFFECT_SYMBOLS.heal}250 / R5`
+    stats: `${EFFECT_SYMBOLS.heal}250 / R5+B3`
   },
   {
     id: "p",

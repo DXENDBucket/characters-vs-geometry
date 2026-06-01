@@ -9,6 +9,7 @@ export type CardId =
   | "c"
   | "D"
   | "d"
+  | "e"
   | "O"
   | "R"
   | "X"

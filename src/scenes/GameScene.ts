@@ -663,12 +663,11 @@ export class GameScene extends Phaser.Scene {
     }
 
     for (const tower of this.towers) {
-      if (previousBonuses.get(tower) === tower.levelBonus) {
-        continue;
+      if (previousBonuses.get(tower) !== tower.levelBonus) {
+        syncTowerLevelText(tower);
       }
 
-      syncTowerLevelText(tower);
-      syncTowerDerivedStats(tower);
+      syncTowerDerivedStats(tower, false, this.towers);
     }
   }
 
