@@ -11,7 +11,7 @@ import {
 } from "./towers";
 
 const MIRROR_CARD_ID: CardId = "m";
-const MIRROR_COST_LIMIT = 999;
+export const MIRROR_COST_LIMIT = 999;
 
 export interface TowerMirrorRuntime {
   scene: Phaser.Scene;

@@ -8,6 +8,8 @@ import {
 import { movementSpeedMultiplier } from "./slowAura";
 import { statusArmorMultiplier, statusAttackMultiplier, statusSpeedMultiplier } from "./statusEffects";
 
+const DODECAHEDRON_COMPANION_DAMAGE_REDUCTION = 0.95;
+
 interface EnemyFinalStatsContext {
   enemies?: Enemy[];
   towers?: Tower[];
@@ -96,12 +98,28 @@ export function enemyMovementMultiplier(
 
 export function bossFinalStats(boss: CubeBoss, enemies: Enemy[], rootBoss: CubeBoss = boss) {
   const bodyCountReduction = octahedronBodyDamageReduction(rootBoss);
+  const companionReduction = dodecahedronCompanionDamageReduction(rootBoss, enemies);
   boss.finalStats = {
     ...boss.baseStats,
     armor: boss.baseStats.armor + hexBossArmorBonus(enemies, boss),
-    finalDamageReduction: combineDamageReduction(boss.baseStats.finalDamageReduction, bodyCountReduction)
+    finalDamageReduction: combineDamageReduction(
+      combineDamageReduction(boss.baseStats.finalDamageReduction, bodyCountReduction),
+      companionReduction
+    )
   };
   return boss.finalStats;
+}
+
+function dodecahedronCompanionDamageReduction(rootBoss: CubeBoss, enemies: Enemy[]) {
+  if (rootBoss.kind !== "dodecahedron" && rootBoss.kind !== "dodecahedron2") {
+    return 0;
+  }
+
+  return enemies.some(enemyIsDodecahedronCompanion) ? DODECAHEDRON_COMPANION_DAMAGE_REDUCTION : 0;
+}
+
+function enemyIsDodecahedronCompanion(enemy: Enemy) {
+  return enemy.kind === "dodecahedronCompanion" || enemy.kind === "dodecahedronCompanion2";
 }
 
 function octahedronBodyDamageReduction(rootBoss: CubeBoss) {

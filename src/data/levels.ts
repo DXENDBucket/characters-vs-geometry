@@ -55,7 +55,8 @@ export const levelNodes: LevelNode[] = [
   { id: "5-1", x: 230, y: 405, unlocked: true },
   { id: "5-2", x: 450, y: 310, unlocked: true },
   { id: "5-3", x: 670, y: 430, unlocked: true },
-  { id: "5-4", x: 890, y: 330, unlocked: true }
+  { id: "5-4", x: 890, y: 330, unlocked: true },
+  { id: "5-5", x: 1110, y: 430, unlocked: true }
 ];
 
 export const levelConfigs: Record<string, LevelConfig> = {
@@ -612,6 +613,28 @@ export const levelConfigs: Record<string, LevelConfig> = {
     totalWaves: 20,
     wavesPerFlag: WAVES_PER_FLAG,
     startingChars: CHAPTER_FIVE_STARTING_CHARS
+  },
+  "5-5": {
+    id: "5-5",
+    enemyKinds: [
+      "circle",
+      "square",
+      "angelPentagonRam",
+      "angelPentagonRam2",
+      "pentagon2",
+      "angelPentagon2",
+      "shootingPentagon2",
+      "hexMace2",
+      "archangelHeptagon2"
+    ],
+    firstWaveWeight: CHAPTER_FIVE_FIRST_WAVE_WEIGHT,
+    waveWeightIncrement: CHAPTER_FIVE_WAVE_WEIGHT_INCREMENT,
+    waveWeightIncrementGrowth: CHAPTER_FIVE_WAVE_WEIGHT_INCREMENT_GROWTH,
+    wavesPerFlag: WAVES_PER_FLAG,
+    waveWeightCap: 3500,
+    startingChars: 10_000,
+    bossKind: "dodecahedron2",
+    endless: true
   }
 };
 

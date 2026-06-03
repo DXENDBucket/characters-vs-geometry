@@ -70,7 +70,7 @@ export const cardDefinitions: CardDefinition[] = [
     id: "c",
     category: "function",
     cost: 1_425,
-    cooldown: 70_000,
+    cooldown: 50_000,
     maxHp: 1_200,
     armor: 150,
     magicResistance: 0,
@@ -509,7 +509,7 @@ export const cardDefinitions: CardDefinition[] = [
     maxHp: 1_200,
     armor: 150,
     magicResistance: 40,
-    stats: "LEVEL AURA / 3x3"
+    stats: "LEVEL AURA <=999 / 3x3"
   },
   {
     id: "V",

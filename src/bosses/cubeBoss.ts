@@ -263,7 +263,6 @@ export function createCubeBoss(
     criticalHpTriggered: false,
     pendingCriticalSummon: false,
     companionsInitialized: false,
-    companionArmorReduced: false,
     companionDeathsHandled: 0,
     invincibleUntil: 0,
     bossHasteUntil: 0,
@@ -408,7 +407,7 @@ function drawCubeBoss(boss: CubeBoss, time: number) {
 }
 
 export function bossRank(kind: BossKind) {
-  return kind === "cube2" || kind === "tetrahedron2" ? 2 : 1;
+  return kind === "cube2" || kind === "tetrahedron2" || kind === "dodecahedron2" ? 2 : 1;
 }
 
 export function isTetrahedronBossKind(kind: BossKind) {
@@ -420,7 +419,7 @@ export function isTetrahedronBoss(boss: CubeBoss) {
 }
 
 export function isDodecahedronBossKind(kind: BossKind) {
-  return kind === "dodecahedron";
+  return kind === "dodecahedron" || kind === "dodecahedron2";
 }
 
 export function isDodecahedronBoss(boss: CubeBoss) {

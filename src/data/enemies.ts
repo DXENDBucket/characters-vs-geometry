@@ -109,6 +109,18 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     weight: 320,
     minFlag: 1
   },
+  angelPentagonRam2: {
+    kind: "angelPentagonRam2",
+    label: "2",
+    hp: 5_000,
+    armor: 200,
+    magicResistance: 40,
+    damage: 1_400,
+    damageType: "magic",
+    speedMultiplier: 2,
+    weight: 640,
+    minFlag: 1
+  },
   mortarTriangle: {
     kind: "mortarTriangle",
     label: "1",
@@ -155,6 +167,18 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     damageType: "magic",
     speedMultiplier: 0.55,
     weight: 120,
+    minFlag: 1
+  },
+  pentagon2: {
+    kind: "pentagon2",
+    label: "2",
+    hp: 1_500,
+    armor: 70,
+    magicResistance: 40,
+    damage: 800,
+    damageType: "magic",
+    speedMultiplier: 0.55,
+    weight: 240,
     minFlag: 1
   },
   angelPentagon: {
@@ -213,6 +237,18 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     damageType: "magic",
     speedMultiplier: 0.4,
     weight: 125,
+    minFlag: 1
+  },
+  shootingPentagon2: {
+    kind: "shootingPentagon2",
+    label: "2",
+    hp: 2_000,
+    armor: 70,
+    magicResistance: 40,
+    damage: 150,
+    damageType: "magic",
+    speedMultiplier: 0.4,
+    weight: 250,
     minFlag: 1
   },
   diamond: {
@@ -452,7 +488,19 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
   },
   dodecahedronCompanion: {
     kind: "dodecahedronCompanion",
+    label: "1",
     hp: 32_000,
+    armor: 2_000,
+    magicResistance: 40,
+    damage: 0,
+    damageType: "physical",
+    speedMultiplier: 0,
+    weight: 1
+  },
+  dodecahedronCompanion2: {
+    kind: "dodecahedronCompanion2",
+    label: "2",
+    hp: 40_000,
     armor: 2_000,
     magicResistance: 40,
     damage: 0,

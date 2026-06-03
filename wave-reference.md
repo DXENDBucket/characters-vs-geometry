@@ -14,6 +14,7 @@
 | Triangle Ram 2 | 225 | 5000 | 200 | 1400 | ◆ | Body label `II/II`; base average speed `20`, uniformly accelerates while moving and reaches `80` after `7` cells. The first time it is blocked, it rams the blocker for physical damage. When it dies for any reason, it spawns two Triangle 2 enemies slightly ahead/behind |
 | Triangle Ram 3 | 375 | 5000 | 200 | 1400 | ◆ | Body label `III/III`; base average speed `25`, uniformly accelerates while moving and reaches `100` after `7` cells. The first time it is blocked, it rams the blocker for physical damage. When it dies for any reason, it spawns two Triangle 3 enemies slightly ahead/behind |
 | Angel Pentagon Ram 1 | 320 | 5000 | 200 | 1400 | ✦ | Body label `I/I`; MR `40`; base average speed `15`, uniformly accelerates like Triangle Ram and reaches `60` after `7` cells. Does not naturally appear before Flag 1. Its body is two face-linked pentagons. The first time it is blocked, it deals no damage and gains `2s` Flying with a halo. After that effect has triggered, the next block rams for magic damage, disappears, and spawns a same-rank Angel Pentagon in the forward position plus a same-rank Pentagon in the rear position |
+| Angel Pentagon Ram 2 | 640 | 5000 | 200 | 1400 | ✦ | Body label `II/II`; MR `40`; base average speed `20`, uniformly accelerates like Triangle Ram 2 and reaches `80` after `7` cells. Same Flying-then-ram behavior as Angel Pentagon Ram 1. On death, spawns Angel Pentagon 2 ahead and Pentagon 2 behind |
 | Inverted Triangle 1 | 50 | 1000 | 70 | 2000 | ✦ | Body label `I`; MR `60`; average speed `40`; after being blocked by the same tower for `2s`, disappears and detonates against that tower |
 | Inverted Triangle 2 | 100 | 1000 | 70 | 2600 | ✦ | Body label `II`; MR `60`; average speed `45`; after being blocked by the same tower for `2s`, disappears and detonates against that tower |
 | Inverted Triangle 3 | 150 | 1000 | 70 | 3200 | ✦ | Body label `III`; MR `60`; average speed `50`; after being blocked by the same tower for `2s`, disappears and detonates against that tower |
@@ -24,6 +25,7 @@
 | Triangle Mortar 2 | 180 | 1500 | 70 | 1150 | ◆ | Body label `II/II`; MR `0`; average speed `5.5`; every `15s`, fires 2 shell-like physical mortars with `3x3` AOE. The volley window is fixed at one fifth of its attack interval, so the two shots are `3s` apart |
 | Triangle Mortar 3 | 270 | 1500 | 70 | 1150 | ◆ | Body label `III/III`; MR `0`; average speed `5.5`; every `15s`, fires 3 shell-like physical mortars with `3x3` AOE. The volley window is fixed at one fifth of its attack interval |
 | Pentagon 1 | 120 | 1500 | 70 | 800 | ✦ | Body label `I`; MR `40`; average speed `5.5`; downward-facing pentagon. Every `15s`, fires a red `#` magic mortar with `3x3` AOE. If blocked, targets its blocker; otherwise targets the highest-level tower on the field. Ties target the later-placed tower. N rewrites the landing point if targeted; R takes damage and reflects a matching mortar back at the shooter |
+| Pentagon 2 | 240 | 1500 | 70 | 800 | ✦ | Body label `II`; MR `40`; average speed `5.5`; same as Pentagon 1, but fires 2 red `#` magic mortars per attack. The volley window is fixed at one fifth of its attack interval |
 | Angel Pentagon 1 | 200 | 1200 | 50 | 300 | ◆ | Body label `I`; MR `20`; average speed `20`; point faces downward and it has a small halo. Does not naturally appear before Flag 1. Wings: starts at `0/15` SP, gains `1` SP/s, then gives itself and enemies in a centered `3x3` area Flying with a halo and `+100%` movement speed for `3s`; SP regeneration pauses while Wings is active |
 | Angel Pentagon 2 | 250 | 1200 | 50 | 300 | ◆ | Body label `II`; MR `20`; average speed `20`; otherwise identical to Angel Pentagon 1, but Wings starts at `2/15` SP and gains `1.2` SP/s |
 | Shooting Pentagon 1 | 125 | 2000 | 70 | 150 | ✦ | Body label `I`; MR `40`; average speed `4`; one point faces the base. Every `4s`, fires an instant red magic laser. The laser is not a projectile, cannot be reflected by R, pierces towers in its lane, and stops after damaging the first tower with MR greater than `0` |
@@ -84,8 +86,10 @@ Leader enemies are fixed flag-wave spawns when included in a level pool. They do
 | Cube II | 200000 | 600 | 20 | 0.6 | `2.95x2.95` cells | Same baseline behavior as Cube I. Advance becomes Advance II and summons Square 2 minions. Also has Promotion II. |
 | Tetrahedron I | 120000 | 150 | 20 | 1.2 | `2.95x2.95` cells | Fast-attack Boss with quicker visual rotation. Same baseline behavior as Cube I, but uses tetrahedron-collapse effects. At first `50%` HP or lower, summons Inverted Triangle 1 in every cell of the two columns farthest from the base and immediately fills Charge SP. At first `10%` HP or lower, its HP is held at `10%`, gains `15s` Invincible, gains `60s` Boss Haste at `300%` speed, summons Inverted Triangle 1 in every cell of the five columns farthest from the base, and permanently doubles all skill natural SP gain. If it would die before this triggers, it instead locks at `1` HP and triggers the same effect package. |
 | Tetrahedron II | 120000 | 150 | 20 | 1.2 | `2.95x2.95` cells | Same baseline behavior as Tetrahedron I. All Inverted Triangles and Shooting Triangles summoned by its Boss mechanics are rank II. |
-| Dodecahedron I | 100000 | 2000 | 90 | 0.6 | `2.95x2.95` cells | Whiteboard Boss. Same baseline behavior as Cube I, but has no SP skills. Starts with 3 orbiting Dodecahedron Companions; after all companions die, its base armor is reduced by `1800`. |
+| Dodecahedron I | 100000 | 200 | 90 | 0.6 | `2.95x2.95` cells | Whiteboard Boss. Same baseline behavior as Cube I, but has no SP skills. Starts with 3 orbiting Dodecahedron Companions. While any companion is alive, it gains `95%` all-damage reduction; the reduction is removed after all companions die. |
+| Dodecahedron II | 100000 | 200 | 90 | 0.6 | `2.95x2.95` cells | Same baseline behavior as Dodecahedron I, but starts with 3 Dodecahedron Companion II enemies. While any companion is alive, it gains `95%` all-damage reduction. When its first companion dies, death-laser volleys increase from `7` to `14`; when its second companion dies, death mortars select up to `6` targets instead of `4`. |
 | Dodecahedron Companion | 32000 | 2000 | 40 | orbiting | `0.95x0.95` cells | Special Boss companion. Body label `I`; cannot be blocked, syncs Dodecahedron I's 3D rotation, and shrinks visually with HP like ordinary enemies. Attack loop: after `20s`, fires `4 x label` Shooting-Pentagon lasers; after `30s`, fires `2 x label` Pentagon mortars; after `30s`, casts Angel-Pentagon Wings on enemies in a `3x3` area. Motion loop: orbits for `47s`, shifts over `1s` to the front column on the Boss lane / two lanes up / two lanes down, holds `47s`, then shifts back over `1s`. Each companion death gives surviving companions `10s` Invincible. |
+| Dodecahedron Companion II | 40000 | 2000 | 40 | orbiting | `0.95x0.95` cells | Body label `II`; same behavior as Dodecahedron Companion I, but HP is `25%` higher and all volley shot counts are doubled: `8` Shooting-Pentagon lasers and `4` Pentagon mortars. |
 | Octahedron I | 120000 | 200 | 60 | 0.6 | `2.95x2.95` cells | Multi-body Boss for 4-10. Same contact behavior as Cube I, but has no SP skills. At `75%`, `50%`, and `25%` HP thresholds, spawns an additional Octahedron body. All bodies share one HP bar; each body keeps independent effects and movement. Each new invincibility cycle spawns two Mirage Sun Bombs from the rightmost column in rows 2 and 6. |
 | Small Stellated Dodecahedron I | 100000 | 200 | 90 | 0.6 | `2.95x2.95` cells | Whiteboard Boss. Same contact/base behavior as Cube I, currently used to test the small stellated dodecahedron wireframe. |
 
@@ -104,9 +108,9 @@ Cube skills:
 
 Dodecahedron mechanics:
 
-- When the first companion dies, Dodecahedron I fires Shooting-Pentagon lasers across its own 3 occupied lanes, `7` volleys total.
-- When the second companion dies, Dodecahedron I uses Pentagon targeting to select up to `4` different towers, then fires one magic Pentagon mortar at each in order.
-- After all companions die, Dodecahedron I loses `1800` base armor and Endless Wings starts charging.
+- When the first companion dies, Dodecahedron I fires Shooting-Pentagon lasers across its own 3 occupied lanes, `7` volleys total. Dodecahedron II fires `14` volleys instead.
+- When the second companion dies, Dodecahedron I uses Pentagon targeting to select up to `4` different towers, then fires one magic Pentagon mortar at each in order. Dodecahedron II selects up to `6` targets instead.
+- While any companion is alive, Dodecahedron I/II gains `95%` all-damage reduction. After all companions die, this reduction is removed and Endless Wings starts charging.
 - Endless Wings: starts at `0/4` SP, gains `1` SP per second after all companions are dead, and consumes `4` SP at full.
 - On activation, Endless Wings gives `7s` Wings Flying to all currently non-flying enemies touching Dodecahedron I's hitbox, with the same `+100%` movement speed as Angel Pentagon 1 Wings.
 
@@ -151,7 +155,7 @@ Tetrahedron skills:
 | B | Defense | Square | 75 | 20s | 3000 | 500 | 0 | Blocks; reflects `400◆` when hit by melee attacks | +`2400` max/current HP per level |
 | b | Function | Triangle | 75 | 10s | 1200 | 150 | 0 | Instant turn card. Place it on an occupied tower; it occupies that cell briefly, then flips the target tower's facing. Reversed towers mirror their border/letter and show a yellow `<` marker. A reversed tower can be flipped again to return to normal | Each effective level refunds `(level - 1) / level` of b's cooldown after it resolves |
 | C | Attack | Diamond | 250 | 3s | 1200 | 150 | 0 | Fires 1 shell, `500◆`, `1.75` tile radius AOE with distance falloff, every `3s` | +1 volley per level |
-| c | Function | Triangle | 1425 | 70s | 1200 | 150 | 0 | Speed Clock: gains `1` SP/s, max `20`; at full SP gains a border. Clicking a ready c spends all SP and makes it flash for `10s`; active c towers make other card-slot cooldown speed `(active c level sum + 1)x`; c's own card cooldown is not accelerated by this effect. Shift-click a ready c activates all ready c towers | Skill contribution uses its current level |
+| c | Function | Triangle | 1425 | 50s | 1200 | 150 | 0 | Speed Clock: gains `1` SP/s, max `20`; at full SP gains a border. Clicking a ready c spends all SP and makes it flash for `10s`; active c towers make other card-slot cooldown speed `(active c level sum + 1)x` only for cards with base cost `999` or lower; c's own card cooldown is not accelerated by this effect. Shift-click a ready c activates all ready c towers | Skill contribution uses its current level |
 | D | Defense | Square | 100 | 20s | 3000 | 800 | 0 | High-armor blocker | +`2400` max/current HP per level |
 | d | Attack | Diamond | 175 | 10s | 1200 | 150 | 20 | Fires a light-blue piercing magic laser, `400✦`, every `3s`. The laser stops after hitting the first enemy with MR. Hit enemies gain `10s` Sunder, reducing final armor by `35%` and showing a white `▣` icon; repeated hits refresh Sunder to `10s` | +`320✦` attack per level |
 | O | Defense | Square | 125 | 20s | 3000 | 500 | 40 | Armor-heavy magic-resistant blocker | +`2400` max/current HP per level |
@@ -187,7 +191,7 @@ Tetrahedron skills:
 | N | Defense | Square | 125 | 20s | 3000 | 500 | 0 | Every `1s`, pushes all enemies it is blocking `5` cells in its push direction: normal N pushes left, reversed N pushes right. Takes `400◇` per pushed enemy. Enemy projectiles that would hit N are shifted `5` cells in that same direction instead of dealing projectile damage, and N takes `400◇` per shifted projectile. Locked mortar shots targeting N have their landing point shifted by the same distance and also cost N `400◇` once | +`2400` max/current HP per level |
 | n | Function | Triangle | 375 | 20s | 3000 | 200 | 0 | Every `1s`, repels all enemies in its own lane within its column and the front column to an adjacent upper/lower lane; odd placement order starts upward, even starts downward, then alternates. Takes `400◇` per shifted enemy | +`2400` max/current HP per level |
 | T | Function | Triangle | 650 | 50s | 4000 | 150 | 20 | Every `1s`, takes `700◇`; ordinary units and projectiles in a centered `5x5` no-corner area move at `1/6` speed. Bosses ignore the slow. The area is shown with a deep-purple time border. Whenever it disappears for any reason, clears all projectiles and mortars in that area | +`3200` max/current HP per level |
-| U | Function | Triangle | 1275 | 50s | 1200 | 150 | 40 | Grants towers in a centered `3x3` area, excluding itself, bonus levels equal to U's real level. Only affects towers whose base cost is lower than U's base cost. Multiple U auras stack additively | Each level raises U's aura bonus by `+1` level |
+| U | Function | Triangle | 1275 | 50s | 1200 | 150 | 40 | Grants towers in a centered `3x3` area, excluding itself, bonus levels equal to U's real level. Only affects towers with base cost `999` or lower. Multiple U auras stack additively | Each level raises U's aura bonus by `+1` level |
 | V | Attack | Diamond | 775 | 6s | 1200 | 150 | 40 | Every `2s`, lobs a single-target `*` magic shell for `1300` damage along its lane. It prefers the attackable enemy with the lowest max HP, predicts the landing point from target speed at lock time, and can miss | +`1040` magic attack per level |
 | v | Attack | Diamond | 500 | 6s | 1200 | 150 | 40 | Every `4s`, lobs a `#` magic shell at the first enemy ahead. It predicts the landing point from target speed at lock time, then deals `500✦` in a circular `1.75` tile radius AOE with distance falloff and applies `2s` Stasis to ordinary enemies hit | +`400✦` damage per level |
 
@@ -2207,6 +2211,70 @@ Base rule:
 | 19 | - | 2021 | 2021 |
 | 20 | 2 | 2197 | 4394 |
 
+## Level 5-5 Weight Growth
+
+Enemy pool:
+
+- Circle 1
+- Square 1
+- Angel Pentagon Ram 1
+- Angel Pentagon Ram 2
+- Pentagon 2
+- Angel Pentagon 2
+- Shooting Pentagon 2
+- Hex Mace 2
+- Archangel Heptagon 2
+
+Boss:
+
+- Dodecahedron II
+
+Base rule:
+
+- Starting characters: `10000`.
+- Wave 1 starts at weight cap `50`.
+- Wave 2 adds `+50`; each later increment grows by `+7` (`+57`, `+64`, ...).
+- Every flag wave, currently every `10`th wave, doubles that wave's cap before the level cap is applied.
+- Base wave cap is capped at `3500` before difficulty modifies it.
+- A wave may leave unused weight, but never exceeds its cap.
+- Difficulty modifies the capped value. The result is floored and never lower than `10`.
+- The level is an endless Boss stage.
+- Angel Pentagon Rams, Pentagons, Shooting Pentagons, and Hex Maces have a minimum Flag 1 gate, so they can first enter the random pool on wave 10.
+- Archangel Heptagon 2 is a leader enemy and fixed-spawns once on flag waves if included in the level pool; it does not consume wave weight.
+
+| Wave | Flag | Raw Cap | Capped Cap |
+| ---: | ---: | ---: | ---: |
+| 1 | - | 50 | 50 |
+| 2 | - | 100 | 100 |
+| 3 | - | 157 | 157 |
+| 4 | - | 221 | 221 |
+| 5 | - | 292 | 292 |
+| 6 | - | 370 | 370 |
+| 7 | - | 455 | 455 |
+| 8 | - | 547 | 547 |
+| 9 | - | 646 | 646 |
+| 10 | 1 | 1504 | 1504 |
+| 11 | - | 865 | 865 |
+| 12 | - | 985 | 985 |
+| 13 | - | 1112 | 1112 |
+| 14 | - | 1246 | 1246 |
+| 15 | - | 1387 | 1387 |
+| 16 | - | 1535 | 1535 |
+| 17 | - | 1690 | 1690 |
+| 18 | - | 1852 | 1852 |
+| 19 | - | 2021 | 2021 |
+| 20 | 2 | 4394 | 3500 |
+| 21 | - | 2380 | 2380 |
+| 22 | - | 2570 | 2570 |
+| 23 | - | 2767 | 2767 |
+| 24 | - | 2971 | 2971 |
+| 25 | - | 3182 | 3182 |
+| 26 | - | 3400 | 3400 |
+| 27 | - | 3625 | 3500 |
+| 28 | - | 3857 | 3500 |
+| 29 | - | 4096 | 3500 |
+| 30 | 3 | 8684 | 3500 |
+
 ## Spawn Trigger
 
 After the first wave appears, the next wave spawns when either condition is met:
@@ -2244,6 +2312,7 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 - Chapter 4 starting characters: `500`.
 - Chapter 4 Boss stage 4-10 starting characters: `5000`.
 - Chapter 5 starting characters: `5000`.
+- Chapter 5 Boss stage 5-5 starting characters: `10000`.
 - Natural income: `25` every `5s`.
 
 ## Recent Enemy Additions
@@ -2263,3 +2332,7 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 - Charging Hexagon 2: weight `300`, HP `12000`, armor `150`, MR `40`, attack `500` magic, average speed `25`, body label `II`; attacks every `1s`.
 - Hex Mace 2: weight `500`, HP `9000`, armor `150`, MR `0`, attack `460` physical, base average speed `20`, body label `II/II`; on death spawns Charging Hexagon 2 and Hexagon 2.
 - Hex Spell Bulwark 2: no wave weight, HP `24000`, armor `100`, MR `80`, attack `1200` magic, fixed speed `15`, body label `II/II`; same-lane MR aura grants `+50` MR. Hex Spell Bulwark 1's aura now grants `+40` MR.
+- Angel Pentagon Ram 2: weight `640`, HP `5000`, armor `200`, MR `40`, attack `1400` magic, base average speed `20`, body label `II/II`; on death spawns Angel Pentagon 2 and Pentagon 2.
+- Pentagon 2: weight `240`, HP `1500`, armor `70`, MR `40`, attack `800` magic, average speed `5.5`, body label `II`; fires 2 magic mortars per attack.
+- Shooting Pentagon 2: weight `250`, HP `2000`, armor `70`, MR `40`, attack `150` magic, average speed `4`, body label `II`; fires 2 lasers per attack.
+- Dodecahedron Companion 2: HP `40000`, armor `2000`, MR `40`, body label `II`; volley shot counts are doubled from Dodecahedron Companion 1.

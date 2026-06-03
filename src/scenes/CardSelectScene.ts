@@ -20,9 +20,11 @@ import { getLevelConfig } from "../data/levels";
 import { toRomanNumeral } from "../format";
 import { DAMAGE_SYMBOLS, t } from "../i18n";
 import { createEnemyShape, createUnitBorder } from "../render/unitShapes";
-import { allCardDefinitions, cardLetterCase, defaultCardLoadout, type CardLetterCase } from "../registry/cards";
+import { allCardDefinitions, cardLetterCase, hasCardDefinition, type CardLetterCase } from "../registry/cards";
 import { enemyFamily, enemyRank, getEnemyDefinition, getEnemyDisplayName, type EnemyFamily } from "../registry/enemies";
 import type { BossKind, CardId, EnemyKind } from "../types";
+
+const LOADOUT_STORAGE_KEY = "characters-vs-geometry:last-card-loadout";
 
 interface CardPoolCaseButton {
   letterCase: CardLetterCase;
@@ -41,7 +43,7 @@ export class CardSelectScene extends Phaser.Scene {
   private chapterId = "1";
   private difficulty = DEFAULT_DIFFICULTY;
   private unlimitedFirepower = false;
-  private selectedCards: CardId[] = [...defaultCardLoadout];
+  private selectedCards: CardId[] = [];
   private enemyPreviewList!: Phaser.GameObjects.Container;
   private enemyPreviewViewport!: Phaser.Geom.Rectangle;
   private enemyPreviewContentHeight = 0;
@@ -77,7 +79,7 @@ export class CardSelectScene extends Phaser.Scene {
     this.chapterId = data.chapterId ?? chapterIdForLevelId(this.levelId);
     this.difficulty = clampDifficulty(data.difficulty);
     this.unlimitedFirepower = Boolean(data.unlimitedFirepower);
-    this.selectedCards = [...defaultCardLoadout];
+    this.selectedCards = readStoredLoadout();
     this.slotFrames = [];
     this.slotLabels = [];
     this.cardFrames = new Map();
@@ -567,6 +569,7 @@ export class CardSelectScene extends Phaser.Scene {
     } else if (this.selectedCards.length < CARD_SLOT_COUNT) {
       this.selectedCards.push(id);
     }
+    writeStoredLoadout(this.selectedCards);
     this.updateCardSelection();
   }
 
@@ -594,6 +597,7 @@ export class CardSelectScene extends Phaser.Scene {
     if (this.selectedCards.length === 0) {
       return;
     }
+    writeStoredLoadout(this.selectedCards);
     this.scene.start("GameScene", {
       levelId: this.levelId,
       chapterId: this.chapterId,
@@ -610,4 +614,32 @@ export class CardSelectScene extends Phaser.Scene {
       unlimitedFirepower: this.unlimitedFirepower
     });
   }
+}
+
+function readStoredLoadout() {
+  try {
+    const raw = window.localStorage.getItem(LOADOUT_STORAGE_KEY);
+    if (!raw) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .filter((id, index, cards) => isValidStoredCard(id) && cards.indexOf(id) === index)
+      .slice(0, CARD_SLOT_COUNT);
+  } catch {
+    return [];
+  }
+}
+
+function writeStoredLoadout(cards: CardId[]) {
+  window.localStorage.setItem(LOADOUT_STORAGE_KEY, JSON.stringify(cards));
+}
+
+function isValidStoredCard(id: unknown): id is CardId {
+  return typeof id === "string" && hasCardDefinition(id as CardId);
 }

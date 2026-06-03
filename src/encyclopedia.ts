@@ -60,6 +60,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
   const shootingTriangle2 = getEnemyDefinition("shootingTriangle2");
   const shootingTriangle3 = getEnemyDefinition("shootingTriangle3");
   const dodecahedronCompanion = getEnemyDefinition("dodecahedronCompanion");
+  const dodecahedronCompanion2 = getEnemyDefinition("dodecahedronCompanion2");
   const trapezoid = getEnemyDefinition("trapezoid");
   const trapezoid2 = getEnemyDefinition("trapezoid2");
   const trapezoid3 = getEnemyDefinition("trapezoid3");
@@ -524,28 +525,28 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
       icon: "dodecahedron",
       lines: [
         statLine([
-          [t("label.hp"), CUBE_BOSS_STATS.dodecahedron.hp],
+          [t("label.hp"), `I ${CUBE_BOSS_STATS.dodecahedron.hp} / II ${CUBE_BOSS_STATS.dodecahedron2.hp}`],
           [t("label.armor"), CUBE_BOSS_STATS.dodecahedron.armor],
           [t("label.mr"), CUBE_BOSS_STATS.dodecahedron.magicResistance],
           [t("label.speed"), CUBE_BOSS_STATS.dodecahedron.speed],
           [t("label.atk"), `${damageText(CUBE_BOSS_CONTACT_DAMAGE, "physical")} / ${CUBE_BOSS_CONTACT_INTERVAL}s`]
         ]),
         zh
-          ? `开局拥有 3 个环绕眷属：${dodecahedronCompanion.hp} 生命 / ${dodecahedronCompanion.armor} 护甲 / ${dodecahedronCompanion.magicResistance} 法抗`
-          : `Starts with 3 orbiting companions: ${dodecahedronCompanion.hp} HP / ${dodecahedronCompanion.armor} armor / ${dodecahedronCompanion.magicResistance} MR`,
-        zh ? "眷属中心带有 I；所有眷属死亡后，正十二面体基础护甲 -1800。" : "Companions show I at the center; after all companions die, Dodecahedron base armor is reduced by 1800.",
+          ? `开局拥有 3 个环绕眷属：I ${dodecahedronCompanion.hp} 生命 / II ${dodecahedronCompanion2.hp} 生命；护甲 ${dodecahedronCompanion.armor} / 法抗 ${dodecahedronCompanion.magicResistance}`
+          : `Starts with 3 orbiting companions: I ${dodecahedronCompanion.hp} HP / II ${dodecahedronCompanion2.hp} HP; ${dodecahedronCompanion.armor} armor / ${dodecahedronCompanion.magicResistance} MR`,
+        zh ? "眷属中心带有 I/II；有眷属存活时，正十二面体获得 95% 全伤害减免，全部眷属死亡后移除。" : "Companions show I/II at the center; while any companion is alive, Dodecahedron gains 95% all-damage reduction, removed after all companions die.",
         zh
-          ? "眷属攻击循环：20s 后连射 4 发射击五边形激光；再 30s 后连射 2 发五边形迫击；再 30s 后释放 3x3 羽翼。"
-          : "Companion attack loop: after 20s, fires 4 Shooting-Pentagon lasers; after 30s, fires 2 Pentagon mortars; after 30s, casts 3x3 Wings.",
+          ? "眷属攻击循环：20s 后连射射击五边形激光（I 4 发 / II 8 发）；再 30s 后连射五边形迫击（I 2 发 / II 4 发）；再 30s 后释放 3x3 羽翼。"
+          : "Companion attack loop: after 20s, fires Shooting-Pentagon lasers (I 4 / II 8); after 30s, fires Pentagon mortars (I 2 / II 4); after 30s, casts 3x3 Wings.",
         zh
           ? "眷属运动循环：旋转 47s，1s 平移到 Boss 前方一列并分布在本行/上二行/下二行，停留 47s，再 1s 回到旋转。"
           : "Companion motion loop: orbits for 47s, spends 1s shifting to the front column on the boss lane / two lanes up / two lanes down, holds 47s, then spends 1s returning to orbit.",
         zh
-          ? "第 1 个眷属死亡时，Boss 在自身三行连射 7 次射击五边形激光；第 2 个眷属死亡时，按五边形规则依次瞄准 4 个不同目标发射法术迫击弹。"
-          : "When the 1st companion dies, the Boss fires 7 volleys of Shooting-Pentagon lasers across its 3 lanes. When the 2nd dies, it fires magic mortars at 4 different Pentagon-rule targets in order.",
+          ? "第 1 个眷属死亡时，Boss 在自身三行连射射击五边形激光（I 7 次 / II 14 次）；第 2 个眷属死亡时，按五边形规则依次瞄准不同目标发射法术迫击弹（I 4 个 / II 6 个）。"
+          : "When the 1st companion dies, the Boss fires Shooting-Pentagon lasers across its 3 lanes (I 7 volleys / II 14 volleys). When the 2nd dies, it fires magic mortars at different Pentagon-rule targets in order (I 4 / II 6).",
         zh
-          ? "每次眷属死亡时，存活眷属获得 10s 无敌。全部眷属死亡后，无尽羽翼开始回技：4 技力满后消耗 4，使接触 Boss 碰撞体且未飞行的敌怪获得 7s 羽翼飞行。"
-          : "Each companion death gives surviving companions 10s Invincible. After all companions die, Endless Wings starts charging: at 4 SP, spend 4 to give 7s Wings Flying to non-flying enemies touching the Boss hitbox."
+          ? "每次眷属死亡时，存活眷属获得 10s 无敌。全部眷属死亡后，正十二面体失去眷属减伤，且无尽羽翼开始回技：4 技力满后消耗 4，使接触 Boss 碰撞体且未飞行的敌怪获得 7s 羽翼飞行。"
+          : "Each companion death gives surviving companions 10s Invincible. After all companions die, Dodecahedron loses companion damage reduction and Endless Wings starts charging: at 4 SP, spend 4 to give 7s Wings Flying to non-flying enemies touching the Boss hitbox."
       ],
       description: zh
         ? "Boss 本体不会被阻挡，也不会随血量缩小；眷属不会被阻挡，但会像普通敌怪一样随血量变小。到达底线会失败，死亡会直接胜利。"
@@ -639,7 +640,7 @@ function towerDescription(id: CardId) {
     b: zh ? "小 b。放在已有塔上，短暂占格后让目标塔切换朝向；反向塔会镜像边框和字符，并显示黄色 < 标记。再次使用可转回正向。" : "Turn card. Place it on an existing tower; it briefly occupies the cell, then toggles that tower's facing. Reversed towers mirror their border and letter and show a yellow < marker. Use it again to turn the tower back.",
     t: zh ? "真实伤害增幅。放在已有塔上，短暂占格后让目标塔在持续时间内造成的所有伤害变为真实伤害；目标塔会显示比自动升级更外侧的金色光环。" : "True-damage amplifier. Place it on an existing tower; it briefly occupies the cell, then makes all damage dealt by the target tower become true damage for the duration. The target shows a gold ring outside the auto-upgrade ring.",
     C: zh ? "物理溅射炮。沿本行发射炮弹，命中后对 1.75 格半径造成随距离衰减的范围伤害。" : "Physical splash cannon. Fires down its lane and deals 1.75-cell radius splash with distance falloff on hit.",
-    c: zh ? "极速钟。每秒回复 1 技力，20 满后显示边框；点击消耗全部技力，使自身进入 10 秒闪烁状态。所有激活的 c 会让其他卡槽冷却速度变为等级和 +1 倍，c 自身卡槽冷却不受影响；Shift+点击可同时激活所有满技力的 c。" : "Speed clock. Gains 1 SP/s up to 20 and shows its border when full; clicking it spends all SP and makes it flash for 10s. Active c towers make other card-slot cooldown speed equal active level sum + 1; c's own card cooldown is unaffected. Shift-click activates all full c towers.",
+    c: zh ? "极速钟。每秒回复 1 技力，20 满后显示边框；点击消耗全部技力，使自身进入 10 秒闪烁状态。所有激活的 c 会让基础费用 999 或以下的其他卡槽冷却速度变为等级和 +1 倍，c 自身卡槽冷却不受影响；Shift+点击可同时激活所有满技力的 c。" : "Speed clock. Gains 1 SP/s up to 20 and shows its border when full; clicking it spends all SP and makes it flash for 10s. Active c towers make other card-slot cooldown speed equal active level sum + 1 for cards with base cost 999 or lower; c's own card cooldown is unaffected. Shift-click activates all full c towers.",
     D: zh ? "纯防御塔。高护甲，用来拖住近战敌怪。" : "Pure defender with high armor for stalling melee enemies.",
     O: zh ? "抗法防御塔。机制和 D 类似，拥有高护甲和中等法术抗性。" : "Magic-resistant defender. Similar to D, with high armor and moderate magic resistance.",
     R: zh ? "反弹防御塔。机制和 O 类似；敌方弹幕击中它时仍会造成伤害，但弹幕会被反射为同伤害、同类型的我方弹幕。锁定迫击弹命中 R 时会被反射回发射者。" : "Reflect defender. Similar to O; enemy projectiles still damage it on hit, then reflect into friendly projectiles with the same damage and damage type. Locked mortars that hit R are reflected back at the shooter.",
@@ -676,7 +677,7 @@ function towerDescription(id: CardId) {
     N: zh ? "防御推移塔。每秒把自己正在阻挡的所有敌怪沿推移方向移动 5 格：正常 N 向左，反向 N 向右。每推一个自损 400 真实伤害。敌方弹幕命中它时会沿同方向被推移，不造成弹幕本身的伤害，但会让 N 自损 400 真实伤害；锁定 N 的迫击弹会沿同方向改写落点并造成一次同等自损。" : "Defender-shifter. Every second, pushes all enemies it is blocking 5 cells in its push direction: normal N pushes left, reversed N pushes right. It takes 400 true self-damage per pushed enemy. Enemy projectiles that would hit it are shifted in the same direction and deal no projectile damage, but N takes 400 true self-damage per shifted projectile; locked mortars targeting N have their landing point rewritten in the same direction and cost the same self-damage once.",
     n: zh ? "排斥塔。机制类似 L，但会把本行指定格子的所有敌怪排斥到上/下相邻行；第一次方向按放置顺序决定，奇数先向上、偶数先向下，之后每次生效交替。每排斥一个目标自损 400 真实伤害。" : "Repulsor. Similar to L, but shifts all enemies from target tiles in its own lane to the adjacent lane above or below. Odd placement order starts upward, even starts downward, then alternates after each pulse. Takes 400 true self-damage per shifted target.",
     T: zh ? "迟滞塔。每秒自损 700 真实伤害；以自身为中心 5x5 去角范围内的普通单位和弹幕移动速度降为六分之一，并显示深紫色时间范围框。Boss 不受减速影响。无论因任何原因消失，都会清除范围内所有弹幕和抛射体。" : "Slow field tower. Takes 700 true self-damage every second; ordinary units and projectiles in its centered 5x5 no-corner area move at one sixth speed, shown with a deep-purple time range border. Bosses ignore the slow. Whenever it disappears for any reason, it clears all projectiles and mortars in that area.",
-    U: zh ? "等级光环塔。为自身 3x3 范围内除自己外、基础费用低于 U 的塔提供等同于自身真实等级的额外等级加成；多个 U 可加算。" : "Level aura tower. Grants towers in its centered 3x3 area, excluding itself, bonus levels equal to U's real level. It only affects towers with a lower base cost than U, and multiple U auras stack additively."
+    U: zh ? "等级光环塔。为自身 3x3 范围内除自己外、基础费用 999 或以下的塔提供等同于自身真实等级的额外等级加成；多个 U 可加算。" : "Level aura tower. Grants towers in its centered 3x3 area, excluding itself, bonus levels equal to U's real level. It only affects towers with base cost 999 or lower, and multiple U auras stack additively."
   };
   return descriptions[id];
 }

@@ -161,7 +161,7 @@ export function spawnSplitEnemies(
     return;
   }
 
-  if (enemy.kind === "angelPentagonRam") {
+  if (enemyFamily(enemy.kind) === "angelPentagonRam") {
     spawnAngelPentagonRamSplit(runtime, enemy, battleTime);
     return;
   }
@@ -253,8 +253,8 @@ function angelPentagonKindForRank(rank: number): EnemyKind {
   return rank >= 2 ? "angelPentagon2" : "angelPentagon";
 }
 
-function pentagonKindForRank(_rank: number): EnemyKind {
-  return "pentagon";
+function pentagonKindForRank(rank: number): EnemyKind {
+  return rank >= 2 ? "pentagon2" : "pentagon";
 }
 
 function chargingHexagonKindForRank(rank: number): EnemyKind {
@@ -913,7 +913,7 @@ function advanceSiegeRam(
     return false;
   }
 
-  if (enemy.kind === "angelPentagonRam" && !enemy.angelRamWingsTriggered) {
+  if (enemyFamily(enemy.kind) === "angelPentagonRam" && !enemy.angelRamWingsTriggered) {
     enemy.angelRamWingsTriggered = true;
     enemy.blockedByTowerId = undefined;
     enemy.blockedSince = undefined;

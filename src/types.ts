@@ -56,15 +56,18 @@ export type EnemyKind =
   | "triangleRam2"
   | "triangleRam3"
   | "angelPentagonRam"
+  | "angelPentagonRam2"
   | "mortarTriangle"
   | "mortarTriangle2"
   | "mortarTriangle3"
   | "pentagon"
+  | "pentagon2"
   | "angelPentagon"
   | "angelPentagon2"
   | "archangelHeptagon"
   | "archangelHeptagon2"
   | "shootingPentagon"
+  | "shootingPentagon2"
   | "diamond"
   | "diamond2"
   | "hexagon"
@@ -87,6 +90,7 @@ export type EnemyKind =
   | "shootingTriangle2"
   | "shootingTriangle3"
   | "dodecahedronCompanion"
+  | "dodecahedronCompanion2"
   | "trapezoid"
   | "trapezoid2"
   | "trapezoid3"
@@ -100,6 +104,7 @@ export type BossKind =
   | "tetrahedron"
   | "tetrahedron2"
   | "dodecahedron"
+  | "dodecahedron2"
   | "smallStellatedDodecahedron"
   | "octahedron";
 export type BossSkillName =
@@ -482,7 +487,6 @@ export interface CubeBoss {
   criticalHpTriggered: boolean;
   pendingCriticalSummon: boolean;
   companionsInitialized: boolean;
-  companionArmorReduced: boolean;
   companionDeathsHandled: number;
   invincibleUntil: number;
   bossHasteUntil: number;

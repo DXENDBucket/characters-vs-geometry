@@ -133,6 +133,14 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     family: "angelPentagonRam",
     rank: 1,
     nameKey: "enemy.angelPentagonRam",
+    attackMode: "siegeRam",
+    promotionKind: "angelPentagonRam2"
+  },
+  angelPentagonRam2: {
+    definition: rawEnemyDefinitions.angelPentagonRam2,
+    family: "angelPentagonRam",
+    rank: 2,
+    nameKey: "enemy.angelPentagonRam2",
     attackMode: "siegeRam"
   },
   mortarTriangle: {
@@ -163,6 +171,14 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     family: "pentagon",
     rank: 1,
     nameKey: "enemy.pentagon",
+    attackMode: "mortar",
+    promotionKind: "pentagon2"
+  },
+  pentagon2: {
+    definition: rawEnemyDefinitions.pentagon2,
+    family: "pentagon",
+    rank: 2,
+    nameKey: "enemy.pentagon2",
     attackMode: "mortar"
   },
   angelPentagon: {
@@ -201,6 +217,14 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     family: "shootingPentagon",
     rank: 1,
     nameKey: "enemy.shootingPentagon",
+    attackMode: "laser",
+    promotionKind: "shootingPentagon2"
+  },
+  shootingPentagon2: {
+    definition: rawEnemyDefinitions.shootingPentagon2,
+    family: "shootingPentagon",
+    rank: 2,
+    nameKey: "enemy.shootingPentagon2",
     attackMode: "laser"
   },
   diamond: {
@@ -380,6 +404,13 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     family: "dodecahedronCompanion",
     rank: 1,
     nameKey: "enemy.dodecahedronCompanion",
+    attackMode: "companion"
+  },
+  dodecahedronCompanion2: {
+    definition: rawEnemyDefinitions.dodecahedronCompanion2,
+    family: "dodecahedronCompanion",
+    rank: 2,
+    nameKey: "enemy.dodecahedronCompanion2",
     attackMode: "companion"
   },
   trapezoid: {

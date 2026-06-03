@@ -54,7 +54,7 @@ import {
   type TargetedEffectCardRuntime
 } from "../game/targetedEffectCards";
 import { TowerDeploymentController, type TowerDeploymentRuntime } from "../game/towerDeployment";
-import { TowerMirrorController, type TowerMirrorRuntime, type TowerMirrorShiftMove } from "../game/towerMirrors";
+import { MIRROR_COST_LIMIT, TowerMirrorController, type TowerMirrorRuntime, type TowerMirrorShiftMove } from "../game/towerMirrors";
 import { TowerShifterController, type TowerShifterRuntime } from "../game/towerShifter";
 import { TowerSkillController, type TowerSkillRuntime } from "../game/towerSkills";
 import { charsAreSoftcapped, rawCharsForSoftcapped, softcapChars } from "../game/charSoftcap";
@@ -689,12 +689,11 @@ export class GameScene extends Phaser.Scene {
 
     const levelAuraTowers = this.towers.filter((tower) => tower.type === "U");
     for (const auraTower of levelAuraTowers) {
-      const auraDefinition = this.getDefinition(auraTower.type);
       for (const target of this.towers) {
         const targetDefinition = this.getDefinition(target.type);
         if (
           target === auraTower ||
-          targetDefinition.cost >= auraDefinition.cost ||
+          targetDefinition.cost > MIRROR_COST_LIMIT ||
           Math.abs(target.lane - auraTower.lane) > 1 ||
           Math.abs(target.column - auraTower.column) > 1
         ) {
@@ -716,7 +715,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private cardTimeFor(id: CardId) {
-    return id === "c" ? this.battleTime : this.cardTime;
+    return this.cardUsesClockCooldown(id) ? this.cardTime : this.battleTime;
+  }
+
+  private cardUsesClockCooldown(id: CardId) {
+    return id !== "c" && this.getDefinition(id).cost <= MIRROR_COST_LIMIT;
   }
 
   private gainChars(amount: number, x: number, y: number) {
@@ -839,7 +842,7 @@ export class GameScene extends Phaser.Scene {
       scene: this,
       towers: this.towers,
       occupied: this.occupied,
-      cardTime: this.cardTime,
+      cardTime: this.battleTime,
       battleTime: this.battleTime
     };
   }

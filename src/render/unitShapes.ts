@@ -8,7 +8,7 @@ import {
 } from "../bosses/cubeBoss";
 import { palette } from "../config";
 import { romanLabel, toRomanNumeral } from "../format";
-import { enemyFamily, getEnemyDefinition } from "../registry/enemies";
+import { enemyFamily, enemyRank, getEnemyDefinition } from "../registry/enemies";
 import type { EnemyKind, UnitCategory } from "../types";
 
 const DODECAHEDRON_COMPANION_DRAW_SIZE = 18;
@@ -81,7 +81,7 @@ export function createEnemyShape(scene: Phaser.Scene, kind: EnemyKind, options: 
     const shape = scene.add.container(0, 0);
     const frame = scene.add.graphics();
     const label = scene.add
-      .text(0, 0, toRomanNumeral(1), {
+      .text(0, 0, toRomanNumeral(enemyRank(kind)), {
         color: "#f5f5f5",
         fontFamily: "monospace",
         fontSize: "14px",
