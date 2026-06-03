@@ -497,7 +497,7 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     magicResistance: 0,
     damage: 900,
     damageType: "true",
-    speedMultiplier: 4.5,
+    speedMultiplier: 9,
     weight: 0
   },
   square: {

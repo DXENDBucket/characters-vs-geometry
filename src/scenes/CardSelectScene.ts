@@ -21,13 +21,19 @@ import { toRomanNumeral } from "../format";
 import { DAMAGE_SYMBOLS, t } from "../i18n";
 import { createEnemyShape, createUnitBorder } from "../render/unitShapes";
 import { allCardDefinitions, cardLetterCase, defaultCardLoadout, type CardLetterCase } from "../registry/cards";
-import { getEnemyDefinition, getEnemyDisplayName } from "../registry/enemies";
+import { enemyFamily, enemyRank, getEnemyDefinition, getEnemyDisplayName, type EnemyFamily } from "../registry/enemies";
 import type { BossKind, CardId, EnemyKind } from "../types";
 
 interface CardPoolCaseButton {
   letterCase: CardLetterCase;
   frame: Phaser.GameObjects.Rectangle;
   label: Phaser.GameObjects.Text;
+}
+
+interface EnemyPreviewGroup {
+  family: EnemyFamily;
+  primaryKind: EnemyKind;
+  kinds: EnemyKind[];
 }
 
 export class CardSelectScene extends Phaser.Scene {
@@ -161,12 +167,40 @@ export class CardSelectScene extends Phaser.Scene {
       contentY += 50;
     }
 
-    levelConfig.enemyKinds.forEach((kind, index) => {
-      this.drawEnemyPreviewRow(kind, this.enemyPreviewList, contentY + index * rowSpacing);
+    const enemyGroups = this.enemyPreviewGroups(levelConfig.enemyKinds);
+    enemyGroups.forEach((group, index) => {
+      this.drawEnemyPreviewRow(group, this.enemyPreviewList, contentY + index * rowSpacing);
     });
-    this.enemyPreviewContentHeight = contentY + levelConfig.enemyKinds.length * rowSpacing + 20;
+    this.enemyPreviewContentHeight = contentY + enemyGroups.length * rowSpacing + 20;
     this.createEnemyPreviewScrollControls();
     this.setEnemyPreviewScroll(0);
+  }
+
+  private enemyPreviewGroups(kinds: EnemyKind[]) {
+    const groups: EnemyPreviewGroup[] = [];
+    const byFamily = new Map<EnemyFamily, EnemyPreviewGroup>();
+
+    for (const kind of kinds) {
+      const family = enemyFamily(kind);
+      const existing = byFamily.get(family);
+      if (existing) {
+        if (!existing.kinds.includes(kind)) {
+          existing.kinds.push(kind);
+        }
+        if (enemyRank(kind) < enemyRank(existing.primaryKind)) {
+          existing.primaryKind = kind;
+        }
+      } else {
+        const group = { family, primaryKind: kind, kinds: [kind] };
+        byFamily.set(family, group);
+        groups.push(group);
+      }
+    }
+
+    return groups.map((group) => ({
+      ...group,
+      kinds: [...group.kinds].sort((a, b) => enemyRank(a) - enemyRank(b))
+    }));
   }
 
   private createEnemyPreviewScrollControls() {
@@ -212,14 +246,14 @@ export class CardSelectScene extends Phaser.Scene {
     this.enemyPreviewList.y = this.enemyPreviewViewport.y - this.enemyPreviewScrollY;
   }
 
-  private drawEnemyPreviewRow(kind: EnemyKind, parent: Phaser.GameObjects.Container, y: number) {
-    const definition = getEnemyDefinition(kind);
+  private drawEnemyPreviewRow(group: EnemyPreviewGroup, parent: Phaser.GameObjects.Container, y: number) {
+    const definition = getEnemyDefinition(group.primaryKind);
     const shapeX = 34;
     const textX = 76;
-    const shape = createEnemyShape(this, kind).setPosition(shapeX, y);
+    const shape = createEnemyShape(this, group.primaryKind).setPosition(shapeX, y);
     shape.setAlpha(0.92);
     const name = this.add
-      .text(textX, y - 25, getEnemyDisplayName(kind), {
+      .text(textX, y - 25, this.enemyPreviewGroupTitle(group), {
         color: "#f5f5f5",
         fontFamily: "monospace",
         fontSize: "16px",
@@ -239,6 +273,23 @@ export class CardSelectScene extends Phaser.Scene {
       )
       .setOrigin(0, 0);
     parent.add([shape, name, stats]);
+  }
+
+  private enemyPreviewGroupTitle(group: EnemyPreviewGroup) {
+    if (group.kinds.length === 1) {
+      return getEnemyDisplayName(group.primaryKind);
+    }
+
+    const displayName = getEnemyDisplayName(group.primaryKind);
+    const primaryRank = `${enemyRank(group.primaryKind)}`;
+    const rankSuffix = ` ${primaryRank}`;
+    if (!displayName.endsWith(rankSuffix)) {
+      return group.kinds.map((kind) => getEnemyDisplayName(kind)).join("/");
+    }
+
+    const baseName = displayName.slice(0, -primaryRank.length).trimEnd();
+    const ranks = group.kinds.map((kind) => enemyRank(kind)).join("/");
+    return `${baseName} ${ranks}`;
   }
 
   private bossDisplayName(kind: BossKind) {
