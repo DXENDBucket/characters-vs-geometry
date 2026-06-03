@@ -4,9 +4,11 @@ import type { DamageType, Enemy } from "../types";
 
 export const SOLAR_BOMB_KIND = "solarBomb" as const;
 export const SOLAR_BOMB_COLLISION_DAMAGE = 900;
+export const SOLAR_BOMB_SHIELD_BREAK_AOE_DAMAGE = 2_900;
+export const SOLAR_BOMB_SHIELD_BREAK_AOE_RADIUS_CELLS = 2.6;
 export const SOLAR_BOMB_RADIUS = 32;
 export const SOLAR_BOMB_BOUNCE_COOLDOWN = 150;
-export const SOLAR_BOMB_CENTER_ACCELERATION = 4;
+export const SOLAR_BOMB_DEPLETED_BOSS_ACCELERATION = 4;
 export const SOLAR_BOMB_ROTATION_SPEED = Math.PI * 0.9;
 
 type RotatableShape = {

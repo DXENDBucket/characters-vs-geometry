@@ -1,4 +1,5 @@
 import { CELL_HEIGHT, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
+import { enemyFamily } from "../registry/enemies";
 import type { Enemy, StatusEffectName } from "../types";
 
 const STATUS_SPEED_MULTIPLIERS: Record<StatusEffectName, number> = {
@@ -8,7 +9,8 @@ const STATUS_SPEED_MULTIPLIERS: Record<StatusEffectName, number> = {
   flying: 1,
   invincible: 1,
   highFlying: 1,
-  sunder: 1
+  sunder: 1,
+  frozen: 0
 };
 const STATUS_ATTACK_MULTIPLIERS: Partial<Record<StatusEffectName, number>> = {
   power: 1.3
@@ -26,7 +28,7 @@ export function applyStatusEffect(
   speedMultiplier?: number,
   showHalo = false
 ) {
-  if (enemy.kind === "archangelHeptagon" && name === "flying") {
+  if (enemyFamily(enemy.kind) === "archangelHeptagon" && name === "flying") {
     applyStatusEffect(enemy, "highFlying", duration, time, speedMultiplier, false);
     return;
   }
@@ -40,10 +42,13 @@ export function applyStatusEffect(
       speedMultiplier ?? STATUS_SPEED_MULTIPLIERS[name]
     );
     existing.showHalo = existing.showHalo || showHalo;
+    if (name === "frozen") {
+      existing.physicalDamageTaken = 0;
+    }
     return;
   }
 
-  enemy.statusEffects.push({ name, expiresAt, speedMultiplier, showHalo });
+  enemy.statusEffects.push({ name, expiresAt, speedMultiplier, showHalo, physicalDamageTaken: name === "frozen" ? 0 : undefined });
 }
 
 export function statusSpeedMultiplier(enemy: Enemy, time: number) {
@@ -80,6 +85,25 @@ export function removeStatusEffect(enemy: Enemy, name: StatusEffectName) {
   enemy.statusEffects = enemy.statusEffects.filter((effect) => effect.name !== name);
 }
 
+export function addFrozenPhysicalDamage(enemy: Enemy, damage: number, time: number) {
+  removeExpiredStatusEffects(enemy, time);
+  const frozen = enemy.statusEffects.find((effect) => effect.name === "frozen");
+  if (!frozen) {
+    syncStatusVisuals(enemy, time);
+    return false;
+  }
+
+  frozen.physicalDamageTaken = (frozen.physicalDamageTaken ?? 0) + damage;
+  if (frozen.physicalDamageTaken >= enemy.maxHp * 0.5) {
+    removeStatusEffect(enemy, "frozen");
+    syncStatusVisuals(enemy, time);
+    return true;
+  }
+
+  syncStatusVisuals(enemy, time);
+  return false;
+}
+
 export function isEnemyFlying(enemy: Enemy, time: number) {
   return hasStatusEffect(enemy, "flying", time);
 }
@@ -94,15 +118,17 @@ function removeExpiredStatusEffects(enemy: Enemy, time: number) {
 
 function syncStatusVisuals(enemy: Enemy, time: number) {
   const stasisActive = enemy.statusEffects.some((effect) => effect.name === "stasis");
+  const frozenActive = enemy.statusEffects.some((effect) => effect.name === "frozen");
   const powerActive = enemy.statusEffects.some((effect) => effect.name === "power");
   const sunderActive = enemy.statusEffects.some((effect) => effect.name === "sunder");
   const flyingActive = enemy.statusEffects.some((effect) => effect.name === "flying");
   const angelFlyingActive = enemy.statusEffects.some((effect) => effect.name === "flying" && effect.showHalo);
   const highFlyingActive = enemy.statusEffects.some((effect) => effect.name === "highFlying");
-  const archangelActive = enemy.kind === "archangelHeptagon";
+  const archangelActive = enemyFamily(enemy.kind) === "archangelHeptagon";
   const airborneActive = flyingActive || highFlyingActive;
   const haloActive = !archangelActive && (angelFlyingActive || highFlyingActive);
-  enemy.statusBorder.setVisible(stasisActive);
+  enemy.statusBorder.setVisible(stasisActive && !frozenActive);
+  enemy.frozenBorder.setVisible(frozenActive);
   enemy.powerIcon.setVisible(powerActive);
   enemy.sunderIcon.setVisible(sunderActive);
   enemy.flyingHalo.setVisible(haloActive);
@@ -110,6 +136,14 @@ function syncStatusVisuals(enemy: Enemy, time: number) {
   if (stasisActive) {
     enemy.statusBorder.setStrokeStyle(2, palette.magic, 0.92);
     enemy.statusBorder.setScale(1 + Math.sin(time / 80) * 0.04);
+  } else {
+    enemy.statusBorder.setScale(1);
+  }
+  if (frozenActive) {
+    enemy.frozenBorder.setStrokeStyle(3, palette.magic, 0.96);
+    enemy.frozenBorder.setScale(1 + Math.sin(time / 95) * 0.035);
+  } else {
+    enemy.frozenBorder.setScale(1);
   }
   if (powerActive) {
     enemy.powerIcon.setY(-38 + Math.sin(time / 120) * 2);
@@ -144,7 +178,7 @@ type ShapeDataStore = {
 };
 
 function syncArchangelHalos(enemy: Enemy, highFlyingActive: boolean) {
-  if (enemy.kind !== "archangelHeptagon") {
+  if (enemyFamily(enemy.kind) !== "archangelHeptagon") {
     return;
   }
 

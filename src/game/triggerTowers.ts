@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { BOARD_HEIGHT, BOARD_WIDTH, BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH } from "../config";
-import { makeShockPulse, makeTrapBurst } from "../render/combatEffects";
+import { makeFreezePulse, makeShockPulse, makeTrapBurst } from "../render/combatEffects";
 import type { CardDefinition, CardId, CubeBoss, DamageType, Enemy, Tower } from "../types";
 import { enemyIsHighFlying } from "./enemyBehaviors";
 import { applyStatusEffect } from "./statusEffects";
@@ -27,6 +27,7 @@ export function triggerShockTower(runtime: TriggerTowerRuntime, tower: Tower) {
   const damageType = towerDamageType(tower, definition.triggerDamageType ?? "physical", runtime.battleTime);
   const rangeX = definition.triggerRangeX ?? CELL_WIDTH;
   const rangeY = definition.triggerRangeY ?? CELL_HEIGHT;
+  const triggerShape = definition.triggerShape ?? "rect";
   const x = tower.x;
   const y = tower.y;
   const area = triggerEffectArea(x, y, rangeX, rangeY);
@@ -34,11 +35,17 @@ export function triggerShockTower(runtime: TriggerTowerRuntime, tower: Tower) {
   runtime.removeTower(tower);
 
   if (definition.triggerDebuff) {
-    makeShockPulse(runtime.scene, area.x, area.y, area.rangeX, area.rangeY, damageType);
+    if (definition.triggerDebuff === "frozen") {
+      makeFreezePulse(runtime.scene, x, y, rangeX);
+    } else {
+      makeShockPulse(runtime.scene, area.x, area.y, area.rangeX, area.rangeY, damageType);
+    }
     for (const enemy of [...runtime.enemies]) {
-      if (!enemyIsHighFlying(enemy) && Math.abs(enemy.x - x) <= rangeX && Math.abs(enemy.y - y) <= rangeY) {
-        applyStatusEffect(enemy, definition.triggerDebuff, getTriggerDebuffDuration(tower, definition), runtime.battleTime);
+      if (!canApplyTriggerDebuff(enemy, definition.triggerDebuff, x, y, rangeX, rangeY, triggerShape)) {
+        continue;
       }
+
+      applyStatusEffect(enemy, definition.triggerDebuff, getTriggerDebuffDuration(tower, definition), runtime.battleTime);
     }
     return;
   }
@@ -90,6 +97,26 @@ export function triggerTrapTower(runtime: TriggerTowerRuntime, tower: Tower, tar
 
 function isBossTrapTarget(target: Enemy | CubeBoss): target is CubeBoss {
   return "rank" in target;
+}
+
+function canApplyTriggerDebuff(
+  enemy: Enemy,
+  debuff: CardDefinition["triggerDebuff"],
+  x: number,
+  y: number,
+  rangeX: number,
+  rangeY: number,
+  triggerShape: CardDefinition["triggerShape"]
+) {
+  if (debuff !== "frozen" && enemyIsHighFlying(enemy)) {
+    return false;
+  }
+
+  if (triggerShape === "circle") {
+    return Math.hypot(enemy.x - x, enemy.y - y) <= rangeX;
+  }
+
+  return Math.abs(enemy.x - x) <= rangeX && Math.abs(enemy.y - y) <= rangeY;
 }
 
 function triggerEffectArea(x: number, y: number, rangeX: number, rangeY: number) {

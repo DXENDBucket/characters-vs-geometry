@@ -1,5 +1,5 @@
 import type Phaser from "phaser";
-import type { CubeBoss, DamageType, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower } from "../types";
+import type { CardId, CubeBoss, DamageType, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower } from "../types";
 
 export interface CombatRuntime {
   scene: Phaser.Scene;
@@ -15,6 +15,7 @@ export interface CombatRuntime {
   damageBoss: (damage: number, damageType: DamageType, targetPart?: CubeBoss) => void;
   damageTower: (tower: Tower, damage: number, damageType: DamageType) => void;
   gainChars: (amount: number, x: number, y: number) => void;
+  spawnTower: (id: CardId, lane: number, column: number, level: number, facingDirection?: -1 | 1) => Tower | null;
   triggerTrapTower: (tower: Tower, target: Enemy | CubeBoss | "boss") => void;
   triggerShockTower: (tower: Tower) => void;
   onEnemyReachedBase: (enemy: Enemy) => boolean;
@@ -37,6 +38,7 @@ export type CardBehaviorRuntime = Pick<
   | "damageBoss"
   | "damageTower"
   | "gainChars"
+  | "spawnTower"
 >;
 
 export type EnemySpawnRuntime = Pick<CombatRuntime, "scene" | "enemies">;

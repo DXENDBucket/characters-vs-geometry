@@ -31,8 +31,8 @@ interface CardPoolCaseButton {
 }
 
 export class CardSelectScene extends Phaser.Scene {
-  private levelId = "0-1";
-  private chapterId = "0";
+  private levelId = "1-1";
+  private chapterId = "1";
   private difficulty = DEFAULT_DIFFICULTY;
   private unlimitedFirepower = false;
   private selectedCards: CardId[] = [...defaultCardLoadout];
@@ -67,7 +67,7 @@ export class CardSelectScene extends Phaser.Scene {
   }
 
   init(data: { levelId?: string; chapterId?: string; difficulty?: number; unlimitedFirepower?: boolean }) {
-    this.levelId = data.levelId ?? "0-1";
+    this.levelId = data.levelId ?? "1-1";
     this.chapterId = data.chapterId ?? chapterIdForLevelId(this.levelId);
     this.difficulty = clampDifficulty(data.difficulty);
     this.unlimitedFirepower = Boolean(data.unlimitedFirepower);

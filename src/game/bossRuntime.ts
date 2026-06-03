@@ -366,6 +366,10 @@ function updateDodecahedronCompanions(runtime: BossRuntime, boss: CubeBoss, seco
   initializeDodecahedronCompanions(runtime, boss);
   const companions = runtime.enemies.filter((enemy) => enemy.kind === DODECAHEDRON_COMPANION_KIND);
   for (const companion of companions) {
+    if (hasStatusEffect(companion, "frozen", runtime.battleTime)) {
+      continue;
+    }
+
     companion.bossOrbitAngle =
       (companion.bossOrbitAngle ?? Math.PI) + DODECAHEDRON_COMPANION_ORBIT_SPEED * seconds;
     syncDodecahedronCompanionPosition(companion, boss, runtime.battleTime);
@@ -771,7 +775,7 @@ function triggerFunctionalTowersTouchingBoss(runtime: BossRuntime, boss: CubeBos
       continue;
     }
 
-    if (tower.type === "F" || tower.type === "f" || tower.type === "l") {
+    if (tower.type === "F" || tower.type === "f" || tower.type === "i" || tower.type === "l") {
       runtime.triggerShockTower(tower);
     }
   }

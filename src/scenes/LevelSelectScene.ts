@@ -25,7 +25,7 @@ import {
 import { defaultChapterId, getChapterDefinition, levelNodesForChapter } from "../data/chapters";
 import { getLevelConfig } from "../data/levels";
 import { toRomanNumeral } from "../format";
-import { t, toggleLanguage } from "../i18n";
+import { t } from "../i18n";
 import { EncyclopediaPanel } from "../render/encyclopediaPanel";
 import type { BossKind, LevelNode } from "../types";
 
@@ -44,7 +44,7 @@ interface BossNodePreview {
 
 export class LevelSelectScene extends Phaser.Scene {
   private selectedChapterId = defaultChapterId();
-  private selectedLevelId: string | null = "0-1";
+  private selectedLevelId: string | null = "1-1";
   private difficulty = DEFAULT_DIFFICULTY;
   private unlimitedFirepower = false;
   private mapContainer!: Phaser.GameObjects.Container;
@@ -72,20 +72,21 @@ export class LevelSelectScene extends Phaser.Scene {
   private unlimitedFirepowerText!: Phaser.GameObjects.Text;
   private encyclopediaButton!: Phaser.GameObjects.Rectangle;
   private encyclopediaText!: Phaser.GameObjects.Text;
-  private languageButton!: Phaser.GameObjects.Rectangle;
-  private languageText!: Phaser.GameObjects.Text;
+  private settingsButton!: Phaser.GameObjects.Rectangle;
+  private settingsText!: Phaser.GameObjects.Text;
   private encyclopediaPanel!: EncyclopediaPanel;
 
   constructor() {
     super("LevelSelectScene");
   }
 
-  init(data: { chapterId?: string; difficulty?: number; unlimitedFirepower?: boolean }) {
+  init(data: { chapterId?: string; difficulty?: number; unlimitedFirepower?: boolean; selectedLevelId?: string }) {
     this.selectedChapterId = data.chapterId ?? defaultChapterId();
     this.difficulty = clampDifficulty(data.difficulty);
     this.unlimitedFirepower = Boolean(data.unlimitedFirepower);
     const nodes = this.chapterNodes();
-    this.selectedLevelId = nodes.find((node) => node.unlocked)?.id ?? nodes[0]?.id ?? null;
+    const selectedNode = nodes.find((node) => node.id === data.selectedLevelId && node.unlocked);
+    this.selectedLevelId = selectedNode?.id ?? nodes.find((node) => node.unlocked)?.id ?? nodes[0]?.id ?? null;
   }
 
   create() {
@@ -97,7 +98,7 @@ export class LevelSelectScene extends Phaser.Scene {
     this.createMapDragControls();
     this.encyclopediaPanel = new EncyclopediaPanel(this);
     this.createEncyclopediaButton();
-    this.createLanguageButton();
+    this.createSettingsButton();
     this.createBackButton();
     this.createStartButton();
     this.createDifficultySlider();
@@ -569,13 +570,13 @@ export class LevelSelectScene extends Phaser.Scene {
     this.startText.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.startSelectedLevel());
   }
 
-  private createLanguageButton() {
-    this.languageButton = this.add
+  private createSettingsButton() {
+    this.settingsButton = this.add
       .rectangle(GAME_WIDTH - 78, 52, 92, 34, palette.black, 1)
       .setStrokeStyle(2, palette.mid, 0.85)
       .setInteractive({ useHandCursor: true });
-    this.languageText = this.add
-      .text(GAME_WIDTH - 78, 50, t("button.language"), {
+    this.settingsText = this.add
+      .text(GAME_WIDTH - 78, 50, t("button.settings"), {
         color: "#f5f5f5",
         fontFamily: "monospace",
         fontSize: "15px",
@@ -583,16 +584,19 @@ export class LevelSelectScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    this.languageButton.on("pointerdown", () => this.switchLanguage());
-    this.languageText.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.switchLanguage());
+    this.settingsButton.on("pointerdown", () => this.openSettings());
+    this.settingsText.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.openSettings());
   }
 
-  private switchLanguage() {
-    toggleLanguage();
-    this.scene.restart({
-      chapterId: this.selectedChapterId,
-      difficulty: this.difficulty,
-      unlimitedFirepower: this.unlimitedFirepower
+  private openSettings() {
+    this.scene.start("SettingsScene", {
+      returnScene: "LevelSelectScene",
+      returnData: {
+        chapterId: this.selectedChapterId,
+        selectedLevelId: this.selectedLevelId ?? undefined,
+        difficulty: this.difficulty,
+        unlimitedFirepower: this.unlimitedFirepower
+      }
     });
   }
 

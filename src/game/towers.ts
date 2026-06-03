@@ -102,6 +102,7 @@ export function createTower(
       : -Number.POSITIVE_INFINITY,
     level: 1,
     levelBonus: 0,
+    mirrorLevelBonus: 0,
     nextProduceAt: definition.produceEvery ? battleTime + definition.produceEvery : Number.POSITIVE_INFINITY,
     armedAt: definition.armTime ? battleTime + definition.armTime : 0,
     skills,
@@ -177,12 +178,13 @@ export function syncTowerHpBar(tower: Tower) {
 }
 
 export function effectiveTowerLevel(tower: Tower) {
-  return Math.max(1, tower.level + tower.levelBonus);
+  return Math.max(1, tower.level + tower.levelBonus + tower.mirrorLevelBonus);
 }
 
 export function syncTowerLevelText(tower: Tower) {
-  if (tower.levelBonus > 0) {
-    tower.levelText.setText(`${tower.level}+${tower.levelBonus}`);
+  const bonus = tower.levelBonus + tower.mirrorLevelBonus;
+  if (bonus > 0) {
+    tower.levelText.setText(`${tower.level}+${bonus}`);
     tower.levelText.setFontSize(10);
     tower.levelText.setColor("#9fdcff");
     return;

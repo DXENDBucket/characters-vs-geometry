@@ -1,14 +1,13 @@
 import type Phaser from "phaser";
 import { BOARD_Y, CELL_HEIGHT, palette } from "../config";
-import { enemyIsMace, getEnemyDefinition } from "../registry/enemies";
+import { enemyFamily, enemyIsMace, getEnemyDefinition } from "../registry/enemies";
 import { createEnemyShape } from "../render/unitShapes";
-import type { Enemy, EnemyKind, SkillState } from "../types";
-import { enemyAttackSpeed, randomizedEnemySpeed } from "./enemyBehaviors";
+import type { Enemy, EnemyKind } from "../types";
+import { enemyAttackSpeed, initialEnemySkillStates, randomizedEnemySpeed, syncEnemyFacingVisual } from "./enemyBehaviors";
 import { enemyIsSolarBomb, syncSolarBombVisual } from "./solarBomb";
 import { applyStatusEffect, statusSpeedMultiplier } from "./statusEffects";
 import { enemyBaseStatsFromDefinition } from "./unitStats";
 
-const ARCHANGEL_INITIAL_WINGS_SP = 10;
 const ARCHANGEL_SPAWN_HIGH_FLIGHT_DURATION = 3_000;
 const ARCHANGEL_SPAWN_SPEED_MULTIPLIER = 2.5;
 
@@ -34,10 +33,12 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
     attackSpeed,
     finalDamageReduction: options.finalDamageReduction
   });
-  const isBurrowArrow = options.kind === "burrowArrow";
+  const isBurrowArrow = enemyFamily(options.kind) === "burrowArrow";
+  const family = enemyFamily(options.kind);
   const movementDirection = options.movementDirection ?? -1;
   const body = scene.add.container(options.x, y).setDepth(60 + options.lane);
   const statusBorder = scene.add.circle(0, 0, 28, palette.black, 0).setStrokeStyle(2, palette.magic, 0.92);
+  const frozenBorder = scene.add.rectangle(0, 0, 56, 56, palette.black, 0).setStrokeStyle(3, palette.magic, 0.92);
   const powerIcon = scene.add
     .text(0, -38, "!", {
       color: "#ff6464",
@@ -74,21 +75,15 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
   const shape = createEnemyShape(scene, options.kind, { squareSize: 42, shootingNoseX: -24 });
 
   statusBorder.setVisible(false);
+  frozenBorder.setVisible(false);
   powerIcon.setVisible(false);
   sunderIcon.setVisible(false);
   armorIcon.setVisible(false);
   magicResistanceIcon.setVisible(false);
   flyingHalo.setVisible(false);
-  body.add([statusBorder, flyingHalo, shape, powerIcon, sunderIcon, armorIcon, magicResistanceIcon]);
+  body.add([frozenBorder, statusBorder, flyingHalo, shape, powerIcon, sunderIcon, armorIcon, magicResistanceIcon]);
 
-  const skills: Record<string, SkillState> = {};
-  if (options.kind === "archangelHeptagon") {
-    skills.ascension = {
-      sp: ARCHANGEL_INITIAL_WINGS_SP,
-      spBuffer: 0,
-      activeUntil: 0
-    };
-  }
+  const skills = initialEnemySkillStates(options.kind);
 
   const enemy: Enemy = {
     kind: options.kind,
@@ -118,7 +113,7 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
     burrowed: false,
     burrowUnloaded: false,
     burrowCargo: isBurrowArrow ? [] : undefined,
-    slopeFacingDirection: options.kind === "slopeTriangle" ? movementDirection : undefined,
+    slopeFacingDirection: family === "slopeTriangle" ? movementDirection : undefined,
     angelRamWingsTriggered: false,
     damage: baseStats.damage,
     damageType: baseStats.damageType,
@@ -129,6 +124,7 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
     skills,
     statusEffects: [],
     statusBorder,
+    frozenBorder,
     powerIcon,
     sunderIcon,
     armorIcon,
@@ -139,7 +135,7 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
     shape
   };
 
-  if (options.kind === "archangelHeptagon") {
+  if (family === "archangelHeptagon") {
     enemy.statusEffects.push({ name: "flying", expiresAt: Number.POSITIVE_INFINITY, speedMultiplier: 1, showHalo: false });
     applyStatusEffect(
       enemy,
@@ -156,6 +152,8 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
   if (enemyIsSolarBomb(enemy)) {
     syncSolarBombVisual(enemy);
   }
+
+  syncEnemyFacingVisual(enemy);
 
   return enemy;
 }

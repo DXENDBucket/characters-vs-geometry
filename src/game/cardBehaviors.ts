@@ -41,6 +41,7 @@ import {
   getLaneRepelTargets,
   getLowestMaxHpAttackTarget,
   getShiftTargets,
+  gridCellKey,
   hasAttackTarget
 } from "./targeting";
 import { applyStatusEffect, syncEnemyBodyPosition } from "./statusEffects";
@@ -166,6 +167,13 @@ export const predictiveMortarCardBehavior: CardBehavior = {
   execute: firePredictiveMortar
 };
 
+export const smallSummonerCardBehavior: CardBehavior = {
+  canUse: (tower, _definition, time, runtime) => {
+    return cooldownReady(tower, time) && Boolean(getSmallSummonCell(tower, runtime.occupied));
+  },
+  execute: fireSmallSummon
+};
+
 export const cardBehaviorsById: Record<CardId, CardBehavior> = {
   A: projectileCardBehavior,
   a: projectileCardBehavior,
@@ -182,10 +190,12 @@ export const cardBehaviorsById: Record<CardId, CardBehavior> = {
   E: projectileCardBehavior,
   e: zealHealingCardBehavior,
   M: projectileCardBehavior,
+  m: idleCardBehavior,
   W: projectileCardBehavior,
   w: idleCardBehavior,
   F: idleCardBehavior,
   f: idleCardBehavior,
+  i: idleCardBehavior,
   l: idleCardBehavior,
   G: idleCardBehavior,
   t: idleCardBehavior,
@@ -197,6 +207,7 @@ export const cardBehaviorsById: Record<CardId, CardBehavior> = {
   K: slashCardBehavior,
   k: arcWaveCardBehavior,
   S: idleCardBehavior,
+  s: smallSummonerCardBehavior,
   L: shiftCardBehavior,
   N: blockedPushCardBehavior,
   n: laneRepelCardBehavior,
@@ -616,6 +627,29 @@ function predictedBossMortarTarget(tower: Tower, definition: CardDefinition, bos
         ? part.y + direction * distance
         : Phaser.Math.Clamp(tower.y, rect.top, rect.bottom)
   };
+}
+
+function fireSmallSummon(tower: Tower, _definition: CardDefinition, runtime: CardBehaviorRuntime) {
+  const cell = getSmallSummonCell(tower, runtime.occupied);
+  if (!cell) {
+    return;
+  }
+
+  const spawned = runtime.spawnTower("a", cell.lane, cell.column, effectiveTowerLevel(tower), towerFacingDirection(tower));
+  if (spawned) {
+    makeShiftEffect(runtime.scene, tower.x, tower.y, spawned.x, spawned.y);
+  }
+}
+
+function getSmallSummonCell(tower: Tower, occupied: Map<string, Tower>) {
+  const direction = towerFacingDirection(tower);
+  for (let column = tower.column + direction; column >= 0 && column < COLUMNS; column += direction) {
+    if (!occupied.has(gridCellKey(tower.lane, column))) {
+      return { lane: tower.lane, column };
+    }
+  }
+
+  return null;
 }
 
 function arcWaveBossPart(tower: Tower, boss: CubeBoss | null) {

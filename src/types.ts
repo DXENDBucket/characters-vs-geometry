@@ -16,6 +16,7 @@ export type CardId =
   | "x"
   | "E"
   | "M"
+  | "m"
   | "W"
   | "w"
   | "F"
@@ -24,11 +25,13 @@ export type CardId =
   | "H"
   | "h"
   | "I"
+  | "i"
   | "Q"
   | "J"
   | "K"
   | "k"
   | "S"
+  | "s"
   | "L"
   | "l"
   | "N"
@@ -55,25 +58,38 @@ export type EnemyKind =
   | "angelPentagonRam"
   | "mortarTriangle"
   | "mortarTriangle2"
+  | "mortarTriangle3"
   | "pentagon"
   | "angelPentagon"
+  | "angelPentagon2"
   | "archangelHeptagon"
+  | "archangelHeptagon2"
   | "shootingPentagon"
   | "diamond"
   | "diamond2"
   | "hexagon"
+  | "hexagon2"
   | "chargingHexagon"
+  | "chargingHexagon2"
   | "hexMace"
+  | "hexMace2"
   | "hexSpellBulwark"
+  | "hexSpellBulwark2"
   | "heart"
+  | "heart2"
   | "burrowArrow"
+  | "burrowArrow2"
   | "slopeTriangle"
   | "invertedTriangle"
   | "invertedTriangle2"
+  | "invertedTriangle3"
   | "shootingTriangle"
   | "shootingTriangle2"
+  | "shootingTriangle3"
   | "dodecahedronCompanion"
   | "trapezoid"
+  | "trapezoid2"
+  | "trapezoid3"
   | "solarBomb"
   | "square"
   | "square2"
@@ -98,7 +114,15 @@ export type BossSkillName =
 export type ProjectileKind = "bolt" | "shell" | "star" | "hash" | "dollar" | "chevron";
 export type UnitCategory = "production" | "attack" | "defense" | "function" | "healing";
 export type DamageType = "physical" | "magic" | "true";
-export type StatusEffectName = "stasis" | "haste" | "power" | "flying" | "invincible" | "highFlying" | "sunder";
+export type StatusEffectName =
+  | "stasis"
+  | "haste"
+  | "power"
+  | "flying"
+  | "invincible"
+  | "highFlying"
+  | "sunder"
+  | "frozen";
 export type BossCompanionActionPhase = "laser" | "mortar" | "wings";
 export type AlphaGameObject = Phaser.GameObjects.GameObject & { setAlpha(alpha: number): unknown };
 
@@ -165,6 +189,7 @@ export interface CardDefinition {
   triggerInterval?: number;
   triggerRangeX?: number;
   triggerRangeY?: number;
+  triggerShape?: "rect" | "circle";
   triggerDebuff?: StatusEffectName;
   triggerDebuffDuration?: number;
   selfDamage?: number;
@@ -191,12 +216,14 @@ export interface StatusEffect {
   expiresAt: number;
   speedMultiplier?: number;
   showHalo?: boolean;
+  physicalDamageTaken?: number;
 }
 
 export interface SkillState {
   sp: number;
   spBuffer: number;
   activeUntil: number;
+  regenMultiplier?: number;
 }
 
 export interface CardState {
@@ -225,6 +252,8 @@ export interface Tower {
   lastFire: number;
   level: number;
   levelBonus: number;
+  mirrorLevelBonus: number;
+  mirrorGroupId?: number;
   nextProduceAt: number;
   armedAt: number;
   skills: Record<string, SkillState>;
@@ -294,6 +323,7 @@ export interface Enemy {
   skills: Record<string, SkillState>;
   statusEffects: StatusEffect[];
   statusBorder: Phaser.GameObjects.Arc;
+  frozenBorder: Phaser.GameObjects.Rectangle;
   powerIcon: Phaser.GameObjects.Text;
   sunderIcon: Phaser.GameObjects.Text;
   armorIcon: Phaser.GameObjects.Text;

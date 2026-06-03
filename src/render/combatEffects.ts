@@ -293,6 +293,19 @@ export function makeShockPulse(
   });
 }
 
+export function makeFreezePulse(scene: Phaser.Scene, x: number, y: number, radius: number) {
+  const ring = scene.add.circle(x, y, radius, palette.black, 0).setStrokeStyle(3, palette.magic, 0.9);
+  ring.setDepth(106);
+  scene.tweens.add({
+    targets: ring,
+    scale: 1.1,
+    alpha: 0,
+    duration: 220,
+    ease: "Quad.easeOut",
+    onComplete: () => ring.destroy()
+  });
+}
+
 export function makeHeartPulse(scene: Phaser.Scene, x: number, y: number, radius: number) {
   const heart = scene.add
     .text(x, y + 2, "♥", {

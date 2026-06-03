@@ -2,17 +2,19 @@ import Phaser from "phaser";
 import { BOARD_X, CELL_HEIGHT, CELL_WIDTH } from "../config";
 import { makeHealParticles, makeShiftEffect } from "../render/combatEffects";
 import type { CubeBoss, Enemy, SkillState } from "../types";
-import { enemyFamily, enemyIsBossCompanion } from "../registry/enemies";
+import { enemyFamily, enemyIsBossCompanion, enemyRank } from "../registry/enemies";
 import { enemyIgnoresLeaderRestrictedMechanics, enemyIsHighFlying, syncEnemyVisualScale } from "./enemyBehaviors";
 import { createEnemySkillRegistry, enemySkillDefinitions, type EnemySkillRuntime } from "./enemySkillRegistry";
 import { updateRegisteredSkills } from "./skillRegistry";
 import { gainSkillSp, getEnemySkillState, isSkillReady, spendSkillSp } from "./skillState";
-import { applyStatusEffect, syncEnemyBodyPosition } from "./statusEffects";
+import { applyStatusEffect, hasStatusEffect, syncEnemyBodyPosition } from "./statusEffects";
 import { bossRect } from "./targeting";
 
 const HEX_ARMOR_RADIUS = CELL_WIDTH * 1.4;
-const HEX_ARMOR_BONUS = 80;
-const HEX_SPELL_BULWARK_MAGIC_RESISTANCE_BONUS = 50;
+const HEX_ARMOR_RANK_ONE_BONUS = 50;
+const HEX_ARMOR_RANK_TWO_BONUS = 80;
+const HEX_SPELL_BULWARK_RANK_ONE_MAGIC_RESISTANCE_BONUS = 40;
+const HEX_SPELL_BULWARK_RANK_TWO_MAGIC_RESISTANCE_BONUS = 50;
 const HEX_HEAL_SKILL_MAX = 20;
 const HEX_HEAL_SKILL_COST = 20;
 const HEX_HEAL_SKILL_REGEN_PER_SECOND = 1;
@@ -45,11 +47,12 @@ const enemySkillRegistry = createEnemySkillRegistry({
 });
 
 export function hexArmorBonus(enemies: Enemy[], target: Enemy) {
-  return hexArmorStacks(enemies, target) * HEX_ARMOR_BONUS;
+  return hexArmorSources(enemies, target).reduce((total, enemy) => total + hexArmorAuraBonus(enemy), 0);
 }
 
 export function hexMagicResistanceBonus(enemies: Enemy[], target: Enemy) {
-  return hexMagicResistanceStacks(enemies, target) * HEX_SPELL_BULWARK_MAGIC_RESISTANCE_BONUS;
+  return hexMagicResistanceSources(enemies, target)
+    .reduce((total, enemy) => total + hexMagicResistanceAuraBonus(enemy), 0);
 }
 
 export function hexBossArmorBonus(enemies: Enemy[], boss: CubeBoss | null) {
@@ -57,10 +60,9 @@ export function hexBossArmorBonus(enemies: Enemy[], boss: CubeBoss | null) {
     return 0;
   }
 
-  return (
-    enemies.filter((enemy) => !enemyIsHighFlying(enemy) && isHexagon(enemy) && bossBodyInRadius(boss, enemy.x, enemy.y, HEX_ARMOR_RADIUS)).length *
-    HEX_ARMOR_BONUS
-  );
+  return enemies
+    .filter((enemy) => !enemyIsHighFlying(enemy) && isHexagon(enemy) && bossBodyInRadius(boss, enemy.x, enemy.y, HEX_ARMOR_RADIUS))
+    .reduce((total, enemy) => total + hexArmorAuraBonus(enemy), 0);
 }
 
 function bossBodyInRadius(boss: CubeBoss, x: number, y: number, radius: number) {
@@ -104,7 +106,7 @@ export function chargingHexSpeedMultiplier(enemies: Enemy[], target: Enemy) {
 
 export function updateEnemySkills(runtime: EnemySkillRuntime, seconds: number, time: number) {
   updateRegisteredSkills(
-    runtime.enemies.filter((enemy) => !enemyIsHighFlying(enemy)),
+    runtime.enemies.filter((enemy) => !enemyIsHighFlying(enemy) && !hasStatusEffect(enemy, "frozen", time)),
     (enemy) => enemySkillDefinitions(enemySkillRegistry, enemy),
     runtime,
     seconds,
@@ -113,17 +115,35 @@ export function updateEnemySkills(runtime: EnemySkillRuntime, seconds: number, t
 }
 
 function hexArmorStacks(enemies: Enemy[], target: Enemy) {
-  return enemies.filter((enemy) => !enemyIsHighFlying(enemy) && isHexagon(enemy) && Math.hypot(enemy.x - target.x, enemy.y - target.y) <= HEX_ARMOR_RADIUS).length;
+  return hexArmorSources(enemies, target).length;
+}
+
+function hexArmorSources(enemies: Enemy[], target: Enemy) {
+  return enemies.filter((enemy) => !enemyIsHighFlying(enemy) && isHexagon(enemy) && Math.hypot(enemy.x - target.x, enemy.y - target.y) <= HEX_ARMOR_RADIUS);
+}
+
+function hexArmorAuraBonus(enemy: Enemy) {
+  return enemyRank(enemy.kind) >= 2 ? HEX_ARMOR_RANK_TWO_BONUS : HEX_ARMOR_RANK_ONE_BONUS;
 }
 
 function hexMagicResistanceStacks(enemies: Enemy[], target: Enemy) {
+  return hexMagicResistanceSources(enemies, target).length;
+}
+
+function hexMagicResistanceSources(enemies: Enemy[], target: Enemy) {
   return enemies.filter((enemy) => {
     return (
       !enemyIsHighFlying(enemy) &&
       enemyFamily(enemy.kind) === "hexSpellBulwark" &&
       enemy.lane === target.lane
     );
-  }).length;
+  });
+}
+
+function hexMagicResistanceAuraBonus(enemy: Enemy) {
+  return enemyRank(enemy.kind) >= 2
+    ? HEX_SPELL_BULWARK_RANK_TWO_MAGIC_RESISTANCE_BONUS
+    : HEX_SPELL_BULWARK_RANK_ONE_MAGIC_RESISTANCE_BONUS;
 }
 
 function updateHexHeal(enemy: Enemy, state: SkillState, seconds: number, _time: number, runtime: EnemySkillRuntime) {
@@ -136,7 +156,7 @@ function updateAngelWings(enemy: Enemy, state: SkillState, seconds: number, time
     return;
   }
 
-  gainSkillSp(state, seconds * ANGEL_WINGS_REGEN_PER_SECOND, ANGEL_WINGS_SKILL_MAX);
+  gainSkillSp(state, seconds * ANGEL_WINGS_REGEN_PER_SECOND * skillRegenMultiplier(state), ANGEL_WINGS_SKILL_MAX);
   if (isSkillReady(state, ANGEL_WINGS_SKILL_MAX)) {
     triggerAngelWings(runtime.scene, runtime.enemies, enemy, time, state);
   }
@@ -147,7 +167,7 @@ function updateArchangelAscension(enemy: Enemy, state: SkillState, seconds: numb
     return;
   }
 
-  gainSkillSp(state, seconds * ARCHANGEL_ASCENSION_REGEN_PER_SECOND, ARCHANGEL_ASCENSION_SKILL_MAX);
+  gainSkillSp(state, seconds * ARCHANGEL_ASCENSION_REGEN_PER_SECOND * skillRegenMultiplier(state), ARCHANGEL_ASCENSION_SKILL_MAX);
   if (isSkillReady(state, ARCHANGEL_ASCENSION_SKILL_MAX)) {
     triggerArchangelAscension(runtime.scene, runtime.enemies, enemy, time, state);
   }
@@ -226,6 +246,10 @@ function tryUseHeartLead(scene: Phaser.Scene, enemies: Enemy[], caster: Enemy, s
 
 function isOrdinaryLeadTarget(enemy: Enemy) {
   return !enemyIgnoresLeaderRestrictedMechanics(enemy) && !enemyIsBossCompanion(enemy.kind) && !enemyIsHighFlying(enemy);
+}
+
+function skillRegenMultiplier(state: SkillState) {
+  return state.regenMultiplier ?? 1;
 }
 
 export function triggerAngelWings(

@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { GAME_HEIGHT, GAME_WIDTH, palette } from "../config";
 import { chapterDefinitions, levelNodesForChapter, type ChapterDefinition } from "../data/chapters";
-import { t, toggleLanguage } from "../i18n";
+import { t } from "../i18n";
 import { EncyclopediaPanel } from "../render/encyclopediaPanel";
 
 interface ChapterCard {
@@ -16,8 +16,8 @@ export class ChapterSelectScene extends Phaser.Scene {
   private encyclopediaButton!: Phaser.GameObjects.Rectangle;
   private encyclopediaText!: Phaser.GameObjects.Text;
   private encyclopediaPanel!: EncyclopediaPanel;
-  private languageButton!: Phaser.GameObjects.Rectangle;
-  private languageText!: Phaser.GameObjects.Text;
+  private settingsButton!: Phaser.GameObjects.Rectangle;
+  private settingsText!: Phaser.GameObjects.Text;
 
   constructor() {
     super("ChapterSelectScene");
@@ -31,7 +31,7 @@ export class ChapterSelectScene extends Phaser.Scene {
     this.createChapterCards();
     this.encyclopediaPanel = new EncyclopediaPanel(this);
     this.createEncyclopediaButton();
-    this.createLanguageButton();
+    this.createSettingsButton();
   }
 
   private drawBackdrop() {
@@ -109,13 +109,13 @@ export class ChapterSelectScene extends Phaser.Scene {
     }
   }
 
-  private createLanguageButton() {
-    this.languageButton = this.add
+  private createSettingsButton() {
+    this.settingsButton = this.add
       .rectangle(GAME_WIDTH - 78, 52, 92, 34, palette.black, 1)
       .setStrokeStyle(2, palette.mid, 0.85)
       .setInteractive({ useHandCursor: true });
-    this.languageText = this.add
-      .text(GAME_WIDTH - 78, 50, t("button.language"), {
+    this.settingsText = this.add
+      .text(GAME_WIDTH - 78, 50, t("button.settings"), {
         color: "#f5f5f5",
         fontFamily: "monospace",
         fontSize: "15px",
@@ -123,8 +123,8 @@ export class ChapterSelectScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    this.languageButton.on("pointerdown", () => this.switchLanguage());
-    this.languageText.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.switchLanguage());
+    this.settingsButton.on("pointerdown", () => this.openSettings());
+    this.settingsText.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.openSettings());
   }
 
   private createEncyclopediaButton() {
@@ -155,8 +155,7 @@ export class ChapterSelectScene extends Phaser.Scene {
     this.scene.start("LevelSelectScene", { chapterId: chapter.id });
   }
 
-  private switchLanguage() {
-    toggleLanguage();
-    this.scene.restart();
+  private openSettings() {
+    this.scene.start("SettingsScene", { returnScene: "ChapterSelectScene" });
   }
 }

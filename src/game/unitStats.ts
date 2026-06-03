@@ -69,7 +69,7 @@ export function towerBaseStats(tower: Tower) {
 }
 
 export function effectiveTowerStatLevel(tower: Tower) {
-  return Math.max(1, tower.level + tower.levelBonus);
+  return Math.max(1, tower.level + tower.levelBonus + tower.mirrorLevelBonus);
 }
 
 export function enemyBaseStatsFromDefinition(

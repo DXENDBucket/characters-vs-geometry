@@ -28,6 +28,7 @@ export interface TowerDeploymentRuntime {
   spendChars: (amount: number) => void;
   nextTowerOrder: () => number;
   resetTowerSkill: (tower: Tower) => void;
+  mirrorGroupFor?: (tower: Tower) => Tower[];
   updateLevelAuras: () => void;
   updateCards: () => void;
 }
@@ -106,11 +107,16 @@ export class TowerDeploymentController {
   private deployColumn(definition: CardDefinition, column: number) {
     const runtime = this.runtime();
     let deployed = false;
+    const upgradedGroups = new Set<string>();
     for (let lane = 0; lane < LANES; lane += 1) {
       const existingTower = runtime.occupied.get(gridCellKey(lane, column));
       if (existingTower) {
         if (existingTower.type === definition.id) {
-          this.upgradeTower(existingTower);
+          const groupKey = this.upgradeGroupKey(existingTower);
+          if (!upgradedGroups.has(groupKey)) {
+            upgradedGroups.add(groupKey);
+            this.upgradeTower(existingTower);
+          }
           deployed = true;
         }
         continue;
@@ -141,13 +147,19 @@ export class TowerDeploymentController {
 
   private upgradeTower(tower: Tower) {
     const runtime = this.runtime();
-    const definition = runtime.getDefinition(tower.type);
-    const gainedEffectiveUpgrades = upgradeTowerLevel(tower);
-    applyTowerUpgradeStats(tower, definition, gainedEffectiveUpgrades, runtime.battleTime);
-    runtime.resetTowerSkill(tower);
+    const targets = (runtime.mirrorGroupFor?.(tower) ?? [tower])
+      .filter((candidate) => runtime.towers.includes(candidate) && candidate.type === tower.type);
+
+    for (const target of targets) {
+      const definition = runtime.getDefinition(target.type);
+      const gainedEffectiveUpgrades = upgradeTowerLevel(target);
+      applyTowerUpgradeStats(target, definition, gainedEffectiveUpgrades, runtime.battleTime);
+      runtime.resetTowerSkill(target);
+    }
+
     runtime.updateLevelAuras();
     runtime.scene.tweens.add({
-      targets: tower.body,
+      targets: targets.map((target) => target.body),
       scale: 1.08,
       yoyo: true,
       duration: 90,
@@ -158,5 +170,9 @@ export class TowerDeploymentController {
   private canSpendForAutoUpgrade(cost: number) {
     const runtime = this.runtime();
     return runtime.getChars() - cost >= runtime.autoUpgradeReserveChars;
+  }
+
+  private upgradeGroupKey(tower: Tower) {
+    return tower.mirrorGroupId ? `mirror:${tower.mirrorGroupId}` : `tower:${tower.id}`;
   }
 }

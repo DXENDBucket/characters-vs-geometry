@@ -16,10 +16,14 @@ import {
   getEnemyDefinition
 } from "../registry/enemies";
 import { createEnemyShape } from "../render/unitShapes";
-import type { CubeBoss, Enemy, EnemyKind } from "../types";
+import type { CubeBoss, Enemy, EnemyKind, SkillState } from "../types";
 import { attackIntervalMs, attackSpeedForIntervalMs } from "./attackSpeed";
 import { enemyIsSolarBomb, isSolarBombKind } from "./solarBomb";
 import { applyEnemyBaseStats, enemyBaseStatsFromDefinition } from "./unitStats";
+
+const ANGEL_PENTAGON_RANK_TWO_INITIAL_WINGS_SP = 2;
+const ARCHANGEL_INITIAL_ASCENSION_SP = 10;
+const RANK_TWO_SKILL_REGEN_MULTIPLIER = 1.2;
 
 export function enemyAttackSpeed(kind: EnemyKind) {
   if (enemyIsLaser(kind)) {
@@ -39,7 +43,7 @@ export function enemyAttackSpeed(kind: EnemyKind) {
   }
 
   if (enemyFamily(kind) === "chargingHexagon") {
-    return attackSpeedFromInterval(2_000);
+    return attackSpeedFromInterval(2_000 / enemyRank(kind));
   }
 
   if (enemyFamily(kind) === "archangelHeptagon") {
@@ -57,6 +61,33 @@ export function enemyAttackInterval(kind: EnemyKind) {
   return attackIntervalMs(enemyAttackSpeed(kind));
 }
 
+export function initialEnemySkillStates(kind: EnemyKind): Record<string, SkillState> {
+  const family = enemyFamily(kind);
+  if (family === "angelPentagon" && kind === "angelPentagon2") {
+    return {
+      wings: {
+        sp: ANGEL_PENTAGON_RANK_TWO_INITIAL_WINGS_SP,
+        spBuffer: 0,
+        activeUntil: 0,
+        regenMultiplier: RANK_TWO_SKILL_REGEN_MULTIPLIER
+      }
+    };
+  }
+
+  if (family === "archangelHeptagon") {
+    return {
+      ascension: {
+        sp: ARCHANGEL_INITIAL_ASCENSION_SP,
+        spBuffer: 0,
+        activeUntil: 0,
+        regenMultiplier: kind === "archangelHeptagon2" ? RANK_TWO_SKILL_REGEN_MULTIPLIER : undefined
+      }
+    };
+  }
+
+  return {};
+}
+
 export function enemyScaleFromHp(hpRatio: number) {
   return 0.4 + Phaser.Math.Clamp(hpRatio, 0, 1) * 0.6;
 }
@@ -72,6 +103,41 @@ export function syncEnemyVisualScale(enemy: Enemy) {
   }
 
   enemy.shape.setScale(enemyVisualScale(enemy));
+}
+
+export function syncEnemyFacingVisual(enemy: Enemy) {
+  const facingScale = (enemy.movementDirection ?? -1) > 0 ? -1 : 1;
+  const shape = enemy.shape as Phaser.GameObjects.GameObject & { list?: Phaser.GameObjects.GameObject[] };
+  for (const child of shape.list ?? []) {
+    if (child instanceof Phaser.GameObjects.Text) {
+      const baseX = child.getData("facingBaseX") as number | undefined;
+      const x = baseX ?? child.x;
+      if (baseX === undefined) {
+        child.setData("facingBaseX", x);
+      }
+      child.setX(x * facingScale);
+      continue;
+    }
+
+    const scalable = child as Phaser.GameObjects.GameObject & {
+      scaleX?: number;
+      scaleY?: number;
+      setScale?: (x: number, y?: number) => unknown;
+      getData?: (key: string) => unknown;
+      setData?: (key: string, value: unknown) => unknown;
+    };
+    if (!scalable.setScale) {
+      continue;
+    }
+
+    const baseScaleX = (scalable.getData?.("facingBaseScaleX") as number | undefined) ?? scalable.scaleX ?? 1;
+    const baseScaleY = (scalable.getData?.("facingBaseScaleY") as number | undefined) ?? scalable.scaleY ?? 1;
+    if (scalable.getData?.("facingBaseScaleX") === undefined) {
+      scalable.setData?.("facingBaseScaleX", baseScaleX);
+      scalable.setData?.("facingBaseScaleY", baseScaleY);
+    }
+    scalable.setScale(baseScaleX * facingScale, baseScaleY);
+  }
 }
 
 export function enemyIsBurrowed(enemy: Enemy) {
@@ -117,7 +183,9 @@ export function applyEnemyPromotion(scene: Phaser.Scene, enemy: Enemy, kind: Ene
   enemy.angelRamWingsTriggered = false;
   enemy.body.removeAll(true);
   enemy.statusBorder = scene.add.circle(0, 0, 28, palette.black, 0).setStrokeStyle(2, palette.magic, 0.92);
+  enemy.frozenBorder = scene.add.rectangle(0, 0, 56, 56, palette.black, 0).setStrokeStyle(3, palette.magic, 0.92);
   enemy.statusBorder.setVisible(false);
+  enemy.frozenBorder.setVisible(false);
   enemy.powerIcon = scene.add
     .text(0, -38, "!", {
       color: "#ff6464",
@@ -157,8 +225,18 @@ export function applyEnemyPromotion(scene: Phaser.Scene, enemy: Enemy, kind: Ene
   enemy.flyingHalo = scene.add.ellipse(0, -42, 30, 8, palette.black, 0).setStrokeStyle(2, palette.white, 0.94);
   enemy.flyingHalo.setVisible(false);
   enemy.shape = createEnemyShape(scene, kind, { squareSize: 42, shootingNoseX: -24 });
-  enemy.skills = {};
-  enemy.body.add([enemy.statusBorder, enemy.flyingHalo, enemy.shape, enemy.powerIcon, enemy.sunderIcon, enemy.armorIcon, enemy.magicResistanceIcon]);
+  enemy.skills = initialEnemySkillStates(kind);
+  enemy.body.add([
+    enemy.frozenBorder,
+    enemy.statusBorder,
+    enemy.flyingHalo,
+    enemy.shape,
+    enemy.powerIcon,
+    enemy.sunderIcon,
+    enemy.armorIcon,
+    enemy.magicResistanceIcon
+  ]);
+  syncEnemyFacingVisual(enemy);
   syncEnemyVisualScale(enemy);
 }
 

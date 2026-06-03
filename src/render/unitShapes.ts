@@ -487,7 +487,6 @@ export function createEnemyShape(scene: Phaser.Scene, kind: EnemyKind, options: 
     tip.fillPath();
     tip.strokePath();
     tip.setVisible(false);
-    shape.setData("burrowFrame", arrow);
     shape.setData("burrowFull", [arrow, label]);
     shape.setData("burrowTip", tip);
     shape.add([arrow, label, tip]);

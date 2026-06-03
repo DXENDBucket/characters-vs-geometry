@@ -4,6 +4,7 @@ import { getCardDefinition } from "../registry/cards";
 import {
   allEnemyDefinitions,
   enemyBlockedDetonation,
+  enemyFamily,
   enemyIsBossCompanion,
   enemyIsLaser,
   enemyIsLeader,
@@ -36,6 +37,7 @@ import {
   siegeRamSpeed,
   splitSpawnKind,
   splitSpawnLanes,
+  syncEnemyFacingVisual,
   syncEnemyVisualScale
 } from "./enemyBehaviors";
 import { createEnemy } from "./enemyFactory";
@@ -45,9 +47,11 @@ import { chargingHexSpeedMultiplier, makeWingPulse, syncHexArmorAuras, updateEne
 import { advanceHighFlyingEnemy, advanceSlopeTriangle } from "./slopeTriangle";
 import {
   SOLAR_BOMB_BOUNCE_COOLDOWN,
-  SOLAR_BOMB_CENTER_ACCELERATION,
   SOLAR_BOMB_COLLISION_DAMAGE,
+  SOLAR_BOMB_DEPLETED_BOSS_ACCELERATION,
   SOLAR_BOMB_RADIUS,
+  SOLAR_BOMB_SHIELD_BREAK_AOE_DAMAGE,
+  SOLAR_BOMB_SHIELD_BREAK_AOE_RADIUS_CELLS,
   bounceSolarBombFromPoint,
   enemyIsSolarBomb,
   rotateSolarBombVisual,
@@ -152,7 +156,7 @@ export function spawnSplitEnemies(
   battleTime: number,
   finalDamageReduction: number
 ) {
-  if (enemy.kind === "hexMace") {
+  if (enemyFamily(enemy.kind) === "hexMace") {
     spawnHexMaceSplit(runtime, enemy, battleTime);
     return;
   }
@@ -225,10 +229,11 @@ function spawnAngelPentagonRamSplit(runtime: EnemySpawnRuntime, enemy: Enemy, ti
 }
 
 function spawnHexMaceSplit(runtime: EnemySpawnRuntime, enemy: Enemy, time: number) {
+  const rank = enemyRank(enemy.kind);
   const direction = enemyFacingDirection(enemy);
   const spawns: Array<{ kind: EnemyKind; offset: number }> = [
-    { kind: "chargingHexagon", offset: direction * 18 },
-    { kind: "hexagon", offset: -direction * 18 }
+    { kind: chargingHexagonKindForRank(rank), offset: direction * 18 },
+    { kind: hexagonKindForRank(rank), offset: -direction * 18 }
   ];
   for (const spawn of spawns) {
     spawnEnemyAt(runtime, {
@@ -244,12 +249,20 @@ function spawnHexMaceSplit(runtime: EnemySpawnRuntime, enemy: Enemy, time: numbe
   }
 }
 
-function angelPentagonKindForRank(_rank: number): EnemyKind {
-  return "angelPentagon";
+function angelPentagonKindForRank(rank: number): EnemyKind {
+  return rank >= 2 ? "angelPentagon2" : "angelPentagon";
 }
 
 function pentagonKindForRank(_rank: number): EnemyKind {
   return "pentagon";
+}
+
+function chargingHexagonKindForRank(rank: number): EnemyKind {
+  return rank >= 2 ? "chargingHexagon2" : "chargingHexagon";
+}
+
+function hexagonKindForRank(rank: number): EnemyKind {
+  return rank >= 2 ? "hexagon2" : "hexagon";
 }
 
 function triangleKindForRank(rank: number): EnemyKind {
@@ -270,6 +283,10 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
 
   for (const enemy of [...runtime.enemies]) {
     if (!runtime.enemies.includes(enemy)) {
+      continue;
+    }
+
+    if (hasStatusEffect(enemy, "frozen", time)) {
       continue;
     }
 
@@ -318,7 +335,7 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
       }
     }
 
-    if (enemy.kind === "heart" && time >= enemy.attackAt) {
+    if (enemyFamily(enemy.kind) === "heart" && time >= enemy.attackAt) {
       fireLeaderAreaAttack(runtime, enemy, time);
       enemy.attackAt = time + enemy.finalStats.attackInterval;
     }
@@ -331,7 +348,7 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
         continue;
       }
 
-      if (blocker.type === "F" || blocker.type === "f" || blocker.type === "l") {
+      if (blocker.type === "F" || blocker.type === "f" || blocker.type === "i" || blocker.type === "l") {
         runtime.triggerShockTower(blocker);
         continue;
       }
@@ -419,7 +436,7 @@ function advanceSolarBomb(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: numb
   }
 
   initializeSolarBombVelocity(enemy);
-  accelerateSolarBombTowardCenterLane(enemy, seconds);
+  accelerateDepletedSolarBombTowardInvincibleBoss(runtime, enemy, time, seconds);
   const rawVelocityX = enemy.solarBombVelocityX ?? 0;
   const rawVelocityY = enemy.solarBombVelocityY ?? 0;
   const baseSpeed = Math.max(Math.hypot(rawVelocityX, rawVelocityY), enemy.baseStats.speed || 1);
@@ -461,6 +478,7 @@ function advanceSolarBomb(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: numb
     }
     runtime.damageBoss(SOLAR_BOMB_COLLISION_DAMAGE, "true", collision.target);
     if (breaksOctahedronShield) {
+      detonateSolarBombShieldBreak(runtime, enemy);
       removeSolarBomb(runtime, enemy);
     }
   }
@@ -487,14 +505,38 @@ function initializeSolarBombVelocity(enemy: Enemy) {
   enemy.solarBombVelocityY = 0;
 }
 
-function accelerateSolarBombTowardCenterLane(enemy: Enemy, seconds: number) {
-  const targetY = BOARD_Y + Math.floor(LANES / 2) * CELL_HEIGHT + CELL_HEIGHT / 2;
-  const deltaY = targetY - enemy.y;
-  if (Math.abs(deltaY) < 1) {
+function accelerateDepletedSolarBombTowardInvincibleBoss(
+  runtime: EnemyAdvanceRuntime,
+  enemy: Enemy,
+  time: number,
+  seconds: number
+) {
+  if (!solarBombIsDepleted(enemy)) {
     return;
   }
 
-  enemy.solarBombVelocityY = (enemy.solarBombVelocityY ?? 0) + Math.sign(deltaY) * SOLAR_BOMB_CENTER_ACCELERATION * seconds;
+  const target = nearestInvincibleBossPart(runtime, enemy, time);
+  if (!target) {
+    return;
+  }
+
+  const dx = target.x - enemy.x;
+  const dy = target.y - enemy.y;
+  const distance = Math.hypot(dx, dy);
+  if (distance <= 0.001) {
+    return;
+  }
+
+  enemy.solarBombVelocityX =
+    (enemy.solarBombVelocityX ?? 0) + (dx / distance) * SOLAR_BOMB_DEPLETED_BOSS_ACCELERATION * seconds;
+  enemy.solarBombVelocityY =
+    (enemy.solarBombVelocityY ?? 0) + (dy / distance) * SOLAR_BOMB_DEPLETED_BOSS_ACCELERATION * seconds;
+}
+
+function nearestInvincibleBossPart(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number) {
+  return bossParts(runtime.boss)
+    .filter((part) => part.invincibleUntil > time)
+    .sort((a, b) => Math.hypot(enemy.x - a.x, enemy.y - a.y) - Math.hypot(enemy.x - b.x, enemy.y - b.y))[0];
 }
 
 function bounceSolarBombOffBoard(enemy: Enemy) {
@@ -573,6 +615,37 @@ function findSolarBombCollision(runtime: EnemyAdvanceRuntime, bomb: Enemy) {
   return collisions.sort((a, b) => a.distance - b.distance)[0];
 }
 
+function detonateSolarBombShieldBreak(runtime: EnemyAdvanceRuntime, bomb: Enemy) {
+  const radius = CELL_WIDTH * SOLAR_BOMB_SHIELD_BREAK_AOE_RADIUS_CELLS;
+  makeShellBurst(runtime.scene, bomb.x, bomb.y, radius, "true");
+  makeShockPulse(runtime.scene, bomb.x, bomb.y, radius, radius, "true");
+
+  for (const tower of [...runtime.towers]) {
+    if (!tower.transient && Math.hypot(tower.x - bomb.x, tower.y - bomb.y) <= radius) {
+      runtime.damageTower(tower, SOLAR_BOMB_SHIELD_BREAK_AOE_DAMAGE, "true");
+    }
+  }
+
+  for (const enemy of [...runtime.enemies]) {
+    if (enemy !== bomb && Math.hypot(enemy.x - bomb.x, enemy.y - bomb.y) <= radius) {
+      runtime.damageEnemy(enemy, SOLAR_BOMB_SHIELD_BREAK_AOE_DAMAGE, "true");
+    }
+  }
+
+  for (const part of bossParts(runtime.boss)) {
+    if (bossPartInSolarBombAoe(part, bomb.x, bomb.y, radius)) {
+      runtime.damageBoss(SOLAR_BOMB_SHIELD_BREAK_AOE_DAMAGE, "true", part);
+    }
+  }
+}
+
+function bossPartInSolarBombAoe(part: CubeBoss, x: number, y: number, radius: number) {
+  const rect = bossRect(part);
+  const closestX = Phaser.Math.Clamp(x, rect.left, rect.right);
+  const closestY = Phaser.Math.Clamp(y, rect.top, rect.bottom);
+  return Math.hypot(x - closestX, y - closestY) <= radius;
+}
+
 function circleIntersectsRect(x: number, y: number, radius: number, rect: Phaser.Geom.Rectangle) {
   const closestX = Phaser.Math.Clamp(x, rect.left, rect.right);
   const closestY = Phaser.Math.Clamp(y, rect.top, rect.bottom);
@@ -585,7 +658,7 @@ function advanceBurrowArrow(
   time: number,
   seconds: number
 ) {
-  if (enemy.kind !== "burrowArrow") {
+  if (enemyFamily(enemy.kind) !== "burrowArrow") {
     return false;
   }
 
@@ -672,7 +745,7 @@ function emergeBurrowArrow(runtime: EnemyAdvanceRuntime, carrier: Enemy) {
   carrier.movementDirection = 1;
   carrier.body.setAlpha(1);
   setBurrowArrowTipVisible(carrier, false);
-  syncBurrowArrowFacing(carrier);
+  syncEnemyFacingVisual(carrier);
   syncEnemyVisualScale(carrier);
   syncEnemyBodyPosition(carrier);
   makeShockPulse(runtime.scene, carrier.x, carrier.y, CELL_WIDTH * 0.72, CELL_HEIGHT * 0.72);
@@ -698,6 +771,7 @@ export function releaseBurrowCargo(
     if (options.reverseDirection) {
       enemy.movementDirection = 1;
     }
+    syncEnemyFacingVisual(enemy);
     enemy.blockedByTowerId = undefined;
     enemy.blockedSince = undefined;
     enemy.body.setVisible(true);
@@ -722,13 +796,6 @@ function setBurrowArrowTipVisible(enemy: Enemy, visible: boolean) {
   });
   const visibleTip = tip as (Phaser.GameObjects.GameObject & { setVisible(value: boolean): unknown }) | undefined;
   visibleTip?.setVisible(visible);
-}
-
-function syncBurrowArrowFacing(enemy: Enemy) {
-  const frame = enemy.shape.getData("burrowFrame") as
-    | (Phaser.GameObjects.GameObject & { setScale(x: number, y?: number): unknown })
-    | undefined;
-  frame?.setScale(enemyMovementDirection(enemy) > 0 ? -1 : 1, 1);
 }
 
 function burrowCargoRank(enemy: Enemy) {

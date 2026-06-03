@@ -21,7 +21,7 @@ import {
   solarBombIsDepleted,
   syncSolarBombVisual
 } from "./solarBomb";
-import { hasStatusEffect, syncEnemyBodyPosition } from "./statusEffects";
+import { addFrozenPhysicalDamage, hasStatusEffect, syncEnemyBodyPosition } from "./statusEffects";
 import { gridCellKey } from "./targeting";
 import { syncTowerHpBar } from "./towers";
 import { towerFinalStats } from "./unitStats";
@@ -41,6 +41,7 @@ export interface UnitLifecycleRuntime {
   finalDamageReduction: number;
   onEnemyDefeated: () => void;
   onTowerDamaged: (tower: Tower) => void;
+  onTowerRemoved?: (tower: Tower) => void;
   endLevel: () => void;
 }
 
@@ -154,6 +155,13 @@ export function damageEnemy(
     calculateDamage(damage, damageType, stats.armor, stats.magicResistance) *
     solarBombDamageMultiplier(enemy, damageType) *
     (1 - stats.finalDamageReduction);
+  if (
+    damageType === "physical" &&
+    hasStatusEffect(enemy, "frozen", runtime.battleTime) &&
+    addFrozenPhysicalDamage(enemy, actualDamage, runtime.battleTime)
+  ) {
+    syncEnemyBodyPosition(enemy);
+  }
   enemy.hp -= actualDamage;
   if (enemyIsSolarBomb(enemy) && enemy.hp <= 0) {
     depleteSolarBomb(enemy);
@@ -229,6 +237,7 @@ export function removeTower(runtime: UnitLifecycleRuntime, tower: Tower) {
   if (!tower.transient) {
     runtime.occupied.delete(gridCellKey(tower.lane, tower.column));
   }
+  runtime.onTowerRemoved?.(tower);
   runtime.scene.tweens.add({
     targets: tower.body,
     alpha: 0,

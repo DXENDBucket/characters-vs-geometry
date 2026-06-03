@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { CELL_HEIGHT, CELL_WIDTH, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
-import { enemyIsBossCompanion, enemyIsMace } from "../registry/enemies";
+import { enemyFamily, enemyIsBossCompanion, enemyIsMace } from "../registry/enemies";
 import { makeShiftEffect, makeShockPulse } from "../render/combatEffects";
 import type { Enemy, Tower } from "../types";
 import type { EnemyAdvanceRuntime } from "./combatRuntime";
@@ -196,7 +196,7 @@ function landHighFlyingEnemy(enemy: Enemy) {
 }
 
 function syncHighFlyingHalo(enemy: Enemy, time: number) {
-  if (enemy.kind === "archangelHeptagon") {
+  if (enemyFamily(enemy.kind) === "archangelHeptagon") {
     enemy.flyingHalo.setVisible(false);
     return;
   }

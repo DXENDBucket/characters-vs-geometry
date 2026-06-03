@@ -148,6 +148,14 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     family: "mortarTriangle",
     rank: 2,
     nameKey: "enemy.mortarTriangle2",
+    attackMode: "mortar",
+    promotionKind: "mortarTriangle3"
+  },
+  mortarTriangle3: {
+    definition: rawEnemyDefinitions.mortarTriangle3,
+    family: "mortarTriangle",
+    rank: 3,
+    nameKey: "enemy.mortarTriangle3",
     attackMode: "mortar"
   },
   pentagon: {
@@ -162,6 +170,14 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     family: "angelPentagon",
     rank: 1,
     nameKey: "enemy.angelPentagon",
+    attackMode: "melee",
+    promotionKind: "angelPentagon2"
+  },
+  angelPentagon2: {
+    definition: rawEnemyDefinitions.angelPentagon2,
+    family: "angelPentagon",
+    rank: 2,
+    nameKey: "enemy.angelPentagon2",
     attackMode: "melee"
   },
   archangelHeptagon: {
@@ -169,6 +185,14 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     family: "archangelHeptagon",
     rank: 1,
     nameKey: "enemy.archangelHeptagon",
+    attackMode: "melee",
+    leader: true
+  },
+  archangelHeptagon2: {
+    definition: rawEnemyDefinitions.archangelHeptagon2,
+    family: "archangelHeptagon",
+    rank: 2,
+    nameKey: "enemy.archangelHeptagon2",
     attackMode: "melee",
     leader: true
   },
@@ -201,11 +225,25 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     nameKey: "enemy.hexagon",
     attackMode: "melee"
   },
+  hexagon2: {
+    definition: rawEnemyDefinitions.hexagon2,
+    family: "hexagon",
+    rank: 2,
+    nameKey: "enemy.hexagon2",
+    attackMode: "melee"
+  },
   chargingHexagon: {
     definition: rawEnemyDefinitions.chargingHexagon,
     family: "chargingHexagon",
     rank: 1,
     nameKey: "enemy.chargingHexagon",
+    attackMode: "melee"
+  },
+  chargingHexagon2: {
+    definition: rawEnemyDefinitions.chargingHexagon2,
+    family: "chargingHexagon",
+    rank: 2,
+    nameKey: "enemy.chargingHexagon2",
     attackMode: "melee"
   },
   hexMace: {
@@ -215,11 +253,26 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     nameKey: "enemy.hexMace",
     attackMode: "mace"
   },
+  hexMace2: {
+    definition: rawEnemyDefinitions.hexMace2,
+    family: "hexMace",
+    rank: 2,
+    nameKey: "enemy.hexMace2",
+    attackMode: "mace"
+  },
   hexSpellBulwark: {
     definition: rawEnemyDefinitions.hexSpellBulwark,
     family: "hexSpellBulwark",
     rank: 1,
     nameKey: "enemy.hexSpellBulwark",
+    attackMode: "melee",
+    leader: true
+  },
+  hexSpellBulwark2: {
+    definition: rawEnemyDefinitions.hexSpellBulwark2,
+    family: "hexSpellBulwark",
+    rank: 2,
+    nameKey: "enemy.hexSpellBulwark2",
     attackMode: "melee",
     leader: true
   },
@@ -231,11 +284,27 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     attackMode: "leader",
     leader: true
   },
+  heart2: {
+    definition: rawEnemyDefinitions.heart2,
+    family: "heart",
+    rank: 2,
+    nameKey: "enemy.heart2",
+    attackMode: "leader",
+    leader: true
+  },
   burrowArrow: {
     definition: rawEnemyDefinitions.burrowArrow,
     family: "burrowArrow",
     rank: 1,
     nameKey: "enemy.burrowArrow",
+    attackMode: "melee",
+    leader: true
+  },
+  burrowArrow2: {
+    definition: rawEnemyDefinitions.burrowArrow2,
+    family: "burrowArrow",
+    rank: 2,
+    nameKey: "enemy.burrowArrow2",
     attackMode: "melee",
     leader: true
   },
@@ -266,9 +335,22 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     rank: 2,
     nameKey: "enemy.invertedTriangle2",
     attackMode: "blockedDetonator",
+    promotionKind: "invertedTriangle3",
     blockedDetonation: {
       delay: 2_000,
       damage: 2_600,
+      damageType: "magic"
+    }
+  },
+  invertedTriangle3: {
+    definition: rawEnemyDefinitions.invertedTriangle3,
+    family: "invertedTriangle",
+    rank: 3,
+    nameKey: "enemy.invertedTriangle3",
+    attackMode: "blockedDetonator",
+    blockedDetonation: {
+      delay: 2_000,
+      damage: 3_200,
       damageType: "magic"
     }
   },
@@ -286,6 +368,13 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     nameKey: "enemy.shootingTriangle2",
     attackMode: "ranged"
   },
+  shootingTriangle3: {
+    definition: rawEnemyDefinitions.shootingTriangle3,
+    family: "shootingTriangle",
+    rank: 3,
+    nameKey: "enemy.shootingTriangle3",
+    attackMode: "ranged"
+  },
   dodecahedronCompanion: {
     definition: rawEnemyDefinitions.dodecahedronCompanion,
     family: "dodecahedronCompanion",
@@ -298,6 +387,20 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     family: "trapezoid",
     rank: 1,
     nameKey: "enemy.trapezoid",
+    attackMode: "melee"
+  },
+  trapezoid2: {
+    definition: rawEnemyDefinitions.trapezoid2,
+    family: "trapezoid",
+    rank: 2,
+    nameKey: "enemy.trapezoid2",
+    attackMode: "melee"
+  },
+  trapezoid3: {
+    definition: rawEnemyDefinitions.trapezoid3,
+    family: "trapezoid",
+    rank: 3,
+    nameKey: "enemy.trapezoid3",
     attackMode: "melee"
   },
   solarBomb: {

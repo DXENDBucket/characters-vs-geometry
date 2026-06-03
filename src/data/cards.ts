@@ -197,6 +197,16 @@ export const cardDefinitions: CardDefinition[] = [
     stats: `3x400${DAMAGE_SYMBOLS.physical} / DN`
   },
   {
+    id: "m",
+    category: "function",
+    cost: 1_650,
+    cooldown: 50_000,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 60,
+    stats: "MIRROR <=999"
+  },
+  {
     id: "W",
     category: "attack",
     cost: 75,
@@ -250,6 +260,22 @@ export const cardDefinitions: CardDefinition[] = [
     triggerDebuff: "stasis",
     triggerDebuffDuration: 10_000,
     stats: "GLOBAL STASIS / 10s"
+  },
+  {
+    id: "i",
+    category: "function",
+    cost: 125,
+    cooldown: 30_000,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 0,
+    damage: 0,
+    triggerRangeX: CELL_WIDTH * 2.6,
+    triggerRangeY: CELL_HEIGHT * 2.6,
+    triggerShape: "circle",
+    triggerDebuff: "frozen",
+    triggerDebuffDuration: 15_000,
+    stats: "FREEZE R2.6 / 15s"
   },
   {
     id: "l",
@@ -393,6 +419,19 @@ export const cardDefinitions: CardDefinition[] = [
     damage: 5_000,
     damageType: "magic",
     stats: `3x5000${DAMAGE_SYMBOLS.magic} / 30SP`
+  },
+  {
+    id: "s",
+    category: "attack",
+    cost: 325,
+    cooldown: 30_000,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 20,
+    attackSpeed: 3,
+    damage: 0,
+    damageType: "physical",
+    stats: "SUMMON a / 20s"
   },
   {
     id: "Z",
