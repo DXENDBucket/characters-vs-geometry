@@ -22,10 +22,10 @@ export function gridCellKey(lane: number, column: number) {
 
 export function bossRect(boss: CubeBoss) {
   return new Phaser.Geom.Rectangle(
-    boss.x - BOSS_HITBOX_WIDTH / 2,
-    boss.y - BOSS_HITBOX_HEIGHT / 2,
-    BOSS_HITBOX_WIDTH,
-    BOSS_HITBOX_HEIGHT
+    boss.x - (boss.hitboxWidth ?? BOSS_HITBOX_WIDTH) / 2,
+    boss.y - (boss.hitboxHeight ?? BOSS_HITBOX_HEIGHT) / 2,
+    boss.hitboxWidth ?? BOSS_HITBOX_WIDTH,
+    boss.hitboxHeight ?? BOSS_HITBOX_HEIGHT
   );
 }
 

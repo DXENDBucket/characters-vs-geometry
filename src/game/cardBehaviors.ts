@@ -169,7 +169,7 @@ export const predictiveMortarCardBehavior: CardBehavior = {
 
 export const smallSummonerCardBehavior: CardBehavior = {
   canUse: (tower, _definition, time, runtime) => {
-    return cooldownReady(tower, time) && Boolean(getSmallSummonCell(tower, runtime.occupied));
+    return cooldownReady(tower, time) && Boolean(getSmallSummonCell(tower, runtime.occupied, runtime.isCellDeployable));
   },
   execute: fireSmallSummon
 };
@@ -630,7 +630,7 @@ function predictedBossMortarTarget(tower: Tower, definition: CardDefinition, bos
 }
 
 function fireSmallSummon(tower: Tower, _definition: CardDefinition, runtime: CardBehaviorRuntime) {
-  const cell = getSmallSummonCell(tower, runtime.occupied);
+  const cell = getSmallSummonCell(tower, runtime.occupied, runtime.isCellDeployable);
   if (!cell) {
     return;
   }
@@ -641,10 +641,14 @@ function fireSmallSummon(tower: Tower, _definition: CardDefinition, runtime: Car
   }
 }
 
-function getSmallSummonCell(tower: Tower, occupied: Map<string, Tower>) {
+function getSmallSummonCell(
+  tower: Tower,
+  occupied: Map<string, Tower>,
+  isCellDeployable: ((lane: number, column: number) => boolean) | undefined
+) {
   const direction = towerFacingDirection(tower);
   for (let column = tower.column + direction; column >= 0 && column < COLUMNS; column += direction) {
-    if (!occupied.has(gridCellKey(tower.lane, column))) {
+    if (!occupied.has(gridCellKey(tower.lane, column)) && (isCellDeployable?.(tower.lane, column) ?? true)) {
       return { lane: tower.lane, column };
     }
   }

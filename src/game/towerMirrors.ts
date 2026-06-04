@@ -20,6 +20,7 @@ export interface TowerMirrorRuntime {
   battleTime: number;
   getDefinition: (id: CardId) => CardDefinition;
   nextTowerOrder: () => number;
+  isCellDeployable?: (lane: number, column: number) => boolean;
   updateLevelAuras: () => void;
 }
 
@@ -432,6 +433,12 @@ export class TowerMirrorController {
   }
 
   private cellIsDeployable(lane: number, column: number) {
-    return lane >= 0 && lane < LANES && column >= 0 && column < COLUMNS;
+    return (
+      lane >= 0 &&
+      lane < LANES &&
+      column >= 0 &&
+      column < COLUMNS &&
+      (this.runtime().isCellDeployable?.(lane, column) ?? true)
+    );
   }
 }

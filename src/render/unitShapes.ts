@@ -2,6 +2,8 @@ import Phaser from "phaser";
 import {
   DODECAHEDRON_EDGES,
   DODECAHEDRON_UNIT_VERTICES,
+  ICOSAHEDRON_EDGES,
+  ICOSAHEDRON_UNIT_VERTICES,
   OCTAHEDRON_EDGES,
   OCTAHEDRON_UNIT_VERTICES,
   SMALL_STELLATED_DODECAHEDRON_SPIKES
@@ -733,6 +735,30 @@ export function createOctahedronIcon(scene: Phaser.Scene) {
 
   frame.lineStyle(1.8, palette.white, 0.95);
   for (const [from, to] of OCTAHEDRON_EDGES) {
+    frame.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
+  }
+
+  const label = scene.add
+    .text(0, 0, toRomanNumeral(1), {
+      color: "#f5f5f5",
+      fontFamily: "monospace",
+      fontSize: "14px",
+      fontStyle: "700"
+    })
+    .setOrigin(0.5);
+  icon.add([frame, label]);
+  return icon;
+}
+
+export function createIcosahedronIcon(scene: Phaser.Scene) {
+  const icon = scene.add.container(0, 0);
+  const frame = scene.add.graphics();
+  const vertices = ICOSAHEDRON_UNIT_VERTICES.map(([x, y, z]) =>
+    projectIconPoint(x * 12.6, y * 12.6, z * 12.6, -0.42, 0.62, -0.12)
+  );
+
+  frame.lineStyle(1.7, palette.white, 0.94);
+  for (const [from, to] of ICOSAHEDRON_EDGES) {
     frame.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
   }
 

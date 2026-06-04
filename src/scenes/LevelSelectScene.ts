@@ -13,11 +13,14 @@ import {
 import {
   DODECAHEDRON_EDGES,
   DODECAHEDRON_UNIT_VERTICES,
+  ICOSAHEDRON_EDGES,
+  ICOSAHEDRON_UNIT_VERTICES,
   OCTAHEDRON_EDGES,
   OCTAHEDRON_UNIT_VERTICES,
   SMALL_STELLATED_DODECAHEDRON_SPIKES,
   bossRank,
   isDodecahedronBossKind,
+  isIcosahedronBossKind,
   isOctahedronBossKind,
   isSmallStellatedDodecahedronBossKind,
   isTetrahedronBossKind
@@ -382,6 +385,11 @@ export class LevelSelectScene extends Phaser.Scene {
       return;
     }
 
+    if (isIcosahedronBossKind(preview.kind)) {
+      this.drawIcosahedronNodePreview(preview);
+      return;
+    }
+
     const vertices = [
       [-1, -1, -1],
       [1, -1, -1],
@@ -490,6 +498,18 @@ export class LevelSelectScene extends Phaser.Scene {
     preview.frame.clear();
     preview.frame.lineStyle(1.5, palette.white, 0.92);
     for (const [from, to] of OCTAHEDRON_EDGES) {
+      preview.frame.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
+    }
+  }
+
+  private drawIcosahedronNodePreview(preview: BossNodePreview) {
+    const vertices = ICOSAHEDRON_UNIT_VERTICES.map(([x, y, z]) => {
+      return this.projectBossNodePoint(x * preview.size * 1.085, y * preview.size * 1.085, z * preview.size * 1.085, preview);
+    });
+
+    preview.frame.clear();
+    preview.frame.lineStyle(1.45, palette.white, 0.9);
+    for (const [from, to] of ICOSAHEDRON_EDGES) {
       preview.frame.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
     }
   }

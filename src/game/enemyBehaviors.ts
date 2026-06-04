@@ -21,9 +21,9 @@ import { attackIntervalMs, attackSpeedForIntervalMs } from "./attackSpeed";
 import { enemyIsSolarBomb, isSolarBombKind } from "./solarBomb";
 import { applyEnemyBaseStats, enemyBaseStatsFromDefinition } from "./unitStats";
 
-const ANGEL_PENTAGON_RANK_TWO_INITIAL_WINGS_SP = 2;
+const ANGEL_PENTAGON_INITIAL_WINGS_SP_PER_EXTRA_RANK = 2;
 const ARCHANGEL_INITIAL_ASCENSION_SP = 10;
-const RANK_TWO_SKILL_REGEN_MULTIPLIER = 1.2;
+const ANGEL_PENTAGON_SKILL_REGEN_MULTIPLIER_PER_EXTRA_RANK = 0.2;
 
 export function enemyAttackSpeed(kind: EnemyKind) {
   if (enemyIsLaser(kind)) {
@@ -63,13 +63,14 @@ export function enemyAttackInterval(kind: EnemyKind) {
 
 export function initialEnemySkillStates(kind: EnemyKind): Record<string, SkillState> {
   const family = enemyFamily(kind);
-  if (family === "angelPentagon" && kind === "angelPentagon2") {
+  if (family === "angelPentagon" && enemyRank(kind) >= 2) {
+    const extraRanks = enemyRank(kind) - 1;
     return {
       wings: {
-        sp: ANGEL_PENTAGON_RANK_TWO_INITIAL_WINGS_SP,
+        sp: extraRanks * ANGEL_PENTAGON_INITIAL_WINGS_SP_PER_EXTRA_RANK,
         spBuffer: 0,
         activeUntil: 0,
-        regenMultiplier: RANK_TWO_SKILL_REGEN_MULTIPLIER
+        regenMultiplier: 1 + extraRanks * ANGEL_PENTAGON_SKILL_REGEN_MULTIPLIER_PER_EXTRA_RANK
       }
     };
   }
@@ -79,8 +80,7 @@ export function initialEnemySkillStates(kind: EnemyKind): Record<string, SkillSt
       ascension: {
         sp: ARCHANGEL_INITIAL_ASCENSION_SP,
         spBuffer: 0,
-        activeUntil: 0,
-        regenMultiplier: kind === "archangelHeptagon2" ? RANK_TWO_SKILL_REGEN_MULTIPLIER : undefined
+        activeUntil: 0
       }
     };
   }
@@ -172,7 +172,7 @@ export function applyEnemyPromotion(scene: Phaser.Scene, enemy: Enemy, kind: Ene
   enemy.attackAt = Math.min(enemy.attackAt, battleTime + enemy.baseStats.attackInterval);
   enemy.maceVelocity = enemyIsMace(kind) ? 0 : undefined;
   enemy.maceFacingDirection = enemyIsMace(kind) ? -1 : undefined;
-  enemy.slopeFacingDirection = kind === "slopeTriangle" ? enemy.movementDirection ?? -1 : undefined;
+  enemy.slopeFacingDirection = enemyFamily(kind) === "slopeTriangle" ? enemy.movementDirection ?? -1 : undefined;
   enemy.highFlightStartedAt = undefined;
   enemy.highFlightUntil = undefined;
   enemy.highFlightStartX = undefined;

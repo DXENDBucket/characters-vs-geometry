@@ -121,6 +121,18 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     weight: 640,
     minFlag: 1
   },
+  angelPentagonRam3: {
+    kind: "angelPentagonRam3",
+    label: "3",
+    hp: 5_000,
+    armor: 200,
+    magicResistance: 40,
+    damage: 1_400,
+    damageType: "magic",
+    speedMultiplier: 2.5,
+    weight: 960,
+    minFlag: 1
+  },
   mortarTriangle: {
     kind: "mortarTriangle",
     label: "1",
@@ -181,6 +193,18 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     weight: 240,
     minFlag: 1
   },
+  pentagon3: {
+    kind: "pentagon3",
+    label: "3",
+    hp: 1_500,
+    armor: 70,
+    magicResistance: 40,
+    damage: 800,
+    damageType: "magic",
+    speedMultiplier: 0.55,
+    weight: 360,
+    minFlag: 1
+  },
   angelPentagon: {
     kind: "angelPentagon",
     label: "1",
@@ -205,6 +229,18 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     weight: 250,
     minFlag: 1
   },
+  angelPentagon3: {
+    kind: "angelPentagon3",
+    label: "3",
+    hp: 1_200,
+    armor: 50,
+    magicResistance: 20,
+    damage: 300,
+    damageType: "physical",
+    speedMultiplier: 2,
+    weight: 300,
+    minFlag: 1
+  },
   archangelHeptagon: {
     kind: "archangelHeptagon",
     label: "1",
@@ -219,7 +255,7 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
   archangelHeptagon2: {
     kind: "archangelHeptagon2",
     label: "2",
-    hp: 4_000,
+    hp: 6_000,
     armor: 50,
     magicResistance: 20,
     damage: 1_400,
@@ -251,6 +287,18 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     weight: 250,
     minFlag: 1
   },
+  shootingPentagon3: {
+    kind: "shootingPentagon3",
+    label: "3",
+    hp: 2_000,
+    armor: 70,
+    magicResistance: 40,
+    damage: 150,
+    damageType: "magic",
+    speedMultiplier: 0.4,
+    weight: 375,
+    minFlag: 1
+  },
   diamond: {
     kind: "diamond",
     label: "1",
@@ -275,6 +323,18 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     weight: 200,
     minFlag: 1
   },
+  diamond3: {
+    kind: "diamond3",
+    label: "3",
+    hp: 2_000,
+    armor: 70,
+    magicResistance: 40,
+    damage: 400,
+    damageType: "magic",
+    speedMultiplier: 0.4,
+    weight: 300,
+    minFlag: 1
+  },
   hexagon: {
     kind: "hexagon",
     label: "1",
@@ -296,6 +356,17 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     damageType: "physical",
     speedMultiplier: 0.5,
     weight: 240
+  },
+  hexagon3: {
+    kind: "hexagon3",
+    label: "3",
+    hp: 18_000,
+    armor: 150,
+    magicResistance: 20,
+    damage: 400,
+    damageType: "physical",
+    speedMultiplier: 0.5,
+    weight: 320
   },
   chargingHexagon: {
     kind: "chargingHexagon",
@@ -319,6 +390,17 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     speedMultiplier: 2.5,
     weight: 300
   },
+  chargingHexagon3: {
+    kind: "chargingHexagon3",
+    label: "3",
+    hp: 12_000,
+    armor: 150,
+    magicResistance: 40,
+    damage: 500,
+    damageType: "magic",
+    speedMultiplier: 2.5,
+    weight: 450
+  },
   hexMace: {
     kind: "hexMace",
     label: "1",
@@ -341,6 +423,18 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     damageType: "physical",
     speedMultiplier: 2,
     weight: 500,
+    minFlag: 1
+  },
+  hexMace3: {
+    kind: "hexMace3",
+    label: "3",
+    hp: 9_000,
+    armor: 150,
+    magicResistance: 0,
+    damage: 520,
+    damageType: "physical",
+    speedMultiplier: 2,
+    weight: 625,
     minFlag: 1
   },
   hexSpellBulwark: {
@@ -387,6 +481,17 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     speedMultiplier: 3,
     weight: 0
   },
+  heart3: {
+    kind: "heart3",
+    label: "3",
+    hp: 9_999,
+    armor: 299,
+    magicResistance: 60,
+    damage: 3_900,
+    damageType: "true",
+    speedMultiplier: 3,
+    weight: 0
+  },
   burrowArrow: {
     kind: "burrowArrow",
     label: "1",
@@ -409,6 +514,17 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     speedMultiplier: 2,
     weight: 0
   },
+  burrowArrow3: {
+    kind: "burrowArrow3",
+    label: "3",
+    hp: 16_500,
+    armor: 250,
+    magicResistance: 0,
+    damage: 400,
+    damageType: "physical",
+    speedMultiplier: 2,
+    weight: 0
+  },
   slopeTriangle: {
     kind: "slopeTriangle",
     label: "1",
@@ -417,7 +533,29 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     magicResistance: 0,
     damage: 0,
     damageType: "physical",
-    speedMultiplier: 0.6,
+    speedMultiplier: 1,
+    weight: 0
+  },
+  slopeTriangle2: {
+    kind: "slopeTriangle2",
+    label: "2",
+    hp: 21_000,
+    armor: 500,
+    magicResistance: 0,
+    damage: 0,
+    damageType: "physical",
+    speedMultiplier: 1.5,
+    weight: 0
+  },
+  slopeTriangle3: {
+    kind: "slopeTriangle3",
+    label: "3",
+    hp: 21_000,
+    armor: 500,
+    magicResistance: 0,
+    damage: 0,
+    damageType: "physical",
+    speedMultiplier: 2,
     weight: 0
   },
   invertedTriangle: {

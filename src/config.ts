@@ -40,7 +40,10 @@ export const GAME_SPEED_MIN = 0.5;
 export const GAME_SPEED_MAX = 4;
 export const BOSS_HITBOX_WIDTH = CELL_WIDTH * 2.95;
 export const BOSS_HITBOX_HEIGHT = CELL_HEIGHT * 2.95;
-export const CUBE_BOSS_STATS: Record<BossKind, { hp: number; armor: number; magicResistance: number; speed: number }> = {
+export const CUBE_BOSS_STATS: Record<
+  BossKind,
+  { hp: number; armor: number; magicResistance: number; speed: number; hitboxCells?: number }
+> = {
   cube: { hp: 150_000, armor: 300, magicResistance: 20, speed: 0.6 },
   cube2: { hp: 200_000, armor: 600, magicResistance: 20, speed: 0.6 },
   tetrahedron: { hp: 120_000, armor: 150, magicResistance: 20, speed: 1.2 },
@@ -48,7 +51,9 @@ export const CUBE_BOSS_STATS: Record<BossKind, { hp: number; armor: number; magi
   dodecahedron: { hp: 100_000, armor: 200, magicResistance: 90, speed: 0.6 },
   dodecahedron2: { hp: 100_000, armor: 200, magicResistance: 90, speed: 0.6 },
   smallStellatedDodecahedron: { hp: 100_000, armor: 200, magicResistance: 90, speed: 0.6 },
-  octahedron: { hp: 120_000, armor: 200, magicResistance: 60, speed: 0.6 }
+  octahedron: { hp: 120_000, armor: 200, magicResistance: 60, speed: 0.6 },
+  octahedron2: { hp: 170_000, armor: 200, magicResistance: 60, speed: 0.6 },
+  icosahedron: { hp: 1_000_000, armor: 0, magicResistance: 0, speed: 0.5, hitboxCells: 4.95 }
 };
 export const CUBE_BOSS_PROMOTION_SKILL_MAX = 90;
 export const CUBE_BOSS_PROMOTION_SKILL_COST = 30;
@@ -58,6 +63,15 @@ export const CUBE_BOSS_ADVANCE_SKILL_MAX = 120;
 export const CUBE_BOSS_ADVANCE_SKILL_COST = 120;
 export const DODECAHEDRON_BOSS_ENDLESS_WINGS_SKILL_MAX = 4;
 export const DODECAHEDRON_BOSS_ENDLESS_WINGS_SKILL_COST = 4;
+export const ICOSAHEDRON_BOSS_ULTIMATE_ADVANCE_SKILL_MAX = 40;
+export const ICOSAHEDRON_BOSS_ULTIMATE_ADVANCE_SKILL_COST = 40;
+export const ICOSAHEDRON_BOSS_ULTIMATE_ADVANCE_INITIAL_SP = 30;
+export const ICOSAHEDRON_BOSS_HEARTBEAT_ALPHA_SKILL_MAX = 60;
+export const ICOSAHEDRON_BOSS_HEARTBEAT_ALPHA_SKILL_COST = 60;
+export const ICOSAHEDRON_BOSS_HEARTBEAT_ALPHA_INITIAL_SP = 30;
+export const ICOSAHEDRON_BOSS_HEARTBEAT_BETA_SKILL_MAX = 60;
+export const ICOSAHEDRON_BOSS_HEARTBEAT_BETA_SKILL_COST = 60;
+export const ICOSAHEDRON_BOSS_HEARTBEAT_BETA_INITIAL_SP = 0;
 export const TETRAHEDRON_BOSS_CHARGE_SKILL_MAX = 60;
 export const TETRAHEDRON_BOSS_CHARGE_SKILL_COST = 30;
 export const TETRAHEDRON_BOSS_CHARGE_DURATION = 7_000;

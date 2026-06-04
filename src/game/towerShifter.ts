@@ -26,6 +26,7 @@ export interface TowerShifterRuntime {
   occupied: Map<string, Tower>;
   cardTime: number;
   battleTime: number;
+  isCellDeployable?: (lane: number, column: number) => boolean;
 }
 
 export class TowerShifterController {
@@ -131,6 +132,9 @@ export class TowerShifterController {
       if (position.lane < 0 || position.lane >= LANES || position.column < 0 || position.column >= COLUMNS) {
         return { valid: false, positions };
       }
+      if (!this.isCellDeployable(position.lane, position.column)) {
+        return { valid: false, positions };
+      }
 
       const key = gridCellKey(position.lane, position.column);
       if (targetKeys.has(key)) {
@@ -214,6 +218,10 @@ export class TowerShifterController {
   private liveSelection() {
     this.selection = this.selection.filter((tower) => this.runtime().towers.includes(tower));
     return this.selection;
+  }
+
+  private isCellDeployable(lane: number, column: number) {
+    return this.runtime().isCellDeployable?.(lane, column) ?? true;
   }
 }
 

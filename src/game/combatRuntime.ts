@@ -16,13 +16,17 @@ export interface CombatRuntime {
   damageTower: (tower: Tower, damage: number, damageType: DamageType) => void;
   gainChars: (amount: number, x: number, y: number) => void;
   spawnTower: (id: CardId, lane: number, column: number, level: number, facingDirection?: -1 | 1) => Tower | null;
+  isCellDeployable?: (lane: number, column: number) => boolean;
   triggerTrapTower: (tower: Tower, target: Enemy | CubeBoss | "boss") => void;
   triggerShockTower: (tower: Tower) => void;
   onEnemyReachedBase: (enemy: Enemy) => boolean;
   runWhenBattleActive: (action: () => void) => void;
 }
 
-export type CardReadinessRuntime = Pick<CombatRuntime, "enemies" | "towers" | "boss" | "occupied" | "battleTime">;
+export type CardReadinessRuntime = Pick<
+  CombatRuntime,
+  "enemies" | "towers" | "boss" | "occupied" | "battleTime" | "isCellDeployable"
+>;
 
 export type CardBehaviorRuntime = Pick<
   CombatRuntime,
@@ -39,6 +43,7 @@ export type CardBehaviorRuntime = Pick<
   | "damageTower"
   | "gainChars"
   | "spawnTower"
+  | "isCellDeployable"
 >;
 
 export type EnemySpawnRuntime = Pick<CombatRuntime, "scene" | "enemies">;

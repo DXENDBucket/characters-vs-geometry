@@ -9,6 +9,7 @@ import {
   CELL_HEIGHT,
   CELL_WIDTH,
   COLUMNS,
+  CUBE_BOSS_STATS,
   DEFAULT_DIFFICULTY,
   DEFAULT_GAME_SPEED,
   GAME_HEIGHT,
@@ -108,11 +109,25 @@ import type {
   DifficultyConfig,
   Enemy,
   EnemyProjectile,
+  LevelConfig,
   MortarProjectile,
   Projectile,
   Tower,
   WaveTracker
 } from "../types";
+
+interface PlacementGhostSpec {
+  type: CardId;
+  lane: number;
+  column: number;
+}
+
+const BOSS_PHASE_BAR_COLORS = [palette.heart, 0xff9f43, palette.magic];
+const BOSS_PHASE_BAR_BACK = palette.magic;
+
+function combineDamageReduction(baseReduction: number, extraReduction: number) {
+  return 1 - (1 - baseReduction) * (1 - extraReduction);
+}
 
 export class GameScene extends Phaser.Scene {
   private levelId = "1-1";
@@ -131,10 +146,15 @@ export class GameScene extends Phaser.Scene {
   private towers: Tower[] = [];
   private enemies: Enemy[] = [];
   private boss: CubeBoss | null = null;
+  private bossPhaseIndex = 0;
+  private bossPhaseStartedAt = 0;
+  private bossHomePosition: { x: number; y: number } | null = null;
   private projectiles: Projectile[] = [];
   private enemyProjectiles: EnemyProjectile[] = [];
   private mortarProjectiles: MortarProjectile[] = [];
   private occupied = new Map<string, Tower>();
+  private sealedCells = new Set<string>();
+  private sealedCellMarks = new Map<string, Phaser.GameObjects.Text>();
   // Stored as raw resources; affordability and spending use the softcapped effective value.
   private chars = STARTING_CHARS;
   private baseIntegrity = BASE_INTEGRITY;
@@ -147,6 +167,8 @@ export class GameScene extends Phaser.Scene {
   private gameSpeed = DEFAULT_GAME_SPEED;
   private eraserMode = false;
   private placementGhosts: Phaser.GameObjects.Container[] = [];
+  private placementGhostKey = "";
+  private pausedActions: Array<() => void> = [];
   private autoUpgradeMode = false;
   private debugDamageMode = false;
   private autoUpgradeEnabled = true;
@@ -159,6 +181,20 @@ export class GameScene extends Phaser.Scene {
   private deployment!: TowerDeploymentController;
   private ui!: GameHudElements;
   private overlay!: GameOverlayElements;
+  private readonly scenePointerDownHandler = (pointer: Phaser.Input.Pointer) => this.handlePointerDown(pointer);
+  private readonly scenePointerMoveHandler = (pointer: Phaser.Input.Pointer) => {
+    this.towerSkills.updateSpellMortarReticlePosition(pointer.x, pointer.y);
+    this.syncPlacementGhost(pointer);
+  };
+  private readonly sceneKeyDownHandler = (event: KeyboardEvent) => {
+    if (this.handleAutoUpgradeReserveKey(event)) {
+      return;
+    }
+
+    if (this.handleGameKey(event)) {
+      event.preventDefault();
+    }
+  };
 
   constructor() {
     super("GameScene");
@@ -177,10 +213,15 @@ export class GameScene extends Phaser.Scene {
     this.towers = [];
     this.enemies = [];
     this.boss = null;
+    this.bossPhaseIndex = 0;
+    this.bossPhaseStartedAt = 0;
+    this.bossHomePosition = null;
     this.projectiles = [];
     this.enemyProjectiles = [];
     this.mortarProjectiles = [];
     this.occupied = new Map<string, Tower>();
+    this.sealedCells = new Set<string>();
+    this.sealedCellMarks = new Map<string, Phaser.GameObjects.Text>();
     this.chars = this.startingCharsForLevel();
     this.baseIntegrity = BASE_INTEGRITY;
     this.wave = 0;
@@ -192,6 +233,8 @@ export class GameScene extends Phaser.Scene {
     this.gameSpeed = DEFAULT_GAME_SPEED;
     this.eraserMode = false;
     this.placementGhosts = [];
+    this.placementGhostKey = "";
+    this.pausedActions = [];
     this.autoUpgradeMode = false;
     this.debugDamageMode = false;
     this.autoUpgradeEnabled = true;
@@ -227,22 +270,20 @@ export class GameScene extends Phaser.Scene {
     this.updateCards(this.cardTime);
     this.overlay = createGameOverlay(this, () => this.handleOverlayAction());
 
-    this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => this.handlePointerDown(pointer));
-    this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
-      this.towerSkills.updateSpellMortarReticlePosition(pointer.x, pointer.y);
-      this.syncPlacementGhost(pointer);
-    });
+    this.input.on("pointerdown", this.scenePointerDownHandler);
+    this.input.on("pointermove", this.scenePointerMoveHandler);
+    this.input.keyboard?.on("keydown", this.sceneKeyDownHandler);
+    this.events.once("shutdown", () => this.cleanupSceneHandlers());
+  }
 
-    this.input.keyboard?.on("keydown", (event: KeyboardEvent) => {
-      if (this.handleAutoUpgradeReserveKey(event)) {
-        return;
-      }
-
-      if (this.handleGameKey(event)) {
-        event.preventDefault();
-        return;
-      }
-    });
+  private cleanupSceneHandlers() {
+    this.input.off("pointerdown", this.scenePointerDownHandler);
+    this.input.off("pointermove", this.scenePointerMoveHandler);
+    this.input.keyboard?.off("keydown", this.sceneKeyDownHandler);
+    this.pausedActions = [];
+    this.clearPlacementGhosts();
+    this.shifter?.clearSelection();
+    this.towerSkills?.cancelSpellMortarTargeting();
   }
 
   update(_time: number, delta: number) {
@@ -546,9 +587,22 @@ export class GameScene extends Phaser.Scene {
   }
 
   private syncPlacementGhost(pointer?: Phaser.Input.Pointer) {
-    this.clearPlacementGhosts();
-    if (!pointer || this.gameOver || this.battlePaused || !this.isInsideBoard(pointer.x, pointer.y)) {
+    const ghosts = this.placementGhostSpecs(pointer);
+    const nextKey = placementGhostKey(ghosts);
+    if (nextKey === this.placementGhostKey) {
       return;
+    }
+
+    this.clearPlacementGhosts();
+    this.placementGhostKey = nextKey;
+    for (const ghost of ghosts) {
+      this.addPlacementGhost(ghost.type, ghost.lane, ghost.column);
+    }
+  }
+
+  private placementGhostSpecs(pointer?: Phaser.Input.Pointer): PlacementGhostSpec[] {
+    if (!pointer || this.gameOver || this.battlePaused || !this.isInsideBoard(pointer.x, pointer.y)) {
+      return [];
     }
 
     const lane = Math.floor((pointer.y - BOARD_Y) / CELL_HEIGHT);
@@ -557,11 +611,13 @@ export class GameScene extends Phaser.Scene {
     if (this.shifter.isActive() && this.shifter.hasSelection() && !this.occupied.get(gridCellKey(lane, column))) {
       const move = this.shifter.previewMove(lane, column);
       if (move.valid) {
-        for (const position of move.positions) {
-          this.addPlacementGhost(position.tower.type, position.lane, position.column);
-        }
+        return move.positions.map((position) => ({
+          type: position.tower.type,
+          lane: position.lane,
+          column: position.column
+        }));
       }
-      return;
+      return [];
     }
 
     if (
@@ -571,7 +627,7 @@ export class GameScene extends Phaser.Scene {
       this.debugDamageMode ||
       this.towerSkills.hasSpellMortarTargeting()
     ) {
-      return;
+      return [];
     }
 
     const definition = this.getSelectedDefinition();
@@ -582,21 +638,20 @@ export class GameScene extends Phaser.Scene {
       this.cardTimeFor(definition.id) < cardState.readyAt ||
       this.effectiveChars() < definition.cost
     ) {
-      return;
+      return [];
     }
 
     if (this.unlimitedFirepower) {
-      for (let targetLane = 0; targetLane < LANES; targetLane += 1) {
-        if (!this.occupied.get(gridCellKey(targetLane, column))) {
-          this.addPlacementGhost(definition.id, targetLane, column);
-        }
-      }
-      return;
+      return Array.from({ length: LANES }, (_value, targetLane) => targetLane)
+        .filter((targetLane) => this.cellIsDeployable(targetLane, column) && !this.occupied.get(gridCellKey(targetLane, column)))
+        .map((targetLane) => ({ type: definition.id, lane: targetLane, column }));
     }
 
-    if (!this.occupied.get(gridCellKey(lane, column))) {
-      this.addPlacementGhost(definition.id, lane, column);
+    if (this.cellIsDeployable(lane, column) && !this.occupied.get(gridCellKey(lane, column))) {
+      return [{ type: definition.id, lane, column }];
     }
+
+    return [];
   }
 
   private addPlacementGhost(type: CardId, lane: number, column: number) {
@@ -621,6 +676,7 @@ export class GameScene extends Phaser.Scene {
       ghost.destroy();
     }
     this.placementGhosts = [];
+    this.placementGhostKey = "";
   }
 
   private handleTargetedEffectCardResult(result: TargetedEffectCardResult) {
@@ -778,6 +834,29 @@ export class GameScene extends Phaser.Scene {
     return this.levelConfig.startingChars ?? (this.levelId.startsWith("1-") ? 300 : STARTING_CHARS);
   }
 
+  private currentBossPhaseConfig() {
+    return this.levelConfig.bossPhases?.[this.bossPhaseIndex];
+  }
+
+  private activeLevelConfig(): LevelConfig {
+    const phase = this.currentBossPhaseConfig();
+    if (!phase) {
+      return this.levelConfig;
+    }
+
+    return {
+      ...this.levelConfig,
+      enemyKinds: phase.enemyKinds,
+      waveWeightCap: phase.waveWeightCap ?? this.levelConfig.waveWeightCap,
+      totalWaves: undefined,
+      endless: true
+    };
+  }
+
+  private currentPhaseElapsed(levelElapsed: number) {
+    return Math.max(0, levelElapsed - this.bossPhaseStartedAt);
+  }
+
   private adjustDifficultyForUnlimitedFirepower(difficultyConfig: DifficultyConfig): DifficultyConfig {
     if (!this.unlimitedFirepower) {
       return difficultyConfig;
@@ -795,11 +874,36 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.boss = createCubeBoss(this, this.levelConfig.bossKind, this.difficultyConfig.finalDamageReduction);
+    this.bossHomePosition = { x: this.boss.x, y: this.boss.y };
+    if (this.currentBossPhaseConfig()) {
+      this.applyBossPhaseStats(this.boss);
+      return;
+    }
+
     if (this.unlimitedFirepower) {
       this.boss.baseStats.maxHp *= 10;
       syncBossBaseStats(this.boss);
       this.boss.hp = this.boss.finalStats.maxHp;
     }
+  }
+
+  private applyBossPhaseStats(boss: CubeBoss) {
+    const phase = this.currentBossPhaseConfig();
+    if (!phase) {
+      return;
+    }
+
+    boss.baseStats.maxHp = phase.maxHp * (this.unlimitedFirepower ? 10 : 1);
+    const defaultStats = CUBE_BOSS_STATS[boss.kind];
+    boss.baseStats.armor = phase.armor ?? defaultStats.armor;
+    boss.baseStats.magicResistance = phase.magicResistance ?? defaultStats.magicResistance;
+    boss.baseStats.speed = defaultStats.speed;
+    boss.baseStats.finalDamageReduction = combineDamageReduction(
+      this.difficultyConfig.finalDamageReduction,
+      phase.finalDamageReduction ?? 0
+    );
+    syncBossBaseStats(boss);
+    boss.hp = boss.finalStats.maxHp;
   }
 
   private towerSkillRuntime(): TowerSkillRuntime {
@@ -843,7 +947,8 @@ export class GameScene extends Phaser.Scene {
       towers: this.towers,
       occupied: this.occupied,
       cardTime: this.battleTime,
-      battleTime: this.battleTime
+      battleTime: this.battleTime,
+      isCellDeployable: (lane, column) => this.cellIsDeployable(lane, column)
     };
   }
 
@@ -855,6 +960,7 @@ export class GameScene extends Phaser.Scene {
       battleTime: this.battleTime,
       getDefinition: (id) => this.getDefinition(id),
       nextTowerOrder: () => this.nextTowerOrder(),
+      isCellDeployable: (lane, column) => this.cellIsDeployable(lane, column),
       updateLevelAuras: () => this.updateLevelAuras()
     };
   }
@@ -877,6 +983,7 @@ export class GameScene extends Phaser.Scene {
       nextTowerOrder: () => this.nextTowerOrder(),
       resetTowerSkill: (tower) => this.towerSkills.resetTowerSkill(tower),
       mirrorGroupFor: (tower) => this.mirrors.mirrorGroupFor(tower),
+      isCellDeployable: (lane, column) => this.cellIsDeployable(lane, column),
       updateLevelAuras: () => this.updateLevelAuras(),
       updateCards: () => this.updateCards(this.cardTime)
     };
@@ -899,6 +1006,7 @@ export class GameScene extends Phaser.Scene {
       damageTower: (tower, damage, damageType) => damageTower(this.unitLifecycleRuntime(), tower, damage, damageType),
       gainChars: (amount, x, y) => this.gainChars(amount, x, y),
       spawnTower: (id, lane, column, level, facingDirection) => this.spawnGeneratedTower(id, lane, column, level, facingDirection),
+      isCellDeployable: (lane, column) => this.cellIsDeployable(lane, column),
       triggerTrapTower: (tower, target) => this.triggerTrapTower(tower, target),
       triggerShockTower: (tower) => this.triggerShockTower(tower),
       onEnemyReachedBase: (enemy) => this.handleEnemyReachedBase(enemy),
@@ -914,6 +1022,7 @@ export class GameScene extends Phaser.Scene {
       mortarProjectiles: this.mortarProjectiles,
       getBoss: () => this.boss,
       wave: this.wave,
+      bossPhaseIndex: this.bossPhaseIndex,
       battleTime: this.battleTime,
       finalDamageReduction: this.difficultyConfig.finalDamageReduction,
       damageTower: (tower, damage, damageType) => damageTower(this.unitLifecycleRuntime(), tower, damage, damageType),
@@ -963,6 +1072,7 @@ export class GameScene extends Phaser.Scene {
       onTowerDamaged: (tower) => this.handleTowerDamaged(tower),
       onTowerRemoved: (tower) =>
         this.mirrors.handleTowerRemoved(tower, (linkedTower) => removeTower(this.unitLifecycleRuntime(), linkedTower)),
+      onBossDefeated: (boss) => this.handleBossDefeated(boss),
       endLevel: () => this.endLevel()
     };
   }
@@ -990,7 +1100,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private spawnGeneratedTower(id: CardId, lane: number, column: number, level: number, facingDirection: -1 | 1 = 1) {
-    if (lane < 0 || lane >= LANES || column < 0 || column >= COLUMNS || this.occupied.has(gridCellKey(lane, column))) {
+    if (!this.cellIsDeployable(lane, column) || this.occupied.has(gridCellKey(lane, column))) {
       return null;
     }
 
@@ -1060,12 +1170,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateWaveSchedule(levelElapsed: number, gameTime: number) {
+    const activeLevelConfig = this.activeLevelConfig();
     const action = waveScheduleAction(
-      this.levelConfig,
+      activeLevelConfig,
       this.wave,
       this.waveTracker,
       this.enemies.length,
-      levelElapsed
+      this.currentPhaseElapsed(levelElapsed)
     );
 
     if (action === "complete") {
@@ -1079,21 +1190,151 @@ export class GameScene extends Phaser.Scene {
   }
 
   private spawnWave(levelElapsed: number, gameTime: number) {
+    const activeLevelConfig = this.activeLevelConfig();
     const waveNumber = this.wave + 1;
     this.wave = waveNumber;
     this.waveTracker = spawnWaveEnemies(this.combatRuntime(), {
-      levelConfig: this.levelConfig,
+      levelConfig: activeLevelConfig,
       difficultyConfig: this.difficultyConfig,
       waveNumber,
-      levelElapsed,
+      levelElapsed: this.currentPhaseElapsed(levelElapsed),
       gameTime
     });
+    this.applyWaveStartMechanics();
 
     this.showToast(
-      waveNumber % this.levelConfig.wavesPerFlag === 0
-        ? `${t("label.flag")} ${waveNumber / this.levelConfig.wavesPerFlag}`
+      waveNumber % activeLevelConfig.wavesPerFlag === 0
+        ? `${t("label.flag")} ${waveNumber / activeLevelConfig.wavesPerFlag}`
         : `${t("label.wave")} ${waveNumber}`
     );
+  }
+
+  private handleBossDefeated(boss: CubeBoss) {
+    const phases = this.levelConfig.bossPhases;
+    if (!phases || this.bossPhaseIndex + 1 >= phases.length) {
+      return false;
+    }
+
+    this.bossPhaseIndex += 1;
+    this.bossPhaseStartedAt = this.levelElapsed;
+    this.wave = 0;
+    this.waveTracker = null;
+    this.clearEnemiesForBossPhaseTransition();
+    this.resetBossForPhase(boss);
+    this.applyBossPhaseStats(boss);
+    this.showToast(`PHASE ${this.bossPhaseIndex + 1}/${phases.length}`);
+    this.updateHud();
+    return true;
+  }
+
+  private clearEnemiesForBossPhaseTransition() {
+    const enemies = [...this.enemies];
+    const bodies: Phaser.GameObjects.Container[] = [];
+    for (const enemy of enemies) {
+      bodies.push(enemy.body);
+      for (const cargo of enemy.burrowCargo ?? []) {
+        bodies.push(cargo.body);
+      }
+      enemy.burrowCargo = [];
+    }
+
+    this.enemies.length = 0;
+    if (bodies.length === 0) {
+      return;
+    }
+
+    this.tweens.add({
+      targets: bodies,
+      alpha: 0,
+      scale: 0.12,
+      duration: 180,
+      ease: "Quad.easeIn",
+      onComplete: () => bodies.forEach((body) => body.destroy())
+    });
+  }
+
+  private resetBossForPhase(boss: CubeBoss) {
+    const home = this.bossHomePosition ?? { x: boss.x, y: boss.y };
+    boss.x = home.x;
+    boss.y = home.y;
+    boss.body.setPosition(home.x, home.y);
+    boss.movementAxis = "x";
+    boss.movementDirection = -1;
+    boss.contactAttackBuffer = 0;
+    boss.chargeExpiresAt = 0;
+    boss.halfHpTriggered = false;
+    boss.criticalHpTriggered = false;
+    boss.pendingCriticalSummon = false;
+    boss.invincibleUntil = 0;
+    boss.bossHasteUntil = 0;
+  }
+
+  private applyWaveStartMechanics() {
+    if (this.levelConfig.specialMechanic !== "rightColumnSeal") {
+      return;
+    }
+
+    this.applyRightColumnSeal();
+  }
+
+  private applyRightColumnSeal() {
+    if (this.wave % 5 !== 0) {
+      return;
+    }
+
+    const column = COLUMNS - this.wave / 5;
+    if (column < 0 || column >= COLUMNS) {
+      return;
+    }
+
+    this.sealColumn(column);
+  }
+
+  private sealColumn(column: number) {
+    let removedTower = false;
+    for (let lane = 0; lane < LANES; lane += 1) {
+      const tower = this.occupied.get(gridCellKey(lane, column));
+      if (tower && this.towers.includes(tower)) {
+        makeEraseMark(this, tower.x, tower.y);
+        removeTower(this.unitLifecycleRuntime(), tower);
+        removedTower = true;
+      }
+      this.sealCell(lane, column);
+    }
+
+    if (removedTower) {
+      this.updateLevelAuras();
+    }
+    this.syncPlacementGhost(this.input.activePointer);
+  }
+
+  private sealCell(lane: number, column: number) {
+    const key = gridCellKey(lane, column);
+    if (this.sealedCells.has(key)) {
+      return;
+    }
+
+    this.sealedCells.add(key);
+    const center = this.cellCenter(lane, column);
+    const mark = this.add
+      .text(center.x, center.y - 2, "×", {
+        color: "#ff4d4d",
+        fontFamily: "monospace",
+        fontSize: "58px",
+        fontStyle: "700"
+      })
+      .setOrigin(0.5)
+      .setDepth(19)
+      .setAlpha(0.82);
+    mark.setStroke("#2a0000", 4);
+    this.sealedCellMarks.set(key, mark);
+  }
+
+  private cellCenter(lane: number, column: number) {
+    return {
+      x: BOARD_X + column * CELL_WIDTH + CELL_WIDTH / 2,
+      y: BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2
+    };
   }
 
   private triggerShockTower(tower: Tower) {
@@ -1106,7 +1347,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.battlePaused) {
-      this.time.delayedCall(100, () => this.runWhenBattleActive(action));
+      this.pausedActions.push(action);
       return;
     }
 
@@ -1301,9 +1542,22 @@ export class GameScene extends Phaser.Scene {
 
     this.battlePaused = !this.battlePaused;
     this.towerSkills.syncSpellMortarTweenPause(this.battlePaused);
+    if (!this.battlePaused) {
+      this.flushPausedActions();
+    }
     this.showToast(this.battlePaused ? t("toast.paused") : t("toast.resume"));
     this.updateCards(this.cardTime);
     this.updateHud();
+  }
+
+  private flushPausedActions() {
+    const actions = this.pausedActions.splice(0);
+    for (const action of actions) {
+      this.runWhenBattleActive(action);
+      if (this.gameOver || this.battlePaused) {
+        return;
+      }
+    }
   }
 
   private setGameSpeed(speed: number) {
@@ -1313,19 +1567,41 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateHud() {
+    const activeLevelConfig = this.activeLevelConfig();
     updateGameHud(this.ui, {
       chars: this.effectiveChars(),
       rawChars: this.chars,
       charsSoftcapped: charsAreSoftcapped(this.chars),
       wave: this.wave,
-      wavesPerFlag: this.levelConfig.wavesPerFlag,
-      totalWaves: this.levelConfig.totalWaves ?? this.wave,
+      wavesPerFlag: activeLevelConfig.wavesPerFlag,
+      totalWaves: activeLevelConfig.totalWaves ?? this.wave,
       baseIntegrity: this.baseIntegrity,
       enemiesDefeated: this.enemiesDefeated,
       battlePaused: this.battlePaused,
       gameSpeed: this.gameSpeed,
-      boss: this.boss
+      boss: this.boss,
+      bossHpBar: this.bossHpBarState()
     });
+  }
+
+  private bossHpBarState() {
+    const phases = this.levelConfig.bossPhases;
+    if (!this.boss || !phases) {
+      return undefined;
+    }
+
+    const fillColor = BOSS_PHASE_BAR_COLORS[this.bossPhaseIndex] ?? BOSS_PHASE_BAR_COLORS[BOSS_PHASE_BAR_COLORS.length - 1];
+    const nextFillColor =
+      this.bossPhaseIndex + 1 < phases.length
+        ? BOSS_PHASE_BAR_COLORS[this.bossPhaseIndex + 1] ?? BOSS_PHASE_BAR_BACK
+        : BOSS_PHASE_BAR_BACK;
+
+    return {
+      fillColor,
+      backColor: nextFillColor,
+      phase: this.bossPhaseIndex + 1,
+      totalPhases: phases.length
+    };
   }
 
   private showToast(text: string) {
@@ -1491,6 +1767,10 @@ export class GameScene extends Phaser.Scene {
     return x >= BOARD_X && x < BOARD_X + BOARD_WIDTH && y >= BOARD_Y && y < BOARD_Y + BOARD_HEIGHT;
   }
 
+  private cellIsDeployable(lane: number, column: number) {
+    return lane >= 0 && lane < LANES && column >= 0 && column < COLUMNS && !this.sealedCells.has(gridCellKey(lane, column));
+  }
+
   private isShiftPointer(pointer: Phaser.Input.Pointer) {
     const event = pointer.event as MouseEvent | undefined;
     return Boolean(event && "shiftKey" in event && event.shiftKey);
@@ -1506,4 +1786,8 @@ export class GameScene extends Phaser.Scene {
     return Boolean(event?.button === 2 || pointer.rightButtonDown());
   }
 
+}
+
+function placementGhostKey(ghosts: PlacementGhostSpec[]) {
+  return ghosts.map((ghost) => `${ghost.type}:${ghost.lane}:${ghost.column}`).join("|");
 }

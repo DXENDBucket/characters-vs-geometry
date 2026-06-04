@@ -29,6 +29,7 @@ export interface TowerDeploymentRuntime {
   nextTowerOrder: () => number;
   resetTowerSkill: (tower: Tower) => void;
   mirrorGroupFor?: (tower: Tower) => Tower[];
+  isCellDeployable?: (lane: number, column: number) => boolean;
   updateLevelAuras: () => void;
   updateCards: () => void;
 }
@@ -90,7 +91,8 @@ export class TowerDeploymentController {
 
   private deploySingle(definition: CardDefinition, lane: number, column: number) {
     const runtime = this.runtime();
-    const existingTower = runtime.occupied.get(gridCellKey(lane, column));
+    const key = gridCellKey(lane, column);
+    const existingTower = runtime.occupied.get(key);
     if (existingTower) {
       if (existingTower.type !== definition.id) {
         return false;
@@ -98,6 +100,10 @@ export class TowerDeploymentController {
 
       this.upgradeTower(existingTower);
       return true;
+    }
+
+    if (!this.isCellDeployable(lane, column)) {
+      return false;
     }
 
     this.placeTower(definition, lane, column);
@@ -119,6 +125,10 @@ export class TowerDeploymentController {
           }
           deployed = true;
         }
+        continue;
+      }
+
+      if (!this.isCellDeployable(lane, column)) {
         continue;
       }
 
@@ -170,6 +180,10 @@ export class TowerDeploymentController {
   private canSpendForAutoUpgrade(cost: number) {
     const runtime = this.runtime();
     return runtime.getChars() - cost >= runtime.autoUpgradeReserveChars;
+  }
+
+  private isCellDeployable(lane: number, column: number) {
+    return this.runtime().isCellDeployable?.(lane, column) ?? true;
   }
 
   private upgradeGroupKey(tower: Tower) {

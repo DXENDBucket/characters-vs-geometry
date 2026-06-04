@@ -42,6 +42,7 @@ export interface UnitLifecycleRuntime {
   onEnemyDefeated: () => void;
   onTowerDamaged: (tower: Tower) => void;
   onTowerRemoved?: (tower: Tower) => void;
+  onBossDefeated?: (boss: CubeBoss) => boolean;
   endLevel: () => void;
 }
 
@@ -74,7 +75,7 @@ export function damageBoss(
 
   const damagedPart = targetPart ?? boss;
   if (damagedPart.invincibleUntil > runtime.battleTime) {
-    makeBossInvincibleFlash(runtime.scene, damagedPart.x, damagedPart.y);
+    makeBossInvincibleFlash(runtime.scene, damagedPart.x, damagedPart.y, damagedPart.hitboxWidth, damagedPart.hitboxHeight);
     return;
   }
 
@@ -91,18 +92,21 @@ export function damageBoss(
     boss.nextBossHasteTrailAt = runtime.battleTime;
     boss.hp = nextHp <= 0 ? 1 : boss.maxHp * 0.1;
     syncBossCopyHp(boss);
-    makeBossHitFlash(runtime.scene, damagedPart.x, damagedPart.y, damageType);
-    makeBossInvincibleFlash(runtime.scene, damagedPart.x, damagedPart.y);
+    makeBossHitFlash(runtime.scene, damagedPart.x, damagedPart.y, damageType, damagedPart.hitboxWidth, damagedPart.hitboxHeight);
+    makeBossInvincibleFlash(runtime.scene, damagedPart.x, damagedPart.y, damagedPart.hitboxWidth, damagedPart.hitboxHeight);
     return;
   }
 
   boss.hp = nextHp;
   syncBossCopyHp(boss);
-  makeBossHitFlash(runtime.scene, damagedPart.x, damagedPart.y, damageType);
+  makeBossHitFlash(runtime.scene, damagedPart.x, damagedPart.y, damageType, damagedPart.hitboxWidth, damagedPart.hitboxHeight);
 
   if (boss.hp <= 0) {
     boss.hp = 0;
     syncBossCopyHp(boss);
+    if (runtime.onBossDefeated?.(boss)) {
+      return;
+    }
     removeBoss(runtime);
     runtime.endLevel();
   }

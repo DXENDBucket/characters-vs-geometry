@@ -12,7 +12,7 @@ import { bossRect } from "./targeting";
 
 const HEX_ARMOR_RADIUS = CELL_WIDTH * 1.4;
 const HEX_ARMOR_RANK_ONE_BONUS = 50;
-const HEX_ARMOR_RANK_TWO_BONUS = 80;
+const HEX_ARMOR_BONUS_PER_EXTRA_RANK = 30;
 const HEX_SPELL_BULWARK_RANK_ONE_MAGIC_RESISTANCE_BONUS = 40;
 const HEX_SPELL_BULWARK_RANK_TWO_MAGIC_RESISTANCE_BONUS = 50;
 const HEX_HEAL_SKILL_MAX = 20;
@@ -105,13 +105,15 @@ export function chargingHexSpeedMultiplier(enemies: Enemy[], target: Enemy) {
 }
 
 export function updateEnemySkills(runtime: EnemySkillRuntime, seconds: number, time: number) {
+  const activeEnemies = runtime.enemies.filter((enemy) => !enemyIsHighFlying(enemy) && !hasStatusEffect(enemy, "frozen", time));
   updateRegisteredSkills(
-    runtime.enemies.filter((enemy) => !enemyIsHighFlying(enemy) && !hasStatusEffect(enemy, "frozen", time)),
+    activeEnemies.filter((enemy) => enemyFamily(enemy.kind) !== "heart"),
     (enemy) => enemySkillDefinitions(enemySkillRegistry, enemy),
     runtime,
     seconds,
     time
   );
+  updateHeartLeads(runtime.scene, runtime.enemies, activeEnemies, seconds);
 }
 
 function hexArmorStacks(enemies: Enemy[], target: Enemy) {
@@ -123,7 +125,7 @@ function hexArmorSources(enemies: Enemy[], target: Enemy) {
 }
 
 function hexArmorAuraBonus(enemy: Enemy) {
-  return enemyRank(enemy.kind) >= 2 ? HEX_ARMOR_RANK_TWO_BONUS : HEX_ARMOR_RANK_ONE_BONUS;
+  return HEX_ARMOR_RANK_ONE_BONUS + Math.max(0, enemyRank(enemy.kind) - 1) * HEX_ARMOR_BONUS_PER_EXTRA_RANK;
 }
 
 function hexMagicResistanceStacks(enemies: Enemy[], target: Enemy) {
@@ -182,6 +184,45 @@ function updateHeartLead(enemy: Enemy, state: SkillState, seconds: number, _time
   tryUseHeartLead(runtime.scene, runtime.enemies, enemy, state);
 }
 
+function updateHeartLeads(scene: Phaser.Scene, enemies: Enemy[], activeEnemies: Enemy[], seconds: number) {
+  const originalPositions = new Map(enemies.map((enemy) => [enemy, { x: enemy.x, y: enemy.y, lane: enemy.lane }]));
+  const claimedTargets = new Set<Enemy>();
+  const leadPlans: Array<{ caster: Enemy; skill: SkillState; targets: Enemy[] }> = [];
+
+  for (const caster of activeEnemies) {
+    if (enemyFamily(caster.kind) !== "heart") {
+      continue;
+    }
+
+    const skill = getEnemySkillState(caster, "lead");
+    gainSkillSp(skill, seconds * HEART_LEAD_REGEN_PER_SECOND, HEART_LEAD_SKILL_MAX);
+    if (!isSkillReady(skill, HEART_LEAD_SKILL_MAX)) {
+      continue;
+    }
+
+    const targets = heartLeadTargets(enemies, caster, originalPositions, claimedTargets);
+    if (targets.length === 0) {
+      continue;
+    }
+
+    for (const target of targets) {
+      claimedTargets.add(target);
+    }
+    leadPlans.push({ caster, skill, targets });
+  }
+
+  for (const plan of leadPlans) {
+    spendSkillSp(plan.skill, HEART_LEAD_SKILL_COST);
+    for (const target of plan.targets) {
+      const previousY = target.y;
+      target.lane = plan.caster.lane;
+      target.y = plan.caster.y;
+      syncEnemyBodyPosition(target);
+      makeShiftEffect(scene, target.x, previousY, target.x, target.y);
+    }
+  }
+}
+
 function tryUseHexHeal(scene: Phaser.Scene, enemies: Enemy[], healer: Enemy, skill: SkillState) {
   if (!isSkillReady(skill, HEX_HEAL_SKILL_MAX)) {
     return;
@@ -216,19 +257,8 @@ function isHexagon(enemy: Enemy) {
 }
 
 function tryUseHeartLead(scene: Phaser.Scene, enemies: Enemy[], caster: Enemy, skill: SkillState) {
-  const casterColumn = Math.floor((caster.x - BOARD_X) / CELL_WIDTH);
-  const left = BOARD_X + casterColumn * CELL_WIDTH;
-  const right = left + HEART_LEAD_COLUMN_SPAN * CELL_WIDTH;
-  const targets = enemies.filter((enemy) => {
-    return (
-      enemy !== caster &&
-      isOrdinaryLeadTarget(enemy) &&
-      enemy.x >= left &&
-      enemy.x < right &&
-      Math.abs(enemy.lane - caster.lane) <= HEART_LEAD_LANE_RADIUS &&
-      enemy.lane !== caster.lane
-    );
-  });
+  const originalPositions = new Map(enemies.map((enemy) => [enemy, { x: enemy.x, y: enemy.y, lane: enemy.lane }]));
+  const targets = heartLeadTargets(enemies, caster, originalPositions, new Set());
 
   if (targets.length === 0) {
     return;
@@ -242,6 +272,35 @@ function tryUseHeartLead(scene: Phaser.Scene, enemies: Enemy[], caster: Enemy, s
     syncEnemyBodyPosition(target);
     makeShiftEffect(scene, target.x, previousY, target.x, target.y);
   }
+}
+
+function heartLeadTargets(
+  enemies: Enemy[],
+  caster: Enemy,
+  originalPositions: Map<Enemy, { x: number; y: number; lane: number }>,
+  claimedTargets: Set<Enemy>
+) {
+  const casterPosition = originalPositions.get(caster);
+  if (!casterPosition) {
+    return [];
+  }
+
+  const casterColumn = Math.floor((casterPosition.x - BOARD_X) / CELL_WIDTH);
+  const left = BOARD_X + casterColumn * CELL_WIDTH;
+  const right = left + HEART_LEAD_COLUMN_SPAN * CELL_WIDTH;
+  return enemies.filter((enemy) => {
+    const position = originalPositions.get(enemy);
+    return (
+      position !== undefined &&
+      enemy !== caster &&
+      !claimedTargets.has(enemy) &&
+      isOrdinaryLeadTarget(enemy) &&
+      position.x >= left &&
+      position.x < right &&
+      Math.abs(position.lane - casterPosition.lane) <= HEART_LEAD_LANE_RADIUS &&
+      position.lane !== casterPosition.lane
+    );
+  });
 }
 
 function isOrdinaryLeadTarget(enemy: Enemy) {

@@ -18,7 +18,7 @@ export interface EncyclopediaEntry {
   description: string;
   enemyKind?: EnemyKind;
   card?: CardDefinition;
-  icon?: "cube" | "tetrahedron" | "dodecahedron" | "smallStellatedDodecahedron" | "octahedron";
+  icon?: "cube" | "tetrahedron" | "dodecahedron" | "smallStellatedDodecahedron" | "octahedron" | "icosahedron";
 }
 
 export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
@@ -29,23 +29,34 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
   const triangleRam2 = getEnemyDefinition("triangleRam2");
   const triangleRam3 = getEnemyDefinition("triangleRam3");
   const angelPentagonRam = getEnemyDefinition("angelPentagonRam");
+  const angelPentagonRam2 = getEnemyDefinition("angelPentagonRam2");
+  const angelPentagonRam3 = getEnemyDefinition("angelPentagonRam3");
   const mortarTriangle = getEnemyDefinition("mortarTriangle");
   const mortarTriangle2 = getEnemyDefinition("mortarTriangle2");
   const mortarTriangle3 = getEnemyDefinition("mortarTriangle3");
   const pentagon = getEnemyDefinition("pentagon");
+  const pentagon2 = getEnemyDefinition("pentagon2");
+  const pentagon3 = getEnemyDefinition("pentagon3");
   const angelPentagon = getEnemyDefinition("angelPentagon");
   const angelPentagon2 = getEnemyDefinition("angelPentagon2");
+  const angelPentagon3 = getEnemyDefinition("angelPentagon3");
   const archangelHeptagon = getEnemyDefinition("archangelHeptagon");
   const archangelHeptagon2 = getEnemyDefinition("archangelHeptagon2");
   const shootingPentagon = getEnemyDefinition("shootingPentagon");
+  const shootingPentagon2 = getEnemyDefinition("shootingPentagon2");
+  const shootingPentagon3 = getEnemyDefinition("shootingPentagon3");
   const diamond = getEnemyDefinition("diamond");
   const diamond2 = getEnemyDefinition("diamond2");
+  const diamond3 = getEnemyDefinition("diamond3");
   const hexagon = getEnemyDefinition("hexagon");
   const hexagon2 = getEnemyDefinition("hexagon2");
+  const hexagon3 = getEnemyDefinition("hexagon3");
   const chargingHexagon = getEnemyDefinition("chargingHexagon");
   const chargingHexagon2 = getEnemyDefinition("chargingHexagon2");
+  const chargingHexagon3 = getEnemyDefinition("chargingHexagon3");
   const hexMace = getEnemyDefinition("hexMace");
   const hexMace2 = getEnemyDefinition("hexMace2");
+  const hexMace3 = getEnemyDefinition("hexMace3");
   const hexSpellBulwark = getEnemyDefinition("hexSpellBulwark");
   const hexSpellBulwark2 = getEnemyDefinition("hexSpellBulwark2");
   const heart = getEnemyDefinition("heart");
@@ -53,6 +64,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
   const burrowArrow = getEnemyDefinition("burrowArrow");
   const burrowArrow2 = getEnemyDefinition("burrowArrow2");
   const slopeTriangle = getEnemyDefinition("slopeTriangle");
+  const slopeTriangle2 = getEnemyDefinition("slopeTriangle2");
   const invertedTriangle = getEnemyDefinition("invertedTriangle");
   const invertedTriangle2 = getEnemyDefinition("invertedTriangle2");
   const invertedTriangle3 = getEnemyDefinition("invertedTriangle3");
@@ -131,10 +143,13 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.armor"), angelPentagonRam.armor],
           [t("label.mr"), angelPentagonRam.magicResistance],
           [t("label.atk"), damageText(angelPentagonRam.damage, angelPentagonRam.damageType)],
-          [t("label.speed"), `${speedText("angelPentagonRam")} -> ${ENEMY_SPEED * 1.5 * 4}`],
-          [t("label.weight"), angelPentagonRam.weight]
+          [
+            t("label.speed"),
+            `I ${speedText("angelPentagonRam")} -> ${ENEMY_SPEED * 1.5 * 4} / II ${speedText("angelPentagonRam2")} -> ${ENEMY_SPEED * 2 * 4} / III ${speedText("angelPentagonRam3")} -> ${ENEMY_SPEED * 2.5 * 4}`
+          ],
+          [t("label.weight"), `I ${angelPentagonRam.weight} / II ${angelPentagonRam2.weight} / III ${angelPentagonRam3.weight}`]
         ]),
-        zh ? "第 1 旗前不会自然出现；移动加速逻辑和三角攻城锤 I 一致" : "Does not naturally appear before Flag 1; movement acceleration matches Triangle Ram I"
+        zh ? "第 1 旗前不会自然出现；移动加速逻辑和同级三角攻城锤一致" : "Does not naturally appear before Flag 1; movement acceleration matches the same-rank Triangle Ram"
       ],
       description: zh
         ? "冲锋变体，外观为两个面贴在一起的五边形。第一次被阻挡时不造成伤害，而是获得带光环的 2 秒飞行。此效果触发后，再次被阻挡时会造成法术冲撞伤害并消失。无论是否触发过飞行，死亡时都会靠前生成同等级天使五边形，靠后生成同等级五边形。"
@@ -227,9 +242,9 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.mr"), pentagon.magicResistance],
           [t("label.atk"), damageText(pentagon.damage, pentagon.damageType)],
           [t("label.speed"), speedText("pentagon")],
-          [t("label.weight"), pentagon.weight]
+          [t("label.weight"), `I ${pentagon.weight} / II ${pentagon2.weight} / III ${pentagon3.weight}`]
         ]),
-        zh ? "每 15 秒发射红色 # 法术迫击弹，3x3 范围伤害；第 1 旗前不会自然出现" : "Fires red # magic mortars every 15s with 3x3 AOE; does not naturally appear before Flag 1"
+        zh ? "每 15 秒发射红色 # 法术迫击弹，3x3 范围伤害；I/II/III 连发 1/2/3；第 1 旗前不会自然出现" : "Fires red # magic mortars every 15s with 3x3 AOE; volley I/II/III: 1 / 2 / 3; does not naturally appear before Flag 1"
       ],
       description: zh
         ? "锁定型远程敌怪，行为类似三角迫击炮。若自身正被阻挡，会优先锁定阻挡自己的塔；否则锁定场上等级最高的塔，若相同则瞄准更晚放置的塔。外观为面朝下的五边形。"
@@ -245,9 +260,9 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.mr"), angelPentagon.magicResistance],
           [t("label.atk"), damageText(angelPentagon.damage, angelPentagon.damageType)],
           [t("label.speed"), speedText("angelPentagon")],
-          [t("label.weight"), `I ${angelPentagon.weight} / II ${angelPentagon2.weight}`]
+          [t("label.weight"), `I ${angelPentagon.weight} / II ${angelPentagon2.weight} / III ${angelPentagon3.weight}`]
         ]),
-        zh ? "第 1 旗前不会自然出现；羽翼：15 技力满后，让自身和 3x3 范围内敌怪飞行并获得 100% 移速加成，持续 3s；II 初始 2 技力且每秒回复 1.2 技力" : "Does not naturally appear before Flag 1. Wings: at 15 SP, gives itself and enemies in a 3x3 area Flying and +100% movement speed for 3s; II starts at 2 SP and regenerates 1.2 SP/s"
+        zh ? "第 1 旗前不会自然出现；羽翼：15 技力满后，让自身和 3x3 范围内敌怪飞行并获得 100% 移速加成，持续 3s；II/III 初始 2/4 技力且每秒回复 1.2/1.4 技力" : "Does not naturally appear before Flag 1. Wings: at 15 SP, gives itself and enemies in a 3x3 area Flying and +100% movement speed for 3s; II/III start at 2/4 SP and regenerate 1.2/1.4 SP/s"
       ],
       description: zh
         ? "支援型近战敌怪，外观为端点朝下且带小光环的五边形。飞行单位不会被阻挡，显示位置会更靠上。羽翼持续期间不会回复技力，结束后才重新蓄力。"
@@ -266,8 +281,8 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.weight"), zh ? "旗帜固定" : "flag fixed"]
         ]),
         zh
-          ? `领袖敌人；常态飞行，外观为两层光环七边形。出生后 3 秒内获得 +150% 移速和高空飞行。升华：初始 10 技力，15 技力满后，让自身和半径 2.5 格内敌怪飞行并获得 +100% 移速，持续 6s；II 每秒回复 1.2 技力`
-          : `Leader enemy with permanent Flying and a two-layer halo. For 3s after spawning, gains +150% movement speed and High Flight. Ascension: starts at 10 SP; at 15 SP, gives itself and enemies within a 2.5-cell radius Flying and +100% movement speed for 6s; II regenerates 1.2 SP/s`
+          ? `领袖敌人；常态飞行，外观为两层光环七边形。出生后 3 秒内获得 +150% 移速和高空飞行。升华：初始 10 技力，15 技力满后，让自身和半径 2.5 格内敌怪飞行并获得 +100% 移速，持续 6s；I/II 每秒回复 1 技力，II 生命值更高`
+          : `Leader enemy with permanent Flying and a two-layer halo. For 3s after spawning, gains +150% movement speed and High Flight. Ascension: starts at 10 SP; at 15 SP, gives itself and enemies within a 2.5-cell radius Flying and +100% movement speed for 6s; I/II regenerate 1 SP/s, and II has higher HP`
       ],
       description: zh
         ? "大天使七边形会每 2 秒对阻挡者造成一次 100% 攻击力的法术伤害。若出现在关卡出怪池中，会在旗帜波固定刷新 1 个且不计入常规波次权重。它不会因其他技能或小怪获得额外飞行光环；收到飞行效果时改为高空飞行，高空飞行期间自身两层光环变为金色，且不会被阻挡、锁定、直接命中或受到塔 AOE。"
@@ -304,9 +319,9 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.mr"), shootingPentagon.magicResistance],
           [t("label.atk"), damageText(shootingPentagon.damage, shootingPentagon.damageType)],
           [t("label.speed"), speedText("shootingPentagon")],
-          [t("label.weight"), shootingPentagon.weight]
+          [t("label.weight"), `I ${shootingPentagon.weight} / II ${shootingPentagon2.weight} / III ${shootingPentagon3.weight}`]
         ]),
-        zh ? "攻击间隔 4s；红色激光瞬间结算，会穿透塔，直到命中第一座法抗大于 0 的塔后停止" : "Attack interval: 4s; instant red laser pierces towers until it hits the first tower with MR greater than 0"
+        zh ? "攻击间隔 4s；I/II/III 连发 1/2/3；红色激光瞬间结算，会穿透塔，直到命中第一座法抗大于 0 的塔后停止" : "Attack interval: 4s; volley I/II/III: 1 / 2 / 3; instant red laser pierces towers until it hits the first tower with MR greater than 0"
       ],
       description: zh
         ? "远程法术敌怪，性质类似菱形。外观为一个顶点朝向底线的五边形。激光不是弹射物，会同时对同一行路径上的塔造成法术伤害，不会被 R 反弹，并在第一座有法抗的塔处停止。"
@@ -322,9 +337,9 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.mr"), diamond.magicResistance],
           [t("label.atk"), damageText(diamond.damage, diamond.damageType)],
           [t("label.speed"), speedText("diamond")],
-          [t("label.weight"), diamond.weight]
+          [t("label.weight"), `I ${diamond.weight} / II ${diamond2.weight} / III ${diamond3.weight}`]
         ]),
-        zh ? `权重 I/II：${diamond.weight} / ${diamond2.weight}，连发 I/II：1 / 2` : `Weight I/II: ${diamond.weight} / ${diamond2.weight}, volley I/II: 1 / 2`,
+        zh ? `权重 I/II/III：${diamond.weight} / ${diamond2.weight} / ${diamond3.weight}，连发 I/II/III：1 / 2 / 3` : `Weight I/II/III: ${diamond.weight} / ${diamond2.weight} / ${diamond3.weight}, volley I/II/III: 1 / 2 / 3`,
         zh ? "第 1 旗前不会自然出现；攻击间隔 2s" : "Does not naturally appear before Flag 1; attack interval: 2s"
       ],
       description: zh
@@ -341,13 +356,13 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.mr"), hexagon.magicResistance],
           [t("label.atk"), damageText(hexagon.damage, hexagon.damageType)],
           [t("label.speed"), speedText("hexagon")],
-          [t("label.weight"), `I ${hexagon.weight} / II ${hexagon2.weight}`]
+          [t("label.weight"), `I ${hexagon.weight} / II ${hexagon2.weight} / III ${hexagon3.weight}`]
         ]),
-        zh ? "半径 1.4 格装甲光环；I +50 护甲，II +80 护甲；每秒 +1 技力，20 技力满后可治愈" : "1.4-cell Armor aura; I grants +50 armor, II grants +80 armor; gains +1 SP/s, heals at 20 SP"
+        zh ? "半径 1.4 格装甲光环；I/II/III +50/+80/+110 护甲；每秒 +1 技力，20 技力满后可治愈" : "1.4-cell Armor aura; I/II/III grant +50/+80/+110 armor; gains +1 SP/s, heals at 20 SP"
       ],
       description: zh
         ? "支援型近战敌怪。自身和半径 1.4 格内敌怪获得装甲，Boss 碰撞体接触光环时也会获得装甲；六边形 1 提供 +50 护甲，六边形 2 提供 +80 护甲，可加算叠加，普通敌怪显示 ⬡。治愈每秒回复 1 技力，上限 20，满技力且范围内有可治疗目标时消耗 20 技力，治疗范围内生命百分比最低的缺血敌怪，治疗量为自身最大生命的 30%。外观是一条边朝向底线的六边形。"
-        : "Support melee enemy. It and enemies within 1.4 cells gain Armor, and Bosses also gain Armor while their hitbox touches the aura. Hexagon I grants +50 armor and Hexagon II grants +80 armor, stacking additively and shown as ⬡ on ordinary enemies. Heal gains 1 SP/s up to 20; at full SP, if a healing target exists, it consumes 20 SP and restores the lowest-HP-percent damaged enemy in range for 30% of its own max HP. Its flat side faces the base."
+        : "Support melee enemy. It and enemies within 1.4 cells gain Armor, and Bosses also gain Armor while their hitbox touches the aura. Hexagon I/II/III grant +50/+80/+110 armor, stacking additively and shown as ⬡ on ordinary enemies. Heal gains 1 SP/s up to 20; at full SP, if a healing target exists, it consumes 20 SP and restores the lowest-HP-percent damaged enemy in range for 30% of its own max HP. Its flat side faces the base."
     },
     {
       title: zh ? "冲锋六边形系列" : "Charging Hexagon Series",
@@ -357,9 +372,9 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.hp"), chargingHexagon.hp],
           [t("label.armor"), chargingHexagon.armor],
           [t("label.mr"), chargingHexagon.magicResistance],
-          [t("label.atk"), `I ${damageText(chargingHexagon.damage, chargingHexagon.damageType)} / 2s; II ${damageText(chargingHexagon2.damage, chargingHexagon2.damageType)} / 1s`],
+          [t("label.atk"), `I ${damageText(chargingHexagon.damage, chargingHexagon.damageType)} / 2s; II ${damageText(chargingHexagon2.damage, chargingHexagon2.damageType)} / 1s; III ${damageText(chargingHexagon3.damage, chargingHexagon3.damageType)} / 0.67s`],
           [t("label.speed"), speedText("chargingHexagon")],
-          [t("label.weight"), `I ${chargingHexagon.weight} / II ${chargingHexagon2.weight}`]
+          [t("label.weight"), `I ${chargingHexagon.weight} / II ${chargingHexagon2.weight} / III ${chargingHexagon3.weight}`]
         ]),
         zh ? "同行且更靠后的敌怪获得不可叠加的 50% 移速加成" : "Enemies in the same lane behind it gain a non-stacking 50% movement speed bonus"
       ],
@@ -375,9 +390,9 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.hp"), hexMace.hp],
           [t("label.armor"), hexMace.armor],
           [t("label.mr"), hexMace.magicResistance],
-          [t("label.atk"), `I ${damageText(hexMace.damage, hexMace.damageType)} / II ${damageText(hexMace2.damage, hexMace2.damageType)}`],
+          [t("label.atk"), `I ${damageText(hexMace.damage, hexMace.damageType)} / II ${damageText(hexMace2.damage, hexMace2.damageType)} / III ${damageText(hexMace3.damage, hexMace3.damageType)}`],
           [t("label.speed"), speedText("hexMace")],
-          [t("label.weight"), `I ${hexMace.weight} / II ${hexMace2.weight}`]
+          [t("label.weight"), `I ${hexMace.weight} / II ${hexMace2.weight} / III ${hexMace3.weight}`]
         ]),
         zh
           ? "第 1 旗前不会自然出现；初始速度为 0，移动中持续朝面朝方向加速，7 格达到 4 倍基础速度"
@@ -432,11 +447,11 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
       enemyKind: "slopeTriangle",
       lines: [
         statLine([
-          [t("label.hp"), slopeTriangle.hp],
+          [t("label.hp"), `I ${slopeTriangle.hp} / II ${slopeTriangle2.hp}`],
           [t("label.armor"), slopeTriangle.armor],
           [t("label.mr"), slopeTriangle.magicResistance],
           [t("label.atk"), damageText(slopeTriangle.damage, slopeTriangle.damageType)],
-          [t("label.speed"), speedText("slopeTriangle")],
+          [t("label.speed"), `I ${speedText("slopeTriangle")} / II ${speedText("slopeTriangle2")}`],
           [t("label.weight"), zh ? "旗帜固定" : "flag fixed"]
         ]),
         zh
@@ -444,8 +459,8 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           : "While blocked, it stays in place and does not attack; only then can it launch touching non-leader minions whose velocity direction matches its facing direction into High Flight"
       ],
       description: zh
-        ? "斜坡三角形 I 不进行攻击。它只有在当前被塔阻挡时才作为斜坡生效，本体被阻挡在原地；若阻挡解除，它会继续按自身速度移动。生效期间，接触到它、且当前速度方向与斜坡三角形面朝方向一致的普通小怪会沿速度方向抛物线飞出；这里比较的是小怪的速度方向，不是小怪面朝方向。高空飞行落地前不会被阻挡、锁定、直接命中或受到塔 AOE。飞行距离按当前实际速度计算：每 10 速度飞 1.5 格。领袖、Boss 和 Boss 眷属不会被发射。"
-        : "Slope Triangle I does not attack. It acts as a ramp only while currently blocked by a tower, staying in place while blocked; once unblocked, it keeps moving at its own speed. During that block, ordinary minions touching it are launched forward only if their current velocity direction matches the Slope Triangle's facing direction. This checks the minion's velocity direction, not the minion's facing direction. Before landing, High Flight enemies cannot be blocked, targeted, directly hit, or damaged by tower AOE. Flight distance uses current actual speed: every 10 speed sends it 1.5 cells. Leaders, Bosses, and Boss companions are not launched."
+        ? "斜坡三角形 I/II 不进行攻击。它只有在当前被塔阻挡时才作为斜坡生效，本体被阻挡在原地；若阻挡解除，它会继续按自身速度移动。生效期间，接触到它、且当前速度方向与斜坡三角形面朝方向一致的普通小怪会沿速度方向抛物线飞出；这里比较的是小怪的速度方向，不是小怪面朝方向。高空飞行落地前不会被阻挡、锁定、直接命中或受到塔 AOE。飞行距离按当前实际速度计算：每 10 速度飞 1.5 格。领袖、Boss 和 Boss 眷属不会被发射。"
+        : "Slope Triangle I/II does not attack. It acts as a ramp only while currently blocked by a tower, staying in place while blocked; once unblocked, it keeps moving at its own speed. During that block, ordinary minions touching it are launched forward only if their current velocity direction matches the Slope Triangle's facing direction. This checks the minion's velocity direction, not the minion's facing direction. Before landing, High Flight enemies cannot be blocked, targeted, directly hit, or damaged by tower AOE. Flight distance uses current actual speed: every 10 speed sends it 1.5 cells. Leaders, Bosses, and Boss companions are not launched."
     },
     {
       title: zh ? "心形领袖系列" : "Heart Leader Series",
@@ -557,7 +572,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
       icon: "octahedron",
       lines: [
         statLine([
-          [t("label.hp"), CUBE_BOSS_STATS.octahedron.hp],
+          [t("label.hp"), `I ${CUBE_BOSS_STATS.octahedron.hp} / II ${CUBE_BOSS_STATS.octahedron2.hp}`],
           [t("label.armor"), CUBE_BOSS_STATS.octahedron.armor],
           [t("label.mr"), CUBE_BOSS_STATS.octahedron.magicResistance],
           [t("label.speed"), CUBE_BOSS_STATS.octahedron.speed],
@@ -570,12 +585,31 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           ? "75% 分身出现在网格内底线侧中路并反向移动；50% 分身出现在网格内左起第 8 列顶部并下行；25% 分身出现在网格内左起第 5 列底部并上行。"
           : "The 75% copy appears inside the grid at the base-side middle and moves backward; the 50% copy appears inside the grid at the top of column 8 and moves down; the 25% copy appears inside the grid at the bottom of column 5 and moves up.",
         zh
-          ? "2 / 3 / 4 个正八面体本体在场时，所有正八面体获得额外 20% / 40% / 60% 全伤害减免。"
-          : "With 2 / 3 / 4 Octahedron bodies on the field, all Octahedrons gain an additional 20% / 40% / 60% all-damage reduction."
+          ? "2 / 3 / 4 个正八面体本体在场时，所有正八面体获得额外 20% / 40% / 60% 全伤害减免；II 的 25% 召唤序列会召唤 2 级领袖。"
+          : "With 2 / 3 / 4 Octahedron bodies on the field, all Octahedrons gain an additional 20% / 40% / 60% all-damage reduction; II's 25% reinforcement sequence summons rank-2 leaders."
       ],
       description: zh
         ? "所有正八面体都可以被攻击，伤害扣同一条 Boss 血量。只有向底线移动的实体会触发失败。"
         : "All Octahedron bodies can be attacked and damage the shared Boss HP. Only bodies moving toward the base can trigger defeat."
+    },
+    {
+      title: zh ? "正二十面体 Boss 系列" : "Icosahedron Boss Series",
+      icon: "icosahedron",
+      lines: [
+        statLine([
+          [t("label.hp"), "P1 300000 / P2 200000"],
+          [t("label.armor"), "P1 3200 / P2 0"],
+          [t("label.mr"), "P1 20 / P2 0"],
+          [t("label.speed"), CUBE_BOSS_STATS.icosahedron.speed],
+          [t("label.atk"), `${damageText(CUBE_BOSS_CONTACT_DAMAGE, "physical")} / ${CUBE_BOSS_CONTACT_INTERVAL}s`]
+        ]),
+        zh
+          ? "第五章主线终章 Boss。P1 拥有 70% 全伤害减免，并会使用终极推进、心跳α、心跳β。"
+          : "Chapter 5 finale Boss. Phase 1 has 70% all-damage reduction and uses Ultimate Advance, Heartbeat Alpha, and Heartbeat Beta."
+      ],
+      description: zh
+        ? "Boss 不会被阻挡，也不会随血量缩小；到达底线会失败，死亡会直接胜利。正二十面体 I 的碰撞体为 4.95x4.95 格。"
+        : "Boss cannot be blocked and does not shrink with HP. Reaching the base is defeat; killing it clears the stage. Icosahedron I uses a 4.95x4.95-cell hitbox."
     },
     {
       title: zh ? "小星形十二面体 Boss 系列" : "Small Stellated Dodecahedron Boss Series",

@@ -64,7 +64,7 @@ export function advanceSlopeTriangle(
   blocker: Tower | undefined,
   time: number
 ) {
-  if (enemy.kind !== "slopeTriangle") {
+  if (enemyFamily(enemy.kind) !== "slopeTriangle") {
     return false;
   }
 

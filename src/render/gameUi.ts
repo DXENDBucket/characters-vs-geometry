@@ -19,6 +19,7 @@ export interface GameHudElements {
   charsText: Phaser.GameObjects.Text;
   statusText: Phaser.GameObjects.Text;
   progressText: Phaser.GameObjects.Text;
+  progressBack: Phaser.GameObjects.Rectangle;
   progressFill: Phaser.GameObjects.Rectangle;
   toastText: Phaser.GameObjects.Text;
   speedText: Phaser.GameObjects.Text;
@@ -84,6 +85,12 @@ interface HudUpdateState {
   battlePaused: boolean;
   gameSpeed: number;
   boss: CubeBoss | null;
+  bossHpBar?: {
+    fillColor: number;
+    backColor: number;
+    phase: number;
+    totalPhases: number;
+  };
 }
 
 export function createGameHud(
@@ -151,7 +158,7 @@ export function createGameHud(
       fontSize: "15px"
     })
     .setOrigin(1, 1);
-  scene.add
+  const progressBack = scene.add
     .rectangle(GAME_WIDTH - 28 - PROGRESS_BAR_WIDTH, GAME_HEIGHT - 24, PROGRESS_BAR_WIDTH, 4, palette.dim, 1)
     .setOrigin(0, 0.5);
   const progressFill = scene.add
@@ -249,6 +256,7 @@ export function createGameHud(
     charsText,
     statusText,
     progressText,
+    progressBack,
     progressFill,
     toastText,
     speedText,
@@ -447,13 +455,18 @@ export function updateGameHud(ui: GameHudElements, state: HudUpdateState) {
   ui.speedKnob.x = Math.round(348 + 176 * speedRatio);
   if (state.boss) {
     const bossHpRatio = Phaser.Math.Clamp(state.boss.hp / state.boss.maxHp, 0, 1);
-    ui.progressText.setText(`${t("label.cubeHp")} ${Math.ceil(state.boss.hp)}/${state.boss.maxHp}`);
+    const phaseText = state.bossHpBar ? ` P${state.bossHpBar.phase}/${state.bossHpBar.totalPhases}` : "";
+    ui.progressText.setText(`${t("label.cubeHp")}${phaseText} ${Math.ceil(state.boss.hp)}/${state.boss.maxHp}`);
+    ui.progressBack.setFillStyle(state.bossHpBar?.backColor ?? palette.dim, 1);
+    ui.progressFill.setFillStyle(state.bossHpBar?.fillColor ?? palette.white, 1);
     ui.progressFill.width = PROGRESS_BAR_WIDTH * bossHpRatio;
     return;
   }
 
   const totalFlags = state.totalWaves / state.wavesPerFlag;
   const waveProgress = state.totalWaves > 0 ? Phaser.Math.Clamp(state.wave / state.totalWaves, 0, 1) : 0;
+  ui.progressBack.setFillStyle(palette.dim, 1);
+  ui.progressFill.setFillStyle(palette.white, 1);
   ui.progressText.setText(
     `${t("label.flag")} ${flag}/${totalFlags}  ${t("label.wave")} ${state.wave}/${state.totalWaves}`
   );

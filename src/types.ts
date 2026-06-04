@@ -57,32 +57,44 @@ export type EnemyKind =
   | "triangleRam3"
   | "angelPentagonRam"
   | "angelPentagonRam2"
+  | "angelPentagonRam3"
   | "mortarTriangle"
   | "mortarTriangle2"
   | "mortarTriangle3"
   | "pentagon"
   | "pentagon2"
+  | "pentagon3"
   | "angelPentagon"
   | "angelPentagon2"
+  | "angelPentagon3"
   | "archangelHeptagon"
   | "archangelHeptagon2"
   | "shootingPentagon"
   | "shootingPentagon2"
+  | "shootingPentagon3"
   | "diamond"
   | "diamond2"
+  | "diamond3"
   | "hexagon"
   | "hexagon2"
+  | "hexagon3"
   | "chargingHexagon"
   | "chargingHexagon2"
+  | "chargingHexagon3"
   | "hexMace"
   | "hexMace2"
+  | "hexMace3"
   | "hexSpellBulwark"
   | "hexSpellBulwark2"
   | "heart"
   | "heart2"
+  | "heart3"
   | "burrowArrow"
   | "burrowArrow2"
+  | "burrowArrow3"
   | "slopeTriangle"
+  | "slopeTriangle2"
+  | "slopeTriangle3"
   | "invertedTriangle"
   | "invertedTriangle2"
   | "invertedTriangle3"
@@ -106,7 +118,9 @@ export type BossKind =
   | "dodecahedron"
   | "dodecahedron2"
   | "smallStellatedDodecahedron"
-  | "octahedron";
+  | "octahedron"
+  | "octahedron2"
+  | "icosahedron";
 export type BossSkillName =
   | "promotion"
   | "advance"
@@ -115,7 +129,10 @@ export type BossSkillName =
   | "impact"
   | "suppression"
   | "desperation"
-  | "endlessWings";
+  | "endlessWings"
+  | "ultimateAdvance"
+  | "heartbeatAlpha"
+  | "heartbeatBeta";
 export type ProjectileKind = "bolt" | "shell" | "star" | "hash" | "dollar" | "chevron";
 export type UnitCategory = "production" | "attack" | "defense" | "function" | "healing";
 export type DamageType = "physical" | "magic" | "true";
@@ -444,7 +461,18 @@ export interface LevelConfig {
   waveWeightCap?: number;
   startingChars?: number;
   bossKind?: BossKind;
+  bossPhases?: BossPhaseConfig[];
   endless?: boolean;
+  specialMechanic?: "rightColumnSeal";
+}
+
+export interface BossPhaseConfig {
+  maxHp: number;
+  enemyKinds: EnemyKind[];
+  waveWeightCap?: number;
+  armor?: number;
+  magicResistance?: number;
+  finalDamageReduction?: number;
 }
 
 export interface BossSkill<Name extends BossSkillName = BossSkillName> extends SkillState {
@@ -459,6 +487,8 @@ export interface CubeBoss {
   label: string;
   x: number;
   y: number;
+  hitboxWidth: number;
+  hitboxHeight: number;
   hp: number;
   baseStats: BossBaseStats;
   finalStats: BossFinalStats;
@@ -480,6 +510,9 @@ export interface CubeBoss {
     suppression?: BossSkill<"suppression">;
     desperation?: BossSkill<"desperation">;
     endlessWings?: BossSkill<"endlessWings">;
+    ultimateAdvance?: BossSkill<"ultimateAdvance">;
+    heartbeatAlpha?: BossSkill<"heartbeatAlpha">;
+    heartbeatBeta?: BossSkill<"heartbeatBeta">;
   };
   contactAttackBuffer: number;
   chargeExpiresAt: number;

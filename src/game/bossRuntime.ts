@@ -21,9 +21,11 @@ import {
 } from "../config";
 import {
   bossAdvanceSpawnPoints,
+  bossRank,
   chargeBossSkill,
   createCubeBoss,
   isDodecahedronBoss,
+  isIcosahedronBoss,
   isOctahedronBoss,
   isSmallStellatedDodecahedronBoss,
   isTetrahedronBoss,
@@ -38,6 +40,7 @@ import {
   makeEnemyHitShards,
   makeEnemyInvincibleFlash,
   makeEnemyLaserEffect,
+  makeIcosahedronCollapse,
   makeOctahedronCollapse,
   makeSmallStellatedDodecahedronCollapse,
   makeTetrahedronCollapse
@@ -94,6 +97,17 @@ const OCTAHEDRON_REINFORCEMENTS: Array<{
   { delay: OCTAHEDRON_REINFORCEMENT_DELAY * 3, kind: "slopeTriangle", lanes: allBoardLanes() },
   { delay: OCTAHEDRON_REINFORCEMENT_DELAY * 4, kind: "archangelHeptagon", lanes: allBoardLanes() }
 ];
+const OCTAHEDRON2_REINFORCEMENTS: Array<{
+  delay: number;
+  kind: Enemy["kind"];
+  lanes: readonly number[];
+}> = [
+  { delay: 0, kind: "hexSpellBulwark2", lanes: allBoardLanes() },
+  { delay: OCTAHEDRON_REINFORCEMENT_DELAY, kind: "burrowArrow2", lanes: OCTAHEDRON_BURROW_REINFORCEMENT_LANES },
+  { delay: OCTAHEDRON_REINFORCEMENT_DELAY * 2, kind: "heart2", lanes: OCTAHEDRON_HEART_REINFORCEMENT_LANES },
+  { delay: OCTAHEDRON_REINFORCEMENT_DELAY * 3, kind: "slopeTriangle2", lanes: allBoardLanes() },
+  { delay: OCTAHEDRON_REINFORCEMENT_DELAY * 4, kind: "archangelHeptagon2", lanes: allBoardLanes() }
+];
 
 export interface BossRuntime {
   scene: Phaser.Scene;
@@ -102,6 +116,7 @@ export interface BossRuntime {
   mortarProjectiles: MortarProjectile[];
   getBoss: () => CubeBoss | null;
   wave: number;
+  bossPhaseIndex: number;
   battleTime: number;
   finalDamageReduction: number;
   damageTower: (tower: Tower, damage: number, damageType: DamageType) => void;
@@ -160,6 +175,23 @@ const bossSkillRegistry = createBossSkillRegistry<BossRuntime>({
         empowerEnemiesTouchingBoss(runtime, boss);
         gainBossSkillSp(boss.skills.charge, TETRAHEDRON_BOSS_DESPERATION_CHARGE_SP_GAIN);
       }
+    }
+  ],
+  icosahedron: [
+    {
+      skillKey: "ultimateAdvance",
+      canUse: (runtime) => runtime.bossPhaseIndex === 0,
+      use: (runtime, boss) => summonIcosahedronUltimateAdvance(runtime, boss)
+    },
+    {
+      skillKey: "heartbeatAlpha",
+      canUse: (runtime) => runtime.bossPhaseIndex === 0,
+      use: (runtime, boss) => summonIcosahedronHearts(runtime, boss, [1, 3, 5])
+    },
+    {
+      skillKey: "heartbeatBeta",
+      canUse: (runtime) => runtime.bossPhaseIndex === 0,
+      use: (runtime, boss) => summonIcosahedronHearts(runtime, boss, [0, 2, 4, 6])
     }
   ]
 });
@@ -258,7 +290,7 @@ function spawnOctahedronCopy(
     triggerReinforcements?: boolean;
   }
 ) {
-  const copy = createCubeBoss(runtime.scene, "octahedron", runtime.finalDamageReduction, options);
+  const copy = createCubeBoss(runtime.scene, boss.kind, runtime.finalDamageReduction, options);
   if (boss.maxHp !== copy.maxHp) {
     copy.baseStats.maxHp = boss.maxHp;
     copy.maxHp = boss.maxHp;
@@ -318,7 +350,8 @@ function spawnOctahedronSolarBombs(runtime: BossRuntime) {
 }
 
 function scheduleOctahedronReinforcements(runtime: BossRuntime, boss: CubeBoss) {
-  for (const wave of OCTAHEDRON_REINFORCEMENTS) {
+  const reinforcements = bossRank(boss.kind) >= 2 ? OCTAHEDRON2_REINFORCEMENTS : OCTAHEDRON_REINFORCEMENTS;
+  for (const wave of reinforcements) {
     runtime.scene.time.delayedCall(wave.delay, () => {
       runtime.runWhenBattleActive(() => {
         if (runtime.getBoss() !== boss) {
@@ -882,6 +915,11 @@ function updateBossSkills(runtime: BossRuntime, boss: CubeBoss, seconds: number)
     return;
   }
 
+  if (isIcosahedronBoss(boss)) {
+    runRegisteredBossSkills(runtime, boss, bossSkillRegistry.icosahedron, seconds);
+    return;
+  }
+
   runRegisteredBossSkills(runtime, boss, bossSkillRegistry.cube, seconds);
 }
 
@@ -1019,6 +1057,48 @@ function summonBossAdvanceMinions(runtime: BossRuntime, boss: CubeBoss) {
   }
 }
 
+function summonIcosahedronUltimateAdvance(runtime: BossRuntime, boss: CubeBoss) {
+  const waveNumber = runtime.wave || 0;
+  const rect = bossRect(boss);
+  const direction = boss.movementDirection ?? -1;
+  const frontX = direction < 0 ? rect.left - CELL_WIDTH / 2 : rect.right + CELL_WIDTH / 2;
+  const rearX = frontX - direction * CELL_WIDTH;
+
+  for (const x of [frontX, rearX]) {
+    for (let lane = 0; lane < LANES; lane += 1) {
+      const y = BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2;
+      spawnEnemyAt(runtime, {
+        kind: "square3",
+        waveNumber,
+        time: runtime.battleTime,
+        lane,
+        x,
+        waveWeight: 0,
+        finalDamageReduction: runtime.finalDamageReduction
+      });
+      makeIcosahedronCollapse(runtime.scene, x, y);
+    }
+  }
+}
+
+function summonIcosahedronHearts(runtime: BossRuntime, _boss: CubeBoss, lanes: readonly number[]) {
+  const waveNumber = runtime.wave || 0;
+  const x = BOARD_X + BOARD_WIDTH - CELL_WIDTH / 2;
+  for (const lane of lanes) {
+    const y = BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2;
+    spawnEnemyAt(runtime, {
+      kind: "heart3",
+      waveNumber,
+      time: runtime.battleTime,
+      lane,
+      x,
+      waveWeight: 0,
+      finalDamageReduction: runtime.finalDamageReduction
+    });
+    makeIcosahedronCollapse(runtime.scene, x, y);
+  }
+}
+
 function makeBossCollapse(
   runtime: BossRuntime,
   boss: CubeBoss,
@@ -1043,6 +1123,11 @@ function makeBossCollapse(
 
   if (isOctahedronBoss(boss)) {
     makeOctahedronCollapse(runtime.scene, x, y, followTarget, runtime.enemies, runtime.towers);
+    return;
+  }
+
+  if (isIcosahedronBoss(boss)) {
+    makeIcosahedronCollapse(runtime.scene, x, y, followTarget, runtime.enemies, runtime.towers);
     return;
   }
 

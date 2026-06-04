@@ -4,6 +4,7 @@ import {
   BOARD_WIDTH,
   BOARD_X,
   BOARD_Y,
+  BOSS_HITBOX_HEIGHT,
   BOSS_HITBOX_WIDTH,
   CELL_HEIGHT,
   CELL_WIDTH,
@@ -16,6 +17,15 @@ import {
   CUBE_BOSS_STATS,
   DODECAHEDRON_BOSS_ENDLESS_WINGS_SKILL_COST,
   DODECAHEDRON_BOSS_ENDLESS_WINGS_SKILL_MAX,
+  ICOSAHEDRON_BOSS_HEARTBEAT_ALPHA_INITIAL_SP,
+  ICOSAHEDRON_BOSS_HEARTBEAT_ALPHA_SKILL_COST,
+  ICOSAHEDRON_BOSS_HEARTBEAT_ALPHA_SKILL_MAX,
+  ICOSAHEDRON_BOSS_HEARTBEAT_BETA_INITIAL_SP,
+  ICOSAHEDRON_BOSS_HEARTBEAT_BETA_SKILL_COST,
+  ICOSAHEDRON_BOSS_HEARTBEAT_BETA_SKILL_MAX,
+  ICOSAHEDRON_BOSS_ULTIMATE_ADVANCE_INITIAL_SP,
+  ICOSAHEDRON_BOSS_ULTIMATE_ADVANCE_SKILL_COST,
+  ICOSAHEDRON_BOSS_ULTIMATE_ADVANCE_SKILL_MAX,
   TETRAHEDRON_BOSS_CHARGE_SKILL_COST,
   TETRAHEDRON_BOSS_CHARGE_SKILL_MAX,
   TETRAHEDRON_BOSS_DESPERATION_SKILL_COST,
@@ -37,12 +47,18 @@ const CUBE_DRAW_SIZE = 59;
 const DODECAHEDRON_DRAW_SIZE = 47;
 const SMALL_STELLATED_DODECAHEDRON_DRAW_SIZE = 31;
 const OCTAHEDRON_DRAW_SIZE = 66;
+const ICOSAHEDRON_DRAW_SIZE = 69.3;
 const PHI = (1 + Math.sqrt(5)) / 2;
 const INV_PHI = 1 / PHI;
 const SMALL_STELLATED_TIP_RADIUS = 2.55;
 const TETRAHEDRON_INITIAL_ROTATION_SPEED = {
   x: 0.56,
   y: -0.42,
+  z: 0.36
+};
+const ICOSAHEDRON_ROTATION_SPEED = {
+  x: 0.55,
+  y: -0.72,
   z: 0.36
 };
 
@@ -53,10 +69,15 @@ interface CreateCubeBossOptions {
   movementDirection?: -1 | 1;
 }
 
-function createBossSkill<Name extends BossSkillName>(name: Name, maxSp: number, cost: number): BossSkill<Name> {
+function createBossSkill<Name extends BossSkillName>(
+  name: Name,
+  maxSp: number,
+  cost: number,
+  initialSp = 0
+): BossSkill<Name> {
   return {
     name,
-    sp: 0,
+    sp: Math.min(maxSp, Math.max(0, initialSp)),
     spBuffer: 0,
     activeUntil: 0,
     maxSp,
@@ -118,6 +139,23 @@ export const OCTAHEDRON_EDGES = [
   [3, 5]
 ] as const;
 
+export const ICOSAHEDRON_UNIT_VERTICES = [
+  [0, -1, -PHI],
+  [0, -1, PHI],
+  [0, 1, -PHI],
+  [0, 1, PHI],
+  [-1, -PHI, 0],
+  [-1, PHI, 0],
+  [1, -PHI, 0],
+  [1, PHI, 0],
+  [-PHI, 0, -1],
+  [PHI, 0, -1],
+  [-PHI, 0, 1],
+  [PHI, 0, 1]
+] as const;
+
+export const ICOSAHEDRON_EDGES = buildIcosahedronEdges();
+
 function buildDodecahedronEdges() {
   const edges: Array<[number, number]> = [];
   for (let from = 0; from < DODECAHEDRON_UNIT_VERTICES.length; from += 1) {
@@ -170,6 +208,21 @@ function buildDodecahedronFaces() {
   return faces;
 }
 
+function buildIcosahedronEdges() {
+  const edges: Array<[number, number]> = [];
+  for (let from = 0; from < ICOSAHEDRON_UNIT_VERTICES.length; from += 1) {
+    for (let to = from + 1; to < ICOSAHEDRON_UNIT_VERTICES.length; to += 1) {
+      const [x1, y1, z1] = ICOSAHEDRON_UNIT_VERTICES[from];
+      const [x2, y2, z2] = ICOSAHEDRON_UNIT_VERTICES[to];
+      const distanceSquared = (x1 - x2) ** 2 + (y1 - y2) ** 2 + (z1 - z2) ** 2;
+      if (distanceSquared < 4.1) {
+        edges.push([from, to]);
+      }
+    }
+  }
+  return edges;
+}
+
 function dodecahedronFaceTip(face: number[]) {
   const center = face.reduce(
     (sum, index) => {
@@ -192,7 +245,9 @@ export function createCubeBoss(
   const rank = bossRank(kind);
   const stats = CUBE_BOSS_STATS[kind];
   const baseStats = bossBaseStatsFromValues(stats, finalDamageReduction);
-  const x = options.x ?? BOARD_X + BOARD_WIDTH - BOSS_HITBOX_WIDTH / 2;
+  const hitboxWidth = stats.hitboxCells ? CELL_WIDTH * stats.hitboxCells : BOSS_HITBOX_WIDTH;
+  const hitboxHeight = stats.hitboxCells ? CELL_HEIGHT * stats.hitboxCells : BOSS_HITBOX_HEIGHT;
+  const x = options.x ?? BOARD_X + BOARD_WIDTH - hitboxWidth / 2;
   const y = options.y ?? BOARD_Y + BOARD_HEIGHT / 2;
   const frame = scene.add.graphics();
   const labelText = scene.add
@@ -211,6 +266,8 @@ export function createCubeBoss(
     label: toRomanNumeral(rank),
     x,
     y,
+    hitboxWidth,
+    hitboxHeight,
     hp: baseStats.maxHp,
     baseStats,
     finalStats: { ...baseStats },
@@ -255,6 +312,28 @@ export function createCubeBoss(
               DODECAHEDRON_BOSS_ENDLESS_WINGS_SKILL_COST
             )
           }
+        : {}),
+      ...(isIcosahedronBossKind(kind)
+        ? {
+            ultimateAdvance: createBossSkill(
+              "ultimateAdvance",
+              ICOSAHEDRON_BOSS_ULTIMATE_ADVANCE_SKILL_MAX,
+              ICOSAHEDRON_BOSS_ULTIMATE_ADVANCE_SKILL_COST,
+              ICOSAHEDRON_BOSS_ULTIMATE_ADVANCE_INITIAL_SP
+            ),
+            heartbeatAlpha: createBossSkill(
+              "heartbeatAlpha",
+              ICOSAHEDRON_BOSS_HEARTBEAT_ALPHA_SKILL_MAX,
+              ICOSAHEDRON_BOSS_HEARTBEAT_ALPHA_SKILL_COST,
+              ICOSAHEDRON_BOSS_HEARTBEAT_ALPHA_INITIAL_SP
+            ),
+            heartbeatBeta: createBossSkill(
+              "heartbeatBeta",
+              ICOSAHEDRON_BOSS_HEARTBEAT_BETA_SKILL_MAX,
+              ICOSAHEDRON_BOSS_HEARTBEAT_BETA_SKILL_COST,
+              ICOSAHEDRON_BOSS_HEARTBEAT_BETA_INITIAL_SP
+            )
+          }
         : {})
     },
     contactAttackBuffer: 0,
@@ -277,12 +356,12 @@ export function createCubeBoss(
     rotationX: Phaser.Math.FloatBetween(-0.4, 0.4),
     rotationY: Phaser.Math.FloatBetween(-0.4, 0.4),
     rotationZ: Phaser.Math.FloatBetween(-0.2, 0.2),
-    velocityX: isTetrahedronBossKind(kind) ? TETRAHEDRON_INITIAL_ROTATION_SPEED.x : 0.18,
-    velocityY: isTetrahedronBossKind(kind) ? TETRAHEDRON_INITIAL_ROTATION_SPEED.y : -0.12,
-    velocityZ: isTetrahedronBossKind(kind) ? TETRAHEDRON_INITIAL_ROTATION_SPEED.z : 0.1,
-    targetVelocityX: isTetrahedronBossKind(kind) ? TETRAHEDRON_INITIAL_ROTATION_SPEED.x : 0.18,
-    targetVelocityY: isTetrahedronBossKind(kind) ? TETRAHEDRON_INITIAL_ROTATION_SPEED.y : -0.12,
-    targetVelocityZ: isTetrahedronBossKind(kind) ? TETRAHEDRON_INITIAL_ROTATION_SPEED.z : 0.1,
+    velocityX: initialBossRotationSpeed(kind).x,
+    velocityY: initialBossRotationSpeed(kind).y,
+    velocityZ: initialBossRotationSpeed(kind).z,
+    targetVelocityX: initialBossRotationSpeed(kind).x,
+    targetVelocityY: initialBossRotationSpeed(kind).y,
+    targetVelocityZ: initialBossRotationSpeed(kind).z,
     nextTurnIn: isTetrahedronBossKind(kind) ? 0.8 : 1.8
   };
 
@@ -307,6 +386,11 @@ export function updateCubeBossMotion(boss: CubeBoss, seconds: number, movementMu
       boss.targetVelocityY = randomSignedRotationSpeed(0.42, 0.9);
       boss.targetVelocityZ = randomSignedRotationSpeed(0.28, 0.64);
       boss.nextTurnIn = Phaser.Math.FloatBetween(2.8, 5.2);
+    } else if (isIcosahedronBoss(boss)) {
+      boss.targetVelocityX = ICOSAHEDRON_ROTATION_SPEED.x;
+      boss.targetVelocityY = ICOSAHEDRON_ROTATION_SPEED.y;
+      boss.targetVelocityZ = ICOSAHEDRON_ROTATION_SPEED.z;
+      boss.nextTurnIn = Phaser.Math.FloatBetween(3.8, 6.2);
     } else {
       const rotationRange = { xy: 0.32, z: 0.22, minTurn: 2.2, maxTurn: 4.6 };
       boss.targetVelocityX = Phaser.Math.FloatBetween(-rotationRange.xy, rotationRange.xy);
@@ -324,6 +408,16 @@ export function updateCubeBossMotion(boss: CubeBoss, seconds: number, movementMu
   boss.rotationY += boss.velocityY * seconds;
   boss.rotationZ += boss.velocityZ * seconds;
   drawCubeBoss(boss, time);
+}
+
+function initialBossRotationSpeed(kind: BossKind) {
+  if (isTetrahedronBossKind(kind)) {
+    return TETRAHEDRON_INITIAL_ROTATION_SPEED;
+  }
+  if (isIcosahedronBossKind(kind)) {
+    return ICOSAHEDRON_ROTATION_SPEED;
+  }
+  return { x: 0.18, y: -0.12, z: 0.1 };
 }
 
 function randomSignedRotationSpeed(min: number, max: number) {
@@ -372,6 +466,11 @@ function drawCubeBoss(boss: CubeBoss, time: number) {
     return;
   }
 
+  if (isIcosahedronBoss(boss)) {
+    drawIcosahedronBoss(boss, time);
+    return;
+  }
+
   const vertices = [
     [-1, -1, -1],
     [1, -1, -1],
@@ -407,7 +506,7 @@ function drawCubeBoss(boss: CubeBoss, time: number) {
 }
 
 export function bossRank(kind: BossKind) {
-  return kind === "cube2" || kind === "tetrahedron2" || kind === "dodecahedron2" ? 2 : 1;
+  return kind === "cube2" || kind === "tetrahedron2" || kind === "dodecahedron2" || kind === "octahedron2" ? 2 : 1;
 }
 
 export function isTetrahedronBossKind(kind: BossKind) {
@@ -435,15 +534,27 @@ export function isSmallStellatedDodecahedronBoss(boss: CubeBoss) {
 }
 
 export function isOctahedronBossKind(kind: BossKind) {
-  return kind === "octahedron";
+  return kind === "octahedron" || kind === "octahedron2";
 }
 
 export function isOctahedronBoss(boss: CubeBoss) {
   return isOctahedronBossKind(boss.kind);
 }
 
+export function isIcosahedronBossKind(kind: BossKind) {
+  return kind === "icosahedron";
+}
+
+export function isIcosahedronBoss(boss: CubeBoss) {
+  return isIcosahedronBossKind(boss.kind);
+}
+
 function isSkilllessBossKind(kind: BossKind) {
-  return isDodecahedronBossKind(kind) || isSmallStellatedDodecahedronBossKind(kind) || isOctahedronBossKind(kind);
+  return (
+    isDodecahedronBossKind(kind) ||
+    isSmallStellatedDodecahedronBossKind(kind) ||
+    isOctahedronBossKind(kind)
+  );
 }
 
 function drawTetrahedronBoss(boss: CubeBoss, time: number) {
@@ -531,6 +642,20 @@ function drawOctahedronBoss(boss: CubeBoss, time: number) {
   boss.frame.clear();
   boss.frame.lineStyle(2.2, color, 0.95);
   for (const [from, to] of OCTAHEDRON_EDGES) {
+    boss.frame.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
+  }
+}
+
+function drawIcosahedronBoss(boss: CubeBoss, time: number) {
+  const vertices = ICOSAHEDRON_UNIT_VERTICES.map(([x, y, z]) =>
+    projectCubePoint(x * ICOSAHEDRON_DRAW_SIZE, y * ICOSAHEDRON_DRAW_SIZE, z * ICOSAHEDRON_DRAW_SIZE, boss)
+  );
+
+  const color = boss.invincibleUntil > time ? palette.gold : palette.white;
+  boss.labelText.setColor(boss.invincibleUntil > time ? "#ffd75a" : "#f5f5f5");
+  boss.frame.clear();
+  boss.frame.lineStyle(2, color, 0.92);
+  for (const [from, to] of ICOSAHEDRON_EDGES) {
     boss.frame.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
   }
 }

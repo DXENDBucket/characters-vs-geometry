@@ -15,6 +15,7 @@
 | Triangle Ram 3 | 375 | 5000 | 200 | 1400 | ◆ | Body label `III/III`; base average speed `25`, uniformly accelerates while moving and reaches `100` after `7` cells. The first time it is blocked, it rams the blocker for physical damage. When it dies for any reason, it spawns two Triangle 3 enemies slightly ahead/behind |
 | Angel Pentagon Ram 1 | 320 | 5000 | 200 | 1400 | ✦ | Body label `I/I`; MR `40`; base average speed `15`, uniformly accelerates like Triangle Ram and reaches `60` after `7` cells. Does not naturally appear before Flag 1. Its body is two face-linked pentagons. The first time it is blocked, it deals no damage and gains `2s` Flying with a halo. After that effect has triggered, the next block rams for magic damage, disappears, and spawns a same-rank Angel Pentagon in the forward position plus a same-rank Pentagon in the rear position |
 | Angel Pentagon Ram 2 | 640 | 5000 | 200 | 1400 | ✦ | Body label `II/II`; MR `40`; base average speed `20`, uniformly accelerates like Triangle Ram 2 and reaches `80` after `7` cells. Same Flying-then-ram behavior as Angel Pentagon Ram 1. On death, spawns Angel Pentagon 2 ahead and Pentagon 2 behind |
+| Angel Pentagon Ram 3 | 960 | 5000 | 200 | 1400 | ✦ | Body label `III/III`; MR `40`; base average speed `25`, uniformly accelerates like Triangle Ram 3 and reaches `100` after `7` cells. Same Flying-then-ram behavior as Angel Pentagon Ram 1. On death, spawns Angel Pentagon 3 ahead and Pentagon 3 behind |
 | Inverted Triangle 1 | 50 | 1000 | 70 | 2000 | ✦ | Body label `I`; MR `60`; average speed `40`; after being blocked by the same tower for `2s`, disappears and detonates against that tower |
 | Inverted Triangle 2 | 100 | 1000 | 70 | 2600 | ✦ | Body label `II`; MR `60`; average speed `45`; after being blocked by the same tower for `2s`, disappears and detonates against that tower |
 | Inverted Triangle 3 | 150 | 1000 | 70 | 3200 | ✦ | Body label `III`; MR `60`; average speed `50`; after being blocked by the same tower for `2s`, disappears and detonates against that tower |
@@ -26,17 +27,25 @@
 | Triangle Mortar 3 | 270 | 1500 | 70 | 1150 | ◆ | Body label `III/III`; MR `0`; average speed `5.5`; every `15s`, fires 3 shell-like physical mortars with `3x3` AOE. The volley window is fixed at one fifth of its attack interval |
 | Pentagon 1 | 120 | 1500 | 70 | 800 | ✦ | Body label `I`; MR `40`; average speed `5.5`; downward-facing pentagon. Every `15s`, fires a red `#` magic mortar with `3x3` AOE. If blocked, targets its blocker; otherwise targets the highest-level tower on the field. Ties target the later-placed tower. N rewrites the landing point if targeted; R takes damage and reflects a matching mortar back at the shooter |
 | Pentagon 2 | 240 | 1500 | 70 | 800 | ✦ | Body label `II`; MR `40`; average speed `5.5`; same as Pentagon 1, but fires 2 red `#` magic mortars per attack. The volley window is fixed at one fifth of its attack interval |
+| Pentagon 3 | 360 | 1500 | 70 | 800 | ✦ | Body label `III`; MR `40`; average speed `5.5`; same as Pentagon 1, but fires 3 red `#` magic mortars per attack. The volley window is fixed at one fifth of its attack interval |
 | Angel Pentagon 1 | 200 | 1200 | 50 | 300 | ◆ | Body label `I`; MR `20`; average speed `20`; point faces downward and it has a small halo. Does not naturally appear before Flag 1. Wings: starts at `0/15` SP, gains `1` SP/s, then gives itself and enemies in a centered `3x3` area Flying with a halo and `+100%` movement speed for `3s`; SP regeneration pauses while Wings is active |
 | Angel Pentagon 2 | 250 | 1200 | 50 | 300 | ◆ | Body label `II`; MR `20`; average speed `20`; otherwise identical to Angel Pentagon 1, but Wings starts at `2/15` SP and gains `1.2` SP/s |
+| Angel Pentagon 3 | 300 | 1200 | 50 | 300 | ◆ | Body label `III`; MR `20`; average speed `20`; otherwise identical to Angel Pentagon 1, but Wings starts at `4/15` SP and gains `1.4` SP/s |
 | Shooting Pentagon 1 | 125 | 2000 | 70 | 150 | ✦ | Body label `I`; MR `40`; average speed `4`; one point faces the base. Every `4s`, fires an instant red magic laser. The laser is not a projectile, cannot be reflected by R, pierces towers in its lane, and stops after damaging the first tower with MR greater than `0` |
+| Shooting Pentagon 2 | 250 | 2000 | 70 | 150 | ✦ | Body label `II`; MR `40`; average speed `4`; same as Shooting Pentagon 1, but fires 2 instant red magic lasers per attack. The volley window is fixed at one fifth of its attack interval |
+| Shooting Pentagon 3 | 375 | 2000 | 70 | 150 | ✦ | Body label `III`; MR `40`; average speed `4`; same as Shooting Pentagon 1, but fires 3 instant red magic lasers per attack. The volley window is fixed at one fifth of its attack interval |
 | Diamond 1 | 100 | 2000 | 70 | 400 | ✦ | Body label `I`; MR `40`; average speed `4`; fires red `*` magic projectiles every `2s`; does not naturally appear before Flag 1 |
 | Diamond 2 | 200 | 2000 | 70 | 400 | ✦ | Body label `II`; MR `40`; average speed `4`; fires 2 red `*` magic projectiles every `2s`; volley window is fixed at one fifth of its attack interval; does not naturally appear before Flag 1 |
+| Diamond 3 | 300 | 2000 | 70 | 400 | ✦ | Body label `III`; MR `40`; average speed `4`; fires 3 red `*` magic projectiles every `2s`; volley window is fixed at one fifth of its attack interval; does not naturally appear before Flag 1 |
 | Hexagon 1 | 160 | 18000 | 150 | 400 | ◆ | Body label `I`; MR `20`; average speed `5`; melee attack every `1s`; flat side faces the base. Enemies within `1.4` cells, including itself, and Bosses touching that aura gain Armor: `+50` armor per Hexagon 1 aura, stacking additively and shown as `⬡` on ordinary enemies. Gains `1` SP/s up to `20`; at full SP, heals the lowest HP% damaged enemy within `1.4` cells for `30%` of Hexagon max HP, consuming `20` SP |
 | Hexagon 2 | 240 | 18000 | 150 | 400 | ◆ | Body label `II`; MR `20`; average speed `5`; melee attack every `1s`; flat side faces the base. Same Armor aura and healing behavior as Hexagon 1, but its aura grants `+80` armor |
+| Hexagon 3 | 320 | 18000 | 150 | 400 | ◆ | Body label `III`; MR `20`; average speed `5`; melee attack every `1s`; flat side faces the base. Same Armor aura and healing behavior as Hexagon 1, but its aura grants `+110` armor |
 | Charging Hexagon 1 | 150 | 12000 | 150 | 500 | ✦ | Body label `I`; MR `40`; average speed `25`; point faces the base. Melee magic attack every `2s`. Enemies in the same lane and farther from the base gain a non-stacking `+50%` movement speed bonus |
 | Charging Hexagon 2 | 300 | 12000 | 150 | 500 | ✦ | Body label `II`; MR `40`; average speed `25`; point faces the base. Same speed aura as Charging Hexagon 1, but melee magic attack is every `1s` |
+| Charging Hexagon 3 | 450 | 12000 | 150 | 500 | ✦ | Body label `III`; MR `40`; average speed `25`; point faces the base. Same speed aura as Charging Hexagon 1, but melee magic attack is every `0.67s` |
 | Hex Mace 1 | 375 | 9000 | 150 | 400 | ◆ | Body label `I/I`; MR `0`; base average speed `20`; does not naturally appear before Flag 1. Shape is two edge-linked hexagons. It starts at `0` current velocity, continuously accelerates toward its facing direction, and reaches `80` after `7` cells. When blocked, it does not self-destruct: it deals collision damage based on current actual speed (`10` speed = `100%` attack, `20` speed = `200%`, `30` speed = `300%`, etc.), then bounces away by reflecting its current velocity while keeping its facing direction. On death, it spawns Charging Hexagon 1 ahead of its facing direction and Hexagon 1 behind |
 | Hex Mace 2 | 500 | 9000 | 150 | 460 | ◆ | Body label `II/II`; MR `0`; base average speed `20`; does not naturally appear before Flag 1. Same ramming behavior as Hex Mace 1. On death, it spawns Charging Hexagon 2 ahead of its facing direction and Hexagon 2 behind |
+| Hex Mace 3 | 625 | 9000 | 150 | 520 | ◆ | Body label `III/III`; MR `0`; base average speed `20`; does not naturally appear before Flag 1. Same ramming behavior as Hex Mace 1. On death, it spawns Charging Hexagon 3 ahead of its facing direction and Hexagon 3 behind |
 | Square 1 | 50 | 12000 | 300 | 400 | ◆ | Body label `I`; average speed `6` |
 | Square 2 | 150 | 12000 | 600 | 400 | ◆ | Body label `II`; average speed `6` |
 | Square 3 | 250 | 12000 | 900 | 400 | ◆ | Body label `III`; average speed `6` |
@@ -58,7 +67,7 @@ Locked attacks, including Triangle Mortars, target the tower blocking the attack
 Flying units cannot be blocked by grounded towers and render slightly higher than grounded enemies. Flying itself does not always show a halo; Wings-granted Flying shows a halo. Flying towers do not block grounded enemies, but can block regular Flying enemies.
 High Flight is a separate airborne state used by Slope Triangle launches and Archangel Heptagon's spawn boost. High Flight enemies cannot be blocked, targeted, directly hit, or damaged by tower AOE until they land or the boost ends.
 Enemies with a minimum flag gate are excluded from random wave pools before that flag wave. All Diamonds, Triangle Mortars, Pentagons, Angel Pentagons, Shooting Pentagons, Hex Maces, and Angel Pentagon Rams require Flag 1, so they can start appearing on wave 10 of standard 10-wave flags.
-Numbered minion weights use fixed additive steps: circles `+40`, triangles `+60`, squares `+100`.
+Numbered minion weights use fixed additive steps: circles `+40`, triangles `+60`, squares `+100`, Angel Pentagon Rams `+320`, Pentagons `+120`, Angel Pentagons `+50`, Shooting Pentagons `+125`, Diamonds `+100`, Hexagons `+80`, Charging Hexagons `+150`, Hex Maces `+125`, Trapezoids `+50`, Inverted Triangles `+50`, Shooting Triangles `+50`, Triangle Rams `+150`, Triangle Mortars `+90`.
 Enemy body labels are displayed as Roman numerals in-game.
 Mirage Sun Bomb is a Boss-only Octahedron mechanic with weight `0`, HP `12000`, Armor `0`, MR `0`, average speed `90`, and `900` true collision damage. Its larger sun-shaped body rotates and does not shrink with HP. Above `50%` HP, it takes only `5%` magic damage before difficulty reduction; below `50%`, it takes only `5%` physical damage instead and its border turns light blue. At `0` HP, it locks at `1` HP, turns gold, and becomes invincible. Gold depleted bombs gain weak `4 px/s²` acceleration toward the nearest currently invincible Boss body, if one exists. Colliding with towers or Bosses bounces it, shows small gold true-damage collision particles, and deals `900` true damage to the collision target; it passes through non-Boss enemies without colliding or bouncing. Tower hits bounce it away from the attacking tower position, independent of projectile angle or speed. It ignores mechanics that do not affect leaders, such as Burrow Arrow loading, Heart Lead pulling, and Slope Triangle launching.
 
@@ -68,11 +77,15 @@ Mirage Sun Bomb is a Boss-only Octahedron mechanic with weight `0`, HP `12000`, 
 | --- | --- | ---: | ---: | ---: | --- | --- |
 | Heart 1 | 1 per flag wave if included in the level pool; no wave weight | 9999 | 299 | 2100 | True | Body label `I`; MR `60`; fixed speed `30` with no random speed variance. Enemies in the same lane and farther from the base gain a non-stacking `+50%` movement speed bonus. Every `5s`, emits a growing pink heart AOE centered on itself with `1.75` cell radius and outward falloff. Lead starts at `0/5` SP, gains `1` SP/s, then pulls ordinary minions in its column plus four columns behind, within two lanes up/down, into its lane; leaders, Bosses, and Boss companions are not pulled |
 | Heart 2 | 1 per flag wave if included in the level pool; no wave weight | 9999 | 299 | 3000 | True | Body label `II`; MR `60`; otherwise identical to Heart 1 |
+| Heart 3 | 1 per flag wave if included in the level pool; no wave weight | 9999 | 299 | 3900 | True | Body label `III`; MR `60`; otherwise identical to Heart 1 |
 | Burrow Arrow 1 | 1 per flag wave if included in the level pool; no wave weight | 16500 | 250 | 400 | Physical | Body label `I`; MR `0`; fixed speed `20` with no random speed variance. Touching non-leader minions are loaded; rank I can carry total minion rank `5`. Once full or after `6s` on the field, it burrows, shows only its upper tip about `0.55` cells lower, ignores normal projectile targeting/direct hits, but can still be damaged by AOE. While burrowed it gains `+300%` movement speed. It resurfaces at the center of the cell before the base, turns itself and loaded enemies around, unloads once, and can no longer load or burrow. If it dies while carrying loaded enemies, they immediately appear without reversing direction |
 | Burrow Arrow 2 | 1 per flag wave if included in the level pool; no wave weight | 16500 | 250 | 400 | Physical | Body label `II`; MR `0`; fixed speed `20` with no random speed variance. Otherwise identical to Burrow Arrow 1, but can carry total minion rank `10` |
-| Slope Triangle 1 | 1 per flag wave if included in the level pool; no wave weight | 21000 | 500 | 0 | Physical | Body label `I`; MR `0`; fixed speed `6` with no random speed variance. It does not attack. While currently blocked, it stays in place and acts as a ramp; if unblocked, it keeps moving at its own speed. Only while blocked, touching non-leader minions whose current velocity direction matches the Slope Triangle facing direction enter High Flight and fly forward in a parabola. This checks the minion velocity direction, not the minion facing direction. Flight distance is based on current actual speed: every `10` speed sends the minion `1.5` cells. High Flight enemies cannot be blocked, targeted, directly hit, or damaged by tower AOE before landing. Leaders, Bosses, and Boss companions are not launched |
+| Burrow Arrow 3 | 1 per flag wave if included in the level pool; no wave weight | 16500 | 250 | 400 | Physical | Body label `III`; MR `0`; fixed speed `20` with no random speed variance. Otherwise identical to Burrow Arrow 1, but can carry total minion rank `15` |
+| Slope Triangle 1 | 1 per flag wave if included in the level pool; no wave weight | 21000 | 500 | 0 | Physical | Body label `I`; MR `0`; fixed speed `10` with no random speed variance. It does not attack. While currently blocked, it stays in place and acts as a ramp; if unblocked, it keeps moving at its own speed. Only while blocked, touching non-leader minions whose current velocity direction matches the Slope Triangle facing direction enter High Flight and fly forward in a parabola. This checks the minion velocity direction, not the minion facing direction. Flight distance is based on current actual speed: every `10` speed sends the minion `1.5` cells. High Flight enemies cannot be blocked, targeted, directly hit, or damaged by tower AOE before landing. Leaders, Bosses, and Boss companions are not launched |
+| Slope Triangle 2 | 1 per flag wave if included in the level pool; no wave weight | 21000 | 500 | 0 | Physical | Body label `II`; MR `0`; fixed speed `15` with no random speed variance. Otherwise identical to Slope Triangle 1 |
+| Slope Triangle 3 | 1 per flag wave if included in the level pool; no wave weight | 21000 | 500 | 0 | Physical | Body label `III`; MR `0`; fixed speed `20` with no random speed variance. Otherwise identical to Slope Triangle 1 |
 | Archangel Heptagon 1 | 1 per flag wave if included in the level pool; no wave weight | 4000 | 50 | 1400 | Magic | Body label `I`; MR `20`; fixed speed `30` with no random speed variance. It is always Flying, attacks every `2s`, dealing `100%` attack as magic damage, and has two visual halos. For the first `3s` after spawning, it has `+150%` movement speed and High Flight. It does not gain extra Flying halos from other skills or minions; incoming Flying effects become High Flight instead, turning its own two halos gold. Ascension: starts at `10/15` SP, gains `1` SP/s, then gives itself and enemies within a `2.5` cell radius Flying with a halo and `+100%` movement speed for `6s`; SP regeneration pauses while Ascension is active |
-| Archangel Heptagon 2 | 1 per flag wave if included in the level pool; no wave weight | 4000 | 50 | 1400 | Magic | Body label `II`; MR `20`; fixed speed `30` with no random speed variance. Otherwise identical to Archangel Heptagon 1, but Ascension gains `1.2` SP/s |
+| Archangel Heptagon 2 | 1 per flag wave if included in the level pool; no wave weight | 6000 | 50 | 1400 | Magic | Body label `II`; MR `20`; fixed speed `30` with no random speed variance. Otherwise identical to Archangel Heptagon 1, including Ascension gaining `1` SP/s |
 | Hex Spell Bulwark 1 | 1 per flag wave if included in the level pool; no wave weight | 24000 | 100 | 1200 | Magic | Body label `I/I`; MR `80`; fixed speed `15` with no random speed variance. Attacks once per second, dealing `100%` attack as magic damage. Its body is a vertical Hex Mace. Enemies in the same lane, including itself, gain additive `+40` MR; multiple bulwarks stack. Affected enemies show a light-blue hexagon icon |
 | Hex Spell Bulwark 2 | 1 per flag wave if included in the level pool; no wave weight | 24000 | 100 | 1200 | Magic | Body label `II/II`; MR `80`; fixed speed `15` with no random speed variance. Same as Hex Spell Bulwark 1, but its same-lane MR aura grants additive `+50` MR |
 
@@ -91,6 +104,8 @@ Leader enemies are fixed flag-wave spawns when included in a level pool. They do
 | Dodecahedron Companion | 32000 | 2000 | 40 | orbiting | `0.95x0.95` cells | Special Boss companion. Body label `I`; cannot be blocked, syncs Dodecahedron I's 3D rotation, and shrinks visually with HP like ordinary enemies. Attack loop: after `20s`, fires `4 x label` Shooting-Pentagon lasers; after `30s`, fires `2 x label` Pentagon mortars; after `30s`, casts Angel-Pentagon Wings on enemies in a `3x3` area. Motion loop: orbits for `47s`, shifts over `1s` to the front column on the Boss lane / two lanes up / two lanes down, holds `47s`, then shifts back over `1s`. Each companion death gives surviving companions `10s` Invincible. |
 | Dodecahedron Companion II | 40000 | 2000 | 40 | orbiting | `0.95x0.95` cells | Body label `II`; same behavior as Dodecahedron Companion I, but HP is `25%` higher and all volley shot counts are doubled: `8` Shooting-Pentagon lasers and `4` Pentagon mortars. |
 | Octahedron I | 120000 | 200 | 60 | 0.6 | `2.95x2.95` cells | Multi-body Boss for 4-10. Same contact behavior as Cube I, but has no SP skills. At `75%`, `50%`, and `25%` HP thresholds, spawns an additional Octahedron body. All bodies share one HP bar; each body keeps independent effects and movement. Each new invincibility cycle spawns two Mirage Sun Bombs from the rightmost column in rows 2 and 6. |
+| Octahedron II | 170000 | 200 | 60 | 0.6 | `2.95x2.95` cells | Same as Octahedron I, but its `25%` reinforcement sequence summons rank-2 leaders instead of rank-1 leaders. |
+| Icosahedron I | phased | phase | phase | 0.5 | `4.95x4.95` cells | Chapter 5 finale Boss. Same baseline contact/base behavior as Cube I. In 5-10, Phase 1 has `300000` HP, `3200` armor, `20` MR, `70%` all-damage reduction, and three SP skills; Phase 2 has `200000` HP and no configured skills yet. Later phases are reserved. |
 | Small Stellated Dodecahedron I | 100000 | 200 | 90 | 0.6 | `2.95x2.95` cells | Whiteboard Boss. Same contact/base behavior as Cube I, currently used to test the small stellated dodecahedron wireframe. |
 
 Cube skills:
@@ -124,7 +139,7 @@ Octahedron mechanics:
 - Only Octahedron bodies moving toward the base can trigger defeat by crossing the base line.
 - When `2` / `3` / `4` Octahedron bodies exist, all Octahedron bodies gain an additional independent `20%` / `40%` / `60%` all-damage reduction.
 - At combat start and each time a new Octahedron body appears, every Octahedron body becomes invincible and rows 2 and 6 each spawn one Mirage Sun Bomb in the rightmost column, moving left.
-- When the `25%` Octahedron body appears, it also starts a reinforcement sequence from the normal spawn side: immediately one Hex Spell Bulwark in every row; after `0.5s`, one Burrow Arrow in rows 2, 4, and 6; after another `0.5s`, one Heart in rows 2, 4, and 6; after another `0.5s`, one Slope Triangle in every row; after another `0.5s`, one Archangel Heptagon in every row.
+- When the `25%` Octahedron body appears, it also starts a reinforcement sequence from the normal spawn side: immediately one Hex Spell Bulwark in every row; after `0.5s`, one Burrow Arrow in rows 2, 4, and 6; after another `0.5s`, one Heart in rows 2, 4, and 6; after another `0.5s`, one Slope Triangle in every row; after another `0.5s`, one Archangel Heptagon in every row. Octahedron II uses the rank-2 versions of all these leaders.
 - A gold, depleted Mirage Sun Bomb that collides with an invincible Octahedron body removes invincibility from only the body it hit, deals its collision damage, deals `2900` true damage in a `2.6`-cell radius to towers, enemies, and Boss bodies in range, and then disappears immediately.
 
 Tetrahedron skills:
@@ -2263,6 +2278,246 @@ Base rule:
 | 17 | - | 1690 | 1690 |
 | 18 | - | 1852 | 1852 |
 | 19 | - | 2021 | 2021 |
+| 20 | 2 | 4394 | 4394 |
+| 21 | - | 2380 | 2380 |
+| 22 | - | 2570 | 2570 |
+| 23 | - | 2767 | 2767 |
+| 24 | - | 2971 | 2971 |
+| 25 | - | 3182 | 3182 |
+| 26 | - | 3400 | 3400 |
+| 27 | - | 3625 | 3500 |
+| 28 | - | 3857 | 3500 |
+| 29 | - | 4096 | 3500 |
+| 30 | 3 | 8684 | 3500 |
+
+## Level 5-6 Weight Growth
+
+Enemy pool:
+
+- Circle 1
+- Triangle 1
+- Triangle 2
+- Triangle 3
+- Inverted Triangle 1
+- Inverted Triangle 2
+- Angel Pentagon 2
+- Angel Pentagon Ram 2
+- Burrow Arrow 2
+- Archangel Heptagon 2
+- Slope Triangle 2
+
+Base rule:
+
+- Starting characters: `5000`.
+- Wave 1 starts at weight cap `50`.
+- Wave 2 adds `+50`; each later increment grows by `+7` (`+57`, `+64`, ...).
+- Every flag wave, currently every `10`th wave, doubles that wave's final cap.
+- A wave may leave unused weight, but never exceeds its cap.
+- Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
+- The level has `30` total waves.
+- Angel Pentagon 2 and Angel Pentagon Ram 2 have a minimum Flag 1 gate, so they can first enter the random pool on wave 10.
+- Burrow Arrow 2, Archangel Heptagon 2, and Slope Triangle 2 are leader enemies and fixed-spawn once each on flag waves if included in the level pool; they do not consume wave weight.
+
+| Wave | Flag | Base Cap | Final Cap |
+| ---: | ---: | ---: | ---: |
+| 1 | - | 50 | 50 |
+| 2 | - | 100 | 100 |
+| 3 | - | 157 | 157 |
+| 4 | - | 221 | 221 |
+| 5 | - | 292 | 292 |
+| 6 | - | 370 | 370 |
+| 7 | - | 455 | 455 |
+| 8 | - | 547 | 547 |
+| 9 | - | 646 | 646 |
+| 10 | 1 | 752 | 1504 |
+| 11 | - | 865 | 865 |
+| 12 | - | 985 | 985 |
+| 13 | - | 1112 | 1112 |
+| 14 | - | 1246 | 1246 |
+| 15 | - | 1387 | 1387 |
+| 16 | - | 1535 | 1535 |
+| 17 | - | 1690 | 1690 |
+| 18 | - | 1852 | 1852 |
+| 19 | - | 2021 | 2021 |
+| 20 | 2 | 2197 | 4394 |
+| 21 | - | 2380 | 2380 |
+| 22 | - | 2570 | 2570 |
+| 23 | - | 2767 | 2767 |
+| 24 | - | 2971 | 2971 |
+| 25 | - | 3182 | 3182 |
+| 26 | - | 3400 | 3400 |
+| 27 | - | 3625 | 3625 |
+| 28 | - | 3857 | 3857 |
+| 29 | - | 4096 | 4096 |
+| 30 | 3 | 4342 | 8684 |
+
+## Level 5-7 Weight Growth
+
+Title: 黑暗前的黄昏
+
+Enemy pool:
+
+- Circle 1
+- Circle 2
+- Circle 3
+- Triangle 1
+- Triangle 2
+- Triangle 3
+- Triangle Ram 1
+- Triangle Ram 2
+- Triangle Ram 3
+- Angel Pentagon Ram 1
+- Angel Pentagon Ram 2
+- Angel Pentagon Ram 3
+- Triangle Mortar 1
+- Triangle Mortar 2
+- Triangle Mortar 3
+- Pentagon 1
+- Pentagon 2
+- Pentagon 3
+- Angel Pentagon 1
+- Angel Pentagon 2
+- Angel Pentagon 3
+- Shooting Pentagon 1
+- Shooting Pentagon 2
+- Shooting Pentagon 3
+- Diamond 1
+- Diamond 2
+- Diamond 3
+- Hexagon 1
+- Hexagon 2
+- Hexagon 3
+- Charging Hexagon 1
+- Charging Hexagon 2
+- Charging Hexagon 3
+- Hex Mace 1
+- Hex Mace 2
+- Hex Mace 3
+- Inverted Triangle 1
+- Inverted Triangle 2
+- Inverted Triangle 3
+- Shooting Triangle 1
+- Shooting Triangle 2
+- Shooting Triangle 3
+- Trapezoid 1
+- Trapezoid 2
+- Trapezoid 3
+- Square 1
+- Square 2
+- Square 3
+- Heart 2
+- Burrow Arrow 2
+- Slope Triangle 2
+- Archangel Heptagon 2
+- Hex Spell Bulwark 2
+
+Base rule:
+
+- Starting characters: `5000`.
+- Wave 1 starts at weight cap `50`.
+- Wave 2 adds `+50`; each later increment grows by `+7` (`+57`, `+64`, ...).
+- Every flag wave, currently every `10`th wave, doubles that wave's final cap.
+- A wave may leave unused weight, but never exceeds its cap.
+- Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
+- The level has `30` total waves.
+- All Diamonds, Triangle Mortars, Pentagons, Angel Pentagons, Shooting Pentagons, Hex Maces, and Angel Pentagon Rams have a minimum Flag 1 gate, so they can first enter the random pool on wave 10.
+- Heart 2, Burrow Arrow 2, Slope Triangle 2, Archangel Heptagon 2, and Hex Spell Bulwark 2 are leader enemies and fixed-spawn once each on flag waves if included in the level pool; they do not consume wave weight.
+
+| Wave | Flag | Base Cap | Final Cap |
+| ---: | ---: | ---: | ---: |
+| 1 | - | 50 | 50 |
+| 2 | - | 100 | 100 |
+| 3 | - | 157 | 157 |
+| 4 | - | 221 | 221 |
+| 5 | - | 292 | 292 |
+| 6 | - | 370 | 370 |
+| 7 | - | 455 | 455 |
+| 8 | - | 547 | 547 |
+| 9 | - | 646 | 646 |
+| 10 | 1 | 752 | 1504 |
+| 11 | - | 865 | 865 |
+| 12 | - | 985 | 985 |
+| 13 | - | 1112 | 1112 |
+| 14 | - | 1246 | 1246 |
+| 15 | - | 1387 | 1387 |
+| 16 | - | 1535 | 1535 |
+| 17 | - | 1690 | 1690 |
+| 18 | - | 1852 | 1852 |
+| 19 | - | 2021 | 2021 |
+| 20 | 2 | 2197 | 4394 |
+| 21 | - | 2380 | 2380 |
+| 22 | - | 2570 | 2570 |
+| 23 | - | 2767 | 2767 |
+| 24 | - | 2971 | 2971 |
+| 25 | - | 3182 | 3182 |
+| 26 | - | 3400 | 3400 |
+| 27 | - | 3625 | 3625 |
+| 28 | - | 3857 | 3857 |
+| 29 | - | 4096 | 4096 |
+| 30 | 3 | 4342 | 8684 |
+
+## Level 5-8 Weight Growth
+
+Enemy pool:
+
+- Circle 1
+- Circle 3
+- Triangle 1
+- Triangle 2
+- Triangle 3
+- Square 1
+- Trapezoid 1
+- Triangle Ram 3
+- Angel Pentagon Ram 3
+- Hex Mace 3
+- Shooting Triangle 3
+- Diamond 3
+- Angel Pentagon 3
+- Heart 2
+- Burrow Arrow 2
+- Slope Triangle 2
+- Hex Spell Bulwark 2
+- Archangel Heptagon 2
+
+Boss:
+
+- Octahedron II
+
+Base rule:
+
+- Starting characters: `10000`.
+- Wave 1 starts at weight cap `50`.
+- Wave 2 adds `+50`; each later increment grows by `+7` (`+57`, `+64`, ...).
+- Every flag wave, currently every `10`th wave, doubles that wave's cap before the level cap is applied.
+- Base wave cap is capped at `3500` before difficulty modifies it.
+- A wave may leave unused weight, but never exceeds its cap.
+- Difficulty modifies the capped value. The result is floored and never lower than `10`.
+- Boss stage: endless waves until Octahedron II dies or a base-threatening Octahedron body reaches the base.
+- Diamond 3, Angel Pentagon 3, Angel Pentagon Ram 3, and Hex Mace 3 have a minimum Flag 1 gate, so they can first enter the random pool on wave 10.
+- Heart 2, Burrow Arrow 2, Slope Triangle 2, Hex Spell Bulwark 2, and Archangel Heptagon 2 are leader enemies and fixed-spawn once each on flag waves if included in the level pool; they do not consume wave weight.
+- Octahedron II's `25%` Boss reinforcement sequence summons rank-2 leaders.
+
+| Wave | Flag | Raw Cap | Capped Cap |
+| ---: | ---: | ---: | ---: |
+| 1 | - | 50 | 50 |
+| 2 | - | 100 | 100 |
+| 3 | - | 157 | 157 |
+| 4 | - | 221 | 221 |
+| 5 | - | 292 | 292 |
+| 6 | - | 370 | 370 |
+| 7 | - | 455 | 455 |
+| 8 | - | 547 | 547 |
+| 9 | - | 646 | 646 |
+| 10 | 1 | 1504 | 1504 |
+| 11 | - | 865 | 865 |
+| 12 | - | 985 | 985 |
+| 13 | - | 1112 | 1112 |
+| 14 | - | 1246 | 1246 |
+| 15 | - | 1387 | 1387 |
+| 16 | - | 1535 | 1535 |
+| 17 | - | 1690 | 1690 |
+| 18 | - | 1852 | 1852 |
+| 19 | - | 2021 | 2021 |
 | 20 | 2 | 4394 | 3500 |
 | 21 | - | 2380 | 2380 |
 | 22 | - | 2570 | 2570 |
@@ -2274,6 +2529,177 @@ Base rule:
 | 28 | - | 3857 | 3500 |
 | 29 | - | 4096 | 3500 |
 | 30 | 3 | 8684 | 3500 |
+
+## Level 5-9 Weight Growth
+
+Enemy pool:
+
+- Circle 1
+- Circle 2
+- Circle 3
+- Triangle 1
+- Triangle 2
+- Triangle 3
+- Square 1
+- Square 2
+- Square 3
+- Burrow Arrow 3
+
+Base rule:
+
+- Starting characters: `5000`.
+- Wave 1 starts at weight cap `50`.
+- Wave 2 adds `+50`; each later increment grows by `+7` (`+57`, `+64`, ...).
+- Every flag wave, currently every `10`th wave, doubles that wave's final cap.
+- A wave may leave unused weight, but never exceeds its cap.
+- Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
+- The level has `40` total waves.
+- At the start of every 5th wave, when enemies spawn, the next column is permanently sealed from right to left.
+- A sealed column gets red `×` marks on every cell; towers already in that column are erased, and no deployment, movement, mirror creation, or generated tower can place onto those cells.
+- Burrow Arrow 3 is a leader enemy and fixed-spawns once on flag waves if included in the level pool; it does not consume wave weight.
+
+| Wave | Flag | Base Cap | Final Cap |
+| ---: | ---: | ---: | ---: |
+| 1 | - | 50 | 50 |
+| 2 | - | 100 | 100 |
+| 3 | - | 157 | 157 |
+| 4 | - | 221 | 221 |
+| 5 | - | 292 | 292 |
+| 6 | - | 370 | 370 |
+| 7 | - | 455 | 455 |
+| 8 | - | 547 | 547 |
+| 9 | - | 646 | 646 |
+| 10 | 1 | 752 | 1504 |
+| 11 | - | 865 | 865 |
+| 12 | - | 985 | 985 |
+| 13 | - | 1112 | 1112 |
+| 14 | - | 1246 | 1246 |
+| 15 | - | 1387 | 1387 |
+| 16 | - | 1535 | 1535 |
+| 17 | - | 1690 | 1690 |
+| 18 | - | 1852 | 1852 |
+| 19 | - | 2021 | 2021 |
+| 20 | 2 | 2197 | 4394 |
+| 21 | - | 2380 | 2380 |
+| 22 | - | 2570 | 2570 |
+| 23 | - | 2767 | 2767 |
+| 24 | - | 2971 | 2971 |
+| 25 | - | 3182 | 3182 |
+| 26 | - | 3400 | 3400 |
+| 27 | - | 3625 | 3625 |
+| 28 | - | 3857 | 3857 |
+| 29 | - | 4096 | 4096 |
+| 30 | 3 | 4342 | 8684 |
+| 31 | - | 4595 | 4595 |
+| 32 | - | 4855 | 4855 |
+| 33 | - | 5122 | 5122 |
+| 34 | - | 5396 | 5396 |
+| 35 | - | 5677 | 5677 |
+| 36 | - | 5965 | 5965 |
+| 37 | - | 6260 | 6260 |
+| 38 | - | 6562 | 6562 |
+| 39 | - | 6871 | 6871 |
+| 40 | 4 | 7187 | 14374 |
+
+## Level 5-10 Weight Growth
+
+Phase 1 enemy pool:
+
+- Circle 1
+- Circle 2
+- Circle 3
+- Triangle 1
+- Triangle 2
+- Triangle 3
+- Square 1
+- Square 2
+- Square 3
+- Heart 3
+
+Phase 2 enemy pool:
+
+- Circle 1
+- Triangle 1
+- Triangle 2
+- Triangle 3
+- Shooting Triangle 1
+- Shooting Triangle 2
+- Shooting Triangle 3
+- Triangle Ram 1
+- Triangle Ram 2
+- Triangle Ram 3
+- Triangle Mortar 1
+- Triangle Mortar 2
+- Triangle Mortar 3
+- Slope Triangle 3
+
+Boss:
+
+- Icosahedron I, phased
+- Phase 1 HP: `300000`; armor `3200`, MR `20`, and `70%` all-damage reduction.
+- Phase 1 Ultimate Advance: starts at `30/40` SP, gains `1` SP/s, spends `40` SP to summon Square 3 in every row on the Boss front column and the column immediately behind it.
+- Phase 1 Heartbeat Alpha: starts at `30/60` SP, gains `1` SP/s, spends `60` SP to summon Heart 3 on rows 2, 4, and 6 at the rightmost column.
+- Phase 1 Heartbeat Beta: starts at `0/60` SP, gains `1` SP/s, spends `60` SP to summon Heart 3 on rows 1, 3, 5, and 7 at the rightmost column.
+- Phase 2 HP: `200000`
+
+Base rule:
+
+- Starting characters: `50000`.
+- Wave 1 starts at weight cap `260`.
+- Wave 2 adds `+50`; each later increment grows by `+7` (`+57`, `+64`, ...).
+- Every flag wave, currently every `10`th wave, doubles that wave's cap before the level cap is applied.
+- Base wave cap is capped at `9000` before difficulty modifies it.
+- A wave may leave unused weight, but never exceeds its cap.
+- Difficulty modifies the capped value. The result is floored and never lower than `10`.
+- When Icosahedron I changes phase, the wave counter and weight accumulation reset to wave `0`, the Boss returns to its starting position, and all current enemies quickly shrink and disappear.
+- The next phase starts with its own enemy pool. The first wave of the new phase follows the normal first-wave delay.
+- The configured finale currently has two phases. Killing the last configured phase clears the level; later phases are reserved.
+- The first Boss HP bar is Heart pink, the second is orange. During Phase 1, lost HP reveals the orange next bar; during Phase 2, lost HP reveals the temporary light-blue base color.
+- Triangle Mortars have a minimum Flag 1 gate, so they can first enter the random pool on wave 10 of Phase 2.
+- Heart 3 and Slope Triangle 3 are leader enemies and fixed-spawn once each on flag waves if included in the active phase pool; they do not consume wave weight.
+
+| Wave | Flag | Raw Cap | Capped Cap |
+| ---: | ---: | ---: | ---: |
+| 1 | - | 260 | 260 |
+| 2 | - | 310 | 310 |
+| 3 | - | 367 | 367 |
+| 4 | - | 431 | 431 |
+| 5 | - | 502 | 502 |
+| 6 | - | 580 | 580 |
+| 7 | - | 665 | 665 |
+| 8 | - | 757 | 757 |
+| 9 | - | 856 | 856 |
+| 10 | 1 | 1924 | 1924 |
+| 11 | - | 1075 | 1075 |
+| 12 | - | 1195 | 1195 |
+| 13 | - | 1322 | 1322 |
+| 14 | - | 1456 | 1456 |
+| 15 | - | 1597 | 1597 |
+| 16 | - | 1745 | 1745 |
+| 17 | - | 1900 | 1900 |
+| 18 | - | 2062 | 2062 |
+| 19 | - | 2231 | 2231 |
+| 20 | 2 | 4814 | 4814 |
+| 21 | - | 2590 | 2590 |
+| 22 | - | 2780 | 2780 |
+| 23 | - | 2977 | 2977 |
+| 24 | - | 3181 | 3181 |
+| 25 | - | 3392 | 3392 |
+| 26 | - | 3610 | 3610 |
+| 27 | - | 3835 | 3835 |
+| 28 | - | 4067 | 4067 |
+| 29 | - | 4306 | 4306 |
+| 30 | 3 | 9104 | 9000 |
+| 31 | - | 4805 | 4805 |
+| 32 | - | 5065 | 5065 |
+| 33 | - | 5332 | 5332 |
+| 34 | - | 5606 | 5606 |
+| 35 | - | 5887 | 5887 |
+| 36 | - | 6175 | 6175 |
+| 37 | - | 6470 | 6470 |
+| 38 | - | 6772 | 6772 |
+| 39 | - | 7081 | 7081 |
+| 40 | 4 | 14794 | 9000 |
 
 ## Spawn Trigger
 
@@ -2313,6 +2739,7 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 - Chapter 4 Boss stage 4-10 starting characters: `5000`.
 - Chapter 5 starting characters: `5000`.
 - Chapter 5 Boss stage 5-5 starting characters: `10000`.
+- Chapter 5 finale 5-10 starting characters: `50000`.
 - Natural income: `25` every `5s`.
 
 ## Recent Enemy Additions
@@ -2321,18 +2748,29 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 - Shooting Triangle 2 uses Shooting Triangle 1's ranged behavior but fires two red-tinted bolts per attack. The full volley duration is fixed at one fifth of its attack interval, matching tower volleys.
 - Trapezoid 2: weight `120`, HP `12000`, armor `100`, MR `90`, attack `400` physical, average speed `10`, body label `II`.
 - Trapezoid 3: weight `170`, HP `12000`, armor `100`, MR `100`, attack `400` physical, average speed `10`, body label `III`.
+- Diamond 3: weight `300`, HP `2000`, armor `70`, MR `40`, attack `400` magic, average speed `4`, body label `III`; fires 3 magic projectiles per attack.
 - Heart 2: no wave weight, HP `9999`, armor `299`, MR `60`, attack `3000` true, fixed speed `30`, body label `II`; otherwise identical to Heart 1.
+- Heart 3: no wave weight, HP `9999`, armor `299`, MR `60`, attack `3900` true, fixed speed `30`, body label `III`; otherwise identical to Heart 1.
 - Inverted Triangle 3: weight `150`, HP `1000`, armor `70`, MR `60`, attack `3200` magic, average speed `50`, body label `III`.
 - Shooting Triangle 3: weight `150`, HP `2000`, armor `70`, attack `400` physical, average speed `4`, body label `III`; fires 3 shots per attack.
 - Triangle Mortar 3: weight `270`, HP `1500`, armor `70`, MR `0`, attack `1150` physical, average speed `5.5`, body label `III/III`; fires 3 mortars per attack.
 - Burrow Arrow 2: no wave weight, HP `16500`, armor `250`, MR `0`, attack `400` physical, fixed speed `20`, body label `II`; can carry total minion rank `10`.
 - Angel Pentagon 2: weight `250`, HP `1200`, armor `50`, MR `20`, attack `300` physical, average speed `20`, body label `II`; Wings starts at `2/15` SP and gains `1.2` SP/s.
-- Archangel Heptagon 2: no wave weight, HP `4000`, armor `50`, MR `20`, attack `1400` magic, fixed speed `30`, body label `II`; Ascension gains `1.2` SP/s.
+- Angel Pentagon 3: weight `300`, HP `1200`, armor `50`, MR `20`, attack `300` physical, average speed `20`, body label `III`; Wings starts at `4/15` SP and gains `1.4` SP/s.
+- Archangel Heptagon 2: no wave weight, HP `6000`, armor `50`, MR `20`, attack `1400` magic, fixed speed `30`, body label `II`; Ascension gains `1` SP/s.
 - Hexagon 2: weight `240`, HP `18000`, armor `150`, MR `20`, attack `400` physical, average speed `5`, body label `II`; Armor aura grants `+80` armor.
+- Hexagon 3: weight `320`, HP `18000`, armor `150`, MR `20`, attack `400` physical, average speed `5`, body label `III`; Armor aura grants `+110` armor.
 - Charging Hexagon 2: weight `300`, HP `12000`, armor `150`, MR `40`, attack `500` magic, average speed `25`, body label `II`; attacks every `1s`.
+- Charging Hexagon 3: weight `450`, HP `12000`, armor `150`, MR `40`, attack `500` magic, average speed `25`, body label `III`; attacks every `0.67s`.
 - Hex Mace 2: weight `500`, HP `9000`, armor `150`, MR `0`, attack `460` physical, base average speed `20`, body label `II/II`; on death spawns Charging Hexagon 2 and Hexagon 2.
+- Hex Mace 3: weight `625`, HP `9000`, armor `150`, MR `0`, attack `520` physical, base average speed `20`, body label `III/III`; on death spawns Charging Hexagon 3 and Hexagon 3.
 - Hex Spell Bulwark 2: no wave weight, HP `24000`, armor `100`, MR `80`, attack `1200` magic, fixed speed `15`, body label `II/II`; same-lane MR aura grants `+50` MR. Hex Spell Bulwark 1's aura now grants `+40` MR.
 - Angel Pentagon Ram 2: weight `640`, HP `5000`, armor `200`, MR `40`, attack `1400` magic, base average speed `20`, body label `II/II`; on death spawns Angel Pentagon 2 and Pentagon 2.
+- Angel Pentagon Ram 3: weight `960`, HP `5000`, armor `200`, MR `40`, attack `1400` magic, base average speed `25`, body label `III/III`; on death spawns Angel Pentagon 3 and Pentagon 3.
 - Pentagon 2: weight `240`, HP `1500`, armor `70`, MR `40`, attack `800` magic, average speed `5.5`, body label `II`; fires 2 magic mortars per attack.
+- Pentagon 3: weight `360`, HP `1500`, armor `70`, MR `40`, attack `800` magic, average speed `5.5`, body label `III`; fires 3 magic mortars per attack.
 - Shooting Pentagon 2: weight `250`, HP `2000`, armor `70`, MR `40`, attack `150` magic, average speed `4`, body label `II`; fires 2 lasers per attack.
+- Shooting Pentagon 3: weight `375`, HP `2000`, armor `70`, MR `40`, attack `150` magic, average speed `4`, body label `III`; fires 3 lasers per attack.
 - Dodecahedron Companion 2: HP `40000`, armor `2000`, MR `40`, body label `II`; volley shot counts are doubled from Dodecahedron Companion 1.
+- Slope Triangle 2: no wave weight, HP `21000`, armor `500`, MR `0`, fixed speed `15`, body label `II`; otherwise identical to Slope Triangle 1. Slope Triangle 1 fixed speed is now `10`.
+- Slope Triangle 3: no wave weight, HP `21000`, armor `500`, MR `0`, fixed speed `20`, body label `III`; otherwise identical to Slope Triangle 1.

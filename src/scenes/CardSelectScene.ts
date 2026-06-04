@@ -11,6 +11,7 @@ import {
 import {
   bossRank,
   isDodecahedronBossKind,
+  isIcosahedronBossKind,
   isOctahedronBossKind,
   isSmallStellatedDodecahedronBossKind,
   isTetrahedronBossKind
@@ -67,6 +68,8 @@ export class CardSelectScene extends Phaser.Scene {
   private cardFrames: Map<CardId, Phaser.GameObjects.Rectangle> = new Map();
   private backButton!: Phaser.GameObjects.Rectangle;
   private backText!: Phaser.GameObjects.Text;
+  private clearButton!: Phaser.GameObjects.Rectangle;
+  private clearText!: Phaser.GameObjects.Text;
   private startButton!: Phaser.GameObjects.Rectangle;
   private startText!: Phaser.GameObjects.Text;
 
@@ -311,6 +314,10 @@ export class CardSelectScene extends Phaser.Scene {
       return `${t("enemy.bossOctahedron")} ${toRomanNumeral(bossRank(kind))}`;
     }
 
+    if (isIcosahedronBossKind(kind)) {
+      return `${t("enemy.bossIcosahedron")} ${toRomanNumeral(bossRank(kind))}`;
+    }
+
     return `${t("enemy.bossCube")} ${toRomanNumeral(bossRank(kind))}`;
   }
 
@@ -531,6 +538,19 @@ export class CardSelectScene extends Phaser.Scene {
 
   private createStartButton() {
     const y = GAME_HEIGHT - 54;
+    this.clearButton = this.add
+      .rectangle(GAME_WIDTH - 514, y, 132, 46, palette.black, 1)
+      .setStrokeStyle(2, palette.mid, 0.85)
+      .setInteractive({ useHandCursor: true });
+    this.clearText = this.add
+      .text(GAME_WIDTH - 514, y - 2, t("button.clearLoadout"), {
+        color: "#f5f5f5",
+        fontFamily: "monospace",
+        fontSize: "18px",
+        fontStyle: "700"
+      })
+      .setOrigin(0.5);
+
     this.backButton = this.add
       .rectangle(GAME_WIDTH - 344, y, 132, 46, palette.black, 1)
       .setStrokeStyle(2, palette.mid, 0.85)
@@ -557,6 +577,8 @@ export class CardSelectScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
+    this.clearButton.on("pointerdown", () => this.clearLoadout());
+    this.clearText.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.clearLoadout());
     this.backButton.on("pointerdown", () => this.backToLevelSelect());
     this.backText.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.backToLevelSelect());
     this.startButton.on("pointerdown", () => this.startLevel());
@@ -569,6 +591,16 @@ export class CardSelectScene extends Phaser.Scene {
     } else if (this.selectedCards.length < CARD_SLOT_COUNT) {
       this.selectedCards.push(id);
     }
+    writeStoredLoadout(this.selectedCards);
+    this.updateCardSelection();
+  }
+
+  private clearLoadout() {
+    if (this.selectedCards.length === 0) {
+      return;
+    }
+
+    this.selectedCards = [];
     writeStoredLoadout(this.selectedCards);
     this.updateCardSelection();
   }
@@ -589,6 +621,8 @@ export class CardSelectScene extends Phaser.Scene {
     }
 
     const enabled = this.selectedCards.length > 0;
+    this.clearButton.setAlpha(enabled ? 1 : 0.34);
+    this.clearText.setAlpha(enabled ? 1 : 0.28);
     this.startButton.setAlpha(enabled ? 1 : 0.34);
     this.startText.setAlpha(enabled ? 1 : 0.28);
   }

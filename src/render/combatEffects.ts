@@ -16,6 +16,23 @@ interface CollapseRotation {
   z: number;
 }
 
+const ICOSAHEDRON_PHI = (1 + Math.sqrt(5)) / 2;
+const ICOSAHEDRON_UNIT_VERTICES: Array<[number, number, number]> = [
+  [0, 1, ICOSAHEDRON_PHI],
+  [0, -1, ICOSAHEDRON_PHI],
+  [0, 1, -ICOSAHEDRON_PHI],
+  [0, -1, -ICOSAHEDRON_PHI],
+  [1, ICOSAHEDRON_PHI, 0],
+  [-1, ICOSAHEDRON_PHI, 0],
+  [1, -ICOSAHEDRON_PHI, 0],
+  [-1, -ICOSAHEDRON_PHI, 0],
+  [ICOSAHEDRON_PHI, 0, 1],
+  [ICOSAHEDRON_PHI, 0, -1],
+  [-ICOSAHEDRON_PHI, 0, 1],
+  [-ICOSAHEDRON_PHI, 0, -1]
+];
+const ICOSAHEDRON_EDGES = icosahedronEdges();
+
 export function damageEffectColor(damageType: DamageType) {
   return damageType === "magic" ? palette.magic : palette.white;
 }
@@ -532,9 +549,9 @@ export function makeBossHasteTrail(scene: Phaser.Scene, x: number, y: number) {
   });
 }
 
-export function makeBossInvincibleFlash(scene: Phaser.Scene, x: number, y: number) {
+export function makeBossInvincibleFlash(scene: Phaser.Scene, x: number, y: number, width = BOSS_HITBOX_WIDTH, height = BOSS_HITBOX_HEIGHT) {
   const shield = scene.add
-    .rectangle(x, y, BOSS_HITBOX_WIDTH * 0.96, BOSS_HITBOX_HEIGHT * 0.96, palette.black, 0)
+    .rectangle(x, y, width * 0.96, height * 0.96, palette.black, 0)
     .setStrokeStyle(3, palette.gold, 0.9)
     .setDepth(110);
   scene.tweens.add({
@@ -559,9 +576,16 @@ export function makeEnemyInvincibleFlash(scene: Phaser.Scene, x: number, y: numb
   });
 }
 
-export function makeBossHitFlash(scene: Phaser.Scene, x: number, y: number, damageType: DamageType) {
+export function makeBossHitFlash(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  damageType: DamageType,
+  width = BOSS_HITBOX_WIDTH,
+  height = BOSS_HITBOX_HEIGHT
+) {
   const flash = scene.add
-    .rectangle(x, y, BOSS_HITBOX_WIDTH, BOSS_HITBOX_HEIGHT, palette.black, 0)
+    .rectangle(x, y, width, height, palette.black, 0)
     .setStrokeStyle(2, damageEffectColor(damageType), 0.5);
   flash.setDepth(109);
   scene.tweens.add({
@@ -629,11 +653,22 @@ export function makeOctahedronCollapse(
   makePolyhedronCollapse(scene, x, y, "octahedron", followTarget, activeEnemies, activeTowers);
 }
 
+export function makeIcosahedronCollapse(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  followTarget?: Enemy | Tower,
+  activeEnemies: Enemy[] = [],
+  activeTowers: Tower[] = []
+) {
+  makePolyhedronCollapse(scene, x, y, "icosahedron", followTarget, activeEnemies, activeTowers);
+}
+
 function makePolyhedronCollapse(
   scene: Phaser.Scene,
   x: number,
   y: number,
-  shape: "cube" | "tetrahedron" | "dodecahedron" | "smallStellatedDodecahedron" | "octahedron",
+  shape: "cube" | "tetrahedron" | "dodecahedron" | "smallStellatedDodecahedron" | "octahedron" | "icosahedron",
   followTarget?: Enemy | Tower,
   activeEnemies: Enemy[] = [],
   activeTowers: Tower[] = []
@@ -648,6 +683,8 @@ function makePolyhedronCollapse(
     drawProjectedDodecahedron(collapse, 29, rotation);
   } else if (shape === "octahedron") {
     drawProjectedOctahedron(collapse, 40, rotation);
+  } else if (shape === "icosahedron") {
+    drawProjectedIcosahedron(collapse, 30, rotation);
   } else {
     drawProjectedSmallStellatedDodecahedron(collapse, 21, rotation);
   }
@@ -758,6 +795,17 @@ function drawProjectedOctahedron(graphics: Phaser.GameObjects.Graphics, size: nu
   }
 }
 
+function drawProjectedIcosahedron(graphics: Phaser.GameObjects.Graphics, size: number, rotation: CollapseRotation) {
+  const vertices = ICOSAHEDRON_UNIT_VERTICES.map(([x, y, z]) =>
+    projectCollapsePoint(x * size, y * size, z * size, rotation)
+  );
+
+  graphics.lineStyle(2, palette.enemyShot, 0.9);
+  for (const [from, to] of ICOSAHEDRON_EDGES) {
+    graphics.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
+  }
+}
+
 function drawProjectedSmallStellatedDodecahedron(
   graphics: Phaser.GameObjects.Graphics,
   size: number,
@@ -783,6 +831,21 @@ function drawProjectedSmallStellatedDodecahedron(
       graphics.lineBetween(tip.x, tip.y, vertex.x, vertex.y);
     }
   });
+}
+
+function icosahedronEdges() {
+  const edges: Array<[number, number]> = [];
+  for (let from = 0; from < ICOSAHEDRON_UNIT_VERTICES.length; from += 1) {
+    for (let to = from + 1; to < ICOSAHEDRON_UNIT_VERTICES.length; to += 1) {
+      const [ax, ay, az] = ICOSAHEDRON_UNIT_VERTICES[from];
+      const [bx, by, bz] = ICOSAHEDRON_UNIT_VERTICES[to];
+      const distance = Math.hypot(ax - bx, ay - by, az - bz);
+      if (distance <= 2.01) {
+        edges.push([from, to]);
+      }
+    }
+  }
+  return edges;
 }
 
 function projectCollapsePoint(x: number, y: number, z: number, rotation: CollapseRotation) {

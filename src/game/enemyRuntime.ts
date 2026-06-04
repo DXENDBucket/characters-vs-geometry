@@ -250,18 +250,34 @@ function spawnHexMaceSplit(runtime: EnemySpawnRuntime, enemy: Enemy, time: numbe
 }
 
 function angelPentagonKindForRank(rank: number): EnemyKind {
+  if (rank >= 3) {
+    return "angelPentagon3";
+  }
+
   return rank >= 2 ? "angelPentagon2" : "angelPentagon";
 }
 
 function pentagonKindForRank(rank: number): EnemyKind {
+  if (rank >= 3) {
+    return "pentagon3";
+  }
+
   return rank >= 2 ? "pentagon2" : "pentagon";
 }
 
 function chargingHexagonKindForRank(rank: number): EnemyKind {
+  if (rank >= 3) {
+    return "chargingHexagon3";
+  }
+
   return rank >= 2 ? "chargingHexagon2" : "chargingHexagon";
 }
 
 function hexagonKindForRank(rank: number): EnemyKind {
+  if (rank >= 3) {
+    return "hexagon3";
+  }
+
   return rank >= 2 ? "hexagon2" : "hexagon";
 }
 
@@ -487,7 +503,7 @@ function advanceSolarBomb(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: numb
 }
 
 function solarBombBreaksOctahedronShield(enemy: Enemy, boss: CubeBoss, time: number) {
-  return solarBombIsDepleted(enemy) && boss.kind === "octahedron" && boss.invincibleUntil > time;
+  return solarBombIsDepleted(enemy) && (boss.kind === "octahedron" || boss.kind === "octahedron2") && boss.invincibleUntil > time;
 }
 
 function removeSolarBomb(runtime: EnemyAdvanceRuntime, enemy: Enemy) {
@@ -1076,7 +1092,7 @@ function fireEnemyMortarShot(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: n
 }
 
 function enemyMortarMarker(kind: EnemyKind) {
-  if (kind === "pentagon") {
+  if (enemyFamily(kind) === "pentagon") {
     return {
       marker: "text" as const,
       markerText: "#",
@@ -1099,7 +1115,7 @@ function findLockedAttackTarget(towers: Tower[], enemies: Enemy[], attacker: Ene
     return blocker;
   }
 
-  if (attacker.kind === "pentagon") {
+  if (enemyFamily(attacker.kind) === "pentagon") {
     return [...towers].sort((a, b) => b.level - a.level || b.placedOrder - a.placedOrder)[0];
   }
 
