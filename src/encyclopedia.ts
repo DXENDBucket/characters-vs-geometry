@@ -42,6 +42,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
   const angelPentagon3 = getEnemyDefinition("angelPentagon3");
   const archangelHeptagon = getEnemyDefinition("archangelHeptagon");
   const archangelHeptagon2 = getEnemyDefinition("archangelHeptagon2");
+  const archangelHeptagon3 = getEnemyDefinition("archangelHeptagon3");
   const shootingPentagon = getEnemyDefinition("shootingPentagon");
   const shootingPentagon2 = getEnemyDefinition("shootingPentagon2");
   const shootingPentagon3 = getEnemyDefinition("shootingPentagon3");
@@ -59,12 +60,16 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
   const hexMace3 = getEnemyDefinition("hexMace3");
   const hexSpellBulwark = getEnemyDefinition("hexSpellBulwark");
   const hexSpellBulwark2 = getEnemyDefinition("hexSpellBulwark2");
+  const hexSpellBulwark3 = getEnemyDefinition("hexSpellBulwark3");
   const heart = getEnemyDefinition("heart");
   const heart2 = getEnemyDefinition("heart2");
+  const heart3 = getEnemyDefinition("heart3");
   const burrowArrow = getEnemyDefinition("burrowArrow");
   const burrowArrow2 = getEnemyDefinition("burrowArrow2");
+  const burrowArrow3 = getEnemyDefinition("burrowArrow3");
   const slopeTriangle = getEnemyDefinition("slopeTriangle");
   const slopeTriangle2 = getEnemyDefinition("slopeTriangle2");
+  const slopeTriangle3 = getEnemyDefinition("slopeTriangle3");
   const invertedTriangle = getEnemyDefinition("invertedTriangle");
   const invertedTriangle2 = getEnemyDefinition("invertedTriangle2");
   const invertedTriangle3 = getEnemyDefinition("invertedTriangle3");
@@ -273,16 +278,16 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
       enemyKind: "archangelHeptagon",
       lines: [
         statLine([
-          [t("label.hp"), `I ${archangelHeptagon.hp} / II ${archangelHeptagon2.hp}`],
+          [t("label.hp"), `I ${archangelHeptagon.hp} / II ${archangelHeptagon2.hp} / III ${archangelHeptagon3.hp}`],
           [t("label.armor"), archangelHeptagon.armor],
           [t("label.mr"), archangelHeptagon.magicResistance],
           [t("label.atk"), `${damageText(archangelHeptagon.damage, archangelHeptagon.damageType)} / 2s`],
-          [t("label.speed"), `I ${speedText("archangelHeptagon")} / II ${speedText("archangelHeptagon2")}`],
+          [t("label.speed"), `I ${speedText("archangelHeptagon")} / II ${speedText("archangelHeptagon2")} / III ${speedText("archangelHeptagon3")}`],
           [t("label.weight"), zh ? "旗帜固定" : "flag fixed"]
         ]),
         zh
-          ? `领袖敌人；常态飞行，外观为两层光环七边形。出生后 3 秒内获得 +150% 移速和高空飞行。升华：初始 10 技力，15 技力满后，让自身和半径 2.5 格内敌怪飞行并获得 +100% 移速，持续 6s；I/II 每秒回复 1 技力，II 生命值更高`
-          : `Leader enemy with permanent Flying and a two-layer halo. For 3s after spawning, gains +150% movement speed and High Flight. Ascension: starts at 10 SP; at 15 SP, gives itself and enemies within a 2.5-cell radius Flying and +100% movement speed for 6s; I/II regenerate 1 SP/s, and II has higher HP`
+          ? `领袖敌人；常态飞行，外观为两层光环七边形。出生后 3 秒内获得 +150% 移速和高空飞行。升华：初始 10 技力，15 技力满后，让自身和半径 2.5 格内敌怪飞行并获得 +100% 移速，持续 6s；I/II/III 每秒回复 1 技力，生命值线性提升`
+          : `Leader enemy with permanent Flying and a two-layer halo. For 3s after spawning, gains +150% movement speed and High Flight. Ascension: starts at 10 SP; at 15 SP, gives itself and enemies within a 2.5-cell radius Flying and +100% movement speed for 6s; I/II/III regenerate 1 SP/s, with linearly increasing HP`
       ],
       description: zh
         ? "大天使七边形会每 2 秒对阻挡者造成一次 100% 攻击力的法术伤害。若出现在关卡出怪池中，会在旗帜波固定刷新 1 个且不计入常规波次权重。它不会因其他技能或小怪获得额外飞行光环；收到飞行效果时改为高空飞行，高空飞行期间自身两层光环变为金色，且不会被阻挡、锁定、直接命中或受到塔 AOE。"
@@ -407,7 +412,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
       enemyKind: "hexSpellBulwark",
       lines: [
         statLine([
-          [t("label.hp"), `I ${hexSpellBulwark.hp} / II ${hexSpellBulwark2.hp}`],
+          [t("label.hp"), `I ${hexSpellBulwark.hp} / II ${hexSpellBulwark2.hp} / III ${hexSpellBulwark3.hp}`],
           [t("label.armor"), hexSpellBulwark.armor],
           [t("label.mr"), hexSpellBulwark.magicResistance],
           [t("label.atk"), damageText(hexSpellBulwark.damage, hexSpellBulwark.damageType)],
@@ -415,8 +420,8 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.weight"), zh ? "旗帜固定" : "flag fixed"]
         ]),
         zh
-          ? "领袖敌人；不计入常规出怪权重。为本行敌怪提供可加算法抗，包括自身；1 级 +40，2 级 +50。"
-          : "Leader enemy; does not count toward regular wave weight. Grants enemies in its lane additive MR, including itself: rank I +40, rank II +50"
+          ? "领袖敌人；不计入常规出怪权重。为本行敌怪提供可加算法抗，包括自身；I/II/III 为 +40/+50/+60。"
+          : "Leader enemy; does not count toward regular wave weight. Grants enemies in its lane additive MR, including itself: rank I/II/III +40/+50/+60"
       ],
       description: zh
         ? "外观为竖起来的六边形重锤。每秒攻击一次，造成攻击力 100% 的法术伤害；同一行的敌怪获得法抗加成，多个六边形术战壁垒可以叠加。获得加成的敌怪会显示浅蓝色六边形标识。"
@@ -430,13 +435,13 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.hp"), burrowArrow.hp],
           [t("label.armor"), burrowArrow.armor],
           [t("label.mr"), burrowArrow.magicResistance],
-          [t("label.atk"), `I ${damageText(burrowArrow.damage, burrowArrow.damageType)} / II ${damageText(burrowArrow2.damage, burrowArrow2.damageType)}`],
+          [t("label.atk"), `I ${damageText(burrowArrow.damage, burrowArrow.damageType)} / II ${damageText(burrowArrow2.damage, burrowArrow2.damageType)} / III ${damageText(burrowArrow3.damage, burrowArrow3.damageType)}`],
           [t("label.speed"), speedText("burrowArrow")],
           [t("label.weight"), zh ? "旗帜固定" : "flag fixed"]
         ]),
         zh
-          ? "领袖敌人：不计入常规出怪权重；等级 I/II 最多装载总等级 5/10 的非领袖小怪"
-          : "Leader enemy: does not count toward regular wave weight; rank I/II can load non-leader minions with total rank up to 5/10"
+          ? "领袖敌人：不计入常规出怪权重；等级 I/II/III 最多装载总等级 5/10/15 的非领袖小怪"
+          : "Leader enemy: does not count toward regular wave weight; rank I/II/III can load non-leader minions with total rank up to 5/10/15"
       ],
       description: zh
         ? "碰到它的非领袖小怪会被装载。装满或出场 6 秒后潜地，只露出上侧小角；潜地期间不会被常规弹幕锁定或直接命中，但仍会被 AOE 波及，并获得 +300% 移速。在底线前一格中心出土后，它和装载的小怪都会转向另一侧，卸载只会发生一次。若它在装载期间死亡，装载的小怪会立刻在原地出现且不会反转朝向。"
@@ -447,11 +452,11 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
       enemyKind: "slopeTriangle",
       lines: [
         statLine([
-          [t("label.hp"), `I ${slopeTriangle.hp} / II ${slopeTriangle2.hp}`],
+          [t("label.hp"), `I ${slopeTriangle.hp} / II ${slopeTriangle2.hp} / III ${slopeTriangle3.hp}`],
           [t("label.armor"), slopeTriangle.armor],
           [t("label.mr"), slopeTriangle.magicResistance],
           [t("label.atk"), damageText(slopeTriangle.damage, slopeTriangle.damageType)],
-          [t("label.speed"), `I ${speedText("slopeTriangle")} / II ${speedText("slopeTriangle2")}`],
+          [t("label.speed"), `I ${speedText("slopeTriangle")} / II ${speedText("slopeTriangle2")} / III ${speedText("slopeTriangle3")}`],
           [t("label.weight"), zh ? "旗帜固定" : "flag fixed"]
         ]),
         zh
@@ -459,8 +464,8 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           : "While blocked, it stays in place and does not attack; only then can it launch touching non-leader minions whose velocity direction matches its facing direction into High Flight"
       ],
       description: zh
-        ? "斜坡三角形 I/II 不进行攻击。它只有在当前被塔阻挡时才作为斜坡生效，本体被阻挡在原地；若阻挡解除，它会继续按自身速度移动。生效期间，接触到它、且当前速度方向与斜坡三角形面朝方向一致的普通小怪会沿速度方向抛物线飞出；这里比较的是小怪的速度方向，不是小怪面朝方向。高空飞行落地前不会被阻挡、锁定、直接命中或受到塔 AOE。飞行距离按当前实际速度计算：每 10 速度飞 1.5 格。领袖、Boss 和 Boss 眷属不会被发射。"
-        : "Slope Triangle I/II does not attack. It acts as a ramp only while currently blocked by a tower, staying in place while blocked; once unblocked, it keeps moving at its own speed. During that block, ordinary minions touching it are launched forward only if their current velocity direction matches the Slope Triangle's facing direction. This checks the minion's velocity direction, not the minion's facing direction. Before landing, High Flight enemies cannot be blocked, targeted, directly hit, or damaged by tower AOE. Flight distance uses current actual speed: every 10 speed sends it 1.5 cells. Leaders, Bosses, and Boss companions are not launched."
+        ? "斜坡三角形 I/II/III 不进行攻击。它只有在当前被塔阻挡时才作为斜坡生效，本体被阻挡在原地；若阻挡解除，它会继续按自身速度移动。生效期间，接触到它、且当前速度方向与斜坡三角形面朝方向一致的普通小怪会沿速度方向抛物线飞出；这里比较的是小怪的速度方向，不是小怪面朝方向。高空飞行落地前不会被阻挡、锁定、直接命中或受到塔 AOE。飞行距离按当前实际速度计算：每 10 速度飞 1.5 格。领袖、Boss 和 Boss 眷属不会被发射。"
+        : "Slope Triangle I/II/III does not attack. It acts as a ramp only while currently blocked by a tower, staying in place while blocked; once unblocked, it keeps moving at its own speed. During that block, ordinary minions touching it are launched forward only if their current velocity direction matches the Slope Triangle's facing direction. This checks the minion's velocity direction, not the minion's facing direction. Before landing, High Flight enemies cannot be blocked, targeted, directly hit, or damaged by tower AOE. Flight distance uses current actual speed: every 10 speed sends it 1.5 cells. Leaders, Bosses, and Boss companions are not launched."
     },
     {
       title: zh ? "心形领袖系列" : "Heart Leader Series",
@@ -470,7 +475,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.hp"), heart.hp],
           [t("label.armor"), heart.armor],
           [t("label.mr"), heart.magicResistance],
-          [t("label.atk"), `I ${damageText(heart.damage, heart.damageType)} / II ${damageText(heart2.damage, heart2.damageType)} / 5s`],
+          [t("label.atk"), `I ${damageText(heart.damage, heart.damageType)} / II ${damageText(heart2.damage, heart2.damageType)} / III ${damageText(heart3.damage, heart3.damageType)} / 5s`],
           [t("label.speed"), speedText("heart")],
           [t("label.weight"), zh ? "旗帜固定" : "flag fixed"]
         ]),
@@ -479,8 +484,8 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           : "Leader enemy: does not count toward regular wave weight; if present in a level pool, one fixed spawn appears on flag waves and it has no random speed variance"
       ],
       description: zh
-        ? "心形 I/II 会让同一行且位于自己身后的敌怪获得 50% 移速加成。每 5 秒以自身为中心释放半径 1.75 格、向外衰减的粉色爱心 AOE，造成真实伤害。引领技能每秒回复 1 技力，5 技力满时把本列和身后四列、上下两行内的普通小怪牵引到本行；领袖、Boss 和 Boss 眷属不会被牵引。"
-        : "Heart I/II gives same-lane enemies behind it +50% movement speed. Every 5s it releases a pink heart AOE centered on itself with 1.75-cell radius and outward falloff, dealing true damage. Lead gains 1 SP/s; at 5 SP, it pulls ordinary minions in its column plus four columns behind, within two lanes up/down, into its lane. Leaders, Bosses, and Boss companions are not pulled."
+        ? "心形 I/II/III 会让同一行且位于自己身后的敌怪获得 50% 移速加成。每 5 秒以自身为中心释放半径 1.75 格、向外衰减的粉色爱心 AOE，造成真实伤害。引领技能每秒回复 1 技力，5 技力满时把本列和身后四列、上下两行内的普通小怪牵引到本行；领袖、Boss 和 Boss 眷属不会被牵引。"
+        : "Heart I/II/III gives same-lane enemies behind it +50% movement speed. Every 5s it releases a pink heart AOE centered on itself with 1.75-cell radius and outward falloff, dealing true damage. Lead gains 1 SP/s; at 5 SP, it pulls ordinary minions in its column plus four columns behind, within two lanes up/down, into its lane. Leaders, Bosses, and Boss companions are not pulled."
     },
     {
       title: zh ? "正方体 Boss 系列" : "Cube Boss Series",
@@ -604,8 +609,8 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.atk"), `${damageText(CUBE_BOSS_CONTACT_DAMAGE, "physical")} / ${CUBE_BOSS_CONTACT_INTERVAL}s`]
         ]),
         zh
-          ? "第五章主线终章 Boss。P1 使用终极推进、心跳α、心跳β；P2 使用正四面体II式技能组和飞跃，召唤物为3级，冲击/压制初始技力为75，飞跃初始技力为35；P3 使用5-5敌池家族的可用1/2/3级。"
-          : "Chapter 5 finale Boss. Phase 1 uses Ultimate Advance, Heartbeat Alpha, and Heartbeat Beta; Phase 2 uses a Tetrahedron II-style skill kit plus Leap, summons rank III minions, starts Impact/Suppression at 75 SP, and starts Leap at 35 SP; Phase 3 uses the 5-5 enemy family expanded to available rank I/II/III variants."
+          ? "第五章主线终章 Boss。P1 使用终极推进、心跳α、心跳β；P2 拥有 50% 全伤害减免，使用正四面体II式技能组和飞跃，召唤物为3级，冲击/压制初始技力为75，飞跃初始技力为35；P3 使用5-5敌池家族的可用1/2/3级，且本战领袖均为3级。"
+          : "Chapter 5 finale Boss. Phase 1 uses Ultimate Advance, Heartbeat Alpha, and Heartbeat Beta; Phase 2 has 50% all-damage reduction, uses a Tetrahedron II-style skill kit plus Leap, summons rank III minions, starts Impact/Suppression at 75 SP, and starts Leap at 35 SP; Phase 3 uses the 5-5 enemy family expanded to available rank I/II/III variants, and leaders in this fight are rank III."
       ],
       description: zh
         ? "Boss 不会被阻挡，也不会随血量缩小；到达底线会失败，死亡会直接胜利。正二十面体 I 的碰撞体为 4.95x4.95 格。"

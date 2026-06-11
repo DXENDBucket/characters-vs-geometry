@@ -823,6 +823,7 @@ export const levelConfigs: Record<string, LevelConfig> = {
       },
       {
         maxHp: 200_000,
+        finalDamageReduction: 0.5,
         waveWeightCap: 9000,
         enemyKinds: [
           "circle",
@@ -866,8 +867,7 @@ export const levelConfigs: Record<string, LevelConfig> = {
           "hexMace",
           "hexMace2",
           "hexMace3",
-          "archangelHeptagon",
-          "archangelHeptagon2"
+          "archangelHeptagon3"
         ]
       }
     ],

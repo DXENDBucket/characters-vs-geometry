@@ -86,8 +86,10 @@ Mirage Sun Bomb is a Boss-only Octahedron mechanic with weight `0`, HP `12000`, 
 | Slope Triangle 3 | 1 per flag wave if included in the level pool; no wave weight | 21000 | 500 | 0 | Physical | Body label `III`; MR `0`; fixed speed `20` with no random speed variance. Otherwise identical to Slope Triangle 1 |
 | Archangel Heptagon 1 | 1 per flag wave if included in the level pool; no wave weight | 4000 | 50 | 1400 | Magic | Body label `I`; MR `20`; fixed speed `30` with no random speed variance. It is always Flying, attacks every `2s`, dealing `100%` attack as magic damage, and has two visual halos. For the first `3s` after spawning, it has `+150%` movement speed and High Flight. It does not gain extra Flying halos from other skills or minions; incoming Flying effects become High Flight instead, turning its own two halos gold. Ascension: starts at `10/15` SP, gains `1` SP/s, then gives itself and enemies within a `2.5` cell radius Flying with a halo and `+100%` movement speed for `6s`; SP regeneration pauses while Ascension is active |
 | Archangel Heptagon 2 | 1 per flag wave if included in the level pool; no wave weight | 6000 | 50 | 1400 | Magic | Body label `II`; MR `20`; fixed speed `30` with no random speed variance. Otherwise identical to Archangel Heptagon 1, including Ascension gaining `1` SP/s |
+| Archangel Heptagon 3 | 1 per flag wave if included in the level pool; no wave weight | 8000 | 50 | 1400 | Magic | Body label `III`; MR `20`; fixed speed `30` with no random speed variance. Otherwise identical to Archangel Heptagon 1, including Ascension gaining `1` SP/s |
 | Hex Spell Bulwark 1 | 1 per flag wave if included in the level pool; no wave weight | 24000 | 100 | 1200 | Magic | Body label `I/I`; MR `80`; fixed speed `15` with no random speed variance. Attacks once per second, dealing `100%` attack as magic damage. Its body is a vertical Hex Mace. Enemies in the same lane, including itself, gain additive `+40` MR; multiple bulwarks stack. Affected enemies show a light-blue hexagon icon |
 | Hex Spell Bulwark 2 | 1 per flag wave if included in the level pool; no wave weight | 24000 | 100 | 1200 | Magic | Body label `II/II`; MR `80`; fixed speed `15` with no random speed variance. Same as Hex Spell Bulwark 1, but its same-lane MR aura grants additive `+50` MR |
+| Hex Spell Bulwark 3 | 1 per flag wave if included in the level pool; no wave weight | 24000 | 100 | 1200 | Magic | Body label `III/III`; MR `80`; fixed speed `15` with no random speed variance. Same as Hex Spell Bulwark 1, but its same-lane MR aura grants additive `+60` MR |
 
 Leader enemies are fixed flag-wave spawns when included in a level pool. They do not consume wave weight and do not receive random speed variance.
 
@@ -105,7 +107,7 @@ Leader enemies are fixed flag-wave spawns when included in a level pool. They do
 | Dodecahedron Companion II | 40000 | 2000 | 40 | orbiting | `0.95x0.95` cells | Body label `II`; same behavior as Dodecahedron Companion I, but HP is `25%` higher and all volley shot counts are doubled: `8` Shooting-Pentagon lasers and `4` Pentagon mortars. |
 | Octahedron I | 120000 | 200 | 60 | 0.6 | `2.95x2.95` cells | Multi-body Boss for 4-10. Same contact behavior as Cube I, but has no SP skills. At `75%`, `50%`, and `25%` HP thresholds, spawns an additional Octahedron body. All bodies share one HP bar; each body keeps independent effects and movement. Each new invincibility cycle spawns two Mirage Sun Bombs from the rightmost column in rows 2 and 6. |
 | Octahedron II | 170000 | 200 | 60 | 0.6 | `2.95x2.95` cells | Same as Octahedron I, but its `25%` reinforcement sequence summons rank-2 leaders instead of rank-1 leaders. |
-| Icosahedron I | phased | phase | phase | 0.5 | `4.95x4.95` cells | Chapter 5 finale Boss. Same baseline contact/base behavior as Cube I. In 5-10, Phase 1 has `300000` HP, `3200` armor, `20` MR, `70%` all-damage reduction, and three SP skills. Phase 2 has `200000` HP and uses a Tetrahedron II-style skill kit plus Leap; all summons are rank III, its 50% burst summons 5 columns, and its 10% invincible burst summons every grid cell. Phase 3 has `300000` HP and uses the 5-5 enemy family expanded to available ranks. |
+| Icosahedron I | phased | phase | phase | 0.5 | `4.95x4.95` cells | Chapter 5 finale Boss. Same baseline contact/base behavior as Cube I. In 5-10, Phase 1 has `300000` HP, `3200` armor, `20` MR, `70%` all-damage reduction, and three SP skills. Phase 2 has `200000` HP, `50%` all-damage reduction, and uses a Tetrahedron II-style skill kit plus Leap; all summons are rank III, its 50% burst summons 5 columns, and its 10% invincible burst summons every grid cell. Phase 3 has `300000` HP and uses the 5-5 enemy family expanded to rank I/II/III where available, while leader enemies in the fight use rank III. |
 | Small Stellated Dodecahedron I | 100000 | 200 | 90 | 0.6 | `2.95x2.95` cells | Whiteboard Boss. Same contact/base behavior as Cube I, currently used to test the small stellated dodecahedron wireframe. |
 
 Cube skills:
@@ -2656,8 +2658,7 @@ Phase 3 enemy pool:
 - Hex Mace 1
 - Hex Mace 2
 - Hex Mace 3
-- Archangel Heptagon 1
-- Archangel Heptagon 2
+- Archangel Heptagon 3
 
 Boss:
 
@@ -2666,13 +2667,13 @@ Boss:
 - Phase 1 Ultimate Advance: starts at `30/40` SP, gains `1` SP/s, spends `40` SP to summon Square 3 in every row on the Boss front column and the column immediately behind it.
 - Phase 1 Heartbeat Alpha: starts at `30/60` SP, gains `1` SP/s, spends `60` SP to summon Heart 3 on rows 2, 4, and 6 at the rightmost column.
 - Phase 1 Heartbeat Beta: starts at `0/60` SP, gains `1` SP/s, spends `60` SP to summon Heart 3 on rows 1, 3, 5, and 7 at the rightmost column.
-- Phase 2 HP: `200000`.
+- Phase 2 HP: `200000`; `50%` all-damage reduction.
 - Phase 2 uses a Tetrahedron II-style skill kit: Charge uses the Tetrahedron II `250%` Haste value; Impact starts at `75/120` SP and summons Inverted Triangle 3 in two columns in front of the Boss; Suppression starts at `75/160` SP and summons Shooting Triangle 3 at the spawn line; Last Stand behaves like Tetrahedron II.
 - Phase 2 Leap: starts at `35/50` SP, gains `1` SP/s, spends `50` SP to summon Slope Triangle 3 in every row on the base-side column.
 - Phase 2 first `50%` HP burst summons Inverted Triangle 3 in every cell of the five columns farthest from the base and immediately fills Charge SP.
 - Phase 2 first `10%` HP burst locks HP at `10%` or `1`, gains `15s` Invincible and `60s` Boss Haste, summons Inverted Triangle 3 in every grid cell, and permanently doubles natural SP gain.
 - Phase 3 HP: `300000`.
-- Phase 3 uses the Level 5-5 enemy family expanded to available rank 1 / 2 / 3 variants.
+- Phase 3 uses the Level 5-5 enemy family expanded to available rank 1 / 2 / 3 variants, but leader enemies in the Icosahedron fight use rank 3.
 
 Base rule:
 
@@ -2688,7 +2689,7 @@ Base rule:
 - The configured finale currently has three phases. Killing the last configured phase clears the level.
 - The first Boss HP bar is Heart pink, the second is orange, and the third is light blue. During each non-final phase, lost HP reveals the next phase color.
 - Triangle Mortars have a minimum Flag 1 gate, so they can first enter the random pool on wave 10 of Phase 2.
-- Heart 3, Slope Triangle 3, Archangel Heptagon 1, and Archangel Heptagon 2 are leader enemies and fixed-spawn once each on flag waves if included in the active phase pool; they do not consume wave weight.
+- Heart 3, Slope Triangle 3, and Archangel Heptagon 3 are leader enemies and fixed-spawn once each on flag waves if included in the active phase pool; they do not consume wave weight.
 
 | Wave | Flag | Raw Cap | Capped Cap |
 | ---: | ---: | ---: | ---: |
@@ -2790,13 +2791,15 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 - Angel Pentagon 2: weight `250`, HP `1200`, armor `50`, MR `20`, attack `300` physical, average speed `20`, body label `II`; Wings starts at `2/15` SP and gains `1.2` SP/s.
 - Angel Pentagon 3: weight `300`, HP `1200`, armor `50`, MR `20`, attack `300` physical, average speed `20`, body label `III`; Wings starts at `4/15` SP and gains `1.4` SP/s.
 - Archangel Heptagon 2: no wave weight, HP `6000`, armor `50`, MR `20`, attack `1400` magic, fixed speed `30`, body label `II`; Ascension gains `1` SP/s.
+- Archangel Heptagon 3: no wave weight, HP `8000`, armor `50`, MR `20`, attack `1400` magic, fixed speed `30`, body label `III`; Ascension gains `1` SP/s.
 - Hexagon 2: weight `240`, HP `18000`, armor `150`, MR `20`, attack `400` physical, average speed `5`, body label `II`; Armor aura grants `+80` armor.
 - Hexagon 3: weight `320`, HP `18000`, armor `150`, MR `20`, attack `400` physical, average speed `5`, body label `III`; Armor aura grants `+110` armor.
 - Charging Hexagon 2: weight `300`, HP `12000`, armor `150`, MR `40`, attack `500` magic, average speed `25`, body label `II`; attacks every `1s`.
 - Charging Hexagon 3: weight `450`, HP `12000`, armor `150`, MR `40`, attack `500` magic, average speed `25`, body label `III`; attacks every `0.67s`.
 - Hex Mace 2: weight `500`, HP `9000`, armor `150`, MR `0`, attack `460` physical, base average speed `20`, body label `II/II`; on death spawns Charging Hexagon 2 and Hexagon 2.
 - Hex Mace 3: weight `625`, HP `9000`, armor `150`, MR `0`, attack `520` physical, base average speed `20`, body label `III/III`; on death spawns Charging Hexagon 3 and Hexagon 3.
-- Hex Spell Bulwark 2: no wave weight, HP `24000`, armor `100`, MR `80`, attack `1200` magic, fixed speed `15`, body label `II/II`; same-lane MR aura grants `+50` MR. Hex Spell Bulwark 1's aura now grants `+40` MR.
+- Hex Spell Bulwark 2: no wave weight, HP `24000`, armor `100`, MR `80`, attack `1200` magic, fixed speed `15`, body label `II/II`; same-lane MR aura grants `+50` MR. Hex Spell Bulwark 1's aura grants `+40` MR.
+- Hex Spell Bulwark 3: no wave weight, HP `24000`, armor `100`, MR `80`, attack `1200` magic, fixed speed `15`, body label `III/III`; same-lane MR aura grants `+60` MR.
 - Angel Pentagon Ram 2: weight `640`, HP `5000`, armor `200`, MR `40`, attack `1400` magic, base average speed `20`, body label `II/II`; on death spawns Angel Pentagon 2 and Pentagon 2.
 - Angel Pentagon Ram 3: weight `960`, HP `5000`, armor `200`, MR `40`, attack `1400` magic, base average speed `25`, body label `III/III`; on death spawns Angel Pentagon 3 and Pentagon 3.
 - Pentagon 2: weight `240`, HP `1500`, armor `70`, MR `40`, attack `800` magic, average speed `5.5`, body label `II`; fires 2 magic mortars per attack.

@@ -263,6 +263,17 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
     speedMultiplier: 3,
     weight: 0
   },
+  archangelHeptagon3: {
+    kind: "archangelHeptagon3",
+    label: "3",
+    hp: 8_000,
+    armor: 50,
+    magicResistance: 20,
+    damage: 1_400,
+    damageType: "magic",
+    speedMultiplier: 3,
+    weight: 0
+  },
   shootingPentagon: {
     kind: "shootingPentagon",
     label: "1",
@@ -451,6 +462,17 @@ export const enemyDefinitions: Record<EnemyKind, EnemyDefinition> = {
   hexSpellBulwark2: {
     kind: "hexSpellBulwark2",
     label: "2",
+    hp: 24_000,
+    armor: 100,
+    magicResistance: 80,
+    damage: 1_200,
+    damageType: "magic",
+    speedMultiplier: 1.5,
+    weight: 0
+  },
+  hexSpellBulwark3: {
+    kind: "hexSpellBulwark3",
+    label: "3",
     hp: 24_000,
     armor: 100,
     magicResistance: 80,

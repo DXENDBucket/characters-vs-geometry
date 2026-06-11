@@ -14,7 +14,7 @@ const HEX_ARMOR_RADIUS = CELL_WIDTH * 1.4;
 const HEX_ARMOR_RANK_ONE_BONUS = 50;
 const HEX_ARMOR_BONUS_PER_EXTRA_RANK = 30;
 const HEX_SPELL_BULWARK_RANK_ONE_MAGIC_RESISTANCE_BONUS = 40;
-const HEX_SPELL_BULWARK_RANK_TWO_MAGIC_RESISTANCE_BONUS = 50;
+const HEX_SPELL_BULWARK_MAGIC_RESISTANCE_BONUS_PER_EXTRA_RANK = 10;
 const HEX_HEAL_SKILL_MAX = 20;
 const HEX_HEAL_SKILL_COST = 20;
 const HEX_HEAL_SKILL_REGEN_PER_SECOND = 1;
@@ -143,9 +143,10 @@ function hexMagicResistanceSources(enemies: Enemy[], target: Enemy) {
 }
 
 function hexMagicResistanceAuraBonus(enemy: Enemy) {
-  return enemyRank(enemy.kind) >= 2
-    ? HEX_SPELL_BULWARK_RANK_TWO_MAGIC_RESISTANCE_BONUS
-    : HEX_SPELL_BULWARK_RANK_ONE_MAGIC_RESISTANCE_BONUS;
+  return (
+    HEX_SPELL_BULWARK_RANK_ONE_MAGIC_RESISTANCE_BONUS +
+    Math.max(0, enemyRank(enemy.kind) - 1) * HEX_SPELL_BULWARK_MAGIC_RESISTANCE_BONUS_PER_EXTRA_RANK
+  );
 }
 
 function updateHexHeal(enemy: Enemy, state: SkillState, seconds: number, _time: number, runtime: EnemySkillRuntime) {

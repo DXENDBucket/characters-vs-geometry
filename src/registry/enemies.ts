@@ -236,6 +236,14 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     attackMode: "melee",
     leader: true
   },
+  archangelHeptagon3: {
+    definition: rawEnemyDefinitions.archangelHeptagon3,
+    family: "archangelHeptagon",
+    rank: 3,
+    nameKey: "enemy.archangelHeptagon3",
+    attackMode: "melee",
+    leader: true
+  },
   shootingPentagon: {
     definition: rawEnemyDefinitions.shootingPentagon,
     family: "shootingPentagon",
@@ -364,6 +372,14 @@ const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
     family: "hexSpellBulwark",
     rank: 2,
     nameKey: "enemy.hexSpellBulwark2",
+    attackMode: "melee",
+    leader: true
+  },
+  hexSpellBulwark3: {
+    definition: rawEnemyDefinitions.hexSpellBulwark3,
+    family: "hexSpellBulwark",
+    rank: 3,
+    nameKey: "enemy.hexSpellBulwark3",
     attackMode: "melee",
     leader: true
   },
