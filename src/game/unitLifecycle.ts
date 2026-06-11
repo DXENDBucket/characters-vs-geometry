@@ -5,7 +5,7 @@ import {
   TETRAHEDRON_BOSS_HASTE_DURATION,
   TETRAHEDRON_BOSS_INVINCIBLE_DURATION
 } from "../config";
-import { isTetrahedronBoss } from "../bosses/cubeBoss";
+import { isIcosahedronBoss, isTetrahedronBoss } from "../bosses/cubeBoss";
 import { makeBossHitFlash, makeBossInvincibleFlash, makeEnemyInvincibleFlash, makeShockPulse } from "../render/combatEffects";
 import type { CubeBoss, DamageType, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower, WaveTracker } from "../types";
 import { bossFinalStats, enemyDefenseStats } from "./combatStats";
@@ -37,6 +37,7 @@ export interface UnitLifecycleRuntime {
   getBoss: () => CubeBoss | null;
   setBoss: (boss: CubeBoss | null) => void;
   getWaveTracker: () => WaveTracker | null;
+  bossPhaseIndex: number;
   battleTime: number;
   finalDamageReduction: number;
   onEnemyDefeated: () => void;
@@ -84,7 +85,7 @@ export function damageBoss(
     calculateDamage(damage, damageType, stats.armor, stats.magicResistance) *
     (1 - stats.finalDamageReduction);
   const nextHp = boss.hp - actualDamage;
-  if (shouldTriggerTetrahedronCritical(boss, nextHp)) {
+  if (shouldTriggerTetrahedronCritical(runtime, boss, nextHp)) {
     boss.criticalHpTriggered = true;
     boss.pendingCriticalSummon = true;
     boss.invincibleUntil = runtime.battleTime + TETRAHEDRON_BOSS_INVINCIBLE_DURATION;
@@ -119,8 +120,9 @@ function syncBossCopyHp(boss: CubeBoss) {
   }
 }
 
-function shouldTriggerTetrahedronCritical(boss: CubeBoss, nextHp: number) {
-  return isTetrahedronBoss(boss) && !boss.criticalHpTriggered && nextHp <= boss.maxHp * 0.1;
+function shouldTriggerTetrahedronCritical(runtime: UnitLifecycleRuntime, boss: CubeBoss, nextHp: number) {
+  const usesCriticalSummon = isTetrahedronBoss(boss) || (isIcosahedronBoss(boss) && runtime.bossPhaseIndex === 1);
+  return usesCriticalSummon && !boss.criticalHpTriggered && nextHp <= boss.maxHp * 0.1;
 }
 
 export function damageEnemy(

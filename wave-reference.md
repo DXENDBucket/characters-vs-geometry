@@ -105,7 +105,7 @@ Leader enemies are fixed flag-wave spawns when included in a level pool. They do
 | Dodecahedron Companion II | 40000 | 2000 | 40 | orbiting | `0.95x0.95` cells | Body label `II`; same behavior as Dodecahedron Companion I, but HP is `25%` higher and all volley shot counts are doubled: `8` Shooting-Pentagon lasers and `4` Pentagon mortars. |
 | Octahedron I | 120000 | 200 | 60 | 0.6 | `2.95x2.95` cells | Multi-body Boss for 4-10. Same contact behavior as Cube I, but has no SP skills. At `75%`, `50%`, and `25%` HP thresholds, spawns an additional Octahedron body. All bodies share one HP bar; each body keeps independent effects and movement. Each new invincibility cycle spawns two Mirage Sun Bombs from the rightmost column in rows 2 and 6. |
 | Octahedron II | 170000 | 200 | 60 | 0.6 | `2.95x2.95` cells | Same as Octahedron I, but its `25%` reinforcement sequence summons rank-2 leaders instead of rank-1 leaders. |
-| Icosahedron I | phased | phase | phase | 0.5 | `4.95x4.95` cells | Chapter 5 finale Boss. Same baseline contact/base behavior as Cube I. In 5-10, Phase 1 has `300000` HP, `3200` armor, `20` MR, `70%` all-damage reduction, and three SP skills; Phase 2 has `200000` HP and no configured skills yet. Later phases are reserved. |
+| Icosahedron I | phased | phase | phase | 0.5 | `4.95x4.95` cells | Chapter 5 finale Boss. Same baseline contact/base behavior as Cube I. In 5-10, Phase 1 has `300000` HP, `3200` armor, `20` MR, `70%` all-damage reduction, and three SP skills. Phase 2 has `200000` HP and uses a Tetrahedron II-style skill kit plus Leap; all summons are rank III, its 50% burst summons 5 columns, and its 10% invincible burst summons every grid cell. Phase 3 has `300000` HP and uses the 5-5 enemy family expanded to available ranks. |
 | Small Stellated Dodecahedron I | 100000 | 200 | 90 | 0.6 | `2.95x2.95` cells | Whiteboard Boss. Same contact/base behavior as Cube I, currently used to test the small stellated dodecahedron wireframe. |
 
 Cube skills:
@@ -2633,6 +2633,32 @@ Phase 2 enemy pool:
 - Triangle Mortar 3
 - Slope Triangle 3
 
+Phase 3 enemy pool:
+
+- Circle 1
+- Circle 2
+- Circle 3
+- Square 1
+- Square 2
+- Square 3
+- Angel Pentagon Ram 1
+- Angel Pentagon Ram 2
+- Angel Pentagon Ram 3
+- Pentagon 1
+- Pentagon 2
+- Pentagon 3
+- Angel Pentagon 1
+- Angel Pentagon 2
+- Angel Pentagon 3
+- Shooting Pentagon 1
+- Shooting Pentagon 2
+- Shooting Pentagon 3
+- Hex Mace 1
+- Hex Mace 2
+- Hex Mace 3
+- Archangel Heptagon 1
+- Archangel Heptagon 2
+
 Boss:
 
 - Icosahedron I, phased
@@ -2640,7 +2666,13 @@ Boss:
 - Phase 1 Ultimate Advance: starts at `30/40` SP, gains `1` SP/s, spends `40` SP to summon Square 3 in every row on the Boss front column and the column immediately behind it.
 - Phase 1 Heartbeat Alpha: starts at `30/60` SP, gains `1` SP/s, spends `60` SP to summon Heart 3 on rows 2, 4, and 6 at the rightmost column.
 - Phase 1 Heartbeat Beta: starts at `0/60` SP, gains `1` SP/s, spends `60` SP to summon Heart 3 on rows 1, 3, 5, and 7 at the rightmost column.
-- Phase 2 HP: `200000`
+- Phase 2 HP: `200000`.
+- Phase 2 uses a Tetrahedron II-style skill kit: Charge uses the Tetrahedron II `250%` Haste value; Impact starts at `75/120` SP and summons Inverted Triangle 3 in two columns in front of the Boss; Suppression starts at `75/160` SP and summons Shooting Triangle 3 at the spawn line; Last Stand behaves like Tetrahedron II.
+- Phase 2 Leap: starts at `35/50` SP, gains `1` SP/s, spends `50` SP to summon Slope Triangle 3 in every row on the base-side column.
+- Phase 2 first `50%` HP burst summons Inverted Triangle 3 in every cell of the five columns farthest from the base and immediately fills Charge SP.
+- Phase 2 first `10%` HP burst locks HP at `10%` or `1`, gains `15s` Invincible and `60s` Boss Haste, summons Inverted Triangle 3 in every grid cell, and permanently doubles natural SP gain.
+- Phase 3 HP: `300000`.
+- Phase 3 uses the Level 5-5 enemy family expanded to available rank 1 / 2 / 3 variants.
 
 Base rule:
 
@@ -2653,10 +2685,10 @@ Base rule:
 - Difficulty modifies the capped value. The result is floored and never lower than `10`.
 - When Icosahedron I changes phase, the wave counter and weight accumulation reset to wave `0`, the Boss returns to its starting position, and all current enemies quickly shrink and disappear.
 - The next phase starts with its own enemy pool. The first wave of the new phase follows the normal first-wave delay.
-- The configured finale currently has two phases. Killing the last configured phase clears the level; later phases are reserved.
-- The first Boss HP bar is Heart pink, the second is orange. During Phase 1, lost HP reveals the orange next bar; during Phase 2, lost HP reveals the temporary light-blue base color.
+- The configured finale currently has three phases. Killing the last configured phase clears the level.
+- The first Boss HP bar is Heart pink, the second is orange, and the third is light blue. During each non-final phase, lost HP reveals the next phase color.
 - Triangle Mortars have a minimum Flag 1 gate, so they can first enter the random pool on wave 10 of Phase 2.
-- Heart 3 and Slope Triangle 3 are leader enemies and fixed-spawn once each on flag waves if included in the active phase pool; they do not consume wave weight.
+- Heart 3, Slope Triangle 3, Archangel Heptagon 1, and Archangel Heptagon 2 are leader enemies and fixed-spawn once each on flag waves if included in the active phase pool; they do not consume wave weight.
 
 | Wave | Flag | Raw Cap | Capped Cap |
 | ---: | ---: | ---: | ---: |

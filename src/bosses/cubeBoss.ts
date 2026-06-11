@@ -23,6 +23,9 @@ import {
   ICOSAHEDRON_BOSS_HEARTBEAT_BETA_INITIAL_SP,
   ICOSAHEDRON_BOSS_HEARTBEAT_BETA_SKILL_COST,
   ICOSAHEDRON_BOSS_HEARTBEAT_BETA_SKILL_MAX,
+  ICOSAHEDRON_BOSS_LEAP_INITIAL_SP,
+  ICOSAHEDRON_BOSS_LEAP_SKILL_COST,
+  ICOSAHEDRON_BOSS_LEAP_SKILL_MAX,
   ICOSAHEDRON_BOSS_ULTIMATE_ADVANCE_INITIAL_SP,
   ICOSAHEDRON_BOSS_ULTIMATE_ADVANCE_SKILL_COST,
   ICOSAHEDRON_BOSS_ULTIMATE_ADVANCE_SKILL_MAX,
@@ -288,7 +291,7 @@ export function createCubeBoss(
             promotion2: createBossSkill("promotion2", CUBE_BOSS_PROMOTION2_SKILL_MAX, CUBE_BOSS_PROMOTION2_SKILL_COST)
           }
         : {}),
-      ...(isTetrahedronBossKind(kind)
+      ...(isTetrahedronBossKind(kind) || isIcosahedronBossKind(kind)
         ? {
             charge: createBossSkill("charge", TETRAHEDRON_BOSS_CHARGE_SKILL_MAX, TETRAHEDRON_BOSS_CHARGE_SKILL_COST),
             impact: createBossSkill("impact", TETRAHEDRON_BOSS_IMPACT_SKILL_MAX, TETRAHEDRON_BOSS_IMPACT_SKILL_COST),
@@ -332,6 +335,12 @@ export function createCubeBoss(
               ICOSAHEDRON_BOSS_HEARTBEAT_BETA_SKILL_MAX,
               ICOSAHEDRON_BOSS_HEARTBEAT_BETA_SKILL_COST,
               ICOSAHEDRON_BOSS_HEARTBEAT_BETA_INITIAL_SP
+            ),
+            leap: createBossSkill(
+              "leap",
+              ICOSAHEDRON_BOSS_LEAP_SKILL_MAX,
+              ICOSAHEDRON_BOSS_LEAP_SKILL_COST,
+              ICOSAHEDRON_BOSS_LEAP_INITIAL_SP
             )
           }
         : {})

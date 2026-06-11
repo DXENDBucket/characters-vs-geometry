@@ -180,18 +180,27 @@ const bossSkillRegistry = createBossSkillRegistry<BossRuntime>({
   icosahedron: [
     {
       skillKey: "ultimateAdvance",
+      chargeSeconds: (runtime, _boss, _skill, seconds) => (runtime.bossPhaseIndex === 0 ? seconds : 0),
       canUse: (runtime) => runtime.bossPhaseIndex === 0,
       use: (runtime, boss) => summonIcosahedronUltimateAdvance(runtime, boss)
     },
     {
       skillKey: "heartbeatAlpha",
+      chargeSeconds: (runtime, _boss, _skill, seconds) => (runtime.bossPhaseIndex === 0 ? seconds : 0),
       canUse: (runtime) => runtime.bossPhaseIndex === 0,
       use: (runtime, boss) => summonIcosahedronHearts(runtime, boss, [1, 3, 5])
     },
     {
       skillKey: "heartbeatBeta",
+      chargeSeconds: (runtime, _boss, _skill, seconds) => (runtime.bossPhaseIndex === 0 ? seconds : 0),
       canUse: (runtime) => runtime.bossPhaseIndex === 0,
       use: (runtime, boss) => summonIcosahedronHearts(runtime, boss, [0, 2, 4, 6])
+    },
+    {
+      skillKey: "leap",
+      chargeSeconds: (runtime, _boss, _skill, seconds) => (runtime.bossPhaseIndex === 1 ? seconds : 0),
+      canUse: (runtime) => runtime.bossPhaseIndex === 1,
+      use: (runtime) => summonIcosahedronSlopeTriangles(runtime)
     }
   ]
 });
@@ -851,7 +860,7 @@ function damageBossTouchingTowers(runtime: BossRuntime, boss: CubeBoss, seconds:
 }
 
 function triggerTetrahedronHalfHpBurst(runtime: BossRuntime, boss: CubeBoss) {
-  if (!isTetrahedronBoss(boss) || boss.halfHpTriggered || boss.hp > boss.maxHp * 0.5) {
+  if (!bossUsesTetrahedronKit(runtime, boss) || boss.halfHpTriggered || boss.hp > boss.maxHp * 0.5) {
     return;
   }
 
@@ -862,12 +871,13 @@ function triggerTetrahedronHalfHpBurst(runtime: BossRuntime, boss: CubeBoss) {
   }
 
   const waveNumber = runtime.wave || 0;
-  for (let column = COLUMNS - 2; column < COLUMNS; column += 1) {
+  const columnCount = isIcosahedronTetrahedronPhase(runtime, boss) ? 5 : 2;
+  for (let column = Math.max(0, COLUMNS - columnCount); column < COLUMNS; column += 1) {
     const x = BOARD_X + column * CELL_WIDTH + CELL_WIDTH / 2;
     for (let lane = 0; lane < LANES; lane += 1) {
       const y = BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2;
       spawnEnemyAt(runtime, {
-        kind: tetrahedronInvertedKind(boss),
+        kind: tetrahedronInvertedKind(runtime, boss),
         waveNumber,
         time: runtime.battleTime,
         lane,
@@ -881,18 +891,19 @@ function triggerTetrahedronHalfHpBurst(runtime: BossRuntime, boss: CubeBoss) {
 }
 
 function triggerTetrahedronCriticalSummon(runtime: BossRuntime, boss: CubeBoss) {
-  if (!isTetrahedronBoss(boss) || !boss.pendingCriticalSummon) {
+  if (!bossUsesTetrahedronKit(runtime, boss) || !boss.pendingCriticalSummon) {
     return;
   }
 
   boss.pendingCriticalSummon = false;
   const waveNumber = runtime.wave || 0;
-  for (let column = COLUMNS - 5; column < COLUMNS; column += 1) {
+  const startColumn = isIcosahedronTetrahedronPhase(runtime, boss) ? 0 : COLUMNS - 5;
+  for (let column = startColumn; column < COLUMNS; column += 1) {
     const x = BOARD_X + column * CELL_WIDTH + CELL_WIDTH / 2;
     for (let lane = 0; lane < LANES; lane += 1) {
       const y = BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2;
       spawnEnemyAt(runtime, {
-        kind: tetrahedronInvertedKind(boss),
+        kind: tetrahedronInvertedKind(runtime, boss),
         waveNumber,
         time: runtime.battleTime,
         lane,
@@ -910,13 +921,16 @@ function updateBossSkills(runtime: BossRuntime, boss: CubeBoss, seconds: number)
     return;
   }
 
-  if (isTetrahedronBoss(boss)) {
-    updateTetrahedronSkills(runtime, boss, seconds);
+  if (isIcosahedronBoss(boss)) {
+    if (bossUsesTetrahedronKit(runtime, boss)) {
+      updateTetrahedronSkills(runtime, boss, seconds);
+    }
+    runRegisteredBossSkills(runtime, boss, bossSkillRegistry.icosahedron, seconds);
     return;
   }
 
-  if (isIcosahedronBoss(boss)) {
-    runRegisteredBossSkills(runtime, boss, bossSkillRegistry.icosahedron, seconds);
+  if (bossUsesTetrahedronKit(runtime, boss)) {
+    updateTetrahedronSkills(runtime, boss, seconds);
     return;
   }
 
@@ -936,7 +950,7 @@ function updateTetrahedronSkills(runtime: BossRuntime, boss: CubeBoss, seconds: 
       "haste",
       boss.chargeExpiresAt - runtime.battleTime,
       runtime.battleTime,
-      tetrahedronChargeSpeedMultiplier(boss)
+      tetrahedronChargeSpeedMultiplier(runtime, boss)
     );
   }
 }
@@ -953,15 +967,29 @@ function tetrahedronNaturalSkillRegenMultiplier(boss: CubeBoss) {
   return boss.criticalHpTriggered ? 2 : 1;
 }
 
-function tetrahedronChargeSpeedMultiplier(boss: CubeBoss) {
-  return boss.rank >= 2 ? 2.5 : 2;
+function bossUsesTetrahedronKit(runtime: BossRuntime, boss: CubeBoss) {
+  return isTetrahedronBoss(boss) || isIcosahedronTetrahedronPhase(runtime, boss);
 }
 
-function tetrahedronInvertedKind(boss: CubeBoss): Enemy["kind"] {
+function isIcosahedronTetrahedronPhase(runtime: BossRuntime, boss: CubeBoss) {
+  return isIcosahedronBoss(boss) && runtime.bossPhaseIndex === 1;
+}
+
+function tetrahedronChargeSpeedMultiplier(runtime: BossRuntime, boss: CubeBoss) {
+  return boss.rank >= 2 || isIcosahedronTetrahedronPhase(runtime, boss) ? 2.5 : 2;
+}
+
+function tetrahedronInvertedKind(runtime: BossRuntime, boss: CubeBoss): Enemy["kind"] {
+  if (isIcosahedronTetrahedronPhase(runtime, boss)) {
+    return "invertedTriangle3";
+  }
   return boss.rank >= 2 ? "invertedTriangle2" : "invertedTriangle";
 }
 
-function tetrahedronShootingKind(boss: CubeBoss): Enemy["kind"] {
+function tetrahedronShootingKind(runtime: BossRuntime, boss: CubeBoss): Enemy["kind"] {
+  if (isIcosahedronTetrahedronPhase(runtime, boss)) {
+    return "shootingTriangle3";
+  }
   return boss.rank >= 2 ? "shootingTriangle2" : "shootingTriangle";
 }
 
@@ -989,7 +1017,7 @@ function summonTetrahedronImpactMinions(runtime: BossRuntime, boss: CubeBoss) {
   for (const point of bossAdvanceSpawnPoints(boss)) {
     for (const x of [point.x, point.x + CELL_WIDTH]) {
       spawnEnemyAt(runtime, {
-        kind: tetrahedronInvertedKind(boss),
+        kind: tetrahedronInvertedKind(runtime, boss),
         waveNumber,
         time: runtime.battleTime,
         lane: point.lane,
@@ -1008,7 +1036,7 @@ function summonTetrahedronSuppressionMinions(runtime: BossRuntime, boss: CubeBos
   for (let lane = 0; lane < LANES; lane += 1) {
     const y = BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2;
     spawnEnemyAt(runtime, {
-      kind: tetrahedronShootingKind(boss),
+      kind: tetrahedronShootingKind(runtime, boss),
       waveNumber,
       time: runtime.battleTime,
       lane,
@@ -1088,6 +1116,24 @@ function summonIcosahedronHearts(runtime: BossRuntime, _boss: CubeBoss, lanes: r
     const y = BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2;
     spawnEnemyAt(runtime, {
       kind: "heart3",
+      waveNumber,
+      time: runtime.battleTime,
+      lane,
+      x,
+      waveWeight: 0,
+      finalDamageReduction: runtime.finalDamageReduction
+    });
+    makeIcosahedronCollapse(runtime.scene, x, y);
+  }
+}
+
+function summonIcosahedronSlopeTriangles(runtime: BossRuntime) {
+  const waveNumber = runtime.wave || 0;
+  const x = BOARD_X + CELL_WIDTH / 2;
+  for (let lane = 0; lane < LANES; lane += 1) {
+    const y = BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2;
+    spawnEnemyAt(runtime, {
+      kind: "slopeTriangle3",
       waveNumber,
       time: runtime.battleTime,
       lane,

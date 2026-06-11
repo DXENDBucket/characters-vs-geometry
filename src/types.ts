@@ -132,7 +132,8 @@ export type BossSkillName =
   | "endlessWings"
   | "ultimateAdvance"
   | "heartbeatAlpha"
-  | "heartbeatBeta";
+  | "heartbeatBeta"
+  | "leap";
 export type ProjectileKind = "bolt" | "shell" | "star" | "hash" | "dollar" | "chevron";
 export type UnitCategory = "production" | "attack" | "defense" | "function" | "healing";
 export type DamageType = "physical" | "magic" | "true";
@@ -513,6 +514,7 @@ export interface CubeBoss {
     ultimateAdvance?: BossSkill<"ultimateAdvance">;
     heartbeatAlpha?: BossSkill<"heartbeatAlpha">;
     heartbeatBeta?: BossSkill<"heartbeatBeta">;
+    leap?: BossSkill<"leap">;
   };
   contactAttackBuffer: number;
   chargeExpiresAt: number;

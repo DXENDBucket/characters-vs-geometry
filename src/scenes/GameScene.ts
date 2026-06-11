@@ -16,6 +16,7 @@ import {
   GAME_WIDTH,
   GAME_SPEED_MAX,
   GAME_SPEED_MIN,
+  ICOSAHEDRON_BOSS_LEAP_INITIAL_SP,
   LANES,
   NATURAL_PRODUCE_AMOUNT,
   NATURAL_PRODUCE_INTERVAL,
@@ -124,6 +125,7 @@ interface PlacementGhostSpec {
 
 const BOSS_PHASE_BAR_COLORS = [palette.heart, 0xff9f43, palette.magic];
 const BOSS_PHASE_BAR_BACK = palette.magic;
+const ICOSAHEDRON_PHASE_TWO_INITIAL_SP = 75;
 
 function combineDamageReduction(baseReduction: number, extraReduction: number) {
   return 1 - (1 - baseReduction) * (1 - extraReduction);
@@ -877,6 +879,7 @@ export class GameScene extends Phaser.Scene {
     this.bossHomePosition = { x: this.boss.x, y: this.boss.y };
     if (this.currentBossPhaseConfig()) {
       this.applyBossPhaseStats(this.boss);
+      this.applyBossPhaseSkillState(this.boss);
       return;
     }
 
@@ -904,6 +907,28 @@ export class GameScene extends Phaser.Scene {
     );
     syncBossBaseStats(boss);
     boss.hp = boss.finalStats.maxHp;
+  }
+
+  private applyBossPhaseSkillState(boss: CubeBoss) {
+    if (boss.kind !== "icosahedron" || this.bossPhaseIndex !== 1) {
+      return;
+    }
+
+    this.setBossSkillSp(boss.skills.charge, 0);
+    this.setBossSkillSp(boss.skills.impact, ICOSAHEDRON_PHASE_TWO_INITIAL_SP);
+    this.setBossSkillSp(boss.skills.suppression, ICOSAHEDRON_PHASE_TWO_INITIAL_SP);
+    this.setBossSkillSp(boss.skills.desperation, 0);
+    this.setBossSkillSp(boss.skills.leap, ICOSAHEDRON_BOSS_LEAP_INITIAL_SP);
+  }
+
+  private setBossSkillSp(skill: { sp: number; spBuffer: number; activeUntil: number; maxSp: number } | undefined, sp: number) {
+    if (!skill) {
+      return;
+    }
+
+    skill.sp = Phaser.Math.Clamp(sp, 0, skill.maxSp);
+    skill.spBuffer = 0;
+    skill.activeUntil = 0;
   }
 
   private towerSkillRuntime(): TowerSkillRuntime {
@@ -1064,6 +1089,7 @@ export class GameScene extends Phaser.Scene {
         this.boss = boss;
       },
       getWaveTracker: () => this.waveTracker,
+      bossPhaseIndex: this.bossPhaseIndex,
       battleTime: this.battleTime,
       finalDamageReduction: this.difficultyConfig.finalDamageReduction,
       onEnemyDefeated: () => {
@@ -1222,6 +1248,7 @@ export class GameScene extends Phaser.Scene {
     this.clearEnemiesForBossPhaseTransition();
     this.resetBossForPhase(boss);
     this.applyBossPhaseStats(boss);
+    this.applyBossPhaseSkillState(boss);
     this.showToast(`PHASE ${this.bossPhaseIndex + 1}/${phases.length}`);
     this.updateHud();
     return true;

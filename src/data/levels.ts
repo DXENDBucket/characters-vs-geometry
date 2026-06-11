@@ -840,6 +840,35 @@ export const levelConfigs: Record<string, LevelConfig> = {
           "mortarTriangle3",
           "slopeTriangle3"
         ]
+      },
+      {
+        maxHp: 300_000,
+        waveWeightCap: 9000,
+        enemyKinds: [
+          "circle",
+          "circle2",
+          "circle3",
+          "square",
+          "square2",
+          "square3",
+          "angelPentagonRam",
+          "angelPentagonRam2",
+          "angelPentagonRam3",
+          "pentagon",
+          "pentagon2",
+          "pentagon3",
+          "angelPentagon",
+          "angelPentagon2",
+          "angelPentagon3",
+          "shootingPentagon",
+          "shootingPentagon2",
+          "shootingPentagon3",
+          "hexMace",
+          "hexMace2",
+          "hexMace3",
+          "archangelHeptagon",
+          "archangelHeptagon2"
+        ]
       }
     ],
     endless: true
