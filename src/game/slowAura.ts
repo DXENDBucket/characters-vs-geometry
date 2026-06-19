@@ -18,23 +18,50 @@ const slowAuraSourcesBuffer: SlowAuraSources = {
   slowCells: new Uint8Array(BOARD_CELL_COUNT),
   hasAura: false
 };
+const activeSlowAuraTowersBuffer: Tower[] = [];
+const slowAuraSignatureParts: string[] = [];
+let slowAuraSignature = "";
 
 export function slowAuraSources(towers: Tower[]): SlowAuraSources {
   // Reused per call; consume synchronously before requesting another slow-aura view.
+  const activeAuras = activeSlowAuraTowers(towers);
+  const signature = slowAuraStateSignature(activeAuras);
+  if (slowAuraSourcesBuffer.towers === towers && signature === slowAuraSignature) {
+    return slowAuraSourcesBuffer;
+  }
+
   slowAuraSourcesBuffer.towers = towers;
   slowAuraSourcesBuffer.auraTowers.length = 0;
-  slowAuraSourcesBuffer.hasAura = false;
+  slowAuraSourcesBuffer.hasAura = activeAuras.length > 0;
+  if (slowAuraSourcesBuffer.hasAura) {
+    slowAuraSourcesBuffer.slowCells.fill(0);
+  }
+
+  for (const tower of activeAuras) {
+    slowAuraSourcesBuffer.auraTowers.push(tower);
+    markSlowAuraCells(slowAuraSourcesBuffer.slowCells, tower);
+  }
+  slowAuraSignature = signature;
+  return slowAuraSourcesBuffer;
+}
+
+function activeSlowAuraTowers(towers: Tower[]) {
+  activeSlowAuraTowersBuffer.length = 0;
   for (const tower of towers) {
     if (tower.type === "T" && tower.inPlay) {
-      if (!slowAuraSourcesBuffer.hasAura) {
-        slowAuraSourcesBuffer.hasAura = true;
-        slowAuraSourcesBuffer.slowCells.fill(0);
-      }
-      slowAuraSourcesBuffer.auraTowers.push(tower);
-      markSlowAuraCells(slowAuraSourcesBuffer.slowCells, tower);
+      activeSlowAuraTowersBuffer.push(tower);
     }
   }
-  return slowAuraSourcesBuffer;
+  return activeSlowAuraTowersBuffer;
+}
+
+function slowAuraStateSignature(towers: Tower[]) {
+  const parts = slowAuraSignatureParts;
+  parts.length = 0;
+  for (const tower of towers) {
+    parts.push(tower.id, `${tower.lane}`, `${tower.column}`);
+  }
+  return parts.join("|");
 }
 
 export function movementSpeedMultiplier(towers: Tower[], x: number, y: number, sources?: SlowAuraSources) {
