@@ -80,7 +80,6 @@ import {
   forEachBossPart,
   getBlockingTowerFromOccupied,
   latestPlacedTower,
-  towerBounds,
   type RectBounds
 } from "./targeting";
 import { isTrapArmed, towerDamageType } from "./towers";
@@ -643,6 +642,8 @@ function syncSolarBombLane(enemy: Enemy) {
 function findSolarBombCollision(runtime: EnemyAdvanceRuntime, bomb: Enemy) {
   let collision: SolarBombCollision | undefined;
   let collisionDistanceSq = Number.POSITIVE_INFINITY;
+  const bombX = bomb.x;
+  const bombY = bomb.y;
   const radiusSq = SOLAR_BOMB_RADIUS * SOLAR_BOMB_RADIUS;
 
   for (const tower of runtime.towers) {
@@ -650,12 +651,11 @@ function findSolarBombCollision(runtime: EnemyAdvanceRuntime, bomb: Enemy) {
       continue;
     }
 
-    const bounds = towerBounds(tower);
-    if (!circleIntersectsBounds(bomb.x, bomb.y, radiusSq, bounds)) {
+    if (!circleIntersectsTowerBounds(bombX, bombY, radiusSq, tower)) {
       continue;
     }
 
-    const distanceSq = pointDistanceSq(bomb.x, bomb.y, tower.x, tower.y);
+    const distanceSq = pointDistanceSq(bombX, bombY, tower.x, tower.y);
     if (distanceSq < collisionDistanceSq) {
       collision = {
         kind: "tower",
@@ -670,13 +670,13 @@ function findSolarBombCollision(runtime: EnemyAdvanceRuntime, bomb: Enemy) {
 
   forEachBossPart(runtime.boss, (part) => {
     const bounds = bossBounds(part);
-    if (!circleIntersectsBounds(bomb.x, bomb.y, radiusSq, bounds)) {
+    if (!circleIntersectsBounds(bombX, bombY, radiusSq, bounds)) {
       return;
     }
 
-    const x = Phaser.Math.Clamp(bomb.x, bounds.left, bounds.right);
-    const y = Phaser.Math.Clamp(bomb.y, bounds.top, bounds.bottom);
-    const distanceSq = pointDistanceSq(bomb.x, bomb.y, x, y);
+    const x = Phaser.Math.Clamp(bombX, bounds.left, bounds.right);
+    const y = Phaser.Math.Clamp(bombY, bounds.top, bounds.bottom);
+    const distanceSq = pointDistanceSq(bombX, bombY, x, y);
     if (distanceSq < collisionDistanceSq) {
       collision = {
         kind: "boss",
@@ -824,6 +824,12 @@ function bossPartInSolarBombAoe(part: CubeBoss, x: number, y: number, radiusSq: 
   const bounds = bossBounds(part);
   const closestX = Phaser.Math.Clamp(x, bounds.left, bounds.right);
   const closestY = Phaser.Math.Clamp(y, bounds.top, bounds.bottom);
+  return pointDistanceSq(x, y, closestX, closestY) <= radiusSq;
+}
+
+function circleIntersectsTowerBounds(x: number, y: number, radiusSq: number, tower: Tower) {
+  const closestX = Phaser.Math.Clamp(x, tower.x - CELL_WIDTH / 2, tower.x + CELL_WIDTH / 2);
+  const closestY = Phaser.Math.Clamp(y, tower.y - CELL_HEIGHT / 2, tower.y + CELL_HEIGHT / 2);
   return pointDistanceSq(x, y, closestX, closestY) <= radiusSq;
 }
 
