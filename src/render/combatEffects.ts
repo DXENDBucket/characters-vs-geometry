@@ -34,8 +34,10 @@ const ICOSAHEDRON_UNIT_VERTICES: Array<[number, number, number]> = [
 const ICOSAHEDRON_EDGES = icosahedronEdges();
 const EFFECT_GRAPHICS_POOL_LIMIT = 64;
 const EFFECT_RECTANGLE_POOL_LIMIT = 256;
+const EFFECT_CIRCLE_POOL_LIMIT = 128;
 const effectGraphicsPools = new WeakMap<Phaser.Scene, Phaser.GameObjects.Graphics[]>();
 const effectRectanglePools = new WeakMap<Phaser.Scene, Phaser.GameObjects.Rectangle[]>();
+const effectCirclePools = new WeakMap<Phaser.Scene, Phaser.GameObjects.Arc[]>();
 
 function acquireEffectGraphics(scene: Phaser.Scene, depth: number) {
   const pool = effectGraphicsPools.get(scene);
@@ -120,6 +122,55 @@ function releaseEffectRectangle(scene: Phaser.Scene, rectangle: Phaser.GameObjec
   }
 }
 
+function acquireEffectCircle(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  radius: number,
+  fillColor: number,
+  fillAlpha: number,
+  strokeWidth: number,
+  strokeColor: number,
+  strokeAlpha: number,
+  depth: number
+) {
+  const pool = effectCirclePools.get(scene);
+  const circle = pool?.pop() ?? scene.add.circle(0, 0, radius, fillColor, fillAlpha);
+  scene.tweens.killTweensOf(circle);
+  circle.setPosition(x, y);
+  circle.setRadius(radius);
+  circle.setFillStyle(fillColor, fillAlpha);
+  circle.setStrokeStyle(strokeWidth, strokeColor, strokeAlpha);
+  circle.setScale(1, 1);
+  circle.setRotation(0);
+  circle.setAlpha(1);
+  circle.setVisible(true);
+  circle.setActive(true);
+  circle.setDepth(depth);
+  return circle;
+}
+
+function releaseEffectCircle(scene: Phaser.Scene, circle: Phaser.GameObjects.Arc) {
+  circle.setPosition(0, 0);
+  circle.setScale(1, 1);
+  circle.setRotation(0);
+  circle.setAlpha(1);
+  circle.setVisible(false);
+  circle.setActive(false);
+
+  let pool = effectCirclePools.get(scene);
+  if (!pool) {
+    pool = [];
+    effectCirclePools.set(scene, pool);
+  }
+
+  if (pool.length < EFFECT_CIRCLE_POOL_LIMIT) {
+    pool.push(circle);
+  } else {
+    circle.destroy();
+  }
+}
+
 export function damageEffectColor(damageType: DamageType) {
   return damageType === "magic" ? palette.magic : palette.white;
 }
@@ -166,7 +217,7 @@ export function makeEnemyHitShards(scene: Phaser.Scene, x: number, y: number) {
 }
 
 export function makeSolarBombCollisionEffect(scene: Phaser.Scene, x: number, y: number) {
-  const ring = scene.add.circle(x, y, 9, palette.black, 0).setStrokeStyle(2, palette.gold, 0.95).setDepth(112);
+  const ring = acquireEffectCircle(scene, x, y, 9, palette.black, 0, 2, palette.gold, 0.95, 112);
   for (let index = 0; index < 6; index += 1) {
     const angle = (Math.PI * 2 * index) / 6 + Phaser.Math.FloatBetween(-0.18, 0.18);
     const distance = Phaser.Math.Between(10, 22);
@@ -189,7 +240,7 @@ export function makeSolarBombCollisionEffect(scene: Phaser.Scene, x: number, y: 
     alpha: 0,
     duration: 160,
     ease: "Quad.easeOut",
-    onComplete: () => ring.destroy()
+    onComplete: () => releaseEffectCircle(scene, ring)
   });
 }
 
@@ -202,8 +253,8 @@ export function makeEnemyLaserEffect(scene: Phaser.Scene, fromX: number, y: numb
   beam.lineStyle(2, palette.white, 0.9);
   beam.lineBetween(fromX, y, toX, y);
 
-  const emitter = scene.add.circle(fromX, y, 8, palette.black, 0).setStrokeStyle(3, palette.enemyShot, 0.92).setDepth(110);
-  const endpoint = scene.add.circle(toX, y, 10, palette.black, 0).setStrokeStyle(2, palette.enemyShot, 0.72).setDepth(110);
+  const emitter = acquireEffectCircle(scene, fromX, y, 8, palette.black, 0, 3, palette.enemyShot, 0.92, 110);
+  const endpoint = acquireEffectCircle(scene, toX, y, 10, palette.black, 0, 2, palette.enemyShot, 0.72, 110);
 
   scene.tweens.add({
     targets: beam,
@@ -219,8 +270,8 @@ export function makeEnemyLaserEffect(scene: Phaser.Scene, fromX: number, y: numb
     duration: 160,
     ease: "Quad.easeOut",
     onComplete: () => {
-      emitter.destroy();
-      endpoint.destroy();
+      releaseEffectCircle(scene, emitter);
+      releaseEffectCircle(scene, endpoint);
     }
   });
 }
@@ -234,8 +285,8 @@ export function makeTowerLaserEffect(scene: Phaser.Scene, fromX: number, y: numb
   beam.lineStyle(2, palette.white, 0.9);
   beam.lineBetween(fromX, y, toX, y);
 
-  const emitter = scene.add.circle(fromX, y, 8, palette.black, 0).setStrokeStyle(3, palette.magic, 0.92).setDepth(110);
-  const endpoint = scene.add.circle(toX, y, 10, palette.black, 0).setStrokeStyle(2, palette.magic, 0.72).setDepth(110);
+  const emitter = acquireEffectCircle(scene, fromX, y, 8, palette.black, 0, 3, palette.magic, 0.92, 110);
+  const endpoint = acquireEffectCircle(scene, toX, y, 10, palette.black, 0, 2, palette.magic, 0.72, 110);
 
   scene.tweens.add({
     targets: beam,
@@ -251,24 +302,21 @@ export function makeTowerLaserEffect(scene: Phaser.Scene, fromX: number, y: numb
     duration: 160,
     ease: "Quad.easeOut",
     onComplete: () => {
-      emitter.destroy();
-      endpoint.destroy();
+      releaseEffectCircle(scene, emitter);
+      releaseEffectCircle(scene, endpoint);
     }
   });
 }
 
 export function makeShellBurst(scene: Phaser.Scene, x: number, y: number, radius: number, damageType: DamageType) {
-  const ring = scene.add
-    .circle(x, y, radius / 5, palette.black, 0)
-    .setStrokeStyle(2, damageEffectColor(damageType), 0.9);
-  ring.setDepth(105);
+  const ring = acquireEffectCircle(scene, x, y, radius / 5, palette.black, 0, 2, damageEffectColor(damageType), 0.9, 105);
   scene.tweens.add({
     targets: ring,
     scale: 5,
     alpha: 0,
     duration: 280,
     ease: "Quad.easeOut",
-    onComplete: () => ring.destroy()
+    onComplete: () => releaseEffectCircle(scene, ring)
   });
 }
 
@@ -338,14 +386,14 @@ export function makeSpellMortarImpact(
   const color = style.color ?? palette.magic;
   const blast =
     style.shape === "circle"
-      ? scene.add.circle(x, y, rangeX, palette.black, 0).setStrokeStyle(3, color, 0.92).setDepth(112)
+      ? acquireEffectCircle(scene, x, y, rangeX, palette.black, 0, 3, color, 0.92, 112)
       : scene.add
           .rectangle(x, y, rangeX * 2, rangeY * 2, palette.black, 0)
           .setStrokeStyle(3, color, 0.92)
           .setDepth(112);
   const marker =
     style.marker === "shell"
-      ? scene.add.circle(x, y, 9, palette.black, 1).setStrokeStyle(3, color, 0.96).setDepth(113)
+      ? acquireEffectCircle(scene, x, y, 9, palette.black, 1, 3, color, 0.96, 113)
       : scene.add
           .text(x, y - 1, style.markerText ?? "S", {
             color: style.markerTextColor ?? "#9fdcff",
@@ -362,7 +410,13 @@ export function makeSpellMortarImpact(
     alpha: 0,
     duration: 260,
     ease: "Quad.easeOut",
-    onComplete: () => blast.destroy()
+    onComplete: () => {
+      if (style.shape === "circle") {
+        releaseEffectCircle(scene, blast as Phaser.GameObjects.Arc);
+      } else {
+        blast.destroy();
+      }
+    }
   });
   scene.tweens.add({
     targets: marker,
@@ -370,7 +424,13 @@ export function makeSpellMortarImpact(
     alpha: 0,
     duration: 280,
     ease: "Quad.easeOut",
-    onComplete: () => marker.destroy()
+    onComplete: () => {
+      if (style.marker === "shell") {
+        releaseEffectCircle(scene, marker as Phaser.GameObjects.Arc);
+      } else {
+        marker.destroy();
+      }
+    }
   });
 }
 
@@ -398,15 +458,14 @@ export function makeShockPulse(
 }
 
 export function makeFreezePulse(scene: Phaser.Scene, x: number, y: number, radius: number) {
-  const ring = scene.add.circle(x, y, radius, palette.black, 0).setStrokeStyle(3, palette.magic, 0.9);
-  ring.setDepth(106);
+  const ring = acquireEffectCircle(scene, x, y, radius, palette.black, 0, 3, palette.magic, 0.9, 106);
   scene.tweens.add({
     targets: ring,
     scale: 1.1,
     alpha: 0,
     duration: 220,
     ease: "Quad.easeOut",
-    onComplete: () => ring.destroy()
+    onComplete: () => releaseEffectCircle(scene, ring)
   });
 }
 
@@ -420,7 +479,7 @@ export function makeHeartPulse(scene: Phaser.Scene, x: number, y: number, radius
     })
     .setOrigin(0.5)
     .setDepth(111);
-  const ring = scene.add.circle(x, y, radius * 0.25, palette.black, 0).setStrokeStyle(2, palette.heart, 0.78).setDepth(110);
+  const ring = acquireEffectCircle(scene, x, y, radius * 0.25, palette.black, 0, 2, palette.heart, 0.78, 110);
 
   scene.tweens.add({
     targets: heart,
@@ -436,22 +495,19 @@ export function makeHeartPulse(scene: Phaser.Scene, x: number, y: number, radius
     alpha: 0,
     duration: 420,
     ease: "Quad.easeOut",
-    onComplete: () => ring.destroy()
+    onComplete: () => releaseEffectCircle(scene, ring)
   });
 }
 
 export function makeTrapBurst(scene: Phaser.Scene, x: number, y: number, damageType: DamageType) {
-  const ring = scene.add
-    .circle(x, y, 14, palette.black, 0)
-    .setStrokeStyle(3, damageEffectColor(damageType), 0.92);
-  ring.setDepth(106);
+  const ring = acquireEffectCircle(scene, x, y, 14, palette.black, 0, 3, damageEffectColor(damageType), 0.92, 106);
   scene.tweens.add({
     targets: ring,
     scale: 2.7,
     alpha: 0,
     duration: 180,
     ease: "Quad.easeOut",
-    onComplete: () => ring.destroy()
+    onComplete: () => releaseEffectCircle(scene, ring)
   });
 }
 
@@ -516,8 +572,7 @@ export function makeShiftEffect(scene: Phaser.Scene, fromX: number, fromY: numbe
   const line = acquireEffectGraphics(scene, 109);
   line.lineStyle(2, palette.green, 0.92);
   line.lineBetween(fromX, fromY, toX, toY);
-  const marker = scene.add.circle(toX, toY, 13, palette.black, 0).setStrokeStyle(2, palette.green, 0.9);
-  marker.setDepth(109);
+  const marker = acquireEffectCircle(scene, toX, toY, 13, palette.black, 0, 2, palette.green, 0.9, 109);
 
   scene.tweens.add({
     targets: line,
@@ -532,12 +587,12 @@ export function makeShiftEffect(scene: Phaser.Scene, fromX: number, fromY: numbe
     alpha: 0,
     duration: 220,
     ease: "Quad.easeOut",
-    onComplete: () => marker.destroy()
+    onComplete: () => releaseEffectCircle(scene, marker)
   });
 }
 
 export function makeStasisEffect(scene: Phaser.Scene, x: number, y: number) {
-  const ring = scene.add.circle(x, y, 18, palette.black, 0).setStrokeStyle(2, palette.time, 0.95);
+  const ring = acquireEffectCircle(scene, x, y, 18, palette.black, 0, 2, palette.time, 0.95, 109);
   const marker = scene.add
     .text(x, y - 1, "$", {
       color: "#9fdcff",
@@ -546,7 +601,6 @@ export function makeStasisEffect(scene: Phaser.Scene, x: number, y: number) {
       fontStyle: "700"
     })
     .setOrigin(0.5);
-  ring.setDepth(109);
   marker.setDepth(110);
 
   scene.tweens.add({
@@ -555,7 +609,7 @@ export function makeStasisEffect(scene: Phaser.Scene, x: number, y: number) {
     alpha: 0,
     duration: 240,
     ease: "Quad.easeOut",
-    onComplete: () => ring.destroy()
+    onComplete: () => releaseEffectCircle(scene, ring)
   });
   scene.tweens.add({
     targets: marker,
@@ -568,7 +622,7 @@ export function makeStasisEffect(scene: Phaser.Scene, x: number, y: number) {
 }
 
 export function makeSunderEffect(scene: Phaser.Scene, x: number, y: number) {
-  const ring = scene.add.circle(x, y, 18, palette.black, 0).setStrokeStyle(2, palette.white, 0.95);
+  const ring = acquireEffectCircle(scene, x, y, 18, palette.black, 0, 2, palette.white, 0.95, 109);
   const marker = scene.add
     .text(x, y - 1, "▣", {
       color: "#f5f5f5",
@@ -577,7 +631,6 @@ export function makeSunderEffect(scene: Phaser.Scene, x: number, y: number) {
       fontStyle: "700"
     })
     .setOrigin(0.5);
-  ring.setDepth(109);
   marker.setDepth(110);
 
   scene.tweens.add({
@@ -586,7 +639,7 @@ export function makeSunderEffect(scene: Phaser.Scene, x: number, y: number) {
     alpha: 0,
     duration: 240,
     ease: "Quad.easeOut",
-    onComplete: () => ring.destroy()
+    onComplete: () => releaseEffectCircle(scene, ring)
   });
   scene.tweens.add({
     targets: marker,
@@ -652,14 +705,14 @@ export function makeBossInvincibleFlash(scene: Phaser.Scene, x: number, y: numbe
 }
 
 export function makeEnemyInvincibleFlash(scene: Phaser.Scene, x: number, y: number) {
-  const shield = scene.add.circle(x, y, 28, palette.black, 0).setStrokeStyle(3, palette.gold, 0.9).setDepth(110);
+  const shield = acquireEffectCircle(scene, x, y, 28, palette.black, 0, 3, palette.gold, 0.9, 110);
   scene.tweens.add({
     targets: shield,
     alpha: 0,
     scale: 1.2,
     duration: 220,
     ease: "Quad.easeOut",
-    onComplete: () => shield.destroy()
+    onComplete: () => releaseEffectCircle(scene, shield)
   });
 }
 
@@ -976,15 +1029,14 @@ export function makeHealParticles(scene: Phaser.Scene, x: number, y: number) {
 }
 
 export function makeReflectFlash(scene: Phaser.Scene, x: number, y: number) {
-  const flash = scene.add.circle(x, y, 16, palette.black, 0).setStrokeStyle(2, palette.white, 0.8);
-  flash.setDepth(105);
+  const flash = acquireEffectCircle(scene, x, y, 16, palette.black, 0, 2, palette.white, 0.8, 105);
   scene.tweens.add({
     targets: flash,
     scale: 1.8,
     alpha: 0,
     duration: 180,
     ease: "Quad.easeOut",
-    onComplete: () => flash.destroy()
+    onComplete: () => releaseEffectCircle(scene, flash)
   });
 }
 
@@ -1005,15 +1057,14 @@ export function makeEraseMark(scene: Phaser.Scene, x: number, y: number) {
 }
 
 export function makeAutoUpgradePulse(scene: Phaser.Scene, x: number, y: number) {
-  const ring = scene.add.circle(x, y, 20, palette.black, 0).setStrokeStyle(2, palette.green, 0.95);
-  ring.setDepth(107);
+  const ring = acquireEffectCircle(scene, x, y, 20, palette.black, 0, 2, palette.green, 0.95, 107);
   scene.tweens.add({
     targets: ring,
     scale: 1.65,
     alpha: 0,
     duration: 260,
     ease: "Quad.easeOut",
-    onComplete: () => ring.destroy()
+    onComplete: () => releaseEffectCircle(scene, ring)
   });
 }
 
