@@ -70,12 +70,13 @@ export class TowerShifterController {
   }
 
   cooldownRatio() {
-    if (this.isReady()) {
+    const cardTime = this.runtime().cardTime;
+    if (cardTime >= this.readyAt) {
       return 1;
     }
 
     return Phaser.Math.Clamp(
-      (this.runtime().cardTime - this.cooldownStartedAt) / this.cooldownDuration,
+      (cardTime - this.cooldownStartedAt) / this.cooldownDuration,
       0,
       1
     );
@@ -86,7 +87,8 @@ export class TowerShifterController {
   }
 
   handlePointer(lane: number, column: number, existingTower: Tower | undefined, additive: boolean): TowerShifterPointerResult {
-    if (!this.isReady()) {
+    const runtime = this.runtime();
+    if (runtime.cardTime < this.readyAt) {
       this.deactivate();
       return "cooldown";
     }
@@ -100,21 +102,25 @@ export class TowerShifterController {
       return "empty";
     }
 
-    const move = this.previewMove(lane, column);
+    const move = this.previewMoveWithRuntime(runtime, lane, column);
     if (!move.valid) {
       this.clearSelection();
       return "invalid";
     }
 
-    this.applyMove(move.positions);
-    this.cooldownStartedAt = this.runtime().cardTime;
+    this.applyMove(runtime, move.positions);
+    this.cooldownStartedAt = runtime.cardTime;
     this.cooldownDuration = shifterCooldownForCount(move.positions.length);
-    this.readyAt = this.runtime().cardTime + this.cooldownDuration;
+    this.readyAt = runtime.cardTime + this.cooldownDuration;
     this.deactivate();
     return "moved";
   }
 
   previewMove(lane: number, column: number): TowerShifterMovePreview {
+    return this.previewMoveWithRuntime(this.runtime(), lane, column);
+  }
+
+  private previewMoveWithRuntime(runtime: TowerShifterRuntime, lane: number, column: number): TowerShifterMovePreview {
     const selection = this.liveSelection();
     const positions = this.previewPositions;
     positions.length = 0;
@@ -142,12 +148,12 @@ export class TowerShifterController {
       if (position.lane < 0 || position.lane >= LANES || position.column < 0 || position.column >= COLUMNS) {
         return this.setPreviewResult(false);
       }
-      if (!this.isCellDeployable(position.lane, position.column)) {
+      if (!this.isCellDeployable(runtime, position.lane, position.column)) {
         return this.setPreviewResult(false);
       }
 
       const key = gridCellKey(position.lane, position.column);
-      const occupant = this.runtime().occupied.get(key);
+      const occupant = runtime.occupied.get(key);
       if (occupant && !this.selectionSet.has(occupant)) {
         return this.setPreviewResult(false);
       }
@@ -208,8 +214,7 @@ export class TowerShifterController {
     this.syncSelectionVisuals();
   }
 
-  private applyMove(positions: TowerShifterMovePosition[]) {
-    const runtime = this.runtime();
+  private applyMove(runtime: TowerShifterRuntime, positions: TowerShifterMovePosition[]) {
     for (const { tower } of positions) {
       runtime.occupied.delete(gridCellKey(tower.lane, tower.column));
     }
@@ -256,8 +261,8 @@ export class TowerShifterController {
     return this.previewResult;
   }
 
-  private isCellDeployable(lane: number, column: number) {
-    return this.runtime().isCellDeployable?.(lane, column) ?? true;
+  private isCellDeployable(runtime: TowerShifterRuntime, lane: number, column: number) {
+    return runtime.isCellDeployable?.(lane, column) ?? true;
   }
 }
 
