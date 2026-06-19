@@ -40,6 +40,30 @@ const effectGraphicsPools = new WeakMap<Phaser.Scene, Phaser.GameObjects.Graphic
 const effectRectanglePools = new WeakMap<Phaser.Scene, Phaser.GameObjects.Rectangle[]>();
 const effectCirclePools = new WeakMap<Phaser.Scene, Phaser.GameObjects.Arc[]>();
 const effectTextPools = new WeakMap<Phaser.Scene, Map<string, Phaser.GameObjects.Text[]>>();
+const SPELL_MORTAR_SHOT_TEXT_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
+  color: "#9fdcff",
+  fontFamily: "monospace",
+  fontSize: "24px",
+  fontStyle: "700"
+};
+const HEART_PULSE_TEXT_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
+  color: "#ff7eb6",
+  fontFamily: "Georgia, 'Times New Roman', serif",
+  fontSize: "42px",
+  fontStyle: "bold"
+};
+const MAGIC_MARKER_TEXT_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
+  color: "#9fdcff",
+  fontFamily: "monospace",
+  fontSize: "18px",
+  fontStyle: "700"
+};
+const WHITE_MARKER_TEXT_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
+  color: "#f5f5f5",
+  fontFamily: "monospace",
+  fontSize: "18px",
+  fontStyle: "700"
+};
 const HEAL_PARTICLE_TEXT_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
   color: "#48ff88",
   fontFamily: "monospace",
@@ -402,15 +426,7 @@ export function makeSpellMortarShot(
   onImpact: () => void,
   onComplete?: () => void
 ) {
-  const projectile = scene.add
-    .text(fromX, fromY, "S", {
-      color: "#9fdcff",
-      fontFamily: "monospace",
-      fontSize: "24px",
-      fontStyle: "700"
-    })
-    .setOrigin(0.5)
-    .setDepth(120);
+  const projectile = acquireEffectText(scene, "spell-mortar-shot", fromX, fromY, "S", SPELL_MORTAR_SHOT_TEXT_STYLE, 120);
   const distance = Math.hypot(targetX - fromX, targetY - fromY);
   const controlX = (fromX + targetX) / 2;
   const controlY = Math.min(fromY, targetY) - 420 - distance * 0.4;
@@ -433,7 +449,7 @@ export function makeSpellMortarShot(
       projectile.setScale(1 + Math.sin(progress * Math.PI) * 0.26);
     },
     onComplete: () => {
-      projectile.destroy();
+      releaseEffectText(scene, "spell-mortar-shot", projectile);
       onImpact();
       onComplete?.();
     }
@@ -545,15 +561,7 @@ export function makeFreezePulse(scene: Phaser.Scene, x: number, y: number, radiu
 }
 
 export function makeHeartPulse(scene: Phaser.Scene, x: number, y: number, radius: number) {
-  const heart = scene.add
-    .text(x, y + 2, "♥", {
-      color: "#ff7eb6",
-      fontFamily: "Georgia, 'Times New Roman', serif",
-      fontSize: "42px",
-      fontStyle: "bold"
-    })
-    .setOrigin(0.5)
-    .setDepth(111);
+  const heart = acquireEffectText(scene, "heart-pulse", x, y + 2, "♥", HEART_PULSE_TEXT_STYLE, 111);
   const ring = acquireEffectCircle(scene, x, y, radius * 0.25, palette.black, 0, 2, palette.heart, 0.78, 110);
 
   scene.tweens.add({
@@ -562,7 +570,7 @@ export function makeHeartPulse(scene: Phaser.Scene, x: number, y: number, radius
     alpha: 0,
     duration: 420,
     ease: "Quad.easeOut",
-    onComplete: () => heart.destroy()
+    onComplete: () => releaseEffectText(scene, "heart-pulse", heart)
   });
   scene.tweens.add({
     targets: ring,
@@ -668,15 +676,7 @@ export function makeShiftEffect(scene: Phaser.Scene, fromX: number, fromY: numbe
 
 export function makeStasisEffect(scene: Phaser.Scene, x: number, y: number) {
   const ring = acquireEffectCircle(scene, x, y, 18, palette.black, 0, 2, palette.time, 0.95, 109);
-  const marker = scene.add
-    .text(x, y - 1, "$", {
-      color: "#9fdcff",
-      fontFamily: "monospace",
-      fontSize: "18px",
-      fontStyle: "700"
-    })
-    .setOrigin(0.5);
-  marker.setDepth(110);
+  const marker = acquireEffectText(scene, "stasis-marker", x, y - 1, "$", MAGIC_MARKER_TEXT_STYLE, 110);
 
   scene.tweens.add({
     targets: ring,
@@ -692,21 +692,13 @@ export function makeStasisEffect(scene: Phaser.Scene, x: number, y: number) {
     alpha: 0,
     duration: 300,
     ease: "Quad.easeOut",
-    onComplete: () => marker.destroy()
+    onComplete: () => releaseEffectText(scene, "stasis-marker", marker)
   });
 }
 
 export function makeSunderEffect(scene: Phaser.Scene, x: number, y: number) {
   const ring = acquireEffectCircle(scene, x, y, 18, palette.black, 0, 2, palette.white, 0.95, 109);
-  const marker = scene.add
-    .text(x, y - 1, "▣", {
-      color: "#f5f5f5",
-      fontFamily: "monospace",
-      fontSize: "18px",
-      fontStyle: "700"
-    })
-    .setOrigin(0.5);
-  marker.setDepth(110);
+  const marker = acquireEffectText(scene, "sunder-marker", x, y - 1, "▣", WHITE_MARKER_TEXT_STYLE, 110);
 
   scene.tweens.add({
     targets: ring,
@@ -722,7 +714,7 @@ export function makeSunderEffect(scene: Phaser.Scene, x: number, y: number) {
     alpha: 0,
     duration: 300,
     ease: "Quad.easeOut",
-    onComplete: () => marker.destroy()
+    onComplete: () => releaseEffectText(scene, "sunder-marker", marker)
   });
 }
 
