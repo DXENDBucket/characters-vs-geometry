@@ -146,14 +146,14 @@ export function syncTowerFacingVisual(tower: Tower) {
   const reversed = towerFacingDirection(tower) === -1;
   tower.border.setScale(reversed ? -1 : 1, 1);
   tower.label.setScale(reversed ? -1 : 1, 1);
-  tower.facingIcon.setVisible(reversed);
+  setVisibleIfChanged(tower.facingIcon, reversed);
 }
 
 export function upgradeTowerLevel(tower: Tower) {
   const previousLevel = tower.level;
   tower.level += 1;
   syncTowerLevelText(tower);
-  tower.levelText.setAlpha(1);
+  setAlphaIfChanged(tower.levelText, 1);
   return effectiveUpgradeDelta(previousLevel, tower.level);
 }
 
@@ -243,8 +243,8 @@ export function setTowerAutoUpgradeState(tower: Tower, enabled: boolean, active 
 }
 
 export function syncTowerAutoUpgradeVisual(tower: Tower, active: boolean) {
-  tower.autoUpgradeBorder.setVisible(tower.autoUpgrade);
-  tower.autoUpgradeBorder.setAlpha(active ? 0.95 : 0.28);
+  setVisibleIfChanged(tower.autoUpgradeBorder, tower.autoUpgrade);
+  setAlphaIfChanged(tower.autoUpgradeBorder, active ? 0.95 : 0.28);
 }
 
 export function findAutoUpgradeTarget(towers: Tower[], cardId: CardId) {
@@ -285,9 +285,9 @@ export function setTowerFlyingUntil(tower: Tower, until: number) {
 
 export function syncTowerFlyingVisual(tower: Tower, time: number) {
   const active = towerIsFlying(tower);
-  tower.flyingHalo.setVisible(active);
+  setVisibleIfChanged(tower.flyingHalo, active);
   if (!active) {
-    tower.body.setPosition(tower.x, tower.y);
+    setPositionIfChanged(tower.body, tower.x, tower.y);
     tower.flyingHalo.setScale(1, 1);
     return;
   }
@@ -302,11 +302,30 @@ export function syncTowerTrueDamageVisual(tower: Tower, battleTime: number) {
   if (!active && tower.trueDamageUntil > 0 && battleTime >= tower.trueDamageUntil) {
     tower.trueDamageUntil = 0;
   }
-  if (tower.trueDamageBorder.visible !== active) {
-    tower.trueDamageBorder.setVisible(active);
-  }
+  setVisibleIfChanged(tower.trueDamageBorder, active);
   if (active) {
     tower.trueDamageBorder.setAlpha(0.72 + Math.sin(battleTime / 120) * 0.18);
+  }
+}
+
+function setVisibleIfChanged(
+  target: Phaser.GameObjects.GameObject & { visible: boolean; setVisible(visible: boolean): unknown },
+  visible: boolean
+) {
+  if (target.visible !== visible) {
+    target.setVisible(visible);
+  }
+}
+
+function setAlphaIfChanged(target: Phaser.GameObjects.GameObject & { alpha: number; setAlpha(alpha: number): unknown }, alpha: number) {
+  if (target.alpha !== alpha) {
+    target.setAlpha(alpha);
+  }
+}
+
+function setPositionIfChanged(target: Phaser.GameObjects.Container, x: number, y: number) {
+  if (target.x !== x || target.y !== y) {
+    target.setPosition(x, y);
   }
 }
 
