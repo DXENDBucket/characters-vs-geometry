@@ -508,10 +508,14 @@ function detonateEnemyMortar(runtime: ProjectileRuntime, projectile: MortarProje
   const reflectors = enemyMortarReflectorsBuffer;
   hitTowers.length = 0;
   reflectors.length = 0;
+  const targetX = projectile.targetX;
+  const targetY = projectile.targetY;
+  const rangeX = projectile.rangeX;
+  const rangeY = projectile.rangeY;
 
   try {
     for (const tower of runtime.towers) {
-      if (Math.abs(tower.x - projectile.targetX) <= projectile.rangeX && Math.abs(tower.y - projectile.targetY) <= projectile.rangeY) {
+      if (Math.abs(tower.x - targetX) <= rangeX && Math.abs(tower.y - targetY) <= rangeY) {
         hitTowers.push(tower);
         if (tower.reflectProjectiles) {
           reflectors.push(tower);
