@@ -113,11 +113,11 @@ export function enemyVisualScale(enemy: Enemy) {
 
 export function syncEnemyVisualScale(enemy: Enemy) {
   if (enemyIsSolarBomb(enemy)) {
-    enemy.shape.setScale(1);
+    setScaleIfChanged(enemy.shape, 1, 1);
     return;
   }
 
-  enemy.shape.setScale(enemyVisualScale(enemy));
+  setScaleIfChanged(enemy.shape, enemyVisualScale(enemy));
 }
 
 export function syncEnemyFacingVisual(enemy: Enemy) {
@@ -151,7 +151,17 @@ export function syncEnemyFacingVisual(enemy: Enemy) {
       scalable.setData?.("facingBaseScaleX", baseScaleX);
       scalable.setData?.("facingBaseScaleY", baseScaleY);
     }
-    scalable.setScale(baseScaleX * facingScale, baseScaleY);
+    setScaleIfChanged(scalable, baseScaleX * facingScale, baseScaleY);
+  }
+}
+
+function setScaleIfChanged(
+  target: Phaser.GameObjects.GameObject & { scaleX?: number; scaleY?: number; setScale?: (x: number, y?: number) => unknown },
+  x: number,
+  y = x
+) {
+  if (target.scaleX !== x || target.scaleY !== y) {
+    target.setScale?.(x, y);
   }
 }
 
