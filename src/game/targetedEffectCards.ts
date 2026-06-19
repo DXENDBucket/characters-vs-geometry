@@ -69,7 +69,7 @@ export class TargetedEffectCardController {
       return "empty";
     }
 
-    const pendingEffectCard = this.findPendingEffectCard(definition.id, lane, column);
+    const pendingEffectCard = this.findPendingEffectCard(runtime, definition.id, lane, column);
     if (pendingEffectCard) {
       this.upgradePendingEffectCard(pendingEffectCard, definition);
     } else {
@@ -142,8 +142,8 @@ export class TargetedEffectCardController {
     }
   }
 
-  private findPendingEffectCard(type: CardId, lane: number, column: number) {
-    return this.runtime().towers.find((tower) => {
+  private findPendingEffectCard(runtime: TargetedEffectCardRuntime, type: CardId, lane: number, column: number) {
+    return runtime.towers.find((tower) => {
       return tower.transient && tower.type === type && tower.lane === lane && tower.column === column;
     });
   }
