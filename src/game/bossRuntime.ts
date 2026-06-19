@@ -62,7 +62,7 @@ import {
   forEachBossPart,
   latestPlacedTower,
   latestPlacedTowers,
-  pointInBossBounds,
+  pointInBounds,
   type RectBounds
 } from "./targeting";
 import { isTrapArmed } from "./towers";
@@ -832,10 +832,11 @@ function updateDodecahedronEndlessWings(
     return;
   }
 
+  const bounds = bossBounds(boss);
   let spent = false;
   for (const target of runtime.enemies) {
     if (
-      !pointInBossBounds(boss, target.x, target.y) ||
+      !pointInBounds(bounds, target.x, target.y) ||
       enemyIsHighFlying(target) ||
       hasStatusEffect(target, "flying", runtime.battleTime)
     ) {
@@ -1082,8 +1083,9 @@ function gainBossSkillSp(skill: BossSkill | undefined, amount: number) {
 }
 
 function empowerEnemiesTouchingBoss(runtime: BossRuntime, boss: CubeBoss) {
+  const bounds = bossBounds(boss);
   for (const enemy of runtime.enemies) {
-    if (!pointInBossBounds(boss, enemy.x, enemy.y)) {
+    if (!pointInBounds(bounds, enemy.x, enemy.y)) {
       continue;
     }
 
