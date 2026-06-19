@@ -54,6 +54,7 @@ export class TowerSkillController {
   private spellMortarTargetingTowerSet = new Set<Tower>();
   private spellMortarReticle: Phaser.GameObjects.Container | null = null;
   private activeSpellMortarTweens: Phaser.Tweens.Tween[] = [];
+  private cachedCardCooldownMultiplier = 1;
   private readonly skillDefinitions: Partial<Record<CardId, TowerSkillDefinition>>;
 
   constructor(
@@ -73,14 +74,20 @@ export class TowerSkillController {
 
   update(seconds: number, time: number) {
     this.syncSpellMortarTargetingTowers();
+    let activeClockLevelSum = 0;
     for (const tower of this.runtime().towers) {
       const definition = this.skillDefinitions[tower.type];
       if (!definition) {
         continue;
       }
 
-      definition.update(tower, getTowerSkillState(tower, definition.stateKey), seconds, time, undefined);
+      const state = getTowerSkillState(tower, definition.stateKey);
+      definition.update(tower, state, seconds, time, undefined);
+      if (tower.type === "c" && time < state.activeUntil) {
+        activeClockLevelSum += effectiveTowerLevel(tower);
+      }
     }
+    this.cachedCardCooldownMultiplier = activeClockLevelSum + 1;
   }
 
   hasSpellMortarTargeting() {
@@ -88,15 +95,7 @@ export class TowerSkillController {
   }
 
   cardCooldownMultiplier() {
-    const runtime = this.runtime();
-    const battleTime = runtime.battleTime;
-    let activeClockLevelSum = 0;
-    for (const tower of runtime.towers) {
-      if (tower.type === "c" && battleTime < getTowerSkillState(tower, "clock").activeUntil) {
-        activeClockLevelSum += effectiveTowerLevel(tower);
-      }
-    }
-    return activeClockLevelSum + 1;
+    return this.cachedCardCooldownMultiplier;
   }
 
   isClockTowerReady(tower: Tower) {

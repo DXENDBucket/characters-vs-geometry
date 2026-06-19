@@ -55,6 +55,10 @@ const enemyMortarReflectorsBuffer: Tower[] = [];
 const bossRadiusFalloffResult: { falloff: number; part: CubeBoss | undefined } = { falloff: 0, part: undefined };
 
 export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: number) {
+  if (runtime.projectiles.length === 0) {
+    return;
+  }
+
   const slowSources = slowAuraSources(runtime.towers);
   forEachInitial(runtime.projectiles, (projectile) => {
     if (projectile.type === "chevron") {
@@ -122,6 +126,10 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
 }
 
 export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: number) {
+  if (runtime.enemyProjectiles.length === 0) {
+    return;
+  }
+
   const slowSources = slowAuraSources(runtime.towers);
   forEachInitial(runtime.enemyProjectiles, (projectile) => {
     projectile.x += projectile.vx * seconds * movementSpeedMultiplier(runtime.towers, projectile.x, projectile.y, slowSources);
@@ -162,6 +170,10 @@ export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: numb
 }
 
 export function updateMortarProjectiles(runtime: ProjectileRuntime, seconds: number) {
+  if (runtime.mortarProjectiles.length === 0) {
+    return;
+  }
+
   const slowSources = slowAuraSources(runtime.towers);
   forEachInitial(runtime.mortarProjectiles, (projectile) => {
     syncMortarTarget(runtime, projectile);

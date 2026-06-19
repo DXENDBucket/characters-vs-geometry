@@ -315,6 +315,10 @@ function triangleKindForRank(rank: number): EnemyKind {
 }
 
 export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, seconds: number) {
+  if (runtime.enemies.length === 0) {
+    return;
+  }
+
   updateEnemySkills(runtime, seconds, time);
   const supportSources = enemySupportSources(runtime.enemies);
   syncHexArmorAuras(runtime.enemies, time, supportSources);
