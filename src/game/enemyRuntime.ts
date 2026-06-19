@@ -51,7 +51,7 @@ import {
   updateEnemySkills,
   type EnemySupportSources
 } from "./enemySupport";
-import { forEachSnapshot } from "./iteration";
+import { forEachInitial, forEachSnapshot } from "./iteration";
 import { advanceHighFlyingEnemy, advanceSlopeTriangle } from "./slopeTriangle";
 import {
   SOLAR_BOMB_BOUNCE_COOLDOWN,
@@ -324,7 +324,7 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
   syncHexArmorAuras(runtime.enemies, time, supportSources);
   const slowSources = slowAuraSources(runtime.towers);
 
-  forEachSnapshot(runtime.enemies, (enemy) => {
+  forEachInitial(runtime.enemies, (enemy) => {
     if (!enemy.inPlay) {
       return;
     }
