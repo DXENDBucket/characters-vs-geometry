@@ -54,7 +54,9 @@ const enemyMortarHitTowersBuffer: Tower[] = [];
 const enemyMortarReflectorsBuffer: Tower[] = [];
 const bossRadiusFalloffResult: { falloff: number; part: CubeBoss | undefined } = { falloff: 0, part: undefined };
 const directProjectileTargetBuffers: Enemy[][] = Array.from({ length: LANES }, () => []);
+const enemyProjectileTransientTargetBuffers: Tower[][] = Array.from({ length: LANES }, () => []);
 type DirectProjectileTargets = Enemy[][];
+type EnemyProjectileTransientTargets = Tower[][];
 
 export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: number) {
   if (runtime.projectiles.length === 0) {
@@ -148,11 +150,12 @@ export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: numb
   }
 
   const slowSources = slowAuraSources(runtime.towers);
+  const transientTargets = buildEnemyProjectileTransientTargets(runtime.towers);
   forEachInitial(runtime.enemyProjectiles, (projectile) => {
     projectile.x += projectile.vx * seconds * movementSpeedMultiplier(runtime.towers, projectile.x, projectile.y, slowSources);
     projectile.body.setPosition(projectile.x, projectile.y);
 
-    const hit = findEnemyProjectileHitTower(runtime.towers, runtime.occupied, projectile);
+    const hit = findEnemyProjectileHitTower(runtime.occupied, projectile, transientTargets);
 
     if (hit) {
       if (hit.type === "N") {
@@ -345,15 +348,33 @@ function projectileHitsEnemy(x: number, y: number, enemy: Enemy) {
   return distanceSq(enemy.x, enemy.y, x, y) < radius * radius;
 }
 
-function findEnemyProjectileHitTower(towers: Tower[], occupied: Map<string, Tower>, projectile: EnemyProjectile) {
+function buildEnemyProjectileTransientTargets(towers: Tower[]): EnemyProjectileTransientTargets {
+  for (const targets of enemyProjectileTransientTargetBuffers) {
+    targets.length = 0;
+  }
+
+  for (const tower of towers) {
+    if (tower.transient && tower.inPlay) {
+      enemyProjectileTransientTargetBuffers[tower.lane]?.push(tower);
+    }
+  }
+
+  return enemyProjectileTransientTargetBuffers;
+}
+
+function findEnemyProjectileHitTower(
+  occupied: Map<string, Tower>,
+  projectile: EnemyProjectile,
+  transientTargets: EnemyProjectileTransientTargets
+) {
   const column = Math.floor((projectile.x - BOARD_X) / CELL_WIDTH);
   const tower = firstPointHitOccupiedTower(occupied, projectile.sourceLane, column, projectile.x, projectile.y);
   if (tower) {
     return tower;
   }
 
-  for (const candidate of towers) {
-    if (candidate.transient && candidate.lane === projectile.sourceLane && pointInTowerBounds(candidate, projectile.x, projectile.y)) {
+  for (const candidate of transientTargets[projectile.sourceLane] ?? []) {
+    if (candidate.inPlay && pointInTowerBounds(candidate, projectile.x, projectile.y)) {
       return candidate;
     }
   }
