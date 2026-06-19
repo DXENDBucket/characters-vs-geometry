@@ -1355,7 +1355,7 @@ export class GameScene extends Phaser.Scene {
 
       const definition = this.getDefinition(tower.type);
       const behavior = getCardBehavior(tower.type);
-      if (!behavior.canUse(tower, definition, time, runtime)) {
+      if (!behavior.canUse(tower, definition, time, runtime, true)) {
         continue;
       }
 

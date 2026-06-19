@@ -61,7 +61,8 @@ export interface CardBehavior {
     tower: Tower,
     definition: CardDefinition,
     time: number,
-    runtime: CardReadinessRuntime
+    runtime: CardReadinessRuntime,
+    cooldownAlreadyReady?: boolean
   ) => boolean;
   execute: (tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) => void;
 }
@@ -72,8 +73,8 @@ export const idleCardBehavior: CardBehavior = {
 };
 
 export const projectileCardBehavior: CardBehavior = {
-  canUse: (tower, definition, time, runtime) => {
-    return cooldownReady(tower, time) && Boolean(definition.damage && hasAttackTarget(tower, definition, runtime.enemies, runtime.boss));
+  canUse: (tower, definition, time, runtime, cooldownAlreadyReady) => {
+    return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(definition.damage && hasAttackTarget(tower, definition, runtime.enemies, runtime.boss));
   },
   execute: (tower, definition, runtime) => {
     fireTowerProjectiles(tower, definition, runtime);
@@ -81,23 +82,23 @@ export const projectileCardBehavior: CardBehavior = {
 };
 
 export const homingCardBehavior: CardBehavior = {
-  canUse: (tower, definition, time, runtime) => {
-    return cooldownReady(tower, time) && Boolean(definition.damage && selectSmallXTarget(runtime.enemies, tower.x, tower.y));
+  canUse: (tower, definition, time, runtime, cooldownAlreadyReady) => {
+    return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(definition.damage && selectSmallXTarget(runtime.enemies, tower.x, tower.y));
   },
   execute: fireHomingVolley
 };
 
 export const magicLaserCardBehavior: CardBehavior = {
-  canUse: (tower, definition, time, runtime) => {
-    return cooldownReady(tower, time) && Boolean(definition.damage && hasMagicLaserTarget(tower, runtime));
+  canUse: (tower, definition, time, runtime, cooldownAlreadyReady) => {
+    return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(definition.damage && hasMagicLaserTarget(tower, runtime));
   },
   execute: fireMagicLaser
 };
 
 export const healingCardBehavior: CardBehavior = {
-  canUse: (tower, definition, time, runtime) => {
+  canUse: (tower, definition, time, runtime, cooldownAlreadyReady) => {
     return (
-      cooldownReady(tower, time) &&
+      cooldownReady(tower, time, cooldownAlreadyReady) &&
       Boolean(definition.healAmount && hasHealTarget(tower, definition, runtime.occupied, definition.healTargets ?? 1))
     );
   },
@@ -105,15 +106,15 @@ export const healingCardBehavior: CardBehavior = {
 };
 
 export const zealHealingCardBehavior: CardBehavior = {
-  canUse: (tower, definition, time, runtime) => {
-    return cooldownReady(tower, time) && Boolean(definition.healAmount && hasZealHealTarget(tower, runtime.towers));
+  canUse: (tower, definition, time, runtime, cooldownAlreadyReady) => {
+    return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(definition.healAmount && hasZealHealTarget(tower, runtime.towers));
   },
   execute: fireZealHealingPulse
 };
 
 export const productionCardBehavior: CardBehavior = {
-  canUse: (tower, definition, time) => {
-    return cooldownReady(tower, time) && Boolean(definition.produceAmount);
+  canUse: (tower, definition, time, _runtime, cooldownAlreadyReady) => {
+    return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(definition.produceAmount);
   },
   execute: (tower, definition, runtime) => {
     runtime.gainChars(getProductionAmount(tower, definition), tower.x, tower.y - 28);
@@ -121,29 +122,29 @@ export const productionCardBehavior: CardBehavior = {
 };
 
 export const shiftCardBehavior: CardBehavior = {
-  canUse: (tower, _definition, time, runtime) => {
-    return cooldownReady(tower, time) && hasShiftTarget(tower, runtime.enemies);
+  canUse: (tower, _definition, time, runtime, cooldownAlreadyReady) => {
+    return cooldownReady(tower, time, cooldownAlreadyReady) && hasShiftTarget(tower, runtime.enemies);
   },
   execute: fireShiftPulse
 };
 
 export const laneRepelCardBehavior: CardBehavior = {
-  canUse: (tower, _definition, time, runtime) => {
-    return cooldownReady(tower, time) && Boolean(resolveRepelDirection(tower)) && hasLaneRepelTarget(tower, runtime.enemies);
+  canUse: (tower, _definition, time, runtime, cooldownAlreadyReady) => {
+    return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(resolveRepelDirection(tower)) && hasLaneRepelTarget(tower, runtime.enemies);
   },
   execute: fireLaneRepelPulse
 };
 
 export const blockedPushCardBehavior: CardBehavior = {
-  canUse: (tower, _definition, time, runtime) => {
-    return cooldownReady(tower, time) && hasBlockedEnemy(tower, runtime.towers, runtime.enemies, runtime.occupied);
+  canUse: (tower, _definition, time, runtime, cooldownAlreadyReady) => {
+    return cooldownReady(tower, time, cooldownAlreadyReady) && hasBlockedEnemy(tower, runtime.towers, runtime.enemies, runtime.occupied);
   },
   execute: fireBlockedPushPulse
 };
 
 export const slowAuraCardBehavior: CardBehavior = {
-  canUse: (tower, definition, time) => {
-    return cooldownReady(tower, time) && Boolean(definition.selfDamage);
+  canUse: (tower, definition, time, _runtime, cooldownAlreadyReady) => {
+    return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(definition.selfDamage);
   },
   execute: (tower, definition, runtime) => {
     runtime.damageTower(tower, definition.selfDamage ?? 700, definition.selfDamageType ?? "true");
@@ -151,29 +152,29 @@ export const slowAuraCardBehavior: CardBehavior = {
 };
 
 export const slashCardBehavior: CardBehavior = {
-  canUse: (tower, definition, time, runtime) => {
-    return cooldownReady(tower, time) && Boolean(definition.damage && hasAttackTarget(tower, definition, runtime.enemies, runtime.boss));
+  canUse: (tower, definition, time, runtime, cooldownAlreadyReady) => {
+    return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(definition.damage && hasAttackTarget(tower, definition, runtime.enemies, runtime.boss));
   },
   execute: fireSlash
 };
 
 export const arcWaveCardBehavior: CardBehavior = {
-  canUse: (tower, definition, time, runtime) => {
-    return cooldownReady(tower, time) && Boolean(definition.damage && hasArcWaveTarget(tower, runtime.enemies, runtime.boss));
+  canUse: (tower, definition, time, runtime, cooldownAlreadyReady) => {
+    return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(definition.damage && hasArcWaveTarget(tower, runtime.enemies, runtime.boss));
   },
   execute: fireArcWave
 };
 
 export const predictiveMortarCardBehavior: CardBehavior = {
-  canUse: (tower, definition, time, runtime) => {
-    return cooldownReady(tower, time) && Boolean(definition.damage && hasPredictiveMortarTarget(tower, definition, runtime));
+  canUse: (tower, definition, time, runtime, cooldownAlreadyReady) => {
+    return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(definition.damage && hasPredictiveMortarTarget(tower, definition, runtime));
   },
   execute: firePredictiveMortar
 };
 
 export const smallSummonerCardBehavior: CardBehavior = {
-  canUse: (tower, _definition, time, runtime) => {
-    return cooldownReady(tower, time) && Boolean(getSmallSummonCell(tower, runtime.occupied, runtime.isCellDeployable));
+  canUse: (tower, _definition, time, runtime, cooldownAlreadyReady) => {
+    return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(getSmallSummonCell(tower, runtime.occupied, runtime.isCellDeployable));
   },
   execute: fireSmallSummon
 };
@@ -238,7 +239,10 @@ const HOMING_PROJECTILE_MUZZLES = [
   { x: -24, y: 0 }
 ] as const;
 
-function cooldownReady(tower: Tower, time: number) {
+function cooldownReady(tower: Tower, time: number, cooldownAlreadyReady = false) {
+  if (cooldownAlreadyReady) {
+    return true;
+  }
   return time >= tower.lastFire + attackIntervalMs(towerFinalStats(tower).attackSpeed);
 }
 
