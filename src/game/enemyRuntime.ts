@@ -177,12 +177,13 @@ export function spawnSplitEnemies(
   battleTime: number,
   finalDamageReduction: number
 ) {
-  if (enemyFamily(enemy.kind) === "hexMace") {
+  const family = enemyFamily(enemy.kind);
+  if (family === "hexMace") {
     spawnHexMaceSplit(runtime, enemy, battleTime);
     return;
   }
 
-  if (enemyFamily(enemy.kind) === "angelPentagonRam") {
+  if (family === "angelPentagonRam") {
     spawnAngelPentagonRamSplit(runtime, enemy, battleTime);
     return;
   }
@@ -379,7 +380,7 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
         enemy.attackAt = time + enemy.finalStats.attackInterval + (shots - 1) * interval;
       } else {
         fireEnemyVolley(runtime, enemy, time);
-        enemy.attackAt = time + enemy.finalStats.attackInterval + (shots - 1) * volleyInterval(enemy.finalStats.attackInterval, shots);
+        enemy.attackAt = time + enemy.finalStats.attackInterval + (shots - 1) * interval;
       }
     }
 
@@ -437,6 +438,7 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
       return;
     }
 
+    const movementDirection = enemyMovementDirection(enemy);
     if (!blocker) {
       if (advanceHexMaceMovement(runtime, enemy, seconds, time, status, supportSources, slowSources)) {
         if (!enemy.inPlay) {
@@ -449,10 +451,7 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
         return;
       }
 
-      enemy.x +=
-        enemyMovementDirection(enemy) *
-        movementSpeed *
-        seconds;
+      enemy.x += movementDirection * movementSpeed * seconds;
       syncEnemyBodyPosition(enemy);
     }
 
@@ -464,11 +463,11 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
       return;
     }
 
-    if (enemyMovementDirection(enemy) < 0 && enemy.x < BOARD_X - 34 && runtime.onEnemyReachedBase(enemy)) {
+    if (movementDirection < 0 && enemy.x < BOARD_X - 34 && runtime.onEnemyReachedBase(enemy)) {
       return false;
     }
 
-    if (enemyMovementDirection(enemy) > 0 && enemy.x > BOARD_X + BOARD_WIDTH + 70) {
+    if (movementDirection > 0 && enemy.x > BOARD_X + BOARD_WIDTH + 70) {
       removeEscapedReverseEnemy(runtime, enemy);
     }
   });

@@ -33,8 +33,8 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
     attackSpeed,
     finalDamageReduction: options.finalDamageReduction
   });
-  const isBurrowArrow = enemyFamily(options.kind) === "burrowArrow";
   const family = enemyFamily(options.kind);
+  const isBurrowArrow = family === "burrowArrow";
   const movementDirection = options.movementDirection ?? -1;
   const body = scene.add.container(options.x, y).setDepth(60 + options.lane);
   const statusBorder = scene.add.circle(0, 0, 28, palette.black, 0).setStrokeStyle(2, palette.magic, 0.92);

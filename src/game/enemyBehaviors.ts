@@ -49,19 +49,20 @@ export function enemyAttackSpeed(kind: EnemyKind) {
     return attackSpeedFromInterval(2_000);
   }
 
-  if (enemyFamily(kind) === "heart") {
+  const family = enemyFamily(kind);
+  if (family === "heart") {
     return attackSpeedFromInterval(5_000);
   }
 
-  if (enemyFamily(kind) === "chargingHexagon") {
+  if (family === "chargingHexagon") {
     return attackSpeedFromInterval(2_000 / enemyRank(kind));
   }
 
-  if (enemyFamily(kind) === "archangelHeptagon") {
+  if (family === "archangelHeptagon") {
     return attackSpeedFromInterval(2_000);
   }
 
-  if (enemyFamily(kind) === "triangle") {
+  if (family === "triangle") {
     return attackSpeedFromInterval(ATTACK_INTERVAL / enemyRank(kind));
   }
 
@@ -74,16 +75,19 @@ export function enemyAttackInterval(kind: EnemyKind) {
 
 export function initialEnemySkillStates(kind: EnemyKind): Record<string, SkillState> {
   const family = enemyFamily(kind);
-  if (family === "angelPentagon" && enemyRank(kind) >= 2) {
-    const extraRanks = enemyRank(kind) - 1;
-    return {
-      wings: {
-        sp: extraRanks * ANGEL_PENTAGON_INITIAL_WINGS_SP_PER_EXTRA_RANK,
-        spBuffer: 0,
-        activeUntil: 0,
-        regenMultiplier: 1 + extraRanks * ANGEL_PENTAGON_SKILL_REGEN_MULTIPLIER_PER_EXTRA_RANK
-      }
-    };
+  if (family === "angelPentagon") {
+    const rank = enemyRank(kind);
+    if (rank >= 2) {
+      const extraRanks = rank - 1;
+      return {
+        wings: {
+          sp: extraRanks * ANGEL_PENTAGON_INITIAL_WINGS_SP_PER_EXTRA_RANK,
+          spBuffer: 0,
+          activeUntil: 0,
+          regenMultiplier: 1 + extraRanks * ANGEL_PENTAGON_SKILL_REGEN_MULTIPLIER_PER_EXTRA_RANK
+        }
+      };
+    }
   }
 
   if (family === "archangelHeptagon") {
@@ -291,18 +295,22 @@ export function shouldEnemyShoot(enemy: Enemy, time: number) {
 }
 
 export function canEnemyMelee(enemy: Enemy) {
-  return (
-    !enemyIsRanged(enemy.kind) &&
-    !enemyIsMortar(enemy.kind) &&
-    !enemyIsLaser(enemy.kind) &&
-    !enemyIsBlockedDetonator(enemy.kind) &&
-    !enemyIsSiegeRam(enemy.kind) &&
-    !enemyIsMace(enemy.kind) &&
-    enemyFamily(enemy.kind) !== "heart" &&
-    enemyFamily(enemy.kind) !== "slopeTriangle" &&
-    !enemyIsSolarBomb(enemy) &&
-    !enemyIsBossCompanion(enemy.kind)
-  );
+  const kind = enemy.kind;
+  if (
+    enemyIsRanged(kind) ||
+    enemyIsMortar(kind) ||
+    enemyIsLaser(kind) ||
+    enemyIsBlockedDetonator(kind) ||
+    enemyIsSiegeRam(kind) ||
+    enemyIsMace(kind) ||
+    enemyIsSolarBomb(enemy) ||
+    enemyIsBossCompanion(kind)
+  ) {
+    return false;
+  }
+
+  const family = enemyFamily(kind);
+  return family !== "heart" && family !== "slopeTriangle";
 }
 
 export function enemyIgnoresLeaderRestrictedMechanics(enemy: Enemy) {
