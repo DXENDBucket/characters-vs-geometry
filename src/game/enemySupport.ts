@@ -332,21 +332,32 @@ export function updateEnemySkills(runtime: EnemySkillRuntime, seconds: number, t
 
   try {
     for (const enemy of runtime.enemies) {
-      if (enemyIsHighFlying(enemy) || hasUnexpiredStatusEffect(enemy, "frozen", time)) {
+      if (enemyIsHighFlying(enemy)) {
         continue;
       }
 
       const family = enemyFamily(enemy.kind);
+      const definitions = enemySkillDefinitionsForFamily(enemySkillRegistry, family);
+      if (family !== "heart" && definitions.length === 0) {
+        continue;
+      }
+
+      if (hasUnexpiredStatusEffect(enemy, "frozen", time)) {
+        continue;
+      }
+
       if (family === "heart") {
         activeHeartEnemies.push(enemy);
         continue;
       }
 
-      for (const definition of enemySkillDefinitionsForFamily(enemySkillRegistry, family)) {
+      for (const definition of definitions) {
         definition.update(enemy, getEnemySkillState(enemy, definition.stateKey), seconds, time, runtime);
       }
     }
-    updateHeartLeads(runtime.scene, runtime.enemies, activeHeartEnemies, seconds);
+    if (activeHeartEnemies.length > 0) {
+      updateHeartLeads(runtime.scene, runtime.enemies, activeHeartEnemies, seconds);
+    }
   } finally {
     activeHeartEnemies.length = 0;
   }
