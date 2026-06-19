@@ -63,7 +63,7 @@ import {
   latestPlacedTower,
   latestPlacedTowers,
   pointInBossBounds,
-  towerIntersectsBoss
+  type RectBounds
 } from "./targeting";
 import { isTrapArmed } from "./towers";
 import { towerFinalStats } from "./unitStats";
@@ -99,6 +99,7 @@ const DODECAHEDRON_COMPANION_DEATH_MORTAR_TARGETS = 4;
 const DODECAHEDRON_BOSS_ENDLESS_WINGS_DURATION = 7_000;
 const DODECAHEDRON_BOSS_ENDLESS_WINGS_SPEED_MULTIPLIER = 2;
 const dodecahedronCompanionBuffer: Enemy[] = [];
+const bossContactTowerBuffer: Tower[] = [];
 const OCTAHEDRON_SOLAR_BOMB_LANES = [1, 5] as const;
 const OCTAHEDRON_REINFORCEMENT_DELAY = 500;
 const OCTAHEDRON_HEART_REINFORCEMENT_LANES = [1, 3, 5] as const;
@@ -880,8 +881,9 @@ function updateBossHasteVisual(runtime: BossRuntime, boss: CubeBoss) {
 }
 
 function triggerFunctionalTowersTouchingBoss(runtime: BossRuntime, boss: CubeBoss) {
+  const bounds = bossBounds(boss);
   forEachSnapshot(runtime.towers, (tower) => {
-    if (!towerIntersectsBoss(tower, boss)) {
+    if (!towerIntersectsBossBounds(tower, bounds)) {
       return;
     }
 
@@ -906,20 +908,35 @@ function damageBossTouchingTowers(runtime: BossRuntime, boss: CubeBoss, seconds:
   }
 
   while (boss.contactAttackBuffer >= CUBE_BOSS_CONTACT_INTERVAL) {
-    const targets: Tower[] = [];
-    for (const tower of runtime.towers) {
-      if (towerIntersectsBoss(tower, boss)) {
-        targets.push(tower);
+    const targets = bossContactTowerBuffer;
+    targets.length = 0;
+    const bounds = bossBounds(boss);
+    try {
+      for (const tower of runtime.towers) {
+        if (towerIntersectsBossBounds(tower, bounds)) {
+          targets.push(tower);
+        }
       }
-    }
 
-    for (const tower of targets) {
-      makeBossCollapse(runtime, boss, tower.x, tower.y, tower);
-      runtime.damageTower(tower, CUBE_BOSS_CONTACT_DAMAGE, "physical");
+      for (const tower of targets) {
+        makeBossCollapse(runtime, boss, tower.x, tower.y, tower);
+        runtime.damageTower(tower, CUBE_BOSS_CONTACT_DAMAGE, "physical");
+      }
+    } finally {
+      targets.length = 0;
     }
 
     boss.contactAttackBuffer -= CUBE_BOSS_CONTACT_INTERVAL;
   }
+}
+
+function towerIntersectsBossBounds(tower: Tower, bounds: RectBounds) {
+  return (
+    tower.x - CELL_WIDTH / 2 <= bounds.right &&
+    tower.x + CELL_WIDTH / 2 >= bounds.left &&
+    tower.y - CELL_HEIGHT / 2 <= bounds.bottom &&
+    tower.y + CELL_HEIGHT / 2 >= bounds.top
+  );
 }
 
 function triggerTetrahedronHalfHpBurst(runtime: BossRuntime, boss: CubeBoss) {
