@@ -258,13 +258,15 @@ export function getHealTargets(
   tower: Tower,
   definition: CardDefinition,
   occupied: Map<string, Tower>,
-  count = 1
+  count = 1,
+  output?: Tower[]
 ) {
+  const targets = output ?? [];
+  targets.length = 0;
   if (count <= 0) {
-    return [];
+    return targets;
   }
 
-  const targets: Tower[] = [];
   visitHealTargetCells(tower, definition, (lane, column) => {
     const target = occupied.get(gridCellKey(lane, column));
     if (!target || target.hp >= towerFinalStats(target).maxHp) {

@@ -240,6 +240,7 @@ const HOMING_PROJECTILE_MUZZLES = [
   { x: -24, y: 0 }
 ] as const;
 const magicLaserTargetsBuffer: Enemy[] = [];
+const healingPulseTargetsBuffer: Tower[] = [];
 const zealHealTargetsBuffer: Tower[] = [];
 
 function cooldownReady(tower: Tower, time: number, cooldownAlreadyReady = false) {
@@ -428,13 +429,17 @@ function fireHealingPulse(
   definition: CardDefinition,
   runtime: Pick<CardBehaviorRuntime, "scene" | "occupied">
 ) {
-  const targets = getHealTargets(tower, definition, runtime.occupied, definition.healTargets ?? 1);
+  const targets = getHealTargets(tower, definition, runtime.occupied, definition.healTargets ?? 1, healingPulseTargetsBuffer);
   if (targets.length === 0) {
     return;
   }
 
-  for (const target of targets) {
-    healTower(runtime.scene, target, definition.healAmount ?? 60);
+  try {
+    for (const target of targets) {
+      healTower(runtime.scene, target, definition.healAmount ?? 60);
+    }
+  } finally {
+    targets.length = 0;
   }
 }
 
