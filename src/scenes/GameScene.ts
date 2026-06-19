@@ -94,7 +94,7 @@ import {
   type GameHudElements,
   type GameOverlayElements
 } from "../render/gameUi";
-import { defaultCardLoadout, getCardBehavior, getCardDefinition, hasCardDefinition } from "../registry/cards";
+import { allCardDefinitions, defaultCardLoadout, getCardBehavior, getCardDefinition, hasCardDefinition } from "../registry/cards";
 import {
   CONTROL_SLOT_COUNT,
   cardControlAction,
@@ -129,6 +129,9 @@ interface PlacementGhostSpec {
 const BOSS_PHASE_BAR_COLORS = [palette.heart, 0xff9f43, palette.magic];
 const BOSS_PHASE_BAR_BACK = palette.magic;
 const ICOSAHEDRON_PHASE_TWO_INITIAL_SP = 75;
+const HAS_TIMED_PRODUCER_CARDS = allCardDefinitions.some((definition) =>
+  Boolean(definition.produceEvery && definition.produceAmount)
+);
 
 function combineDamageReduction(baseReduction: number, extraReduction: number) {
   return 1 - (1 - baseReduction) * (1 - extraReduction);
@@ -353,7 +356,9 @@ export class GameScene extends Phaser.Scene {
     this.updateLevelAurasIfNeeded();
     this.cardTime += scaledDelta * this.cardCooldownMultiplier();
     this.updateNaturalProduction();
-    this.updateProducers(this.battleTime);
+    if (HAS_TIMED_PRODUCER_CARDS) {
+      this.updateProducers(this.battleTime);
+    }
     this.updateArmingTowers(this.battleTime);
     updateBossRuntime(this.bossRuntime(), seconds);
     this.updateEnemies(this.battleTime, seconds);
