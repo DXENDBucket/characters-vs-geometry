@@ -48,6 +48,12 @@ export interface EnemySupportBonuses {
   speedMultiplier: number;
 }
 
+const NO_ENEMY_SUPPORT_BONUSES: EnemySupportBonuses = {
+  armor: 0,
+  magicResistance: 0,
+  speedMultiplier: 1
+};
+
 export interface EnemySupportSources {
   enemies: Enemy[];
   hexagons: Enemy[];
@@ -156,6 +162,10 @@ export function enemySupportBonuses(
     }
   }
 
+  if (armor === 0 && magicResistance === 0 && !hasChargingHexBuff && !hasLeaderBuff) {
+    return NO_ENEMY_SUPPORT_BONUSES;
+  }
+
   return {
     armor,
     magicResistance,
@@ -171,15 +181,31 @@ function enemySupportBonusesFromSources(
   includeDefense: boolean,
   includeMovement: boolean
 ): EnemySupportBonuses {
+  const lane = target.lane;
+  const laneIsValid = lane >= 0 && lane < LANES;
+  const laneMask = laneIsValid ? 1 << lane : 0;
+  const laneMagicResistanceSources = laneIsValid ? sources.magicResistanceByLane[lane] : undefined;
+  const laneChargingHexSources = laneIsValid ? sources.chargingHexByLane[lane] : undefined;
+  const laneLeaderSources = laneIsValid ? sources.leadersByLane[lane] : undefined;
+  const hasDefenseSources =
+    includeDefense &&
+    (sources.hexagons.length > 0 || (sources.magicResistanceLaneMask & laneMask) !== 0);
+  const hasMovementSources =
+    includeMovement &&
+    (Boolean(laneChargingHexSources?.length) || Boolean(laneLeaderSources?.length));
+  if (!hasDefenseSources && !hasMovementSources) {
+    return NO_ENEMY_SUPPORT_BONUSES;
+  }
+
   let armor = 0;
   let magicResistance = 0;
-  if (includeDefense) {
+  if (hasDefenseSources) {
     for (const enemy of sources.hexagons) {
       if (distanceSq(enemy.x, enemy.y, target.x, target.y) <= HEX_ARMOR_RADIUS_SQ && supportSourceIsActive(enemy)) {
         armor += hexArmorAuraBonus(enemy);
       }
     }
-    for (const enemy of sources.magicResistanceByLane[target.lane] ?? []) {
+    for (const enemy of laneMagicResistanceSources ?? []) {
       if (supportSourceIsActive(enemy)) {
         magicResistance += hexMagicResistanceAuraBonus(enemy);
       }
@@ -188,9 +214,13 @@ function enemySupportBonusesFromSources(
 
   let hasChargingHexBuff = false;
   let hasLeaderBuff = false;
-  if (includeMovement) {
-    hasChargingHexBuff = hasActiveSupportBehind(sources, sources.chargingHexByLane[target.lane], target);
-    hasLeaderBuff = hasActiveSupportBehind(sources, sources.leadersByLane[target.lane], target);
+  if (hasMovementSources) {
+    hasChargingHexBuff = hasActiveSupportBehind(laneChargingHexSources, target);
+    hasLeaderBuff = hasActiveSupportBehind(laneLeaderSources, target);
+  }
+
+  if (armor === 0 && magicResistance === 0 && !hasChargingHexBuff && !hasLeaderBuff) {
+    return NO_ENEMY_SUPPORT_BONUSES;
   }
 
   return {
@@ -202,7 +232,7 @@ function enemySupportBonusesFromSources(
   };
 }
 
-function hasActiveSupportBehind(sources: EnemySupportSources, supportSources: Enemy[] | undefined, target: Enemy) {
+function hasActiveSupportBehind(supportSources: Enemy[] | undefined, target: Enemy) {
   if (!supportSources) {
     return false;
   }
