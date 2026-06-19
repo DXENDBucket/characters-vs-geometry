@@ -92,7 +92,10 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
       projectile.type === "chevron"
         ? getHomingProjectileHit(projectile)
         : findDirectProjectileHit(getDirectTargets(), projectile);
-    const hitBoss = projectile.type === "chevron" ? undefined : bossPartAtPoint(runtime.getBoss(), projectile.x, projectile.y);
+    const hitBoss =
+      !hit && projectile.type !== "chevron"
+        ? bossPartAtPoint(runtime.getBoss(), projectile.x, projectile.y)
+        : undefined;
 
     if (!hit && !hitBoss) {
       if (isTowerProjectileOutOfBounds(projectile, reachedLimitX)) {
