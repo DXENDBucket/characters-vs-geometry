@@ -19,14 +19,14 @@ const slowAuraSourcesBuffer: SlowAuraSources = {
   hasAura: false
 };
 const activeSlowAuraTowersBuffer: Tower[] = [];
-const slowAuraSignatureParts: string[] = [];
-let slowAuraSignature = "";
+const cachedSlowAuraIds: string[] = [];
+const cachedSlowAuraLanes: number[] = [];
+const cachedSlowAuraColumns: number[] = [];
 
 export function slowAuraSources(towers: Tower[]): SlowAuraSources {
   // Reused per call; consume synchronously before requesting another slow-aura view.
   const activeAuras = activeSlowAuraTowers(towers);
-  const signature = slowAuraStateSignature(activeAuras);
-  if (slowAuraSourcesBuffer.towers === towers && signature === slowAuraSignature) {
+  if (slowAuraSourcesBuffer.towers === towers && slowAuraStateMatches(activeAuras)) {
     return slowAuraSourcesBuffer;
   }
 
@@ -41,7 +41,7 @@ export function slowAuraSources(towers: Tower[]): SlowAuraSources {
     slowAuraSourcesBuffer.auraTowers.push(tower);
     markSlowAuraCells(slowAuraSourcesBuffer.slowCells, tower);
   }
-  slowAuraSignature = signature;
+  cacheSlowAuraState(activeAuras);
   return slowAuraSourcesBuffer;
 }
 
@@ -55,13 +55,34 @@ function activeSlowAuraTowers(towers: Tower[]) {
   return activeSlowAuraTowersBuffer;
 }
 
-function slowAuraStateSignature(towers: Tower[]) {
-  const parts = slowAuraSignatureParts;
-  parts.length = 0;
-  for (const tower of towers) {
-    parts.push(tower.id, `${tower.lane}`, `${tower.column}`);
+function slowAuraStateMatches(towers: Tower[]) {
+  if (towers.length !== cachedSlowAuraIds.length) {
+    return false;
   }
-  return parts.join("|");
+
+  for (let index = 0; index < towers.length; index += 1) {
+    const tower = towers[index];
+    if (
+      tower.id !== cachedSlowAuraIds[index] ||
+      tower.lane !== cachedSlowAuraLanes[index] ||
+      tower.column !== cachedSlowAuraColumns[index]
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function cacheSlowAuraState(towers: Tower[]) {
+  cachedSlowAuraIds.length = towers.length;
+  cachedSlowAuraLanes.length = towers.length;
+  cachedSlowAuraColumns.length = towers.length;
+  for (let index = 0; index < towers.length; index += 1) {
+    const tower = towers[index];
+    cachedSlowAuraIds[index] = tower.id;
+    cachedSlowAuraLanes[index] = tower.lane;
+    cachedSlowAuraColumns[index] = tower.column;
+  }
 }
 
 export function movementSpeedMultiplier(towers: Tower[], x: number, y: number, sources?: SlowAuraSources) {
