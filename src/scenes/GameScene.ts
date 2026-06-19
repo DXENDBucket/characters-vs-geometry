@@ -903,7 +903,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private cardUsesClockCooldown(id: CardId) {
-    return id !== "c" && this.getDefinition(id).cost <= MIRROR_COST_LIMIT;
+    return this.cardDefinitionUsesClockCooldown(this.getDefinition(id));
+  }
+
+  private cardDefinitionUsesClockCooldown(definition: CardDefinition) {
+    return definition.id !== "c" && definition.cost <= MIRROR_COST_LIMIT;
   }
 
   private gainChars(amount: number, x: number, y: number) {
@@ -1645,22 +1649,23 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateCards() {
+    const shifterMode = this.shifter.isActive();
     for (const cardState of this.cardStates) {
-      cardState.displayTime = this.cardTimeFor(cardState.definition.id);
+      cardState.displayTime = this.cardDefinitionUsesClockCooldown(cardState.definition) ? this.cardTime : this.battleTime;
     }
 
     updateCardStates(this.cardStates, {
       selectedCardId: this.selectedCardId,
       chars: this.effectiveChars(),
       eraserMode: this.eraserMode,
-      shifterMode: this.shifter.isActive(),
+      shifterMode,
       autoUpgradeMode: this.autoUpgradeMode,
       debugDamageMode: this.debugDamageMode
     });
     updateToolButtonStates(
       this.ui,
       this.eraserMode,
-      this.shifter.isActive(),
+      shifterMode,
       this.shifter.cooldownRatio(),
       this.autoUpgradeMode,
       this.debugDamageMode,
