@@ -141,7 +141,6 @@ interface LevelAuraTowerSignature {
   level: number;
   transient: boolean;
   mirrorGroupId: number;
-  text: string;
 }
 
 const BOSS_PHASE_BAR_COLORS = [palette.heart, 0xff9f43, palette.magic];
@@ -195,9 +194,8 @@ export class GameScene extends Phaser.Scene {
   private eraserMode = false;
   private levelBonusSnapshotTowers: Tower[] = [];
   private levelBonusSnapshotValues: number[] = [];
-  private levelAuraSignature = "";
-  private levelAuraSignatureParts: string[] = [];
-  private levelAuraTowerSignatureCache = new WeakMap<Tower, LevelAuraTowerSignature>();
+  private levelAuraCachedTowers: Tower[] = [];
+  private levelAuraCachedStates: LevelAuraTowerSignature[] = [];
   private placementGhosts: Phaser.GameObjects.Container[] = [];
   private placementGhostKey = "";
   private readonly placementGhostSpecBuffer: PlacementGhostSpec[] = [];
@@ -283,9 +281,8 @@ export class GameScene extends Phaser.Scene {
     this.eraserMode = false;
     this.levelBonusSnapshotTowers.length = 0;
     this.levelBonusSnapshotValues.length = 0;
-    this.levelAuraSignature = "";
-    this.levelAuraSignatureParts.length = 0;
-    this.levelAuraTowerSignatureCache = new WeakMap<Tower, LevelAuraTowerSignature>();
+    this.levelAuraCachedTowers.length = 0;
+    this.levelAuraCachedStates.length = 0;
     this.placementGhosts = [];
     this.placementGhostKey = "";
     this.pausedActions = [];
@@ -835,13 +832,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateLevelAurasIfNeeded() {
-    const signature = this.levelAuraStateSignature();
-    if (signature !== this.levelAuraSignature) {
-      this.updateLevelAuras(signature);
+    if (this.levelAuraStateChanged()) {
+      this.updateLevelAuras();
     }
   }
 
-  private updateLevelAuras(nextSignature = this.levelAuraStateSignature()) {
+  private updateLevelAuras() {
     const snapshotTowers = this.levelBonusSnapshotTowers;
     const snapshotValues = this.levelBonusSnapshotValues;
     snapshotTowers.length = this.towers.length;
@@ -890,46 +886,64 @@ export class GameScene extends Phaser.Scene {
 
     snapshotTowers.length = 0;
     snapshotValues.length = 0;
-    this.levelAuraSignature = nextSignature;
+    this.cacheLevelAuraState();
   }
 
-  private levelAuraStateSignature() {
-    const parts = this.levelAuraSignatureParts;
-    parts.length = 0;
-    parts.push(`${this.towers.length}`);
-    for (const tower of this.towers) {
-      parts.push(this.levelAuraTowerSignature(tower));
+  private levelAuraStateChanged() {
+    if (this.towers.length !== this.levelAuraCachedTowers.length) {
+      return true;
     }
-    return parts.join("|");
+
+    for (let index = 0; index < this.towers.length; index += 1) {
+      const tower = this.towers[index];
+      const cached = this.levelAuraCachedStates[index];
+      if (this.levelAuraCachedTowers[index] !== tower || !cached || !this.levelAuraTowerStateMatches(tower, cached)) {
+        return true;
+      }
+    }
+    return false;
   }
 
-  private levelAuraTowerSignature(tower: Tower) {
-    const mirrorGroupId = tower.mirrorGroupId ?? 0;
-    const cached = this.levelAuraTowerSignatureCache.get(tower);
-    if (
-      cached?.id === tower.id &&
+  private levelAuraTowerStateMatches(tower: Tower, cached: LevelAuraTowerSignature) {
+    return (
+      cached.id === tower.id &&
       cached.type === tower.type &&
       cached.lane === tower.lane &&
       cached.column === tower.column &&
       cached.level === tower.level &&
       cached.transient === tower.transient &&
-      cached.mirrorGroupId === mirrorGroupId
-    ) {
-      return cached.text;
-    }
+      cached.mirrorGroupId === (tower.mirrorGroupId ?? 0)
+    );
+  }
 
-    const text = `${tower.id}|${tower.type}|${tower.lane}|${tower.column}|${tower.level}|${tower.transient ? 1 : 0}|${mirrorGroupId}`;
-    this.levelAuraTowerSignatureCache.set(tower, {
+  private cacheLevelAuraState() {
+    this.levelAuraCachedTowers.length = this.towers.length;
+    this.levelAuraCachedStates.length = this.towers.length;
+    for (let index = 0; index < this.towers.length; index += 1) {
+      const tower = this.towers[index];
+      const cached = this.levelAuraCachedStates[index] ?? this.createLevelAuraTowerState(tower);
+      cached.id = tower.id;
+      cached.type = tower.type;
+      cached.lane = tower.lane;
+      cached.column = tower.column;
+      cached.level = tower.level;
+      cached.transient = tower.transient;
+      cached.mirrorGroupId = tower.mirrorGroupId ?? 0;
+      this.levelAuraCachedTowers[index] = tower;
+      this.levelAuraCachedStates[index] = cached;
+    }
+  }
+
+  private createLevelAuraTowerState(tower: Tower): LevelAuraTowerSignature {
+    return {
       id: tower.id,
       type: tower.type,
       lane: tower.lane,
       column: tower.column,
       level: tower.level,
       transient: tower.transient,
-      mirrorGroupId,
-      text
-    });
-    return text;
+      mirrorGroupId: tower.mirrorGroupId ?? 0
+    };
   }
 
   private cardTimeFor(id: CardId) {
