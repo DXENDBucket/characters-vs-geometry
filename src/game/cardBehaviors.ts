@@ -239,6 +239,7 @@ const HOMING_PROJECTILE_MUZZLES = [
   { x: 0, y: 24 },
   { x: -24, y: 0 }
 ] as const;
+const magicLaserTargetsBuffer: Enemy[] = [];
 
 function cooldownReady(tower: Tower, time: number, cooldownAlreadyReady = false) {
   if (cooldownAlreadyReady) {
@@ -319,15 +320,19 @@ function fireMagicLaser(tower: Tower, definition: CardDefinition, runtime: CardB
   const damageType = towerDamageType(tower, definition.damageType ?? "magic", runtime.battleTime);
 
   makeTowerLaserEffect(runtime.scene, startX, tower.y, endX);
-  for (const enemy of targets) {
-    makeHitShards(runtime.scene, enemy.x, enemy.y, damageType);
-    runtime.damageEnemy(enemy, damage, damageType, tower);
-    if (enemy.inPlay && definition.projectileDebuff && definition.projectileDebuffDuration) {
-      applyStatusEffect(enemy, definition.projectileDebuff, definition.projectileDebuffDuration, runtime.battleTime);
-      if (definition.projectileDebuff === "sunder") {
-        makeSunderEffect(runtime.scene, enemy.x, enemy.y);
+  try {
+    for (const enemy of targets) {
+      makeHitShards(runtime.scene, enemy.x, enemy.y, damageType);
+      runtime.damageEnemy(enemy, damage, damageType, tower);
+      if (enemy.inPlay && definition.projectileDebuff && definition.projectileDebuffDuration) {
+        applyStatusEffect(enemy, definition.projectileDebuff, definition.projectileDebuffDuration, runtime.battleTime);
+        if (definition.projectileDebuff === "sunder") {
+          makeSunderEffect(runtime.scene, enemy.x, enemy.y);
+        }
       }
     }
+  } finally {
+    targets.length = 0;
   }
 
   const bossPart = magicLaserBossPart(tower, runtime.boss, endX);
@@ -337,7 +342,8 @@ function fireMagicLaser(tower: Tower, definition: CardDefinition, runtime: CardB
 }
 
 function magicLaserTargets(tower: Tower, enemies: Enemy[], direction: number, endX: number) {
-  const targets: Enemy[] = [];
+  const targets = magicLaserTargetsBuffer;
+  targets.length = 0;
   for (const enemy of enemies) {
     if (!canMagicLaserHitEnemy(tower, enemy, direction) || !enemyIsBeforeMagicLaserEnd(enemy, direction, endX)) {
       continue;
