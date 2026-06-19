@@ -231,8 +231,7 @@ function bossBodyInRadius(boss: CubeBoss, x: number, y: number, radiusSq: number
   return bossPartDistanceSqToPoint(boss, x, y) <= radiusSq;
 }
 
-export function syncHexArmorAuras(enemies: Enemy[], time: number) {
-  const sources = enemySupportSources(enemies);
+export function syncHexArmorAuras(enemies: Enemy[], time: number, sources = enemySupportSources(enemies)) {
   const iconY = -38 + Math.sin(time / 110) * 2;
   if (sources.hexagons.length === 0 && sources.magicResistanceLaneMask === 0) {
     for (const enemy of enemies) {

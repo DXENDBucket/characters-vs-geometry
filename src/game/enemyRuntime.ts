@@ -315,9 +315,9 @@ function triangleKindForRank(rank: number): EnemyKind {
 }
 
 export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, seconds: number) {
-  syncHexArmorAuras(runtime.enemies, time);
   updateEnemySkills(runtime, seconds, time);
   const supportSources = enemySupportSources(runtime.enemies);
+  syncHexArmorAuras(runtime.enemies, time, supportSources);
   const slowSources = slowAuraSources(runtime.towers);
 
   forEachSnapshot(runtime.enemies, (enemy) => {

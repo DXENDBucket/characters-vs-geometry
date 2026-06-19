@@ -384,7 +384,9 @@ export function updateCardStates(cardStates: CardState[], state: CardUpdateState
     );
     setFillStyleIfChanged(card.frame, isSelected ? palette.panel : palette.black, isSelected ? 1 : isAffordable ? 0.78 : 0.34);
     setAlphaIfChanged(card.frame, isSelected ? 1 : isAffordable ? 0.78 : 0.34);
-    card.content.forEach((content) => setAlphaIfChanged(content, contentAlpha));
+    for (const content of card.content) {
+      setAlphaIfChanged(content, contentAlpha);
+    }
     setRectangleWidthIfChanged(card.cooldownFill, CARD_BAR_WIDTH * readyRatio);
     setAlphaIfChanged(card.cooldownFill, contentAlpha * (cooldownRatio > 0 ? 0.86 : 1));
   }
