@@ -20,6 +20,7 @@ import {
 } from "./cardAttackConfigs";
 import type { CardBehaviorRuntime, CardReadinessRuntime } from "./combatRuntime";
 import { enemyDefenseStats, enemyMovementSpeed } from "./combatStats";
+import { enemySupportSources } from "./enemySupport";
 import { enemyIsBurrowed, enemyIsHighFlying, siegeRamSpeed } from "./enemyBehaviors";
 import { forEachSnapshot } from "./iteration";
 import { attackIntervalMs } from "./attackSpeed";
@@ -358,10 +359,11 @@ function hasMagicLaserEnemyTarget(tower: Tower, enemies: Enemy[], direction: num
 
 function magicLaserEndX(tower: Tower, enemies: Enemy[], runtime: CardReadinessRuntime, direction: number) {
   let stoppingX: number | undefined;
+  const supportSources = enemySupportSources(enemies);
   for (const enemy of enemies) {
     if (
       !canMagicLaserHitEnemy(tower, enemy, direction) ||
-      enemyDefenseStats(enemy, enemies, runtime.battleTime).magicResistance <= 0
+      enemyDefenseStats(enemy, enemies, runtime.battleTime, supportSources).magicResistance <= 0
     ) {
       continue;
     }

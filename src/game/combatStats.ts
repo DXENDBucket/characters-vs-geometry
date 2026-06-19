@@ -86,8 +86,8 @@ export function syncEnemyFinalStats(enemy: Enemy, context: EnemyFinalStatsContex
   return finalStats;
 }
 
-export function enemyDefenseStats(enemy: Enemy, enemies: Enemy[], time?: number) {
-  return syncEnemyFinalStats(enemy, { enemies, time, includeDefense: true });
+export function enemyDefenseStats(enemy: Enemy, enemies: Enemy[], time?: number, supportSources?: EnemySupportSources) {
+  return syncEnemyFinalStats(enemy, { enemies, time, includeDefense: true, supportSources });
 }
 
 export function enemyAttackDamage(enemy: Enemy, time: number) {
