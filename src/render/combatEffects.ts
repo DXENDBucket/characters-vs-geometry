@@ -33,7 +33,9 @@ const ICOSAHEDRON_UNIT_VERTICES: Array<[number, number, number]> = [
 ];
 const ICOSAHEDRON_EDGES = icosahedronEdges();
 const EFFECT_GRAPHICS_POOL_LIMIT = 64;
+const EFFECT_RECTANGLE_POOL_LIMIT = 256;
 const effectGraphicsPools = new WeakMap<Phaser.Scene, Phaser.GameObjects.Graphics[]>();
+const effectRectanglePools = new WeakMap<Phaser.Scene, Phaser.GameObjects.Rectangle[]>();
 
 function acquireEffectGraphics(scene: Phaser.Scene, depth: number) {
   const pool = effectGraphicsPools.get(scene);
@@ -72,6 +74,52 @@ function releaseEffectGraphics(scene: Phaser.Scene, graphics: Phaser.GameObjects
   }
 }
 
+function acquireEffectRectangle(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  color: number,
+  alpha: number,
+  depth: number
+) {
+  const pool = effectRectanglePools.get(scene);
+  const rectangle = pool?.pop() ?? scene.add.rectangle(0, 0, width, height, color, alpha);
+  scene.tweens.killTweensOf(rectangle);
+  rectangle.setPosition(x, y);
+  rectangle.setSize(width, height);
+  rectangle.setFillStyle(color, alpha);
+  rectangle.setScale(1, 1);
+  rectangle.setRotation(0);
+  rectangle.setAlpha(1);
+  rectangle.setVisible(true);
+  rectangle.setActive(true);
+  rectangle.setDepth(depth);
+  return rectangle;
+}
+
+function releaseEffectRectangle(scene: Phaser.Scene, rectangle: Phaser.GameObjects.Rectangle) {
+  rectangle.setPosition(0, 0);
+  rectangle.setScale(1, 1);
+  rectangle.setRotation(0);
+  rectangle.setAlpha(1);
+  rectangle.setVisible(false);
+  rectangle.setActive(false);
+
+  let pool = effectRectanglePools.get(scene);
+  if (!pool) {
+    pool = [];
+    effectRectanglePools.set(scene, pool);
+  }
+
+  if (pool.length < EFFECT_RECTANGLE_POOL_LIMIT) {
+    pool.push(rectangle);
+  } else {
+    rectangle.destroy();
+  }
+}
+
 export function damageEffectColor(damageType: DamageType) {
   return damageType === "magic" ? palette.magic : palette.white;
 }
@@ -85,7 +133,7 @@ export function makeHitShards(scene: Phaser.Scene, x: number, y: number, damageT
   for (let index = 0; index < 7; index += 1) {
     const angle = Phaser.Math.FloatBetween(-Math.PI * 0.8, Math.PI * 0.8);
     const distance = Phaser.Math.Between(12, 30);
-    const shard = scene.add.rectangle(x, y, Phaser.Math.Between(4, 9), 2, shardColor, 1).setDepth(110);
+    const shard = acquireEffectRectangle(scene, x, y, Phaser.Math.Between(4, 9), 2, shardColor, 1, 110);
     shard.rotation = angle;
     scene.tweens.add({
       targets: shard,
@@ -94,7 +142,7 @@ export function makeHitShards(scene: Phaser.Scene, x: number, y: number, damageT
       alpha: 0,
       duration: 260,
       ease: "Quad.easeOut",
-      onComplete: () => shard.destroy()
+      onComplete: () => releaseEffectRectangle(scene, shard)
     });
   }
 }
@@ -103,7 +151,7 @@ export function makeEnemyHitShards(scene: Phaser.Scene, x: number, y: number) {
   for (let index = 0; index < 7; index += 1) {
     const angle = Phaser.Math.FloatBetween(Math.PI * 0.2, Math.PI * 1.2);
     const distance = Phaser.Math.Between(10, 26);
-    const shard = scene.add.rectangle(x, y, Phaser.Math.Between(4, 8), 2, palette.enemyShot, 1).setDepth(110);
+    const shard = acquireEffectRectangle(scene, x, y, Phaser.Math.Between(4, 8), 2, palette.enemyShot, 1, 110);
     shard.rotation = angle;
     scene.tweens.add({
       targets: shard,
@@ -112,7 +160,7 @@ export function makeEnemyHitShards(scene: Phaser.Scene, x: number, y: number) {
       alpha: 0,
       duration: 240,
       ease: "Quad.easeOut",
-      onComplete: () => shard.destroy()
+      onComplete: () => releaseEffectRectangle(scene, shard)
     });
   }
 }
@@ -122,7 +170,7 @@ export function makeSolarBombCollisionEffect(scene: Phaser.Scene, x: number, y: 
   for (let index = 0; index < 6; index += 1) {
     const angle = (Math.PI * 2 * index) / 6 + Phaser.Math.FloatBetween(-0.18, 0.18);
     const distance = Phaser.Math.Between(10, 22);
-    const shard = scene.add.rectangle(x, y, Phaser.Math.Between(3, 7), 2, palette.gold, 1).setDepth(113);
+    const shard = acquireEffectRectangle(scene, x, y, Phaser.Math.Between(3, 7), 2, palette.gold, 1, 113);
     shard.rotation = angle;
     scene.tweens.add({
       targets: shard,
@@ -131,7 +179,7 @@ export function makeSolarBombCollisionEffect(scene: Phaser.Scene, x: number, y: 
       alpha: 0,
       duration: 180,
       ease: "Quad.easeOut",
-      onComplete: () => shard.destroy()
+      onComplete: () => releaseEffectRectangle(scene, shard)
     });
   }
 
