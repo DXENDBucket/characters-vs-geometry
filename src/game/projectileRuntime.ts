@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { BOARD_X, CELL_WIDTH, COLUMNS, palette } from "../config";
+import { BOARD_X, CELL_WIDTH, COLUMNS, LANES, palette } from "../config";
 import { getCardDefinition } from "../registry/cards";
 import { enemyIsBossCompanion } from "../registry/enemies";
 import {
@@ -53,6 +53,8 @@ export interface ProjectileRuntime {
 const enemyMortarHitTowersBuffer: Tower[] = [];
 const enemyMortarReflectorsBuffer: Tower[] = [];
 const bossRadiusFalloffResult: { falloff: number; part: CubeBoss | undefined } = { falloff: 0, part: undefined };
+const directProjectileTargetBuffers: Enemy[][] = Array.from({ length: LANES }, () => []);
+type DirectProjectileTargets = Enemy[][];
 
 export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: number) {
   if (runtime.projectiles.length === 0) {
@@ -60,6 +62,17 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
   }
 
   const slowSources = slowAuraSources(runtime.towers);
+  let directTargets: DirectProjectileTargets | undefined;
+  const getDirectTargets = () => {
+    directTargets ??= buildDirectProjectileTargets(runtime.enemies);
+    return directTargets;
+  };
+  const invalidateDirectTargetsIfNeeded = (enemy: Enemy, previousEnemyCount: number) => {
+    if (!enemy.inPlay || runtime.enemies.length !== previousEnemyCount) {
+      directTargets = undefined;
+    }
+  };
+
   forEachInitial(runtime.projectiles, (projectile) => {
     if (projectile.type === "chevron") {
       updateHomingProjectile(runtime, projectile, seconds);
@@ -75,7 +88,7 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
     const hit =
       projectile.type === "chevron"
         ? getHomingProjectileHit(projectile)
-        : findDirectProjectileHit(runtime.enemies, projectile);
+        : findDirectProjectileHit(getDirectTargets(), projectile);
     const hitBoss = projectile.type === "chevron" ? undefined : bossPartAtPoint(runtime.getBoss(), projectile.x, projectile.y);
 
     if (!hit && !hitBoss) {
@@ -88,7 +101,9 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
     if (projectile.type === "bolt" || projectile.type === "star" || projectile.type === "dollar" || projectile.type === "chevron") {
       if (hit) {
         makeHitShards(runtime.scene, hit.x, hit.y, projectile.damageType);
+        const previousEnemyCount = runtime.enemies.length;
         runtime.damageEnemy(hit, projectile.damage, projectile.damageType, projectile.sourceTower);
+        invalidateDirectTargetsIfNeeded(hit, previousEnemyCount);
         if (hit.inPlay) {
           applyProjectileDebuff(runtime.scene, projectile, hit, runtime.battleTime);
         }
@@ -109,7 +124,9 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
         const dy = enemy.y - burstY;
         const falloff = radiusFalloffFromDistanceSq(dx * dx + dy * dy, projectile.splashRadius);
         if (falloff > 0) {
+          const previousEnemyCount = runtime.enemies.length;
           runtime.damageEnemy(enemy, projectile.damage * falloff, projectile.damageType, projectile.sourceTower);
+          invalidateDirectTargetsIfNeeded(enemy, previousEnemyCount);
           if (enemy.inPlay) {
             applyProjectileDebuff(runtime.scene, projectile, enemy, runtime.battleTime);
           }
@@ -217,7 +234,7 @@ function enemyProjectileHitRadius(enemy: Enemy) {
 }
 
 function canEnemyBeDirectlyHit(enemy: Enemy) {
-  return !enemyIsBurrowed(enemy) && !enemyIsHighFlying(enemy);
+  return enemy.inPlay && !enemyIsBurrowed(enemy) && !enemyIsHighFlying(enemy);
 }
 
 function updateHomingProjectile(runtime: ProjectileRuntime, projectile: Projectile, seconds: number) {
@@ -267,21 +284,43 @@ function getHomingProjectileHit(projectile: Projectile) {
   return projectileHitsEnemy(projectile.x, projectile.y, target) ? target : undefined;
 }
 
-function findDirectProjectileHit(enemies: Enemy[], projectile: Projectile) {
+function buildDirectProjectileTargets(enemies: Enemy[]): DirectProjectileTargets {
+  for (const targets of directProjectileTargetBuffers) {
+    targets.length = 0;
+  }
+
   for (const enemy of enemies) {
-    if (
-      enemyCanOverlapDirectProjectileLane(enemy, projectile.lane) &&
-      canEnemyBeDirectlyHit(enemy) &&
-      projectileHitsEnemy(projectile.x, projectile.y, enemy)
-    ) {
+    if (!canEnemyBeDirectlyHit(enemy)) {
+      continue;
+    }
+
+    if (enemyCanOverlapEveryDirectProjectileLane(enemy)) {
+      for (const targets of directProjectileTargetBuffers) {
+        targets.push(enemy);
+      }
+      continue;
+    }
+
+    const laneTargets = directProjectileTargetBuffers[enemy.lane];
+    if (laneTargets) {
+      laneTargets.push(enemy);
+    }
+  }
+
+  return directProjectileTargetBuffers;
+}
+
+function findDirectProjectileHit(targets: DirectProjectileTargets, projectile: Projectile) {
+  for (const enemy of targets[projectile.lane] ?? []) {
+    if (canEnemyBeDirectlyHit(enemy) && projectileHitsEnemy(projectile.x, projectile.y, enemy)) {
       return enemy;
     }
   }
   return undefined;
 }
 
-function enemyCanOverlapDirectProjectileLane(enemy: Enemy, lane: number) {
-  return enemy.lane === lane || enemyIsSolarBomb(enemy) || enemyIsBossCompanion(enemy.kind);
+function enemyCanOverlapEveryDirectProjectileLane(enemy: Enemy) {
+  return enemyIsSolarBomb(enemy) || enemyIsBossCompanion(enemy.kind);
 }
 
 function closestDirectlyHittableEnemyTo(enemies: Enemy[], x: number, y: number) {
