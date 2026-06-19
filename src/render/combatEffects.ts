@@ -40,10 +40,16 @@ const effectGraphicsPools = new WeakMap<Phaser.Scene, Phaser.GameObjects.Graphic
 const effectRectanglePools = new WeakMap<Phaser.Scene, Phaser.GameObjects.Rectangle[]>();
 const effectCirclePools = new WeakMap<Phaser.Scene, Phaser.GameObjects.Arc[]>();
 const effectTextPools = new WeakMap<Phaser.Scene, Map<string, Phaser.GameObjects.Text[]>>();
+const spellMortarMarkerTextStyleCache = new Map<string, Phaser.Types.GameObjects.Text.TextStyle>();
 const SPELL_MORTAR_SHOT_TEXT_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
   color: "#9fdcff",
   fontFamily: "monospace",
   fontSize: "24px",
+  fontStyle: "700"
+};
+const SPELL_MORTAR_MARKER_TEXT_STYLE: Omit<Phaser.Types.GameObjects.Text.TextStyle, "color"> = {
+  fontFamily: "monospace",
+  fontSize: "26px",
   fontStyle: "700"
 };
 const HEART_PULSE_TEXT_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
@@ -268,6 +274,24 @@ function releaseEffectText(scene: Phaser.Scene, key: string, textObject: Phaser.
   }
 }
 
+function spellMortarMarkerTextKey(color: string) {
+  return `spell-mortar-marker:${color}`;
+}
+
+function spellMortarMarkerTextStyle(color: string): Phaser.Types.GameObjects.Text.TextStyle {
+  let style = spellMortarMarkerTextStyleCache.get(color);
+  if (style) {
+    return style;
+  }
+
+  style = {
+    ...SPELL_MORTAR_MARKER_TEXT_STYLE,
+    color
+  };
+  spellMortarMarkerTextStyleCache.set(color, style);
+  return style;
+}
+
 export function damageEffectColor(damageType: DamageType) {
   return damageType === "magic" ? palette.magic : palette.white;
 }
@@ -484,15 +508,15 @@ export function makeSpellMortarImpact(
   const marker =
     style.marker === "shell"
       ? acquireEffectCircle(scene, x, y, 9, palette.black, 1, 3, color, 0.96, 113)
-      : scene.add
-          .text(x, y - 1, style.markerText ?? "S", {
-            color: style.markerTextColor ?? "#9fdcff",
-            fontFamily: "monospace",
-            fontSize: "26px",
-            fontStyle: "700"
-          })
-          .setOrigin(0.5)
-          .setDepth(113);
+      : acquireEffectText(
+          scene,
+          spellMortarMarkerTextKey(style.markerTextColor ?? "#9fdcff"),
+          x,
+          y - 1,
+          style.markerText ?? "S",
+          spellMortarMarkerTextStyle(style.markerTextColor ?? "#9fdcff"),
+          113
+        );
 
   scene.tweens.add({
     targets: blast,
@@ -518,7 +542,11 @@ export function makeSpellMortarImpact(
       if (style.marker === "shell") {
         releaseEffectCircle(scene, marker as Phaser.GameObjects.Arc);
       } else {
-        marker.destroy();
+        releaseEffectText(
+          scene,
+          spellMortarMarkerTextKey(style.markerTextColor ?? "#9fdcff"),
+          marker as Phaser.GameObjects.Text
+        );
       }
     }
   });
