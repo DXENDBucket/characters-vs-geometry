@@ -178,6 +178,7 @@ export class GameScene extends Phaser.Scene {
   private levelAuraSignatureParts: string[] = [];
   private placementGhosts: Phaser.GameObjects.Container[] = [];
   private placementGhostKey = "";
+  private readonly placementGhostSpecBuffer: PlacementGhostSpec[] = [];
   private pausedActions: Array<() => void> = [];
   private autoUpgradeMode = false;
   private debugDamageMode = false;
@@ -645,8 +646,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private placementGhostSpecs(pointer?: Phaser.Input.Pointer): PlacementGhostSpec[] {
+    const ghosts = this.placementGhostSpecBuffer;
+    ghosts.length = 0;
+
     if (!pointer || this.gameOver || this.battlePaused || !this.isInsideBoard(pointer.x, pointer.y)) {
-      return [];
+      return ghosts;
     }
 
     const lane = Math.floor((pointer.y - BOARD_Y) / CELL_HEIGHT);
@@ -655,13 +659,16 @@ export class GameScene extends Phaser.Scene {
     if (this.shifter.isActive() && this.shifter.hasSelection() && !this.occupied.get(gridCellKey(lane, column))) {
       const move = this.shifter.previewMove(lane, column);
       if (move.valid) {
-        return move.positions.map((position) => ({
-          type: position.tower.type,
-          lane: position.lane,
-          column: position.column
-        }));
+        for (const position of move.positions) {
+          ghosts.push({
+            type: position.tower.type,
+            lane: position.lane,
+            column: position.column
+          });
+        }
+        return ghosts;
       }
-      return [];
+      return ghosts;
     }
 
     if (
@@ -671,7 +678,7 @@ export class GameScene extends Phaser.Scene {
       this.debugDamageMode ||
       this.towerSkills.hasSpellMortarTargeting()
     ) {
-      return [];
+      return ghosts;
     }
 
     const definition = this.getSelectedDefinition();
@@ -682,11 +689,10 @@ export class GameScene extends Phaser.Scene {
       this.cardTimeFor(definition.id) < cardState.readyAt ||
       this.effectiveChars() < definition.cost
     ) {
-      return [];
+      return ghosts;
     }
 
     if (this.unlimitedFirepower) {
-      const ghosts: PlacementGhostSpec[] = [];
       for (let targetLane = 0; targetLane < LANES; targetLane += 1) {
         if (this.cellIsDeployable(targetLane, column) && !this.occupied.get(gridCellKey(targetLane, column))) {
           ghosts.push({ type: definition.id, lane: targetLane, column });
@@ -696,10 +702,10 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.cellIsDeployable(lane, column) && !this.occupied.get(gridCellKey(lane, column))) {
-      return [{ type: definition.id, lane, column }];
+      ghosts.push({ type: definition.id, lane, column });
     }
 
-    return [];
+    return ghosts;
   }
 
   private addPlacementGhost(type: CardId, lane: number, column: number) {
