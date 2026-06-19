@@ -26,6 +26,23 @@ interface EnemyFinalStatsContext {
   slowAuraSources?: SlowAuraSources;
 }
 
+interface EnemyMovementStatsContext {
+  enemies: Enemy[];
+  towers: Tower[];
+  time: number;
+  x?: number;
+  y?: number;
+  status?: StatusMultipliers;
+  support?: EnemySupportBonuses;
+  supportSources?: EnemySupportSources;
+  slowAuraSources?: SlowAuraSources;
+}
+
+const enemyMovementStatsContextBuffer: EnemyFinalStatsContext = {
+  includeDefense: true,
+  includeMovement: true
+};
+
 export function syncEnemyFinalStats(enemy: Enemy, context: EnemyFinalStatsContext = {}) {
   const baseStats = enemy.baseStats;
   const finalStats = enemy.finalStats;
@@ -85,53 +102,41 @@ export function enemyAttackMultiplier(enemy: Enemy, time: number) {
 
 export function enemyMovementSpeed(
   enemy: Enemy,
-  context: {
-    enemies: Enemy[];
-    towers: Tower[];
-    time: number;
-    x?: number;
-    y?: number;
-    status?: StatusMultipliers;
-    support?: EnemySupportBonuses;
-    supportSources?: EnemySupportSources;
-    slowAuraSources?: SlowAuraSources;
-  },
+  context: EnemyMovementStatsContext,
   baseSpeed = enemy.baseStats.speed
 ) {
-  return syncEnemyFinalStats(enemy, {
-    ...context,
-    baseSpeed,
-    includeDefense: true,
-    includeMovement: true
-  }).speed;
+  return syncEnemyFinalStats(enemy, enemyMovementFinalStatsContext(context, baseSpeed)).speed;
 }
 
 export function enemyMovementMultiplier(
   enemy: Enemy,
-  context: {
-    enemies: Enemy[];
-    towers: Tower[];
-    time: number;
-    x?: number;
-    y?: number;
-    status?: StatusMultipliers;
-    support?: EnemySupportBonuses;
-    supportSources?: EnemySupportSources;
-    slowAuraSources?: SlowAuraSources;
-  },
+  context: EnemyMovementStatsContext,
   baseSpeed = enemy.baseStats.speed
 ) {
   if (baseSpeed === 0) {
-    syncEnemyFinalStats(enemy, {
-      ...context,
-      baseSpeed,
-      includeDefense: true,
-      includeMovement: true
-    });
+    syncEnemyFinalStats(enemy, enemyMovementFinalStatsContext(context, baseSpeed));
     return 0;
   }
 
   return enemyMovementSpeed(enemy, context, baseSpeed) / baseSpeed;
+}
+
+function enemyMovementFinalStatsContext(context: EnemyMovementStatsContext, baseSpeed: number) {
+  const statsContext = enemyMovementStatsContextBuffer;
+  statsContext.enemies = context.enemies;
+  statsContext.towers = context.towers;
+  statsContext.time = context.time;
+  statsContext.x = context.x;
+  statsContext.y = context.y;
+  statsContext.status = context.status;
+  statsContext.support = context.support;
+  statsContext.supportSources = context.supportSources;
+  statsContext.slowAuraSources = context.slowAuraSources;
+  statsContext.baseSpeed = baseSpeed;
+  statsContext.includeAttack = false;
+  statsContext.includeDefense = true;
+  statsContext.includeMovement = true;
+  return statsContext;
 }
 
 export function bossFinalStats(boss: CubeBoss, enemies: Enemy[], rootBoss: CubeBoss = boss) {
