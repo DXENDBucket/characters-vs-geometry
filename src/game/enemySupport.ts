@@ -42,6 +42,7 @@ const ARCHANGEL_ASCENSION_RADIUS = CELL_WIDTH * 2.5;
 const ANGEL_WINGS_SPEED_MULTIPLIER = 2;
 const HEX_ARMOR_RADIUS_SQ = HEX_ARMOR_RADIUS * HEX_ARMOR_RADIUS;
 const ARCHANGEL_ASCENSION_RADIUS_SQ = ARCHANGEL_ASCENSION_RADIUS * ARCHANGEL_ASCENSION_RADIUS;
+const HEX_ARMOR_LANE_RADIUS = Math.ceil(HEX_ARMOR_RADIUS / CELL_HEIGHT);
 
 export interface EnemySupportBonuses {
   armor: number;
@@ -58,9 +59,11 @@ const NO_ENEMY_SUPPORT_BONUSES: EnemySupportBonuses = {
 export interface EnemySupportSources {
   enemies: Enemy[];
   hexagons: Enemy[];
+  hexagonLaneMask: number;
   magicResistanceLaneMask: number;
   chargingHexLaneMask: number;
   leaderLaneMask: number;
+  hexagonsByLane: Enemy[][];
   magicResistanceByLane: Enemy[][];
   chargingHexByLane: Enemy[][];
   leadersByLane: Enemy[][];
@@ -98,13 +101,16 @@ const heartLeadClaimedTargetsBuffer = new Set<Enemy>();
 const heartLeadSingleClaimedTargetsBuffer = new Set<Enemy>();
 const heartLeadPositionMapBuffer = new Map<Enemy, EnemyPosition>();
 const heartLeadPositionPool: EnemyPosition[] = [];
+const nearbyHexArmorSourcesBuffer: Enemy[] = [];
 let defensiveAuraIconsMayBeVisible = false;
 const enemySupportSourcesBuffer: EnemySupportSources = {
   enemies: [],
   hexagons: [],
+  hexagonLaneMask: 0,
   magicResistanceLaneMask: 0,
   chargingHexLaneMask: 0,
   leaderLaneMask: 0,
+  hexagonsByLane: enemyLaneBuckets(),
   magicResistanceByLane: enemyLaneBuckets(),
   chargingHexByLane: enemyLaneBuckets(),
   leadersByLane: enemyLaneBuckets()
@@ -205,7 +211,7 @@ function enemySupportBonusesFromSources(
   let armor = 0;
   let magicResistance = 0;
   if (hasDefenseSources) {
-    for (const enemy of sources.hexagons) {
+    for (const enemy of nearbyHexArmorSources(sources, target)) {
       if (distanceSq(enemy.x, enemy.y, target.x, target.y) <= HEX_ARMOR_RADIUS_SQ && supportSourceIsActive(enemy)) {
         armor += hexArmorAuraBonus(enemy);
       }
@@ -384,13 +390,16 @@ export function enemySupportSources(enemies: Enemy[]): EnemySupportSources {
   const sources = enemySupportSourcesBuffer;
   sources.enemies = enemies;
   sources.hexagons.length = 0;
+  clearEnemyLaneBuckets(sources.hexagonsByLane, sources.hexagonLaneMask);
   clearEnemyLaneBuckets(sources.magicResistanceByLane, sources.magicResistanceLaneMask);
   clearEnemyLaneBuckets(sources.chargingHexByLane, sources.chargingHexLaneMask);
   clearEnemyLaneBuckets(sources.leadersByLane, sources.leaderLaneMask);
+  sources.hexagonLaneMask = 0;
   sources.magicResistanceLaneMask = 0;
   sources.chargingHexLaneMask = 0;
   sources.leaderLaneMask = 0;
 
+  let hexagonLaneMask = 0;
   let magicResistanceLaneMask = 0;
   let chargingHexLaneMask = 0;
   let leaderLaneMask = 0;
@@ -402,6 +411,10 @@ export function enemySupportSources(enemies: Enemy[]): EnemySupportSources {
     const family = enemyFamily(enemy.kind);
     if (family === "hexagon") {
       sources.hexagons.push(enemy);
+      if (enemy.lane >= 0 && enemy.lane < LANES) {
+        hexagonLaneMask |= 1 << enemy.lane;
+        sources.hexagonsByLane[enemy.lane].push(enemy);
+      }
     } else if (family === "hexSpellBulwark" && enemy.lane >= 0 && enemy.lane < LANES) {
       magicResistanceLaneMask |= 1 << enemy.lane;
       sources.magicResistanceByLane[enemy.lane].push(enemy);
@@ -413,6 +426,7 @@ export function enemySupportSources(enemies: Enemy[]): EnemySupportSources {
       sources.leadersByLane[enemy.lane].push(enemy);
     }
   }
+  sources.hexagonLaneMask = hexagonLaneMask;
   sources.magicResistanceLaneMask = magicResistanceLaneMask;
   sources.chargingHexLaneMask = chargingHexLaneMask;
   sources.leaderLaneMask = leaderLaneMask;
@@ -450,7 +464,7 @@ function hexAuraFlags(sources: EnemySupportSources, target: Enemy) {
   }
 
   let flags = 0;
-  for (const enemy of sources.hexagons) {
+  for (const enemy of nearbyHexArmorSources(sources, target)) {
     if (distanceSq(enemy.x, enemy.y, target.x, target.y) <= HEX_ARMOR_RADIUS_SQ) {
       flags |= HEX_AURA_ARMOR_FLAG;
       break;
@@ -462,6 +476,31 @@ function hexAuraFlags(sources: EnemySupportSources, target: Enemy) {
   }
 
   return flags;
+}
+
+function nearbyHexArmorSources(sources: EnemySupportSources, target: Enemy) {
+  if (target.lane < 0 || target.lane >= LANES || sources.hexagonLaneMask === 0) {
+    return sources.hexagons;
+  }
+
+  const minLane = Math.max(0, target.lane - HEX_ARMOR_LANE_RADIUS);
+  const maxLane = Math.min(LANES - 1, target.lane + HEX_ARMOR_LANE_RADIUS);
+  if (minLane === 0 && maxLane === LANES - 1) {
+    return sources.hexagons;
+  }
+
+  nearbyHexArmorSourcesBuffer.length = 0;
+  for (let lane = minLane; lane <= maxLane; lane += 1) {
+    if ((sources.hexagonLaneMask & (1 << lane)) === 0) {
+      continue;
+    }
+
+    const laneSources = sources.hexagonsByLane[lane];
+    for (const enemy of laneSources) {
+      nearbyHexArmorSourcesBuffer.push(enemy);
+    }
+  }
+  return nearbyHexArmorSourcesBuffer;
 }
 
 function updateHexHeal(enemy: Enemy, state: SkillState, seconds: number, _time: number, runtime: EnemySkillRuntime) {
