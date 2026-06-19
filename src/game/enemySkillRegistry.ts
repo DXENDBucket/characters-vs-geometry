@@ -55,3 +55,10 @@ export function enemySkillDefinitions(
 ) {
   return registry[enemyFamily(enemy.kind)] ?? EMPTY_ENEMY_SKILL_DEFINITIONS;
 }
+
+export function enemySkillDefinitionsForFamily(
+  registry: Partial<Record<EnemyFamily, EnemySkillDefinition[]>>,
+  family: EnemyFamily
+) {
+  return registry[family] ?? EMPTY_ENEMY_SKILL_DEFINITIONS;
+}

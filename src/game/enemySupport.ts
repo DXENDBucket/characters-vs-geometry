@@ -4,7 +4,7 @@ import { makeHealParticles, makeShiftEffect } from "../render/combatEffects";
 import type { CubeBoss, Enemy, SkillState } from "../types";
 import { enemyFamily, enemyIsBossCompanion, enemyRank } from "../registry/enemies";
 import { enemyIgnoresLeaderRestrictedMechanics, enemyIsHighFlying, syncEnemyVisualScale } from "./enemyBehaviors";
-import { createEnemySkillRegistry, enemySkillDefinitions, type EnemySkillRuntime } from "./enemySkillRegistry";
+import { createEnemySkillRegistry, enemySkillDefinitionsForFamily, type EnemySkillRuntime } from "./enemySkillRegistry";
 import { gainSkillSp, getEnemySkillState, isSkillReady, spendSkillSp } from "./skillState";
 import { applyStatusEffect, hasStatusEffect, hasUnexpiredStatusEffect, syncEnemyBodyPosition } from "./statusEffects";
 import { bossPartDistanceSqToPoint } from "./targeting";
@@ -297,8 +297,8 @@ export function chargingHexSpeedMultiplier(enemies: Enemy[], target: Enemy) {
 }
 
 export function updateEnemySkills(runtime: EnemySkillRuntime, seconds: number, time: number) {
-  const activeEnemies = activeEnemyBuffer;
-  activeEnemies.length = 0;
+  const activeHeartEnemies = activeEnemyBuffer;
+  activeHeartEnemies.length = 0;
 
   try {
     for (const enemy of runtime.enemies) {
@@ -306,18 +306,19 @@ export function updateEnemySkills(runtime: EnemySkillRuntime, seconds: number, t
         continue;
       }
 
-      activeEnemies.push(enemy);
-      if (enemyFamily(enemy.kind) === "heart") {
+      const family = enemyFamily(enemy.kind);
+      if (family === "heart") {
+        activeHeartEnemies.push(enemy);
         continue;
       }
 
-      for (const definition of enemySkillDefinitions(enemySkillRegistry, enemy)) {
+      for (const definition of enemySkillDefinitionsForFamily(enemySkillRegistry, family)) {
         definition.update(enemy, getEnemySkillState(enemy, definition.stateKey), seconds, time, runtime);
       }
     }
-    updateHeartLeads(runtime.scene, runtime.enemies, activeEnemies, seconds);
+    updateHeartLeads(runtime.scene, runtime.enemies, activeHeartEnemies, seconds);
   } finally {
-    activeEnemies.length = 0;
+    activeHeartEnemies.length = 0;
   }
 }
 
@@ -440,7 +441,7 @@ function updateHeartLead(enemy: Enemy, state: SkillState, seconds: number, _time
   tryUseHeartLead(runtime.scene, runtime.enemies, enemy, state);
 }
 
-function updateHeartLeads(scene: Phaser.Scene, enemies: Enemy[], activeEnemies: Enemy[], seconds: number) {
+function updateHeartLeads(scene: Phaser.Scene, enemies: Enemy[], activeHeartEnemies: Enemy[], seconds: number) {
   const readyCasters = heartLeadReadyCastersBuffer;
   const leadPlans = heartLeadPlansBuffer;
   const claimedTargets = heartLeadClaimedTargetsBuffer;
@@ -449,11 +450,7 @@ function updateHeartLeads(scene: Phaser.Scene, enemies: Enemy[], activeEnemies: 
   claimedTargets.clear();
 
   try {
-    for (const caster of activeEnemies) {
-      if (enemyFamily(caster.kind) !== "heart") {
-        continue;
-      }
-
+    for (const caster of activeHeartEnemies) {
       const skill = getEnemySkillState(caster, "lead");
       gainSkillSp(skill, seconds * HEART_LEAD_REGEN_PER_SECOND, HEART_LEAD_SKILL_MAX);
       if (!isSkillReady(skill, HEART_LEAD_SKILL_MAX)) {
