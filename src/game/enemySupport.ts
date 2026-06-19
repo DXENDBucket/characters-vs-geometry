@@ -8,7 +8,7 @@ import { createEnemySkillRegistry, enemySkillDefinitionsForFamily, type EnemySki
 import { gainSkillSp, getEnemySkillState, isSkillReady, spendSkillSp } from "./skillState";
 import { applyStatusEffect, hasStatusEffect, hasUnexpiredStatusEffect, syncEnemyBodyPosition } from "./statusEffects";
 import { bossPartDistanceSqToPoint } from "./targeting";
-import { setVisibleIfChanged } from "./visualGuards";
+import { setPositionIfChanged, setVisibleIfChanged } from "./visualGuards";
 
 const HEX_ARMOR_RADIUS = CELL_WIDTH * 1.4;
 const HEX_ARMOR_RANK_ONE_BONUS = 50;
@@ -297,10 +297,10 @@ export function syncHexArmorAuras(enemies: Enemy[], time: number, sources = enem
     setVisibleIfChanged(enemy.armorIcon, hasArmorBonus);
     setVisibleIfChanged(enemy.magicResistanceIcon, hasMagicResistanceBonus);
     if (hasArmorBonus) {
-      enemy.armorIcon.setPosition(hasMagicResistanceBonus ? -10 : 0, iconY);
+      setPositionIfChanged(enemy.armorIcon, hasMagicResistanceBonus ? -10 : 0, iconY);
     }
     if (hasMagicResistanceBonus) {
-      enemy.magicResistanceIcon.setPosition(hasArmorBonus ? 10 : 0, iconY);
+      setPositionIfChanged(enemy.magicResistanceIcon, hasArmorBonus ? 10 : 0, iconY);
     }
   }
   defensiveAuraIconsMayBeVisible = anyIconVisible;
