@@ -331,7 +331,7 @@ export class GameScene extends Phaser.Scene {
 
     if (this.battlePaused) {
       this.mirrors.syncMirrors();
-      this.updateLevelAuras();
+      this.updateLevelAurasIfNeeded();
       this.shifter.syncSelectionVisuals();
       this.syncPlacementGhost(this.input.activePointer);
       this.updateCards();
@@ -345,7 +345,7 @@ export class GameScene extends Phaser.Scene {
     this.battleTime += scaledDelta;
     this.towerSkills.update(seconds, this.battleTime);
     this.mirrors.syncMirrors();
-    this.updateLevelAuras();
+    this.updateLevelAurasIfNeeded();
     this.cardTime += scaledDelta * this.cardCooldownMultiplier();
     this.updateNaturalProduction();
     this.updateProducers(this.battleTime);
@@ -779,6 +779,22 @@ export class GameScene extends Phaser.Scene {
 
   private cardCooldownMultiplier() {
     return this.towerSkills.cardCooldownMultiplier();
+  }
+
+  private updateLevelAurasIfNeeded() {
+    for (const tower of this.towers) {
+      if (
+        tower.levelBonus !== 0 ||
+        tower.mirrorLevelBonus !== 0 ||
+        tower.finalStats.attackSpeed !== tower.baseStats.attackSpeed ||
+        (tower.type === "U" && !tower.transient) ||
+        (tower.type === "e" && !tower.transient) ||
+        (tower.type === "m" && !tower.transient && tower.level > 1)
+      ) {
+        this.updateLevelAuras();
+        return;
+      }
+    }
   }
 
   private updateLevelAuras() {

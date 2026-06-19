@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { COLUMNS, LANES } from "../config";
 import type { CardDefinition, CardId, Tower } from "../types";
-import { forEachSnapshot } from "./iteration";
+import { forEachInitial, forEachSnapshot } from "./iteration";
 import { gridCellKey } from "./targeting";
 import {
   createTower,
@@ -59,7 +59,7 @@ export class TowerMirrorController {
     const runtime = this.runtime();
     this.syncing = true;
     try {
-      forEachSnapshot(runtime.towers, (anchor) => {
+      forEachInitial(runtime.towers, (anchor) => {
         if (anchor.type !== MIRROR_CARD_ID || anchor.transient || !anchor.inPlay) {
           return;
         }
