@@ -31,6 +31,12 @@ type VisibleTarget = {
   setVisible(visible: boolean): unknown;
 };
 
+type ScaleTarget = {
+  scaleX: number;
+  scaleY: number;
+  setScale(x: number, y?: number): unknown;
+};
+
 export function applyStatusEffect(
   enemy: Enemy,
   name: StatusEffectName,
@@ -245,13 +251,13 @@ function syncStatusVisuals(enemy: Enemy, time: number) {
     enemy.statusBorder.setStrokeStyle(2, palette.magic, 0.92);
     enemy.statusBorder.setScale(1 + Math.sin(time / 80) * 0.04);
   } else {
-    enemy.statusBorder.setScale(1);
+    setScaleIfChanged(enemy.statusBorder, 1, 1);
   }
   if (frozenActive) {
     enemy.frozenBorder.setStrokeStyle(3, palette.magic, 0.96);
     enemy.frozenBorder.setScale(1 + Math.sin(time / 95) * 0.035);
   } else {
-    enemy.frozenBorder.setScale(1);
+    setScaleIfChanged(enemy.frozenBorder, 1, 1);
   }
   if (powerActive) {
     enemy.powerIcon.setY(-38 + Math.sin(time / 120) * 2);
@@ -277,6 +283,12 @@ function invalidateStatusVisuals(enemy: Enemy) {
 function setVisibleIfChanged(target: VisibleTarget, visible: boolean) {
   if (target.visible !== visible) {
     target.setVisible(visible);
+  }
+}
+
+function setScaleIfChanged(target: ScaleTarget, x: number, y = x) {
+  if (target.scaleX !== x || target.scaleY !== y) {
+    target.setScale(x, y);
   }
 }
 
