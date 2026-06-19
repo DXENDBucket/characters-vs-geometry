@@ -29,7 +29,7 @@ import { createCubeBoss } from "../bosses/cubeBoss";
 import { chapterIdForLevelId } from "../data/chapters";
 import { getLevelConfig } from "../data/levels";
 import { updateBossRuntime, type BossRuntime } from "../game/bossRuntime";
-import type { CardBehavior } from "../game/cardBehaviors";
+import { idleCardBehavior, type CardBehavior } from "../game/cardBehaviors";
 import type { CombatRuntime } from "../game/combatRuntime";
 import { advanceEnemies, spawnWaveEnemies } from "../game/enemyRuntime";
 import {
@@ -1349,13 +1349,17 @@ export class GameScene extends Phaser.Scene {
   private updateTowers(time: number) {
     const runtime = this.combatRuntime();
     for (const tower of this.towers) {
+      const behavior = getCardBehavior(tower.type);
+      if (behavior === idleCardBehavior) {
+        continue;
+      }
+
       const attackInterval = this.towerAttackInterval(tower);
       if (!this.towerAttackReady(tower, time, attackInterval)) {
         continue;
       }
 
       const definition = this.getDefinition(tower.type);
-      const behavior = getCardBehavior(tower.type);
       if (!behavior.canUse(tower, definition, time, runtime, true)) {
         continue;
       }
