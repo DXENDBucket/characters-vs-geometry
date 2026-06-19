@@ -54,6 +54,7 @@ export class TowerSkillController {
   private spellMortarTargetingTowerSet = new Set<Tower>();
   private spellMortarReticle: Phaser.GameObjects.Container | null = null;
   private activeSpellMortarTweens: Phaser.Tweens.Tween[] = [];
+  private readonly guardianHealTargetsBuffer: Tower[] = [];
   private cachedCardCooldownMultiplier = 1;
   private readonly skillDefinitions: Partial<Record<CardId, TowerSkillDefinition>>;
 
@@ -290,7 +291,8 @@ export class TowerSkillController {
   }
 
   private guardianHealTargets(tower: Tower) {
-    const targets: Tower[] = [];
+    const targets = this.guardianHealTargetsBuffer;
+    targets.length = 0;
     if (tower.hp < towerFinalStats(tower).maxHp) {
       targets.push(tower);
     }
@@ -326,8 +328,12 @@ export class TowerSkillController {
     setTowerBorderAlpha(tower, 1);
 
     const amount = Math.round(towerFinalStats(tower).maxHp * GUARDIAN_TOWER_HEAL_RATIO);
-    for (const target of targets) {
-      healTower(this.scene, target, amount);
+    try {
+      for (const target of targets) {
+        healTower(this.scene, target, amount);
+      }
+    } finally {
+      targets.length = 0;
     }
   }
 
