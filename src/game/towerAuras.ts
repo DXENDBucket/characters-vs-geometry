@@ -8,16 +8,22 @@ const BOARD_CELL_COUNT = COLUMNS * LANES;
 
 export interface TowerAuraSources {
   zealCells: Uint8Array;
+  hasZeal: boolean;
 }
 
 const towerAuraSourcesBuffer: TowerAuraSources = {
-  zealCells: new Uint8Array(BOARD_CELL_COUNT)
+  zealCells: new Uint8Array(BOARD_CELL_COUNT),
+  hasZeal: false
 };
 
 export function towerAuraSources(towers: Tower[]): TowerAuraSources {
-  towerAuraSourcesBuffer.zealCells.fill(0);
+  towerAuraSourcesBuffer.hasZeal = false;
   for (const tower of towers) {
     if (isZealSource(tower)) {
+      if (!towerAuraSourcesBuffer.hasZeal) {
+        towerAuraSourcesBuffer.hasZeal = true;
+        towerAuraSourcesBuffer.zealCells.fill(0);
+      }
       markZealCells(towerAuraSourcesBuffer.zealCells, tower);
     }
   }
@@ -30,6 +36,10 @@ export function towerZealAttackSpeedMultiplier(towers: Tower[] | undefined, targ
 
 export function towerHasZeal(towers: Tower[] | undefined, target: Tower, sources?: TowerAuraSources) {
   if (sources) {
+    if (!sources.hasZeal) {
+      return false;
+    }
+
     return sources.zealCells[cellIndex(target.column, target.lane)] !== 0;
   }
 

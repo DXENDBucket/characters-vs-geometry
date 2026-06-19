@@ -9,21 +9,27 @@ export interface SlowAuraSources {
   towers: Tower[];
   auraTowers: Tower[];
   slowCells: Uint8Array;
+  hasAura: boolean;
 }
 
 const slowAuraSourcesBuffer: SlowAuraSources = {
   towers: [],
   auraTowers: [],
-  slowCells: new Uint8Array(BOARD_CELL_COUNT)
+  slowCells: new Uint8Array(BOARD_CELL_COUNT),
+  hasAura: false
 };
 
 export function slowAuraSources(towers: Tower[]): SlowAuraSources {
   // Reused per call; consume synchronously before requesting another slow-aura view.
   slowAuraSourcesBuffer.towers = towers;
   slowAuraSourcesBuffer.auraTowers.length = 0;
-  slowAuraSourcesBuffer.slowCells.fill(0);
+  slowAuraSourcesBuffer.hasAura = false;
   for (const tower of towers) {
     if (tower.type === "T" && tower.inPlay) {
+      if (!slowAuraSourcesBuffer.hasAura) {
+        slowAuraSourcesBuffer.hasAura = true;
+        slowAuraSourcesBuffer.slowCells.fill(0);
+      }
       slowAuraSourcesBuffer.auraTowers.push(tower);
       markSlowAuraCells(slowAuraSourcesBuffer.slowCells, tower);
     }
@@ -32,6 +38,10 @@ export function slowAuraSources(towers: Tower[]): SlowAuraSources {
 }
 
 export function movementSpeedMultiplier(towers: Tower[], x: number, y: number, sources?: SlowAuraSources) {
+  if (sources && !sources.hasAura) {
+    return 1;
+  }
+
   const column = Math.floor((x - BOARD_X) / CELL_WIDTH);
   const lane = Math.floor((y - BOARD_Y) / CELL_HEIGHT);
   if (!cellIsInBoard(column, lane)) {
