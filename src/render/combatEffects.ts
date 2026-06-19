@@ -35,9 +35,23 @@ const ICOSAHEDRON_EDGES = icosahedronEdges();
 const EFFECT_GRAPHICS_POOL_LIMIT = 64;
 const EFFECT_RECTANGLE_POOL_LIMIT = 256;
 const EFFECT_CIRCLE_POOL_LIMIT = 128;
+const EFFECT_TEXT_POOL_LIMIT = 96;
 const effectGraphicsPools = new WeakMap<Phaser.Scene, Phaser.GameObjects.Graphics[]>();
 const effectRectanglePools = new WeakMap<Phaser.Scene, Phaser.GameObjects.Rectangle[]>();
 const effectCirclePools = new WeakMap<Phaser.Scene, Phaser.GameObjects.Arc[]>();
+const effectTextPools = new WeakMap<Phaser.Scene, Map<string, Phaser.GameObjects.Text[]>>();
+const HEAL_PARTICLE_TEXT_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
+  color: "#48ff88",
+  fontFamily: "monospace",
+  fontSize: "15px",
+  fontStyle: "700"
+};
+const PRODUCTION_PULSE_TEXT_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
+  color: "#f5f5f5",
+  fontFamily: "monospace",
+  fontSize: "16px",
+  fontStyle: "700"
+};
 
 function acquireEffectGraphics(scene: Phaser.Scene, depth: number) {
   const pool = effectGraphicsPools.get(scene);
@@ -175,6 +189,58 @@ function releaseEffectCircle(scene: Phaser.Scene, circle: Phaser.GameObjects.Arc
     pool.push(circle);
   } else {
     circle.destroy();
+  }
+}
+
+function acquireEffectText(
+  scene: Phaser.Scene,
+  key: string,
+  x: number,
+  y: number,
+  text: string,
+  style: Phaser.Types.GameObjects.Text.TextStyle,
+  depth: number
+) {
+  const scenePools = effectTextPools.get(scene);
+  const pool = scenePools?.get(key);
+  const textObject = pool?.pop() ?? scene.add.text(0, 0, text, style);
+  scene.tweens.killTweensOf(textObject);
+  textObject.setText(text);
+  textObject.setPosition(x, y);
+  textObject.setOrigin(0.5);
+  textObject.setScale(1, 1);
+  textObject.setRotation(0);
+  textObject.setAlpha(1);
+  textObject.setVisible(true);
+  textObject.setActive(true);
+  textObject.setDepth(depth);
+  return textObject;
+}
+
+function releaseEffectText(scene: Phaser.Scene, key: string, textObject: Phaser.GameObjects.Text) {
+  textObject.setPosition(0, 0);
+  textObject.setScale(1, 1);
+  textObject.setRotation(0);
+  textObject.setAlpha(1);
+  textObject.setVisible(false);
+  textObject.setActive(false);
+
+  let scenePools = effectTextPools.get(scene);
+  if (!scenePools) {
+    scenePools = new Map();
+    effectTextPools.set(scene, scenePools);
+  }
+
+  let pool = scenePools.get(key);
+  if (!pool) {
+    pool = [];
+    scenePools.set(key, pool);
+  }
+
+  if (pool.length < EFFECT_TEXT_POOL_LIMIT) {
+    pool.push(textObject);
+  } else {
+    textObject.destroy();
   }
 }
 
@@ -450,10 +516,11 @@ export function makeShockPulse(
   rangeY: number,
   damageType: DamageType = "physical"
 ) {
-  const pulse = scene.add
-    .rectangle(x, y, rangeX * 2, rangeY * 2, palette.black, 0)
-    .setStrokeStyle(2, damageEffectColor(damageType), 0.82)
-    .setDepth(106);
+  const pulse = acquireEffectRectangle(scene, x, y, rangeX * 2, rangeY * 2, palette.black, 0, 106, {
+    width: 2,
+    color: damageEffectColor(damageType),
+    alpha: 0.82
+  });
 
   scene.tweens.add({
     targets: pulse,
@@ -461,7 +528,7 @@ export function makeShockPulse(
     alpha: 0,
     duration: 120,
     ease: "Quad.easeOut",
-    onComplete: () => pulse.destroy()
+    onComplete: () => releaseEffectRectangle(scene, pulse)
   });
 }
 
@@ -1016,15 +1083,15 @@ export function makeHealParticles(scene: Phaser.Scene, x: number, y: number) {
   for (let index = 0; index < 6; index += 1) {
     const angle = Phaser.Math.FloatBetween(-Math.PI, 0);
     const distance = Phaser.Math.Between(12, 28);
-    const particle = scene.add
-      .text(x + Phaser.Math.Between(-10, 10), y + Phaser.Math.Between(-6, 10), EFFECT_SYMBOLS.heal, {
-        color: "#48ff88",
-        fontFamily: "monospace",
-        fontSize: "15px",
-        fontStyle: "700"
-      })
-      .setOrigin(0.5)
-      .setDepth(106);
+    const particle = acquireEffectText(
+      scene,
+      "heal-particle",
+      x + Phaser.Math.Between(-10, 10),
+      y + Phaser.Math.Between(-6, 10),
+      EFFECT_SYMBOLS.heal,
+      HEAL_PARTICLE_TEXT_STYLE,
+      106
+    );
 
     scene.tweens.add({
       targets: particle,
@@ -1033,7 +1100,7 @@ export function makeHealParticles(scene: Phaser.Scene, x: number, y: number) {
       alpha: 0,
       duration: 360,
       ease: "Quad.easeOut",
-      onComplete: () => particle.destroy()
+      onComplete: () => releaseEffectText(scene, "heal-particle", particle)
     });
   }
 }
@@ -1079,15 +1146,15 @@ export function makeAutoUpgradePulse(scene: Phaser.Scene, x: number, y: number) 
 }
 
 export function makeProductionPulse(scene: Phaser.Scene, x: number, y: number, amount: number) {
-  const text = scene.add
-    .text(x, y, `${EFFECT_SYMBOLS.chars}${amount}`, {
-      color: "#f5f5f5",
-      fontFamily: "monospace",
-      fontSize: "16px",
-      fontStyle: "700"
-    })
-    .setOrigin(0.5);
-  text.setDepth(105);
+  const text = acquireEffectText(
+    scene,
+    "production-pulse",
+    x,
+    y,
+    `${EFFECT_SYMBOLS.chars}${amount}`,
+    PRODUCTION_PULSE_TEXT_STYLE,
+    105
+  );
 
   scene.tweens.add({
     targets: text,
@@ -1095,6 +1162,6 @@ export function makeProductionPulse(scene: Phaser.Scene, x: number, y: number, a
     alpha: 0,
     duration: 640,
     ease: "Quad.easeOut",
-    onComplete: () => text.destroy()
+    onComplete: () => releaseEffectText(scene, "production-pulse", text)
   });
 }
