@@ -58,6 +58,8 @@ export interface EnemySupportSources {
   enemies: Enemy[];
   hexagons: Enemy[];
   magicResistanceLaneMask: number;
+  chargingHexLaneMask: number;
+  leaderLaneMask: number;
   magicResistanceByLane: Enemy[][];
   chargingHexByLane: Enemy[][];
   leadersByLane: Enemy[][];
@@ -105,6 +107,8 @@ const enemySupportSourcesBuffer: EnemySupportSources = {
   enemies: [],
   hexagons: [],
   magicResistanceLaneMask: 0,
+  chargingHexLaneMask: 0,
+  leaderLaneMask: 0,
   magicResistanceByLane: enemyLaneBuckets(),
   chargingHexByLane: enemyLaneBuckets(),
   leadersByLane: enemyLaneBuckets()
@@ -186,15 +190,18 @@ function enemySupportBonusesFromSources(
   const lane = target.lane;
   const laneIsValid = lane >= 0 && lane < LANES;
   const laneMask = laneIsValid ? 1 << lane : 0;
-  const laneMagicResistanceSources = laneIsValid ? sources.magicResistanceByLane[lane] : undefined;
-  const laneChargingHexSources = laneIsValid ? sources.chargingHexByLane[lane] : undefined;
-  const laneLeaderSources = laneIsValid ? sources.leadersByLane[lane] : undefined;
+  const hasMagicResistanceLaneSources = (sources.magicResistanceLaneMask & laneMask) !== 0;
+  const hasChargingHexLaneSources = (sources.chargingHexLaneMask & laneMask) !== 0;
+  const hasLeaderLaneSources = (sources.leaderLaneMask & laneMask) !== 0;
+  const laneMagicResistanceSources = hasMagicResistanceLaneSources ? sources.magicResistanceByLane[lane] : undefined;
+  const laneChargingHexSources = hasChargingHexLaneSources ? sources.chargingHexByLane[lane] : undefined;
+  const laneLeaderSources = hasLeaderLaneSources ? sources.leadersByLane[lane] : undefined;
   const hasDefenseSources =
     includeDefense &&
-    (sources.hexagons.length > 0 || (sources.magicResistanceLaneMask & laneMask) !== 0);
+    (sources.hexagons.length > 0 || hasMagicResistanceLaneSources);
   const hasMovementSources =
     includeMovement &&
-    (Boolean(laneChargingHexSources?.length) || Boolean(laneLeaderSources?.length));
+    (hasChargingHexLaneSources || hasLeaderLaneSources);
   if (!hasDefenseSources && !hasMovementSources) {
     return NO_ENEMY_SUPPORT_BONUSES;
   }
@@ -381,12 +388,16 @@ export function enemySupportSources(enemies: Enemy[]): EnemySupportSources {
   const sources = enemySupportSourcesBuffer;
   sources.enemies = enemies;
   sources.hexagons.length = 0;
+  clearEnemyLaneBuckets(sources.magicResistanceByLane, sources.magicResistanceLaneMask);
+  clearEnemyLaneBuckets(sources.chargingHexByLane, sources.chargingHexLaneMask);
+  clearEnemyLaneBuckets(sources.leadersByLane, sources.leaderLaneMask);
   sources.magicResistanceLaneMask = 0;
-  clearEnemyLaneBuckets(sources.magicResistanceByLane);
-  clearEnemyLaneBuckets(sources.chargingHexByLane);
-  clearEnemyLaneBuckets(sources.leadersByLane);
+  sources.chargingHexLaneMask = 0;
+  sources.leaderLaneMask = 0;
 
   let magicResistanceLaneMask = 0;
+  let chargingHexLaneMask = 0;
+  let leaderLaneMask = 0;
   for (const enemy of enemies) {
     if (enemyIsHighFlying(enemy)) {
       continue;
@@ -399,12 +410,16 @@ export function enemySupportSources(enemies: Enemy[]): EnemySupportSources {
       magicResistanceLaneMask |= 1 << enemy.lane;
       sources.magicResistanceByLane[enemy.lane].push(enemy);
     } else if (family === "chargingHexagon" && enemy.lane >= 0 && enemy.lane < LANES) {
+      chargingHexLaneMask |= 1 << enemy.lane;
       sources.chargingHexByLane[enemy.lane].push(enemy);
     } else if (family === "heart" && enemy.lane >= 0 && enemy.lane < LANES) {
+      leaderLaneMask |= 1 << enemy.lane;
       sources.leadersByLane[enemy.lane].push(enemy);
     }
   }
   sources.magicResistanceLaneMask = magicResistanceLaneMask;
+  sources.chargingHexLaneMask = chargingHexLaneMask;
+  sources.leaderLaneMask = leaderLaneMask;
   return sources;
 }
 
@@ -416,9 +431,15 @@ function enemyLaneBuckets() {
   return lanes;
 }
 
-function clearEnemyLaneBuckets(buckets: Enemy[][]) {
-  for (const bucket of buckets) {
-    bucket.length = 0;
+function clearEnemyLaneBuckets(buckets: Enemy[][], laneMask: number) {
+  if (laneMask === 0) {
+    return;
+  }
+
+  for (let lane = 0; lane < LANES; lane += 1) {
+    if ((laneMask & (1 << lane)) !== 0) {
+      buckets[lane].length = 0;
+    }
   }
 }
 
