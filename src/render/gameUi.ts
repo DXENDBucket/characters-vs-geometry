@@ -455,7 +455,7 @@ export function updateGameHud(ui: GameHudElements, state: HudUpdateState) {
   );
   setTextIfChanged(ui.speedText, `${t("label.speed")} x${formatSpeed(state.gameSpeed)}`);
   setRectangleWidthIfChanged(ui.speedFill, 176 * speedRatio);
-  ui.speedKnob.x = Math.round(348 + 176 * speedRatio);
+  setXIfChanged(ui.speedKnob, Math.round(348 + 176 * speedRatio));
   if (state.boss) {
     const bossHpRatio = Phaser.Math.Clamp(state.boss.hp / state.boss.maxHp, 0, 1);
     const phaseText = state.bossHpBar ? ` P${state.bossHpBar.phase}/${state.bossHpBar.totalPhases}` : "";
@@ -533,6 +533,12 @@ function setVisibleIfChanged(
 function setRectangleWidthIfChanged(rectangle: Phaser.GameObjects.Rectangle, width: number) {
   if (rectangle.width !== width) {
     rectangle.width = width;
+  }
+}
+
+function setXIfChanged(target: Phaser.GameObjects.GameObject & { x: number }, x: number) {
+  if (target.x !== x) {
+    target.x = x;
   }
 }
 
