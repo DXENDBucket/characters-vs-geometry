@@ -118,20 +118,18 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
       const burstY = hit ? hit.y : projectile.y;
       makeShellBurst(runtime.scene, burstX, burstY, projectile.splashRadius, projectile.damageType);
       forEachSnapshot(runtime.enemies, (enemy) => {
-        if (enemyIsHighFlying(enemy)) {
-          return;
-        }
-
         const dx = enemy.x - burstX;
         const dy = enemy.y - burstY;
         const falloff = radiusFalloffFromDistanceSq(dx * dx + dy * dy, projectile.splashRadius);
-        if (falloff > 0) {
-          const previousEnemyCount = runtime.enemies.length;
-          runtime.damageEnemy(enemy, projectile.damage * falloff, projectile.damageType, projectile.sourceTower);
-          invalidateDirectTargetsIfNeeded(enemy, previousEnemyCount);
-          if (enemy.inPlay) {
-            applyProjectileDebuff(runtime.scene, projectile, enemy, runtime.battleTime);
-          }
+        if (falloff <= 0 || enemyIsHighFlying(enemy)) {
+          return;
+        }
+
+        const previousEnemyCount = runtime.enemies.length;
+        runtime.damageEnemy(enemy, projectile.damage * falloff, projectile.damageType, projectile.sourceTower);
+        invalidateDirectTargetsIfNeeded(enemy, previousEnemyCount);
+        if (enemy.inPlay) {
+          applyProjectileDebuff(runtime.scene, projectile, enemy, runtime.battleTime);
         }
       });
       const bossFalloff = bossRadiusFalloff(runtime.getBoss(), burstX, burstY, projectile.splashRadius);
@@ -577,16 +575,20 @@ function detonateTowerMortar(runtime: ProjectileRuntime, projectile: MortarProje
     return;
   }
 
+  const targetX = projectile.targetX;
+  const targetY = projectile.targetY;
   forEachSnapshot(runtime.enemies, (enemy) => {
+    if (Math.abs(enemy.x - targetX) > projectile.rangeX || Math.abs(enemy.y - targetY) > projectile.rangeY) {
+      return;
+    }
+
     if (enemyIsHighFlying(enemy)) {
       return;
     }
 
-    if (Math.abs(enemy.x - projectile.targetX) <= projectile.rangeX && Math.abs(enemy.y - projectile.targetY) <= projectile.rangeY) {
-      runtime.damageEnemy(enemy, projectile.damage, projectile.damageType, projectile.sourceTower);
-      if (enemy.inPlay) {
-        applyMortarDebuff(runtime.scene, projectile, enemy, runtime.battleTime);
-      }
+    runtime.damageEnemy(enemy, projectile.damage, projectile.damageType, projectile.sourceTower);
+    if (enemy.inPlay) {
+      applyMortarDebuff(runtime.scene, projectile, enemy, runtime.battleTime);
     }
   });
   const bossPart = bossPartInRect(
@@ -603,15 +605,13 @@ function detonateTowerMortar(runtime: ProjectileRuntime, projectile: MortarProje
 
 function detonateRadialFalloffTowerMortar(runtime: ProjectileRuntime, projectile: MortarProjectile) {
   const radius = projectile.rangeX;
+  const targetX = projectile.targetX;
+  const targetY = projectile.targetY;
   forEachSnapshot(runtime.enemies, (enemy) => {
-    if (enemyIsHighFlying(enemy)) {
-      return;
-    }
-
-    const dx = enemy.x - projectile.targetX;
-    const dy = enemy.y - projectile.targetY;
+    const dx = enemy.x - targetX;
+    const dy = enemy.y - targetY;
     const falloff = radiusFalloffFromDistanceSq(dx * dx + dy * dy, radius);
-    if (falloff <= 0) {
+    if (falloff <= 0 || enemyIsHighFlying(enemy)) {
       return;
     }
 
@@ -629,19 +629,23 @@ function detonateRadialFalloffTowerMortar(runtime: ProjectileRuntime, projectile
 
 function detonateSingleTargetTowerMortar(runtime: ProjectileRuntime, projectile: MortarProjectile) {
   const hitRadius = projectile.hitRadius ?? 22;
+  const targetX = projectile.targetX;
+  const targetY = projectile.targetY;
   let target: Enemy | undefined;
   let targetDistance = Number.POSITIVE_INFINITY;
   for (const enemy of runtime.enemies) {
-    if (enemyIsBurrowed(enemy) || enemyIsHighFlying(enemy)) {
+    if (enemyIsBurrowed(enemy)) {
       continue;
     }
 
     const radius = Math.max(hitRadius, enemyProjectileHitRadius(enemy));
-    const distance = distanceSq(enemy.x, enemy.y, projectile.targetX, projectile.targetY);
-    if (distance <= radius * radius && distance < targetDistance) {
-      target = enemy;
-      targetDistance = distance;
+    const distance = distanceSq(enemy.x, enemy.y, targetX, targetY);
+    if (distance > radius * radius || distance >= targetDistance || enemyIsHighFlying(enemy)) {
+      continue;
     }
+
+    target = enemy;
+    targetDistance = distance;
   }
 
   if (target) {
