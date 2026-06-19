@@ -32,6 +32,45 @@ const ICOSAHEDRON_UNIT_VERTICES: Array<[number, number, number]> = [
   [-ICOSAHEDRON_PHI, 0, -1]
 ];
 const ICOSAHEDRON_EDGES = icosahedronEdges();
+const EFFECT_GRAPHICS_POOL_LIMIT = 64;
+const effectGraphicsPools = new WeakMap<Phaser.Scene, Phaser.GameObjects.Graphics[]>();
+
+function acquireEffectGraphics(scene: Phaser.Scene, depth: number) {
+  const pool = effectGraphicsPools.get(scene);
+  const graphics = pool?.pop() ?? scene.add.graphics();
+  scene.tweens.killTweensOf(graphics);
+  graphics.clear();
+  graphics.setPosition(0, 0);
+  graphics.setScale(1, 1);
+  graphics.setRotation(0);
+  graphics.setAlpha(1);
+  graphics.setVisible(true);
+  graphics.setActive(true);
+  graphics.setDepth(depth);
+  return graphics;
+}
+
+function releaseEffectGraphics(scene: Phaser.Scene, graphics: Phaser.GameObjects.Graphics) {
+  graphics.clear();
+  graphics.setPosition(0, 0);
+  graphics.setScale(1, 1);
+  graphics.setRotation(0);
+  graphics.setAlpha(1);
+  graphics.setVisible(false);
+  graphics.setActive(false);
+
+  let pool = effectGraphicsPools.get(scene);
+  if (!pool) {
+    pool = [];
+    effectGraphicsPools.set(scene, pool);
+  }
+
+  if (pool.length < EFFECT_GRAPHICS_POOL_LIMIT) {
+    pool.push(graphics);
+  } else {
+    graphics.destroy();
+  }
+}
 
 export function damageEffectColor(damageType: DamageType) {
   return damageType === "magic" ? palette.magic : palette.white;
@@ -107,7 +146,7 @@ export function makeSolarBombCollisionEffect(scene: Phaser.Scene, x: number, y: 
 }
 
 export function makeEnemyLaserEffect(scene: Phaser.Scene, fromX: number, y: number, toX: number) {
-  const beam = scene.add.graphics().setDepth(109);
+  const beam = acquireEffectGraphics(scene, 109);
   beam.lineStyle(11, palette.enemyShot, 0.18);
   beam.lineBetween(fromX, y, toX, y);
   beam.lineStyle(6, palette.enemyShot, 0.72);
@@ -123,7 +162,7 @@ export function makeEnemyLaserEffect(scene: Phaser.Scene, fromX: number, y: numb
     alpha: 0,
     duration: 120,
     ease: "Quad.easeOut",
-    onComplete: () => beam.destroy()
+    onComplete: () => releaseEffectGraphics(scene, beam)
   });
   scene.tweens.add({
     targets: [emitter, endpoint],
@@ -139,7 +178,7 @@ export function makeEnemyLaserEffect(scene: Phaser.Scene, fromX: number, y: numb
 }
 
 export function makeTowerLaserEffect(scene: Phaser.Scene, fromX: number, y: number, toX: number) {
-  const beam = scene.add.graphics().setDepth(109);
+  const beam = acquireEffectGraphics(scene, 109);
   beam.lineStyle(11, palette.magic, 0.16);
   beam.lineBetween(fromX, y, toX, y);
   beam.lineStyle(6, palette.magic, 0.72);
@@ -155,7 +194,7 @@ export function makeTowerLaserEffect(scene: Phaser.Scene, fromX: number, y: numb
     alpha: 0,
     duration: 120,
     ease: "Quad.easeOut",
-    onComplete: () => beam.destroy()
+    onComplete: () => releaseEffectGraphics(scene, beam)
   });
   scene.tweens.add({
     targets: [emitter, endpoint],
@@ -370,7 +409,7 @@ export function makeTrapBurst(scene: Phaser.Scene, x: number, y: number, damageT
 
 export function makeSlashEffect(scene: Phaser.Scene, x: number, y: number, damageType: DamageType) {
   const color = damageEffectColor(damageType);
-  const slash = scene.add.graphics().setPosition(x, y).setDepth(110);
+  const slash = acquireEffectGraphics(scene, 110).setPosition(x, y);
   slash.lineStyle(4, color, 0.98);
   slash.lineBetween(-30, -30, 30, 30);
   slash.lineBetween(-30, 30, 30, -30);
@@ -386,7 +425,7 @@ export function makeSlashEffect(scene: Phaser.Scene, x: number, y: number, damag
     alpha: 0,
     duration: 145,
     ease: "Quad.easeOut",
-    onComplete: () => slash.destroy()
+    onComplete: () => releaseEffectGraphics(scene, slash)
   });
 }
 
@@ -398,7 +437,7 @@ export function makeArcWaveEffect(
   direction: -1 | 1 = 1
 ) {
   const color = damageEffectColor(damageType);
-  const wave = scene.add.graphics().setPosition(x, y).setDepth(110);
+  const wave = acquireEffectGraphics(scene, 110).setPosition(x, y);
   const arcs = [
     { x: -10 * direction, radius: CELL_HEIGHT * 0.9, angle: 1.38, width: 4, alpha: 0.95 },
     { x: -34 * direction, radius: CELL_HEIGHT * 1.3, angle: 1.2, width: 3, alpha: 0.72 },
@@ -421,12 +460,12 @@ export function makeArcWaveEffect(
     alpha: 0,
     duration: 220,
     ease: "Quad.easeOut",
-    onComplete: () => wave.destroy()
+    onComplete: () => releaseEffectGraphics(scene, wave)
   });
 }
 
 export function makeShiftEffect(scene: Phaser.Scene, fromX: number, fromY: number, toX: number, toY: number) {
-  const line = scene.add.graphics().setDepth(109);
+  const line = acquireEffectGraphics(scene, 109);
   line.lineStyle(2, palette.green, 0.92);
   line.lineBetween(fromX, fromY, toX, toY);
   const marker = scene.add.circle(toX, toY, 13, palette.black, 0).setStrokeStyle(2, palette.green, 0.9);
@@ -437,7 +476,7 @@ export function makeShiftEffect(scene: Phaser.Scene, fromX: number, fromY: numbe
     alpha: 0,
     duration: 180,
     ease: "Quad.easeOut",
-    onComplete: () => line.destroy()
+    onComplete: () => releaseEffectGraphics(scene, line)
   });
   scene.tweens.add({
     targets: marker,
@@ -512,7 +551,7 @@ export function makeSunderEffect(scene: Phaser.Scene, x: number, y: number) {
 }
 
 export function makeHasteTrail(scene: Phaser.Scene, x: number, y: number) {
-  const trail = scene.add.graphics().setDepth(58);
+  const trail = acquireEffectGraphics(scene, 58);
   trail.lineStyle(2, palette.magic, 0.72);
   for (let index = 0; index < 3; index += 1) {
     const offsetY = Phaser.Math.Between(-12, 12);
@@ -526,12 +565,12 @@ export function makeHasteTrail(scene: Phaser.Scene, x: number, y: number) {
     alpha: 0,
     duration: 260,
     ease: "Quad.easeOut",
-    onComplete: () => trail.destroy()
+    onComplete: () => releaseEffectGraphics(scene, trail)
   });
 }
 
 export function makeBossHasteTrail(scene: Phaser.Scene, x: number, y: number) {
-  const trail = scene.add.graphics().setDepth(87);
+  const trail = acquireEffectGraphics(scene, 87);
   trail.lineStyle(3, palette.magic, 0.78);
   for (let index = 0; index < 7; index += 1) {
     const offsetY = Phaser.Math.Between(-64, 64);
@@ -545,7 +584,7 @@ export function makeBossHasteTrail(scene: Phaser.Scene, x: number, y: number) {
     alpha: 0,
     duration: 320,
     ease: "Quad.easeOut",
-    onComplete: () => trail.destroy()
+    onComplete: () => releaseEffectGraphics(scene, trail)
   });
 }
 
@@ -671,7 +710,7 @@ function makePolyhedronCollapse(
   shape: "cube" | "tetrahedron" | "dodecahedron" | "smallStellatedDodecahedron" | "octahedron" | "icosahedron",
   followTarget?: Enemy | Tower
 ) {
-  const collapse = scene.add.graphics().setPosition(x, y).setDepth(108);
+  const collapse = acquireEffectGraphics(scene, 108).setPosition(x, y);
   const rotation = randomCollapseRotation();
   if (shape === "cube") {
     drawProjectedCube(collapse, 34, rotation);
@@ -703,7 +742,7 @@ function makePolyhedronCollapse(
         collapse.setPosition(followTarget.x, followTarget.y);
       }
     },
-    onComplete: () => collapse.destroy()
+    onComplete: () => releaseEffectGraphics(scene, collapse)
   });
 }
 
@@ -902,7 +941,7 @@ export function makeReflectFlash(scene: Phaser.Scene, x: number, y: number) {
 }
 
 export function makeEraseMark(scene: Phaser.Scene, x: number, y: number) {
-  const mark = scene.add.graphics().setDepth(107);
+  const mark = acquireEffectGraphics(scene, 107);
   mark.lineStyle(3, palette.white, 0.9);
   mark.lineBetween(x - 18, y - 18, x + 18, y + 18);
   mark.lineBetween(x + 18, y - 18, x - 18, y + 18);
@@ -913,7 +952,7 @@ export function makeEraseMark(scene: Phaser.Scene, x: number, y: number) {
     alpha: 0,
     duration: 220,
     ease: "Quad.easeOut",
-    onComplete: () => mark.destroy()
+    onComplete: () => releaseEffectGraphics(scene, mark)
   });
 }
 
