@@ -126,6 +126,13 @@ interface PlacementGhostSpec {
   column: number;
 }
 
+interface BossHpBarState {
+  fillColor: number;
+  backColor: number;
+  phase: number;
+  totalPhases: number;
+}
+
 const BOSS_PHASE_BAR_COLORS = [palette.heart, 0xff9f43, palette.magic];
 const BOSS_PHASE_BAR_BACK = palette.magic;
 const ICOSAHEDRON_PHASE_TWO_INITIAL_SP = 75;
@@ -182,6 +189,12 @@ export class GameScene extends Phaser.Scene {
   private placementGhosts: Phaser.GameObjects.Container[] = [];
   private placementGhostKey = "";
   private readonly placementGhostSpecBuffer: PlacementGhostSpec[] = [];
+  private readonly bossHpBarStateCache: BossHpBarState = {
+    fillColor: palette.white,
+    backColor: BOSS_PHASE_BAR_BACK,
+    phase: 0,
+    totalPhases: 0
+  };
   private pausedActions: Array<() => void> = [];
   private autoUpgradeMode = false;
   private debugDamageMode = false;
@@ -1871,12 +1884,12 @@ export class GameScene extends Phaser.Scene {
         ? BOSS_PHASE_BAR_COLORS[this.bossPhaseIndex + 1] ?? BOSS_PHASE_BAR_BACK
         : BOSS_PHASE_BAR_BACK;
 
-    return {
-      fillColor,
-      backColor: nextFillColor,
-      phase: this.bossPhaseIndex + 1,
-      totalPhases: phases.length
-    };
+    const state = this.bossHpBarStateCache;
+    state.fillColor = fillColor;
+    state.backColor = nextFillColor;
+    state.phase = this.bossPhaseIndex + 1;
+    state.totalPhases = phases.length;
+    return state;
   }
 
   private showToast(text: string) {
