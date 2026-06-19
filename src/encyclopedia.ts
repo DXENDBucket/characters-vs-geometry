@@ -252,8 +252,8 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
         zh ? "每 15 秒发射红色 # 法术迫击弹，3x3 范围伤害；I/II/III 连发 1/2/3；第 1 旗前不会自然出现" : "Fires red # magic mortars every 15s with 3x3 AOE; volley I/II/III: 1 / 2 / 3; does not naturally appear before Flag 1"
       ],
       description: zh
-        ? "锁定型远程敌怪，行为类似三角迫击炮。若自身正被阻挡，会优先锁定阻挡自己的塔；否则锁定场上等级最高的塔，若相同则瞄准更晚放置的塔。外观为面朝下的五边形。"
-        : "Locked ranged enemy, similar to Triangle Mortar. If blocked, it targets its own blocker first; otherwise it targets the highest-level tower on the field, breaking ties by later placement. Its pentagon body has a downward-facing side."
+        ? "锁定型远程敌怪，行为类似三角迫击炮。若自身正被阻挡，会优先锁定阻挡自己的塔；否则锁定场上最后放置的塔，忽略等级。外观为面朝下的五边形。"
+        : "Locked ranged enemy, similar to Triangle Mortar. If blocked, it targets its own blocker first; otherwise it targets the most recently placed tower on the field, ignoring level. Its pentagon body has a downward-facing side."
     },
     {
       title: zh ? "天使五边形系列" : "Angel Pentagon Series",

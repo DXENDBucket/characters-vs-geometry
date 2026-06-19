@@ -636,7 +636,7 @@ function fireDodecahedronCompanionMortar(runtime: BossRuntime, companion: Enemy)
 }
 
 function findDodecahedronCompanionMortarTarget(runtime: BossRuntime) {
-  return [...runtime.towers].sort((a, b) => b.level - a.level || b.placedOrder - a.placedOrder)[0];
+  return [...runtime.towers].sort((a, b) => b.placedOrder - a.placedOrder)[0];
 }
 
 function handleDodecahedronCompanionDeaths(runtime: BossRuntime, boss: CubeBoss, livingCompanions: Enemy[]) {
@@ -755,7 +755,7 @@ function fireDodecahedronBossMortar(runtime: BossRuntime, boss: CubeBoss, target
 }
 
 function findDodecahedronPentagonTargets(runtime: BossRuntime, count: number) {
-  return [...runtime.towers].sort((a, b) => b.level - a.level || b.placedOrder - a.placedOrder).slice(0, count);
+  return [...runtime.towers].sort((a, b) => b.placedOrder - a.placedOrder).slice(0, count);
 }
 
 function updateDodecahedronEndlessWings(

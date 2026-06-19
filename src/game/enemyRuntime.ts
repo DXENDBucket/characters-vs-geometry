@@ -1116,7 +1116,7 @@ function findLockedAttackTarget(towers: Tower[], enemies: Enemy[], attacker: Ene
   }
 
   if (enemyFamily(attacker.kind) === "pentagon") {
-    return [...towers].sort((a, b) => b.level - a.level || b.placedOrder - a.placedOrder)[0];
+    return [...towers].sort((a, b) => b.placedOrder - a.placedOrder)[0];
   }
 
   const blockedCounts = new Map<string, number>();
