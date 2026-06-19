@@ -84,7 +84,8 @@ function acquireEffectRectangle(
   height: number,
   color: number,
   alpha: number,
-  depth: number
+  depth: number,
+  stroke?: { width: number; color: number; alpha: number }
 ) {
   const pool = effectRectanglePools.get(scene);
   const rectangle = pool?.pop() ?? scene.add.rectangle(0, 0, width, height, color, alpha);
@@ -92,6 +93,11 @@ function acquireEffectRectangle(
   rectangle.setPosition(x, y);
   rectangle.setSize(width, height);
   rectangle.setFillStyle(color, alpha);
+  if (stroke) {
+    rectangle.setStrokeStyle(stroke.width, stroke.color, stroke.alpha);
+  } else {
+    rectangle.setStrokeStyle();
+  }
   rectangle.setScale(1, 1);
   rectangle.setRotation(0);
   rectangle.setAlpha(1);
@@ -106,6 +112,7 @@ function releaseEffectRectangle(scene: Phaser.Scene, rectangle: Phaser.GameObjec
   rectangle.setScale(1, 1);
   rectangle.setRotation(0);
   rectangle.setAlpha(1);
+  rectangle.setStrokeStyle();
   rectangle.setVisible(false);
   rectangle.setActive(false);
 
@@ -387,10 +394,11 @@ export function makeSpellMortarImpact(
   const blast =
     style.shape === "circle"
       ? acquireEffectCircle(scene, x, y, rangeX, palette.black, 0, 3, color, 0.92, 112)
-      : scene.add
-          .rectangle(x, y, rangeX * 2, rangeY * 2, palette.black, 0)
-          .setStrokeStyle(3, color, 0.92)
-          .setDepth(112);
+      : acquireEffectRectangle(scene, x, y, rangeX * 2, rangeY * 2, palette.black, 0, 112, {
+          width: 3,
+          color,
+          alpha: 0.92
+        });
   const marker =
     style.marker === "shell"
       ? acquireEffectCircle(scene, x, y, 9, palette.black, 1, 3, color, 0.96, 113)
@@ -414,7 +422,7 @@ export function makeSpellMortarImpact(
       if (style.shape === "circle") {
         releaseEffectCircle(scene, blast as Phaser.GameObjects.Arc);
       } else {
-        blast.destroy();
+        releaseEffectRectangle(scene, blast as Phaser.GameObjects.Rectangle);
       }
     }
   });
@@ -690,17 +698,18 @@ export function makeBossHasteTrail(scene: Phaser.Scene, x: number, y: number) {
 }
 
 export function makeBossInvincibleFlash(scene: Phaser.Scene, x: number, y: number, width = BOSS_HITBOX_WIDTH, height = BOSS_HITBOX_HEIGHT) {
-  const shield = scene.add
-    .rectangle(x, y, width * 0.96, height * 0.96, palette.black, 0)
-    .setStrokeStyle(3, palette.gold, 0.9)
-    .setDepth(110);
+  const shield = acquireEffectRectangle(scene, x, y, width * 0.96, height * 0.96, palette.black, 0, 110, {
+    width: 3,
+    color: palette.gold,
+    alpha: 0.9
+  });
   scene.tweens.add({
     targets: shield,
     alpha: 0,
     scale: 1.08,
     duration: 220,
     ease: "Quad.easeOut",
-    onComplete: () => shield.destroy()
+    onComplete: () => releaseEffectRectangle(scene, shield)
   });
 }
 
@@ -724,17 +733,18 @@ export function makeBossHitFlash(
   width = BOSS_HITBOX_WIDTH,
   height = BOSS_HITBOX_HEIGHT
 ) {
-  const flash = scene.add
-    .rectangle(x, y, width, height, palette.black, 0)
-    .setStrokeStyle(2, damageEffectColor(damageType), 0.5);
-  flash.setDepth(109);
+  const flash = acquireEffectRectangle(scene, x, y, width, height, palette.black, 0, 109, {
+    width: 2,
+    color: damageEffectColor(damageType),
+    alpha: 0.5
+  });
   scene.tweens.add({
     targets: flash,
     alpha: 0,
     scale: 1.03,
     duration: 120,
     ease: "Quad.easeOut",
-    onComplete: () => flash.destroy()
+    onComplete: () => releaseEffectRectangle(scene, flash)
   });
 }
 
