@@ -100,6 +100,11 @@ const DODECAHEDRON_BOSS_ENDLESS_WINGS_DURATION = 7_000;
 const DODECAHEDRON_BOSS_ENDLESS_WINGS_SPEED_MULTIPLIER = 2;
 const dodecahedronCompanionBuffer: Enemy[] = [];
 const bossContactTowerBuffer: Tower[] = [];
+const dodecahedronLaserTargetsBuffer: Tower[] = [];
+const dodecahedronLaserPathResult: { endX: number; targets: Tower[] } = {
+  endX: BOARD_X,
+  targets: dodecahedronLaserTargetsBuffer
+};
 const OCTAHEDRON_SOLAR_BOMB_LANES = [1, 5] as const;
 const OCTAHEDRON_REINFORCEMENT_DELAY = 500;
 const OCTAHEDRON_HEART_REINFORCEMENT_LANES = [1, 3, 5] as const;
@@ -602,13 +607,17 @@ function fireDodecahedronCompanionLaser(runtime: BossRuntime, companion: Enemy) 
   const laserPath = leftwardDodecahedronLaserPath(runtime.towers, companion.lane, companion.x);
 
   makeEnemyLaserEffect(runtime.scene, companion.x - 24, companion.y, laserPath.endX);
-  for (const tower of laserPath.targets) {
-    makeEnemyHitShards(runtime.scene, tower.x, tower.y);
-    runtime.damageTower(
-      tower,
-      definition.damage * enemyAttackMultiplier(companion, runtime.battleTime),
-      definition.damageType
-    );
+  try {
+    for (const tower of laserPath.targets) {
+      makeEnemyHitShards(runtime.scene, tower.x, tower.y);
+      runtime.damageTower(
+        tower,
+        definition.damage * enemyAttackMultiplier(companion, runtime.battleTime),
+        definition.damageType
+      );
+    }
+  } finally {
+    laserPath.targets.length = 0;
   }
 }
 
@@ -727,15 +736,20 @@ function fireDodecahedronLaserInLane(runtime: BossRuntime, fromX: number, lane: 
   const laserPath = leftwardDodecahedronLaserPath(runtime.towers, lane, fromX);
 
   makeEnemyLaserEffect(runtime.scene, fromX, y, laserPath.endX);
-  for (const tower of laserPath.targets) {
-    makeEnemyHitShards(runtime.scene, tower.x, tower.y);
-    runtime.damageTower(tower, definition.damage, definition.damageType);
+  try {
+    for (const tower of laserPath.targets) {
+      makeEnemyHitShards(runtime.scene, tower.x, tower.y);
+      runtime.damageTower(tower, definition.damage, definition.damageType);
+    }
+  } finally {
+    laserPath.targets.length = 0;
   }
 }
 
 function leftwardDodecahedronLaserPath(towers: Tower[], lane: number, fromX: number) {
   const stoppingX = leftwardLaserStoppingX(towers, lane, fromX);
-  const targets: Tower[] = [];
+  const targets = dodecahedronLaserTargetsBuffer;
+  targets.length = 0;
   for (const tower of towers) {
     if (tower.lane !== lane || tower.x >= fromX || (stoppingX !== undefined && tower.x < stoppingX)) {
       continue;
@@ -744,10 +758,8 @@ function leftwardDodecahedronLaserPath(towers: Tower[], lane: number, fromX: num
     insertTowerByDescendingX(targets, tower);
   }
 
-  return {
-    endX: stoppingX ?? BOARD_X,
-    targets
-  };
+  dodecahedronLaserPathResult.endX = stoppingX ?? BOARD_X;
+  return dodecahedronLaserPathResult;
 }
 
 function leftwardLaserStoppingX(towers: Tower[], lane: number, fromX: number) {
