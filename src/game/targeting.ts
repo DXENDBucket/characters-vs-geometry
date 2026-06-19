@@ -661,7 +661,7 @@ export function hasAttackTarget(
   enemies: Enemy[],
   boss: CubeBoss | null
 ) {
-  return hasEnemyAttackTarget(tower, definition, enemies) || canAttackBoss(tower, definition, boss);
+  return canAttackBoss(tower, definition, boss) || hasEnemyAttackTarget(tower, definition, enemies);
 }
 
 function hasEnemyAttackTarget(tower: Tower, definition: CardDefinition, enemies: Enemy[]) {
