@@ -144,8 +144,9 @@ export function setTowerFacing(tower: Tower, direction: -1 | 1) {
 
 export function syncTowerFacingVisual(tower: Tower) {
   const reversed = towerFacingDirection(tower) === -1;
-  tower.border.setScale(reversed ? -1 : 1, 1);
-  tower.label.setScale(reversed ? -1 : 1, 1);
+  const scaleX = reversed ? -1 : 1;
+  setScaleIfChanged(tower.border, scaleX, 1);
+  setScaleIfChanged(tower.label, scaleX, 1);
   setVisibleIfChanged(tower.facingIcon, reversed);
 }
 
