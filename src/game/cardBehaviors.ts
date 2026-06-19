@@ -242,6 +242,9 @@ const HOMING_PROJECTILE_MUZZLES = [
 const magicLaserTargetsBuffer: Enemy[] = [];
 const healingPulseTargetsBuffer: Tower[] = [];
 const zealHealTargetsBuffer: Tower[] = [];
+const shiftTargetsBuffer: Enemy[] = [];
+const laneRepelTargetsBuffer: Enemy[] = [];
+const blockedPushTargetsBuffer: Enemy[] = [];
 
 function cooldownReady(tower: Tower, time: number, cooldownAlreadyReady = false) {
   if (cooldownAlreadyReady) {
@@ -484,74 +487,90 @@ function isZealHealTarget(tower: Tower, target: Tower) {
 }
 
 function fireShiftPulse(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {
-  const targets = getShiftTargets(tower, runtime.enemies);
+  const targets = getShiftTargets(tower, runtime.enemies, shiftTargetsBuffer);
   if (targets.length === 0) {
     return;
   }
 
-  for (const target of targets) {
-    const previousY = target.y;
-    target.lane = tower.lane;
-    target.y = tower.y;
-    target.body.setDepth(60 + target.lane);
-    syncEnemyBodyPosition(target);
-    makeShiftEffect(runtime.scene, target.x, previousY, target.x, target.y);
-  }
-  for (let index = 0; index < targets.length; index += 1) {
-    if (!tower.inPlay) {
-      break;
+  try {
+    for (const target of targets) {
+      const previousY = target.y;
+      target.lane = tower.lane;
+      target.y = tower.y;
+      target.body.setDepth(60 + target.lane);
+      syncEnemyBodyPosition(target);
+      makeShiftEffect(runtime.scene, target.x, previousY, target.x, target.y);
     }
-    runtime.damageTower(tower, definition.selfDamage ?? 400, definition.selfDamageType ?? "true");
+    for (let index = 0; index < targets.length; index += 1) {
+      if (!tower.inPlay) {
+        break;
+      }
+      runtime.damageTower(tower, definition.selfDamage ?? 400, definition.selfDamageType ?? "true");
+    }
+  } finally {
+    targets.length = 0;
   }
 }
 
 function fireLaneRepelPulse(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {
-  const targets = getLaneRepelTargets(tower, runtime.enemies);
   const direction = resolveRepelDirection(tower);
-  if (targets.length === 0 || !direction) {
+  if (!direction) {
+    return;
+  }
+
+  const targets = getLaneRepelTargets(tower, runtime.enemies, laneRepelTargetsBuffer);
+  if (targets.length === 0) {
     return;
   }
 
   const targetLane = tower.lane + direction;
   const targetY = BOARD_Y + targetLane * CELL_HEIGHT + CELL_HEIGHT / 2;
-  for (const target of targets) {
-    const previousY = target.y;
-    target.lane = targetLane;
-    target.y = targetY;
-    target.body.setDepth(60 + target.lane);
-    syncEnemyBodyPosition(target);
-    makeShiftEffect(runtime.scene, target.x, previousY, target.x, target.y);
-  }
-  tower.nextRepelDirection = direction === -1 ? 1 : -1;
-
-  for (let index = 0; index < targets.length; index += 1) {
-    if (!tower.inPlay) {
-      break;
+  try {
+    for (const target of targets) {
+      const previousY = target.y;
+      target.lane = targetLane;
+      target.y = targetY;
+      target.body.setDepth(60 + target.lane);
+      syncEnemyBodyPosition(target);
+      makeShiftEffect(runtime.scene, target.x, previousY, target.x, target.y);
     }
-    runtime.damageTower(tower, definition.selfDamage ?? 400, definition.selfDamageType ?? "true");
+    tower.nextRepelDirection = direction === -1 ? 1 : -1;
+
+    for (let index = 0; index < targets.length; index += 1) {
+      if (!tower.inPlay) {
+        break;
+      }
+      runtime.damageTower(tower, definition.selfDamage ?? 400, definition.selfDamageType ?? "true");
+    }
+  } finally {
+    targets.length = 0;
   }
 }
 
 function fireBlockedPushPulse(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {
-  const targets = getBlockedEnemies(tower, runtime.towers, runtime.enemies, runtime.occupied);
+  const targets = getBlockedEnemies(tower, runtime.towers, runtime.enemies, runtime.occupied, blockedPushTargetsBuffer);
   if (targets.length === 0) {
     return;
   }
 
   const shiftDistance = (definition.shiftCells ?? 4) * CELL_WIDTH;
   const shiftDirection = blockedPushDirection(tower);
-  for (const target of targets) {
-    const previousX = target.x;
-    target.x += shiftDirection * shiftDistance;
-    syncEnemyBodyPosition(target);
-    makeShiftEffect(runtime.scene, previousX, target.y, target.x, target.y);
-  }
-
-  for (let index = 0; index < targets.length; index += 1) {
-    if (!tower.inPlay) {
-      break;
+  try {
+    for (const target of targets) {
+      const previousX = target.x;
+      target.x += shiftDirection * shiftDistance;
+      syncEnemyBodyPosition(target);
+      makeShiftEffect(runtime.scene, previousX, target.y, target.x, target.y);
     }
-    runtime.damageTower(tower, definition.selfDamage ?? 400, definition.selfDamageType ?? "true");
+
+    for (let index = 0; index < targets.length; index += 1) {
+      if (!tower.inPlay) {
+        break;
+      }
+      runtime.damageTower(tower, definition.selfDamage ?? 400, definition.selfDamageType ?? "true");
+    }
+  } finally {
+    targets.length = 0;
   }
 }
 

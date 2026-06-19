@@ -385,9 +385,10 @@ function compareShiftTargets(a: Enemy, b: Enemy, towerLane: number) {
   return a.x - b.x || Math.abs(a.lane - towerLane) - Math.abs(b.lane - towerLane);
 }
 
-export function getShiftTargets(tower: Tower, enemies: Enemy[]) {
+export function getShiftTargets(tower: Tower, enemies: Enemy[], output?: Enemy[]) {
   const direction = towerFacingDirection(tower);
-  const targets: Enemy[] = [];
+  const targets = output ?? [];
+  targets.length = 0;
   for (const enemy of enemies) {
     if (!enemyIsShiftTarget(tower, direction, enemy)) {
       continue;
@@ -408,9 +409,10 @@ export function hasShiftTarget(tower: Tower, enemies: Enemy[]) {
   return false;
 }
 
-export function getLaneRepelTargets(tower: Tower, enemies: Enemy[]) {
+export function getLaneRepelTargets(tower: Tower, enemies: Enemy[], output?: Enemy[]) {
   const direction = towerFacingDirection(tower);
-  const targets: Enemy[] = [];
+  const targets = output ?? [];
+  targets.length = 0;
   for (const enemy of enemies) {
     if (!enemyIsLaneRepelTarget(tower, direction, enemy)) {
       continue;
@@ -542,9 +544,11 @@ export function getBlockedEnemies(
   tower: Tower,
   towers: Tower[],
   enemies: Enemy[],
-  occupied?: Map<string, Tower>
+  occupied?: Map<string, Tower>,
+  output?: Enemy[]
 ) {
-  const targets: Enemy[] = [];
+  const targets = output ?? [];
+  targets.length = 0;
   for (const enemy of enemies) {
     const blocker = occupied ? getBlockingTowerFromOccupied(occupied, enemy) : getBlockingTower(towers, enemy);
     if (blocker === tower) {
