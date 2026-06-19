@@ -1349,7 +1349,8 @@ export class GameScene extends Phaser.Scene {
   private updateTowers(time: number) {
     const runtime = this.combatRuntime();
     for (const tower of this.towers) {
-      if (!this.towerAttackReady(tower, time)) {
+      const attackInterval = this.towerAttackInterval(tower);
+      if (!this.towerAttackReady(tower, time, attackInterval)) {
         continue;
       }
 
@@ -1359,17 +1360,26 @@ export class GameScene extends Phaser.Scene {
         continue;
       }
 
-      this.startTowerVolley(tower, definition, behavior, time);
+      this.startTowerVolley(tower, definition, behavior, time, attackInterval);
     }
   }
 
-  private towerAttackReady(tower: Tower, time: number) {
-    return time >= tower.lastFire + attackIntervalMs(towerFinalStats(tower).attackSpeed);
+  private towerAttackInterval(tower: Tower) {
+    return attackIntervalMs(towerFinalStats(tower).attackSpeed);
   }
 
-  private startTowerVolley(tower: Tower, definition: CardDefinition, behavior: CardBehavior, time: number) {
+  private towerAttackReady(tower: Tower, time: number, attackInterval: number) {
+    return time >= tower.lastFire + attackInterval;
+  }
+
+  private startTowerVolley(
+    tower: Tower,
+    definition: CardDefinition,
+    behavior: CardBehavior,
+    time: number,
+    attackInterval: number
+  ) {
     const shots = volleyShotCount(tower.type, effectiveTowerLevel(tower));
-    const attackInterval = attackIntervalMs(towerFinalStats(tower).attackSpeed);
     const interval = volleyInterval(attackInterval, shots);
 
     for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
