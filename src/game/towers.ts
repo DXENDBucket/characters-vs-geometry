@@ -299,6 +299,9 @@ export function syncTowerFlyingVisual(tower: Tower, time: number) {
 
 export function syncTowerTrueDamageVisual(tower: Tower, battleTime: number) {
   const active = towerHasTrueDamage(tower, battleTime);
+  if (!active && tower.trueDamageUntil > 0 && battleTime >= tower.trueDamageUntil) {
+    tower.trueDamageUntil = 0;
+  }
   if (tower.trueDamageBorder.visible !== active) {
     tower.trueDamageBorder.setVisible(active);
   }

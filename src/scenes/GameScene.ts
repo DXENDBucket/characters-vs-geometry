@@ -741,6 +741,10 @@ export class GameScene extends Phaser.Scene {
 
   private updateProducers(time: number) {
     for (const tower of this.towers) {
+      if (time < tower.nextProduceAt) {
+        continue;
+      }
+
       const definition = this.getDefinition(tower.type);
       if (!definition.produceEvery || !definition.produceAmount) {
         continue;
@@ -763,17 +767,25 @@ export class GameScene extends Phaser.Scene {
 
   private updateArmingTowers(time: number) {
     for (const tower of this.towers) {
-      syncTowerTrueDamageVisual(tower, time);
+      if (tower.trueDamageUntil > 0 || tower.trueDamageBorder.visible) {
+        syncTowerTrueDamageVisual(tower, time);
+      }
 
       if (tower.type === "G") {
-        tower.border.setVisible(time >= tower.armedAt);
+        this.setTowerBorderVisible(tower, time >= tower.armedAt);
         continue;
       }
 
       if (tower.type === "F" || tower.type === "f" || tower.type === "l") {
-        tower.border.setVisible(true);
+        this.setTowerBorderVisible(tower, true);
         tower.border.setAlpha(0.55 + Math.sin(time / 95) * 0.27);
       }
+    }
+  }
+
+  private setTowerBorderVisible(tower: Tower, visible: boolean) {
+    if (tower.border.visible !== visible) {
+      tower.border.setVisible(visible);
     }
   }
 
