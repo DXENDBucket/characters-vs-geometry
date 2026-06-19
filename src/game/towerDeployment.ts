@@ -47,17 +47,18 @@ export class TowerDeploymentController {
 
   attemptAutoUpgrades() {
     const runtime = this.runtime();
+    let availableChars = runtime.getChars();
     if (
       !runtime.autoUpgradeEnabled ||
       runtime.autoUpgradeReserveInputFocused ||
-      runtime.getChars() <= runtime.autoUpgradeReserveChars
+      availableChars <= runtime.autoUpgradeReserveChars
     ) {
       return;
     }
 
     let upgraded = false;
     for (const cardState of runtime.cardStates) {
-      if (runtime.getChars() <= runtime.autoUpgradeReserveChars) {
+      if (availableChars <= runtime.autoUpgradeReserveChars) {
         break;
       }
 
@@ -66,11 +67,12 @@ export class TowerDeploymentController {
       }
 
       const target = findAutoUpgradeTarget(runtime.towers, cardState.definition.id);
-      if (!target || !this.canSpendForAutoUpgrade(cardState.definition.cost)) {
+      if (!target || availableChars - cardState.definition.cost < runtime.autoUpgradeReserveChars) {
         continue;
       }
 
       runtime.spendChars(cardState.definition.cost);
+      availableChars = runtime.getChars();
       if (runtime.unlimitedFirepower) {
         this.deployColumn(cardState.definition, target.column);
       } else {
@@ -191,11 +193,6 @@ export class TowerDeploymentController {
       duration: 90,
       ease: "Quad.easeOut"
     });
-  }
-
-  private canSpendForAutoUpgrade(cost: number) {
-    const runtime = this.runtime();
-    return runtime.getChars() - cost >= runtime.autoUpgradeReserveChars;
   }
 
   private isCellDeployable(lane: number, column: number) {
