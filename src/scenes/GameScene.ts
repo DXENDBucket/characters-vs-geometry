@@ -38,6 +38,7 @@ import {
   updateTowerProjectiles,
   type ProjectileRuntime
 } from "../game/projectileRuntime";
+import { forEachSnapshot } from "../game/iteration";
 import { gridCellKey, isBossInRect } from "../game/targeting";
 import {
   createTower,
@@ -59,6 +60,7 @@ import { TowerDeploymentController, type TowerDeploymentRuntime } from "../game/
 import { MIRROR_COST_LIMIT, TowerMirrorController, type TowerMirrorRuntime, type TowerMirrorShiftMove } from "../game/towerMirrors";
 import { TowerShifterController, type TowerShifterRuntime } from "../game/towerShifter";
 import { TowerSkillController, type TowerSkillRuntime } from "../game/towerSkills";
+import { towerAuraSources } from "../game/towerAuras";
 import { charsAreSoftcapped, rawCharsForSoftcapped, softcapChars } from "../game/charSoftcap";
 import {
   damageBoss,
@@ -96,7 +98,8 @@ import { defaultCardLoadout, getCardBehavior, getCardDefinition, hasCardDefiniti
 import {
   CONTROL_SLOT_COUNT,
   cardControlAction,
-  matchingControlAction,
+  getKeybindings,
+  keyCodeForEvent,
   slotControlAction,
   toolControlDefinitions,
   type ControlActionId,
@@ -144,6 +147,7 @@ export class GameScene extends Phaser.Scene {
   private cardTime = 0;
   private nextNaturalProduceAt = NATURAL_PRODUCE_INTERVAL;
   private cardStates: CardState[] = [];
+  private cardStatesById = new Map<CardId, CardState>();
   private selectedCardId: CardId = "X";
   private towers: Tower[] = [];
   private enemies: Enemy[] = [];
@@ -168,6 +172,8 @@ export class GameScene extends Phaser.Scene {
   private battlePaused = false;
   private gameSpeed = DEFAULT_GAME_SPEED;
   private eraserMode = false;
+  private levelBonusSnapshotTowers: Tower[] = [];
+  private levelBonusSnapshotValues: number[] = [];
   private placementGhosts: Phaser.GameObjects.Container[] = [];
   private placementGhostKey = "";
   private pausedActions: Array<() => void> = [];
@@ -181,6 +187,16 @@ export class GameScene extends Phaser.Scene {
   private shifter!: TowerShifterController;
   private mirrors!: TowerMirrorController;
   private deployment!: TowerDeploymentController;
+  private towerSkillRuntimeCache!: TowerSkillRuntime;
+  private targetedEffectCardRuntimeCache!: TargetedEffectCardRuntime;
+  private towerShifterRuntimeCache!: TowerShifterRuntime;
+  private towerMirrorRuntimeCache!: TowerMirrorRuntime;
+  private towerDeploymentRuntimeCache!: TowerDeploymentRuntime;
+  private combatRuntimeCache!: CombatRuntime;
+  private bossRuntimeCache!: BossRuntime;
+  private unitLifecycleRuntimeCache!: UnitLifecycleRuntime;
+  private projectileRuntimeCache!: ProjectileRuntime;
+  private triggerTowerRuntimeCache!: TriggerTowerRuntime;
   private ui!: GameHudElements;
   private overlay!: GameOverlayElements;
   private readonly scenePointerDownHandler = (pointer: Phaser.Input.Pointer) => this.handlePointerDown(pointer);
@@ -210,7 +226,7 @@ export class GameScene extends Phaser.Scene {
     this.unlimitedFirepower = Boolean(data.unlimitedFirepower);
     this.difficultyConfig = this.adjustDifficultyForUnlimitedFirepower(getDifficultyConfig(this.difficulty));
     this.selectedCardIds = this.sanitizeLoadout(data.selectedCards);
-    this.cardStates = [];
+    this.setCardStates([]);
     this.selectedCardId = this.selectedCardIds.includes("X") ? "X" : this.selectedCardIds[0];
     this.towers = [];
     this.enemies = [];
@@ -234,6 +250,8 @@ export class GameScene extends Phaser.Scene {
     this.battlePaused = false;
     this.gameSpeed = DEFAULT_GAME_SPEED;
     this.eraserMode = false;
+    this.levelBonusSnapshotTowers.length = 0;
+    this.levelBonusSnapshotValues.length = 0;
     this.placementGhosts = [];
     this.placementGhostKey = "";
     this.pausedActions = [];
@@ -247,6 +265,16 @@ export class GameScene extends Phaser.Scene {
     this.shifter = new TowerShifterController(() => this.towerShifterRuntime());
     this.mirrors = new TowerMirrorController(() => this.towerMirrorRuntime());
     this.deployment = new TowerDeploymentController(() => this.towerDeploymentRuntime());
+    this.towerSkillRuntimeCache = this.createTowerSkillRuntime();
+    this.targetedEffectCardRuntimeCache = this.createTargetedEffectCardRuntime();
+    this.towerShifterRuntimeCache = this.createTowerShifterRuntime();
+    this.towerMirrorRuntimeCache = this.createTowerMirrorRuntime();
+    this.towerDeploymentRuntimeCache = this.createTowerDeploymentRuntime();
+    this.combatRuntimeCache = this.createCombatRuntime();
+    this.bossRuntimeCache = this.createBossRuntime();
+    this.unitLifecycleRuntimeCache = this.createUnitLifecycleRuntime();
+    this.projectileRuntimeCache = this.createProjectileRuntime();
+    this.triggerTowerRuntimeCache = this.createTriggerTowerRuntime();
     this.levelElapsed = 0;
     this.battleTime = 0;
     this.cardTime = 0;
@@ -268,8 +296,8 @@ export class GameScene extends Phaser.Scene {
     });
     this.setGameSpeed(this.gameSpeed);
     this.spawnBossIfNeeded();
-    this.cardStates = createCardStates(this, this.selectedCardIds, (id) => this.selectCard(id));
-    this.updateCards(this.cardTime);
+    this.setCardStates(createCardStates(this, this.selectedCardIds, (id) => this.selectCard(id)));
+    this.updateCards();
     this.overlay = createGameOverlay(this, () => this.handleOverlayAction());
 
     this.input.on("pointerdown", this.scenePointerDownHandler);
@@ -288,6 +316,14 @@ export class GameScene extends Phaser.Scene {
     this.towerSkills?.cancelSpellMortarTargeting();
   }
 
+  private setCardStates(cardStates: CardState[]) {
+    this.cardStates = cardStates;
+    this.cardStatesById.clear();
+    for (const cardState of cardStates) {
+      this.cardStatesById.set(cardState.definition.id, cardState);
+    }
+  }
+
   update(_time: number, delta: number) {
     if (this.gameOver) {
       return;
@@ -298,7 +334,7 @@ export class GameScene extends Phaser.Scene {
       this.updateLevelAuras();
       this.shifter.syncSelectionVisuals();
       this.syncPlacementGhost(this.input.activePointer);
-      this.updateCards(this.cardTime);
+      this.updateCards();
       this.updateHud();
       return;
     }
@@ -325,7 +361,7 @@ export class GameScene extends Phaser.Scene {
     this.attemptAutoUpgrades();
     this.shifter.syncSelectionVisuals();
     this.syncPlacementGhost(this.input.activePointer);
-    this.updateCards(this.cardTime);
+    this.updateCards();
     this.updateHud();
   }
 
@@ -365,7 +401,7 @@ export class GameScene extends Phaser.Scene {
       if (this.shifter.isActive()) {
         this.shifter.deactivate();
         this.clearPlacementGhosts();
-        this.updateCards(this.cardTime);
+        this.updateCards();
       }
       return;
     }
@@ -412,7 +448,7 @@ export class GameScene extends Phaser.Scene {
       this.updateLevelAuras();
       makeEraseMark(this, erasedX, erasedY);
       this.eraserMode = false;
-      this.updateCards(this.cardTime);
+      this.updateCards();
       return;
     }
 
@@ -424,9 +460,11 @@ export class GameScene extends Phaser.Scene {
 
       const nextState = !existingTower.autoUpgrade;
       if (this.isShiftPointer(pointer)) {
-        this.towers
-          .filter((tower) => tower.type === existingTower.type)
-          .forEach((tower) => setTowerAutoUpgradeState(tower, nextState, this.autoUpgradeEnabled));
+        for (const tower of this.towers) {
+          if (tower.type === existingTower.type) {
+            setTowerAutoUpgradeState(tower, nextState, this.autoUpgradeEnabled);
+          }
+        }
       } else {
         setTowerAutoUpgradeState(existingTower, nextState, this.autoUpgradeEnabled);
       }
@@ -441,7 +479,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     const definition = this.getSelectedDefinition();
-    const cardState = this.cardStates.find((card) => card.definition.id === definition.id);
+    const cardState = this.cardStatesById.get(definition.id);
     const effectiveChars = this.effectiveChars();
     if (this.canUpgradeSelectedTower(existingTower, definition, cardState, effectiveChars)) {
       this.deploySelectedCard(definition, cardState!, lane, column, pointer);
@@ -459,7 +497,7 @@ export class GameScene extends Phaser.Scene {
       } else {
         this.towerSkills.activateClockTower(existingTower);
       }
-      this.updateCards(this.cardTime);
+      this.updateCards();
       return;
     }
 
@@ -469,13 +507,13 @@ export class GameScene extends Phaser.Scene {
       } else {
         this.activateSpellMortarTargeting([existingTower], pointer.x, pointer.y);
       }
-      this.updateCards(this.cardTime);
+      this.updateCards();
       return;
     }
 
     if (existingTower?.type === "w" && this.towerSkills.isAirPatrolReady(existingTower)) {
       this.towerSkills.activateAirPatrolTower(existingTower);
-      this.updateCards(this.cardTime);
+      this.updateCards();
       return;
     }
 
@@ -538,7 +576,7 @@ export class GameScene extends Phaser.Scene {
     if (result === "cooldown") {
       this.clearPlacementGhosts();
       this.showToast(t("toast.cooldown"));
-      this.updateCards(this.cardTime);
+      this.updateCards();
       return;
     }
 
@@ -550,7 +588,7 @@ export class GameScene extends Phaser.Scene {
     if (result === "invalid") {
       this.clearPlacementGhosts();
       this.showToast(t("toast.invalidMove"));
-      this.updateCards(this.cardTime);
+      this.updateCards();
       return;
     }
 
@@ -565,12 +603,12 @@ export class GameScene extends Phaser.Scene {
         this.mirrors.syncMirrors();
       }
       this.updateLevelAuras();
-      this.updateCards(this.cardTime);
+      this.updateCards();
       return;
     }
 
     this.syncPlacementGhost(pointer);
-    this.updateCards(this.cardTime);
+    this.updateCards();
   }
 
   private previewMirrorShiftMoves(lane: number, column: number): TowerMirrorShiftMove[] | null {
@@ -633,7 +671,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     const definition = this.getSelectedDefinition();
-    const cardState = this.cardStates.find((card) => card.definition.id === definition.id);
+    const cardState = this.cardStatesById.get(definition.id);
     if (
       this.targetedEffects.canHandle(definition.id) ||
       !cardState ||
@@ -644,9 +682,13 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.unlimitedFirepower) {
-      return Array.from({ length: LANES }, (_value, targetLane) => targetLane)
-        .filter((targetLane) => this.cellIsDeployable(targetLane, column) && !this.occupied.get(gridCellKey(targetLane, column)))
-        .map((targetLane) => ({ type: definition.id, lane: targetLane, column }));
+      const ghosts: PlacementGhostSpec[] = [];
+      for (let targetLane = 0; targetLane < LANES; targetLane += 1) {
+        if (this.cellIsDeployable(targetLane, column) && !this.occupied.get(gridCellKey(targetLane, column))) {
+          ghosts.push({ type: definition.id, lane: targetLane, column });
+        }
+      }
+      return ghosts;
     }
 
     if (this.cellIsDeployable(lane, column) && !this.occupied.get(gridCellKey(lane, column))) {
@@ -740,13 +782,23 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateLevelAuras() {
-    const previousBonuses = new Map(this.towers.map((tower) => [tower, tower.levelBonus + tower.mirrorLevelBonus]));
-    for (const tower of this.towers) {
+    const snapshotTowers = this.levelBonusSnapshotTowers;
+    const snapshotValues = this.levelBonusSnapshotValues;
+    snapshotTowers.length = this.towers.length;
+    snapshotValues.length = this.towers.length;
+
+    for (let index = 0; index < this.towers.length; index += 1) {
+      const tower = this.towers[index];
+      snapshotTowers[index] = tower;
+      snapshotValues[index] = tower.levelBonus + tower.mirrorLevelBonus;
       tower.levelBonus = 0;
     }
 
-    const levelAuraTowers = this.towers.filter((tower) => tower.type === "U");
-    for (const auraTower of levelAuraTowers) {
+    for (const auraTower of this.towers) {
+      if (auraTower.type !== "U") {
+        continue;
+      }
+
       for (const target of this.towers) {
         const targetDefinition = this.getDefinition(target.type);
         if (
@@ -763,13 +815,18 @@ export class GameScene extends Phaser.Scene {
     }
     this.mirrors.syncMirrorLevelBonuses();
 
-    for (const tower of this.towers) {
-      if (previousBonuses.get(tower) !== tower.levelBonus + tower.mirrorLevelBonus) {
+    const auraSources = towerAuraSources(this.towers);
+    for (let index = 0; index < this.towers.length; index += 1) {
+      const tower = this.towers[index];
+      if (snapshotTowers[index] !== tower || snapshotValues[index] !== tower.levelBonus + tower.mirrorLevelBonus) {
         syncTowerLevelText(tower);
       }
 
-      syncTowerDerivedStats(tower, false, this.towers);
+      syncTowerDerivedStats(tower, false, this.towers, auraSources);
     }
+
+    snapshotTowers.length = 0;
+    snapshotValues.length = 0;
   }
 
   private cardTimeFor(id: CardId) {
@@ -932,6 +989,17 @@ export class GameScene extends Phaser.Scene {
   }
 
   private towerSkillRuntime(): TowerSkillRuntime {
+    const runtime = this.towerSkillRuntimeCache;
+    runtime.towers = this.towers;
+    runtime.enemies = this.enemies;
+    runtime.boss = this.boss;
+    runtime.battleTime = this.battleTime;
+    runtime.gameOver = this.gameOver;
+    runtime.battlePaused = this.battlePaused;
+    return runtime;
+  }
+
+  private createTowerSkillRuntime(): TowerSkillRuntime {
     return {
       towers: this.towers,
       enemies: this.enemies,
@@ -944,11 +1012,19 @@ export class GameScene extends Phaser.Scene {
         damageEnemy(this.unitLifecycleRuntime(), enemy, damage, damageType, sourceTower),
       damageBoss: (damage, damageType, targetPart) => damageBoss(this.unitLifecycleRuntime(), damage, damageType, targetPart),
       runWhenBattleActive: (action) => this.runWhenBattleActive(action),
-      onTargetingChanged: () => this.updateCards(this.cardTime)
+      onTargetingChanged: () => this.updateCards()
     };
   }
 
   private targetedEffectCardRuntime(): TargetedEffectCardRuntime {
+    const runtime = this.targetedEffectCardRuntimeCache;
+    runtime.towers = this.towers;
+    runtime.cardStates = this.cardStates;
+    runtime.battleTime = this.battleTime;
+    return runtime;
+  }
+
+  private createTargetedEffectCardRuntime(): TargetedEffectCardRuntime {
     return {
       scene: this,
       towers: this.towers,
@@ -962,11 +1038,20 @@ export class GameScene extends Phaser.Scene {
       removeTower: (tower) => removeTower(this.unitLifecycleRuntime(), tower),
       runWhenBattleActive: (action) => this.runWhenBattleActive(action),
       updateLevelAuras: () => this.updateLevelAuras(),
-      updateCards: () => this.updateCards(this.cardTime)
+      updateCards: () => this.updateCards()
     };
   }
 
   private towerShifterRuntime(): TowerShifterRuntime {
+    const runtime = this.towerShifterRuntimeCache;
+    runtime.towers = this.towers;
+    runtime.occupied = this.occupied;
+    runtime.cardTime = this.battleTime;
+    runtime.battleTime = this.battleTime;
+    return runtime;
+  }
+
+  private createTowerShifterRuntime(): TowerShifterRuntime {
     return {
       scene: this,
       towers: this.towers,
@@ -978,6 +1063,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   private towerMirrorRuntime(): TowerMirrorRuntime {
+    const runtime = this.towerMirrorRuntimeCache;
+    runtime.towers = this.towers;
+    runtime.occupied = this.occupied;
+    runtime.battleTime = this.battleTime;
+    return runtime;
+  }
+
+  private createTowerMirrorRuntime(): TowerMirrorRuntime {
     return {
       scene: this,
       towers: this.towers,
@@ -991,6 +1084,19 @@ export class GameScene extends Phaser.Scene {
   }
 
   private towerDeploymentRuntime(): TowerDeploymentRuntime {
+    const runtime = this.towerDeploymentRuntimeCache;
+    runtime.towers = this.towers;
+    runtime.occupied = this.occupied;
+    runtime.cardStates = this.cardStates;
+    runtime.battleTime = this.battleTime;
+    runtime.unlimitedFirepower = this.unlimitedFirepower;
+    runtime.autoUpgradeEnabled = this.autoUpgradeEnabled;
+    runtime.autoUpgradeReserveChars = this.autoUpgradeReserveChars;
+    runtime.autoUpgradeReserveInputFocused = this.autoUpgradeReserveInputFocused;
+    return runtime;
+  }
+
+  private createTowerDeploymentRuntime(): TowerDeploymentRuntime {
     return {
       scene: this,
       towers: this.towers,
@@ -1010,11 +1116,24 @@ export class GameScene extends Phaser.Scene {
       mirrorGroupFor: (tower) => this.mirrors.mirrorGroupFor(tower),
       isCellDeployable: (lane, column) => this.cellIsDeployable(lane, column),
       updateLevelAuras: () => this.updateLevelAuras(),
-      updateCards: () => this.updateCards(this.cardTime)
+      updateCards: () => this.updateCards()
     };
   }
 
   private combatRuntime(): CombatRuntime {
+    const runtime = this.combatRuntimeCache;
+    runtime.enemies = this.enemies;
+    runtime.towers = this.towers;
+    runtime.boss = this.boss;
+    runtime.occupied = this.occupied;
+    runtime.battleTime = this.battleTime;
+    runtime.projectiles = this.projectiles;
+    runtime.enemyProjectiles = this.enemyProjectiles;
+    runtime.mortarProjectiles = this.mortarProjectiles;
+    return runtime;
+  }
+
+  private createCombatRuntime(): CombatRuntime {
     return {
       scene: this,
       enemies: this.enemies,
@@ -1040,6 +1159,18 @@ export class GameScene extends Phaser.Scene {
   }
 
   private bossRuntime(): BossRuntime {
+    const runtime = this.bossRuntimeCache;
+    runtime.enemies = this.enemies;
+    runtime.towers = this.towers;
+    runtime.mortarProjectiles = this.mortarProjectiles;
+    runtime.wave = this.wave;
+    runtime.bossPhaseIndex = this.bossPhaseIndex;
+    runtime.battleTime = this.battleTime;
+    runtime.finalDamageReduction = this.difficultyConfig.finalDamageReduction;
+    return runtime;
+  }
+
+  private createBossRuntime(): BossRuntime {
     return {
       scene: this,
       enemies: this.enemies,
@@ -1059,6 +1190,18 @@ export class GameScene extends Phaser.Scene {
   }
 
   private projectileRuntime(): ProjectileRuntime {
+    const runtime = this.projectileRuntimeCache;
+    runtime.projectiles = this.projectiles;
+    runtime.enemyProjectiles = this.enemyProjectiles;
+    runtime.mortarProjectiles = this.mortarProjectiles;
+    runtime.enemies = this.enemies;
+    runtime.towers = this.towers;
+    runtime.occupied = this.occupied;
+    runtime.battleTime = this.battleTime;
+    return runtime;
+  }
+
+  private createProjectileRuntime(): ProjectileRuntime {
     return {
       scene: this,
       projectiles: this.projectiles,
@@ -1066,6 +1209,7 @@ export class GameScene extends Phaser.Scene {
       mortarProjectiles: this.mortarProjectiles,
       enemies: this.enemies,
       towers: this.towers,
+      occupied: this.occupied,
       battleTime: this.battleTime,
       getBoss: () => this.boss,
       damageEnemy: (enemy, damage, damageType, sourceTower) =>
@@ -1076,6 +1220,20 @@ export class GameScene extends Phaser.Scene {
   }
 
   private unitLifecycleRuntime(): UnitLifecycleRuntime {
+    const runtime = this.unitLifecycleRuntimeCache;
+    runtime.enemies = this.enemies;
+    runtime.towers = this.towers;
+    runtime.projectiles = this.projectiles;
+    runtime.enemyProjectiles = this.enemyProjectiles;
+    runtime.mortarProjectiles = this.mortarProjectiles;
+    runtime.occupied = this.occupied;
+    runtime.bossPhaseIndex = this.bossPhaseIndex;
+    runtime.battleTime = this.battleTime;
+    runtime.finalDamageReduction = this.difficultyConfig.finalDamageReduction;
+    return runtime;
+  }
+
+  private createUnitLifecycleRuntime(): UnitLifecycleRuntime {
     return {
       scene: this,
       enemies: this.enemies,
@@ -1104,6 +1262,15 @@ export class GameScene extends Phaser.Scene {
   }
 
   private triggerTowerRuntime(): TriggerTowerRuntime {
+    const runtime = this.triggerTowerRuntimeCache;
+    runtime.enemies = this.enemies;
+    runtime.boss = this.boss;
+    runtime.battleTime = this.battleTime;
+    runtime.gameOver = this.gameOver;
+    return runtime;
+  }
+
+  private createTriggerTowerRuntime(): TriggerTowerRuntime {
     return {
       scene: this,
       enemies: this.enemies,
@@ -1151,6 +1318,10 @@ export class GameScene extends Phaser.Scene {
   private updateTowers(time: number) {
     const runtime = this.combatRuntime();
     for (const tower of this.towers) {
+      if (!this.towerAttackReady(tower, time)) {
+        continue;
+      }
+
       const definition = this.getDefinition(tower.type);
       const behavior = getCardBehavior(tower.type);
       if (!behavior.canUse(tower, definition, time, runtime)) {
@@ -1161,6 +1332,10 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  private towerAttackReady(tower: Tower, time: number) {
+    return time >= tower.lastFire + attackIntervalMs(towerFinalStats(tower).attackSpeed);
+  }
+
   private startTowerVolley(tower: Tower, definition: CardDefinition, behavior: CardBehavior, time: number) {
     const shots = volleyShotCount(tower.type, effectiveTowerLevel(tower));
     const attackInterval = attackIntervalMs(towerFinalStats(tower).attackSpeed);
@@ -1169,7 +1344,7 @@ export class GameScene extends Phaser.Scene {
     for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
       this.time.delayedCall(shotIndex * interval, () => {
         this.runWhenBattleActive(() => {
-          if (this.gameOver || !this.towers.includes(tower)) {
+          if (this.gameOver || !tower.inPlay) {
             return;
           }
           behavior.execute(tower, definition, this.combatRuntime());
@@ -1255,15 +1430,16 @@ export class GameScene extends Phaser.Scene {
   }
 
   private clearEnemiesForBossPhaseTransition() {
-    const enemies = [...this.enemies];
     const bodies: Phaser.GameObjects.Container[] = [];
-    for (const enemy of enemies) {
+    forEachSnapshot(this.enemies, (enemy) => {
+      enemy.inPlay = false;
       bodies.push(enemy.body);
       for (const cargo of enemy.burrowCargo ?? []) {
+        cargo.inPlay = false;
         bodies.push(cargo.body);
       }
       enemy.burrowCargo = [];
-    }
+    });
 
     this.enemies.length = 0;
     if (bodies.length === 0) {
@@ -1321,7 +1497,7 @@ export class GameScene extends Phaser.Scene {
     let removedTower = false;
     for (let lane = 0; lane < LANES; lane += 1) {
       const tower = this.occupied.get(gridCellKey(lane, column));
-      if (tower && this.towers.includes(tower)) {
+      if (tower?.inPlay) {
         makeEraseMark(this, tower.x, tower.y);
         removeTower(this.unitLifecycleRuntime(), tower);
         removedTower = true;
@@ -1385,10 +1561,12 @@ export class GameScene extends Phaser.Scene {
     this.mirrors.runMirrorGroupEvent(tower, (member) => runTriggerTrapTower(this.triggerTowerRuntime(), member, target));
   }
 
-  private updateCards(time: number) {
+  private updateCards() {
+    for (const cardState of this.cardStates) {
+      cardState.displayTime = this.cardTimeFor(cardState.definition.id);
+    }
+
     updateCardStates(this.cardStates, {
-      time,
-      timeForCard: (id) => this.cardTimeFor(id),
       selectedCardId: this.selectedCardId,
       chars: this.effectiveChars(),
       eraserMode: this.eraserMode,
@@ -1427,7 +1605,7 @@ export class GameScene extends Phaser.Scene {
     this.baseIntegrity += 1_000;
     this.gainChars(10_000, this.ui.debugButton.x, this.ui.debugButton.y + 34);
     this.showToast(t("toast.debugChars"));
-    this.updateCards(this.cardTime);
+    this.updateCards();
     this.updateHud();
   }
 
@@ -1446,7 +1624,7 @@ export class GameScene extends Phaser.Scene {
       this.debugDamageMode = false;
     }
     this.syncPlacementGhost(this.input.activePointer);
-    this.updateCards(this.cardTime);
+    this.updateCards();
   }
 
   private toggleShifterMode() {
@@ -1470,7 +1648,7 @@ export class GameScene extends Phaser.Scene {
       this.clearPlacementGhosts();
     }
     this.syncPlacementGhost(this.input.activePointer);
-    this.updateCards(this.cardTime);
+    this.updateCards();
   }
 
   private toggleAutoUpgradeMode() {
@@ -1488,7 +1666,7 @@ export class GameScene extends Phaser.Scene {
       this.debugDamageMode = false;
     }
     this.syncPlacementGhost(this.input.activePointer);
-    this.updateCards(this.cardTime);
+    this.updateCards();
   }
 
   private toggleAutoUpgradeEnabled() {
@@ -1500,7 +1678,7 @@ export class GameScene extends Phaser.Scene {
     this.autoUpgradeReserveInputFocused = false;
     this.syncAutoUpgradeBorders();
     this.attemptAutoUpgrades();
-    this.updateCards(this.cardTime);
+    this.updateCards();
   }
 
   private focusAutoUpgradeReserveInput() {
@@ -1515,7 +1693,7 @@ export class GameScene extends Phaser.Scene {
     this.debugDamageMode = false;
     this.autoUpgradeReserveInputFocused = true;
     this.cancelSpellMortarTargeting();
-    this.updateCards(this.cardTime);
+    this.updateCards();
   }
 
   private attemptAutoUpgrades() {
@@ -1537,7 +1715,7 @@ export class GameScene extends Phaser.Scene {
       this.autoUpgradeMode = false;
     }
     this.syncPlacementGhost(this.input.activePointer);
-    this.updateCards(this.cardTime);
+    this.updateCards();
   }
 
   private applyDebugDamage(x: number, y: number) {
@@ -1547,11 +1725,11 @@ export class GameScene extends Phaser.Scene {
     makeShellBurst(this, x, y, Math.min(CELL_WIDTH, CELL_HEIGHT) * 0.5, "true");
     makeShockPulse(this, x, y, CELL_WIDTH, CELL_HEIGHT);
 
-    for (const enemy of [...this.enemies]) {
+    forEachSnapshot(this.enemies, (enemy) => {
       if (Math.abs(enemy.x - x) <= rangeX && Math.abs(enemy.y - y) <= rangeY) {
         damageEnemy(this.unitLifecycleRuntime(), enemy, damage, "true");
       }
-    }
+    });
 
     if (isBossInRect(this.boss, x - rangeX, y - rangeY, rangeX * 2, rangeY * 2)) {
       damageBoss(this.unitLifecycleRuntime(), damage, "true");
@@ -1573,7 +1751,7 @@ export class GameScene extends Phaser.Scene {
       this.flushPausedActions();
     }
     this.showToast(this.battlePaused ? t("toast.paused") : t("toast.resume"));
-    this.updateCards(this.cardTime);
+    this.updateCards();
     this.updateHud();
   }
 
@@ -1662,7 +1840,7 @@ export class GameScene extends Phaser.Scene {
       event.preventDefault();
       this.autoUpgradeReserveInputFocused = false;
       this.attemptAutoUpgrades();
-      this.updateCards(this.cardTime);
+      this.updateCards();
       return true;
     }
 
@@ -1686,22 +1864,47 @@ export class GameScene extends Phaser.Scene {
 
   private setAutoUpgradeReserve(value: number) {
     this.autoUpgradeReserveChars = Math.max(0, Math.floor(value));
-    this.updateCards(this.cardTime);
+    this.updateCards();
   }
 
   private handleGameKey(event: KeyboardEvent) {
-    const actionIds: ControlActionId[] = [
-      ...toolControlDefinitions.map((definition) => definition.id),
-      ...Array.from({ length: CONTROL_SLOT_COUNT }, (_value, index) => slotControlAction(index + 1)),
-      ...this.selectedCardIds.map((id) => cardControlAction(id))
-    ];
-    const actionId = matchingControlAction(event, actionIds);
+    const actionId = this.matchGameControlAction(event);
     if (!actionId) {
       return false;
     }
 
     this.runControlAction(actionId);
     return true;
+  }
+
+  private matchGameControlAction(event: KeyboardEvent) {
+    const code = keyCodeForEvent(event);
+    if (!code) {
+      return undefined;
+    }
+
+    const bindings = getKeybindings();
+    for (const definition of toolControlDefinitions) {
+      if (bindings[definition.id] === code) {
+        return definition.id;
+      }
+    }
+
+    for (let index = 1; index <= CONTROL_SLOT_COUNT; index += 1) {
+      const actionId = slotControlAction(index);
+      if (bindings[actionId] === code) {
+        return actionId;
+      }
+    }
+
+    for (const id of this.selectedCardIds) {
+      const actionId = cardControlAction(id);
+      if (bindings[actionId] === code) {
+        return actionId;
+      }
+    }
+
+    return undefined;
   }
 
   private runControlAction(actionId: ControlActionId) {
@@ -1767,7 +1970,7 @@ export class GameScene extends Phaser.Scene {
     this.cancelSpellMortarTargeting();
     this.selectedCardId = id;
     this.syncPlacementGhost(this.input.activePointer);
-    this.updateCards(this.cardTime);
+    this.updateCards();
   }
 
   private getSelectedDefinition() {
@@ -1816,5 +2019,13 @@ export class GameScene extends Phaser.Scene {
 }
 
 function placementGhostKey(ghosts: PlacementGhostSpec[]) {
-  return ghosts.map((ghost) => `${ghost.type}:${ghost.lane}:${ghost.column}`).join("|");
+  let key = "";
+  for (let index = 0; index < ghosts.length; index += 1) {
+    const ghost = ghosts[index];
+    if (index > 0) {
+      key += "|";
+    }
+    key += `${ghost.type}:${ghost.lane}:${ghost.column}`;
+  }
+  return key;
 }

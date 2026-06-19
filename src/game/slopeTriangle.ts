@@ -6,7 +6,8 @@ import type { Enemy, Tower } from "../types";
 import type { EnemyAdvanceRuntime } from "./combatRuntime";
 import { enemyMovementSpeed } from "./combatStats";
 import { enemyIgnoresLeaderRestrictedMechanics, enemyIsBurrowed, enemyIsHighFlying, siegeRamSpeed } from "./enemyBehaviors";
-import { applyStatusEffect, removeStatusEffect, statusSpeedMultiplier, syncEnemyBodyPosition } from "./statusEffects";
+import { forEachSnapshot } from "./iteration";
+import { applyStatusEffect, hasStatusEffectName, removeStatusEffect, statusSpeedMultiplier, syncEnemyBodyPosition } from "./statusEffects";
 
 const SLOPE_TOUCH_RANGE_X = CELL_WIDTH * 0.58;
 const SLOPE_TOUCH_RANGE_Y = CELL_HEIGHT * 0.55;
@@ -21,7 +22,7 @@ export function advanceHighFlyingEnemy(enemy: Enemy, time: number) {
 
   if (enemy.highFlightUntil === undefined) {
     statusSpeedMultiplier(enemy, time);
-    if (!enemy.statusEffects.some((effect) => effect.name === "highFlying")) {
+    if (!hasStatusEffectName(enemy, "highFlying")) {
       landHighFlyingEnemy(enemy);
       return false;
     }
@@ -88,18 +89,18 @@ export function advanceSlopeTriangle(
 
 function launchTouchingEnemies(runtime: EnemyAdvanceRuntime, slope: Enemy, time: number) {
   const facingDirection = slope.slopeFacingDirection ?? slope.movementDirection ?? -1;
-  for (const target of [...runtime.enemies]) {
+  forEachSnapshot(runtime.enemies, (target) => {
     if (!canSlopeLaunchEnemy(target, slope)) {
-      continue;
+      return;
     }
 
     const motion = currentMotion(runtime, target, time);
     if (!motion || motion.direction !== facingDirection) {
-      continue;
+      return;
     }
 
     launchHighFlyingEnemy(runtime, target, motion.direction, motion.speed, time, slope);
-  }
+  });
 }
 
 function canSlopeLaunchEnemy(target: Enemy, slope: Enemy) {
@@ -186,13 +187,22 @@ function landHighFlyingEnemy(enemy: Enemy) {
   enemy.highFlightTargetY = undefined;
   enemy.highFlightPeakHeight = undefined;
   removeStatusEffect(enemy, "highFlying");
-  const regularHaloActive = enemy.statusEffects.some((effect) => effect.name === "flying" && effect.showHalo);
+  const regularHaloActive = hasRegularFlyingHalo(enemy);
   enemy.flyingHalo.setVisible(regularHaloActive);
   if (!regularHaloActive) {
     enemy.flyingHalo.setScale(1, 1);
   }
   enemy.body.setDepth(60 + enemy.lane);
   syncEnemyBodyPosition(enemy);
+}
+
+function hasRegularFlyingHalo(enemy: Enemy) {
+  for (const effect of enemy.statusEffects) {
+    if (effect.name === "flying" && effect.showHalo) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function syncHighFlyingHalo(enemy: Enemy, time: number) {

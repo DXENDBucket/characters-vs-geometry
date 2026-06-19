@@ -257,6 +257,7 @@ export interface CardState {
   cooldownFill: Phaser.GameObjects.Rectangle;
   content: AlphaGameObject[];
   readyAt: number;
+  displayTime: number;
 }
 
 export interface Tower {
@@ -289,6 +290,7 @@ export interface Tower {
   transient: boolean;
   turnTargetId?: string;
   placedOrder: number;
+  inPlay: boolean;
   body: Phaser.GameObjects.Container;
   border: Phaser.GameObjects.Graphics;
   label: Phaser.GameObjects.Text;
@@ -347,6 +349,14 @@ export interface Enemy {
   angelRamWingsTriggered?: boolean;
   skills: Record<string, SkillState>;
   statusEffects: StatusEffect[];
+  statusMultiplierCache: {
+    speed: number;
+    attack: number;
+    armor: number;
+    visualSyncedAt: number;
+    visualSyncedX: number;
+    visualSyncedY: number;
+  };
   statusBorder: Phaser.GameObjects.Arc;
   frozenBorder: Phaser.GameObjects.Rectangle;
   powerIcon: Phaser.GameObjects.Text;
@@ -355,6 +365,7 @@ export interface Enemy {
   magicResistanceIcon: Phaser.GameObjects.Text;
   flyingHalo: Phaser.GameObjects.Ellipse;
   nextHasteTrailAt: number;
+  inPlay: boolean;
   body: Phaser.GameObjects.Container;
   shape: Phaser.GameObjects.GameObject & { setScale(scale: number): unknown };
   bossOrbitAngle?: number;

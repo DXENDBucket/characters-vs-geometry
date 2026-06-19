@@ -19,11 +19,22 @@ import { createEnemyShape } from "../render/unitShapes";
 import type { CubeBoss, Enemy, EnemyKind, SkillState } from "../types";
 import { attackIntervalMs, attackSpeedForIntervalMs } from "./attackSpeed";
 import { enemyIsSolarBomb, isSolarBombKind } from "./solarBomb";
+import { hasStatusEffectName } from "./statusEffects";
 import { applyEnemyBaseStats, enemyBaseStatsFromDefinition } from "./unitStats";
 
 const ANGEL_PENTAGON_INITIAL_WINGS_SP_PER_EXTRA_RANK = 2;
 const ARCHANGEL_INITIAL_ASCENSION_SP = 10;
 const ANGEL_PENTAGON_SKILL_REGEN_MULTIPLIER_PER_EXTRA_RANK = 0.2;
+const SPLIT_SPAWN_LANES: number[][] = [];
+for (let lane = 0; lane < LANES; lane += 1) {
+  const lanes: number[] = [];
+  for (let candidate = lane - 1; candidate <= lane + 1; candidate += 1) {
+    if (candidate >= 0 && candidate < LANES) {
+      lanes.push(candidate);
+    }
+  }
+  SPLIT_SPAWN_LANES.push(lanes);
+}
 
 export function enemyAttackSpeed(kind: EnemyKind) {
   if (enemyIsLaser(kind)) {
@@ -145,7 +156,7 @@ export function enemyIsBurrowed(enemy: Enemy) {
 }
 
 export function enemyIsHighFlying(enemy: Enemy) {
-  return enemy.highFlightUntil !== undefined || enemy.statusEffects.some((effect) => effect.name === "highFlying");
+  return enemy.highFlightUntil !== undefined || hasStatusEffectName(enemy, "highFlying");
 }
 
 export function promotedKind(kind: EnemyKind) {
@@ -153,10 +164,37 @@ export function promotedKind(kind: EnemyKind) {
 }
 
 export function findPromotionTargets(boss: CubeBoss, enemies: Enemy[], fromRank: number, count: number) {
-  return enemies
-    .filter((enemy) => !enemyIsHighFlying(enemy) && enemyRank(enemy.kind) === fromRank && promotedKind(enemy.kind))
-    .sort((a, b) => Math.hypot(a.x - boss.x, a.y - boss.y) - Math.hypot(b.x - boss.x, b.y - boss.y))
-    .slice(0, count);
+  if (count <= 0) {
+    return [];
+  }
+
+  const targets: Enemy[] = [];
+  const distances: number[] = [];
+  for (const enemy of enemies) {
+    if (enemyIsHighFlying(enemy) || enemyRank(enemy.kind) !== fromRank || !promotedKind(enemy.kind)) {
+      continue;
+    }
+
+    const dx = enemy.x - boss.x;
+    const dy = enemy.y - boss.y;
+    const distance = dx * dx + dy * dy;
+    let insertAt = targets.length;
+    while (insertAt > 0 && distance < distances[insertAt - 1]) {
+      insertAt -= 1;
+    }
+
+    if (insertAt >= count) {
+      continue;
+    }
+
+    targets.splice(insertAt, 0, enemy);
+    distances.splice(insertAt, 0, distance);
+    if (targets.length > count) {
+      targets.pop();
+      distances.pop();
+    }
+  }
+  return targets;
 }
 
 export function applyEnemyPromotion(scene: Phaser.Scene, enemy: Enemy, kind: EnemyKind, battleTime: number) {
@@ -245,7 +283,7 @@ export function splitSpawnKind(kind: EnemyKind) {
 }
 
 export function splitSpawnLanes(lane: number) {
-  return [lane - 1, lane, lane + 1].filter((candidate) => candidate >= 0 && candidate < LANES);
+  return SPLIT_SPAWN_LANES[lane] ?? [];
 }
 
 export function shouldEnemyShoot(enemy: Enemy, time: number) {

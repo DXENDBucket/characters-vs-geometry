@@ -3,6 +3,7 @@ import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, FLYING_DISPLAY_OFFSET_Y, pal
 import { createUnitBorder } from "../render/unitShapes";
 import type { CardDefinition, CardId, CardState, SkillState, Tower } from "../types";
 import { syncTowerFinalStats, towerBaseStatsFromDefinition, towerFinalStats } from "./unitStats";
+import type { TowerAuraSources } from "./towerAuras";
 import {
   effectiveUpgradeDelta,
   scaledByEffectiveUpgrades
@@ -113,6 +114,7 @@ export function createTower(
     transient: Boolean(options.transient),
     turnTargetId: options.turnTargetId,
     placedOrder,
+    inPlay: true,
     body,
     border,
     label,
@@ -168,8 +170,13 @@ export function applyTowerUpgradeStats(
   }
 }
 
-export function syncTowerDerivedStats(tower: Tower, healMaxHpIncrease = false, towers?: Tower[]) {
-  syncTowerFinalStats(tower, { healMaxHpIncrease, towers });
+export function syncTowerDerivedStats(
+  tower: Tower,
+  healMaxHpIncrease = false,
+  towers?: Tower[],
+  towerAuraSources?: TowerAuraSources
+) {
+  syncTowerFinalStats(tower, { healMaxHpIncrease, towers, towerAuraSources });
   syncTowerHpBar(tower);
 }
 
@@ -238,9 +245,17 @@ export function syncTowerAutoUpgradeVisual(tower: Tower, active: boolean) {
 }
 
 export function findAutoUpgradeTarget(towers: Tower[], cardId: CardId) {
-  return towers
-    .filter((tower) => tower.autoUpgrade && tower.type === cardId)
-    .sort((a, b) => a.level - b.level || a.placedOrder - b.placedOrder)[0];
+  let target: Tower | undefined;
+  for (const tower of towers) {
+    if (!tower.autoUpgrade || tower.type !== cardId) {
+      continue;
+    }
+
+    if (!target || tower.level < target.level || (tower.level === target.level && tower.placedOrder < target.placedOrder)) {
+      target = tower;
+    }
+  }
+  return target;
 }
 
 export function isCardReadyForAutoUpgrade(cardState: CardState, cardTime: number) {

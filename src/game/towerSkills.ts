@@ -17,7 +17,7 @@ import {
 import { makeHealParticles, makeSpellMortarImpact, makeSpellMortarShot } from "../render/combatEffects";
 import type { CardDefinition, CardId, CubeBoss, DamageType, Enemy, SkillState, Tower } from "../types";
 import { enemyIsHighFlying } from "./enemyBehaviors";
-import { updateRegisteredSkills } from "./skillRegistry";
+import { forEachSnapshot } from "./iteration";
 import { gainSkillSp, getTowerSkillState, resetSkillCharge, spendSkillSp } from "./skillState";
 import { createTowerSkillRegistry, type TowerSkillDefinition } from "./towerSkillRegistry";
 import { bossPartInRect } from "./targeting";
@@ -51,6 +51,7 @@ export interface TowerSkillRuntime {
 
 export class TowerSkillController {
   private spellMortarTargetingTowers: Tower[] = [];
+  private spellMortarTargetingTowerSet = new Set<Tower>();
   private spellMortarReticle: Phaser.GameObjects.Container | null = null;
   private activeSpellMortarTweens: Phaser.Tweens.Tween[] = [];
   private readonly skillDefinitions: Partial<Record<CardId, TowerSkillDefinition>>;
@@ -72,16 +73,14 @@ export class TowerSkillController {
 
   update(seconds: number, time: number) {
     this.syncSpellMortarTargetingTowers();
-    updateRegisteredSkills(
-      this.runtime().towers,
-      (tower) => {
-        const definition = this.skillDefinitions[tower.type];
-        return definition ? [definition] : [];
-      },
-      undefined,
-      seconds,
-      time
-    );
+    for (const tower of this.runtime().towers) {
+      const definition = this.skillDefinitions[tower.type];
+      if (!definition) {
+        continue;
+      }
+
+      definition.update(tower, getTowerSkillState(tower, definition.stateKey), seconds, time, undefined);
+    }
   }
 
   hasSpellMortarTargeting() {
@@ -90,9 +89,13 @@ export class TowerSkillController {
 
   cardCooldownMultiplier() {
     const runtime = this.runtime();
-    const activeClockLevelSum = runtime.towers
-      .filter((tower) => tower.type === "c" && runtime.battleTime < getTowerSkillState(tower, "clock").activeUntil)
-      .reduce((sum, tower) => sum + effectiveTowerLevel(tower), 0);
+    const battleTime = runtime.battleTime;
+    let activeClockLevelSum = 0;
+    for (const tower of runtime.towers) {
+      if (tower.type === "c" && battleTime < getTowerSkillState(tower, "clock").activeUntil) {
+        activeClockLevelSum += effectiveTowerLevel(tower);
+      }
+    }
     return activeClockLevelSum + 1;
   }
 
@@ -145,17 +148,16 @@ export class TowerSkillController {
   }
 
   activateReadySpellMortars(x: number, y: number) {
-    const towers = this.runtime().towers.filter((tower) => this.isSpellMortarReady(tower));
-    this.activateSpellMortarTargeting(towers, x, y);
+    this.activateSpellMortarTargeting(this.runtime().towers, x, y);
   }
 
   activateSpellMortarTargeting(towers: Tower[], x: number, y: number) {
-    const readyTowers = towers.filter((tower) => this.isSpellMortarReady(tower));
+    const readyTowers = this.readySpellMortarTowers(towers);
     if (readyTowers.length === 0) {
       return;
     }
 
-    this.spellMortarTargetingTowers = readyTowers;
+    this.setSpellMortarTargetingTowers(readyTowers);
     this.ensureSpellMortarReticle();
     this.updateSpellMortarReticlePosition(x, y);
   }
@@ -165,19 +167,19 @@ export class TowerSkillController {
       return;
     }
 
-    this.spellMortarTargetingTowers = [];
+    this.setSpellMortarTargetingTowers([]);
     this.destroySpellMortarReticle();
     this.runtime().onTargetingChanged();
   }
 
   fireSelectedSpellMortars(targetX: number, targetY: number) {
-    const towers = this.spellMortarTargetingTowers.filter((tower) => this.isSpellMortarReady(tower));
+    const towers = this.readySpellMortarTowers(this.spellMortarTargetingTowers);
     if (towers.length === 0) {
       this.cancelSpellMortarTargeting();
       return;
     }
 
-    this.spellMortarTargetingTowers = [];
+    this.setSpellMortarTargetingTowers([]);
     this.destroySpellMortarReticle();
     for (const tower of towers) {
       this.fireSpellMortar(tower, targetX, targetY);
@@ -209,6 +211,16 @@ export class TowerSkillController {
         tween.resume();
       }
     }
+  }
+
+  private readySpellMortarTowers(towers: Tower[]) {
+    const readyTowers: Tower[] = [];
+    for (const tower of towers) {
+      if (this.isSpellMortarReady(tower)) {
+        readyTowers.push(tower);
+      }
+    }
+    return readyTowers;
   }
 
   private updateClockTower(tower: Tower, state: SkillState, seconds: number, time: number) {
@@ -284,16 +296,24 @@ export class TowerSkillController {
       targets.push(tower);
     }
 
-    const ally = this.runtime()
-      .towers.filter((candidate) => {
-        return (
-          candidate !== tower &&
-          candidate.hp < towerFinalStats(candidate).maxHp &&
-          Math.abs(candidate.lane - tower.lane) <= 1 &&
-          Math.abs(candidate.column - tower.column) <= 1
-        );
-      })
-      .sort((a, b) => a.hp / towerFinalStats(a).maxHp - b.hp / towerFinalStats(b).maxHp || a.placedOrder - b.placedOrder)[0];
+    let ally: Tower | undefined;
+    let allyHpRatio = Number.POSITIVE_INFINITY;
+    for (const candidate of this.runtime().towers) {
+      if (candidate === tower || Math.abs(candidate.lane - tower.lane) > 1 || Math.abs(candidate.column - tower.column) > 1) {
+        continue;
+      }
+
+      const maxHp = towerFinalStats(candidate).maxHp;
+      if (candidate.hp >= maxHp) {
+        continue;
+      }
+
+      const hpRatio = candidate.hp / maxHp;
+      if (!ally || hpRatio < allyHpRatio || (hpRatio === allyHpRatio && candidate.placedOrder < ally.placedOrder)) {
+        ally = candidate;
+        allyHpRatio = hpRatio;
+      }
+    }
 
     if (ally) {
       targets.push(ally);
@@ -313,15 +333,25 @@ export class TowerSkillController {
   }
 
   private syncSpellMortarTargetingTowers() {
-    const runtime = this.runtime();
-    this.spellMortarTargetingTowers = this.spellMortarTargetingTowers.filter((tower) => runtime.towers.includes(tower));
+    if (this.spellMortarTargetingTowers.length === 0) {
+      return;
+    }
+
+    for (let index = this.spellMortarTargetingTowers.length - 1; index >= 0; index -= 1) {
+      const tower = this.spellMortarTargetingTowers[index];
+      if (!tower.inPlay) {
+        this.spellMortarTargetingTowers.splice(index, 1);
+        this.spellMortarTargetingTowerSet.delete(tower);
+      }
+    }
+
     if (this.spellMortarTargetingTowers.length === 0) {
       this.destroySpellMortarReticle();
     }
   }
 
   private updateSpellMortarTower(tower: Tower, state: SkillState, seconds: number, time: number) {
-    if (time < state.activeUntil || this.spellMortarTargetingTowers.includes(tower)) {
+    if (time < state.activeUntil || this.spellMortarTargetingTowerSet.has(tower)) {
       tower.border.setVisible(true);
       tower.border.setAlpha(0.35 + Math.sin(time / 70) * 0.32 + 0.32);
       return;
@@ -355,7 +385,7 @@ export class TowerSkillController {
       this.scene.time.delayedCall(shotIndex * SPELL_MORTAR_SHOT_INTERVAL, () => {
         this.runtime().runWhenBattleActive(() => {
           const latest = this.runtime();
-          if (latest.gameOver || !latest.towers.includes(tower)) {
+          if (latest.gameOver || !tower.inPlay) {
             return;
           }
 
@@ -389,7 +419,7 @@ export class TowerSkillController {
     }
 
     makeSpellMortarImpact(this.scene, x, y, SPELL_MORTAR_AOE_RANGE_X, SPELL_MORTAR_AOE_RANGE_Y);
-    for (const enemy of [...runtime.enemies]) {
+    forEachSnapshot(runtime.enemies, (enemy) => {
       if (
         !enemyIsHighFlying(enemy) &&
         Math.abs(enemy.x - x) <= SPELL_MORTAR_AOE_RANGE_X &&
@@ -397,7 +427,7 @@ export class TowerSkillController {
       ) {
         runtime.damageEnemy(enemy, damage, damageType, sourceTower);
       }
-    }
+    });
     const bossPart = bossPartInRect(
       runtime.boss,
       x - SPELL_MORTAR_AOE_RANGE_X,
@@ -451,8 +481,8 @@ export class TowerSkillController {
     state.activeUntil = 0;
     tower.border.setVisible(false);
     tower.border.setAlpha(1);
-    if (this.spellMortarTargetingTowers.includes(tower)) {
-      this.spellMortarTargetingTowers = this.spellMortarTargetingTowers.filter((target) => target !== tower);
+    if (this.spellMortarTargetingTowerSet.delete(tower)) {
+      Phaser.Utils.Array.Remove(this.spellMortarTargetingTowers, tower);
       if (this.spellMortarTargetingTowers.length === 0) {
         this.destroySpellMortarReticle();
       }
@@ -466,6 +496,14 @@ export class TowerSkillController {
     syncTowerFlyingVisual(tower, 0);
     tower.border.setVisible(true);
     tower.border.setAlpha(1);
+  }
+
+  private setSpellMortarTargetingTowers(towers: Tower[]) {
+    this.spellMortarTargetingTowers = towers;
+    this.spellMortarTargetingTowerSet.clear();
+    for (const tower of towers) {
+      this.spellMortarTargetingTowerSet.add(tower);
+    }
   }
 }
 

@@ -54,6 +54,7 @@ export type EnemyAdvanceRuntime = Pick<
   | "enemies"
   | "towers"
   | "boss"
+  | "occupied"
   | "enemyProjectiles"
   | "mortarProjectiles"
   | "damageTower"

@@ -118,7 +118,7 @@ export class TargetedEffectCardController {
 
   private resolvePendingEffectCard(effectCard: Tower) {
     const runtime = this.runtime();
-    if (!runtime.towers.includes(effectCard)) {
+    if (!effectCard.inPlay) {
       return;
     }
 

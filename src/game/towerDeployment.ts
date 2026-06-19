@@ -35,6 +35,8 @@ export interface TowerDeploymentRuntime {
 }
 
 export class TowerDeploymentController {
+  private readonly upgradedGroupsBuffer = new Set<string>();
+
   constructor(private readonly runtime: () => TowerDeploymentRuntime) {}
 
   deploy(definition: CardDefinition, lane: number, column: number) {
@@ -113,27 +115,32 @@ export class TowerDeploymentController {
   private deployColumn(definition: CardDefinition, column: number) {
     const runtime = this.runtime();
     let deployed = false;
-    const upgradedGroups = new Set<string>();
-    for (let lane = 0; lane < LANES; lane += 1) {
-      const existingTower = runtime.occupied.get(gridCellKey(lane, column));
-      if (existingTower) {
-        if (existingTower.type === definition.id) {
-          const groupKey = this.upgradeGroupKey(existingTower);
-          if (!upgradedGroups.has(groupKey)) {
-            upgradedGroups.add(groupKey);
-            this.upgradeTower(existingTower);
+    const upgradedGroups = this.upgradedGroupsBuffer;
+    upgradedGroups.clear();
+    try {
+      for (let lane = 0; lane < LANES; lane += 1) {
+        const existingTower = runtime.occupied.get(gridCellKey(lane, column));
+        if (existingTower) {
+          if (existingTower.type === definition.id) {
+            const groupKey = this.upgradeGroupKey(existingTower);
+            if (!upgradedGroups.has(groupKey)) {
+              upgradedGroups.add(groupKey);
+              this.upgradeTower(existingTower);
+            }
+            deployed = true;
           }
-          deployed = true;
+          continue;
         }
-        continue;
-      }
 
-      if (!this.isCellDeployable(lane, column)) {
-        continue;
-      }
+        if (!this.isCellDeployable(lane, column)) {
+          continue;
+        }
 
-      this.placeTower(definition, lane, column);
-      deployed = true;
+        this.placeTower(definition, lane, column);
+        deployed = true;
+      }
+    } finally {
+      upgradedGroups.clear();
     }
 
     return deployed;
@@ -157,8 +164,17 @@ export class TowerDeploymentController {
 
   private upgradeTower(tower: Tower) {
     const runtime = this.runtime();
-    const targets = (runtime.mirrorGroupFor?.(tower) ?? [tower])
-      .filter((candidate) => runtime.towers.includes(candidate) && candidate.type === tower.type);
+    const targets: Tower[] = [];
+    const targetBodies: Phaser.GameObjects.GameObject[] = [];
+    const candidates = runtime.mirrorGroupFor?.(tower) ?? [tower];
+    for (const candidate of candidates) {
+      if (!candidate.inPlay || candidate.type !== tower.type) {
+        continue;
+      }
+
+      targets.push(candidate);
+      targetBodies.push(candidate.body);
+    }
 
     for (const target of targets) {
       const definition = runtime.getDefinition(target.type);
@@ -169,7 +185,7 @@ export class TowerDeploymentController {
 
     runtime.updateLevelAuras();
     runtime.scene.tweens.add({
-      targets: targets.map((target) => target.body),
+      targets: targetBodies,
       scale: 1.08,
       yoyo: true,
       duration: 90,

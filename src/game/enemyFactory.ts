@@ -123,6 +123,14 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
     attackAt: options.time + baseStats.attackInterval,
     skills,
     statusEffects: [],
+    statusMultiplierCache: {
+      speed: 1,
+      attack: 1,
+      armor: 1,
+      visualSyncedAt: Number.NaN,
+      visualSyncedX: Number.NaN,
+      visualSyncedY: Number.NaN
+    },
     statusBorder,
     frozenBorder,
     powerIcon,
@@ -131,6 +139,7 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
     magicResistanceIcon,
     flyingHalo,
     nextHasteTrailAt: options.time,
+    inPlay: true,
     body,
     shape
   };

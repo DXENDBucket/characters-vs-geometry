@@ -1,12 +1,12 @@
 import type { CubeBoss, Enemy, Tower } from "../types";
 import {
-  chargingHexSpeedMultiplier,
-  hexArmorBonus,
-  hexBossArmorBonus,
-  hexMagicResistanceBonus
+  enemySupportBonuses,
+  type EnemySupportBonuses,
+  type EnemySupportSources,
+  hexBossArmorBonus
 } from "./enemySupport";
-import { movementSpeedMultiplier } from "./slowAura";
-import { statusArmorMultiplier, statusAttackMultiplier, statusSpeedMultiplier } from "./statusEffects";
+import { movementSpeedMultiplier, type SlowAuraSources } from "./slowAura";
+import { statusMultipliers, type StatusMultipliers } from "./statusEffects";
 
 const DODECAHEDRON_COMPANION_DAMAGE_REDUCTION = 0.95;
 
@@ -20,36 +20,53 @@ interface EnemyFinalStatsContext {
   includeAttack?: boolean;
   includeDefense?: boolean;
   includeMovement?: boolean;
+  status?: StatusMultipliers;
+  support?: EnemySupportBonuses;
+  supportSources?: EnemySupportSources;
+  slowAuraSources?: SlowAuraSources;
 }
 
 export function syncEnemyFinalStats(enemy: Enemy, context: EnemyFinalStatsContext = {}) {
   const baseStats = enemy.baseStats;
-  const previousStats = enemy.finalStats ?? baseStats;
+  const finalStats = enemy.finalStats;
   const includeDefense = context.includeDefense ?? Boolean(context.enemies);
   const includeMovement = context.includeMovement ?? false;
   const includeAttack = context.includeAttack ?? false;
-  const statusSpeed = includeMovement && context.time !== undefined ? statusSpeedMultiplier(enemy, context.time) : 1;
-  const statusArmor = includeDefense && context.time !== undefined ? statusArmorMultiplier(enemy, context.time) : 1;
-  const supportSpeed = includeMovement && context.enemies ? chargingHexSpeedMultiplier(context.enemies, enemy) : 1;
+  const status = context.status ?? (context.time !== undefined && (includeMovement || includeDefense || includeAttack)
+    ? statusMultipliers(enemy, context.time)
+    : undefined);
+  const statusSpeed = includeMovement ? status?.speed ?? 1 : 1;
+  const statusArmor = includeDefense ? status?.armor ?? 1 : 1;
+  const support = context.support ?? (context.enemies && (includeDefense || includeMovement)
+    ? enemySupportBonuses(context.enemies, enemy, { includeDefense, includeMovement, sources: context.supportSources })
+    : undefined);
+  const supportSpeed = includeMovement ? support?.speedMultiplier ?? 1 : 1;
   const terrainSpeed = includeMovement && context.towers
-    ? movementSpeedMultiplier(context.towers, context.x ?? enemy.x, context.y ?? enemy.y)
+    ? movementSpeedMultiplier(context.towers, context.x ?? enemy.x, context.y ?? enemy.y, context.slowAuraSources)
     : 1;
-  const attackMultiplier = includeAttack && context.time !== undefined ? statusAttackMultiplier(enemy, context.time) : 1;
+  const attackMultiplier = includeAttack ? status?.attack ?? 1 : 1;
 
-  enemy.finalStats = {
-    ...baseStats,
-    armor: includeDefense && context.enemies
-      ? (baseStats.armor + hexArmorBonus(context.enemies, enemy)) * statusArmor
-      : previousStats.armor,
-    magicResistance: includeDefense && context.enemies
-      ? baseStats.magicResistance + hexMagicResistanceBonus(context.enemies, enemy)
-      : previousStats.magicResistance,
-    speed: includeMovement
-      ? (context.baseSpeed ?? baseStats.speed) * statusSpeed * supportSpeed * terrainSpeed
-      : previousStats.speed,
-    damage: includeAttack ? baseStats.damage * attackMultiplier : previousStats.damage
-  };
-  return enemy.finalStats;
+  const armor = includeDefense && context.enemies
+    ? (baseStats.armor + (support?.armor ?? 0)) * statusArmor
+    : finalStats.armor;
+  const magicResistance = includeDefense && context.enemies
+    ? baseStats.magicResistance + (support?.magicResistance ?? 0)
+    : finalStats.magicResistance;
+  const speed = includeMovement
+    ? (context.baseSpeed ?? baseStats.speed) * statusSpeed * supportSpeed * terrainSpeed
+    : finalStats.speed;
+  const damage = includeAttack ? baseStats.damage * attackMultiplier : finalStats.damage;
+
+  finalStats.maxHp = baseStats.maxHp;
+  finalStats.armor = armor;
+  finalStats.magicResistance = magicResistance;
+  finalStats.speed = speed;
+  finalStats.damage = damage;
+  finalStats.damageType = baseStats.damageType;
+  finalStats.finalDamageReduction = baseStats.finalDamageReduction;
+  finalStats.attackSpeed = baseStats.attackSpeed;
+  finalStats.attackInterval = baseStats.attackInterval;
+  return finalStats;
 }
 
 export function enemyDefenseStats(enemy: Enemy, enemies: Enemy[], time?: number) {
@@ -61,13 +78,24 @@ export function enemyAttackDamage(enemy: Enemy, time: number) {
 }
 
 export function enemyAttackMultiplier(enemy: Enemy, time: number) {
-  syncEnemyFinalStats(enemy, { time, includeAttack: true });
-  return statusAttackMultiplier(enemy, time);
+  const status = statusMultipliers(enemy, time);
+  syncEnemyFinalStats(enemy, { time, includeAttack: true, status });
+  return status.attack;
 }
 
 export function enemyMovementSpeed(
   enemy: Enemy,
-  context: { enemies: Enemy[]; towers: Tower[]; time: number; x?: number; y?: number },
+  context: {
+    enemies: Enemy[];
+    towers: Tower[];
+    time: number;
+    x?: number;
+    y?: number;
+    status?: StatusMultipliers;
+    support?: EnemySupportBonuses;
+    supportSources?: EnemySupportSources;
+    slowAuraSources?: SlowAuraSources;
+  },
   baseSpeed = enemy.baseStats.speed
 ) {
   return syncEnemyFinalStats(enemy, {
@@ -80,7 +108,17 @@ export function enemyMovementSpeed(
 
 export function enemyMovementMultiplier(
   enemy: Enemy,
-  context: { enemies: Enemy[]; towers: Tower[]; time: number; x?: number; y?: number },
+  context: {
+    enemies: Enemy[];
+    towers: Tower[];
+    time: number;
+    x?: number;
+    y?: number;
+    status?: StatusMultipliers;
+    support?: EnemySupportBonuses;
+    supportSources?: EnemySupportSources;
+    slowAuraSources?: SlowAuraSources;
+  },
   baseSpeed = enemy.baseStats.speed
 ) {
   if (baseSpeed === 0) {
@@ -99,15 +137,16 @@ export function enemyMovementMultiplier(
 export function bossFinalStats(boss: CubeBoss, enemies: Enemy[], rootBoss: CubeBoss = boss) {
   const bodyCountReduction = octahedronBodyDamageReduction(rootBoss);
   const companionReduction = dodecahedronCompanionDamageReduction(rootBoss, enemies);
-  boss.finalStats = {
-    ...boss.baseStats,
-    armor: boss.baseStats.armor + hexBossArmorBonus(enemies, boss),
-    finalDamageReduction: combineDamageReduction(
-      combineDamageReduction(boss.baseStats.finalDamageReduction, bodyCountReduction),
-      companionReduction
-    )
-  };
-  return boss.finalStats;
+  const finalStats = boss.finalStats;
+  finalStats.maxHp = boss.baseStats.maxHp;
+  finalStats.armor = boss.baseStats.armor + hexBossArmorBonus(enemies, boss);
+  finalStats.magicResistance = boss.baseStats.magicResistance;
+  finalStats.speed = boss.baseStats.speed;
+  finalStats.finalDamageReduction = combineDamageReduction(
+    combineDamageReduction(boss.baseStats.finalDamageReduction, bodyCountReduction),
+    companionReduction
+  );
+  return finalStats;
 }
 
 function dodecahedronCompanionDamageReduction(rootBoss: CubeBoss, enemies: Enemy[]) {
@@ -115,7 +154,12 @@ function dodecahedronCompanionDamageReduction(rootBoss: CubeBoss, enemies: Enemy
     return 0;
   }
 
-  return enemies.some(enemyIsDodecahedronCompanion) ? DODECAHEDRON_COMPANION_DAMAGE_REDUCTION : 0;
+  for (const enemy of enemies) {
+    if (enemyIsDodecahedronCompanion(enemy)) {
+      return DODECAHEDRON_COMPANION_DAMAGE_REDUCTION;
+    }
+  }
+  return 0;
 }
 
 function enemyIsDodecahedronCompanion(enemy: Enemy) {

@@ -1,20 +1,21 @@
 import Phaser from "phaser";
-import { BOARD_X, CELL_HEIGHT, CELL_WIDTH } from "../config";
+import { BOARD_X, CELL_HEIGHT, CELL_WIDTH, LANES } from "../config";
 import { makeHealParticles, makeShiftEffect } from "../render/combatEffects";
 import type { CubeBoss, Enemy, SkillState } from "../types";
 import { enemyFamily, enemyIsBossCompanion, enemyRank } from "../registry/enemies";
 import { enemyIgnoresLeaderRestrictedMechanics, enemyIsHighFlying, syncEnemyVisualScale } from "./enemyBehaviors";
 import { createEnemySkillRegistry, enemySkillDefinitions, type EnemySkillRuntime } from "./enemySkillRegistry";
-import { updateRegisteredSkills } from "./skillRegistry";
 import { gainSkillSp, getEnemySkillState, isSkillReady, spendSkillSp } from "./skillState";
-import { applyStatusEffect, hasStatusEffect, syncEnemyBodyPosition } from "./statusEffects";
-import { bossRect } from "./targeting";
+import { applyStatusEffect, hasStatusEffect, hasUnexpiredStatusEffect, syncEnemyBodyPosition } from "./statusEffects";
+import { bossPartDistanceSqToPoint } from "./targeting";
 
 const HEX_ARMOR_RADIUS = CELL_WIDTH * 1.4;
 const HEX_ARMOR_RANK_ONE_BONUS = 50;
 const HEX_ARMOR_BONUS_PER_EXTRA_RANK = 30;
 const HEX_SPELL_BULWARK_RANK_ONE_MAGIC_RESISTANCE_BONUS = 40;
 const HEX_SPELL_BULWARK_MAGIC_RESISTANCE_BONUS_PER_EXTRA_RANK = 10;
+const HEX_AURA_ARMOR_FLAG = 1;
+const HEX_AURA_MAGIC_RESISTANCE_FLAG = 2;
 const HEX_HEAL_SKILL_MAX = 20;
 const HEX_HEAL_SKILL_COST = 20;
 const HEX_HEAL_SKILL_REGEN_PER_SECOND = 1;
@@ -38,6 +39,38 @@ const ARCHANGEL_ASCENSION_REGEN_PER_SECOND = 1;
 const ARCHANGEL_ASCENSION_DURATION = 6_000;
 const ARCHANGEL_ASCENSION_RADIUS = CELL_WIDTH * 2.5;
 const ANGEL_WINGS_SPEED_MULTIPLIER = 2;
+const HEX_ARMOR_RADIUS_SQ = HEX_ARMOR_RADIUS * HEX_ARMOR_RADIUS;
+const ARCHANGEL_ASCENSION_RADIUS_SQ = ARCHANGEL_ASCENSION_RADIUS * ARCHANGEL_ASCENSION_RADIUS;
+
+export interface EnemySupportBonuses {
+  armor: number;
+  magicResistance: number;
+  speedMultiplier: number;
+}
+
+export interface EnemySupportSources {
+  enemies: Enemy[];
+  hexagons: Enemy[];
+  magicResistanceLaneMask: number;
+  magicResistanceByLane: Enemy[][];
+  chargingHexByLane: Enemy[][];
+  leadersByLane: Enemy[][];
+}
+
+interface HeartLeadCaster {
+  caster: Enemy;
+  skill: SkillState;
+}
+
+interface HeartLeadPlan extends HeartLeadCaster {
+  targets: Enemy[];
+}
+
+interface EnemyPosition {
+  x: number;
+  y: number;
+  lane: number;
+}
 
 const enemySkillRegistry = createEnemySkillRegistry({
   updateHexHeal,
@@ -45,14 +78,139 @@ const enemySkillRegistry = createEnemySkillRegistry({
   updateArchangelAscension,
   updateHeartLead
 });
+const activeEnemyBuffer: Enemy[] = [];
+const heartLeadReadyCastersBuffer: HeartLeadCaster[] = [];
+const heartLeadPlansBuffer: HeartLeadPlan[] = [];
+const heartLeadTargetsPool: Enemy[][] = [];
+const heartLeadSingleTargetsBuffer: Enemy[] = [];
+const heartLeadClaimedTargetsBuffer = new Set<Enemy>();
+const heartLeadSingleClaimedTargetsBuffer = new Set<Enemy>();
+const heartLeadPositionMapBuffer = new Map<Enemy, EnemyPosition>();
+const heartLeadPositionPool: EnemyPosition[] = [];
+const enemySupportSourcesBuffer: EnemySupportSources = {
+  enemies: [],
+  hexagons: [],
+  magicResistanceLaneMask: 0,
+  magicResistanceByLane: enemyLaneBuckets(),
+  chargingHexByLane: enemyLaneBuckets(),
+  leadersByLane: enemyLaneBuckets()
+};
 
 export function hexArmorBonus(enemies: Enemy[], target: Enemy) {
-  return hexArmorSources(enemies, target).reduce((total, enemy) => total + hexArmorAuraBonus(enemy), 0);
+  return enemySupportBonuses(enemies, target, { includeDefense: true }).armor;
 }
 
 export function hexMagicResistanceBonus(enemies: Enemy[], target: Enemy) {
-  return hexMagicResistanceSources(enemies, target)
-    .reduce((total, enemy) => total + hexMagicResistanceAuraBonus(enemy), 0);
+  return enemySupportBonuses(enemies, target, { includeDefense: true }).magicResistance;
+}
+
+export function enemySupportBonuses(
+  enemies: Enemy[],
+  target: Enemy,
+  options: { includeDefense?: boolean; includeMovement?: boolean; sources?: EnemySupportSources } = {}
+): EnemySupportBonuses {
+  const includeDefense = options.includeDefense ?? false;
+  const includeMovement = options.includeMovement ?? false;
+  if (options.sources) {
+    return enemySupportBonusesFromSources(options.sources, target, includeDefense, includeMovement);
+  }
+
+  let armor = 0;
+  let magicResistance = 0;
+  let hasChargingHexBuff = false;
+  let hasLeaderBuff = false;
+
+  for (const enemy of enemies) {
+    if (enemyIsHighFlying(enemy)) {
+      continue;
+    }
+
+    let family: ReturnType<typeof enemyFamily> | undefined;
+    if (includeDefense) {
+      const isInArmorAuraRange = distanceSq(enemy.x, enemy.y, target.x, target.y) <= HEX_ARMOR_RADIUS_SQ;
+      const isInMagicResistanceLane = enemy.lane === target.lane;
+      if (isInArmorAuraRange || isInMagicResistanceLane) {
+        family = enemyFamily(enemy.kind);
+        if (isInArmorAuraRange && family === "hexagon") {
+          armor += hexArmorAuraBonus(enemy);
+        }
+        if (isInMagicResistanceLane && family === "hexSpellBulwark") {
+          magicResistance += hexMagicResistanceAuraBonus(enemy);
+        }
+      }
+    }
+
+    if (includeMovement && enemy.lane === target.lane && enemy.x < target.x) {
+      family ??= enemyFamily(enemy.kind);
+      if (family === "chargingHexagon") {
+        hasChargingHexBuff = true;
+      } else if (family === "heart") {
+        hasLeaderBuff = true;
+      }
+    }
+  }
+
+  return {
+    armor,
+    magicResistance,
+    speedMultiplier: hasChargingHexBuff || hasLeaderBuff
+      ? Math.max(CHARGING_HEX_SPEED_MULTIPLIER, LEADER_SPEED_MULTIPLIER)
+      : 1
+  };
+}
+
+function enemySupportBonusesFromSources(
+  sources: EnemySupportSources,
+  target: Enemy,
+  includeDefense: boolean,
+  includeMovement: boolean
+): EnemySupportBonuses {
+  let armor = 0;
+  let magicResistance = 0;
+  if (includeDefense) {
+    for (const enemy of sources.hexagons) {
+      if (distanceSq(enemy.x, enemy.y, target.x, target.y) <= HEX_ARMOR_RADIUS_SQ && supportSourceIsActive(enemy)) {
+        armor += hexArmorAuraBonus(enemy);
+      }
+    }
+    for (const enemy of sources.magicResistanceByLane[target.lane] ?? []) {
+      if (supportSourceIsActive(enemy)) {
+        magicResistance += hexMagicResistanceAuraBonus(enemy);
+      }
+    }
+  }
+
+  let hasChargingHexBuff = false;
+  let hasLeaderBuff = false;
+  if (includeMovement) {
+    hasChargingHexBuff = hasActiveSupportBehind(sources, sources.chargingHexByLane[target.lane], target);
+    hasLeaderBuff = hasActiveSupportBehind(sources, sources.leadersByLane[target.lane], target);
+  }
+
+  return {
+    armor,
+    magicResistance,
+    speedMultiplier: hasChargingHexBuff || hasLeaderBuff
+      ? Math.max(CHARGING_HEX_SPEED_MULTIPLIER, LEADER_SPEED_MULTIPLIER)
+      : 1
+  };
+}
+
+function hasActiveSupportBehind(sources: EnemySupportSources, supportSources: Enemy[] | undefined, target: Enemy) {
+  if (!supportSources) {
+    return false;
+  }
+
+  for (const enemy of supportSources) {
+    if (enemy.x < target.x && supportSourceIsActive(enemy)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function supportSourceIsActive(enemy: Enemy) {
+  return enemy.inPlay && !enemyIsHighFlying(enemy);
 }
 
 export function hexBossArmorBonus(enemies: Enemy[], boss: CubeBoss | null) {
@@ -60,25 +218,34 @@ export function hexBossArmorBonus(enemies: Enemy[], boss: CubeBoss | null) {
     return 0;
   }
 
-  return enemies
-    .filter((enemy) => !enemyIsHighFlying(enemy) && isHexagon(enemy) && bossBodyInRadius(boss, enemy.x, enemy.y, HEX_ARMOR_RADIUS))
-    .reduce((total, enemy) => total + hexArmorAuraBonus(enemy), 0);
+  let bonus = 0;
+  for (const enemy of enemies) {
+    if (!enemyIsHighFlying(enemy) && isHexagon(enemy) && bossBodyInRadius(boss, enemy.x, enemy.y, HEX_ARMOR_RADIUS_SQ)) {
+      bonus += hexArmorAuraBonus(enemy);
+    }
+  }
+  return bonus;
 }
 
-function bossBodyInRadius(boss: CubeBoss, x: number, y: number, radius: number) {
-  const rect = bossRect(boss);
-  const closestX = Phaser.Math.Clamp(x, rect.left, rect.right);
-  const closestY = Phaser.Math.Clamp(y, rect.top, rect.bottom);
-  return Math.hypot(x - closestX, y - closestY) <= radius;
+function bossBodyInRadius(boss: CubeBoss, x: number, y: number, radiusSq: number) {
+  return bossPartDistanceSqToPoint(boss, x, y) <= radiusSq;
 }
 
 export function syncHexArmorAuras(enemies: Enemy[], time: number) {
+  const sources = enemySupportSources(enemies);
+  const iconY = -38 + Math.sin(time / 110) * 2;
+  if (sources.hexagons.length === 0 && sources.magicResistanceLaneMask === 0) {
+    for (const enemy of enemies) {
+      enemy.armorIcon.setVisible(false);
+      enemy.magicResistanceIcon.setVisible(false);
+    }
+    return;
+  }
+
   for (const enemy of enemies) {
-    const armorStacks = enemyIsHighFlying(enemy) ? 0 : hexArmorStacks(enemies, enemy);
-    const magicResistanceStacks = enemyIsHighFlying(enemy) ? 0 : hexMagicResistanceStacks(enemies, enemy);
-    const hasArmorBonus = armorStacks > 0;
-    const hasMagicResistanceBonus = magicResistanceStacks > 0;
-    const iconY = -38 + Math.sin(time / 110) * 2;
+    const auraFlags = hexAuraFlags(sources, enemy);
+    const hasArmorBonus = (auraFlags & HEX_AURA_ARMOR_FLAG) !== 0;
+    const hasMagicResistanceBonus = (auraFlags & HEX_AURA_MAGIC_RESISTANCE_FLAG) !== 0;
 
     enemy.armorIcon.setVisible(hasArmorBonus);
     enemy.magicResistanceIcon.setVisible(hasMagicResistanceBonus);
@@ -92,12 +259,24 @@ export function syncHexArmorAuras(enemies: Enemy[], time: number) {
 }
 
 export function chargingHexSpeedMultiplier(enemies: Enemy[], target: Enemy) {
-  const hasChargingHexBuff = enemies.some((enemy) => {
-    return !enemyIsHighFlying(enemy) && enemyFamily(enemy.kind) === "chargingHexagon" && enemy.lane === target.lane && enemy.x < target.x;
-  });
-  const hasLeaderBuff = enemies.some((enemy) => {
-    return !enemyIsHighFlying(enemy) && enemyFamily(enemy.kind) === "heart" && enemy.lane === target.lane && enemy.x < target.x;
-  });
+  let hasChargingHexBuff = false;
+  let hasLeaderBuff = false;
+  for (const enemy of enemies) {
+    if (enemyIsHighFlying(enemy) || enemy.lane !== target.lane || enemy.x >= target.x) {
+      continue;
+    }
+
+    const family = enemyFamily(enemy.kind);
+    if (family === "chargingHexagon") {
+      hasChargingHexBuff = true;
+    } else if (family === "heart") {
+      hasLeaderBuff = true;
+    }
+
+    if (hasChargingHexBuff && hasLeaderBuff) {
+      break;
+    }
+  }
 
   return hasChargingHexBuff || hasLeaderBuff
     ? Math.max(CHARGING_HEX_SPEED_MULTIPLIER, LEADER_SPEED_MULTIPLIER)
@@ -105,41 +284,32 @@ export function chargingHexSpeedMultiplier(enemies: Enemy[], target: Enemy) {
 }
 
 export function updateEnemySkills(runtime: EnemySkillRuntime, seconds: number, time: number) {
-  const activeEnemies = runtime.enemies.filter((enemy) => !enemyIsHighFlying(enemy) && !hasStatusEffect(enemy, "frozen", time));
-  updateRegisteredSkills(
-    activeEnemies.filter((enemy) => enemyFamily(enemy.kind) !== "heart"),
-    (enemy) => enemySkillDefinitions(enemySkillRegistry, enemy),
-    runtime,
-    seconds,
-    time
-  );
-  updateHeartLeads(runtime.scene, runtime.enemies, activeEnemies, seconds);
-}
+  const activeEnemies = activeEnemyBuffer;
+  activeEnemies.length = 0;
 
-function hexArmorStacks(enemies: Enemy[], target: Enemy) {
-  return hexArmorSources(enemies, target).length;
-}
+  try {
+    for (const enemy of runtime.enemies) {
+      if (enemyIsHighFlying(enemy) || hasUnexpiredStatusEffect(enemy, "frozen", time)) {
+        continue;
+      }
 
-function hexArmorSources(enemies: Enemy[], target: Enemy) {
-  return enemies.filter((enemy) => !enemyIsHighFlying(enemy) && isHexagon(enemy) && Math.hypot(enemy.x - target.x, enemy.y - target.y) <= HEX_ARMOR_RADIUS);
+      activeEnemies.push(enemy);
+      if (enemyFamily(enemy.kind) === "heart") {
+        continue;
+      }
+
+      for (const definition of enemySkillDefinitions(enemySkillRegistry, enemy)) {
+        definition.update(enemy, getEnemySkillState(enemy, definition.stateKey), seconds, time, runtime);
+      }
+    }
+    updateHeartLeads(runtime.scene, runtime.enemies, activeEnemies, seconds);
+  } finally {
+    activeEnemies.length = 0;
+  }
 }
 
 function hexArmorAuraBonus(enemy: Enemy) {
   return HEX_ARMOR_RANK_ONE_BONUS + Math.max(0, enemyRank(enemy.kind) - 1) * HEX_ARMOR_BONUS_PER_EXTRA_RANK;
-}
-
-function hexMagicResistanceStacks(enemies: Enemy[], target: Enemy) {
-  return hexMagicResistanceSources(enemies, target).length;
-}
-
-function hexMagicResistanceSources(enemies: Enemy[], target: Enemy) {
-  return enemies.filter((enemy) => {
-    return (
-      !enemyIsHighFlying(enemy) &&
-      enemyFamily(enemy.kind) === "hexSpellBulwark" &&
-      enemy.lane === target.lane
-    );
-  });
 }
 
 function hexMagicResistanceAuraBonus(enemy: Enemy) {
@@ -147,6 +317,72 @@ function hexMagicResistanceAuraBonus(enemy: Enemy) {
     HEX_SPELL_BULWARK_RANK_ONE_MAGIC_RESISTANCE_BONUS +
     Math.max(0, enemyRank(enemy.kind) - 1) * HEX_SPELL_BULWARK_MAGIC_RESISTANCE_BONUS_PER_EXTRA_RANK
   );
+}
+
+export function enemySupportSources(enemies: Enemy[]): EnemySupportSources {
+  // Reused per call; consume synchronously before requesting another support view.
+  const sources = enemySupportSourcesBuffer;
+  sources.enemies = enemies;
+  sources.hexagons.length = 0;
+  sources.magicResistanceLaneMask = 0;
+  clearEnemyLaneBuckets(sources.magicResistanceByLane);
+  clearEnemyLaneBuckets(sources.chargingHexByLane);
+  clearEnemyLaneBuckets(sources.leadersByLane);
+
+  let magicResistanceLaneMask = 0;
+  for (const enemy of enemies) {
+    if (enemyIsHighFlying(enemy)) {
+      continue;
+    }
+
+    const family = enemyFamily(enemy.kind);
+    if (family === "hexagon") {
+      sources.hexagons.push(enemy);
+    } else if (family === "hexSpellBulwark" && enemy.lane >= 0 && enemy.lane < LANES) {
+      magicResistanceLaneMask |= 1 << enemy.lane;
+      sources.magicResistanceByLane[enemy.lane].push(enemy);
+    } else if (family === "chargingHexagon" && enemy.lane >= 0 && enemy.lane < LANES) {
+      sources.chargingHexByLane[enemy.lane].push(enemy);
+    } else if (family === "heart" && enemy.lane >= 0 && enemy.lane < LANES) {
+      sources.leadersByLane[enemy.lane].push(enemy);
+    }
+  }
+  sources.magicResistanceLaneMask = magicResistanceLaneMask;
+  return sources;
+}
+
+function enemyLaneBuckets() {
+  const lanes: Enemy[][] = [];
+  for (let lane = 0; lane < LANES; lane += 1) {
+    lanes.push([]);
+  }
+  return lanes;
+}
+
+function clearEnemyLaneBuckets(buckets: Enemy[][]) {
+  for (const bucket of buckets) {
+    bucket.length = 0;
+  }
+}
+
+function hexAuraFlags(sources: EnemySupportSources, target: Enemy) {
+  if (enemyIsHighFlying(target)) {
+    return 0;
+  }
+
+  let flags = 0;
+  for (const enemy of sources.hexagons) {
+    if (distanceSq(enemy.x, enemy.y, target.x, target.y) <= HEX_ARMOR_RADIUS_SQ) {
+      flags |= HEX_AURA_ARMOR_FLAG;
+      break;
+    }
+  }
+
+  if ((sources.magicResistanceLaneMask & (1 << target.lane)) !== 0) {
+    flags |= HEX_AURA_MAGIC_RESISTANCE_FLAG;
+  }
+
+  return flags;
 }
 
 function updateHexHeal(enemy: Enemy, state: SkillState, seconds: number, _time: number, runtime: EnemySkillRuntime) {
@@ -186,41 +422,69 @@ function updateHeartLead(enemy: Enemy, state: SkillState, seconds: number, _time
 }
 
 function updateHeartLeads(scene: Phaser.Scene, enemies: Enemy[], activeEnemies: Enemy[], seconds: number) {
-  const originalPositions = new Map(enemies.map((enemy) => [enemy, { x: enemy.x, y: enemy.y, lane: enemy.lane }]));
-  const claimedTargets = new Set<Enemy>();
-  const leadPlans: Array<{ caster: Enemy; skill: SkillState; targets: Enemy[] }> = [];
+  const readyCasters = heartLeadReadyCastersBuffer;
+  const leadPlans = heartLeadPlansBuffer;
+  const claimedTargets = heartLeadClaimedTargetsBuffer;
+  readyCasters.length = 0;
+  leadPlans.length = 0;
+  claimedTargets.clear();
 
-  for (const caster of activeEnemies) {
-    if (enemyFamily(caster.kind) !== "heart") {
-      continue;
+  try {
+    for (const caster of activeEnemies) {
+      if (enemyFamily(caster.kind) !== "heart") {
+        continue;
+      }
+
+      const skill = getEnemySkillState(caster, "lead");
+      gainSkillSp(skill, seconds * HEART_LEAD_REGEN_PER_SECOND, HEART_LEAD_SKILL_MAX);
+      if (!isSkillReady(skill, HEART_LEAD_SKILL_MAX)) {
+        continue;
+      }
+
+      readyCasters.push({ caster, skill });
     }
 
-    const skill = getEnemySkillState(caster, "lead");
-    gainSkillSp(skill, seconds * HEART_LEAD_REGEN_PER_SECOND, HEART_LEAD_SKILL_MAX);
-    if (!isSkillReady(skill, HEART_LEAD_SKILL_MAX)) {
-      continue;
+    if (readyCasters.length === 0) {
+      return;
     }
 
-    const targets = heartLeadTargets(enemies, caster, originalPositions, claimedTargets);
-    if (targets.length === 0) {
-      continue;
+    const originalPositions = enemyPositionMap(enemies);
+    for (const { caster, skill } of readyCasters) {
+      const targets = heartLeadTargets(
+        enemies,
+        caster,
+        originalPositions,
+        claimedTargets,
+        heartLeadTargetsPool[leadPlans.length] ?? createHeartLeadTargetBuffer(leadPlans.length)
+      );
+      if (targets.length === 0) {
+        continue;
+      }
+
+      for (const target of targets) {
+        claimedTargets.add(target);
+      }
+      leadPlans.push({ caster, skill, targets });
     }
 
-    for (const target of targets) {
-      claimedTargets.add(target);
+    for (const plan of leadPlans) {
+      spendSkillSp(plan.skill, HEART_LEAD_SKILL_COST);
+      for (const target of plan.targets) {
+        const previousY = target.y;
+        target.lane = plan.caster.lane;
+        target.y = plan.caster.y;
+        syncEnemyBodyPosition(target);
+        makeShiftEffect(scene, target.x, previousY, target.x, target.y);
+      }
     }
-    leadPlans.push({ caster, skill, targets });
-  }
-
-  for (const plan of leadPlans) {
-    spendSkillSp(plan.skill, HEART_LEAD_SKILL_COST);
-    for (const target of plan.targets) {
-      const previousY = target.y;
-      target.lane = plan.caster.lane;
-      target.y = plan.caster.y;
-      syncEnemyBodyPosition(target);
-      makeShiftEffect(scene, target.x, previousY, target.x, target.y);
+  } finally {
+    readyCasters.length = 0;
+    for (const plan of leadPlans) {
+      plan.targets.length = 0;
     }
+    leadPlans.length = 0;
+    claimedTargets.clear();
+    heartLeadPositionMapBuffer.clear();
   }
 }
 
@@ -229,15 +493,23 @@ function tryUseHexHeal(scene: Phaser.Scene, enemies: Enemy[], healer: Enemy, ski
     return;
   }
 
-  const target = enemies
-    .filter((enemy) => {
-      return (
-        !enemyIsHighFlying(enemy) &&
-        enemy.hp < enemy.baseStats.maxHp &&
-        Math.hypot(enemy.x - healer.x, enemy.y - healer.y) <= HEX_ARMOR_RADIUS
-      );
-    })
-    .sort((a, b) => a.hp / a.baseStats.maxHp - b.hp / b.baseStats.maxHp)[0];
+  let target: Enemy | undefined;
+  let targetHpRatio = Number.POSITIVE_INFINITY;
+  for (const enemy of enemies) {
+    if (
+      enemyIsHighFlying(enemy) ||
+      enemy.hp >= enemy.baseStats.maxHp ||
+      distanceSq(enemy.x, enemy.y, healer.x, healer.y) > HEX_ARMOR_RADIUS_SQ
+    ) {
+      continue;
+    }
+
+    const hpRatio = enemy.hp / enemy.baseStats.maxHp;
+    if (hpRatio < targetHpRatio) {
+      target = enemy;
+      targetHpRatio = hpRatio;
+    }
+  }
   if (!target) {
     return;
   }
@@ -258,40 +530,63 @@ function isHexagon(enemy: Enemy) {
 }
 
 function tryUseHeartLead(scene: Phaser.Scene, enemies: Enemy[], caster: Enemy, skill: SkillState) {
-  const originalPositions = new Map(enemies.map((enemy) => [enemy, { x: enemy.x, y: enemy.y, lane: enemy.lane }]));
-  const targets = heartLeadTargets(enemies, caster, originalPositions, new Set());
+  const originalPositions = enemyPositionMap(enemies);
+  const claimedTargets = heartLeadSingleClaimedTargetsBuffer;
+  const targets = heartLeadTargets(enemies, caster, originalPositions, claimedTargets, heartLeadSingleTargetsBuffer);
 
-  if (targets.length === 0) {
-    return;
-  }
+  try {
+    if (targets.length === 0) {
+      return;
+    }
 
-  spendSkillSp(skill, HEART_LEAD_SKILL_COST);
-  for (const target of targets) {
-    const previousY = target.y;
-    target.lane = caster.lane;
-    target.y = caster.y;
-    syncEnemyBodyPosition(target);
-    makeShiftEffect(scene, target.x, previousY, target.x, target.y);
+    spendSkillSp(skill, HEART_LEAD_SKILL_COST);
+    for (const target of targets) {
+      const previousY = target.y;
+      target.lane = caster.lane;
+      target.y = caster.y;
+      syncEnemyBodyPosition(target);
+      makeShiftEffect(scene, target.x, previousY, target.x, target.y);
+    }
+  } finally {
+    targets.length = 0;
+    claimedTargets.clear();
+    heartLeadPositionMapBuffer.clear();
   }
+}
+
+function enemyPositionMap(enemies: Enemy[]) {
+  const positions = heartLeadPositionMapBuffer;
+  positions.clear();
+  for (let index = 0; index < enemies.length; index += 1) {
+    const enemy = enemies[index];
+    const position = heartLeadPositionPool[index] ?? createEnemyPositionBuffer(index);
+    position.x = enemy.x;
+    position.y = enemy.y;
+    position.lane = enemy.lane;
+    positions.set(enemy, position);
+  }
+  return positions;
 }
 
 function heartLeadTargets(
   enemies: Enemy[],
   caster: Enemy,
-  originalPositions: Map<Enemy, { x: number; y: number; lane: number }>,
-  claimedTargets: Set<Enemy>
+  originalPositions: Map<Enemy, EnemyPosition>,
+  claimedTargets: Set<Enemy>,
+  targets: Enemy[]
 ) {
+  targets.length = 0;
   const casterPosition = originalPositions.get(caster);
   if (!casterPosition) {
-    return [];
+    return targets;
   }
 
   const casterColumn = Math.floor((casterPosition.x - BOARD_X) / CELL_WIDTH);
   const left = BOARD_X + casterColumn * CELL_WIDTH;
   const right = left + HEART_LEAD_COLUMN_SPAN * CELL_WIDTH;
-  return enemies.filter((enemy) => {
+  for (const enemy of enemies) {
     const position = originalPositions.get(enemy);
-    return (
+    if (
       position !== undefined &&
       enemy !== caster &&
       !claimedTargets.has(enemy) &&
@@ -300,8 +595,23 @@ function heartLeadTargets(
       position.x < right &&
       Math.abs(position.lane - casterPosition.lane) <= HEART_LEAD_LANE_RADIUS &&
       position.lane !== casterPosition.lane
-    );
-  });
+    ) {
+      targets.push(enemy);
+    }
+  }
+  return targets;
+}
+
+function createHeartLeadTargetBuffer(index: number) {
+  const targets: Enemy[] = [];
+  heartLeadTargetsPool[index] = targets;
+  return targets;
+}
+
+function createEnemyPositionBuffer(index: number) {
+  const position = { x: 0, y: 0, lane: 0 };
+  heartLeadPositionPool[index] = position;
+  return position;
 }
 
 function isOrdinaryLeadTarget(enemy: Enemy) {
@@ -373,7 +683,13 @@ function isInAngelWingsRange(caster: Enemy, target: Enemy) {
 }
 
 function isInArchangelAscensionRange(caster: Enemy, target: Enemy) {
-  return Math.hypot(target.x - caster.x, target.y - caster.y) <= ARCHANGEL_ASCENSION_RADIUS;
+  return distanceSq(target.x, target.y, caster.x, caster.y) <= ARCHANGEL_ASCENSION_RADIUS_SQ;
+}
+
+function distanceSq(ax: number, ay: number, bx: number, by: number) {
+  const dx = ax - bx;
+  const dy = ay - by;
+  return dx * dx + dy * dy;
 }
 
 export function makeWingPulse(scene: Phaser.Scene, x: number, y: number) {

@@ -36,6 +36,8 @@ export class TowerShifterController {
   private cooldownDuration = SHIFTER_BASE_COOLDOWN;
   private selection: Tower[] = [];
   private selectionMarks = new Map<Tower, Phaser.GameObjects.Graphics>();
+  private readonly previewPositions: TowerShifterMovePosition[] = [];
+  private readonly previewResult: TowerShifterMovePreview = { valid: false, positions: this.previewPositions };
 
   constructor(private readonly runtime: () => TowerShifterRuntime) {}
 
@@ -113,55 +115,57 @@ export class TowerShifterController {
 
   previewMove(lane: number, column: number): TowerShifterMovePreview {
     const selection = this.liveSelection();
+    const positions = this.previewPositions;
+    positions.length = 0;
     if (selection.length === 0) {
-      return { valid: false, positions: [] };
+      return this.setPreviewResult(false);
     }
 
-    const anchor = selection.reduce((best, tower) =>
-      tower.lane < best.lane || (tower.lane === best.lane && tower.column < best.column) ? tower : best
-    );
-    const selectedSet = new Set(selection);
-    const targetKeys = new Set<string>();
-    const positions = selection.map((tower) => ({
-      tower,
-      lane: lane + tower.lane - anchor.lane,
-      column: column + tower.column - anchor.column
-    }));
+    let anchor = selection[0];
+    for (let index = 1; index < selection.length; index += 1) {
+      const tower = selection[index];
+      if (tower.lane < anchor.lane || (tower.lane === anchor.lane && tower.column < anchor.column)) {
+        anchor = tower;
+      }
+    }
+
+    for (const tower of selection) {
+      positions.push({
+        tower,
+        lane: lane + tower.lane - anchor.lane,
+        column: column + tower.column - anchor.column
+      });
+    }
 
     for (const position of positions) {
       if (position.lane < 0 || position.lane >= LANES || position.column < 0 || position.column >= COLUMNS) {
-        return { valid: false, positions };
+        return this.setPreviewResult(false);
       }
       if (!this.isCellDeployable(position.lane, position.column)) {
-        return { valid: false, positions };
+        return this.setPreviewResult(false);
       }
 
       const key = gridCellKey(position.lane, position.column);
-      if (targetKeys.has(key)) {
-        return { valid: false, positions };
-      }
-      targetKeys.add(key);
-
       const occupant = this.runtime().occupied.get(key);
-      if (occupant && !selectedSet.has(occupant)) {
-        return { valid: false, positions };
+      if (occupant && !selection.includes(occupant)) {
+        return this.setPreviewResult(false);
       }
     }
 
-    return { valid: true, positions };
+    return this.setPreviewResult(true);
   }
 
   syncSelectionVisuals() {
     const runtime = this.runtime();
-    const selected = new Set(this.liveSelection());
-    for (const [tower, mark] of [...this.selectionMarks]) {
-      if (!selected.has(tower)) {
+    const selection = this.liveSelection();
+    for (const [tower, mark] of this.selectionMarks) {
+      if (!selection.includes(tower)) {
         mark.destroy();
         this.selectionMarks.delete(tower);
       }
     }
 
-    for (const tower of selected) {
+    for (const tower of selection) {
       let mark = this.selectionMarks.get(tower);
       if (!mark) {
         mark = runtime.scene.add.graphics().setDepth(58);
@@ -190,8 +194,9 @@ export class TowerShifterController {
       return;
     }
 
-    if (this.selection.includes(tower)) {
-      this.selection = this.selection.filter((selected) => selected !== tower);
+    const selectedIndex = this.selection.indexOf(tower);
+    if (selectedIndex >= 0) {
+      this.selection.splice(selectedIndex, 1);
     } else {
       this.selection.push(tower);
     }
@@ -216,8 +221,21 @@ export class TowerShifterController {
   }
 
   private liveSelection() {
-    this.selection = this.selection.filter((tower) => this.runtime().towers.includes(tower));
+    let writeIndex = 0;
+    for (let readIndex = 0; readIndex < this.selection.length; readIndex += 1) {
+      const tower = this.selection[readIndex];
+      if (tower.inPlay) {
+        this.selection[writeIndex] = tower;
+        writeIndex += 1;
+      }
+    }
+    this.selection.length = writeIndex;
     return this.selection;
+  }
+
+  private setPreviewResult(valid: boolean) {
+    this.previewResult.valid = valid;
+    return this.previewResult;
   }
 
   private isCellDeployable(lane: number, column: number) {

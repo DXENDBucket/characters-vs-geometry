@@ -14,7 +14,7 @@ import {
   maxHpGainForEffectiveUpgrades
 } from "./upgrades";
 import { attackIntervalMs } from "./attackSpeed";
-import { towerZealAttackSpeedMultiplier } from "./towerAuras";
+import { towerZealAttackSpeedMultiplier, type TowerAuraSources } from "./towerAuras";
 
 export function towerBaseStatsFromDefinition(definition: CardDefinition): TowerBaseStats {
   return {
@@ -27,9 +27,12 @@ export function towerBaseStatsFromDefinition(definition: CardDefinition): TowerB
   };
 }
 
-export function syncTowerFinalStats(tower: Tower, options: { healMaxHpIncrease?: boolean; towers?: Tower[] } = {}) {
+export function syncTowerFinalStats(
+  tower: Tower,
+  options: { healMaxHpIncrease?: boolean; towers?: Tower[]; towerAuraSources?: TowerAuraSources } = {}
+) {
   const previousMaxHp = tower.finalStats?.maxHp ?? tower.maxHp;
-  tower.finalStats = calculateTowerFinalStats(tower, options.towers);
+  calculateTowerFinalStats(tower, options.towers, options.towerAuraSources);
   tower.maxHp = tower.finalStats.maxHp;
   tower.baseMaxHp = tower.baseStats.maxHp;
   tower.armor = tower.finalStats.armor;
@@ -43,21 +46,24 @@ export function syncTowerFinalStats(tower: Tower, options: { healMaxHpIncrease?:
   }
 }
 
-export function calculateTowerFinalStats(tower: Tower, towers?: Tower[]) {
+export function calculateTowerFinalStats(tower: Tower, towers?: Tower[], towerAuraSources?: TowerAuraSources) {
   const baseStats = tower.baseStats;
+  const finalStats = tower.finalStats;
   const effectiveUpgrades = effectiveUpgradeCountForLevel(effectiveTowerStatLevel(tower));
   const maxHp = isMaxHpUpgradeable(tower.type)
     ? baseStats.maxHp + maxHpGainForEffectiveUpgrades(baseStats.maxHp, effectiveUpgrades)
     : baseStats.maxHp;
   const attackSpeed = baseStats.attackSpeed === undefined
     ? undefined
-    : baseStats.attackSpeed * towerZealAttackSpeedMultiplier(towers, tower);
+    : baseStats.attackSpeed * towerZealAttackSpeedMultiplier(towers, tower, towerAuraSources);
 
-  return {
-    ...baseStats,
-    maxHp,
-    attackSpeed
-  };
+  finalStats.maxHp = maxHp;
+  finalStats.armor = baseStats.armor;
+  finalStats.magicResistance = baseStats.magicResistance;
+  finalStats.attackSpeed = attackSpeed;
+  finalStats.damage = baseStats.damage;
+  finalStats.damageType = baseStats.damageType;
+  return finalStats;
 }
 
 export function towerFinalStats(tower: Tower) {

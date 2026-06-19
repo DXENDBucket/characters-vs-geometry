@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { CELL_WIDTH, palette } from "../config";
+import { BOARD_X, CELL_WIDTH, COLUMNS, palette } from "../config";
 import { getCardDefinition } from "../registry/cards";
 import { enemyIsBossCompanion } from "../registry/enemies";
 import {
@@ -21,9 +21,18 @@ import {
   isTowerProjectileOutOfBounds
 } from "./projectiles";
 import { enemyIsBurrowed, enemyIsHighFlying } from "./enemyBehaviors";
-import { movementSpeedMultiplier } from "./slowAura";
+import { forEachInitial, forEachSnapshot } from "./iteration";
+import { movementSpeedMultiplier, slowAuraSources } from "./slowAura";
+import { enemyIsSolarBomb } from "./solarBomb";
 import { applyStatusEffect } from "./statusEffects";
-import { bossPartAtPoint, bossPartInRadius, bossPartInRect, bossParts, bossRect, towerRect } from "./targeting";
+import {
+  bossPartAtPoint,
+  bossPartDistanceSqToPoint,
+  bossPartInRadius,
+  bossPartInRect,
+  gridCellKey,
+  pointInTowerBounds
+} from "./targeting";
 import { towerDamageType, towerFacingDirection } from "./towers";
 
 export interface ProjectileRuntime {
@@ -33,6 +42,7 @@ export interface ProjectileRuntime {
   mortarProjectiles: MortarProjectile[];
   enemies: Enemy[];
   towers: Tower[];
+  occupied: Map<string, Tower>;
   battleTime: number;
   getBoss: () => CubeBoss | null;
   damageEnemy: (enemy: Enemy, damage: number, damageType: DamageType, sourceTower?: Tower) => void;
@@ -40,13 +50,18 @@ export interface ProjectileRuntime {
   damageTower: (tower: Tower, damage: number, damageType: DamageType) => void;
 }
 
+const enemyMortarHitTowersBuffer: Tower[] = [];
+const enemyMortarReflectorsBuffer: Tower[] = [];
+const bossRadiusFalloffResult: { falloff: number; part: CubeBoss | undefined } = { falloff: 0, part: undefined };
+
 export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: number) {
-  for (const projectile of [...runtime.projectiles]) {
+  const slowSources = slowAuraSources(runtime.towers);
+  forEachInitial(runtime.projectiles, (projectile) => {
     if (projectile.type === "chevron") {
       updateHomingProjectile(runtime, projectile, seconds);
     }
 
-    const speedMultiplier = movementSpeedMultiplier(runtime.towers, projectile.x, projectile.y);
+    const speedMultiplier = movementSpeedMultiplier(runtime.towers, projectile.x, projectile.y, slowSources);
     const nextX = projectile.x + projectile.vx * seconds * speedMultiplier;
     const reachedLimitX = projectile.limitDirection < 0 ? nextX <= projectile.maxX : nextX >= projectile.maxX;
     projectile.x = reachedLimitX ? projectile.maxX : nextX;
@@ -56,26 +71,21 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
     const hit =
       projectile.type === "chevron"
         ? getHomingProjectileHit(projectile)
-        : runtime.enemies.find((enemy) => {
-            return (
-              canEnemyBeDirectlyHit(enemy) &&
-              Math.hypot(enemy.x - projectile.x, enemy.y - projectile.y) < enemyProjectileHitRadius(enemy)
-            );
-          });
+        : findDirectProjectileHit(runtime.enemies, projectile);
     const hitBoss = projectile.type === "chevron" ? undefined : bossPartAtPoint(runtime.getBoss(), projectile.x, projectile.y);
 
     if (!hit && !hitBoss) {
       if (isTowerProjectileOutOfBounds(projectile, reachedLimitX)) {
         removeProjectile(runtime.projectiles, projectile);
       }
-      continue;
+      return;
     }
 
     if (projectile.type === "bolt" || projectile.type === "star" || projectile.type === "dollar" || projectile.type === "chevron") {
       if (hit) {
         makeHitShards(runtime.scene, hit.x, hit.y, projectile.damageType);
         runtime.damageEnemy(hit, projectile.damage, projectile.damageType, projectile.sourceTower);
-        if (runtime.enemies.includes(hit)) {
+        if (hit.inPlay) {
           applyProjectileDebuff(runtime.scene, projectile, hit, runtime.battleTime);
         }
       } else {
@@ -86,21 +96,21 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
       const burstX = hit ? hit.x : projectile.x;
       const burstY = hit ? hit.y : projectile.y;
       makeShellBurst(runtime.scene, burstX, burstY, projectile.splashRadius, projectile.damageType);
-      for (const enemy of [...runtime.enemies]) {
+      forEachSnapshot(runtime.enemies, (enemy) => {
         if (enemyIsHighFlying(enemy)) {
-          continue;
+          return;
         }
 
         const dx = enemy.x - burstX;
         const dy = enemy.y - burstY;
-        const falloff = radiusFalloff(Math.hypot(dx, dy), projectile.splashRadius);
+        const falloff = radiusFalloffFromDistanceSq(dx * dx + dy * dy, projectile.splashRadius);
         if (falloff > 0) {
           runtime.damageEnemy(enemy, projectile.damage * falloff, projectile.damageType, projectile.sourceTower);
-          if (runtime.enemies.includes(enemy)) {
+          if (enemy.inPlay) {
             applyProjectileDebuff(runtime.scene, projectile, enemy, runtime.battleTime);
           }
         }
-      }
+      });
       const bossFalloff = bossRadiusFalloff(runtime.getBoss(), burstX, burstY, projectile.splashRadius);
       if (bossFalloff.falloff > 0) {
         runtime.damageBoss(projectile.damage * bossFalloff.falloff, projectile.damageType, bossFalloff.part);
@@ -108,17 +118,16 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
     }
 
     removeProjectile(runtime.projectiles, projectile);
-  }
+  });
 }
 
 export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: number) {
-  for (const projectile of [...runtime.enemyProjectiles]) {
-    projectile.x += projectile.vx * seconds * movementSpeedMultiplier(runtime.towers, projectile.x, projectile.y);
+  const slowSources = slowAuraSources(runtime.towers);
+  forEachInitial(runtime.enemyProjectiles, (projectile) => {
+    projectile.x += projectile.vx * seconds * movementSpeedMultiplier(runtime.towers, projectile.x, projectile.y, slowSources);
     projectile.body.setPosition(projectile.x, projectile.y);
 
-    const hit = runtime.towers
-      .filter((tower) => tower.lane === projectile.sourceLane)
-      .find((tower) => towerRect(tower).contains(projectile.x, projectile.y));
+    const hit = findEnemyProjectileHitTower(runtime.towers, runtime.occupied, projectile);
 
     if (hit) {
       if (hit.type === "N") {
@@ -130,7 +139,7 @@ export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: numb
         if (isEnemyProjectileOutOfBounds(projectile)) {
           removeEnemyProjectile(runtime.enemyProjectiles, projectile);
         }
-        continue;
+        return;
       }
 
       makeEnemyHitShards(runtime.scene, projectile.x, projectile.y);
@@ -143,24 +152,25 @@ export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: numb
         makeReflectFlash(runtime.scene, projectile.x, projectile.y);
       }
       removeEnemyProjectile(runtime.enemyProjectiles, projectile);
-      continue;
+      return;
     }
 
     if (isEnemyProjectileOutOfBounds(projectile)) {
       removeEnemyProjectile(runtime.enemyProjectiles, projectile);
     }
-  }
+  });
 }
 
 export function updateMortarProjectiles(runtime: ProjectileRuntime, seconds: number) {
-  for (const projectile of [...runtime.mortarProjectiles]) {
+  const slowSources = slowAuraSources(runtime.towers);
+  forEachInitial(runtime.mortarProjectiles, (projectile) => {
     syncMortarTarget(runtime, projectile);
-    const speedMultiplier = movementSpeedMultiplier(runtime.towers, projectile.x, projectile.y);
+    const speedMultiplier = movementSpeedMultiplier(runtime.towers, projectile.x, projectile.y, slowSources);
     projectile.progress = Math.min(1, projectile.progress + (seconds * 1000 * speedMultiplier) / projectile.duration);
     positionMortarProjectile(projectile);
 
     if (projectile.progress < 1) {
-      continue;
+      return;
     }
 
     if (projectile.owner === "enemy") {
@@ -169,7 +179,7 @@ export function updateMortarProjectiles(runtime: ProjectileRuntime, seconds: num
       detonateTowerMortar(runtime, projectile);
     }
     removeMortarProjectile(runtime.mortarProjectiles, projectile);
-  }
+  });
 }
 
 function shiftEnemyProjectile(projectile: EnemyProjectile, tower: Tower) {
@@ -227,11 +237,11 @@ function updateHomingProjectile(runtime: ProjectileRuntime, projectile: Projecti
 
 function resolveHomingTarget(runtime: ProjectileRuntime, projectile: Projectile) {
   const currentTarget = projectile.targetEnemy;
-  if (currentTarget && runtime.enemies.includes(currentTarget) && canEnemyBeDirectlyHit(currentTarget)) {
+  if (currentTarget?.inPlay && canEnemyBeDirectlyHit(currentTarget)) {
     return currentTarget;
   }
 
-  const nextTarget = closestEnemyTo(runtime.enemies.filter(canEnemyBeDirectlyHit), projectile.x, projectile.y);
+  const nextTarget = closestDirectlyHittableEnemyTo(runtime.enemies, projectile.x, projectile.y);
   projectile.targetEnemy = nextTarget;
   return nextTarget;
 }
@@ -242,14 +252,35 @@ function getHomingProjectileHit(projectile: Projectile) {
     return undefined;
   }
 
-  return Math.hypot(target.x - projectile.x, target.y - projectile.y) < enemyProjectileHitRadius(target) ? target : undefined;
+  return projectileHitsEnemy(projectile.x, projectile.y, target) ? target : undefined;
 }
 
-function closestEnemyTo(enemies: Enemy[], x: number, y: number) {
+function findDirectProjectileHit(enemies: Enemy[], projectile: Projectile) {
+  for (const enemy of enemies) {
+    if (
+      enemyCanOverlapDirectProjectileLane(enemy, projectile.lane) &&
+      canEnemyBeDirectlyHit(enemy) &&
+      projectileHitsEnemy(projectile.x, projectile.y, enemy)
+    ) {
+      return enemy;
+    }
+  }
+  return undefined;
+}
+
+function enemyCanOverlapDirectProjectileLane(enemy: Enemy, lane: number) {
+  return enemy.lane === lane || enemyIsSolarBomb(enemy) || enemyIsBossCompanion(enemy.kind);
+}
+
+function closestDirectlyHittableEnemyTo(enemies: Enemy[], x: number, y: number) {
   let closest: Enemy | undefined;
   let closestDistance = Number.POSITIVE_INFINITY;
   for (const enemy of enemies) {
-    const distance = Math.hypot(enemy.x - x, enemy.y - y);
+    if (!canEnemyBeDirectlyHit(enemy)) {
+      continue;
+    }
+
+    const distance = distanceSq(enemy.x, enemy.y, x, y);
     if (distance < closestDistance) {
       closest = enemy;
       closestDistance = distance;
@@ -258,47 +289,101 @@ function closestEnemyTo(enemies: Enemy[], x: number, y: number) {
   return closest;
 }
 
+function projectileHitsEnemy(x: number, y: number, enemy: Enemy) {
+  const radius = enemyProjectileHitRadius(enemy);
+  return distanceSq(enemy.x, enemy.y, x, y) < radius * radius;
+}
+
+function findEnemyProjectileHitTower(towers: Tower[], occupied: Map<string, Tower>, projectile: EnemyProjectile) {
+  const column = Math.floor((projectile.x - BOARD_X) / CELL_WIDTH);
+  const tower = firstPointHitOccupiedTower(occupied, projectile.sourceLane, column, projectile.x, projectile.y);
+  if (tower) {
+    return tower;
+  }
+
+  for (const candidate of towers) {
+    if (candidate.transient && candidate.lane === projectile.sourceLane && pointInTowerBounds(candidate, projectile.x, projectile.y)) {
+      return candidate;
+    }
+  }
+
+  return undefined;
+}
+
+function firstPointHitOccupiedTower(
+  occupied: Map<string, Tower>,
+  lane: number,
+  column: number,
+  x: number,
+  y: number
+) {
+  const primary = occupiedTowerAtColumn(occupied, lane, column);
+  const previous = occupiedTowerAtColumn(occupied, lane, column - 1);
+  const primaryHit = primary && pointInTowerBounds(primary, x, y) ? primary : undefined;
+  const previousHit = previous && pointInTowerBounds(previous, x, y) ? previous : undefined;
+  if (!primaryHit) {
+    return previousHit;
+  }
+
+  if (!previousHit) {
+    return primaryHit;
+  }
+
+  return previousHit.placedOrder <= primaryHit.placedOrder ? previousHit : primaryHit;
+}
+
+function occupiedTowerAtColumn(occupied: Map<string, Tower>, lane: number, column: number) {
+  return column >= 0 && column < COLUMNS ? occupied.get(gridCellKey(lane, column)) : undefined;
+}
+
 function removeEnemyProjectile(projectiles: EnemyProjectile[], projectile: EnemyProjectile) {
   Phaser.Utils.Array.Remove(projectiles, projectile);
   projectile.body.destroy();
 }
 
-function radiusFalloff(distance: number, radius: number) {
+function radiusFalloffFromDistanceSq(distanceSq: number, radius: number) {
   if (radius <= 0) {
     return 0;
   }
 
-  return Phaser.Math.Clamp(1 - distance / radius, 0, 1);
+  const radiusSq = radius * radius;
+  if (distanceSq > radiusSq) {
+    return 0;
+  }
+
+  return 1 - Math.sqrt(distanceSq) / radius;
 }
 
 function bossRadiusFalloff(boss: CubeBoss | null, x: number, y: number, radius: number) {
+  bossRadiusFalloffResult.falloff = 0;
+  bossRadiusFalloffResult.part = undefined;
   if (!boss) {
-    return { falloff: 0, part: undefined as CubeBoss | undefined };
+    return bossRadiusFalloffResult;
   }
 
-  let bestPart: CubeBoss | undefined;
-  let bestFalloff = 0;
-  for (const part of bossParts(boss)) {
-    const rect = bossRect(part);
-    const closestX = Phaser.Math.Clamp(x, rect.left, rect.right);
-    const closestY = Phaser.Math.Clamp(y, rect.top, rect.bottom);
-    const falloff = radiusFalloff(Math.hypot(x - closestX, y - closestY), radius);
-    if (falloff > bestFalloff) {
-      bestFalloff = falloff;
-      bestPart = part;
-    }
+  updateBossRadiusFalloffResult(boss, x, y, radius);
+  for (const part of boss.octahedronCopies ?? []) {
+    updateBossRadiusFalloffResult(part, x, y, radius);
   }
-  return { falloff: bestFalloff, part: bestPart };
+  return bossRadiusFalloffResult;
+}
+
+function updateBossRadiusFalloffResult(part: CubeBoss, x: number, y: number, radius: number) {
+  const falloff = radiusFalloffFromDistanceSq(bossPartDistanceSqToPoint(part, x, y), radius);
+  if (falloff > bossRadiusFalloffResult.falloff) {
+    bossRadiusFalloffResult.falloff = falloff;
+    bossRadiusFalloffResult.part = part;
+  }
 }
 
 function syncMortarTarget(runtime: ProjectileRuntime, projectile: MortarProjectile) {
-  if (projectile.targetEnemy && runtime.enemies.includes(projectile.targetEnemy)) {
+  if (projectile.targetEnemy?.inPlay) {
     projectile.targetX = projectile.targetEnemy.x;
     projectile.targetY = projectile.targetEnemy.y;
     return;
   }
 
-  if (projectile.targetTower && runtime.towers.includes(projectile.targetTower)) {
+  if (projectile.targetTower?.inPlay) {
     const targetTower = projectile.targetTower;
     if (projectile.owner === "enemy" && targetTower.type === "N") {
       if (!projectile.shiftSelfDamageApplied) {
@@ -348,40 +433,56 @@ function detonateEnemyMortar(runtime: ProjectileRuntime, projectile: MortarProje
     markerText: projectile.markerText,
     markerTextColor: projectile.markerTextColor
   });
-  const hitTowers = runtime.towers.filter((tower) => {
-    return Math.abs(tower.x - projectile.targetX) <= projectile.rangeX && Math.abs(tower.y - projectile.targetY) <= projectile.rangeY;
-  });
-  const reflectors = hitTowers.filter((tower) => tower.reflectProjectiles);
 
-  for (const tower of hitTowers) {
-    runtime.damageTower(tower, projectile.damage, projectile.damageType);
-  }
+  const hitTowers = enemyMortarHitTowersBuffer;
+  const reflectors = enemyMortarReflectorsBuffer;
+  hitTowers.length = 0;
+  reflectors.length = 0;
 
-  for (const tower of reflectors) {
-    if (!projectile.sourceEnemy || !runtime.enemies.includes(projectile.sourceEnemy)) {
-      continue;
+  try {
+    for (const tower of runtime.towers) {
+      if (Math.abs(tower.x - projectile.targetX) <= projectile.rangeX && Math.abs(tower.y - projectile.targetY) <= projectile.rangeY) {
+        hitTowers.push(tower);
+        if (tower.reflectProjectiles) {
+          reflectors.push(tower);
+        }
+      }
     }
 
-    const reflectedDamageType = towerDamageType(tower, projectile.damageType, runtime.battleTime);
-    runtime.mortarProjectiles.push(
-      createMortarProjectile(runtime.scene, {
-        owner: "tower",
-        fromX: tower.x,
-        fromY: tower.y,
-        targetX: projectile.sourceEnemy.x,
-        targetY: projectile.sourceEnemy.y,
-        damage: projectile.damage,
-        damageType: reflectedDamageType,
-        sourceTower: tower,
-        rangeX: projectile.rangeX,
-        rangeY: projectile.rangeY,
-        marker: projectile.marker,
-        markerText: projectile.markerText,
-        markerTextColor: projectile.marker === "text" ? damageEffectTextColor(reflectedDamageType) : undefined,
-        targetEnemy: projectile.sourceEnemy
-      })
-    );
-    makeReflectFlash(runtime.scene, tower.x, tower.y);
+    for (const tower of hitTowers) {
+      runtime.damageTower(tower, projectile.damage, projectile.damageType);
+    }
+
+    const sourceEnemy = projectile.sourceEnemy;
+    if (!sourceEnemy?.inPlay) {
+      return;
+    }
+
+    for (const tower of reflectors) {
+      const reflectedDamageType = towerDamageType(tower, projectile.damageType, runtime.battleTime);
+      runtime.mortarProjectiles.push(
+        createMortarProjectile(runtime.scene, {
+          owner: "tower",
+          fromX: tower.x,
+          fromY: tower.y,
+          targetX: sourceEnemy.x,
+          targetY: sourceEnemy.y,
+          damage: projectile.damage,
+          damageType: reflectedDamageType,
+          sourceTower: tower,
+          rangeX: projectile.rangeX,
+          rangeY: projectile.rangeY,
+          marker: projectile.marker,
+          markerText: projectile.markerText,
+          markerTextColor: projectile.marker === "text" ? damageEffectTextColor(reflectedDamageType) : undefined,
+          targetEnemy: sourceEnemy
+        })
+      );
+      makeReflectFlash(runtime.scene, tower.x, tower.y);
+    }
+  } finally {
+    hitTowers.length = 0;
+    reflectors.length = 0;
   }
 }
 
@@ -404,18 +505,18 @@ function detonateTowerMortar(runtime: ProjectileRuntime, projectile: MortarProje
     return;
   }
 
-  for (const enemy of [...runtime.enemies]) {
+  forEachSnapshot(runtime.enemies, (enemy) => {
     if (enemyIsHighFlying(enemy)) {
-      continue;
+      return;
     }
 
     if (Math.abs(enemy.x - projectile.targetX) <= projectile.rangeX && Math.abs(enemy.y - projectile.targetY) <= projectile.rangeY) {
       runtime.damageEnemy(enemy, projectile.damage, projectile.damageType, projectile.sourceTower);
-      if (runtime.enemies.includes(enemy)) {
+      if (enemy.inPlay) {
         applyMortarDebuff(runtime.scene, projectile, enemy, runtime.battleTime);
       }
     }
-  }
+  });
   const bossPart = bossPartInRect(
     runtime.getBoss(),
     projectile.targetX - projectile.rangeX,
@@ -430,21 +531,23 @@ function detonateTowerMortar(runtime: ProjectileRuntime, projectile: MortarProje
 
 function detonateRadialFalloffTowerMortar(runtime: ProjectileRuntime, projectile: MortarProjectile) {
   const radius = projectile.rangeX;
-  for (const enemy of [...runtime.enemies]) {
+  forEachSnapshot(runtime.enemies, (enemy) => {
     if (enemyIsHighFlying(enemy)) {
-      continue;
+      return;
     }
 
-    const falloff = radiusFalloff(Math.hypot(enemy.x - projectile.targetX, enemy.y - projectile.targetY), radius);
+    const dx = enemy.x - projectile.targetX;
+    const dy = enemy.y - projectile.targetY;
+    const falloff = radiusFalloffFromDistanceSq(dx * dx + dy * dy, radius);
     if (falloff <= 0) {
-      continue;
+      return;
     }
 
     runtime.damageEnemy(enemy, projectile.damage * falloff, projectile.damageType, projectile.sourceTower);
-    if (runtime.enemies.includes(enemy)) {
+    if (enemy.inPlay) {
       applyMortarDebuff(runtime.scene, projectile, enemy, runtime.battleTime);
     }
-  }
+  });
 
   const bossFalloff = bossRadiusFalloff(runtime.getBoss(), projectile.targetX, projectile.targetY, radius);
   if (bossFalloff.falloff > 0) {
@@ -454,23 +557,24 @@ function detonateRadialFalloffTowerMortar(runtime: ProjectileRuntime, projectile
 
 function detonateSingleTargetTowerMortar(runtime: ProjectileRuntime, projectile: MortarProjectile) {
   const hitRadius = projectile.hitRadius ?? 22;
-  const target = [...runtime.enemies]
-    .filter((enemy) => {
-      return (
-        !enemyIsBurrowed(enemy) &&
-        !enemyIsHighFlying(enemy) &&
-        Math.hypot(enemy.x - projectile.targetX, enemy.y - projectile.targetY) <= Math.max(hitRadius, enemyProjectileHitRadius(enemy))
-      );
-    })
-    .sort((a, b) => {
-      const distanceA = Math.hypot(a.x - projectile.targetX, a.y - projectile.targetY);
-      const distanceB = Math.hypot(b.x - projectile.targetX, b.y - projectile.targetY);
-      return distanceA - distanceB;
-    })[0];
+  let target: Enemy | undefined;
+  let targetDistance = Number.POSITIVE_INFINITY;
+  for (const enemy of runtime.enemies) {
+    if (enemyIsBurrowed(enemy) || enemyIsHighFlying(enemy)) {
+      continue;
+    }
+
+    const radius = Math.max(hitRadius, enemyProjectileHitRadius(enemy));
+    const distance = distanceSq(enemy.x, enemy.y, projectile.targetX, projectile.targetY);
+    if (distance <= radius * radius && distance < targetDistance) {
+      target = enemy;
+      targetDistance = distance;
+    }
+  }
 
   if (target) {
     runtime.damageEnemy(target, projectile.damage, projectile.damageType, projectile.sourceTower);
-    if (runtime.enemies.includes(target)) {
+    if (target.inPlay) {
       applyMortarDebuff(runtime.scene, projectile, target, runtime.battleTime);
     }
     return;
@@ -489,6 +593,12 @@ function removeMortarProjectile(projectiles: MortarProjectile[], projectile: Mor
 
 function applyProjectileDebuff(scene: Phaser.Scene, projectile: Projectile, enemy: Enemy, time: number) {
   applyDebuff(scene, enemy, time, projectile.debuff, projectile.debuffDuration);
+}
+
+function distanceSq(ax: number, ay: number, bx: number, by: number) {
+  const dx = ax - bx;
+  const dy = ay - by;
+  return dx * dx + dy * dy;
 }
 
 function applyMortarDebuff(scene: Phaser.Scene, projectile: MortarProjectile, enemy: Enemy, time: number) {

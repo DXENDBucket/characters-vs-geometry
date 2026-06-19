@@ -12,7 +12,7 @@ import {
 } from "../config";
 import { t } from "../i18n";
 import { getCardDefinition } from "../registry/cards";
-import type { CardId, CardState, CubeBoss } from "../types";
+import type { AlphaGameObject, CardId, CardState, CubeBoss } from "../types";
 import { createUnitBorder } from "./unitShapes";
 
 export interface GameHudElements {
@@ -63,8 +63,6 @@ interface GameHudActions {
 }
 
 interface CardUpdateState {
-  time: number;
-  timeForCard?: (id: CardId) => number;
   selectedCardId: CardId;
   chars: number;
   eraserMode: boolean;
@@ -326,7 +324,8 @@ export function createCardStates(scene: Phaser.Scene, selectedCardIds: CardId[],
       frame,
       cooldownFill,
       content: [previewBorder, label, costText, statsText, barBack],
-      readyAt: 0
+      readyAt: 0,
+      displayTime: 0
     };
   });
 }
@@ -373,21 +372,21 @@ export function updateCardStates(cardStates: CardState[], state: CardUpdateState
       !state.debugDamageMode &&
       card.definition.id === state.selectedCardId;
     const isAffordable = state.chars >= card.definition.cost;
-    const cardTime = state.timeForCard?.(card.definition.id) ?? state.time;
-    const cooldownRatio = Phaser.Math.Clamp((card.readyAt - cardTime) / card.definition.cooldown, 0, 1);
+    const cooldownRatio = Phaser.Math.Clamp((card.readyAt - card.displayTime) / card.definition.cooldown, 0, 1);
     const readyRatio = 1 - cooldownRatio;
     const contentAlpha = isSelected ? (isAffordable ? 1 : 0.56) : isAffordable ? 0.82 : 0.22;
 
-    card.frame.setStrokeStyle(
+    setStrokeStyleIfChanged(
+      card.frame,
       isSelected ? 4 : 2,
       isSelected ? palette.white : isAffordable ? palette.mid : palette.dim,
       isSelected ? 1 : isAffordable ? 0.72 : 0.35
     );
-    card.frame.setFillStyle(isSelected ? palette.panel : palette.black, isSelected ? 1 : isAffordable ? 0.78 : 0.34);
-    card.frame.setAlpha(isSelected ? 1 : isAffordable ? 0.78 : 0.34);
-    card.content.forEach((content) => content.setAlpha(contentAlpha));
-    card.cooldownFill.width = CARD_BAR_WIDTH * readyRatio;
-    card.cooldownFill.setAlpha(contentAlpha * (cooldownRatio > 0 ? 0.86 : 1));
+    setFillStyleIfChanged(card.frame, isSelected ? palette.panel : palette.black, isSelected ? 1 : isAffordable ? 0.78 : 0.34);
+    setAlphaIfChanged(card.frame, isSelected ? 1 : isAffordable ? 0.78 : 0.34);
+    card.content.forEach((content) => setAlphaIfChanged(content, contentAlpha));
+    setRectangleWidthIfChanged(card.cooldownFill, CARD_BAR_WIDTH * readyRatio);
+    setAlphaIfChanged(card.cooldownFill, contentAlpha * (cooldownRatio > 0 ? 0.86 : 1));
   }
 }
 
@@ -402,41 +401,42 @@ export function updateToolButtonStates(
   autoUpgradeReserve: number,
   reserveInputFocused: boolean
 ) {
-  ui.debugDamageButton.setStrokeStyle(debugDamageMode ? 4 : 2, debugDamageMode ? palette.gold : palette.mid, 1);
-  ui.debugDamageButton.setFillStyle(debugDamageMode ? palette.panel : palette.black, debugDamageMode ? 1 : 0.82);
-  ui.debugDamageButton.setAlpha(debugDamageMode ? 1 : 0.78);
-  ui.debugDamageText.setAlpha(debugDamageMode ? 1 : 0.78);
+  setStrokeStyleIfChanged(ui.debugDamageButton, debugDamageMode ? 4 : 2, debugDamageMode ? palette.gold : palette.mid, 1);
+  setFillStyleIfChanged(ui.debugDamageButton, debugDamageMode ? palette.panel : palette.black, debugDamageMode ? 1 : 0.82);
+  setAlphaIfChanged(ui.debugDamageButton, debugDamageMode ? 1 : 0.78);
+  setAlphaIfChanged(ui.debugDamageText, debugDamageMode ? 1 : 0.78);
 
   const shifterReady = shifterReadyRatio >= 1;
-  ui.shifterButton.setStrokeStyle(shifterMode ? 4 : 2, shifterMode ? palette.magic : shifterReady ? palette.mid : palette.dim, 1);
-  ui.shifterButton.setFillStyle(shifterMode ? palette.panel : palette.black, shifterMode ? 1 : shifterReady ? 0.82 : 0.44);
-  ui.shifterButton.setAlpha(shifterMode ? 1 : shifterReady ? 0.78 : 0.42);
-  ui.shifterText.setAlpha(shifterMode ? 1 : shifterReady ? 0.78 : 0.42);
-  ui.shifterCooldownBack.setVisible(!shifterReady);
-  ui.shifterCooldownFill.setVisible(!shifterReady);
-  ui.shifterCooldownFill.width = 90 * Phaser.Math.Clamp(shifterReadyRatio, 0, 1);
+  setStrokeStyleIfChanged(ui.shifterButton, shifterMode ? 4 : 2, shifterMode ? palette.magic : shifterReady ? palette.mid : palette.dim, 1);
+  setFillStyleIfChanged(ui.shifterButton, shifterMode ? palette.panel : palette.black, shifterMode ? 1 : shifterReady ? 0.82 : 0.44);
+  setAlphaIfChanged(ui.shifterButton, shifterMode ? 1 : shifterReady ? 0.78 : 0.42);
+  setAlphaIfChanged(ui.shifterText, shifterMode ? 1 : shifterReady ? 0.78 : 0.42);
+  setVisibleIfChanged(ui.shifterCooldownBack, !shifterReady);
+  setVisibleIfChanged(ui.shifterCooldownFill, !shifterReady);
+  setRectangleWidthIfChanged(ui.shifterCooldownFill, 90 * Phaser.Math.Clamp(shifterReadyRatio, 0, 1));
 
-  ui.autoUpgradeButton.setStrokeStyle(autoUpgradeMode ? 4 : 2, autoUpgradeMode ? palette.green : palette.mid, 1);
-  ui.autoUpgradeButton.setFillStyle(autoUpgradeMode ? palette.panel : palette.black, autoUpgradeMode ? 1 : 0.82);
-  ui.autoUpgradeButton.setAlpha(autoUpgradeMode ? 1 : 0.78);
-  ui.autoUpgradeText.setAlpha(autoUpgradeMode ? 1 : 0.78);
-  ui.autoUpgradeEnabledBox.setStrokeStyle(2, autoUpgradeEnabled ? palette.green : palette.dim, autoUpgradeEnabled ? 0.86 : 0.62);
-  ui.autoUpgradeEnabledFill.setVisible(autoUpgradeEnabled);
-  ui.autoUpgradeEnabledLabel.setAlpha(autoUpgradeEnabled ? 0.95 : 0.42);
-  ui.autoUpgradeReserveLabel.setAlpha(autoUpgradeEnabled ? 0.72 : 0.34);
-  ui.autoUpgradeReserveInput.setStrokeStyle(
+  setStrokeStyleIfChanged(ui.autoUpgradeButton, autoUpgradeMode ? 4 : 2, autoUpgradeMode ? palette.green : palette.mid, 1);
+  setFillStyleIfChanged(ui.autoUpgradeButton, autoUpgradeMode ? palette.panel : palette.black, autoUpgradeMode ? 1 : 0.82);
+  setAlphaIfChanged(ui.autoUpgradeButton, autoUpgradeMode ? 1 : 0.78);
+  setAlphaIfChanged(ui.autoUpgradeText, autoUpgradeMode ? 1 : 0.78);
+  setStrokeStyleIfChanged(ui.autoUpgradeEnabledBox, 2, autoUpgradeEnabled ? palette.green : palette.dim, autoUpgradeEnabled ? 0.86 : 0.62);
+  setVisibleIfChanged(ui.autoUpgradeEnabledFill, autoUpgradeEnabled);
+  setAlphaIfChanged(ui.autoUpgradeEnabledLabel, autoUpgradeEnabled ? 0.95 : 0.42);
+  setAlphaIfChanged(ui.autoUpgradeReserveLabel, autoUpgradeEnabled ? 0.72 : 0.34);
+  setStrokeStyleIfChanged(
+    ui.autoUpgradeReserveInput,
     reserveInputFocused ? 3 : 2,
     reserveInputFocused ? palette.white : autoUpgradeEnabled ? palette.mid : palette.dim,
     reserveInputFocused ? 1 : autoUpgradeEnabled ? 0.72 : 0.42
   );
-  ui.autoUpgradeReserveInput.setFillStyle(reserveInputFocused ? palette.panel : palette.black, reserveInputFocused ? 1 : 0.84);
-  ui.autoUpgradeReserveText.setText(`${autoUpgradeReserve}`);
-  ui.autoUpgradeReserveText.setAlpha(autoUpgradeEnabled ? 0.95 : 0.44);
+  setFillStyleIfChanged(ui.autoUpgradeReserveInput, reserveInputFocused ? palette.panel : palette.black, reserveInputFocused ? 1 : 0.84);
+  setTextIfChanged(ui.autoUpgradeReserveText, `${autoUpgradeReserve}`);
+  setAlphaIfChanged(ui.autoUpgradeReserveText, autoUpgradeEnabled ? 0.95 : 0.44);
 
-  ui.eraserButton.setStrokeStyle(eraserMode ? 4 : 2, eraserMode ? palette.white : palette.mid, 1);
-  ui.eraserButton.setFillStyle(eraserMode ? palette.panel : palette.black, eraserMode ? 1 : 0.82);
-  ui.eraserButton.setAlpha(eraserMode ? 1 : 0.78);
-  ui.eraserText.setAlpha(eraserMode ? 1 : 0.78);
+  setStrokeStyleIfChanged(ui.eraserButton, eraserMode ? 4 : 2, eraserMode ? palette.white : palette.mid, 1);
+  setFillStyleIfChanged(ui.eraserButton, eraserMode ? palette.panel : palette.black, eraserMode ? 1 : 0.82);
+  setAlphaIfChanged(ui.eraserButton, eraserMode ? 1 : 0.78);
+  setAlphaIfChanged(ui.eraserText, eraserMode ? 1 : 0.78);
 }
 
 export function updateGameHud(ui: GameHudElements, state: HudUpdateState) {
@@ -446,31 +446,92 @@ export function updateGameHud(ui: GameHudElements, state: HudUpdateState) {
   const speedRatio = Phaser.Math.Clamp((state.gameSpeed - GAME_SPEED_MIN) / (GAME_SPEED_MAX - GAME_SPEED_MIN), 0, 1);
 
   const rawCharsText = state.charsSoftcapped ? ` (${Math.floor(state.rawChars)})` : "";
-  ui.charsText.setText(`${t("label.chars")} ${Math.floor(state.chars)}${rawCharsText}`);
-  ui.statusText.setText(
+  setTextIfChanged(ui.charsText, `${t("label.chars")} ${Math.floor(state.chars)}${rawCharsText}`);
+  setTextIfChanged(
+    ui.statusText,
     `${t("label.wave")} ${waveText}    ${t("label.base")} ${state.baseIntegrity}    ${t("label.ko")} ${state.enemiesDefeated}${pauseText}`
   );
-  ui.speedText.setText(`${t("label.speed")} x${formatSpeed(state.gameSpeed)}`);
-  ui.speedFill.width = 176 * speedRatio;
+  setTextIfChanged(ui.speedText, `${t("label.speed")} x${formatSpeed(state.gameSpeed)}`);
+  setRectangleWidthIfChanged(ui.speedFill, 176 * speedRatio);
   ui.speedKnob.x = Math.round(348 + 176 * speedRatio);
   if (state.boss) {
     const bossHpRatio = Phaser.Math.Clamp(state.boss.hp / state.boss.maxHp, 0, 1);
     const phaseText = state.bossHpBar ? ` P${state.bossHpBar.phase}/${state.bossHpBar.totalPhases}` : "";
-    ui.progressText.setText(`${t("label.cubeHp")}${phaseText} ${Math.ceil(state.boss.hp)}/${state.boss.maxHp}`);
-    ui.progressBack.setFillStyle(state.bossHpBar?.backColor ?? palette.dim, 1);
-    ui.progressFill.setFillStyle(state.bossHpBar?.fillColor ?? palette.white, 1);
-    ui.progressFill.width = PROGRESS_BAR_WIDTH * bossHpRatio;
+    setTextIfChanged(ui.progressText, `${t("label.cubeHp")}${phaseText} ${Math.ceil(state.boss.hp)}/${state.boss.maxHp}`);
+    setFillStyleIfChanged(ui.progressBack, state.bossHpBar?.backColor ?? palette.dim, 1);
+    setFillStyleIfChanged(ui.progressFill, state.bossHpBar?.fillColor ?? palette.white, 1);
+    setRectangleWidthIfChanged(ui.progressFill, PROGRESS_BAR_WIDTH * bossHpRatio);
     return;
   }
 
   const totalFlags = state.totalWaves / state.wavesPerFlag;
   const waveProgress = state.totalWaves > 0 ? Phaser.Math.Clamp(state.wave / state.totalWaves, 0, 1) : 0;
-  ui.progressBack.setFillStyle(palette.dim, 1);
-  ui.progressFill.setFillStyle(palette.white, 1);
-  ui.progressText.setText(
+  setFillStyleIfChanged(ui.progressBack, palette.dim, 1);
+  setFillStyleIfChanged(ui.progressFill, palette.white, 1);
+  setTextIfChanged(
+    ui.progressText,
     `${t("label.flag")} ${flag}/${totalFlags}  ${t("label.wave")} ${state.wave}/${state.totalWaves}`
   );
-  ui.progressFill.width = PROGRESS_BAR_WIDTH * waveProgress;
+  setRectangleWidthIfChanged(ui.progressFill, PROGRESS_BAR_WIDTH * waveProgress);
+}
+
+function setTextIfChanged(textObject: Phaser.GameObjects.Text, text: string) {
+  if (textObject.text !== text) {
+    textObject.setText(text);
+  }
+}
+
+interface StrokeStyleCache {
+  lineWidth: number;
+  color: number;
+  alpha: number;
+}
+
+interface FillStyleCache {
+  color: number;
+  alpha: number;
+}
+
+const strokeStyleCache = new WeakMap<Phaser.GameObjects.Rectangle, StrokeStyleCache>();
+const fillStyleCache = new WeakMap<Phaser.GameObjects.Rectangle, FillStyleCache>();
+
+function setStrokeStyleIfChanged(rectangle: Phaser.GameObjects.Rectangle, lineWidth: number, color: number, alpha: number) {
+  const previous = strokeStyleCache.get(rectangle);
+  if (previous?.lineWidth === lineWidth && previous.color === color && previous.alpha === alpha) {
+    return;
+  }
+  rectangle.setStrokeStyle(lineWidth, color, alpha);
+  strokeStyleCache.set(rectangle, { lineWidth, color, alpha });
+}
+
+function setFillStyleIfChanged(rectangle: Phaser.GameObjects.Rectangle, color: number, alpha: number) {
+  const previous = fillStyleCache.get(rectangle);
+  if (previous?.color === color && previous.alpha === alpha) {
+    return;
+  }
+  rectangle.setFillStyle(color, alpha);
+  fillStyleCache.set(rectangle, { color, alpha });
+}
+
+function setAlphaIfChanged(target: AlphaGameObject, alpha: number) {
+  if ((target as AlphaGameObject & { alpha?: number }).alpha !== alpha) {
+    target.setAlpha(alpha);
+  }
+}
+
+function setVisibleIfChanged(
+  target: Phaser.GameObjects.GameObject & { visible: boolean; setVisible(visible: boolean): unknown },
+  visible: boolean
+) {
+  if (target.visible !== visible) {
+    target.setVisible(visible);
+  }
+}
+
+function setRectangleWidthIfChanged(rectangle: Phaser.GameObjects.Rectangle, width: number) {
+  if (rectangle.width !== width) {
+    rectangle.width = width;
+  }
 }
 
 function formatSpeed(speed: number) {

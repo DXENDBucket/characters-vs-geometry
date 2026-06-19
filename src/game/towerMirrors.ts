@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { COLUMNS, LANES } from "../config";
 import type { CardDefinition, CardId, Tower } from "../types";
+import { forEachSnapshot } from "./iteration";
 import { gridCellKey } from "./targeting";
 import {
   createTower,
@@ -57,14 +58,14 @@ export class TowerMirrorController {
     const runtime = this.runtime();
     this.syncing = true;
     try {
-      for (const anchor of [...runtime.towers]) {
-        if (anchor.type !== MIRROR_CARD_ID || anchor.transient || !runtime.towers.includes(anchor)) {
-          continue;
+      forEachSnapshot(runtime.towers, (anchor) => {
+        if (anchor.type !== MIRROR_CARD_ID || anchor.transient || !anchor.inPlay) {
+          return;
         }
 
         this.syncMirrorAxis(anchor, 0, 1);
         this.syncMirrorAxis(anchor, 1, 0);
-      }
+      });
     } finally {
       this.syncing = false;
     }
@@ -91,12 +92,11 @@ export class TowerMirrorController {
       return;
     }
 
-    const runtime = this.runtime();
     const group = this.mirrorGroupFor(tower);
     this.suppressedGroups.add(groupId);
     try {
       for (const member of group) {
-        if (runtime.towers.includes(member)) {
+        if (member.inPlay) {
           action(member);
         }
       }
@@ -142,11 +142,11 @@ export class TowerMirrorController {
       if (groupId && !this.suppressedGroups.has(groupId)) {
         this.suppressedGroups.add(groupId);
         try {
-          for (const member of [...this.runtime().towers]) {
+          forEachSnapshot(this.runtime().towers, (member) => {
             if (member.mirrorGroupId === groupId) {
               removeTower(member);
             }
-          }
+          });
         } finally {
           this.suppressedGroups.delete(groupId);
         }
@@ -274,7 +274,7 @@ export class TowerMirrorController {
       }
     }
 
-    for (const groupId of [...groupIds]) {
+    for (const groupId of groupIds) {
       if (!runtime.towers.some((tower) => tower.mirrorGroupId === groupId)) {
         groupIds.delete(groupId);
       }
@@ -324,7 +324,7 @@ export class TowerMirrorController {
     }
 
     for (const member of members) {
-      if (validMembers.has(member) || !runtime.towers.includes(member)) {
+      if (validMembers.has(member) || !member.inPlay) {
         continue;
       }
 
@@ -382,7 +382,7 @@ export class TowerMirrorController {
   }
 
   private canMirrorSource(tower: Tower) {
-    if (tower.transient || tower.type === MIRROR_CARD_ID || !this.runtime().towers.includes(tower)) {
+    if (tower.transient || tower.type === MIRROR_CARD_ID || !tower.inPlay) {
       return false;
     }
 
@@ -390,11 +390,10 @@ export class TowerMirrorController {
   }
 
   private removeAdjacentMirrorNetworks(anchor: Tower, removeTower: RemoveTower) {
-    const runtime = this.runtime();
     const removedGroups = new Set<number>();
     for (const tower of this.adjacentMirrorTowers(anchor)) {
       const groupId = tower.mirrorGroupId;
-      if (!groupId || removedGroups.has(groupId) || !runtime.towers.includes(tower)) {
+      if (!groupId || removedGroups.has(groupId) || !tower.inPlay) {
         continue;
       }
 
@@ -419,17 +418,23 @@ export class TowerMirrorController {
 
   private adjacentMirrorTowersAt(lane: number, column: number) {
     const runtime = this.runtime();
-    const positions = [
-      { lane, column: column - 1 },
-      { lane, column: column + 1 },
-      { lane: lane - 1, column },
-      { lane: lane + 1, column }
-    ];
+    const towers: Tower[] = [];
+    this.addAdjacentMirrorTower(runtime, towers, lane, column - 1);
+    this.addAdjacentMirrorTower(runtime, towers, lane, column + 1);
+    this.addAdjacentMirrorTower(runtime, towers, lane - 1, column);
+    this.addAdjacentMirrorTower(runtime, towers, lane + 1, column);
+    return towers;
+  }
 
-    return positions
-      .filter((position) => this.cellIsDeployable(position.lane, position.column))
-      .map((position) => runtime.occupied.get(gridCellKey(position.lane, position.column)))
-      .filter((tower): tower is Tower => Boolean(tower?.mirrorGroupId));
+  private addAdjacentMirrorTower(runtime: TowerMirrorRuntime, towers: Tower[], lane: number, column: number) {
+    if (!this.cellIsDeployable(lane, column)) {
+      return;
+    }
+
+    const tower = runtime.occupied.get(gridCellKey(lane, column));
+    if (tower?.mirrorGroupId) {
+      towers.push(tower);
+    }
   }
 
   private cellIsDeployable(lane: number, column: number) {

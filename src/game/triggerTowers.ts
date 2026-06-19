@@ -3,6 +3,7 @@ import { BOARD_HEIGHT, BOARD_WIDTH, BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH } 
 import { makeFreezePulse, makeShockPulse, makeTrapBurst } from "../render/combatEffects";
 import type { CardDefinition, CardId, CubeBoss, DamageType, Enemy, Tower } from "../types";
 import { enemyIsHighFlying } from "./enemyBehaviors";
+import { forEachSnapshot } from "./iteration";
 import { applyStatusEffect } from "./statusEffects";
 import { bossPartInRect } from "./targeting";
 import { getShockCount, getTriggerDebuffDuration, getTrapDamage, towerDamageType } from "./towers";
@@ -34,19 +35,20 @@ export function triggerShockTower(runtime: TriggerTowerRuntime, tower: Tower) {
 
   runtime.removeTower(tower);
 
-  if (definition.triggerDebuff) {
-    if (definition.triggerDebuff === "frozen") {
+  const triggerDebuff = definition.triggerDebuff;
+  if (triggerDebuff) {
+    if (triggerDebuff === "frozen") {
       makeFreezePulse(runtime.scene, x, y, rangeX);
     } else {
       makeShockPulse(runtime.scene, area.x, area.y, area.rangeX, area.rangeY, damageType);
     }
-    for (const enemy of [...runtime.enemies]) {
-      if (!canApplyTriggerDebuff(enemy, definition.triggerDebuff, x, y, rangeX, rangeY, triggerShape)) {
-        continue;
+    forEachSnapshot(runtime.enemies, (enemy) => {
+      if (!canApplyTriggerDebuff(enemy, triggerDebuff, x, y, rangeX, rangeY, triggerShape)) {
+        return;
       }
 
-      applyStatusEffect(enemy, definition.triggerDebuff, getTriggerDebuffDuration(tower, definition), runtime.battleTime);
-    }
+      applyStatusEffect(enemy, triggerDebuff, getTriggerDebuffDuration(tower, definition), runtime.battleTime);
+    });
     return;
   }
 
@@ -59,11 +61,11 @@ export function triggerShockTower(runtime: TriggerTowerRuntime, tower: Tower) {
         }
 
         makeShockPulse(runtime.scene, area.x, area.y, area.rangeX, area.rangeY, damageType);
-        for (const enemy of [...runtime.enemies]) {
+        forEachSnapshot(runtime.enemies, (enemy) => {
           if (!enemyIsHighFlying(enemy) && Math.abs(enemy.x - x) <= rangeX && Math.abs(enemy.y - y) <= rangeY) {
             runtime.damageEnemy(enemy, damage, damageType, tower);
           }
-        }
+        });
         const bossPart = bossPartInRect(runtime.boss, area.left, area.top, area.width, area.height);
         if (bossPart) {
           runtime.damageBoss(damage, damageType, bossPart);
@@ -113,10 +115,16 @@ function canApplyTriggerDebuff(
   }
 
   if (triggerShape === "circle") {
-    return Math.hypot(enemy.x - x, enemy.y - y) <= rangeX;
+    return distanceSq(enemy.x, enemy.y, x, y) <= rangeX * rangeX;
   }
 
   return Math.abs(enemy.x - x) <= rangeX && Math.abs(enemy.y - y) <= rangeY;
+}
+
+function distanceSq(ax: number, ay: number, bx: number, by: number) {
+  const dx = ax - bx;
+  const dy = ay - by;
+  return dx * dx + dy * dy;
 }
 
 function triggerEffectArea(x: number, y: number, rangeX: number, rangeY: number) {

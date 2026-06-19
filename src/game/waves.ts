@@ -24,23 +24,55 @@ export function buildWaveKinds(
   const kinds: EnemyKind[] = [];
   let remainingWeight = weightLimit;
   const currentFlag = Math.floor(waveNumber / wavesPerFlag);
-  const enemyPool = enemyKinds
-    .map((kind) => enemies[kind])
-    .filter((enemy) => enemy.weight > 0 && currentFlag >= (enemy.minFlag ?? 0));
+  const enemyPool: EnemyDefinition[] = [];
+  let minWeight = Number.POSITIVE_INFINITY;
+  for (const kind of enemyKinds) {
+    const enemy = enemies[kind];
+    if (enemy.weight <= 0 || currentFlag < (enemy.minFlag ?? 0)) {
+      continue;
+    }
+
+    enemyPool.push(enemy);
+    minWeight = Math.min(minWeight, enemy.weight);
+  }
   if (enemyPool.length === 0) {
     return kinds;
   }
 
-  const minWeight = Math.min(...enemyPool.map((enemy) => enemy.weight));
-
   while (remainingWeight >= minWeight) {
-    const candidates = enemyPool.filter((enemy) => enemy.weight <= remainingWeight);
-    const candidate = candidates[randomIndex(candidates.length)];
+    const affordableCount = affordableEnemyCount(enemyPool, remainingWeight);
+    const candidate = affordableEnemyAt(enemyPool, remainingWeight, randomIndex(affordableCount));
     kinds.push(candidate.kind);
     remainingWeight -= candidate.weight;
   }
 
   return kinds;
+}
+
+function affordableEnemyCount(enemyPool: EnemyDefinition[], remainingWeight: number) {
+  let count = 0;
+  for (const enemy of enemyPool) {
+    if (enemy.weight <= remainingWeight) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+function affordableEnemyAt(enemyPool: EnemyDefinition[], remainingWeight: number, targetIndex: number) {
+  let index = 0;
+  for (const enemy of enemyPool) {
+    if (enemy.weight > remainingWeight) {
+      continue;
+    }
+
+    if (index === targetIndex) {
+      return enemy;
+    }
+    index += 1;
+  }
+
+  return enemyPool[0];
 }
 
 export function waveScheduleAction(

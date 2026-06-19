@@ -39,6 +39,8 @@ const defaultKeybindings: Partial<Record<ControlActionId, string>> = {
   "tool:pause": "Space"
 };
 
+let cachedKeybindings: Partial<Record<ControlActionId, string>> | null = null;
+
 const keyLabels: Record<string, string> = {
   Backquote: "`",
   Minus: "-",
@@ -71,8 +73,10 @@ export function slotControlAction(index: number): ControlActionId {
 }
 
 export function getKeybindings() {
-  const stored = readStoredKeybindings();
-  return { ...defaultKeybindings, ...stored };
+  if (!cachedKeybindings) {
+    cachedKeybindings = { ...defaultKeybindings, ...readStoredKeybindings() };
+  }
+  return cachedKeybindings;
 }
 
 export function getKeybinding(actionId: ControlActionId) {
@@ -80,7 +84,7 @@ export function getKeybinding(actionId: ControlActionId) {
 }
 
 export function setKeybinding(actionId: ControlActionId, code: string | null) {
-  const bindings = getKeybindings();
+  const bindings = { ...getKeybindings() };
   const nextCode = code ?? "";
 
   for (const [otherActionId, otherCode] of Object.entries(bindings)) {
@@ -91,10 +95,12 @@ export function setKeybinding(actionId: ControlActionId, code: string | null) {
 
   bindings[actionId] = nextCode;
   writeStoredKeybindings(bindings);
+  cachedKeybindings = bindings;
 }
 
 export function resetKeybindings() {
   window.localStorage.removeItem(STORAGE_KEY);
+  cachedKeybindings = { ...defaultKeybindings };
 }
 
 export function keyCodeForEvent(event: KeyboardEvent) {

@@ -20,6 +20,12 @@ const STATUS_ARMOR_MULTIPLIERS: Partial<Record<StatusEffectName, number>> = {
 };
 const BURROW_DISPLAY_OFFSET_Y = CELL_HEIGHT * 0.55;
 
+export interface StatusMultipliers {
+  speed: number;
+  attack: number;
+  armor: number;
+}
+
 export function applyStatusEffect(
   enemy: Enemy,
   name: StatusEffectName,
@@ -34,7 +40,7 @@ export function applyStatusEffect(
   }
 
   const expiresAt = time + duration;
-  const existing = enemy.statusEffects.find((effect) => effect.name === name);
+  const existing = statusEffectByName(enemy, name);
   if (existing) {
     existing.expiresAt = name === "sunder" ? expiresAt : Math.max(existing.expiresAt, expiresAt);
     existing.speedMultiplier = Math.max(
@@ -45,49 +51,95 @@ export function applyStatusEffect(
     if (name === "frozen") {
       existing.physicalDamageTaken = 0;
     }
+    invalidateStatusVisuals(enemy);
     return;
   }
 
   enemy.statusEffects.push({ name, expiresAt, speedMultiplier, showHalo, physicalDamageTaken: name === "frozen" ? 0 : undefined });
+  invalidateStatusVisuals(enemy);
 }
 
 export function statusSpeedMultiplier(enemy: Enemy, time: number) {
-  removeExpiredStatusEffects(enemy, time);
-  syncStatusVisuals(enemy, time);
-  return enemy.statusEffects.reduce((multiplier, effect) => {
-    return multiplier * (effect.speedMultiplier ?? STATUS_SPEED_MULTIPLIERS[effect.name]);
-  }, 1);
+  return statusMultipliers(enemy, time).speed;
 }
 
 export function statusAttackMultiplier(enemy: Enemy, time: number) {
-  removeExpiredStatusEffects(enemy, time);
-  syncStatusVisuals(enemy, time);
-  return enemy.statusEffects.reduce((multiplier, effect) => {
-    return multiplier * (STATUS_ATTACK_MULTIPLIERS[effect.name] ?? 1);
-  }, 1);
+  return statusMultipliers(enemy, time).attack;
 }
 
 export function statusArmorMultiplier(enemy: Enemy, time: number) {
-  removeExpiredStatusEffects(enemy, time);
+  return statusMultipliers(enemy, time).armor;
+}
+
+export function statusMultipliers(enemy: Enemy, time: number): StatusMultipliers {
+  const removedExpired = removeExpiredStatusEffects(enemy, time);
+  const multipliers = enemy.statusMultiplierCache;
+  if (enemy.statusEffects.length === 0) {
+    multipliers.speed = 1;
+    multipliers.attack = 1;
+    multipliers.armor = 1;
+    if (removedExpired) {
+      syncStatusVisuals(enemy, time);
+    }
+    return multipliers;
+  }
+
   syncStatusVisuals(enemy, time);
-  return enemy.statusEffects.reduce((multiplier, effect) => {
-    return multiplier * (STATUS_ARMOR_MULTIPLIERS[effect.name] ?? 1);
-  }, 1);
+  let speed = 1;
+  let attack = 1;
+  let armor = 1;
+  for (const effect of enemy.statusEffects) {
+    speed *= effect.speedMultiplier ?? STATUS_SPEED_MULTIPLIERS[effect.name];
+    attack *= STATUS_ATTACK_MULTIPLIERS[effect.name] ?? 1;
+    armor *= STATUS_ARMOR_MULTIPLIERS[effect.name] ?? 1;
+  }
+  multipliers.speed = speed;
+  multipliers.attack = attack;
+  multipliers.armor = armor;
+  return multipliers;
 }
 
 export function hasStatusEffect(enemy: Enemy, name: StatusEffectName, time: number) {
+  const removedExpired = removeExpiredStatusEffects(enemy, time);
+  if (enemy.statusEffects.length > 0 || removedExpired) {
+    syncStatusVisuals(enemy, time);
+  }
+  return hasStatusEffectName(enemy, name);
+}
+
+export function hasUnexpiredStatusEffect(enemy: Enemy, name: StatusEffectName, time: number) {
   removeExpiredStatusEffects(enemy, time);
-  syncStatusVisuals(enemy, time);
-  return enemy.statusEffects.some((effect) => effect.name === name);
+  return hasStatusEffectName(enemy, name);
+}
+
+export function hasStatusEffectName(enemy: Enemy, name: StatusEffectName) {
+  return Boolean(statusEffectByName(enemy, name));
 }
 
 export function removeStatusEffect(enemy: Enemy, name: StatusEffectName) {
-  enemy.statusEffects = enemy.statusEffects.filter((effect) => effect.name !== name);
+  let writeIndex = 0;
+  let removed = false;
+  for (let readIndex = 0; readIndex < enemy.statusEffects.length; readIndex += 1) {
+    const effect = enemy.statusEffects[readIndex];
+    if (effect.name === name) {
+      removed = true;
+      continue;
+    }
+
+    if (writeIndex !== readIndex) {
+      enemy.statusEffects[writeIndex] = effect;
+    }
+    writeIndex += 1;
+  }
+  enemy.statusEffects.length = writeIndex;
+  if (removed) {
+    invalidateStatusVisuals(enemy);
+  }
 }
 
 export function addFrozenPhysicalDamage(enemy: Enemy, damage: number, time: number) {
   removeExpiredStatusEffects(enemy, time);
-  const frozen = enemy.statusEffects.find((effect) => effect.name === "frozen");
+  const frozen = statusEffectByName(enemy, "frozen");
   if (!frozen) {
     syncStatusVisuals(enemy, time);
     return false;
@@ -110,20 +162,71 @@ export function isEnemyFlying(enemy: Enemy, time: number) {
 
 export function syncEnemyBodyPosition(enemy: Enemy) {
   enemy.body.setPosition(enemy.x, enemy.y + enemyDisplayOffsetY(enemy));
+  invalidateStatusVisuals(enemy);
 }
 
 function removeExpiredStatusEffects(enemy: Enemy, time: number) {
-  enemy.statusEffects = enemy.statusEffects.filter((effect) => effect.expiresAt > time);
+  const initialLength = enemy.statusEffects.length;
+  let writeIndex = 0;
+  for (let readIndex = 0; readIndex < enemy.statusEffects.length; readIndex += 1) {
+    const effect = enemy.statusEffects[readIndex];
+    if (effect.expiresAt <= time) {
+      continue;
+    }
+
+    if (writeIndex !== readIndex) {
+      enemy.statusEffects[writeIndex] = effect;
+    }
+    writeIndex += 1;
+  }
+
+  if (writeIndex < enemy.statusEffects.length) {
+    enemy.statusEffects.length = writeIndex;
+  }
+  if (writeIndex !== initialLength) {
+    invalidateStatusVisuals(enemy);
+  }
+  return writeIndex !== initialLength;
+}
+
+function statusEffectByName(enemy: Enemy, name: StatusEffectName) {
+  for (const effect of enemy.statusEffects) {
+    if (effect.name === name) {
+      return effect;
+    }
+  }
+  return undefined;
 }
 
 function syncStatusVisuals(enemy: Enemy, time: number) {
-  const stasisActive = enemy.statusEffects.some((effect) => effect.name === "stasis");
-  const frozenActive = enemy.statusEffects.some((effect) => effect.name === "frozen");
-  const powerActive = enemy.statusEffects.some((effect) => effect.name === "power");
-  const sunderActive = enemy.statusEffects.some((effect) => effect.name === "sunder");
-  const flyingActive = enemy.statusEffects.some((effect) => effect.name === "flying");
-  const angelFlyingActive = enemy.statusEffects.some((effect) => effect.name === "flying" && effect.showHalo);
-  const highFlyingActive = enemy.statusEffects.some((effect) => effect.name === "highFlying");
+  const cache = enemy.statusMultiplierCache;
+  if (cache.visualSyncedAt === time && cache.visualSyncedX === enemy.x && cache.visualSyncedY === enemy.y) {
+    return;
+  }
+
+  let stasisActive = false;
+  let frozenActive = false;
+  let powerActive = false;
+  let sunderActive = false;
+  let flyingActive = false;
+  let angelFlyingActive = false;
+  let highFlyingActive = false;
+  for (const effect of enemy.statusEffects) {
+    if (effect.name === "stasis") {
+      stasisActive = true;
+    } else if (effect.name === "frozen") {
+      frozenActive = true;
+    } else if (effect.name === "power") {
+      powerActive = true;
+    } else if (effect.name === "sunder") {
+      sunderActive = true;
+    } else if (effect.name === "flying") {
+      flyingActive = true;
+      angelFlyingActive = angelFlyingActive || Boolean(effect.showHalo);
+    } else if (effect.name === "highFlying") {
+      highFlyingActive = true;
+    }
+  }
   const archangelActive = enemyFamily(enemy.kind) === "archangelHeptagon";
   const airborneActive = flyingActive || highFlyingActive;
   const haloActive = !archangelActive && (angelFlyingActive || highFlyingActive);
@@ -157,16 +260,32 @@ function syncStatusVisuals(enemy: Enemy, time: number) {
     enemy.flyingHalo.setScale(1 + Math.sin(time / 150) * 0.05, 1);
   }
   enemy.body.setPosition(enemy.x, enemy.y + enemyDisplayOffsetY(enemy, airborneActive, time));
+  cache.visualSyncedAt = time;
+  cache.visualSyncedX = enemy.x;
+  cache.visualSyncedY = enemy.y;
+}
+
+function invalidateStatusVisuals(enemy: Enemy) {
+  enemy.statusMultiplierCache.visualSyncedAt = Number.NaN;
 }
 
 function enemyDisplayOffsetY(
   enemy: Enemy,
-  airborneActive = enemy.statusEffects.some((effect) => effect.name === "flying" || effect.name === "highFlying"),
+  airborneActive = hasAirborneStatusName(enemy),
   time = 0
 ) {
   const flyingOffset = airborneActive ? FLYING_DISPLAY_OFFSET_Y + Math.sin(time / 130) * 2 : 0;
   const burrowOffset = enemy.burrowed ? BURROW_DISPLAY_OFFSET_Y : 0;
   return flyingOffset + burrowOffset;
+}
+
+function hasAirborneStatusName(enemy: Enemy) {
+  for (const effect of enemy.statusEffects) {
+    if (effect.name === "flying" || effect.name === "highFlying") {
+      return true;
+    }
+  }
+  return false;
 }
 
 type HaloVisual = {

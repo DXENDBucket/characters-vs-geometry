@@ -603,10 +603,10 @@ export function makeCubeCollapse(
   x: number,
   y: number,
   followTarget?: Enemy | Tower,
-  activeEnemies: Enemy[] = [],
-  activeTowers: Tower[] = []
+  _activeEnemies: Enemy[] = [],
+  _activeTowers: Tower[] = []
 ) {
-  makePolyhedronCollapse(scene, x, y, "cube", followTarget, activeEnemies, activeTowers);
+  makePolyhedronCollapse(scene, x, y, "cube", followTarget);
 }
 
 export function makeTetrahedronCollapse(
@@ -614,10 +614,10 @@ export function makeTetrahedronCollapse(
   x: number,
   y: number,
   followTarget?: Enemy | Tower,
-  activeEnemies: Enemy[] = [],
-  activeTowers: Tower[] = []
+  _activeEnemies: Enemy[] = [],
+  _activeTowers: Tower[] = []
 ) {
-  makePolyhedronCollapse(scene, x, y, "tetrahedron", followTarget, activeEnemies, activeTowers);
+  makePolyhedronCollapse(scene, x, y, "tetrahedron", followTarget);
 }
 
 export function makeDodecahedronCollapse(
@@ -625,10 +625,10 @@ export function makeDodecahedronCollapse(
   x: number,
   y: number,
   followTarget?: Enemy | Tower,
-  activeEnemies: Enemy[] = [],
-  activeTowers: Tower[] = []
+  _activeEnemies: Enemy[] = [],
+  _activeTowers: Tower[] = []
 ) {
-  makePolyhedronCollapse(scene, x, y, "dodecahedron", followTarget, activeEnemies, activeTowers);
+  makePolyhedronCollapse(scene, x, y, "dodecahedron", followTarget);
 }
 
 export function makeSmallStellatedDodecahedronCollapse(
@@ -636,10 +636,10 @@ export function makeSmallStellatedDodecahedronCollapse(
   x: number,
   y: number,
   followTarget?: Enemy | Tower,
-  activeEnemies: Enemy[] = [],
-  activeTowers: Tower[] = []
+  _activeEnemies: Enemy[] = [],
+  _activeTowers: Tower[] = []
 ) {
-  makePolyhedronCollapse(scene, x, y, "smallStellatedDodecahedron", followTarget, activeEnemies, activeTowers);
+  makePolyhedronCollapse(scene, x, y, "smallStellatedDodecahedron", followTarget);
 }
 
 export function makeOctahedronCollapse(
@@ -647,10 +647,10 @@ export function makeOctahedronCollapse(
   x: number,
   y: number,
   followTarget?: Enemy | Tower,
-  activeEnemies: Enemy[] = [],
-  activeTowers: Tower[] = []
+  _activeEnemies: Enemy[] = [],
+  _activeTowers: Tower[] = []
 ) {
-  makePolyhedronCollapse(scene, x, y, "octahedron", followTarget, activeEnemies, activeTowers);
+  makePolyhedronCollapse(scene, x, y, "octahedron", followTarget);
 }
 
 export function makeIcosahedronCollapse(
@@ -658,10 +658,10 @@ export function makeIcosahedronCollapse(
   x: number,
   y: number,
   followTarget?: Enemy | Tower,
-  activeEnemies: Enemy[] = [],
-  activeTowers: Tower[] = []
+  _activeEnemies: Enemy[] = [],
+  _activeTowers: Tower[] = []
 ) {
-  makePolyhedronCollapse(scene, x, y, "icosahedron", followTarget, activeEnemies, activeTowers);
+  makePolyhedronCollapse(scene, x, y, "icosahedron", followTarget);
 }
 
 function makePolyhedronCollapse(
@@ -669,9 +669,7 @@ function makePolyhedronCollapse(
   x: number,
   y: number,
   shape: "cube" | "tetrahedron" | "dodecahedron" | "smallStellatedDodecahedron" | "octahedron" | "icosahedron",
-  followTarget?: Enemy | Tower,
-  activeEnemies: Enemy[] = [],
-  activeTowers: Tower[] = []
+  followTarget?: Enemy | Tower
 ) {
   const collapse = scene.add.graphics().setPosition(x, y).setDepth(108);
   const rotation = randomCollapseRotation();
@@ -701,9 +699,7 @@ function makePolyhedronCollapse(
         return;
       }
 
-      const targetStillExists =
-        "kind" in followTarget ? activeEnemies.includes(followTarget) : activeTowers.includes(followTarget);
-      if (targetStillExists) {
+      if (followTarget.inPlay) {
         collapse.setPosition(followTarget.x, followTarget.y);
       }
     },

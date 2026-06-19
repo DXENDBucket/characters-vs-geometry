@@ -9,6 +9,7 @@ export interface EnemySkillRuntime {
 }
 
 export type EnemySkillDefinition = RegisteredSkillDefinition<Enemy, EnemySkillRuntime>;
+const EMPTY_ENEMY_SKILL_DEFINITIONS: readonly EnemySkillDefinition[] = [];
 
 export interface EnemySkillActions {
   updateHexHeal: EnemySkillDefinition["update"];
@@ -52,5 +53,5 @@ export function enemySkillDefinitions(
   registry: Partial<Record<EnemyFamily, EnemySkillDefinition[]>>,
   enemy: Enemy
 ) {
-  return registry[enemyFamily(enemy.kind)] ?? [];
+  return registry[enemyFamily(enemy.kind)] ?? EMPTY_ENEMY_SKILL_DEFINITIONS;
 }

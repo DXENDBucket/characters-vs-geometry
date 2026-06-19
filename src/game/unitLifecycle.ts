@@ -48,7 +48,7 @@ export interface UnitLifecycleRuntime {
 }
 
 export function damageTower(runtime: UnitLifecycleRuntime, tower: Tower, damage: number, damageType: DamageType) {
-  if (!runtime.towers.includes(tower)) {
+  if (!tower.inPlay) {
     return;
   }
 
@@ -132,7 +132,7 @@ export function damageEnemy(
   damageType: DamageType,
   sourceTower?: Tower
 ) {
-  if (!runtime.enemies.includes(enemy)) {
+  if (!enemy.inPlay) {
     return;
   }
 
@@ -210,9 +210,10 @@ export function removeBoss(runtime: UnitLifecycleRuntime) {
 }
 
 export function removeEnemy(runtime: UnitLifecycleRuntime, enemy: Enemy, animate: boolean) {
+  enemy.inPlay = false;
   Phaser.Utils.Array.Remove(runtime.enemies, enemy);
   for (const cargo of enemy.burrowCargo ?? []) {
-    if (!runtime.enemies.includes(cargo)) {
+    if (!cargo.inPlay) {
       cargo.body.destroy();
     }
   }
@@ -231,7 +232,7 @@ export function removeEnemy(runtime: UnitLifecycleRuntime, enemy: Enemy, animate
 }
 
 export function removeTower(runtime: UnitLifecycleRuntime, tower: Tower) {
-  if (!runtime.towers.includes(tower)) {
+  if (!tower.inPlay) {
     return;
   }
 
@@ -240,6 +241,7 @@ export function removeTower(runtime: UnitLifecycleRuntime, tower: Tower) {
   }
 
   Phaser.Utils.Array.Remove(runtime.towers, tower);
+  tower.inPlay = false;
   if (!tower.transient) {
     runtime.occupied.delete(gridCellKey(tower.lane, tower.column));
   }
@@ -264,12 +266,16 @@ function clearProjectilesInSlowAura<T extends { x: number; y: number; body: Phas
   projectiles: T[],
   tower: Tower
 ) {
-  for (const projectile of [...projectiles]) {
-    if (!isPointInSlowAura(tower, projectile.x, projectile.y)) {
+  let writeIndex = 0;
+  for (let readIndex = 0; readIndex < projectiles.length; readIndex += 1) {
+    const projectile = projectiles[readIndex];
+    if (isPointInSlowAura(tower, projectile.x, projectile.y)) {
+      projectile.body.destroy();
       continue;
     }
 
-    Phaser.Utils.Array.Remove(projectiles, projectile);
-    projectile.body.destroy();
+    projectiles[writeIndex] = projectile;
+    writeIndex += 1;
   }
+  projectiles.length = writeIndex;
 }

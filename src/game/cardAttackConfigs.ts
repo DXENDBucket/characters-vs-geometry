@@ -29,6 +29,7 @@ export type AttackAreaConfig =
       direction: "up" | "down";
       halfWidth: number;
       spreadDegrees: number;
+      spreadSlope?: number;
     };
 
 export interface ProjectilePatternConfig {
@@ -53,8 +54,8 @@ export const cardAttackAreas: Partial<Record<CardId, AttackAreaConfig>> = {
   a: { kind: "laneRectangle", rangeCells: 5 },
   C: { kind: "laneForward", startOffsetX: 24 },
   E: { kind: "laneForward", startOffsetX: 24 },
-  M: { kind: "verticalFan", direction: "down", halfWidth: CELL_WIDTH * 0.35, spreadDegrees: 10 },
-  W: { kind: "verticalFan", direction: "up", halfWidth: CELL_WIDTH * 0.35, spreadDegrees: 10 },
+  M: { kind: "verticalFan", direction: "down", halfWidth: CELL_WIDTH * 0.35, spreadDegrees: 10, spreadSlope: angleSlope(10) },
+  W: { kind: "verticalFan", direction: "up", halfWidth: CELL_WIDTH * 0.35, spreadDegrees: 10, spreadSlope: angleSlope(10) },
   I: { kind: "laneRectangle", rangeCells: 6 },
   Q: { kind: "laneForward", startOffsetX: 24 },
   J: { kind: "laneRectangle", rangeCells: 6 },
@@ -125,10 +126,16 @@ export const projectilePatterns: Partial<Record<CardId, ProjectilePatternConfig>
   }
 };
 
+const defaultAttackArea = { kind: "laneForward", startOffsetX: 24 } satisfies AttackAreaConfig;
+
 export function getCardAttackArea(type: CardId) {
-  return cardAttackAreas[type] ?? ({ kind: "laneForward", startOffsetX: 24 } satisfies AttackAreaConfig);
+  return cardAttackAreas[type] ?? defaultAttackArea;
 }
 
 export function getProjectilePattern(type: CardId) {
   return projectilePatterns[type];
+}
+
+function angleSlope(degrees: number) {
+  return Math.tan((degrees * Math.PI) / 180);
 }

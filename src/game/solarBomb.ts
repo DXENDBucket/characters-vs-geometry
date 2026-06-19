@@ -56,16 +56,16 @@ export function bounceSolarBombFromPoint(enemy: Enemy, sourceX: number, sourceY:
 
   const currentVx = enemy.solarBombVelocityX ?? enemy.movementDirection ?? -1;
   const currentVy = enemy.solarBombVelocityY ?? 0;
-  const speed = Math.max(Math.hypot(currentVx, currentVy), enemy.baseStats.speed || 1);
+  const speed = Math.max(vectorLength(currentVx, currentVy), enemy.baseStats.speed || 1);
   let dx = enemy.x - sourceX;
   let dy = enemy.y - sourceY;
-  const distance = Math.hypot(dx, dy);
-  if (distance <= 0.001) {
+  let normalLength = vectorLength(dx, dy);
+  if (normalLength <= 0.001) {
     dx = -currentVx || 1;
     dy = -currentVy;
+    normalLength = vectorLength(dx, dy) || 1;
   }
 
-  const normalLength = Math.hypot(dx, dy) || 1;
   const nx = dx / normalLength;
   const ny = dy / normalLength;
   enemy.solarBombVelocityX = nx * speed;
@@ -94,4 +94,8 @@ export function syncSolarBombVisual(enemy: Enemy) {
       : palette.white;
   syncSolarBombShape(enemy.shape, color);
   enemy.shape.setScale(1);
+}
+
+export function vectorLength(x: number, y: number) {
+  return Math.sqrt(x * x + y * y);
 }
