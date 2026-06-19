@@ -828,6 +828,13 @@ function bossPartInSolarBombAoe(part: CubeBoss, x: number, y: number, radiusSq: 
 }
 
 function circleIntersectsTowerBounds(x: number, y: number, radiusSq: number, tower: Tower) {
+  if (
+    Math.abs(x - tower.x) > CELL_WIDTH / 2 + SOLAR_BOMB_RADIUS ||
+    Math.abs(y - tower.y) > CELL_HEIGHT / 2 + SOLAR_BOMB_RADIUS
+  ) {
+    return false;
+  }
+
   const closestX = Phaser.Math.Clamp(x, tower.x - CELL_WIDTH / 2, tower.x + CELL_WIDTH / 2);
   const closestY = Phaser.Math.Clamp(y, tower.y - CELL_HEIGHT / 2, tower.y + CELL_HEIGHT / 2);
   return pointDistanceSq(x, y, closestX, closestY) <= radiusSq;
