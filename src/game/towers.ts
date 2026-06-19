@@ -288,7 +288,7 @@ export function syncTowerFlyingVisual(tower: Tower, time: number) {
   setVisibleIfChanged(tower.flyingHalo, active);
   if (!active) {
     setPositionIfChanged(tower.body, tower.x, tower.y);
-    tower.flyingHalo.setScale(1, 1);
+    setScaleIfChanged(tower.flyingHalo, 1, 1);
     return;
   }
 
@@ -326,6 +326,12 @@ function setAlphaIfChanged(target: Phaser.GameObjects.GameObject & { alpha: numb
 function setPositionIfChanged(target: Phaser.GameObjects.Container, x: number, y: number) {
   if (target.x !== x || target.y !== y) {
     target.setPosition(x, y);
+  }
+}
+
+function setScaleIfChanged(target: Phaser.GameObjects.GameObject & { scaleX: number; scaleY: number; setScale(x: number, y?: number): unknown }, x: number, y = x) {
+  if (target.scaleX !== x || target.scaleY !== y) {
+    target.setScale(x, y);
   }
 }
 
