@@ -41,6 +41,8 @@ export class TowerMirrorController {
   private syncing = false;
   private suppressedGroups = new Set<number>();
   private readonly adjacentGroupIdsBuffer = new Set<number>();
+  private mirrorSyncSignature = "";
+  private readonly mirrorSyncSignatureParts: string[] = [];
 
   constructor(private readonly runtime: () => TowerMirrorRuntime) {}
 
@@ -49,6 +51,8 @@ export class TowerMirrorController {
     this.removalDepth = 0;
     this.syncing = false;
     this.suppressedGroups.clear();
+    this.mirrorSyncSignature = "";
+    this.mirrorSyncSignatureParts.length = 0;
   }
 
   syncMirrors() {
@@ -57,6 +61,11 @@ export class TowerMirrorController {
     }
 
     const runtime = this.runtime();
+    const signature = this.mirrorStateSignature(runtime);
+    if (signature === this.mirrorSyncSignature) {
+      return;
+    }
+
     this.syncing = true;
     try {
       forEachInitial(runtime.towers, (anchor) => {
@@ -69,6 +78,7 @@ export class TowerMirrorController {
       });
     } finally {
       this.syncing = false;
+      this.mirrorSyncSignature = this.mirrorStateSignature(runtime);
     }
   }
 
@@ -462,5 +472,24 @@ export class TowerMirrorController {
       column < COLUMNS &&
       (runtime.isCellDeployable?.(lane, column) ?? true)
     );
+  }
+
+  private mirrorStateSignature(runtime: TowerMirrorRuntime) {
+    const parts = this.mirrorSyncSignatureParts;
+    parts.length = 0;
+    parts.push(`${runtime.towers.length}`);
+    for (const tower of runtime.towers) {
+      parts.push(
+        tower.id,
+        tower.type,
+        `${tower.lane}`,
+        `${tower.column}`,
+        `${tower.level}`,
+        `${tower.transient ? 1 : 0}`,
+        `${tower.inPlay ? 1 : 0}`,
+        `${tower.mirrorGroupId ?? 0}`
+      );
+    }
+    return parts.join("|");
   }
 }
