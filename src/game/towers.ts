@@ -181,7 +181,10 @@ export function syncTowerDerivedStats(
 }
 
 export function syncTowerHpBar(tower: Tower) {
-  tower.hpFill.width = 42 * Phaser.Math.Clamp(tower.hp / towerFinalStats(tower).maxHp, 0, 1);
+  const width = 42 * Phaser.Math.Clamp(tower.hp / towerFinalStats(tower).maxHp, 0, 1);
+  if (tower.hpFill.width !== width) {
+    tower.hpFill.width = width;
+  }
 }
 
 export function effectiveTowerLevel(tower: Tower) {
@@ -296,7 +299,9 @@ export function syncTowerFlyingVisual(tower: Tower, time: number) {
 
 export function syncTowerTrueDamageVisual(tower: Tower, battleTime: number) {
   const active = towerHasTrueDamage(tower, battleTime);
-  tower.trueDamageBorder.setVisible(active);
+  if (tower.trueDamageBorder.visible !== active) {
+    tower.trueDamageBorder.setVisible(active);
+  }
   if (active) {
     tower.trueDamageBorder.setAlpha(0.72 + Math.sin(battleTime / 120) * 0.18);
   }

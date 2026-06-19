@@ -800,13 +800,16 @@ export class GameScene extends Phaser.Scene {
       }
 
       for (const target of this.towers) {
-        const targetDefinition = this.getDefinition(target.type);
         if (
           target === auraTower ||
-          targetDefinition.cost > MIRROR_COST_LIMIT ||
           Math.abs(target.lane - auraTower.lane) > 1 ||
           Math.abs(target.column - auraTower.column) > 1
         ) {
+          continue;
+        }
+
+        const targetDefinition = this.getDefinition(target.type);
+        if (targetDefinition.cost > MIRROR_COST_LIMIT) {
           continue;
         }
 

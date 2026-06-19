@@ -40,6 +40,7 @@ export class TowerMirrorController {
   private removalDepth = 0;
   private syncing = false;
   private suppressedGroups = new Set<number>();
+  private readonly adjacentGroupIdsBuffer = new Set<number>();
 
   constructor(private readonly runtime: () => TowerMirrorRuntime) {}
 
@@ -109,9 +110,12 @@ export class TowerMirrorController {
   syncMirrorLevelBonuses() {
     const runtime = this.runtime();
     for (const tower of runtime.towers) {
-      tower.mirrorLevelBonus = 0;
+      if (tower.mirrorLevelBonus !== 0) {
+        tower.mirrorLevelBonus = 0;
+      }
     }
 
+    const groupIds = this.adjacentGroupIdsBuffer;
     for (const anchor of runtime.towers) {
       if (anchor.type !== MIRROR_CARD_ID || anchor.transient) {
         continue;
@@ -122,13 +126,19 @@ export class TowerMirrorController {
         continue;
       }
 
-      const groupIds = this.adjacentMirrorGroupIds(anchor);
+      groupIds.clear();
+      this.collectAdjacentMirrorGroupIds(anchor, groupIds);
+      if (groupIds.size === 0) {
+        continue;
+      }
+
       for (const member of runtime.towers) {
         if (member.mirrorGroupId && groupIds.has(member.mirrorGroupId)) {
           member.mirrorLevelBonus += bonus;
         }
       }
     }
+    groupIds.clear();
   }
 
   handleTowerRemoved(tower: Tower, removeTower: RemoveTower) {
@@ -402,14 +412,22 @@ export class TowerMirrorController {
     }
   }
 
-  private adjacentMirrorGroupIds(anchor: Tower) {
-    const groupIds = new Set<number>();
-    for (const tower of this.adjacentMirrorTowers(anchor)) {
-      if (tower.mirrorGroupId) {
-        groupIds.add(tower.mirrorGroupId);
-      }
+  private collectAdjacentMirrorGroupIds(anchor: Tower, groupIds: Set<number>) {
+    this.addAdjacentMirrorGroupId(groupIds, anchor.lane, anchor.column - 1);
+    this.addAdjacentMirrorGroupId(groupIds, anchor.lane, anchor.column + 1);
+    this.addAdjacentMirrorGroupId(groupIds, anchor.lane - 1, anchor.column);
+    this.addAdjacentMirrorGroupId(groupIds, anchor.lane + 1, anchor.column);
+  }
+
+  private addAdjacentMirrorGroupId(groupIds: Set<number>, lane: number, column: number) {
+    if (!this.cellIsDeployable(lane, column)) {
+      return;
     }
-    return groupIds;
+
+    const groupId = this.runtime().occupied.get(gridCellKey(lane, column))?.mirrorGroupId;
+    if (groupId) {
+      groupIds.add(groupId);
+    }
   }
 
   private adjacentMirrorTowers(anchor: Tower) {
