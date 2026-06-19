@@ -792,26 +792,32 @@ function canLoadBurrowCargo(enemy: Enemy) {
 function detonateSolarBombShieldBreak(runtime: EnemyAdvanceRuntime, bomb: Enemy) {
   const radius = CELL_WIDTH * SOLAR_BOMB_SHIELD_BREAK_AOE_RADIUS_CELLS;
   const radiusSq = radius * radius;
-  makeShellBurst(runtime.scene, bomb.x, bomb.y, radius, "true");
-  makeShockPulse(runtime.scene, bomb.x, bomb.y, radius, radius, "true");
+  const bombX = bomb.x;
+  const bombY = bomb.y;
+  makeShellBurst(runtime.scene, bombX, bombY, radius, "true");
+  makeShockPulse(runtime.scene, bombX, bombY, radius, radius, "true");
 
   forEachSnapshot(runtime.towers, (tower) => {
-    if (!tower.transient && pointDistanceSq(tower.x, tower.y, bomb.x, bomb.y) <= radiusSq) {
+    if (!tower.transient && pointIsInCircle(tower.x, tower.y, bombX, bombY, radius, radiusSq)) {
       runtime.damageTower(tower, SOLAR_BOMB_SHIELD_BREAK_AOE_DAMAGE, "true");
     }
   });
 
   forEachSnapshot(runtime.enemies, (enemy) => {
-    if (enemy !== bomb && pointDistanceSq(enemy.x, enemy.y, bomb.x, bomb.y) <= radiusSq) {
+    if (enemy !== bomb && pointIsInCircle(enemy.x, enemy.y, bombX, bombY, radius, radiusSq)) {
       runtime.damageEnemy(enemy, SOLAR_BOMB_SHIELD_BREAK_AOE_DAMAGE, "true");
     }
   });
 
   forEachBossPart(runtime.boss, (part) => {
-    if (bossPartInSolarBombAoe(part, bomb.x, bomb.y, radiusSq)) {
+    if (bossPartInSolarBombAoe(part, bombX, bombY, radiusSq)) {
       runtime.damageBoss(SOLAR_BOMB_SHIELD_BREAK_AOE_DAMAGE, "true", part);
     }
   });
+}
+
+function pointIsInCircle(x: number, y: number, centerX: number, centerY: number, radius: number, radiusSq: number) {
+  return Math.abs(x - centerX) <= radius && Math.abs(y - centerY) <= radius && pointDistanceSq(x, y, centerX, centerY) <= radiusSq;
 }
 
 function bossPartInSolarBombAoe(part: CubeBoss, x: number, y: number, radiusSq: number) {
