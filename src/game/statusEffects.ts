@@ -26,6 +26,11 @@ export interface StatusMultipliers {
   armor: number;
 }
 
+type VisibleTarget = {
+  visible: boolean;
+  setVisible(visible: boolean): unknown;
+};
+
 export function applyStatusEffect(
   enemy: Enemy,
   name: StatusEffectName,
@@ -230,11 +235,11 @@ function syncStatusVisuals(enemy: Enemy, time: number) {
   const archangelActive = enemyFamily(enemy.kind) === "archangelHeptagon";
   const airborneActive = flyingActive || highFlyingActive;
   const haloActive = !archangelActive && (angelFlyingActive || highFlyingActive);
-  enemy.statusBorder.setVisible(stasisActive && !frozenActive);
-  enemy.frozenBorder.setVisible(frozenActive);
-  enemy.powerIcon.setVisible(powerActive);
-  enemy.sunderIcon.setVisible(sunderActive);
-  enemy.flyingHalo.setVisible(haloActive);
+  setVisibleIfChanged(enemy.statusBorder, stasisActive && !frozenActive);
+  setVisibleIfChanged(enemy.frozenBorder, frozenActive);
+  setVisibleIfChanged(enemy.powerIcon, powerActive);
+  setVisibleIfChanged(enemy.sunderIcon, sunderActive);
+  setVisibleIfChanged(enemy.flyingHalo, haloActive);
   syncArchangelHalos(enemy, highFlyingActive);
   if (stasisActive) {
     enemy.statusBorder.setStrokeStyle(2, palette.magic, 0.92);
@@ -267,6 +272,12 @@ function syncStatusVisuals(enemy: Enemy, time: number) {
 
 function invalidateStatusVisuals(enemy: Enemy) {
   enemy.statusMultiplierCache.visualSyncedAt = Number.NaN;
+}
+
+function setVisibleIfChanged(target: VisibleTarget, visible: boolean) {
+  if (target.visible !== visible) {
+    target.setVisible(visible);
+  }
 }
 
 function enemyDisplayOffsetY(

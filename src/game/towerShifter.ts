@@ -35,6 +35,7 @@ export class TowerShifterController {
   private cooldownStartedAt = 0;
   private cooldownDuration = SHIFTER_BASE_COOLDOWN;
   private selection: Tower[] = [];
+  private readonly selectionSet = new Set<Tower>();
   private selectionMarks = new Map<Tower, Phaser.GameObjects.Graphics>();
   private readonly previewPositions: TowerShifterMovePosition[] = [];
   private readonly previewResult: TowerShifterMovePreview = { valid: false, positions: this.previewPositions };
@@ -147,7 +148,7 @@ export class TowerShifterController {
 
       const key = gridCellKey(position.lane, position.column);
       const occupant = this.runtime().occupied.get(key);
-      if (occupant && !selection.includes(occupant)) {
+      if (occupant && !this.selectionSet.has(occupant)) {
         return this.setPreviewResult(false);
       }
     }
@@ -159,7 +160,7 @@ export class TowerShifterController {
     const runtime = this.runtime();
     const selection = this.liveSelection();
     for (const [tower, mark] of this.selectionMarks) {
-      if (!selection.includes(tower)) {
+      if (!this.selectionSet.has(tower)) {
         mark.destroy();
         this.selectionMarks.delete(tower);
       }
@@ -180,6 +181,7 @@ export class TowerShifterController {
 
   clearSelection() {
     this.selection = [];
+    this.selectionSet.clear();
     for (const mark of this.selectionMarks.values()) {
       mark.destroy();
     }
@@ -190,6 +192,7 @@ export class TowerShifterController {
     if (!additive) {
       this.clearSelection();
       this.selection = [tower];
+      this.selectionSet.add(tower);
       this.syncSelectionVisuals();
       return;
     }
@@ -197,8 +200,10 @@ export class TowerShifterController {
     const selectedIndex = this.selection.indexOf(tower);
     if (selectedIndex >= 0) {
       this.selection.splice(selectedIndex, 1);
+      this.selectionSet.delete(tower);
     } else {
       this.selection.push(tower);
+      this.selectionSet.add(tower);
     }
     this.syncSelectionVisuals();
   }
@@ -222,15 +227,28 @@ export class TowerShifterController {
 
   private liveSelection() {
     let writeIndex = 0;
+    let removedDeadTower = false;
     for (let readIndex = 0; readIndex < this.selection.length; readIndex += 1) {
       const tower = this.selection[readIndex];
       if (tower.inPlay) {
         this.selection[writeIndex] = tower;
         writeIndex += 1;
+      } else {
+        removedDeadTower = true;
       }
     }
     this.selection.length = writeIndex;
+    if (removedDeadTower || this.selectionSet.size !== writeIndex) {
+      this.rebuildSelectionSet();
+    }
     return this.selection;
+  }
+
+  private rebuildSelectionSet() {
+    this.selectionSet.clear();
+    for (const tower of this.selection) {
+      this.selectionSet.add(tower);
+    }
   }
 
   private setPreviewResult(valid: boolean) {
