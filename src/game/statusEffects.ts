@@ -1,6 +1,7 @@
 import { CELL_HEIGHT, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
 import { enemyFamily } from "../registry/enemies";
 import type { Enemy, StatusEffectName } from "../types";
+import { setPositionIfChanged, setScaleIfChanged, setVisibleIfChanged } from "./visualGuards";
 
 const STATUS_SPEED_MULTIPLIERS: Record<StatusEffectName, number> = {
   stasis: 1 / 2,
@@ -25,17 +26,6 @@ export interface StatusMultipliers {
   attack: number;
   armor: number;
 }
-
-type VisibleTarget = {
-  visible: boolean;
-  setVisible(visible: boolean): unknown;
-};
-
-type ScaleTarget = {
-  scaleX: number;
-  scaleY: number;
-  setScale(x: number, y?: number): unknown;
-};
 
 export function applyStatusEffect(
   enemy: Enemy,
@@ -172,7 +162,7 @@ export function isEnemyFlying(enemy: Enemy, time: number) {
 }
 
 export function syncEnemyBodyPosition(enemy: Enemy) {
-  enemy.body.setPosition(enemy.x, enemy.y + enemyDisplayOffsetY(enemy));
+  setPositionIfChanged(enemy.body, enemy.x, enemy.y + enemyDisplayOffsetY(enemy));
   invalidateStatusVisuals(enemy);
 }
 
@@ -270,7 +260,7 @@ function syncStatusVisuals(enemy: Enemy, time: number) {
     enemy.flyingHalo.setY(-42 + Math.sin(time / 110) * 2);
     enemy.flyingHalo.setScale(1 + Math.sin(time / 150) * 0.05, 1);
   }
-  enemy.body.setPosition(enemy.x, enemy.y + enemyDisplayOffsetY(enemy, airborneActive, time));
+  setPositionIfChanged(enemy.body, enemy.x, enemy.y + enemyDisplayOffsetY(enemy, airborneActive, time));
   cache.visualSyncedAt = time;
   cache.visualSyncedX = enemy.x;
   cache.visualSyncedY = enemy.y;
@@ -278,18 +268,6 @@ function syncStatusVisuals(enemy: Enemy, time: number) {
 
 function invalidateStatusVisuals(enemy: Enemy) {
   enemy.statusMultiplierCache.visualSyncedAt = Number.NaN;
-}
-
-function setVisibleIfChanged(target: VisibleTarget, visible: boolean) {
-  if (target.visible !== visible) {
-    target.setVisible(visible);
-  }
-}
-
-function setScaleIfChanged(target: ScaleTarget, x: number, y = x) {
-  if (target.scaleX !== x || target.scaleY !== y) {
-    target.setScale(x, y);
-  }
 }
 
 function enemyDisplayOffsetY(

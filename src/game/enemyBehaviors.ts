@@ -21,6 +21,7 @@ import { attackIntervalMs, attackSpeedForIntervalMs } from "./attackSpeed";
 import { enemyIsSolarBomb, isSolarBombKind } from "./solarBomb";
 import { hasStatusEffectName } from "./statusEffects";
 import { applyEnemyBaseStats, enemyBaseStatsFromDefinition } from "./unitStats";
+import { setScaleIfChanged } from "./visualGuards";
 
 const ANGEL_PENTAGON_INITIAL_WINGS_SP_PER_EXTRA_RANK = 2;
 const ARCHANGEL_INITIAL_ASCENSION_SP = 10;
@@ -152,16 +153,6 @@ export function syncEnemyFacingVisual(enemy: Enemy) {
       scalable.setData?.("facingBaseScaleY", baseScaleY);
     }
     setScaleIfChanged(scalable, baseScaleX * facingScale, baseScaleY);
-  }
-}
-
-function setScaleIfChanged(
-  target: Phaser.GameObjects.GameObject & { scaleX?: number; scaleY?: number; setScale?: (x: number, y?: number) => unknown },
-  x: number,
-  y = x
-) {
-  if (target.scaleX !== x || target.scaleY !== y) {
-    target.setScale?.(x, y);
   }
 }
 

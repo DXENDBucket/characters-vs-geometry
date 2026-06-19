@@ -8,6 +8,7 @@ import {
   effectiveUpgradeDelta,
   scaledByEffectiveUpgrades
 } from "./upgrades";
+import { setAlphaIfChanged, setPositionIfChanged, setScaleIfChanged, setVisibleIfChanged } from "./visualGuards";
 
 const TRUE_DAMAGE_DURATION_PER_LEVEL = 12_000;
 const AIR_PATROL_INITIAL_SP = 8;
@@ -306,33 +307,6 @@ export function syncTowerTrueDamageVisual(tower: Tower, battleTime: number) {
   setVisibleIfChanged(tower.trueDamageBorder, active);
   if (active) {
     tower.trueDamageBorder.setAlpha(0.72 + Math.sin(battleTime / 120) * 0.18);
-  }
-}
-
-function setVisibleIfChanged(
-  target: Phaser.GameObjects.GameObject & { visible: boolean; setVisible(visible: boolean): unknown },
-  visible: boolean
-) {
-  if (target.visible !== visible) {
-    target.setVisible(visible);
-  }
-}
-
-function setAlphaIfChanged(target: Phaser.GameObjects.GameObject & { alpha: number; setAlpha(alpha: number): unknown }, alpha: number) {
-  if (target.alpha !== alpha) {
-    target.setAlpha(alpha);
-  }
-}
-
-function setPositionIfChanged(target: Phaser.GameObjects.Container, x: number, y: number) {
-  if (target.x !== x || target.y !== y) {
-    target.setPosition(x, y);
-  }
-}
-
-function setScaleIfChanged(target: Phaser.GameObjects.GameObject & { scaleX: number; scaleY: number; setScale(x: number, y?: number): unknown }, x: number, y = x) {
-  if (target.scaleX !== x || target.scaleY !== y) {
-    target.setScale(x, y);
   }
 }
 

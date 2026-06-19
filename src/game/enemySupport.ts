@@ -8,6 +8,7 @@ import { createEnemySkillRegistry, enemySkillDefinitionsForFamily, type EnemySki
 import { gainSkillSp, getEnemySkillState, isSkillReady, spendSkillSp } from "./skillState";
 import { applyStatusEffect, hasStatusEffect, hasUnexpiredStatusEffect, syncEnemyBodyPosition } from "./statusEffects";
 import { bossPartDistanceSqToPoint } from "./targeting";
+import { setVisibleIfChanged } from "./visualGuards";
 
 const HEX_ARMOR_RADIUS = CELL_WIDTH * 1.4;
 const HEX_ARMOR_RANK_ONE_BONUS = 50;
@@ -79,11 +80,6 @@ interface EnemyPosition {
   y: number;
   lane: number;
 }
-
-type VisibleTarget = {
-  visible: boolean;
-  setVisible(visible: boolean): unknown;
-};
 
 const enemySkillRegistry = createEnemySkillRegistry({
   updateHexHeal,
@@ -440,12 +436,6 @@ function clearEnemyLaneBuckets(buckets: Enemy[][], laneMask: number) {
     if ((laneMask & (1 << lane)) !== 0) {
       buckets[lane].length = 0;
     }
-  }
-}
-
-function setVisibleIfChanged(target: VisibleTarget, visible: boolean) {
-  if (target.visible !== visible) {
-    target.setVisible(visible);
   }
 }
 
