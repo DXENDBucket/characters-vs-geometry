@@ -163,6 +163,10 @@ export class TowerShifterController {
   }
 
   syncSelectionVisuals() {
+    if (this.selection.length === 0 && this.selectionMarks.size === 0) {
+      return;
+    }
+
     const runtime = this.runtime();
     const selection = this.liveSelection();
     for (const [tower, mark] of this.selectionMarks) {
