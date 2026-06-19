@@ -72,6 +72,11 @@ interface EnemyPosition {
   lane: number;
 }
 
+type VisibleTarget = {
+  visible: boolean;
+  setVisible(visible: boolean): unknown;
+};
+
 const enemySkillRegistry = createEnemySkillRegistry({
   updateHexHeal,
   updateAngelWings,
@@ -87,6 +92,7 @@ const heartLeadClaimedTargetsBuffer = new Set<Enemy>();
 const heartLeadSingleClaimedTargetsBuffer = new Set<Enemy>();
 const heartLeadPositionMapBuffer = new Map<Enemy, EnemyPosition>();
 const heartLeadPositionPool: EnemyPosition[] = [];
+let defensiveAuraIconsMayBeVisible = false;
 const enemySupportSourcesBuffer: EnemySupportSources = {
   enemies: [],
   hexagons: [],
@@ -234,20 +240,27 @@ function bossBodyInRadius(boss: CubeBoss, x: number, y: number, radiusSq: number
 export function syncHexArmorAuras(enemies: Enemy[], time: number, sources = enemySupportSources(enemies)) {
   const iconY = -38 + Math.sin(time / 110) * 2;
   if (sources.hexagons.length === 0 && sources.magicResistanceLaneMask === 0) {
-    for (const enemy of enemies) {
-      enemy.armorIcon.setVisible(false);
-      enemy.magicResistanceIcon.setVisible(false);
+    if (!defensiveAuraIconsMayBeVisible) {
+      return;
     }
+
+    for (const enemy of enemies) {
+      setVisibleIfChanged(enemy.armorIcon, false);
+      setVisibleIfChanged(enemy.magicResistanceIcon, false);
+    }
+    defensiveAuraIconsMayBeVisible = false;
     return;
   }
 
+  let anyIconVisible = false;
   for (const enemy of enemies) {
     const auraFlags = hexAuraFlags(sources, enemy);
     const hasArmorBonus = (auraFlags & HEX_AURA_ARMOR_FLAG) !== 0;
     const hasMagicResistanceBonus = (auraFlags & HEX_AURA_MAGIC_RESISTANCE_FLAG) !== 0;
+    anyIconVisible = anyIconVisible || hasArmorBonus || hasMagicResistanceBonus;
 
-    enemy.armorIcon.setVisible(hasArmorBonus);
-    enemy.magicResistanceIcon.setVisible(hasMagicResistanceBonus);
+    setVisibleIfChanged(enemy.armorIcon, hasArmorBonus);
+    setVisibleIfChanged(enemy.magicResistanceIcon, hasMagicResistanceBonus);
     if (hasArmorBonus) {
       enemy.armorIcon.setPosition(hasMagicResistanceBonus ? -10 : 0, iconY);
     }
@@ -255,6 +268,7 @@ export function syncHexArmorAuras(enemies: Enemy[], time: number, sources = enem
       enemy.magicResistanceIcon.setPosition(hasArmorBonus ? 10 : 0, iconY);
     }
   }
+  defensiveAuraIconsMayBeVisible = anyIconVisible;
 }
 
 export function chargingHexSpeedMultiplier(enemies: Enemy[], target: Enemy) {
@@ -361,6 +375,12 @@ function enemyLaneBuckets() {
 function clearEnemyLaneBuckets(buckets: Enemy[][]) {
   for (const bucket of buckets) {
     bucket.length = 0;
+  }
+}
+
+function setVisibleIfChanged(target: VisibleTarget, visible: boolean) {
+  if (target.visible !== visible) {
+    target.setVisible(visible);
   }
 }
 
