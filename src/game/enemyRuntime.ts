@@ -108,6 +108,7 @@ interface SpawnWaveOptions {
 }
 
 const lockedAttackBlockedCountsBuffer = new Map<string, number>();
+const enemyLaserHitTowersBuffer: Tower[] = [];
 
 export function spawnEnemyAt(runtime: EnemySpawnRuntime, options: SpawnEnemyOptions) {
   runtime.enemies.push(createEnemy(runtime.scene, options));
@@ -734,8 +735,16 @@ function findLaserStoppingX(towers: Tower[], lane: number, fromX: number, direct
   return stoppingX;
 }
 
-function beamHitTowers(towers: Tower[], lane: number, fromX: number, direction: number, stopX: number | undefined) {
-  const targets: Tower[] = [];
+function beamHitTowers(
+  towers: Tower[],
+  lane: number,
+  fromX: number,
+  direction: number,
+  stopX: number | undefined,
+  output?: Tower[]
+) {
+  const targets = output ?? [];
+  targets.length = 0;
   for (const tower of towers) {
     if (
       tower.lane !== lane ||
@@ -1196,13 +1205,17 @@ function fireEnemyLaser(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number
 
   const direction = enemyMovementDirection(enemy);
   const stoppingX = findLaserStoppingX(runtime.towers, enemy.lane, enemy.x, direction);
-  const hitTargets = beamHitTowers(runtime.towers, enemy.lane, enemy.x, direction, stoppingX);
+  const hitTargets = beamHitTowers(runtime.towers, enemy.lane, enemy.x, direction, stoppingX, enemyLaserHitTowersBuffer);
   const endX = stoppingX ?? (direction < 0 ? BOARD_X : BOARD_X + BOARD_WIDTH);
 
   makeEnemyLaserEffect(runtime.scene, enemy.x + direction * 24, enemy.y, endX);
-  for (const tower of hitTargets) {
-    makeEnemyHitShards(runtime.scene, tower.x, tower.y);
-    runtime.damageTower(tower, enemyAttackDamage(enemy, time), enemy.damageType);
+  try {
+    for (const tower of hitTargets) {
+      makeEnemyHitShards(runtime.scene, tower.x, tower.y);
+      runtime.damageTower(tower, enemyAttackDamage(enemy, time), enemy.damageType);
+    }
+  } finally {
+    hitTargets.length = 0;
   }
 }
 
