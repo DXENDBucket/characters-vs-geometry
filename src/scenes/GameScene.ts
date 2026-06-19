@@ -133,6 +133,17 @@ interface BossHpBarState {
   totalPhases: number;
 }
 
+interface LevelAuraTowerSignature {
+  id: string;
+  type: CardId;
+  lane: number;
+  column: number;
+  level: number;
+  transient: boolean;
+  mirrorGroupId: number;
+  text: string;
+}
+
 const BOSS_PHASE_BAR_COLORS = [palette.heart, 0xff9f43, palette.magic];
 const BOSS_PHASE_BAR_BACK = palette.magic;
 const ICOSAHEDRON_PHASE_TWO_INITIAL_SP = 75;
@@ -186,6 +197,7 @@ export class GameScene extends Phaser.Scene {
   private levelBonusSnapshotValues: number[] = [];
   private levelAuraSignature = "";
   private levelAuraSignatureParts: string[] = [];
+  private levelAuraTowerSignatureCache = new WeakMap<Tower, LevelAuraTowerSignature>();
   private placementGhosts: Phaser.GameObjects.Container[] = [];
   private placementGhostKey = "";
   private readonly placementGhostSpecBuffer: PlacementGhostSpec[] = [];
@@ -273,6 +285,7 @@ export class GameScene extends Phaser.Scene {
     this.levelBonusSnapshotValues.length = 0;
     this.levelAuraSignature = "";
     this.levelAuraSignatureParts.length = 0;
+    this.levelAuraTowerSignatureCache = new WeakMap<Tower, LevelAuraTowerSignature>();
     this.placementGhosts = [];
     this.placementGhostKey = "";
     this.pausedActions = [];
@@ -885,17 +898,38 @@ export class GameScene extends Phaser.Scene {
     parts.length = 0;
     parts.push(`${this.towers.length}`);
     for (const tower of this.towers) {
-      parts.push(
-        tower.id,
-        tower.type,
-        `${tower.lane}`,
-        `${tower.column}`,
-        `${tower.level}`,
-        `${tower.transient ? 1 : 0}`,
-        `${tower.mirrorGroupId ?? 0}`
-      );
+      parts.push(this.levelAuraTowerSignature(tower));
     }
     return parts.join("|");
+  }
+
+  private levelAuraTowerSignature(tower: Tower) {
+    const mirrorGroupId = tower.mirrorGroupId ?? 0;
+    const cached = this.levelAuraTowerSignatureCache.get(tower);
+    if (
+      cached?.id === tower.id &&
+      cached.type === tower.type &&
+      cached.lane === tower.lane &&
+      cached.column === tower.column &&
+      cached.level === tower.level &&
+      cached.transient === tower.transient &&
+      cached.mirrorGroupId === mirrorGroupId
+    ) {
+      return cached.text;
+    }
+
+    const text = `${tower.id}|${tower.type}|${tower.lane}|${tower.column}|${tower.level}|${tower.transient ? 1 : 0}|${mirrorGroupId}`;
+    this.levelAuraTowerSignatureCache.set(tower, {
+      id: tower.id,
+      type: tower.type,
+      lane: tower.lane,
+      column: tower.column,
+      level: tower.level,
+      transient: tower.transient,
+      mirrorGroupId,
+      text
+    });
+    return text;
   }
 
   private cardTimeFor(id: CardId) {
