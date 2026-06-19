@@ -61,6 +61,7 @@ import { MIRROR_COST_LIMIT, TowerMirrorController, type TowerMirrorRuntime, type
 import { TowerShifterController, type TowerShifterRuntime } from "../game/towerShifter";
 import { TowerSkillController, type TowerSkillRuntime } from "../game/towerSkills";
 import { towerAuraSources } from "../game/towerAuras";
+import { slowAuraSources, type SlowAuraSources } from "../game/slowAura";
 import { charsAreSoftcapped, rawCharsForSoftcapped, softcapChars } from "../game/charSoftcap";
 import {
   damageBoss,
@@ -386,9 +387,10 @@ export class GameScene extends Phaser.Scene {
     updateBossRuntime(this.bossRuntime(), seconds);
     this.updateEnemies(this.battleTime, seconds);
     this.updateTowers(this.battleTime);
-    const projectileRuntime = this.projectileRuntime();
+    const projectileRuntime = this.projectileRuntime(slowAuraSources(this.towers));
     updateTowerProjectiles(projectileRuntime, seconds);
     updateEnemyProjectiles(projectileRuntime, seconds);
+    projectileRuntime.slowAuraSources = slowAuraSources(this.towers);
     updateMortarProjectiles(projectileRuntime, seconds);
     this.updateWaveSchedule(this.levelElapsed, this.battleTime);
     this.attemptAutoUpgrades();
@@ -1310,7 +1312,7 @@ export class GameScene extends Phaser.Scene {
     };
   }
 
-  private projectileRuntime(): ProjectileRuntime {
+  private projectileRuntime(slowSources?: SlowAuraSources): ProjectileRuntime {
     const runtime = this.projectileRuntimeCache;
     runtime.projectiles = this.projectiles;
     runtime.enemyProjectiles = this.enemyProjectiles;
@@ -1319,6 +1321,7 @@ export class GameScene extends Phaser.Scene {
     runtime.towers = this.towers;
     runtime.occupied = this.occupied;
     runtime.battleTime = this.battleTime;
+    runtime.slowAuraSources = slowSources;
     return runtime;
   }
 
@@ -1332,6 +1335,7 @@ export class GameScene extends Phaser.Scene {
       towers: this.towers,
       occupied: this.occupied,
       battleTime: this.battleTime,
+      slowAuraSources: undefined,
       getBoss: () => this.boss,
       damageEnemy: (enemy, damage, damageType, sourceTower) =>
         damageEnemy(this.unitLifecycleRuntime(), enemy, damage, damageType, sourceTower),

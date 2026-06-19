@@ -22,7 +22,7 @@ import {
 } from "./projectiles";
 import { enemyIsBurrowed, enemyIsHighFlying } from "./enemyBehaviors";
 import { forEachInitial, forEachSnapshot } from "./iteration";
-import { movementSpeedMultiplier, slowAuraSources } from "./slowAura";
+import { movementSpeedMultiplier, slowAuraSources, type SlowAuraSources } from "./slowAura";
 import { enemyIsSolarBomb } from "./solarBomb";
 import { applyStatusEffect } from "./statusEffects";
 import {
@@ -48,6 +48,7 @@ export interface ProjectileRuntime {
   damageEnemy: (enemy: Enemy, damage: number, damageType: DamageType, sourceTower?: Tower) => void;
   damageBoss: (damage: number, damageType: DamageType, targetPart?: CubeBoss) => void;
   damageTower: (tower: Tower, damage: number, damageType: DamageType) => void;
+  slowAuraSources?: SlowAuraSources;
 }
 
 const enemyMortarHitTowersBuffer: Tower[] = [];
@@ -64,7 +65,7 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
     return;
   }
 
-  const slowSources = slowAuraSources(runtime.towers);
+  const slowSources = projectileSlowAuraSources(runtime);
   let directTargets: DirectProjectileTargets | undefined;
   const getDirectTargets = () => {
     directTargets ??= buildDirectProjectileTargets(runtime.enemies);
@@ -155,7 +156,7 @@ export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: numb
     return;
   }
 
-  const slowSources = slowAuraSources(runtime.towers);
+  const slowSources = projectileSlowAuraSources(runtime);
   const transientTargets =
     runtime.towers.length === runtime.occupied.size
       ? emptyEnemyProjectileTransientTargets
@@ -203,7 +204,7 @@ export function updateMortarProjectiles(runtime: ProjectileRuntime, seconds: num
     return;
   }
 
-  const slowSources = slowAuraSources(runtime.towers);
+  const slowSources = projectileSlowAuraSources(runtime);
   forEachInitial(runtime.mortarProjectiles, (projectile) => {
     syncMortarTarget(runtime, projectile);
     const speedMultiplier = movementSpeedMultiplier(runtime.towers, projectile.x, projectile.y, slowSources);
@@ -234,6 +235,10 @@ function projectileShiftDistance(tower: Tower) {
 
 function projectileShiftDirection(tower: Tower) {
   return -towerFacingDirection(tower);
+}
+
+function projectileSlowAuraSources(runtime: ProjectileRuntime) {
+  return runtime.slowAuraSources ?? slowAuraSources(runtime.towers);
 }
 
 function removeProjectile(projectiles: Projectile[], projectile: Projectile) {
