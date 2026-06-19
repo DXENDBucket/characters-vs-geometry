@@ -174,6 +174,8 @@ export class GameScene extends Phaser.Scene {
   private eraserMode = false;
   private levelBonusSnapshotTowers: Tower[] = [];
   private levelBonusSnapshotValues: number[] = [];
+  private levelAuraSignature = "";
+  private levelAuraSignatureParts: string[] = [];
   private placementGhosts: Phaser.GameObjects.Container[] = [];
   private placementGhostKey = "";
   private pausedActions: Array<() => void> = [];
@@ -252,6 +254,8 @@ export class GameScene extends Phaser.Scene {
     this.eraserMode = false;
     this.levelBonusSnapshotTowers.length = 0;
     this.levelBonusSnapshotValues.length = 0;
+    this.levelAuraSignature = "";
+    this.levelAuraSignatureParts.length = 0;
     this.placementGhosts = [];
     this.placementGhostKey = "";
     this.pausedActions = [];
@@ -794,22 +798,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateLevelAurasIfNeeded() {
-    for (const tower of this.towers) {
-      if (
-        tower.levelBonus !== 0 ||
-        tower.mirrorLevelBonus !== 0 ||
-        tower.finalStats.attackSpeed !== tower.baseStats.attackSpeed ||
-        (tower.type === "U" && !tower.transient) ||
-        (tower.type === "e" && !tower.transient) ||
-        (tower.type === "m" && !tower.transient && tower.level > 1)
-      ) {
-        this.updateLevelAuras();
-        return;
-      }
+    const signature = this.levelAuraStateSignature();
+    if (signature !== this.levelAuraSignature) {
+      this.updateLevelAuras(signature);
     }
   }
 
-  private updateLevelAuras() {
+  private updateLevelAuras(nextSignature = this.levelAuraStateSignature()) {
     const snapshotTowers = this.levelBonusSnapshotTowers;
     const snapshotValues = this.levelBonusSnapshotValues;
     snapshotTowers.length = this.towers.length;
@@ -858,6 +853,25 @@ export class GameScene extends Phaser.Scene {
 
     snapshotTowers.length = 0;
     snapshotValues.length = 0;
+    this.levelAuraSignature = nextSignature;
+  }
+
+  private levelAuraStateSignature() {
+    const parts = this.levelAuraSignatureParts;
+    parts.length = 0;
+    parts.push(`${this.towers.length}`);
+    for (const tower of this.towers) {
+      parts.push(
+        tower.id,
+        tower.type,
+        `${tower.lane}`,
+        `${tower.column}`,
+        `${tower.level}`,
+        `${tower.transient ? 1 : 0}`,
+        `${tower.mirrorGroupId ?? 0}`
+      );
+    }
+    return parts.join("|");
   }
 
   private cardTimeFor(id: CardId) {
