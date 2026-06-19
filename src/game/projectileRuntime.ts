@@ -53,10 +53,11 @@ export interface ProjectileRuntime {
 const enemyMortarHitTowersBuffer: Tower[] = [];
 const enemyMortarReflectorsBuffer: Tower[] = [];
 const bossRadiusFalloffResult: { falloff: number; part: CubeBoss | undefined } = { falloff: 0, part: undefined };
-const directProjectileTargetBuffers: Enemy[][] = Array.from({ length: LANES }, () => []);
-const enemyProjectileTransientTargetBuffers: Tower[][] = Array.from({ length: LANES }, () => []);
 type DirectProjectileTargets = Enemy[][];
 type EnemyProjectileTransientTargets = Tower[][];
+const directProjectileTargetBuffers: DirectProjectileTargets = Array.from({ length: LANES }, () => []);
+const enemyProjectileTransientTargetBuffers: EnemyProjectileTransientTargets = Array.from({ length: LANES }, () => []);
+const emptyEnemyProjectileTransientTargets: EnemyProjectileTransientTargets = Array.from({ length: LANES }, () => []);
 
 export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: number) {
   if (runtime.projectiles.length === 0) {
@@ -148,7 +149,10 @@ export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: numb
   }
 
   const slowSources = slowAuraSources(runtime.towers);
-  const transientTargets = buildEnemyProjectileTransientTargets(runtime.towers);
+  const transientTargets =
+    runtime.towers.length === runtime.occupied.size
+      ? emptyEnemyProjectileTransientTargets
+      : buildEnemyProjectileTransientTargets(runtime.towers);
   forEachInitial(runtime.enemyProjectiles, (projectile) => {
     projectile.x += projectile.vx * seconds * movementSpeedMultiplier(runtime.towers, projectile.x, projectile.y, slowSources);
     projectile.body.setPosition(projectile.x, projectile.y);
