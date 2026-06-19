@@ -91,7 +91,9 @@ const enemySkillRegistry = createEnemySkillRegistry({
 });
 const activeEnemyBuffer: Enemy[] = [];
 const heartLeadReadyCastersBuffer: HeartLeadCaster[] = [];
+const heartLeadReadyCastersPool: HeartLeadCaster[] = [];
 const heartLeadPlansBuffer: HeartLeadPlan[] = [];
+const heartLeadPlansPool: HeartLeadPlan[] = [];
 const heartLeadTargetsPool: Enemy[][] = [];
 const heartLeadSingleTargetsBuffer: Enemy[] = [];
 const heartLeadClaimedTargetsBuffer = new Set<Enemy>();
@@ -498,7 +500,7 @@ function updateHeartLeads(scene: Phaser.Scene, enemies: Enemy[], activeHeartEnem
         continue;
       }
 
-      readyCasters.push({ caster, skill });
+      readyCasters.push(heartLeadReadyCaster(readyCasters.length, caster, skill));
     }
 
     if (readyCasters.length === 0) {
@@ -521,7 +523,7 @@ function updateHeartLeads(scene: Phaser.Scene, enemies: Enemy[], activeHeartEnem
       for (const target of targets) {
         claimedTargets.add(target);
       }
-      leadPlans.push({ caster, skill, targets });
+      leadPlans.push(heartLeadPlan(leadPlans.length, caster, skill, targets));
     }
 
     for (const plan of leadPlans) {
@@ -580,6 +582,33 @@ function tryUseHexHeal(scene: Phaser.Scene, enemies: Enemy[], healer: Enemy, ski
 
   syncEnemyVisualScale(target);
   makeHealParticles(scene, target.x, target.y);
+}
+
+function heartLeadReadyCaster(index: number, caster: Enemy, skill: SkillState) {
+  const readyCaster = heartLeadReadyCastersPool[index] ?? createHeartLeadReadyCaster(index, caster, skill);
+  readyCaster.caster = caster;
+  readyCaster.skill = skill;
+  return readyCaster;
+}
+
+function createHeartLeadReadyCaster(index: number, caster: Enemy, skill: SkillState) {
+  const readyCaster: HeartLeadCaster = { caster, skill };
+  heartLeadReadyCastersPool[index] = readyCaster;
+  return readyCaster;
+}
+
+function heartLeadPlan(index: number, caster: Enemy, skill: SkillState, targets: Enemy[]) {
+  const plan = heartLeadPlansPool[index] ?? createHeartLeadPlan(index, caster, skill, targets);
+  plan.caster = caster;
+  plan.skill = skill;
+  plan.targets = targets;
+  return plan;
+}
+
+function createHeartLeadPlan(index: number, caster: Enemy, skill: SkillState, targets: Enemy[]) {
+  const plan: HeartLeadPlan = { caster, skill, targets };
+  heartLeadPlansPool[index] = plan;
+  return plan;
 }
 
 function isHexagon(enemy: Enemy) {
