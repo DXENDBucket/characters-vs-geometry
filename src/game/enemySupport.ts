@@ -270,7 +270,6 @@ function bossBodyInRadius(boss: CubeBoss, x: number, y: number, radiusSq: number
 }
 
 export function syncHexArmorAuras(enemies: Enemy[], time: number, sources = enemySupportSources(enemies)) {
-  const iconY = -38 + Math.sin(time / 110) * 2;
   if (sources.hexagons.length === 0 && sources.magicResistanceLaneMask === 0) {
     if (!defensiveAuraIconsMayBeVisible) {
       return;
@@ -284,6 +283,7 @@ export function syncHexArmorAuras(enemies: Enemy[], time: number, sources = enem
     return;
   }
 
+  const iconY = -38 + Math.sin(time / 110) * 2;
   let anyIconVisible = false;
   for (const enemy of enemies) {
     const auraFlags = hexAuraFlags(sources, enemy);
@@ -429,6 +429,11 @@ function setVisibleIfChanged(target: VisibleTarget, visible: boolean) {
 }
 
 function hexAuraFlags(sources: EnemySupportSources, target: Enemy) {
+  const laneMask = target.lane >= 0 && target.lane < LANES ? 1 << target.lane : 0;
+  if (sources.hexagons.length === 0 && (sources.magicResistanceLaneMask & laneMask) === 0) {
+    return 0;
+  }
+
   if (enemyIsHighFlying(target)) {
     return 0;
   }
@@ -441,7 +446,7 @@ function hexAuraFlags(sources: EnemySupportSources, target: Enemy) {
     }
   }
 
-  if ((sources.magicResistanceLaneMask & (1 << target.lane)) !== 0) {
+  if ((sources.magicResistanceLaneMask & laneMask) !== 0) {
     flags |= HEX_AURA_MAGIC_RESISTANCE_FLAG;
   }
 
