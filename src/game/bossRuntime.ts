@@ -66,7 +66,7 @@ import {
   type RectBounds
 } from "./targeting";
 import { isTrapArmed } from "./towers";
-import { towerFinalStats } from "./unitStats";
+import { syncBossBaseStats, towerFinalStats } from "./unitStats";
 import { volleyInterval } from "./upgrades";
 import { getEnemyDefinition, enemyRank } from "../registry/enemies";
 
@@ -136,6 +136,18 @@ const OCTAHEDRON2_REINFORCEMENTS: Array<{
   { delay: OCTAHEDRON_REINFORCEMENT_DELAY * 2, kind: "heart2", lanes: OCTAHEDRON_HEART_REINFORCEMENT_LANES },
   { delay: OCTAHEDRON_REINFORCEMENT_DELAY * 3, kind: "slopeTriangle2", lanes: allBoardLanes() },
   { delay: OCTAHEDRON_REINFORCEMENT_DELAY * 4, kind: "archangelHeptagon2", lanes: allBoardLanes() }
+];
+const ICOSAHEDRON_FINAL_PHASE_INDEX = 3;
+const ICOSAHEDRON_FINAL_REINFORCEMENTS: Array<{
+  delay: number;
+  kind: Enemy["kind"];
+  lanes: readonly number[];
+}> = [
+  { delay: 0, kind: "hexSpellBulwark3", lanes: allBoardLanes() },
+  { delay: OCTAHEDRON_REINFORCEMENT_DELAY, kind: "burrowArrow3", lanes: OCTAHEDRON_BURROW_REINFORCEMENT_LANES },
+  { delay: OCTAHEDRON_REINFORCEMENT_DELAY * 2, kind: "heart3", lanes: OCTAHEDRON_HEART_REINFORCEMENT_LANES },
+  { delay: OCTAHEDRON_REINFORCEMENT_DELAY * 3, kind: "slopeTriangle3", lanes: allBoardLanes() },
+  { delay: OCTAHEDRON_REINFORCEMENT_DELAY * 4, kind: "archangelHeptagon3", lanes: allBoardLanes() }
 ];
 
 export interface BossRuntime {
@@ -243,12 +255,14 @@ export function updateBossRuntime(runtime: BossRuntime, seconds: number) {
   initializeOctahedronSolarBombs(runtime, boss);
   updateBossPartsMotion(runtime, boss, seconds);
   triggerOctahedronSplits(runtime, boss);
+  triggerIcosahedronFinalSplits(runtime, boss);
   syncOctahedronSharedHp(boss);
   updateDodecahedronCompanions(runtime, boss, seconds);
   updateIcosahedronCompanions(runtime, boss, seconds);
   updateBossHasteVisual(runtime, boss);
   triggerTetrahedronHalfHpBurst(runtime, boss);
   triggerTetrahedronCriticalSummon(runtime, boss);
+  triggerIcosahedronFinalFatalSummon(runtime, boss);
   updateBossSkills(runtime, boss, seconds);
   const removedByFunctionalTower = findBossPart(boss, (part) => {
     triggerFunctionalTowersTouchingBoss(runtime, part);
@@ -318,6 +332,43 @@ function triggerOctahedronSplits(runtime: BossRuntime, boss: CubeBoss) {
   }
 }
 
+function triggerIcosahedronFinalSplits(runtime: BossRuntime, boss: CubeBoss) {
+  if (!isIcosahedronFinalPhase(runtime, boss)) {
+    return;
+  }
+
+  if (!boss.octahedronSpawn75Triggered && boss.hp <= boss.maxHp * 0.75) {
+    boss.octahedronSpawn75Triggered = true;
+    spawnIcosahedronFinalCopy(runtime, boss, {
+      x: BOARD_X + boss.hitboxWidth / 2,
+      y: BOARD_Y + BOARD_HEIGHT / 2,
+      movementAxis: "x",
+      movementDirection: 1
+    });
+  }
+
+  if (!boss.octahedronSpawn50Triggered && boss.hp <= boss.maxHp * 0.5) {
+    boss.octahedronSpawn50Triggered = true;
+    spawnIcosahedronFinalCopy(runtime, boss, {
+      x: BOARD_X + 7.5 * CELL_WIDTH,
+      y: BOARD_Y + boss.hitboxHeight / 2,
+      movementAxis: "y",
+      movementDirection: 1
+    });
+  }
+
+  if (!boss.octahedronSpawn25Triggered && boss.hp <= boss.maxHp * 0.25) {
+    boss.octahedronSpawn25Triggered = true;
+    spawnIcosahedronFinalCopy(runtime, boss, {
+      x: BOARD_X + 4.5 * CELL_WIDTH,
+      y: BOARD_Y + BOARD_HEIGHT - boss.hitboxHeight / 2,
+      movementAxis: "y",
+      movementDirection: -1
+    });
+    scheduleIcosahedronFinalReinforcements(runtime, boss);
+  }
+}
+
 function spawnOctahedronCopy(
   runtime: BossRuntime,
   boss: CubeBoss,
@@ -347,11 +398,55 @@ function spawnOctahedronCopy(
   makeOctahedronCollapse(runtime.scene, options.x, options.y);
 }
 
+function spawnIcosahedronFinalCopy(
+  runtime: BossRuntime,
+  boss: CubeBoss,
+  options: {
+    x: number;
+    y: number;
+    movementAxis: "x" | "y";
+    movementDirection: -1 | 1;
+    invincibleUntil?: number;
+  }
+) {
+  const copy = createCubeBoss(runtime.scene, boss.kind, runtime.finalDamageReduction, options);
+  copy.baseStats = { ...boss.baseStats };
+  syncBossBaseStats(copy);
+  copy.hp = boss.hp;
+  copy.body.setDepth(87);
+  copy.invincibleUntil = options.invincibleUntil ?? 0;
+  copy.octahedronCopies = undefined;
+  copy.companionsInitialized = true;
+  boss.octahedronCopies ??= [];
+  boss.octahedronCopies.push(copy);
+  makeIcosahedronCollapse(runtime.scene, options.x, options.y);
+  return copy;
+}
+
 function syncOctahedronSharedHp(boss: CubeBoss) {
   for (const copy of boss.octahedronCopies ?? []) {
     copy.hp = boss.hp;
     copy.maxHp = boss.maxHp;
   }
+}
+
+function triggerIcosahedronFinalFatalSummon(runtime: BossRuntime, boss: CubeBoss) {
+  if (!isIcosahedronFinalPhase(runtime, boss) || !boss.pendingCriticalSummon) {
+    return;
+  }
+
+  boss.pendingCriticalSummon = false;
+  const invincibleUntil = boss.invincibleUntil;
+  spawnIcosahedronFinalCopy(runtime, boss, {
+    x: BOARD_X + 1.5 * CELL_WIDTH,
+    y: BOARD_Y + BOARD_HEIGHT + boss.hitboxHeight / 2,
+    movementAxis: "y",
+    movementDirection: -1,
+    invincibleUntil
+  });
+  forEachBossPart(boss, (part) => {
+    part.invincibleUntil = invincibleUntil;
+  });
 }
 
 function initializeOctahedronSolarBombs(runtime: BossRuntime, boss: CubeBoss) {
@@ -403,6 +498,20 @@ function scheduleOctahedronReinforcements(runtime: BossRuntime, boss: CubeBoss) 
   }
 }
 
+function scheduleIcosahedronFinalReinforcements(runtime: BossRuntime, boss: CubeBoss) {
+  for (const wave of ICOSAHEDRON_FINAL_REINFORCEMENTS) {
+    runtime.scene.time.delayedCall(wave.delay, () => {
+      runtime.runWhenBattleActive(() => {
+        if (runtime.getBoss() !== boss) {
+          return;
+        }
+
+        spawnIcosahedronFinalReinforcementWave(runtime, wave.kind, wave.lanes, runtime.battleTime);
+      });
+    });
+  }
+}
+
 function spawnOctahedronReinforcementWave(
   runtime: BossRuntime,
   kind: Enemy["kind"],
@@ -423,6 +532,29 @@ function spawnOctahedronReinforcementWave(
       finalDamageReduction: runtime.finalDamageReduction
     });
     makeOctahedronCollapse(runtime.scene, x, y);
+  }
+}
+
+function spawnIcosahedronFinalReinforcementWave(
+  runtime: BossRuntime,
+  kind: Enemy["kind"],
+  lanes: readonly number[],
+  time: number
+) {
+  const waveNumber = runtime.wave || 0;
+  const x = BOARD_X + BOARD_WIDTH + 46;
+  for (const lane of lanes) {
+    const y = BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2;
+    spawnEnemyAt(runtime, {
+      kind,
+      waveNumber,
+      time,
+      lane,
+      x,
+      waveWeight: 0,
+      finalDamageReduction: runtime.finalDamageReduction
+    });
+    makeIcosahedronCollapse(runtime.scene, x, y);
   }
 }
 
@@ -1220,6 +1352,10 @@ function bossUsesTetrahedronKit(runtime: BossRuntime, boss: CubeBoss) {
 
 function isIcosahedronTetrahedronPhase(runtime: BossRuntime, boss: CubeBoss) {
   return isIcosahedronBoss(boss) && runtime.bossPhaseIndex === 1;
+}
+
+function isIcosahedronFinalPhase(runtime: BossRuntime, boss: CubeBoss) {
+  return isIcosahedronBoss(boss) && runtime.bossPhaseIndex === ICOSAHEDRON_FINAL_PHASE_INDEX;
 }
 
 function tetrahedronChargeSpeedMultiplier(runtime: BossRuntime, boss: CubeBoss) {

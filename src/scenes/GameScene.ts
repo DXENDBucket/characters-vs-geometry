@@ -144,8 +144,11 @@ interface LevelAuraTowerSignature {
   mirrorGroupId: number;
 }
 
-const BOSS_PHASE_BAR_COLORS = [palette.heart, 0xff9f43, palette.magic];
+type DebugDamageMode = "normal" | "super" | null;
+
+const BOSS_PHASE_BAR_COLORS = [palette.heart, 0xff9f43, palette.magic, palette.gold];
 const BOSS_PHASE_BAR_BACK = palette.magic;
+const BOSS_PHASE_FINAL_BAR_BACK = palette.dim;
 const ICOSAHEDRON_PHASE_TWO_INITIAL_SP = 75;
 const HAS_TIMED_PRODUCER_CARDS = allCardDefinitions.some((definition) =>
   Boolean(definition.produceEvery && definition.produceAmount)
@@ -208,7 +211,7 @@ export class GameScene extends Phaser.Scene {
   };
   private pausedActions: Array<() => void> = [];
   private autoUpgradeMode = false;
-  private debugDamageMode = false;
+  private debugDamageMode: DebugDamageMode = null;
   private autoUpgradeEnabled = true;
   private autoUpgradeReserveChars = 0;
   private autoUpgradeReserveInputFocused = false;
@@ -288,7 +291,7 @@ export class GameScene extends Phaser.Scene {
     this.placementGhostKey = "";
     this.pausedActions = [];
     this.autoUpgradeMode = false;
-    this.debugDamageMode = false;
+    this.debugDamageMode = null;
     this.autoUpgradeEnabled = true;
     this.autoUpgradeReserveChars = 0;
     this.autoUpgradeReserveInputFocused = false;
@@ -319,6 +322,7 @@ export class GameScene extends Phaser.Scene {
     this.ui = createGameHud(this, this.levelId, this.difficulty, {
       onDebug: () => this.grantDebugChars(),
       onDebugDamage: () => this.toggleDebugDamageMode(),
+      onSuperDebugDamage: () => this.toggleSuperDebugDamageMode(),
       onShifter: () => this.toggleShifterMode(),
       onAutoUpgrade: () => this.toggleAutoUpgradeMode(),
       onAutoUpgradeEnabled: () => this.toggleAutoUpgradeEnabled(),
@@ -705,7 +709,7 @@ export class GameScene extends Phaser.Scene {
       this.eraserMode ||
       this.shifter.isActive() ||
       this.autoUpgradeMode ||
-      this.debugDamageMode ||
+      this.debugDamageMode !== null ||
       this.towerSkills.hasSpellMortarTargeting()
     ) {
       return ghosts;
@@ -1004,7 +1008,7 @@ export class GameScene extends Phaser.Scene {
     this.shifter.deactivate();
     this.clearPlacementGhosts();
     this.autoUpgradeMode = false;
-    this.debugDamageMode = false;
+    this.debugDamageMode = null;
     this.autoUpgradeReserveInputFocused = false;
   }
 
@@ -1620,6 +1624,14 @@ export class GameScene extends Phaser.Scene {
     boss.bossHasteUntil = 0;
     boss.companionsInitialized = false;
     boss.companionDeathsHandled = 0;
+    for (const copy of boss.octahedronCopies ?? []) {
+      copy.body.destroy();
+    }
+    boss.octahedronCopies = [];
+    boss.octahedronSolarBombsInitialized = false;
+    boss.octahedronSpawn75Triggered = false;
+    boss.octahedronSpawn50Triggered = false;
+    boss.octahedronSpawn25Triggered = false;
   }
 
   private applyWaveStartMechanics() {
@@ -1723,7 +1735,7 @@ export class GameScene extends Phaser.Scene {
       eraserMode: this.eraserMode,
       shifterMode,
       autoUpgradeMode: this.autoUpgradeMode,
-      debugDamageMode: this.debugDamageMode
+      debugDamageMode: this.debugDamageMode !== null
     });
     updateToolButtonStates(
       this.ui,
@@ -1731,7 +1743,8 @@ export class GameScene extends Phaser.Scene {
       shifterMode,
       this.shifter.cooldownRatio(),
       this.autoUpgradeMode,
-      this.debugDamageMode,
+      this.debugDamageMode === "normal",
+      this.debugDamageMode === "super",
       this.autoUpgradeEnabled,
       this.autoUpgradeReserveChars,
       this.autoUpgradeReserveInputFocused
@@ -1747,7 +1760,7 @@ export class GameScene extends Phaser.Scene {
     this.shifter.deactivate();
     this.clearPlacementGhosts();
     this.autoUpgradeMode = false;
-    this.debugDamageMode = false;
+    this.debugDamageMode = null;
     this.autoUpgradeReserveInputFocused = false;
     this.cancelSpellMortarTargeting();
     this.cardStates.forEach((cardState) => {
@@ -1772,7 +1785,7 @@ export class GameScene extends Phaser.Scene {
       this.shifter.deactivate();
       this.clearPlacementGhosts();
       this.autoUpgradeMode = false;
-      this.debugDamageMode = false;
+      this.debugDamageMode = null;
     }
     this.syncPlacementGhost(this.input.activePointer);
     this.updateCards();
@@ -1794,7 +1807,7 @@ export class GameScene extends Phaser.Scene {
     if (this.shifter.isActive()) {
       this.eraserMode = false;
       this.autoUpgradeMode = false;
-      this.debugDamageMode = false;
+      this.debugDamageMode = null;
     } else {
       this.clearPlacementGhosts();
     }
@@ -1814,7 +1827,7 @@ export class GameScene extends Phaser.Scene {
       this.eraserMode = false;
       this.shifter.deactivate();
       this.clearPlacementGhosts();
-      this.debugDamageMode = false;
+      this.debugDamageMode = null;
     }
     this.syncPlacementGhost(this.input.activePointer);
     this.updateCards();
@@ -1841,7 +1854,7 @@ export class GameScene extends Phaser.Scene {
     this.shifter.deactivate();
     this.clearPlacementGhosts();
     this.autoUpgradeMode = false;
-    this.debugDamageMode = false;
+    this.debugDamageMode = null;
     this.autoUpgradeReserveInputFocused = true;
     this.cancelSpellMortarTargeting();
     this.updateCards();
@@ -1856,7 +1869,20 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    this.debugDamageMode = !this.debugDamageMode;
+    this.debugDamageMode = this.debugDamageMode === "normal" ? null : "normal";
+    this.enterDebugDamageMode();
+  }
+
+  private toggleSuperDebugDamageMode() {
+    if (this.gameOver) {
+      return;
+    }
+
+    this.debugDamageMode = this.debugDamageMode === "super" ? null : "super";
+    this.enterDebugDamageMode();
+  }
+
+  private enterDebugDamageMode() {
     this.autoUpgradeReserveInputFocused = false;
     this.cancelSpellMortarTargeting();
     if (this.debugDamageMode) {
@@ -1872,7 +1898,7 @@ export class GameScene extends Phaser.Scene {
   private applyDebugDamage(x: number, y: number) {
     const rangeX = CELL_WIDTH / 2;
     const rangeY = CELL_HEIGHT / 2;
-    const damage = 15_000;
+    const damage = this.debugDamageMode === "super" ? 105_000 : 15_000;
     makeShellBurst(this, x, y, Math.min(CELL_WIDTH, CELL_HEIGHT) * 0.5, "true");
     makeShockPulse(this, x, y, CELL_WIDTH, CELL_HEIGHT);
 
@@ -1950,7 +1976,7 @@ export class GameScene extends Phaser.Scene {
     const nextFillColor =
       this.bossPhaseIndex + 1 < phases.length
         ? BOSS_PHASE_BAR_COLORS[this.bossPhaseIndex + 1] ?? BOSS_PHASE_BAR_BACK
-        : BOSS_PHASE_BAR_BACK;
+        : BOSS_PHASE_FINAL_BAR_BACK;
 
     const state = this.bossHpBarStateCache;
     state.fillColor = fillColor;
@@ -2093,6 +2119,9 @@ export class GameScene extends Phaser.Scene {
       case "tool:debugDamage":
         this.toggleDebugDamageMode();
         return;
+      case "tool:superDebugDamage":
+        this.toggleSuperDebugDamageMode();
+        return;
       case "tool:debugChars":
         this.grantDebugChars();
         return;
@@ -2116,7 +2145,7 @@ export class GameScene extends Phaser.Scene {
     this.shifter.deactivate();
     this.clearPlacementGhosts();
     this.autoUpgradeMode = false;
-    this.debugDamageMode = false;
+    this.debugDamageMode = null;
     this.autoUpgradeReserveInputFocused = false;
     this.cancelSpellMortarTargeting();
     this.selectedCardId = id;

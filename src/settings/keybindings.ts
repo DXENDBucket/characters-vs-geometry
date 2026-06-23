@@ -5,6 +5,7 @@ export type ToolControlAction =
   | "tool:autoUpgrade"
   | "tool:shifter"
   | "tool:debugDamage"
+  | "tool:superDebugDamage"
   | "tool:debugChars"
   | "tool:autoUpgradeEnabled"
   | "tool:autoUpgradeReserve"
@@ -26,6 +27,7 @@ export const toolControlDefinitions: ToolControlDefinition[] = [
   { id: "tool:autoUpgrade", labelKey: "control.autoUpgrade" },
   { id: "tool:shifter", labelKey: "control.shifter" },
   { id: "tool:debugDamage", labelKey: "control.debugDamage" },
+  { id: "tool:superDebugDamage", labelKey: "control.superDebugDamage" },
   { id: "tool:debugChars", labelKey: "control.debugChars" },
   { id: "tool:autoUpgradeEnabled", labelKey: "control.autoUpgradeEnabled" },
   { id: "tool:autoUpgradeReserve", labelKey: "control.autoUpgradeReserve" },

@@ -870,6 +870,47 @@ export const levelConfigs: Record<string, LevelConfig> = {
           "hexMace3",
           "archangelHeptagon3"
         ]
+      },
+      {
+        maxHp: 300_000,
+        waveWeightCap: 9000,
+        enemyKinds: [
+          "circle",
+          "circle2",
+          "circle3",
+          "triangle",
+          "triangle2",
+          "triangle3",
+          "square",
+          "square2",
+          "square3",
+          "trapezoid",
+          "trapezoid2",
+          "trapezoid3",
+          "triangleRam",
+          "triangleRam2",
+          "triangleRam3",
+          "angelPentagonRam",
+          "angelPentagonRam2",
+          "angelPentagonRam3",
+          "hexMace",
+          "hexMace2",
+          "hexMace3",
+          "shootingTriangle",
+          "shootingTriangle2",
+          "shootingTriangle3",
+          "diamond",
+          "diamond2",
+          "diamond3",
+          "angelPentagon",
+          "angelPentagon2",
+          "angelPentagon3",
+          "heart3",
+          "burrowArrow3",
+          "slopeTriangle3",
+          "hexSpellBulwark3",
+          "archangelHeptagon3"
+        ]
       }
     ],
     endless: true

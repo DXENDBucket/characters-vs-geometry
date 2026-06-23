@@ -25,6 +25,8 @@ export interface GameHudElements {
   speedText: Phaser.GameObjects.Text;
   speedFill: Phaser.GameObjects.Rectangle;
   speedKnob: Phaser.GameObjects.Rectangle;
+  superDebugDamageButton: Phaser.GameObjects.Rectangle;
+  superDebugDamageText: Phaser.GameObjects.Text;
   debugDamageButton: Phaser.GameObjects.Rectangle;
   debugDamageText: Phaser.GameObjects.Text;
   debugButton: Phaser.GameObjects.Rectangle;
@@ -54,6 +56,7 @@ export interface GameOverlayElements {
 interface GameHudActions {
   onDebug: () => void;
   onDebugDamage: () => void;
+  onSuperDebugDamage: () => void;
   onShifter: () => void;
   onAutoUpgrade: () => void;
   onAutoUpgradeEnabled: () => void;
@@ -178,6 +181,13 @@ export function createGameHud(
     126,
     t("button.debugDamage")
   );
+  const { button: superDebugDamageButton, text: superDebugDamageText } = createToolButton(
+    scene,
+    GAME_WIDTH - 716,
+    42,
+    126,
+    t("button.superDebugDamage")
+  );
   const { button: debugButton, text: debugText } = createToolButton(scene, GAME_WIDTH - 460, 42, 110, t("button.debug"));
   const { button: shifterButton, text: shifterText } = createToolButton(scene, GAME_WIDTH - 332, 42, 110, t("button.shifter"));
   const shifterCooldownBack = scene.add
@@ -237,6 +247,9 @@ export function createGameHud(
   bindPointerAction(debugDamageButton, actions.onDebugDamage);
   debugDamageText.setInteractive({ useHandCursor: true });
   bindPointerAction(debugDamageText, actions.onDebugDamage);
+  bindPointerAction(superDebugDamageButton, actions.onSuperDebugDamage);
+  superDebugDamageText.setInteractive({ useHandCursor: true });
+  bindPointerAction(superDebugDamageText, actions.onSuperDebugDamage);
   debugButton.on("pointerdown", actions.onDebug);
   debugText.setInteractive({ useHandCursor: true }).on("pointerdown", actions.onDebug);
   shifterButton.on("pointerdown", actions.onShifter);
@@ -260,6 +273,8 @@ export function createGameHud(
     speedText,
     speedFill,
     speedKnob,
+    superDebugDamageButton,
+    superDebugDamageText,
     debugDamageButton,
     debugDamageText,
     debugButton,
@@ -399,6 +414,7 @@ export function updateToolButtonStates(
   shifterReadyRatio: number,
   autoUpgradeMode: boolean,
   debugDamageMode: boolean,
+  superDebugDamageMode: boolean,
   autoUpgradeEnabled: boolean,
   autoUpgradeReserve: number,
   reserveInputFocused: boolean
@@ -407,6 +423,14 @@ export function updateToolButtonStates(
   setFillStyleIfChanged(ui.debugDamageButton, debugDamageMode ? palette.panel : palette.black, debugDamageMode ? 1 : 0.82);
   setAlphaIfChanged(ui.debugDamageButton, debugDamageMode ? 1 : 0.78);
   setAlphaIfChanged(ui.debugDamageText, debugDamageMode ? 1 : 0.78);
+  setStrokeStyleIfChanged(ui.superDebugDamageButton, superDebugDamageMode ? 4 : 2, superDebugDamageMode ? palette.gold : palette.mid, 1);
+  setFillStyleIfChanged(
+    ui.superDebugDamageButton,
+    superDebugDamageMode ? palette.panel : palette.black,
+    superDebugDamageMode ? 1 : 0.82
+  );
+  setAlphaIfChanged(ui.superDebugDamageButton, superDebugDamageMode ? 1 : 0.78);
+  setAlphaIfChanged(ui.superDebugDamageText, superDebugDamageMode ? 1 : 0.78);
 
   const shifterReady = shifterReadyRatio >= 1;
   setStrokeStyleIfChanged(ui.shifterButton, shifterMode ? 4 : 2, shifterMode ? palette.magic : shifterReady ? palette.mid : palette.dim, 1);

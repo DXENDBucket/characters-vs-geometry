@@ -22,7 +22,7 @@ import {
   syncSolarBombVisual
 } from "./solarBomb";
 import { addFrozenPhysicalDamage, hasStatusEffect, syncEnemyBodyPosition } from "./statusEffects";
-import { gridCellKey } from "./targeting";
+import { forEachBossPart, gridCellKey } from "./targeting";
 import { syncTowerHpBar } from "./towers";
 import { towerFinalStats } from "./unitStats";
 
@@ -46,6 +46,8 @@ export interface UnitLifecycleRuntime {
   onBossDefeated?: (boss: CubeBoss) => boolean;
   endLevel: () => void;
 }
+
+const ICOSAHEDRON_FINAL_LOCK_DURATION = 15_000;
 
 export function damageTower(runtime: UnitLifecycleRuntime, tower: Tower, damage: number, damageType: DamageType) {
   if (!tower.inPlay) {
@@ -85,6 +87,19 @@ export function damageBoss(
     calculateDamage(damage, damageType, stats.armor, stats.magicResistance) *
     (1 - stats.finalDamageReduction);
   const nextHp = boss.hp - actualDamage;
+  if (shouldTriggerIcosahedronFinalLock(runtime, boss, nextHp)) {
+    boss.criticalHpTriggered = true;
+    boss.pendingCriticalSummon = true;
+    boss.hp = 1;
+    forEachBossPart(boss, (part) => {
+      part.invincibleUntil = runtime.battleTime + ICOSAHEDRON_FINAL_LOCK_DURATION;
+    });
+    syncBossCopyHp(boss);
+    makeBossHitFlash(runtime.scene, damagedPart.x, damagedPart.y, damageType, damagedPart.hitboxWidth, damagedPart.hitboxHeight);
+    makeBossInvincibleFlash(runtime.scene, damagedPart.x, damagedPart.y, damagedPart.hitboxWidth, damagedPart.hitboxHeight);
+    return;
+  }
+
   if (shouldTriggerTetrahedronCritical(runtime, boss, nextHp)) {
     boss.criticalHpTriggered = true;
     boss.pendingCriticalSummon = true;
@@ -123,6 +138,10 @@ function syncBossCopyHp(boss: CubeBoss) {
 function shouldTriggerTetrahedronCritical(runtime: UnitLifecycleRuntime, boss: CubeBoss, nextHp: number) {
   const usesCriticalSummon = isTetrahedronBoss(boss) || (isIcosahedronBoss(boss) && runtime.bossPhaseIndex === 1);
   return usesCriticalSummon && !boss.criticalHpTriggered && nextHp <= boss.maxHp * 0.1;
+}
+
+function shouldTriggerIcosahedronFinalLock(runtime: UnitLifecycleRuntime, boss: CubeBoss, nextHp: number) {
+  return isIcosahedronBoss(boss) && runtime.bossPhaseIndex === 3 && !boss.criticalHpTriggered && nextHp <= 0;
 }
 
 export function damageEnemy(

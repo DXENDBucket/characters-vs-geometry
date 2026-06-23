@@ -176,7 +176,7 @@ function enemyIsDodecahedronCompanion(enemy: Enemy) {
 }
 
 function octahedronBodyDamageReduction(rootBoss: CubeBoss) {
-  if (rootBoss.kind !== "octahedron" && rootBoss.kind !== "octahedron2") {
+  if (rootBoss.kind !== "octahedron" && rootBoss.kind !== "octahedron2" && rootBoss.kind !== "icosahedron") {
     return 0;
   }
 
