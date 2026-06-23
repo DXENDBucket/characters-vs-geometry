@@ -14,6 +14,8 @@ import { enemyFamily, enemyRank, getEnemyDefinition } from "../registry/enemies"
 import type { EnemyKind, UnitCategory } from "../types";
 
 const DODECAHEDRON_COMPANION_DRAW_SIZE = 18;
+const ICOSAHEDRON_COMPANION_DRAW_SIZE = 16.5;
+type BossCompanionPolyhedron = "dodecahedron" | "icosahedron";
 
 interface EnemyShapeOptions {
   squareSize?: number;
@@ -652,7 +654,8 @@ export function createDodecahedronIcon(scene: Phaser.Scene) {
 export function syncDodecahedronCompanionShape(
   shape: Phaser.GameObjects.GameObject,
   rotation: { rotationX: number; rotationY: number; rotationZ: number },
-  invincible = false
+  invincible = false,
+  polyhedron: BossCompanionPolyhedron = "dodecahedron"
 ) {
   const frame = shape.getData("dodecahedronFrame") as Phaser.GameObjects.Graphics | undefined;
   if (!frame) {
@@ -661,7 +664,11 @@ export function syncDodecahedronCompanionShape(
 
   const label = shape.getData("dodecahedronLabel") as Phaser.GameObjects.Text | undefined;
   const color = invincible ? palette.gold : palette.white;
-  drawDodecahedronCompanionFrame(frame, rotation.rotationX, rotation.rotationY, rotation.rotationZ, color);
+  if (polyhedron === "icosahedron") {
+    drawIcosahedronCompanionFrame(frame, rotation.rotationX, rotation.rotationY, rotation.rotationZ, color);
+  } else {
+    drawDodecahedronCompanionFrame(frame, rotation.rotationX, rotation.rotationY, rotation.rotationZ, color);
+  }
   label?.setColor(invincible ? "#ffd75a" : "#f5f5f5");
 }
 
@@ -686,6 +693,31 @@ function drawDodecahedronCompanionFrame(
   frame.clear();
   frame.lineStyle(1.7, color, 0.95);
   for (const [from, to] of DODECAHEDRON_EDGES) {
+    frame.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
+  }
+}
+
+function drawIcosahedronCompanionFrame(
+  frame: Phaser.GameObjects.Graphics,
+  rotationX: number,
+  rotationY: number,
+  rotationZ: number,
+  color = palette.white
+) {
+  const vertices = ICOSAHEDRON_UNIT_VERTICES.map(([x, y, z]) =>
+    projectIconPoint(
+      x * ICOSAHEDRON_COMPANION_DRAW_SIZE,
+      y * ICOSAHEDRON_COMPANION_DRAW_SIZE,
+      z * ICOSAHEDRON_COMPANION_DRAW_SIZE,
+      rotationX,
+      rotationY,
+      rotationZ
+    )
+  );
+
+  frame.clear();
+  frame.lineStyle(1.7, color, 0.95);
+  for (const [from, to] of ICOSAHEDRON_EDGES) {
     frame.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
   }
 }

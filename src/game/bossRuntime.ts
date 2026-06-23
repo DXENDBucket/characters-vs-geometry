@@ -468,7 +468,12 @@ function updateIcosahedronCompanions(runtime: BossRuntime, boss: CubeBoss, secon
     companion.bossOrbitAngle =
       (companion.bossOrbitAngle ?? Math.PI) + DODECAHEDRON_COMPANION_ORBIT_SPEED * seconds;
     syncIcosahedronCompanionPosition(companion, boss, runtime.battleTime);
-    syncDodecahedronCompanionShape(companion.shape, boss, hasStatusEffect(companion, "invincible", runtime.battleTime));
+    syncDodecahedronCompanionShape(
+      companion.shape,
+      boss,
+      hasStatusEffect(companion, "invincible", runtime.battleTime),
+      "icosahedron"
+    );
     updateDodecahedronCompanionAction(runtime, companion);
   }
 
@@ -544,7 +549,7 @@ function initializeIcosahedronCompanions(runtime: BossRuntime, boss: CubeBoss) {
     companion.bossCompanionNextActionAt = runtime.battleTime + DODECAHEDRON_COMPANION_ATTACK_DELAYS.laser;
     companion.body.setDepth(87);
     syncIcosahedronCompanionPosition(companion, boss, runtime.battleTime);
-    syncDodecahedronCompanionShape(companion.shape, boss);
+    syncDodecahedronCompanionShape(companion.shape, boss, false, "icosahedron");
   }
 }
 
