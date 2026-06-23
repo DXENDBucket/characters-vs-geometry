@@ -1090,7 +1090,16 @@ export class GameScene extends Phaser.Scene {
   }
 
   private applyBossPhaseSkillState(boss: CubeBoss) {
-    if (boss.kind !== "icosahedron" || this.bossPhaseIndex !== 1) {
+    if (boss.kind !== "icosahedron") {
+      return;
+    }
+
+    if (this.bossPhaseIndex === 2) {
+      this.setBossSkillSp(boss.skills.endlessWings, 0);
+      return;
+    }
+
+    if (this.bossPhaseIndex !== 1) {
       return;
     }
 
@@ -1609,6 +1618,8 @@ export class GameScene extends Phaser.Scene {
     boss.pendingCriticalSummon = false;
     boss.invincibleUntil = 0;
     boss.bossHasteUntil = 0;
+    boss.companionsInitialized = false;
+    boss.companionDeathsHandled = 0;
   }
 
   private applyWaveStartMechanics() {

@@ -141,7 +141,7 @@ function enemyMovementFinalStatsContext(context: EnemyMovementStatsContext, base
 
 export function bossFinalStats(boss: CubeBoss, enemies: Enemy[], rootBoss: CubeBoss = boss) {
   const bodyCountReduction = octahedronBodyDamageReduction(rootBoss);
-  const companionReduction = dodecahedronCompanionDamageReduction(rootBoss, enemies);
+  const companionReduction = bossCompanionDamageReduction(rootBoss, enemies);
   const finalStats = boss.finalStats;
   finalStats.maxHp = boss.baseStats.maxHp;
   finalStats.armor = boss.baseStats.armor + hexBossArmorBonus(enemies, boss);
@@ -154,13 +154,17 @@ export function bossFinalStats(boss: CubeBoss, enemies: Enemy[], rootBoss: CubeB
   return finalStats;
 }
 
-function dodecahedronCompanionDamageReduction(rootBoss: CubeBoss, enemies: Enemy[]) {
-  if (rootBoss.kind !== "dodecahedron" && rootBoss.kind !== "dodecahedron2") {
+function bossCompanionDamageReduction(rootBoss: CubeBoss, enemies: Enemy[]) {
+  if (
+    rootBoss.kind !== "dodecahedron" &&
+    rootBoss.kind !== "dodecahedron2" &&
+    rootBoss.kind !== "icosahedron"
+  ) {
     return 0;
   }
 
   for (const enemy of enemies) {
-    if (enemyIsDodecahedronCompanion(enemy)) {
+    if (enemy.inPlay && enemyIsDodecahedronCompanion(enemy)) {
       return DODECAHEDRON_COMPANION_DAMAGE_REDUCTION;
     }
   }

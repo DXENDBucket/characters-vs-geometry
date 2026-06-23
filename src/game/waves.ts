@@ -19,7 +19,8 @@ export function buildWaveKinds(
   weightLimit: number,
   waveNumber: number,
   wavesPerFlag: number,
-  randomIndex: (length: number) => number
+  randomIndex: (length: number) => number,
+  ignoreMinFlag = false
 ) {
   const kinds: EnemyKind[] = [];
   let remainingWeight = weightLimit;
@@ -28,7 +29,7 @@ export function buildWaveKinds(
   let minWeight = Number.POSITIVE_INFINITY;
   for (const kind of enemyKinds) {
     const enemy = enemies[kind];
-    if (enemy.weight <= 0 || currentFlag < (enemy.minFlag ?? 0)) {
+    if (enemy.weight <= 0 || (!ignoreMinFlag && currentFlag < (enemy.minFlag ?? 0))) {
       continue;
     }
 

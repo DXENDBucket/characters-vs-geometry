@@ -123,7 +123,8 @@ export function spawnWaveEnemies(runtime: EnemySpawnRuntime, options: SpawnWaveO
     weightLimit,
     options.waveNumber,
     options.levelConfig.wavesPerFlag,
-    (length) => Phaser.Math.Between(0, length - 1)
+    (length) => Phaser.Math.Between(0, length - 1),
+    options.levelConfig.ignoreEnemyMinFlag
   );
   let totalWeight = 0;
 

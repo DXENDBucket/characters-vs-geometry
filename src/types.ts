@@ -477,6 +477,7 @@ export interface LevelConfig {
   bossKind?: BossKind;
   bossPhases?: BossPhaseConfig[];
   endless?: boolean;
+  ignoreEnemyMinFlag?: boolean;
   specialMechanic?: "rightColumnSeal";
 }
 

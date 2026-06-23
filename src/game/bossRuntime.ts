@@ -88,6 +88,12 @@ const DODECAHEDRON_COMPANION_MOTION_CYCLE = DODECAHEDRON_COMPANION_MOTION_HOLD *
 const DODECAHEDRON_COMPANION_FORMATION_LANE_OFFSETS = [0, -2, 2] as const;
 const DODECAHEDRON_COMPANION_DEATH_INVINCIBLE_DURATION = 10_000;
 const DODECAHEDRON_COMPANION_DEATH_LASER_SHOTS = 7;
+const ICOSAHEDRON_COMPANION_COUNT = 7;
+const ICOSAHEDRON_COMPANION_ORBIT_RADIUS = CELL_WIDTH * 3.05;
+const ICOSAHEDRON_COMPANION_DEATH_LASER_SHOTS = 15;
+const ICOSAHEDRON_COMPANION_DEATH_LASER_DURATION = 10_000;
+const ICOSAHEDRON_COMPANION_DEATH_LASER_LANE_RADIUS = 2;
+const ICOSAHEDRON_COMPANION_DEATH_MORTAR_TARGETS = 6;
 const ALL_BOARD_LANES: readonly number[] = (() => {
   const lanes: number[] = [];
   for (let lane = 0; lane < LANES; lane += 1) {
@@ -239,6 +245,7 @@ export function updateBossRuntime(runtime: BossRuntime, seconds: number) {
   triggerOctahedronSplits(runtime, boss);
   syncOctahedronSharedHp(boss);
   updateDodecahedronCompanions(runtime, boss, seconds);
+  updateIcosahedronCompanions(runtime, boss, seconds);
   updateBossHasteVisual(runtime, boss);
   triggerTetrahedronHalfHpBurst(runtime, boss);
   triggerTetrahedronCriticalSummon(runtime, boss);
@@ -446,10 +453,33 @@ function updateDodecahedronCompanions(runtime: BossRuntime, boss: CubeBoss, seco
   updateDodecahedronEndlessWings(runtime, boss, seconds, companions);
 }
 
+function updateIcosahedronCompanions(runtime: BossRuntime, boss: CubeBoss, seconds: number) {
+  if (!isIcosahedronBoss(boss) || runtime.bossPhaseIndex !== 2) {
+    return;
+  }
+
+  initializeIcosahedronCompanions(runtime, boss);
+  const companions = collectDodecahedronCompanions(runtime.enemies);
+  for (const companion of companions) {
+    if (hasStatusEffect(companion, "frozen", runtime.battleTime)) {
+      continue;
+    }
+
+    companion.bossOrbitAngle =
+      (companion.bossOrbitAngle ?? Math.PI) + DODECAHEDRON_COMPANION_ORBIT_SPEED * seconds;
+    syncIcosahedronCompanionPosition(companion, boss, runtime.battleTime);
+    syncDodecahedronCompanionShape(companion.shape, boss, hasStatusEffect(companion, "invincible", runtime.battleTime));
+    updateDodecahedronCompanionAction(runtime, companion);
+  }
+
+  handleIcosahedronCompanionDeaths(runtime, boss, companions);
+  updateDodecahedronEndlessWings(runtime, boss, seconds, companions);
+}
+
 function collectDodecahedronCompanions(enemies: Enemy[]) {
   dodecahedronCompanionBuffer.length = 0;
   for (const enemy of enemies) {
-    if (enemyIsDodecahedronCompanion(enemy)) {
+    if (enemy.inPlay && enemyIsDodecahedronCompanion(enemy)) {
       dodecahedronCompanionBuffer.push(enemy);
     }
   }
@@ -487,6 +517,37 @@ function initializeDodecahedronCompanions(runtime: BossRuntime, boss: CubeBoss) 
   }
 }
 
+function initializeIcosahedronCompanions(runtime: BossRuntime, boss: CubeBoss) {
+  if (boss.companionsInitialized) {
+    return;
+  }
+
+  boss.companionsInitialized = true;
+  boss.companionDeathsHandled = 0;
+  const waveNumber = runtime.wave || 0;
+  for (let index = 0; index < ICOSAHEDRON_COMPANION_COUNT; index += 1) {
+    const angle = Math.PI + (Math.PI * 2 * index) / ICOSAHEDRON_COMPANION_COUNT;
+    spawnEnemyAt(runtime, {
+      kind: DODECAHEDRON_COMPANION_KIND,
+      waveNumber,
+      time: runtime.battleTime,
+      lane: index,
+      x: boss.x,
+      waveWeight: 0,
+      finalDamageReduction: runtime.finalDamageReduction
+    });
+    const companion = runtime.enemies[runtime.enemies.length - 1];
+    companion.bossOrbitAngle = angle;
+    companion.bossOrbitRadius = ICOSAHEDRON_COMPANION_ORBIT_RADIUS;
+    companion.bossCompanionIndex = index;
+    companion.bossCompanionActionPhase = "laser";
+    companion.bossCompanionNextActionAt = runtime.battleTime + DODECAHEDRON_COMPANION_ATTACK_DELAYS.laser;
+    companion.body.setDepth(87);
+    syncIcosahedronCompanionPosition(companion, boss, runtime.battleTime);
+    syncDodecahedronCompanionShape(companion.shape, boss);
+  }
+}
+
 function dodecahedronCompanionKindForBoss(boss: CubeBoss): Enemy["kind"] {
   return boss.rank >= 2 ? DODECAHEDRON_COMPANION2_KIND : DODECAHEDRON_COMPANION_KIND;
 }
@@ -503,9 +564,31 @@ function syncDodecahedronCompanionPosition(companion: Enemy, boss: CubeBoss, bat
   companion.body.setPosition(companion.x, companion.y);
 }
 
+function syncIcosahedronCompanionPosition(companion: Enemy, boss: CubeBoss, battleTime: number) {
+  const position = icosahedronCompanionPosition(companion, boss, battleTime);
+  companion.x = position.x;
+  companion.y = position.y;
+  companion.lane = Phaser.Math.Clamp(Math.round((companion.y - BOARD_Y - CELL_HEIGHT / 2) / CELL_HEIGHT), 0, LANES - 1);
+  companion.body.setPosition(companion.x, companion.y);
+}
+
 function dodecahedronCompanionPosition(companion: Enemy, boss: CubeBoss, battleTime: number) {
   const orbit = dodecahedronCompanionOrbitPosition(companion, boss);
   const formation = dodecahedronCompanionFormationPosition(companion, boss);
+  return companionCyclePosition(orbit, formation, battleTime);
+}
+
+function icosahedronCompanionPosition(companion: Enemy, boss: CubeBoss, battleTime: number) {
+  const orbit = dodecahedronCompanionOrbitPosition(companion, boss);
+  const formation = icosahedronCompanionFormationPosition(companion, boss);
+  return companionCyclePosition(orbit, formation, battleTime);
+}
+
+function companionCyclePosition(
+  orbit: { x: number; y: number },
+  formation: { x: number; y: number },
+  battleTime: number
+) {
   const cycle = battleTime % DODECAHEDRON_COMPANION_MOTION_CYCLE;
 
   if (cycle < DODECAHEDRON_COMPANION_MOTION_HOLD) {
@@ -540,6 +623,14 @@ function dodecahedronCompanionFormationPosition(companion: Enemy, boss: CubeBoss
   const bossLane = Phaser.Math.Clamp(Math.round((boss.y - BOARD_Y - CELL_HEIGHT / 2) / CELL_HEIGHT), 0, LANES - 1);
   const offset = DODECAHEDRON_COMPANION_FORMATION_LANE_OFFSETS[index] ?? 0;
   const lane = Phaser.Math.Clamp(bossLane + offset, 0, LANES - 1);
+  return {
+    x: bossBounds(boss).left - CELL_WIDTH / 2,
+    y: BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2
+  };
+}
+
+function icosahedronCompanionFormationPosition(companion: Enemy, boss: CubeBoss) {
+  const lane = Phaser.Math.Clamp(companion.bossCompanionIndex ?? 0, 0, LANES - 1);
   return {
     x: bossBounds(boss).left - CELL_WIDTH / 2,
     y: BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2
@@ -685,6 +776,39 @@ function triggerDodecahedronCompanionDeath(
   deathNumber: number,
   livingCompanions: Enemy[]
 ) {
+  grantCompanionDeathInvincibility(runtime, livingCompanions);
+
+  if (deathNumber === 1) {
+    fireDodecahedronDeathLaserVolley(runtime, boss);
+  } else if (deathNumber === 2) {
+    fireDodecahedronDeathMortars(runtime, boss);
+  }
+}
+
+function handleIcosahedronCompanionDeaths(runtime: BossRuntime, boss: CubeBoss, livingCompanions: Enemy[]) {
+  const deadCount = ICOSAHEDRON_COMPANION_COUNT - livingCompanions.length;
+  while (boss.companionDeathsHandled < deadCount) {
+    boss.companionDeathsHandled += 1;
+    triggerIcosahedronCompanionDeath(runtime, boss, boss.companionDeathsHandled, livingCompanions);
+  }
+}
+
+function triggerIcosahedronCompanionDeath(
+  runtime: BossRuntime,
+  boss: CubeBoss,
+  deathNumber: number,
+  livingCompanions: Enemy[]
+) {
+  grantCompanionDeathInvincibility(runtime, livingCompanions);
+
+  if (deathNumber % 2 === 1) {
+    fireIcosahedronDeathLaserVolley(runtime, boss);
+  } else {
+    fireIcosahedronDeathMortars(runtime, boss);
+  }
+}
+
+function grantCompanionDeathInvincibility(runtime: BossRuntime, livingCompanions: Enemy[]) {
   for (const companion of livingCompanions) {
     applyStatusEffect(
       companion,
@@ -694,20 +818,34 @@ function triggerDodecahedronCompanionDeath(
     );
     makeEnemyInvincibleFlash(runtime.scene, companion.x, companion.y);
   }
-
-  if (deathNumber === 1) {
-    fireDodecahedronDeathLaserVolley(runtime, boss);
-  } else if (deathNumber === 2) {
-    fireDodecahedronDeathMortars(runtime, boss);
-  }
 }
 
 function fireDodecahedronDeathLaserVolley(runtime: BossRuntime, boss: CubeBoss) {
   const shots = dodecahedronDeathLaserShots(boss);
-  const interval = volleyInterval(DODECAHEDRON_COMPANION_LASER_INTERVAL, shots);
+  fireBossDeathLaserVolley(runtime, boss, shots, DODECAHEDRON_COMPANION_LASER_INTERVAL, 1);
+}
+
+function fireIcosahedronDeathLaserVolley(runtime: BossRuntime, boss: CubeBoss) {
+  fireBossDeathLaserVolley(
+    runtime,
+    boss,
+    ICOSAHEDRON_COMPANION_DEATH_LASER_SHOTS,
+    ICOSAHEDRON_COMPANION_DEATH_LASER_DURATION,
+    ICOSAHEDRON_COMPANION_DEATH_LASER_LANE_RADIUS
+  );
+}
+
+function fireBossDeathLaserVolley(
+  runtime: BossRuntime,
+  boss: CubeBoss,
+  shots: number,
+  duration: number,
+  laneRadius: number
+) {
+  const interval = volleyInterval(duration, shots);
   for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
     runtime.scene.time.delayedCall(shotIndex * interval, () => {
-      runtime.runWhenBattleActive(() => fireDodecahedronDeathLasers(runtime, boss));
+      runtime.runWhenBattleActive(() => fireBossDeathLasers(runtime, boss, laneRadius));
     });
   }
 }
@@ -716,15 +854,15 @@ function dodecahedronDeathLaserShots(boss: CubeBoss) {
   return boss.rank >= 2 ? 14 : DODECAHEDRON_COMPANION_DEATH_LASER_SHOTS;
 }
 
-function fireDodecahedronDeathLasers(runtime: BossRuntime, boss: CubeBoss) {
+function fireBossDeathLasers(runtime: BossRuntime, boss: CubeBoss, laneRadius: number) {
   if (runtime.getBoss() !== boss) {
     return;
   }
 
   const centerLane = bossLane(boss);
   const fromX = bossBounds(boss).left;
-  const startLane = Math.max(0, centerLane - 1);
-  const endLane = Math.min(LANES - 1, centerLane + 1);
+  const startLane = Math.max(0, centerLane - laneRadius);
+  const endLane = Math.min(LANES - 1, centerLane + laneRadius);
   for (let lane = startLane; lane <= endLane; lane += 1) {
     fireDodecahedronLaserInLane(runtime, fromX, lane);
   }
@@ -797,6 +935,17 @@ function fireDodecahedronDeathMortars(runtime: BossRuntime, boss: CubeBoss) {
 
 function dodecahedronDeathMortarTargetCount(boss: CubeBoss) {
   return boss.rank >= 2 ? 6 : DODECAHEDRON_COMPANION_DEATH_MORTAR_TARGETS;
+}
+
+function fireIcosahedronDeathMortars(runtime: BossRuntime, boss: CubeBoss) {
+  const targetCount = ICOSAHEDRON_COMPANION_DEATH_MORTAR_TARGETS;
+  const targets = findDodecahedronPentagonTargets(runtime, targetCount);
+  const interval = volleyInterval(DODECAHEDRON_COMPANION_MORTAR_INTERVAL, targetCount);
+  targets.forEach((target, index) => {
+    runtime.scene.time.delayedCall(index * interval, () => {
+      runtime.runWhenBattleActive(() => fireDodecahedronBossMortar(runtime, boss, target));
+    });
+  });
 }
 
 function fireDodecahedronBossMortar(runtime: BossRuntime, boss: CubeBoss, target: Tower) {
@@ -1222,7 +1371,7 @@ function summonIcosahedronHearts(runtime: BossRuntime, _boss: CubeBoss, lanes: r
 
 function summonIcosahedronSlopeTriangles(runtime: BossRuntime) {
   const waveNumber = runtime.wave || 0;
-  const x = BOARD_X + CELL_WIDTH / 2;
+  const x = BOARD_X + BOARD_WIDTH - CELL_WIDTH / 2;
   for (let lane = 0; lane < LANES; lane += 1) {
     const y = BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2;
     spawnEnemyAt(runtime, {

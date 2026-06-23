@@ -801,6 +801,7 @@ export const levelConfigs: Record<string, LevelConfig> = {
     waveWeightCap: 9000,
     startingChars: 50_000,
     bossKind: "icosahedron",
+    ignoreEnemyMinFlag: true,
     bossPhases: [
       {
         maxHp: 300_000,

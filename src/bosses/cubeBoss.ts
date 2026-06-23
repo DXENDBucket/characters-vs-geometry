@@ -307,7 +307,7 @@ export function createCubeBoss(
             )
           }
         : {}),
-      ...(isDodecahedronBossKind(kind)
+      ...(isDodecahedronBossKind(kind) || isIcosahedronBossKind(kind)
         ? {
             endlessWings: createBossSkill(
               "endlessWings",
