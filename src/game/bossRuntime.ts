@@ -439,9 +439,9 @@ function triggerIcosahedronFinalFatalSummon(runtime: BossRuntime, boss: CubeBoss
   const invincibleUntil = boss.invincibleUntil;
   spawnIcosahedronFinalCopy(runtime, boss, {
     x: BOARD_X + 1.5 * CELL_WIDTH,
-    y: BOARD_Y + BOARD_HEIGHT + boss.hitboxHeight / 2,
+    y: BOARD_Y + 2.5 * CELL_HEIGHT,
     movementAxis: "y",
-    movementDirection: -1,
+    movementDirection: 1,
     invincibleUntil
   });
   forEachBossPart(boss, (part) => {
