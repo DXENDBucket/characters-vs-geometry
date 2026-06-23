@@ -390,6 +390,7 @@ export interface Projectile {
   maxX: number;
   limitDirection: -1 | 1;
   targetEnemy?: Enemy;
+  targetBossPart?: CubeBoss;
   sourceTower?: Tower;
   speed?: number;
   acceleration?: number;

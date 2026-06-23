@@ -4,6 +4,7 @@ import { enemyFamily } from "../registry/enemies";
 import { damageEffectColor, damageEffectTextColor } from "../render/combatEffects";
 import type {
   DamageType,
+  CubeBoss,
   Enemy,
   EnemyProjectile,
   MortarProjectile,
@@ -41,6 +42,7 @@ export interface HomingTowerProjectileSpec {
   damage: number;
   damageType: DamageType;
   targetEnemy?: Enemy;
+  targetBossPart?: CubeBoss;
   sourceTower?: Tower;
 }
 
@@ -85,7 +87,8 @@ export function createTowerProjectile(scene: Phaser.Scene, spec: TowerProjectile
 }
 
 export function createHomingTowerProjectile(scene: Phaser.Scene, spec: HomingTowerProjectileSpec): Projectile {
-  const angle = spec.targetEnemy ? Math.atan2(spec.targetEnemy.y - spec.y, spec.targetEnemy.x - spec.x) : 0;
+  const target = spec.targetEnemy ?? spec.targetBossPart;
+  const angle = target ? Math.atan2(target.y - spec.y, target.x - spec.x) : 0;
   const projectile = createTowerProjectile(scene, {
     type: "chevron",
     x: spec.x,
@@ -101,6 +104,7 @@ export function createHomingTowerProjectile(scene: Phaser.Scene, spec: HomingTow
     sourceTower: spec.sourceTower
   });
   projectile.targetEnemy = spec.targetEnemy;
+  projectile.targetBossPart = spec.targetBossPart;
   projectile.speed = spec.speed;
   projectile.acceleration = spec.acceleration;
   projectile.maxSpeed = spec.maxSpeed;

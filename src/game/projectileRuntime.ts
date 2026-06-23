@@ -30,7 +30,12 @@ import {
   bossPartDistanceSqToPoint,
   bossPartInRadius,
   bossPartInRect,
+  bossParts,
+  clampXToBossPart,
+  clampYToBossPart,
+  findBossPart,
   gridCellKey,
+  pointInBossBounds,
   pointInTowerBounds
 } from "./targeting";
 import { towerDamageType, towerFacingDirection } from "./towers";
@@ -89,14 +94,13 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
     projectile.y += projectile.vy * seconds * speedMultiplier;
     projectile.body.setPosition(projectile.x, projectile.y);
 
-    const hit =
-      projectile.type === "chevron"
-        ? getHomingProjectileHit(projectile)
-        : findDirectProjectileHit(getDirectTargets(), projectile);
+    const homingHit = projectile.type === "chevron" ? getHomingProjectileHit(runtime, projectile) : undefined;
+    const hit = homingHit?.enemy ?? (projectile.type === "chevron" ? undefined : findDirectProjectileHit(getDirectTargets(), projectile));
     const hitBoss =
-      !hit && projectile.type !== "chevron"
+      homingHit?.bossPart ??
+      (!hit && projectile.type !== "chevron"
         ? bossPartAtPoint(runtime.getBoss(), projectile.x, projectile.y)
-        : undefined;
+        : undefined);
 
     if (!hit && !hitBoss) {
       if (isTowerProjectileOutOfBounds(projectile, reachedLimitX)) {
@@ -263,7 +267,8 @@ function updateHomingProjectile(runtime: ProjectileRuntime, projectile: Projecti
   projectile.speed = nextSpeed;
 
   if (target) {
-    const angle = Math.atan2(target.y - projectile.y, target.x - projectile.x);
+    const targetPoint = homingTargetPoint(projectile, target);
+    const angle = Math.atan2(targetPoint.y - projectile.y, targetPoint.x - projectile.x);
     projectile.vx = Math.cos(angle) * nextSpeed;
     projectile.vy = Math.sin(angle) * nextSpeed;
     projectile.body.rotation = angle;
@@ -287,18 +292,29 @@ function resolveHomingTarget(runtime: ProjectileRuntime, projectile: Projectile)
     return currentTarget;
   }
 
-  const nextTarget = closestDirectlyHittableEnemyTo(runtime.enemies, projectile.x, projectile.y);
-  projectile.targetEnemy = nextTarget;
+  const currentBossPart = projectile.targetBossPart;
+  if (currentBossPart && bossPartIsCurrent(runtime.getBoss(), currentBossPart)) {
+    return currentBossPart;
+  }
+
+  const nextTarget = closestDirectlyHittableTargetTo(runtime.enemies, runtime.getBoss(), projectile.x, projectile.y);
+  projectile.targetEnemy = homingTargetIsEnemy(nextTarget) ? nextTarget : undefined;
+  projectile.targetBossPart = nextTarget && !homingTargetIsEnemy(nextTarget) ? nextTarget : undefined;
   return nextTarget;
 }
 
-function getHomingProjectileHit(projectile: Projectile) {
+function getHomingProjectileHit(runtime: ProjectileRuntime, projectile: Projectile) {
   const target = projectile.targetEnemy;
-  if (!target || !canEnemyBeDirectlyHit(target)) {
-    return undefined;
+  if (target && canEnemyBeDirectlyHit(target) && projectileHitsEnemy(projectile.x, projectile.y, target)) {
+    return { enemy: target };
   }
 
-  return projectileHitsEnemy(projectile.x, projectile.y, target) ? target : undefined;
+  const bossPart = projectile.targetBossPart;
+  if (bossPart && bossPartIsCurrent(runtime.getBoss(), bossPart) && pointInBossBounds(bossPart, projectile.x, projectile.y)) {
+    return { bossPart };
+  }
+
+  return undefined;
 }
 
 function buildDirectProjectileTargets(enemies: Enemy[]): DirectProjectileTargets {
@@ -340,8 +356,10 @@ function enemyCanOverlapEveryDirectProjectileLane(enemy: Enemy) {
   return enemyIsSolarBomb(enemy) || enemyIsBossCompanion(enemy.kind);
 }
 
-function closestDirectlyHittableEnemyTo(enemies: Enemy[], x: number, y: number) {
-  let closest: Enemy | undefined;
+type HomingTarget = Enemy | CubeBoss;
+
+function closestDirectlyHittableTargetTo(enemies: Enemy[], boss: CubeBoss | null, x: number, y: number) {
+  let closest: HomingTarget | undefined;
   let closestDistance = Number.POSITIVE_INFINITY;
   for (const enemy of enemies) {
     if (!canEnemyBeDirectlyHit(enemy)) {
@@ -354,7 +372,35 @@ function closestDirectlyHittableEnemyTo(enemies: Enemy[], x: number, y: number) 
       closestDistance = distance;
     }
   }
+
+  for (const part of bossParts(boss)) {
+    const distance = bossPartDistanceSqToPoint(part, x, y);
+    if (distance < closestDistance) {
+      closest = part;
+      closestDistance = distance;
+    }
+  }
+
   return closest;
+}
+
+function bossPartIsCurrent(boss: CubeBoss | null, part: CubeBoss) {
+  return Boolean(findBossPart(boss, (candidate) => candidate === part));
+}
+
+function homingTargetIsEnemy(target: HomingTarget | undefined): target is Enemy {
+  return Boolean(target && "inPlay" in target);
+}
+
+function homingTargetPoint(projectile: Projectile, target: HomingTarget) {
+  if (homingTargetIsEnemy(target)) {
+    return target;
+  }
+
+  return {
+    x: clampXToBossPart(target, projectile.x),
+    y: clampYToBossPart(target, projectile.y)
+  };
 }
 
 function projectileHitsEnemy(x: number, y: number, enemy: Enemy) {

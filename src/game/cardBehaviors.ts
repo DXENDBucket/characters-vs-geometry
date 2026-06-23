@@ -32,6 +32,8 @@ import {
 import {
   attackRangeLimitX,
   bossPartIntersectsRect,
+  bossPartDistanceSqToPoint,
+  bossParts,
   clampXToBossPart,
   clampYToBossPart,
   canAttackBoss,
@@ -84,7 +86,10 @@ export const projectileCardBehavior: CardBehavior = {
 
 export const homingCardBehavior: CardBehavior = {
   canUse: (tower, definition, time, runtime, cooldownAlreadyReady) => {
-    return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(definition.damage && selectSmallXTarget(runtime.enemies, tower.x, tower.y));
+    return (
+      cooldownReady(tower, time, cooldownAlreadyReady) &&
+      Boolean(definition.damage && selectSmallXTarget(runtime.enemies, runtime.boss, tower.x, tower.y))
+    );
   },
   execute: fireHomingVolley
 };
@@ -254,7 +259,7 @@ function cooldownReady(tower: Tower, time: number, cooldownAlreadyReady = false)
 }
 
 function fireHomingVolley(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {
-  const target = selectSmallXTarget(runtime.enemies, tower.x, tower.y);
+  const target = selectSmallXTarget(runtime.enemies, runtime.boss, tower.x, tower.y);
   if (!target) {
     return;
   }
@@ -272,15 +277,18 @@ function fireHomingVolley(tower: Tower, definition: CardDefinition, runtime: Car
         maxSpeed: HOMING_PROJECTILE_MAX_SPEED,
         damage,
         damageType,
-        targetEnemy: target,
+        targetEnemy: smallXTargetIsEnemy(target) ? target : undefined,
+        targetBossPart: smallXTargetIsEnemy(target) ? undefined : target,
         sourceTower: tower
       })
     );
   }
 }
 
-function selectSmallXTarget(enemies: Enemy[], x: number, y: number) {
-  let closest: Enemy | undefined;
+type SmallXTarget = Enemy | CubeBoss;
+
+function selectSmallXTarget(enemies: Enemy[], boss: CubeBoss | null, x: number, y: number): SmallXTarget | undefined {
+  let closest: SmallXTarget | undefined;
   let closestDistance = Number.POSITIVE_INFINITY;
   let closestFlying: Enemy | undefined;
   let closestFlyingDistance = Number.POSITIVE_INFINITY;
@@ -299,7 +307,20 @@ function selectSmallXTarget(enemies: Enemy[], x: number, y: number) {
       closestFlyingDistance = distance;
     }
   }
+
+  for (const part of bossParts(boss)) {
+    const distance = bossPartDistanceSqToPoint(part, x, y);
+    if (distance < closestDistance) {
+      closest = part;
+      closestDistance = distance;
+    }
+  }
+
   return closestFlying ?? closest;
+}
+
+function smallXTargetIsEnemy(target: SmallXTarget): target is Enemy {
+  return "inPlay" in target;
 }
 
 function canHomingProjectileTarget(enemy: Enemy) {
