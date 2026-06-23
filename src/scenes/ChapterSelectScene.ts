@@ -11,8 +11,22 @@ interface ChapterCard {
   meta: Phaser.GameObjects.Text;
 }
 
+const CHAPTER_CARD_WIDTH = 196;
+const CHAPTER_CARD_HEIGHT = 86;
+
 export class ChapterSelectScene extends Phaser.Scene {
   private chapterCards: ChapterCard[] = [];
+  private mapContainer!: Phaser.GameObjects.Container;
+  private mapBounds!: Phaser.Geom.Rectangle;
+  private readonly mapViewport = new Phaser.Geom.Rectangle(38, 130, GAME_WIDTH - 76, GAME_HEIGHT - 184);
+  private mapDragPointer: Phaser.Input.Pointer | null = null;
+  private mapDragTimer: Phaser.Time.TimerEvent | null = null;
+  private mapDragging = false;
+  private mapPointerStartX = 0;
+  private mapPointerStartY = 0;
+  private mapStartX = 0;
+  private mapStartY = 0;
+  private suppressChapterClickUntil = 0;
   private encyclopediaButton!: Phaser.GameObjects.Rectangle;
   private encyclopediaText!: Phaser.GameObjects.Text;
   private encyclopediaPanel!: EncyclopediaPanel;
@@ -27,8 +41,10 @@ export class ChapterSelectScene extends Phaser.Scene {
     this.chapterCards = [];
     this.cameras.main.setBackgroundColor(palette.black);
     this.drawBackdrop();
+    this.createMapContainer();
     this.drawChapterPath();
     this.createChapterCards();
+    this.createMapDragControls();
     this.encyclopediaPanel = new EncyclopediaPanel(this);
     this.createEncyclopediaButton();
     this.createSettingsButton();
@@ -54,11 +70,105 @@ export class ChapterSelectScene extends Phaser.Scene {
 
     const frame = this.add.graphics();
     frame.lineStyle(1, palette.dim, 1);
-    frame.strokeRect(38, 130, GAME_WIDTH - 76, GAME_HEIGHT - 184);
+    frame.strokeRect(this.mapViewport.x, this.mapViewport.y, this.mapViewport.width, this.mapViewport.height);
+  }
+
+  private createMapContainer() {
+    this.mapBounds = this.calculateMapBounds();
+    this.mapContainer = this.add.container(0, 0);
+    this.mapContainer.setDepth(5);
+
+    const maskGraphics = this.add.graphics().setVisible(false);
+    maskGraphics.fillStyle(0xffffff, 1);
+    maskGraphics.fillRect(this.mapViewport.x, this.mapViewport.y, this.mapViewport.width, this.mapViewport.height);
+    this.mapContainer.setMask(maskGraphics.createGeometryMask());
+  }
+
+  private calculateMapBounds() {
+    const padding = 96;
+    const left = Math.min(...chapterDefinitions.map((chapter) => chapter.x - CHAPTER_CARD_WIDTH / 2)) - padding;
+    const right = Math.max(...chapterDefinitions.map((chapter) => chapter.x + CHAPTER_CARD_WIDTH / 2)) + padding;
+    const top = Math.min(...chapterDefinitions.map((chapter) => chapter.y - CHAPTER_CARD_HEIGHT / 2)) - padding;
+    const bottom = Math.max(...chapterDefinitions.map((chapter) => chapter.y + CHAPTER_CARD_HEIGHT / 2)) + padding;
+    return new Phaser.Geom.Rectangle(left, top, right - left, bottom - top);
+  }
+
+  private createMapDragControls() {
+    this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      if (this.encyclopediaPanel.isOpen() || !this.mapViewport.contains(pointer.x, pointer.y)) {
+        return;
+      }
+
+      this.mapDragPointer = pointer;
+      this.mapPointerStartX = pointer.x;
+      this.mapPointerStartY = pointer.y;
+      this.mapStartX = this.mapContainer.x;
+      this.mapStartY = this.mapContainer.y;
+      this.mapDragging = false;
+      this.mapDragTimer?.remove(false);
+      this.mapDragTimer = this.time.delayedCall(150, () => {
+        if (this.mapDragPointer !== pointer || !pointer.isDown) {
+          return;
+        }
+
+        this.mapDragging = true;
+        this.input.setDefaultCursor("grabbing");
+        this.updateMapDrag(pointer);
+      });
+    });
+
+    this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
+      if (this.mapDragPointer !== pointer || !this.mapDragging) {
+        return;
+      }
+
+      this.updateMapDrag(pointer);
+    });
+
+    this.input.on("pointerup", (pointer: Phaser.Input.Pointer) => this.stopMapDrag(pointer));
+    this.input.on("pointerupoutside", (pointer: Phaser.Input.Pointer) => this.stopMapDrag(pointer));
+  }
+
+  private updateMapDrag(pointer: Phaser.Input.Pointer) {
+    this.setMapOffset(
+      this.mapStartX + pointer.x - this.mapPointerStartX,
+      this.mapStartY + pointer.y - this.mapPointerStartY
+    );
+  }
+
+  private stopMapDrag(pointer: Phaser.Input.Pointer) {
+    if (this.mapDragPointer !== pointer) {
+      return;
+    }
+
+    this.mapDragTimer?.remove(false);
+    this.mapDragTimer = null;
+    if (this.mapDragging) {
+      this.suppressChapterClickUntil = this.time.now + 120;
+    }
+
+    this.mapDragPointer = null;
+    this.mapDragging = false;
+    this.input.setDefaultCursor("default");
+  }
+
+  private setMapOffset(x: number, y: number) {
+    const bounds = this.mapBounds;
+    const viewport = this.mapViewport;
+    const minX = Math.min(0, viewport.right - bounds.right);
+    const maxX = Math.max(0, viewport.left - bounds.left);
+    const minY = Math.min(0, viewport.bottom - bounds.bottom);
+    const maxY = Math.max(0, viewport.top - bounds.top);
+
+    this.mapContainer.setPosition(
+      Math.round(Phaser.Math.Clamp(x, minX, maxX)),
+      Math.round(Phaser.Math.Clamp(y, minY, maxY))
+    );
   }
 
   private drawChapterPath() {
     const graphics = this.add.graphics();
+    this.mapContainer.add(graphics);
     graphics.lineStyle(2, palette.dim, 0.9);
     for (const chapter of chapterDefinitions) {
       if (!chapter.parentId) {
@@ -78,7 +188,7 @@ export class ChapterSelectScene extends Phaser.Scene {
     for (const chapter of chapterDefinitions) {
       const levelCount = levelNodesForChapter(chapter.id).length;
       const frame = this.add
-        .rectangle(chapter.x, chapter.y, 196, 86, palette.black, 1)
+        .rectangle(chapter.x, chapter.y, CHAPTER_CARD_WIDTH, CHAPTER_CARD_HEIGHT, palette.black, 1)
         .setStrokeStyle(2, chapter.unlocked ? palette.mid : palette.dim, chapter.unlocked ? 0.95 : 0.45)
         .setInteractive({ useHandCursor: chapter.unlocked });
       const label = this.add
@@ -102,9 +212,14 @@ export class ChapterSelectScene extends Phaser.Scene {
       label.setAlpha(alpha);
       meta.setAlpha(alpha);
 
-      frame.on("pointerdown", () => this.openChapter(chapter));
-      label.setInteractive({ useHandCursor: chapter.unlocked }).on("pointerdown", () => this.openChapter(chapter));
-      meta.setInteractive({ useHandCursor: chapter.unlocked }).on("pointerdown", () => this.openChapter(chapter));
+      this.mapContainer.add([frame, label, meta]);
+      frame.on("pointerup", (pointer: Phaser.Input.Pointer) => this.openChapter(chapter, pointer));
+      label
+        .setInteractive({ useHandCursor: chapter.unlocked })
+        .on("pointerup", (pointer: Phaser.Input.Pointer) => this.openChapter(chapter, pointer));
+      meta
+        .setInteractive({ useHandCursor: chapter.unlocked })
+        .on("pointerup", (pointer: Phaser.Input.Pointer) => this.openChapter(chapter, pointer));
       this.chapterCards.push({ definition: chapter, frame, label, meta });
     }
   }
@@ -147,8 +262,14 @@ export class ChapterSelectScene extends Phaser.Scene {
       .on("pointerdown", () => this.encyclopediaPanel.open("enemies"));
   }
 
-  private openChapter(chapter: ChapterDefinition) {
-    if (!chapter.unlocked || this.encyclopediaPanel.isOpen()) {
+  private openChapter(chapter: ChapterDefinition, pointer: Phaser.Input.Pointer) {
+    if (
+      !chapter.unlocked ||
+      this.mapDragging ||
+      this.time.now < this.suppressChapterClickUntil ||
+      this.encyclopediaPanel.isOpen() ||
+      !this.mapViewport.contains(pointer.x, pointer.y)
+    ) {
       return;
     }
 
