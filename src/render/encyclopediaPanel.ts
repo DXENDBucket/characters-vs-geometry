@@ -68,6 +68,7 @@ const GRID_COLUMNS = 5;
 const DETAIL_TABLE_LABEL_WIDTH = 82;
 const DETAIL_TABLE_ROW_HEIGHT = 22;
 const EMPTY_TABLE_VALUE = "/";
+const detailTextWrap = (width: number) => ({ width, useAdvancedWrap: true });
 const GRADE_LABELS = [
   "E",
   "D-",
@@ -429,7 +430,7 @@ export class EncyclopediaPanel {
         fontSize: "12px",
         fontStyle: "700",
         align: "center",
-        wordWrap: { width: TILE_SIZE - 10 }
+        wordWrap: detailTextWrap(TILE_SIZE - 10)
       })
       .setOrigin(0.5);
 
@@ -490,7 +491,7 @@ export class EncyclopediaPanel {
         fontFamily: "monospace",
         fontSize: "19px",
         fontStyle: "700",
-        wordWrap: { width: this.detailViewport.width - 112 }
+        wordWrap: detailTextWrap(this.detailViewport.width - 112)
       })
       .setOrigin(0, 0);
     this.detail.add(title);
@@ -517,7 +518,7 @@ export class EncyclopediaPanel {
           fontFamily: "monospace",
           fontSize: "12px",
           lineSpacing: 4,
-          wordWrap: { width: this.detailViewport.width - 36 }
+          wordWrap: detailTextWrap(this.detailViewport.width - 36)
         })
         .setOrigin(0, 0);
       this.detail.add(noteText);
@@ -530,7 +531,7 @@ export class EncyclopediaPanel {
         fontFamily: "monospace",
         fontSize: "12px",
         lineSpacing: 4,
-        wordWrap: { width: this.detailViewport.width - 36 }
+        wordWrap: detailTextWrap(this.detailViewport.width - 36)
       })
       .setOrigin(0, 0);
     this.detail.add(description);
@@ -571,7 +572,7 @@ export class EncyclopediaPanel {
           color: "#f5f5f5",
           fontFamily: "monospace",
           fontSize: "11px",
-          wordWrap: { width: width - DETAIL_TABLE_LABEL_WIDTH - 16 }
+          wordWrap: detailTextWrap(width - DETAIL_TABLE_LABEL_WIDTH - 16)
         })
         .setOrigin(0, 0.5);
       this.detail.add([label, value]);
