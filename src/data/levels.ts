@@ -1,4 +1,4 @@
-import { CUBE_BOSS_WAVE_CAP, TOTAL_WAVES, WAVES_PER_FLAG } from "../config";
+import { CUBE_BOSS_STATS, CUBE_BOSS_WAVE_CAP, TOTAL_WAVES, WAVES_PER_FLAG } from "../config";
 import type { LevelConfig, LevelNode } from "../types";
 
 const CHAPTER_THREE_STARTING_CHARS = 350;
@@ -805,8 +805,8 @@ export const levelConfigs: Record<string, LevelConfig> = {
     bossPhases: [
       {
         maxHp: 300_000,
-        armor: 3_200,
-        magicResistance: 20,
+        armor: CUBE_BOSS_STATS.cube.armor,
+        magicResistance: CUBE_BOSS_STATS.cube.magicResistance,
         finalDamageReduction: 0.7,
         waveWeightCap: 9000,
         enemyKinds: [
@@ -824,6 +824,8 @@ export const levelConfigs: Record<string, LevelConfig> = {
       },
       {
         maxHp: 200_000,
+        armor: CUBE_BOSS_STATS.tetrahedron.armor,
+        magicResistance: CUBE_BOSS_STATS.tetrahedron.magicResistance,
         finalDamageReduction: 0.5,
         waveWeightCap: 9000,
         enemyKinds: [
@@ -845,6 +847,8 @@ export const levelConfigs: Record<string, LevelConfig> = {
       },
       {
         maxHp: 300_000,
+        armor: CUBE_BOSS_STATS.dodecahedron.armor,
+        magicResistance: CUBE_BOSS_STATS.dodecahedron.magicResistance,
         waveWeightCap: 9000,
         enemyKinds: [
           "circle",
@@ -873,6 +877,8 @@ export const levelConfigs: Record<string, LevelConfig> = {
       },
       {
         maxHp: 300_000,
+        armor: CUBE_BOSS_STATS.octahedron.armor,
+        magicResistance: CUBE_BOSS_STATS.octahedron.magicResistance,
         waveWeightCap: 9000,
         enemyKinds: [
           "circle",

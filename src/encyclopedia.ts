@@ -617,8 +617,8 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
       lines: [
         statLine([
           [t("label.hp"), "P1 300000 / P2 200000 / P3 300000 / P4 300000"],
-          [t("label.armor"), "P1 3200 / P2 0"],
-          [t("label.mr"), "P1 20 / P2 0"],
+          [t("label.armor"), "P1 300 / P2 150 / P3 200 / P4 200"],
+          [t("label.mr"), "P1 20 / P2 20 / P3 90 / P4 60"],
           [t("label.speed"), CUBE_BOSS_STATS.icosahedron.speed],
           [t("label.atk"), `${damageText(CUBE_BOSS_CONTACT_DAMAGE, "physical")} / ${CUBE_BOSS_CONTACT_INTERVAL}s`]
         ]),
