@@ -2727,7 +2727,7 @@ Base rule:
 - Base wave cap is capped at `9000` before difficulty modifies it.
 - A wave may leave unused weight, but never exceeds its cap.
 - Difficulty modifies the capped value. The result is floored and never lower than `10`.
-- When Icosahedron I changes phase, the wave counter and weight accumulation reset to wave `0`, the Boss returns to its starting position, and all current enemies quickly shrink and disappear.
+- When Icosahedron I changes phase, the wave counter and weight accumulation continue, the Boss returns to its starting position, and all current enemies quickly shrink and disappear.
 - The next phase starts with its own enemy pool. The first wave of the new phase follows the normal first-wave delay.
 - The configured finale currently has four phases. Killing the last configured phase clears the level.
 - The first Boss HP bar is Heart pink, the second is orange, the third is light blue, and the fourth/final bar is gold. During each non-final phase, lost HP reveals the next phase color; the final gold bar drains to the normal dark bar back.

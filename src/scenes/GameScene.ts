@@ -1570,7 +1570,6 @@ export class GameScene extends Phaser.Scene {
 
     this.bossPhaseIndex += 1;
     this.bossPhaseStartedAt = this.levelElapsed;
-    this.wave = 0;
     this.waveTracker = null;
     this.clearEnemiesForBossPhaseTransition();
     this.resetBossForPhase(boss);
