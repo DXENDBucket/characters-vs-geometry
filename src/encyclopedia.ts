@@ -297,7 +297,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.mr"), archangelHeptagon.magicResistance],
           [t("label.atk"), `${damageText(archangelHeptagon.damage, archangelHeptagon.damageType)} / 2s`],
           [t("label.speed"), `I ${speedText("archangelHeptagon")} / II ${speedText("archangelHeptagon2")} / III ${speedText("archangelHeptagon3")}`],
-          [t("label.weight"), zh ? "旗帜固定" : "flag fixed"]
+          [t("label.weight"), zh ? "固定领袖" : "fixed leader spawn"]
         ]),
         zh
           ? `领袖敌人；常态飞行，外观为两层光环七边形。出生后 3 秒内获得 +150% 移速和高空飞行。升华：初始 10 技力，15 技力满后，让自身和半径 2.5 格内敌怪飞行并获得 +100% 移速，持续 6s；I/II/III 每秒回复 1 技力，生命值线性提升`
@@ -431,7 +431,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.mr"), hexSpellBulwark.magicResistance],
           [t("label.atk"), damageText(hexSpellBulwark.damage, hexSpellBulwark.damageType)],
           [t("label.speed"), speedText("hexSpellBulwark")],
-          [t("label.weight"), zh ? "旗帜固定" : "flag fixed"]
+          [t("label.weight"), zh ? "固定领袖" : "fixed leader spawn"]
         ]),
         zh
           ? "领袖敌人；不计入常规出怪权重。为本行敌怪提供可加算法抗，包括自身；I/II/III 为 +40/+50/+60。"
@@ -451,7 +451,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.mr"), burrowArrow.magicResistance],
           [t("label.atk"), `I ${damageText(burrowArrow.damage, burrowArrow.damageType)} / II ${damageText(burrowArrow2.damage, burrowArrow2.damageType)} / III ${damageText(burrowArrow3.damage, burrowArrow3.damageType)}`],
           [t("label.speed"), speedText("burrowArrow")],
-          [t("label.weight"), zh ? "旗帜固定" : "flag fixed"]
+          [t("label.weight"), zh ? "固定领袖" : "fixed leader spawn"]
         ]),
         zh
           ? "领袖敌人：不计入常规出怪权重；等级 I/II/III 最多装载总等级 5/10/15 的非领袖小怪"
@@ -471,7 +471,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.mr"), slopeTriangle.magicResistance],
           [t("label.atk"), damageText(slopeTriangle.damage, slopeTriangle.damageType)],
           [t("label.speed"), `I ${speedText("slopeTriangle")} / II ${speedText("slopeTriangle2")} / III ${speedText("slopeTriangle3")}`],
-          [t("label.weight"), zh ? "旗帜固定" : "flag fixed"]
+          [t("label.weight"), zh ? "固定领袖" : "fixed leader spawn"]
         ]),
         zh
           ? "被阻挡期间停在原地且不攻击；只有此时才会让接触它、速度方向与斜坡朝向一致的非领袖小怪进入高空飞行"
@@ -491,7 +491,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.mr"), heart.magicResistance],
           [t("label.atk"), `I ${damageText(heart.damage, heart.damageType)} / II ${damageText(heart2.damage, heart2.damageType)} / III ${damageText(heart3.damage, heart3.damageType)} / 5s`],
           [t("label.speed"), speedText("heart")],
-          [t("label.weight"), zh ? "旗帜固定" : "flag fixed"]
+          [t("label.weight"), zh ? "固定领袖" : "fixed leader spawn"]
         ]),
         zh
           ? "领袖敌人：不计入常规出怪权重；若在关卡出怪池中，只会在旗帜波固定刷出 1 个，且没有随机移速浮动"
@@ -535,8 +535,8 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.atk"), `${damageText(CUBE_BOSS_CONTACT_DAMAGE, "physical")} / ${CUBE_BOSS_CONTACT_INTERVAL}s`]
         ]),
         zh
-          ? "正四面体 II 使用同一套技能，但 Boss 机制召唤的倒三角和射击三角均为 II。"
-          : "Tetrahedron II uses the same skill kit, but all Inverted/Shooting Triangles summoned by Boss mechanics are rank II.",
+          ? "正四面体 II 使用同一套技能，但 Boss 技能召唤的倒三角和射击三角均为 II。"
+          : "Tetrahedron II uses the same skill kit, but all Inverted/Shooting Triangles summoned by Boss skills are rank II.",
         zh
           ? "冲锋：60技力满后消耗30，使所有普通敌怪在 7 秒内获得加速，移动速度变为 200%；正四面体 II 为 250%。并使压制技力 +15。"
           : "Charge: at 60 SP, spend 30 to give ordinary enemies 7s Haste, raising movement speed to 200%; Tetrahedron II uses 250%. It also gives Suppression +15 SP.",
@@ -641,7 +641,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.speed"), CUBE_BOSS_STATS.smallStellatedDodecahedron.speed],
           [t("label.atk"), `${damageText(CUBE_BOSS_CONTACT_DAMAGE, "physical")} / ${CUBE_BOSS_CONTACT_INTERVAL}s`]
         ]),
-        zh ? "白板 Boss：没有技力技能。当前用于测试小星形十二面体线框绘制。" : "Whiteboard Boss: no SP skills. Currently used to test the small stellated dodecahedron wireframe."
+        zh ? "暂无技力技能；主要威胁来自 Boss 本体推进和接触伤害。" : "No SP skills for now; its main threat is boss-body pressure and contact damage."
       ],
       description: zh
         ? "Boss 不会被阻挡，也不会随血量缩小；到达底线会失败，死亡会直接胜利。"
