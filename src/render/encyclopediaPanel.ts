@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import {
+  CUBE_BOSS_CONTACT_DAMAGE,
   CUBE_BOSS_STATS,
   ENEMY_SPEED,
   GAME_HEIGHT,
@@ -53,12 +54,20 @@ interface EncyclopediaTile {
   frame: Phaser.GameObjects.Rectangle;
 }
 
+interface DetailTableRow {
+  label: string;
+  value: string;
+}
+
 type EncyclopediaStatMode = "coarse" | "exact";
 type DragArea = "grid" | "detail";
 
 const TILE_SIZE = 106;
 const TILE_GAP = 14;
 const GRID_COLUMNS = 5;
+const DETAIL_TABLE_LABEL_WIDTH = 82;
+const DETAIL_TABLE_ROW_HEIGHT = 22;
+const EMPTY_TABLE_VALUE = "/";
 const GRADE_LABELS = [
   "E",
   "D-",
@@ -498,17 +507,22 @@ export class EncyclopediaPanel {
     this.detail.add(statsTitle);
     y += 24;
 
-    const statText = this.scene.add
-      .text(18, y, this.detailLines(entry).join("\n"), {
-        color: "#d8d8d8",
-        fontFamily: "monospace",
-        fontSize: "12px",
-        lineSpacing: 4,
-        wordWrap: { width: this.detailViewport.width - 36 }
-      })
-      .setOrigin(0, 0);
-    this.detail.add(statText);
-    y += statText.height + 18;
+    y += this.drawDetailTable(entry, y) + 18;
+
+    const notes = this.detailNotes(entry);
+    if (notes.length > 0) {
+      const noteText = this.scene.add
+        .text(18, y, notes.join("\n"), {
+          color: "#d8d8d8",
+          fontFamily: "monospace",
+          fontSize: "12px",
+          lineSpacing: 4,
+          wordWrap: { width: this.detailViewport.width - 36 }
+        })
+        .setOrigin(0, 0);
+      this.detail.add(noteText);
+      y += noteText.height + 18;
+    }
 
     const description = this.scene.add
       .text(18, y, entry.description, {
@@ -525,6 +539,45 @@ export class EncyclopediaPanel {
 
     this.detailContentHeight = y + 18;
     this.setDetailScroll(0);
+  }
+
+  private drawDetailTable(entry: EncyclopediaEntry, y: number) {
+    const rows = this.detailTableRows(entry);
+    const x = 18;
+    const width = this.detailViewport.width - 36;
+    const height = rows.length * DETAIL_TABLE_ROW_HEIGHT;
+    const graphics = this.scene.add.graphics();
+    graphics.lineStyle(1, palette.dim, 0.86);
+    graphics.strokeRect(x, y, width, height);
+    graphics.lineBetween(x + DETAIL_TABLE_LABEL_WIDTH, y, x + DETAIL_TABLE_LABEL_WIDTH, y + height);
+    for (let index = 1; index < rows.length; index += 1) {
+      const rowY = y + index * DETAIL_TABLE_ROW_HEIGHT;
+      graphics.lineBetween(x, rowY, x + width, rowY);
+    }
+    this.detail.add(graphics);
+
+    rows.forEach((row, index) => {
+      const rowY = y + index * DETAIL_TABLE_ROW_HEIGHT + DETAIL_TABLE_ROW_HEIGHT / 2 - 1;
+      const label = this.scene.add
+        .text(x + 8, rowY, row.label, {
+          color: "#8c8c8c",
+          fontFamily: "monospace",
+          fontSize: "11px",
+          fontStyle: "700"
+        })
+        .setOrigin(0, 0.5);
+      const value = this.scene.add
+        .text(x + DETAIL_TABLE_LABEL_WIDTH + 8, rowY, row.value, {
+          color: "#f5f5f5",
+          fontFamily: "monospace",
+          fontSize: "11px",
+          wordWrap: { width: width - DETAIL_TABLE_LABEL_WIDTH - 16 }
+        })
+        .setOrigin(0, 0.5);
+      this.detail.add([label, value]);
+    });
+
+    return height;
   }
 
   private drawMechanicLinks(entry: EncyclopediaEntry, y: number) {
@@ -642,58 +695,102 @@ export class EncyclopediaPanel {
     return createIcosahedronIcon(this.scene);
   }
 
-  private detailLines(entry: EncyclopediaEntry) {
-    if (entry.mechanicId || this.statMode === "exact") {
-      return entry.lines;
-    }
-
-    return this.coarseLines(entry);
-  }
-
-  private coarseLines(entry: EncyclopediaEntry) {
+  private detailTableRows(entry: EncyclopediaEntry): DetailTableRow[] {
+    const row = (label: string, value: string): DetailTableRow => ({ label, value });
     if (entry.card) {
       const card = entry.card;
-      const parts = [
-        `${t("label.cost")} ${grade(card.cost, "cost")}`,
-        `${t("label.cd")} ${grade(card.cooldown / 1000, "cooldown")}`,
-        `${t("label.hp")} ${grade(card.maxHp, "hp")}`,
-        `${t("label.armor")} ${grade(card.armor ?? 0, "armor")}`,
-        `${t("label.mr")} ${grade(card.magicResistance ?? 0, "mr")}`
+      return [
+        row(t("label.hp"), this.statValue(card.maxHp, "hp")),
+        row(t("label.armor"), this.statValue(card.armor ?? 0, "armor")),
+        row(t("label.mr"), this.statValue(card.magicResistance ?? 0, "mr")),
+        row(t("label.atk"), this.damageValue(card.damage, card.damageType)),
+        row(isZhLabel("攻速", "AS"), this.statValue(card.attackSpeed, "attackSpeed")),
+        row(t("label.speed"), EMPTY_TABLE_VALUE),
+        row(isZhLabel("范围", "RANGE"), this.statValue(card.rangeCells, "range")),
+        row(t("label.cost"), this.statValue(card.cost, "cost")),
+        row(t("label.cd"), this.cooldownValue(card.cooldown)),
+        row(t("label.weight"), EMPTY_TABLE_VALUE)
       ];
-      const secondLine = [
-        card.damage !== undefined ? `${t("label.atk")} ${grade(card.damage, "attack")}${damageSymbol(card.damageType)}` : "",
-        card.attackSpeed !== undefined ? `${t("label.speed")} ${grade(card.attackSpeed, "attackSpeed")}` : "",
-        card.rangeCells !== undefined ? `${isZhLabel("范围", "RANGE")} ${grade(card.rangeCells, "range")}` : ""
-      ].filter(Boolean);
-      return compactLines(parts, secondLine);
     }
 
     if (entry.enemyKind) {
       const enemy = getEnemyDefinition(entry.enemyKind);
       const speed = ENEMY_SPEED * (enemy.speedMultiplier ?? 1);
-      const parts = [
-        `${t("label.hp")} ${grade(enemy.hp, "hp")}`,
-        `${t("label.armor")} ${grade(enemy.armor, "armor")}`,
-        `${t("label.mr")} ${grade(enemy.magicResistance, "mr")}`,
-        `${t("label.atk")} ${grade(enemy.damage, "attack")}${damageSymbol(enemy.damageType)}`,
-        `${t("label.speed")} ${grade(speed, "moveSpeed")}`,
-        `${t("label.weight")} ${grade(enemy.weight, "weight")}`
+      return [
+        row(t("label.hp"), this.statValue(enemy.hp, "hp")),
+        row(t("label.armor"), this.statValue(enemy.armor, "armor")),
+        row(t("label.mr"), this.statValue(enemy.magicResistance, "mr")),
+        row(t("label.atk"), this.damageValue(enemy.damage, enemy.damageType)),
+        row(isZhLabel("攻速", "AS"), EMPTY_TABLE_VALUE),
+        row(t("label.speed"), this.statValue(speed, "moveSpeed")),
+        row(isZhLabel("范围", "RANGE"), EMPTY_TABLE_VALUE),
+        row(t("label.cost"), EMPTY_TABLE_VALUE),
+        row(t("label.cd"), EMPTY_TABLE_VALUE),
+        row(t("label.weight"), this.statValue(enemy.weight, "weight"))
       ];
-      return compactLines(parts);
     }
 
     const bossStats = entry.icon ? bossStatsForIcon(entry.icon) : null;
     if (bossStats) {
-      const parts = [
-        `${t("label.hp")} ${grade(bossStats.hp, "bossHp")}`,
-        `${t("label.armor")} ${grade(bossStats.armor, "armor")}`,
-        `${t("label.mr")} ${grade(bossStats.magicResistance, "mr")}`,
-        `${t("label.speed")} ${grade(bossStats.speed, "moveSpeed")}`
+      return [
+        row(t("label.hp"), this.statValue(bossStats.hp, "bossHp")),
+        row(t("label.armor"), this.statValue(bossStats.armor, "armor")),
+        row(t("label.mr"), this.statValue(bossStats.magicResistance, "mr")),
+        row(t("label.atk"), this.damageValue(CUBE_BOSS_CONTACT_DAMAGE, "physical")),
+        row(isZhLabel("攻速", "AS"), EMPTY_TABLE_VALUE),
+        row(t("label.speed"), this.statValue(bossStats.speed, "moveSpeed")),
+        row(isZhLabel("范围", "RANGE"), EMPTY_TABLE_VALUE),
+        row(t("label.cost"), EMPTY_TABLE_VALUE),
+        row(t("label.cd"), EMPTY_TABLE_VALUE),
+        row(t("label.weight"), EMPTY_TABLE_VALUE)
       ];
-      return compactLines(parts);
     }
 
-    return entry.lines;
+    return [
+      row(t("label.hp"), EMPTY_TABLE_VALUE),
+      row(t("label.armor"), EMPTY_TABLE_VALUE),
+      row(t("label.mr"), EMPTY_TABLE_VALUE),
+      row(t("label.atk"), EMPTY_TABLE_VALUE),
+      row(isZhLabel("攻速", "AS"), EMPTY_TABLE_VALUE),
+      row(t("label.speed"), EMPTY_TABLE_VALUE),
+      row(isZhLabel("范围", "RANGE"), EMPTY_TABLE_VALUE),
+      row(t("label.cost"), EMPTY_TABLE_VALUE),
+      row(t("label.cd"), EMPTY_TABLE_VALUE),
+      row(t("label.weight"), EMPTY_TABLE_VALUE)
+    ];
+  }
+
+  private detailNotes(entry: EncyclopediaEntry) {
+    if (entry.mechanicId) {
+      return entry.lines;
+    }
+
+    return entry.lines.slice(1);
+  }
+
+  private statValue(value: number | undefined, gradeType: string) {
+    if (value === undefined || Number.isNaN(value)) {
+      return EMPTY_TABLE_VALUE;
+    }
+
+    return this.statMode === "exact" ? formatNumber(value) : grade(value, gradeType);
+  }
+
+  private damageValue(value: number | undefined, damageType?: DamageType) {
+    if (value === undefined || Number.isNaN(value)) {
+      return EMPTY_TABLE_VALUE;
+    }
+
+    return `${this.statMode === "exact" ? formatNumber(value) : grade(value, "attack")}${damageSymbol(damageType)}`;
+  }
+
+  private cooldownValue(cooldownMs: number | undefined) {
+    if (cooldownMs === undefined || Number.isNaN(cooldownMs)) {
+      return EMPTY_TABLE_VALUE;
+    }
+
+    const seconds = cooldownMs / 1000;
+    return this.statMode === "exact" ? `${formatNumber(seconds)}s` : grade(seconds, "cooldown");
   }
 
   private currentEntries() {
@@ -815,14 +912,6 @@ export class EncyclopediaPanel {
   }
 }
 
-function compactLines(firstLineParts: string[], secondLineParts: string[] = []) {
-  const lines = [firstLineParts.slice(0, 3).join("  "), firstLineParts.slice(3).join("  ")].filter(Boolean);
-  if (secondLineParts.length > 0) {
-    lines.push(secondLineParts.join("  "));
-  }
-  return lines;
-}
-
 function grade(value: number, type: string) {
   const thresholds = gradeThresholds(type);
   let index = 0;
@@ -863,6 +952,10 @@ function gradeThresholds(type: string) {
 
 function damageSymbol(type?: DamageType) {
   return type ? DAMAGE_SYMBOLS[type] : "";
+}
+
+function formatNumber(value: number) {
+  return Number.isInteger(value) ? `${value}` : value.toFixed(1);
 }
 
 function bossStatsForIcon(icon: NonNullable<EncyclopediaEntry["icon"]>) {
