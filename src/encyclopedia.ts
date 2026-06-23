@@ -10,14 +10,28 @@ import { allCardDefinitions } from "./registry/cards";
 import { getEnemyDefinition } from "./registry/enemies";
 import type { CardDefinition, CardId, DamageType, EnemyKind, UnitCategory } from "./types";
 
-export type EncyclopediaTab = "enemies" | "towers";
+export type EncyclopediaTab = "enemies" | "towers" | "mechanics";
+export type EncyclopediaMechanicId =
+  | "flying"
+  | "highFlying"
+  | "stasis"
+  | "freeze"
+  | "sunder"
+  | "zeal"
+  | "trueDamage"
+  | "mirror"
+  | "sp"
+  | "invincible";
 
 export interface EncyclopediaEntry {
+  id?: string;
   title: string;
   lines: string[];
   description: string;
   enemyKind?: EnemyKind;
   card?: CardDefinition;
+  mechanicId?: EncyclopediaMechanicId;
+  mechanicIcon?: string;
   icon?: "cube" | "tetrahedron" | "dodecahedron" | "smallStellatedDodecahedron" | "octahedron" | "icosahedron";
 }
 
@@ -807,6 +821,176 @@ function speedText(kind: EnemyKind) {
 
 function seconds(ms: number) {
   return `${ms / 1000}s`;
+}
+
+export function mechanicEncyclopediaEntries(): EncyclopediaEntry[] {
+  const zh = isZh();
+  const entries: Array<{
+    id: EncyclopediaMechanicId;
+    icon: string;
+    titleZh: string;
+    titleEn: string;
+    linesZh: string[];
+    linesEn: string[];
+    descriptionZh: string;
+    descriptionEn: string;
+  }> = [
+    {
+      id: "flying",
+      icon: "↟",
+      titleZh: "飞行",
+      titleEn: "Flying",
+      linesZh: ["常规阻挡：无视地面阻挡", "显示：单位位置略微上浮，通常带有光环"],
+      linesEn: ["Blocking: ignores ground blockers", "Visual: renders slightly higher, usually with a halo"],
+      descriptionZh:
+        "飞行单位不会被普通地面阻挡拦下。部分塔或敌怪可以进入飞行状态；拥有特殊说明的防空阻挡可以拦住普通飞行，但不能拦住高空飞行。",
+      descriptionEn:
+        "Flying units ignore normal ground blocking. Some towers or enemies can enter Flying; anti-air blocking called out by card text can stop regular Flying, but not High Flight."
+    },
+    {
+      id: "highFlying",
+      icon: "↟+",
+      titleZh: "高空飞行",
+      titleEn: "High Flight",
+      linesZh: ["常规阻挡：不会被阻挡", "常规攻击：落地前无法被直接攻击"],
+      linesEn: ["Blocking: cannot be blocked", "Targeting: cannot be directly attacked before landing"],
+      descriptionZh:
+        "高空飞行是更高层级的飞行状态。处于高空飞行的敌怪不会被阻挡，也不会被普通索敌、直击或塔范围伤害命中，直到状态结束或落地。",
+      descriptionEn:
+        "High Flight is a higher flight state. Enemies in High Flight are not blocked and cannot be hit by normal targeting, direct hits, or tower AOE until the state ends or they land."
+    },
+    {
+      id: "stasis",
+      icon: "◫",
+      titleZh: "凝滞",
+      titleEn: "Stasis",
+      linesZh: ["效果：移动速度降低到二分之一", "限制：Boss 通常不受影响"],
+      linesEn: ["Effect: movement speed becomes one half", "Limit: bosses usually ignore it"],
+      descriptionZh:
+        "凝滞是一种控制效果，会让普通敌怪移动变慢。它不阻止攻击和技能，和冻结不同；持续时间结束后敌怪恢复原速。",
+      descriptionEn:
+        "Stasis is a control effect that slows ordinary enemies. It does not stop attacks or skills, unlike Freeze; enemies recover their speed when it expires."
+    },
+    {
+      id: "freeze",
+      icon: "▣",
+      titleZh: "冻结",
+      titleEn: "Freeze",
+      linesZh: ["效果：无法移动、攻击或触发技能", "提前解除：累计物理伤害达到最大生命一半"],
+      linesEn: ["Effect: cannot move, attack, or trigger skills", "Break: accumulated physical damage reaches half max HP"],
+      descriptionZh:
+        "冻结会完全暂停敌怪行动。冻结期间受到的实际物理伤害会累计；累计值达到最大生命值的一半时，冻结会立刻提前解除。",
+      descriptionEn:
+        "Freeze fully pauses enemy action. Physical damage actually taken while frozen is accumulated; once it reaches half max HP, Freeze breaks immediately."
+    },
+    {
+      id: "sunder",
+      icon: "▣-",
+      titleZh: "碎甲",
+      titleEn: "Sunder",
+      linesZh: ["效果：最终护甲降低 35%", "刷新：重复命中刷新持续时间"],
+      linesEn: ["Effect: final armor is reduced by 35%", "Refresh: repeated hits reset duration"],
+      descriptionZh:
+        "碎甲会降低敌怪最终护甲，让后续物理伤害更容易打穿。被碎甲的敌怪头顶会显示白色 ▣ 标识。",
+      descriptionEn:
+        "Sunder reduces an enemy's final armor, making later physical damage punch through more easily. Sundered enemies show a white ▣ marker overhead."
+    },
+    {
+      id: "zeal",
+      icon: "✦",
+      titleZh: "热忱",
+      titleEn: "Zeal",
+      linesZh: ["效果：攻击速度 +35%", "叠加：多个来源不叠加"],
+      linesEn: ["Effect: +35% attack speed", "Stacking: multiple sources do not stack"],
+      descriptionZh:
+        "热忱是给塔的攻速增益。它能加快使用攻速逻辑的攻击、治疗或生产，但多个小 e 的热忱不会叠加。",
+      descriptionEn:
+        "Zeal is an attack-speed buff for towers. It speeds up attacks, healing, or production that uses attack-speed logic, but multiple e auras do not stack."
+    },
+    {
+      id: "trueDamage",
+      icon: "◇",
+      titleZh: "真实伤害",
+      titleEn: "True Damage",
+      linesZh: ["效果：无视护甲和法抗", "用途：处理高防御目标"],
+      linesEn: ["Effect: ignores armor and magic resistance", "Use: answers heavily defended targets"],
+      descriptionZh:
+        "真实伤害不被护甲或法术抗性削减。部分效果可以让塔在一段时间内把所有伤害转为真实伤害。",
+      descriptionEn:
+        "True damage is not reduced by armor or magic resistance. Some effects can temporarily convert all damage dealt by a tower into true damage."
+    },
+    {
+      id: "mirror",
+      icon: "M",
+      titleZh: "镜像",
+      titleEn: "Mirror",
+      linesZh: ["网络：镜像关系可连成一整个网络", "风险：网络内任一塔消失会连带全网"],
+      linesEn: ["Network: mirror links can merge into one network", "Risk: if one tower disappears, the network follows"],
+      descriptionZh:
+        "镜像塔会记录互为镜像的关系。多个镜像关系可以连成网络；网络中的塔会一起升级，也会在任一成员消失时以同一事件一起消失。",
+      descriptionEn:
+        "Mirror towers remember which towers mirror each other. Links can form networks; network members upgrade together and disappear together through the same event."
+    },
+    {
+      id: "sp",
+      icon: "SP",
+      titleZh: "技力",
+      titleEn: "SP",
+      linesZh: ["用途：驱动主动或自动技能", "常见规则：技能期间往往暂停恢复"],
+      linesEn: ["Use: powers active or automatic skills", "Common rule: recovery often pauses during active effects"],
+      descriptionZh:
+        "技力是技能资源。不同单位拥有不同的初始技力、上限和恢复速度；满技力后，部分单位会显示边框提示并等待点击触发。",
+      descriptionEn:
+        "SP is the skill resource. Units have different starting SP, caps, and recovery rates; when full, some show a border cue and wait for click activation."
+    },
+    {
+      id: "invincible",
+      icon: "盾",
+      titleZh: "无敌",
+      titleEn: "Invincible",
+      linesZh: ["效果：不受到伤害", "常见用法：Boss 阶段或破盾机制"],
+      linesEn: ["Effect: takes no damage", "Common use: boss phases or shield-break mechanics"],
+      descriptionZh:
+        "无敌会阻止目标受到伤害。正八面体等 Boss 会围绕无敌与破盾设计特殊战斗节奏。",
+      descriptionEn:
+        "Invincible prevents damage. Bosses such as the Octahedron use invulnerability and shield-breaking to define their fight rhythm."
+    }
+  ];
+
+  return entries.map((entry) => ({
+    id: `mechanic:${entry.id}`,
+    mechanicId: entry.id,
+    mechanicIcon: entry.icon,
+    title: zh ? entry.titleZh : entry.titleEn,
+    lines: zh ? entry.linesZh : entry.linesEn,
+    description: zh ? entry.descriptionZh : entry.descriptionEn
+  }));
+}
+
+export function mechanicLinksForEntry(entry: EncyclopediaEntry): EncyclopediaMechanicId[] {
+  if (entry.mechanicId) {
+    return [];
+  }
+
+  const text = [entry.title, ...entry.lines, entry.description].join("\n").toLowerCase();
+  const links: EncyclopediaMechanicId[] = [];
+  const addIfMatched = (id: EncyclopediaMechanicId, terms: string[]) => {
+    if (terms.some((term) => text.includes(term.toLowerCase()))) {
+      links.push(id);
+    }
+  };
+
+  addIfMatched("highFlying", ["高空飞行", "high flight"]);
+  addIfMatched("flying", ["飞行", "flying"]);
+  addIfMatched("stasis", ["凝滞", "stasis"]);
+  addIfMatched("freeze", ["冻结", "freeze", "frozen"]);
+  addIfMatched("sunder", ["碎甲", "sunder"]);
+  addIfMatched("zeal", ["热忱", "zeal"]);
+  addIfMatched("trueDamage", ["真实伤害", "true damage", DAMAGE_SYMBOLS.true]);
+  addIfMatched("mirror", ["镜像", "mirror"]);
+  addIfMatched("sp", ["技力", " sp", "sp/"]);
+  addIfMatched("invincible", ["无敌", "invincible", "invulnerability"]);
+  return [...new Set(links)];
 }
 
 function isZh() {
