@@ -12,10 +12,11 @@ export interface ChapterDefinition {
 }
 
 export const chapterDefinitions: ChapterDefinition[] = [
-  { id: "1", labelKey: "chapter.1", x: 140, y: 390, unlocked: true, levelPrefix: "1-" },
-  { id: "2", labelKey: "chapter.2", x: 400, y: 290, unlocked: true, levelPrefix: "2-", parentId: "1" },
-  { id: "3", labelKey: "chapter.3", x: 660, y: 390, unlocked: true, levelPrefix: "3-", parentId: "2" },
-  { id: "4", labelKey: "chapter.4", x: 900, y: 290, unlocked: true, levelPrefix: "4-", parentId: "3" },
+  { id: "0", labelKey: "chapter.0", x: 140, y: 290, unlocked: true, levelPrefix: "0-" },
+  { id: "1", labelKey: "chapter.1", x: 340, y: 390, unlocked: true, levelPrefix: "1-", parentId: "0" },
+  { id: "2", labelKey: "chapter.2", x: 540, y: 290, unlocked: true, levelPrefix: "2-", parentId: "1" },
+  { id: "3", labelKey: "chapter.3", x: 740, y: 390, unlocked: true, levelPrefix: "3-", parentId: "2" },
+  { id: "4", labelKey: "chapter.4", x: 940, y: 290, unlocked: true, levelPrefix: "4-", parentId: "3" },
   { id: "5", labelKey: "chapter.5", x: 1140, y: 390, unlocked: true, levelPrefix: "5-", parentId: "4" }
 ];
 
