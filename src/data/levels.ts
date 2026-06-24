@@ -849,6 +849,7 @@ export const levelConfigs: Record<string, LevelConfig> = {
         maxHp: 300_000,
         armor: CUBE_BOSS_STATS.dodecahedron.armor,
         magicResistance: CUBE_BOSS_STATS.dodecahedron.magicResistance,
+        finalDamageReduction: 0.7,
         waveWeightCap: 9000,
         enemyKinds: [
           "circle",

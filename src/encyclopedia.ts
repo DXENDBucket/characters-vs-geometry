@@ -623,8 +623,8 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.atk"), `${damageText(CUBE_BOSS_CONTACT_DAMAGE, "physical")} / ${CUBE_BOSS_CONTACT_INTERVAL}s`]
         ]),
         zh
-          ? "第五章主线终章 Boss。P1 使用终极推进、心跳α、心跳β；P2 拥有 50% 全伤害减免，使用正四面体II式技能组和飞跃，召唤物为3级，冲击/压制初始技力为75，飞跃初始技力为35；P3 使用5-5敌池家族的可用1/2/3级，且本战领袖均为3级；P4 为金色最终血条，使用正八面体式共享血条分身，但阈值分身不会无敌也不会召唤阳炎爆弹。"
-          : "Chapter 5 finale Boss. Phase 1 uses Ultimate Advance, Heartbeat Alpha, and Heartbeat Beta; Phase 2 has 50% all-damage reduction, uses a Tetrahedron II-style skill kit plus Leap, summons rank III minions, starts Impact/Suppression at 75 SP, and starts Leap at 35 SP; Phase 3 uses the 5-5 enemy family expanded to available rank I/II/III variants, and leaders in this fight are rank III; Phase 4 is the gold final bar and uses Octahedron-style shared-HP bodies, but threshold bodies do not become invincible and do not summon Mirage Sun Bombs."
+          ? "第五章主线终章 Boss。P1 使用终极推进、心跳α、心跳β；P2 拥有 50% 全伤害减免，使用正四面体II式技能组和飞跃，召唤物为3级，冲击/压制初始技力为75，飞跃初始技力为35；P3 拥有 70% 常态全伤害减免，使用5-5敌池家族的可用1/2/3级，且本战领袖均为3级；P4 为金色最终血条，使用正八面体式共享血条分身，但阈值分身不会无敌也不会召唤阳炎爆弹。"
+          : "Chapter 5 finale Boss. Phase 1 uses Ultimate Advance, Heartbeat Alpha, and Heartbeat Beta; Phase 2 has 50% all-damage reduction, uses a Tetrahedron II-style skill kit plus Leap, summons rank III minions, starts Impact/Suppression at 75 SP, and starts Leap at 35 SP; Phase 3 has 70% baseline all-damage reduction, uses the 5-5 enemy family expanded to available rank I/II/III variants, and leaders in this fight are rank III; Phase 4 is the gold final bar and uses Octahedron-style shared-HP bodies, but threshold bodies do not become invincible and do not summon Mirage Sun Bombs."
       ],
       description: zh
         ? "Boss 不会被阻挡，也不会随血量缩小；到达底线会失败，死亡会直接胜利。正二十面体 I 的碰撞体为 4.95x4.95 格。"
