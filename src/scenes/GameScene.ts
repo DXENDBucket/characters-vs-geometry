@@ -526,7 +526,12 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.targetedEffects.canHandle(definition.id)) {
-      this.handleTargetedEffectCardResult(this.targetedEffects.use(definition, lane, column, existingTower));
+      const result = this.targetedEffects.use(definition, lane, column, existingTower);
+      if (result === "handled") {
+        this.mirrors.syncMirrors();
+        this.updateLevelAuras();
+      }
+      this.handleTargetedEffectCardResult(result);
       return;
     }
 
@@ -1172,6 +1177,7 @@ export class GameScene extends Phaser.Scene {
       spendChars: (amount) => this.spendChars(amount),
       nextTowerOrder: () => this.nextTowerOrder(),
       removeTower: (tower) => removeTower(this.unitLifecycleRuntime(), tower),
+      runMirrorGroupEvent: (tower, action) => this.mirrors.runMirrorGroupEvent(tower, action),
       runWhenBattleActive: (action) => this.runWhenBattleActive(action),
       updateLevelAuras: () => this.updateLevelAuras(),
       updateCards: () => this.updateCards()
@@ -1215,6 +1221,7 @@ export class GameScene extends Phaser.Scene {
       getDefinition: (id) => this.getDefinition(id),
       nextTowerOrder: () => this.nextTowerOrder(),
       isCellDeployable: (lane, column) => this.cellIsDeployable(lane, column),
+      createTargetedEffectMirror: (source, target) => this.targetedEffects.createMirroredEffect(source, target),
       updateLevelAuras: () => this.updateLevelAuras()
     };
   }
@@ -1642,11 +1649,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private applyRightColumnSeal() {
-    if (this.wave % 5 !== 0) {
+    if (this.wave % 4 !== 0) {
       return;
     }
 
-    const column = COLUMNS - this.wave / 5;
+    const column = COLUMNS - this.wave / 4;
     if (column < 0 || column >= COLUMNS) {
       return;
     }

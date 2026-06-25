@@ -288,6 +288,7 @@ export interface Tower {
   nextRepelDirection: -1 | 1;
   facingDirection: -1 | 1;
   transient: boolean;
+  mirroredEffect: boolean;
   turnTargetId?: string;
   placedOrder: number;
   inPlay: boolean;

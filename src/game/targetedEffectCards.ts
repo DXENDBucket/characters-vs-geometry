@@ -6,7 +6,10 @@ import {
   applyTowerUpgradeStats,
   createTower,
   effectiveTowerLevel,
+  setTowerFacing,
+  syncTowerLevelText,
   toggleTowerFacing,
+  towerFacingDirection,
   upgradeTowerLevel
 } from "./towers";
 
@@ -23,6 +26,7 @@ export interface TargetedEffectCardRuntime {
   spendChars: (amount: number) => void;
   nextTowerOrder: () => number;
   removeTower: (tower: Tower) => void;
+  runMirrorGroupEvent?: (tower: Tower, action: (tower: Tower) => void) => void;
   runWhenBattleActive: (action: () => void) => void;
   updateLevelAuras: () => void;
   updateCards: () => void;
@@ -46,6 +50,10 @@ const targetedEffectDefinitions: Partial<Record<CardId, TargetedEffectDefinition
     }
   }
 };
+
+export function isTargetedEffectCardId(id: CardId) {
+  return Boolean(targetedEffectDefinitions[id]);
+}
 
 export class TargetedEffectCardController {
   constructor(private readonly runtime: () => TargetedEffectCardRuntime) {}
@@ -82,7 +90,33 @@ export class TargetedEffectCardController {
     return "handled";
   }
 
-  private placePendingEffectCard(definition: CardDefinition, lane: number, column: number, target: Tower) {
+  createMirroredEffect(source: Tower, target: Tower) {
+    const runtime = this.runtime();
+    const definition = runtime.getDefinition(source.type);
+    if (!this.canHandle(definition.id) || !source.inPlay || !target.inPlay) {
+      return null;
+    }
+
+    const pendingEffectCard = this.findPendingEffectCard(runtime, definition.id, target.lane, target.column);
+    if (pendingEffectCard) {
+      this.raisePendingEffectCardLevel(pendingEffectCard, definition, source.level);
+      return pendingEffectCard;
+    }
+
+    return this.placePendingEffectCard(definition, target.lane, target.column, target, {
+      level: source.level,
+      facingDirection: towerFacingDirection(source),
+      mirroredEffect: true
+    });
+  }
+
+  private placePendingEffectCard(
+    definition: CardDefinition,
+    lane: number,
+    column: number,
+    target: Tower,
+    options: { level?: number; facingDirection?: -1 | 1; mirroredEffect?: boolean } = {}
+  ) {
     const runtime = this.runtime();
     const effectCard = createTower(
       runtime.scene,
@@ -94,12 +128,17 @@ export class TargetedEffectCardController {
       { transient: true, turnTargetId: target.id }
     );
 
+    effectCard.level = Math.max(1, Math.floor(options.level ?? effectCard.level));
+    effectCard.mirroredEffect = Boolean(options.mirroredEffect);
+    setTowerFacing(effectCard, options.facingDirection ?? towerFacingDirection(target));
+    syncTowerLevelText(effectCard);
     effectCard.body.setDepth(45 + lane);
     runtime.towers.push(effectCard);
     runtime.updateLevelAuras();
     runtime.scene.time.delayedCall(0, () => {
       runtime.runWhenBattleActive(() => this.resolvePendingEffectCard(effectCard));
     });
+    return effectCard;
   }
 
   private upgradePendingEffectCard(tower: Tower, definition: CardDefinition) {
@@ -116,7 +155,29 @@ export class TargetedEffectCardController {
     });
   }
 
+  private raisePendingEffectCardLevel(tower: Tower, definition: CardDefinition, level: number) {
+    while (tower.level < level) {
+      this.upgradePendingEffectCard(tower, definition);
+    }
+  }
+
   private resolvePendingEffectCard(effectCard: Tower) {
+    const runtime = this.runtime();
+    if (!effectCard.inPlay) {
+      return;
+    }
+
+    if (runtime.runMirrorGroupEvent && effectCard.mirrorGroupId) {
+      runtime.runMirrorGroupEvent(effectCard, (member) => this.resolveSinglePendingEffectCard(member));
+      runtime.updateLevelAuras();
+      return;
+    }
+
+    this.resolveSinglePendingEffectCard(effectCard);
+    runtime.updateLevelAuras();
+  }
+
+  private resolveSinglePendingEffectCard(effectCard: Tower) {
     const runtime = this.runtime();
     if (!effectCard.inPlay) {
       return;
@@ -130,9 +191,10 @@ export class TargetedEffectCardController {
     }
 
     runtime.removeTower(effectCard);
-    runtime.updateLevelAuras();
 
-    const cardState = runtime.cardStates.find((card) => card.definition.id === definition.id);
+    const cardState = effectCard.mirroredEffect
+      ? undefined
+      : runtime.cardStates.find((card) => card.definition.id === definition.id);
     if (cardState) {
       cardState.readyAt = Math.min(
         cardState.readyAt,

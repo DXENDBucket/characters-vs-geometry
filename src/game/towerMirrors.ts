@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { COLUMNS, LANES } from "../config";
 import type { CardDefinition, CardId, Tower } from "../types";
 import { forEachInitial, forEachSnapshot } from "./iteration";
+import { isTargetedEffectCardId } from "./targetedEffectCards";
 import { gridCellKey } from "./targeting";
 import {
   createTower,
@@ -22,6 +23,7 @@ export interface TowerMirrorRuntime {
   getDefinition: (id: CardId) => CardDefinition;
   nextTowerOrder: () => number;
   isCellDeployable?: (lane: number, column: number) => boolean;
+  createTargetedEffectMirror?: (source: Tower, target: Tower) => Tower | null;
   updateLevelAuras: () => void;
 }
 
@@ -206,12 +208,15 @@ export class TowerMirrorController {
 
     const firstTower = runtime.occupied.get(gridCellKey(first.lane, first.column));
     const secondTower = runtime.occupied.get(gridCellKey(second.lane, second.column));
-    if (firstTower && !secondTower && this.canMirrorSource(runtime, firstTower)) {
+    this.syncTargetedEffectMirrors(runtime, first, secondTower);
+    this.syncTargetedEffectMirrors(runtime, second, firstTower);
+
+    if (firstTower && !secondTower && this.canMirrorTowerSource(runtime, firstTower)) {
       this.createMirrorTower(runtime, firstTower, second.lane, second.column);
       return;
     }
 
-    if (secondTower && !firstTower && this.canMirrorSource(runtime, secondTower)) {
+    if (secondTower && !firstTower && this.canMirrorTowerSource(runtime, secondTower)) {
       this.createMirrorTower(runtime, secondTower, first.lane, first.column);
     }
   }
@@ -220,7 +225,7 @@ export class TowerMirrorController {
     if (
       !this.cellIsDeployable(runtime, lane, column) ||
       runtime.occupied.has(gridCellKey(lane, column)) ||
-      !this.canMirrorSource(runtime, source)
+      !this.canMirrorTowerSource(runtime, source)
     ) {
       return null;
     }
@@ -400,8 +405,57 @@ export class TowerMirrorController {
     return component;
   }
 
-  private canMirrorSource(runtime: TowerMirrorRuntime, tower: Tower) {
-    if (tower.transient || tower.type === MIRROR_CARD_ID || !tower.inPlay) {
+  private syncTargetedEffectMirrors(
+    runtime: TowerMirrorRuntime,
+    sourceCell: { lane: number; column: number },
+    target: Tower | undefined
+  ) {
+    if (!target || target.transient || !target.inPlay || !runtime.createTargetedEffectMirror) {
+      return;
+    }
+
+    for (const source of this.targetedEffectSourcesAt(runtime, sourceCell.lane, sourceCell.column)) {
+      if (!this.canMirrorTargetedEffectSource(runtime, source) || this.targetedEffectMirrorExists(runtime, source, target)) {
+        continue;
+      }
+
+      const mirror = runtime.createTargetedEffectMirror(source, target);
+      if (mirror) {
+        this.linkMirrors(runtime, source, mirror);
+      }
+    }
+  }
+
+  private targetedEffectSourcesAt(runtime: TowerMirrorRuntime, lane: number, column: number) {
+    return runtime.towers.filter((tower) => {
+      return tower.transient && tower.lane === lane && tower.column === column && isTargetedEffectCardId(tower.type);
+    });
+  }
+
+  private targetedEffectMirrorExists(runtime: TowerMirrorRuntime, source: Tower, target: Tower) {
+    return runtime.towers.some((tower) => {
+      return (
+        tower.transient &&
+        tower.type === source.type &&
+        tower.lane === target.lane &&
+        tower.column === target.column &&
+        tower.turnTargetId === target.id &&
+        Boolean(source.mirrorGroupId) &&
+        tower.mirrorGroupId === source.mirrorGroupId
+      );
+    });
+  }
+
+  private canMirrorTowerSource(runtime: TowerMirrorRuntime, tower: Tower) {
+    return !tower.transient && this.canMirrorCardSource(runtime, tower);
+  }
+
+  private canMirrorTargetedEffectSource(runtime: TowerMirrorRuntime, tower: Tower) {
+    return tower.transient && isTargetedEffectCardId(tower.type) && this.canMirrorCardSource(runtime, tower);
+  }
+
+  private canMirrorCardSource(runtime: TowerMirrorRuntime, tower: Tower) {
+    if (tower.type === MIRROR_CARD_ID || !tower.inPlay) {
       return false;
     }
 

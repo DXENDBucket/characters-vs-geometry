@@ -113,6 +113,7 @@ export function createTower(
     nextRepelDirection: placedOrder % 2 === 0 ? -1 : 1,
     facingDirection: 1,
     transient: Boolean(options.transient),
+    mirroredEffect: false,
     turnTargetId: options.turnTargetId,
     placedOrder,
     inPlay: true,

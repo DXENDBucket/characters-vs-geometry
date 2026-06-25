@@ -183,7 +183,7 @@ Tetrahedron skills:
 | E | Attack | Diamond | 150 | 2s | 1200 | 150 | 0 | Fires 3 bolts at `-10/0/+10` degrees, `400◆` each, every `2s` | +1 volley per level |
 | e | Healing | Hexagon | 650 | 20s | 1200 | 150 | 20 | Base AS `30` (`2s`): heals every damaged tower in the same centered `5x5` no-corner range as T for `90`. The range is shown with a red border. Towers in range, including e itself, gain non-stacking Zeal: +35% attack speed | +1 healing volley per level |
 | M | Attack | Diamond | 75 | 2s | 1200 | 150 | 0 | Fires 3 bolts downward at `80/90/100` degrees, `400◆` each, every `2s`; all shots start from the cell center | +1 volley per level |
-| m | Function | Triangle | 1650 | 50s | 1200 | 150 | 60 | Mirror tower. If one side of m has a mirrorable tower and the opposite side is empty and deployable, creates a same-type, same-facing, same-level mirror there. Only towers with base cost `999` or lower can be mirrored. Mirror links form transitive networks; if one network member disappears, the full network disappears through the same event. If m disappears, the mirror networks adjacent to it are erased | Level N m continuously grants `+(N - 1)` effective levels to the full mirror networks adjacent to it |
+| m | Function | Triangle | 1650 | 50s | 1200 | 150 | 60 | Mirror tower. If one side of m has a mirrorable tower and the opposite side is empty and deployable, creates a same-type, same-facing, same-level mirror there. Transient effect towers such as b / t can also mirror onto an already occupied opposite cell and apply their effect to that tower. Only towers with base cost `999` or lower can be mirrored. Mirror links form transitive networks; if one network member disappears, the full network disappears through the same event. If m disappears, the mirror networks adjacent to it are erased | Level N m continuously grants `+(N - 1)` effective levels to the full mirror networks adjacent to it |
 | W | Attack | Diamond | 75 | 2s | 1200 | 150 | 0 | Fires 3 bolts upward at `-100/-90/-80` degrees, `400◆` each, every `2s`; all shots start from the cell center | +1 volley per level |
 | w | Defense | Square | 175 | 20s | 3000 | 500 | 0 | Blocks and reflects `400◆` when hit by melee attacks like B. Air Patrol: starts at `8/10` SP, gains `1` SP/s only while inactive, flashes its border at full SP, and can be clicked to spend `10` SP for `6s` Flying with a halo. While flying, w does not block grounded enemies but can block regular Flying enemies; High Flight is never blocked | +`2400` max/current HP per level; resets Air Patrol SP |
 | F | Function | Triangle | 125 | 30s | 1200 | 150 | 0 | On enemy or Boss contact, or when clicked, disappears and emits `10` shockwaves; each deals `1400◆` in a `4x4` area | +`8` shockwaves per level |
@@ -2556,7 +2556,7 @@ Base rule:
 - A wave may leave unused weight, but never exceeds its cap.
 - Difficulty modifies the final cap after flag doubling. The result is floored and never lower than `10`.
 - The level has `40` total waves.
-- At the start of every 5th wave, when enemies spawn, the next column is permanently sealed from right to left.
+- At the start of every 4th wave, when enemies spawn, the next column is permanently sealed from right to left.
 - A sealed column gets red `×` marks on every cell; towers already in that column are erased, and no deployment, movement, mirror creation, or generated tower can place onto those cells.
 - Burrow Arrow 3 is a leader enemy and fixed-spawns once on flag waves if included in the level pool; it does not consume wave weight.
 
