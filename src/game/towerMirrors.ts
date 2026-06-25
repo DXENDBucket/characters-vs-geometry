@@ -175,7 +175,7 @@ export class TowerMirrorController {
       }
     } finally {
       this.removalDepth -= 1;
-      if (this.removalDepth === 0) {
+      if (this.removalDepth === 0 && this.suppressedGroups.size === 0) {
         this.syncMirrors();
       }
     }
