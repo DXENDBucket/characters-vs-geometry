@@ -137,7 +137,7 @@ export const cardDefinitions: CardDefinition[] = [
   {
     id: "x",
     category: "attack",
-    cost: 475,
+    cost: 575,
     cooldown: 10_000,
     maxHp: 1_200,
     armor: 150,
