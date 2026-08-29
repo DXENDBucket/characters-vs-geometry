@@ -328,8 +328,8 @@ export class CardSelectScene extends Phaser.Scene {
 
   private createSlots() {
     const startX = 90;
-    const slotGap = 94;
-    const slotWidth = 88;
+    const slotGap = 82;
+    const slotWidth = 76;
     const y = 180;
     for (let index = 0; index < CARD_SLOT_COUNT; index += 1) {
       const x = startX + index * slotGap;

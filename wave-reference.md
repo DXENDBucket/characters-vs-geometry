@@ -238,8 +238,8 @@ Upgrade scaling:
 
 ## Card Slots
 
-- A new save starts with `6` of the current `9` card slots.
-- Fully clearing Chapters 1, 2, and 3 unlocks one additional slot each, reaching all `9` slots.
+- A new save starts with `6` of the current `10` card slots.
+- Fully clearing Chapters 1, 2, 3, and 4 unlocks one additional slot each, reaching all `10` slots.
 - Stored loadouts are always trimmed to the currently unlocked slot count before combat starts.
 
 ## Level 0-1 Tutorial
