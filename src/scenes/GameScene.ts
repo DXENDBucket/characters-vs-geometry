@@ -81,6 +81,7 @@ import { volleyInterval, volleyShotCount } from "../game/upgrades";
 import { waveScheduleAction } from "../game/waves";
 import { attackIntervalMs } from "../game/attackSpeed";
 import { t } from "../i18n";
+import { completeLevel, isCardUnlocked } from "../progress";
 import { makeEraseMark, makeProductionPulse, makeShellBurst, makeShockPulse } from "../render/combatEffects";
 import { createUnitBorder } from "../render/unitShapes";
 import {
@@ -2003,7 +2004,8 @@ export class GameScene extends Phaser.Scene {
 
   private endLevel() {
     this.gameOver = true;
-    showGameOverlay(this.overlay, t("overlay.clear"), t("button.menu"));
+    const unlockedCardIds = completeLevel(this.levelId);
+    showGameOverlay(this.overlay, t("overlay.clear"), t("button.menu"), unlockedCardIds);
   }
 
   private handleOverlayAction() {
@@ -2173,7 +2175,7 @@ export class GameScene extends Phaser.Scene {
 
   private sanitizeLoadout(selectedCards?: CardId[]) {
     const validCards = (selectedCards ?? defaultCardLoadout).filter((id, index, cards): id is CardId => {
-      return hasCardDefinition(id) && cards.indexOf(id) === index;
+      return hasCardDefinition(id) && isCardUnlocked(id) && cards.indexOf(id) === index;
     });
 
     return validCards.length > 0 ? validCards.slice(0, CARD_SLOT_COUNT) : [...defaultCardLoadout];

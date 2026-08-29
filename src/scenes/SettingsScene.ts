@@ -1,6 +1,12 @@
 import Phaser from "phaser";
 import { GAME_HEIGHT, GAME_WIDTH, palette } from "../config";
 import { getLanguage, setLanguage, t, type Language } from "../i18n";
+import {
+  completeAllLevels,
+  getProgressSummary,
+  resetProgress as resetGameProgress,
+  unlockAllCards
+} from "../progress";
 import { allCardDefinitions, cardLetterCase, type CardLetterCase } from "../registry/cards";
 import {
   CONTROL_SLOT_COUNT,
@@ -40,6 +46,10 @@ export class SettingsScene extends Phaser.Scene {
   private cardCase: CardLetterCase = "uppercase";
   private cardCaseButtons: CardCaseButton[] = [];
   private cardBindingList!: Phaser.GameObjects.Container;
+  private progressSummaryText!: Phaser.GameObjects.Text;
+  private progressMessageText!: Phaser.GameObjects.Text;
+  private progressResetButtonText!: Phaser.GameObjects.Text;
+  private progressResetArmedUntil = 0;
 
   constructor() {
     super("SettingsScene");
@@ -53,6 +63,7 @@ export class SettingsScene extends Phaser.Scene {
     this.languageButtons = [];
     this.cardCase = "uppercase";
     this.cardCaseButtons = [];
+    this.progressResetArmedUntil = 0;
   }
 
   create() {
@@ -61,6 +72,7 @@ export class SettingsScene extends Phaser.Scene {
     this.createBackButton();
     this.createLanguageControls();
     this.createControlRows();
+    this.createProgressControls();
     this.createResetButton();
     this.refreshBindings();
 
@@ -304,6 +316,105 @@ export class SettingsScene extends Phaser.Scene {
     };
     button.on("pointerdown", reset);
     label.setInteractive({ useHandCursor: true }).on("pointerdown", reset);
+  }
+
+  private createProgressControls() {
+    const x = 560;
+    this.createSectionTitle(x, 480, t("settings.progress"));
+    this.progressSummaryText = this.add
+      .text(x, 518, "", {
+        color: "#8c8c8c",
+        fontFamily: "monospace",
+        fontSize: "13px"
+      })
+      .setOrigin(0, 0.5);
+
+    this.createProgressButton(640, 560, t("settings.completeAll"), () => {
+      completeAllLevels();
+      this.disarmProgressReset();
+      this.setProgressMessage(t("settings.allCompleted"));
+      this.refreshProgressSummary();
+    });
+    this.createProgressButton(824, 560, t("settings.unlockAll"), () => {
+      unlockAllCards();
+      this.disarmProgressReset();
+      this.setProgressMessage(t("settings.allUnlocked"));
+      this.refreshProgressSummary();
+    });
+    const reset = this.createProgressButton(1008, 560, t("settings.resetProgress"), () => {
+      this.handleProgressReset();
+    });
+    this.progressResetButtonText = reset.label;
+
+    this.progressMessageText = this.add
+      .text(x, 604, "", {
+        color: "#d8d8d8",
+        fontFamily: "monospace",
+        fontSize: "13px",
+        fontStyle: "700"
+      })
+      .setOrigin(0, 0.5);
+    this.refreshProgressSummary();
+  }
+
+  private createProgressButton(x: number, y: number, text: string, action: () => void) {
+    const button = this.add
+      .rectangle(x, y, 164, 36, palette.black, 1)
+      .setStrokeStyle(2, palette.mid, 0.85)
+      .setInteractive({ useHandCursor: true });
+    const label = this.add
+      .text(x, y - 1, text, {
+        color: "#f5f5f5",
+        fontFamily: "monospace",
+        fontSize: "14px",
+        fontStyle: "700"
+      })
+      .setOrigin(0.5);
+
+    button.on("pointerdown", action);
+    label.setInteractive({ useHandCursor: true }).on("pointerdown", action);
+    return { button, label };
+  }
+
+  private handleProgressReset() {
+    if (this.progressResetArmedUntil === 0 || this.time.now > this.progressResetArmedUntil) {
+      this.progressResetArmedUntil = this.time.now + 3_000;
+      this.progressResetButtonText.setText(t("settings.confirmReset"));
+      this.setProgressMessage(t("settings.resetWarning"));
+      this.time.delayedCall(3_000, () => {
+        if (this.time.now >= this.progressResetArmedUntil) {
+          this.disarmProgressReset();
+        }
+      });
+      return;
+    }
+
+    resetGameProgress();
+    this.disarmProgressReset();
+    this.setProgressMessage(t("settings.progressReset"));
+    this.refreshProgressSummary();
+  }
+
+  private disarmProgressReset() {
+    this.progressResetArmedUntil = 0;
+    this.progressResetButtonText?.setText(t("settings.resetProgress"));
+  }
+
+  private setProgressMessage(message: string) {
+    this.progressMessageText?.setText(message);
+  }
+
+  private refreshProgressSummary() {
+    const summary = getProgressSummary();
+    this.progressSummaryText.setText(
+      t("settings.progressSummary", {
+        completed: summary.completedLevels,
+        total: summary.totalLevels,
+        unlocked: summary.unlockedLevels,
+        cards: summary.unlockedCards,
+        cardTotal: summary.totalCards
+      })
+    );
   }
 
   private beginCapture(actionId: ControlActionId) {

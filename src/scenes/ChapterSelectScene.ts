@@ -2,6 +2,11 @@ import Phaser from "phaser";
 import { GAME_HEIGHT, GAME_WIDTH, palette } from "../config";
 import { chapterDefinitions, levelNodesForChapter, type ChapterDefinition } from "../data/chapters";
 import { t } from "../i18n";
+import {
+  completedLevelCountForChapter,
+  isChapterCompleted,
+  isChapterUnlocked
+} from "../progress";
 import { EncyclopediaPanel } from "../render/encyclopediaPanel";
 
 interface ChapterCard {
@@ -187,10 +192,17 @@ export class ChapterSelectScene extends Phaser.Scene {
   private createChapterCards() {
     for (const chapter of chapterDefinitions) {
       const levelCount = levelNodesForChapter(chapter.id).length;
+      const completedCount = completedLevelCountForChapter(chapter.id);
+      const unlocked = isChapterUnlocked(chapter.id);
+      const completed = isChapterCompleted(chapter.id);
       const frame = this.add
         .rectangle(chapter.x, chapter.y, CHAPTER_CARD_WIDTH, CHAPTER_CARD_HEIGHT, palette.black, 1)
-        .setStrokeStyle(2, chapter.unlocked ? palette.mid : palette.dim, chapter.unlocked ? 0.95 : 0.45)
-        .setInteractive({ useHandCursor: chapter.unlocked });
+        .setStrokeStyle(
+          2,
+          completed ? palette.green : unlocked ? palette.mid : palette.dim,
+          unlocked ? 0.95 : 0.45
+        )
+        .setInteractive({ useHandCursor: unlocked });
       const label = this.add
         .text(chapter.x, chapter.y - 18, t(chapter.labelKey), {
           color: "#f5f5f5",
@@ -200,14 +212,21 @@ export class ChapterSelectScene extends Phaser.Scene {
         })
         .setOrigin(0.5);
       const meta = this.add
-        .text(chapter.x, chapter.y + 20, t("label.levelCount", { count: levelCount }), {
-          color: "#8c8c8c",
-          fontFamily: "monospace",
-          fontSize: "14px"
-        })
+        .text(
+          chapter.x,
+          chapter.y + 20,
+          levelCount > 0
+            ? t("label.chapterProgress", { completed: completedCount, count: levelCount })
+            : t("label.levelCount", { count: levelCount }),
+          {
+            color: completed ? "#48ff88" : "#8c8c8c",
+            fontFamily: "monospace",
+            fontSize: "14px"
+          }
+        )
         .setOrigin(0.5);
 
-      const alpha = chapter.unlocked ? 1 : 0.34;
+      const alpha = unlocked ? 1 : 0.34;
       frame.setAlpha(alpha);
       label.setAlpha(alpha);
       meta.setAlpha(alpha);
@@ -215,10 +234,10 @@ export class ChapterSelectScene extends Phaser.Scene {
       this.mapContainer.add([frame, label, meta]);
       frame.on("pointerup", (pointer: Phaser.Input.Pointer) => this.openChapter(chapter, pointer));
       label
-        .setInteractive({ useHandCursor: chapter.unlocked })
+        .setInteractive({ useHandCursor: unlocked })
         .on("pointerup", (pointer: Phaser.Input.Pointer) => this.openChapter(chapter, pointer));
       meta
-        .setInteractive({ useHandCursor: chapter.unlocked })
+        .setInteractive({ useHandCursor: unlocked })
         .on("pointerup", (pointer: Phaser.Input.Pointer) => this.openChapter(chapter, pointer));
       this.chapterCards.push({ definition: chapter, frame, label, meta });
     }
@@ -264,7 +283,7 @@ export class ChapterSelectScene extends Phaser.Scene {
 
   private openChapter(chapter: ChapterDefinition, pointer: Phaser.Input.Pointer) {
     if (
-      !chapter.unlocked ||
+      !isChapterUnlocked(chapter.id) ||
       this.mapDragging ||
       this.time.now < this.suppressChapterClickUntil ||
       this.encyclopediaPanel.isOpen() ||

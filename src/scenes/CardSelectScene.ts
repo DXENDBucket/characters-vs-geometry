@@ -16,10 +16,12 @@ import {
   isSmallStellatedDodecahedronBossKind,
   isTetrahedronBossKind
 } from "../bosses/cubeBoss";
+import { cardUnlockRequirement } from "../data/cardUnlocks";
 import { chapterIdForLevelId } from "../data/chapters";
 import { getLevelConfig } from "../data/levels";
 import { toRomanNumeral } from "../format";
 import { DAMAGE_SYMBOLS, t } from "../i18n";
+import { isCardUnlocked } from "../progress";
 import { createEnemyShape, createUnitBorder } from "../render/unitShapes";
 import { allCardDefinitions, cardLetterCase, hasCardDefinition, type CardLetterCase } from "../registry/cards";
 import { enemyFamily, enemyRank, getEnemyDefinition, getEnemyDisplayName, type EnemyFamily } from "../registry/enemies";
@@ -372,10 +374,13 @@ export class CardSelectScene extends Phaser.Scene {
     definitions.forEach((definition, index) => {
       const x = 89 + (index % columns) * columnGap;
       const y = 48 + Math.floor(index / columns) * rowGap;
+      const unlocked = isCardUnlocked(definition.id);
       const frame = this.add
         .rectangle(x, y, 178, 92, palette.black, 1)
-        .setStrokeStyle(2, palette.dim, 1)
-        .setInteractive({ useHandCursor: true });
+        .setStrokeStyle(2, palette.dim, unlocked ? 1 : 0.45);
+      if (unlocked) {
+        frame.setInteractive({ useHandCursor: true });
+      }
       const border = createUnitBorder(this, definition.category, 22, 2).setPosition(x - 55, y - 6);
       const label = this.add
         .text(x - 55, y - 9, definition.id, {
@@ -400,16 +405,36 @@ export class CardSelectScene extends Phaser.Scene {
         })
         .setOrigin(0, 0);
 
-      this.cardPoolList.add([frame, border, label, costText, statsText]);
+      const cardObjects: Phaser.GameObjects.GameObject[] = [frame, border, label, costText, statsText];
+      if (!unlocked) {
+        const requiredLevelId = cardUnlockRequirement(definition.id);
+        const unlockText = this.add
+          .text(x - 10, y + 28, t("card.unlockAfter", { level: requiredLevelId ?? "" }), {
+            color: "#8c8c8c",
+            fontFamily: "monospace",
+            fontSize: "11px",
+            fontStyle: "700"
+          })
+          .setOrigin(0, 0);
+        cardObjects.push(unlockText);
+        border.setAlpha(0.24);
+        label.setAlpha(0.3);
+        costText.setAlpha(0.24);
+        statsText.setAlpha(0.2);
+      }
+
+      this.cardPoolList.add(cardObjects);
 
       frame.on("pointerup", (pointer: Phaser.Input.Pointer) => this.handleCardPointerUp(definition.id, pointer));
-      border.setInteractive(new Phaser.Geom.Rectangle(-28, -28, 56, 56), Phaser.Geom.Rectangle.Contains).on(
-        "pointerup",
-        (pointer: Phaser.Input.Pointer) => this.handleCardPointerUp(definition.id, pointer)
-      );
-      label.setInteractive({ useHandCursor: true }).on("pointerup", (pointer: Phaser.Input.Pointer) =>
-        this.handleCardPointerUp(definition.id, pointer)
-      );
+      if (unlocked) {
+        border.setInteractive(new Phaser.Geom.Rectangle(-28, -28, 56, 56), Phaser.Geom.Rectangle.Contains).on(
+          "pointerup",
+          (pointer: Phaser.Input.Pointer) => this.handleCardPointerUp(definition.id, pointer)
+        );
+        label.setInteractive({ useHandCursor: true }).on("pointerup", (pointer: Phaser.Input.Pointer) =>
+          this.handleCardPointerUp(definition.id, pointer)
+        );
+      }
       this.cardFrames.set(definition.id, frame);
     });
 
@@ -526,6 +551,7 @@ export class CardSelectScene extends Phaser.Scene {
 
   private handleCardPointerUp(id: CardId, pointer: Phaser.Input.Pointer) {
     if (
+      !isCardUnlocked(id) ||
       this.cardPoolDragMoved ||
       this.time.now < this.suppressCardClickUntil ||
       !this.cardPoolViewport.contains(pointer.x, pointer.y)
@@ -586,6 +612,10 @@ export class CardSelectScene extends Phaser.Scene {
   }
 
   private toggleCard(id: CardId) {
+    if (!isCardUnlocked(id)) {
+      return;
+    }
+
     if (this.selectedCards.includes(id)) {
       this.selectedCards = this.selectedCards.filter((cardId) => cardId !== id);
     } else if (this.selectedCards.length < CARD_SLOT_COUNT) {
@@ -615,9 +645,14 @@ export class CardSelectScene extends Phaser.Scene {
 
     for (const [id, frame] of this.cardFrames) {
       const selected = this.selectedCards.includes(id);
-      frame.setStrokeStyle(selected ? 3 : 2, selected ? palette.white : palette.dim, selected ? 1 : 0.6);
+      const unlocked = isCardUnlocked(id);
+      frame.setStrokeStyle(
+        selected ? 3 : 2,
+        selected ? palette.white : palette.dim,
+        selected ? 1 : unlocked ? 0.6 : 0.32
+      );
       frame.setFillStyle(selected ? palette.panel : palette.black, selected ? 1 : 0.72);
-      frame.setAlpha(selected ? 1 : 0.56);
+      frame.setAlpha(unlocked ? (selected ? 1 : 0.56) : 0.24);
     }
 
     const enabled = this.selectedCards.length > 0;
@@ -663,7 +698,7 @@ function readStoredLoadout() {
     }
 
     return parsed
-      .filter((id, index, cards) => isValidStoredCard(id) && cards.indexOf(id) === index)
+      .filter((id, index, cards) => isValidStoredCard(id) && isCardUnlocked(id) && cards.indexOf(id) === index)
       .slice(0, CARD_SLOT_COUNT);
   } catch {
     return [];

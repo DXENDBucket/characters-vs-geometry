@@ -1,5 +1,6 @@
 import { CELL_HEIGHT, CELL_WIDTH } from "../config";
 import { DAMAGE_SYMBOLS, EFFECT_SYMBOLS } from "../i18n";
+import { INITIAL_CARD_IDS } from "./cardUnlocks";
 import type { CardDefinition, CardId } from "../types";
 
 export const cardDefinitions: CardDefinition[] = [
@@ -574,4 +575,4 @@ export const cardDefinitions: CardDefinition[] = [
   }
 ];
 
-export const defaultLoadout: CardId[] = ["A", "B", "C", "D", "E", "X"];
+export const defaultLoadout: CardId[] = [...INITIAL_CARD_IDS];

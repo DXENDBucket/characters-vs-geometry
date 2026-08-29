@@ -4,6 +4,7 @@ const files = {
   types: read("src/types.ts"),
   cards: read("src/data/cards.ts"),
   cardBehaviors: read("src/game/cardBehaviors.ts"),
+  cardUnlocks: read("src/data/cardUnlocks.ts"),
   enemies: read("src/data/enemies.ts"),
   enemyRegistry: read("src/registry/enemies.ts"),
   levels: read("src/data/levels.ts"),
@@ -19,6 +20,8 @@ const cardDefinitions = parseCardDefinitions(files.cards);
 const enemyDefinitions = parseObjectKeys(files.enemies, "enemyDefinitions");
 const enemyRegistrations = parseObjectKeys(files.enemyRegistry, "enemyRegistrations");
 const cardBehaviorIds = parseObjectKeys(files.cardBehaviors, "cardBehaviorsById");
+const cardUnlockRequirements = parseCardUnlockRequirements(files.cardUnlocks);
+const initialCardIds = parseStringArray(files.cardUnlocks, "INITIAL_CARD_IDS");
 const levelConfigIds = parseLevelConfigIds(files.levels);
 const levelNodeIds = parseLevelNodeIds(files.levels);
 const levelEnemyKinds = parseLevelEnemyKinds(files.levels);
@@ -27,6 +30,13 @@ const cardRows = parseWaveReferenceCards(files.waveReference);
 
 expectSameSet("CardId union", cardIds, "cardDefinitions", cardDefinitions.map((card) => card.id));
 expectSameSet("CardId union", cardIds, "cardBehaviorsById", cardBehaviorIds);
+expectSameSet("CardId union", cardIds, "cardUnlockRequirements", cardUnlockRequirements.map((entry) => entry.id));
+expectSameSet(
+  "INITIAL_CARD_IDS",
+  initialCardIds,
+  "cards with no unlock requirement",
+  cardUnlockRequirements.filter((entry) => entry.levelId === null).map((entry) => entry.id)
+);
 expectSameSet("EnemyKind union", enemyKinds, "enemyDefinitions", enemyDefinitions);
 expectSameSet("EnemyKind union", enemyKinds, "enemyRegistrations", enemyRegistrations);
 expectSameSet("levelNodes", levelNodeIds, "levelConfigs", levelConfigIds);
@@ -40,6 +50,12 @@ for (const kind of levelEnemyKinds) {
 for (const kind of levelBossKinds) {
   if (!bossKinds.includes(kind)) {
     errors.push(`Level config references unknown boss kind "${kind}".`);
+  }
+}
+
+for (const requirement of cardUnlockRequirements) {
+  if (requirement.levelId !== null && !levelNodeIds.includes(requirement.levelId)) {
+    errors.push(`Card "${requirement.id}" has unknown unlock level "${requirement.levelId}".`);
   }
 }
 
@@ -96,6 +112,28 @@ function parseCardDefinitions(source) {
       magicResistance: numberField(block, "magicResistance") ?? 0
     };
   });
+}
+
+function parseCardUnlockRequirements(source) {
+  const body = parseObjectBody(source, "cardUnlockRequirements");
+  if (!body) {
+    errors.push("Could not find cardUnlockRequirements.");
+    return [];
+  }
+
+  return [...body.matchAll(/^\s{2}([A-Za-z]):\s*(?:null|"([^"]+)"),?$/gm)].map((match) => ({
+    id: match[1],
+    levelId: match[2] ?? null
+  }));
+}
+
+function parseStringArray(source, name) {
+  const match = source.match(new RegExp(`${name}\\s*=\\s*\\[([^\\]]*)\\]`));
+  if (!match) {
+    errors.push(`Could not find array "${name}".`);
+    return [];
+  }
+  return [...match[1].matchAll(/"([^"]+)"/g)].map((item) => item[1]);
 }
 
 function parseObjectKeys(source, objectName) {

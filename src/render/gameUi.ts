@@ -10,6 +10,7 @@ import {
   PROGRESS_BAR_WIDTH,
   palette
 } from "../config";
+import { towerEncyclopediaEntry } from "../encyclopedia";
 import { t } from "../i18n";
 import { getCardDefinition } from "../registry/cards";
 import type { AlphaGameObject, CardId, CardState, CubeBoss } from "../types";
@@ -49,8 +50,12 @@ export interface GameHudElements {
 
 export interface GameOverlayElements {
   container: Phaser.GameObjects.Container;
+  plate: Phaser.GameObjects.Rectangle;
   title: Phaser.GameObjects.Text;
+  subtitle: Phaser.GameObjects.Text;
+  menuButton: Phaser.GameObjects.Rectangle;
   buttonText: Phaser.GameObjects.Text;
+  details: Phaser.GameObjects.Container;
 }
 
 interface GameHudActions {
@@ -357,6 +362,15 @@ export function createGameOverlay(scene: Phaser.Scene, onAction: () => void): Ga
       fontStyle: "700"
     })
     .setOrigin(0.5);
+  const subtitle = scene.add
+    .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 6, "", {
+      color: "#8c8c8c",
+      fontFamily: "monospace",
+      fontSize: "17px",
+      fontStyle: "700"
+    })
+    .setOrigin(0.5)
+    .setVisible(false);
   const menuButton = scene.add
     .rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 34, 118, 38, palette.black, 1)
     .setStrokeStyle(2, palette.white, 1)
@@ -371,11 +385,12 @@ export function createGameOverlay(scene: Phaser.Scene, onAction: () => void): Ga
 
   menuButton.on("pointerdown", onAction);
 
-  const container = scene.add.container(0, 0, [plate, title, menuButton, buttonText]);
+  const details = scene.add.container(0, 0);
+  const container = scene.add.container(0, 0, [plate, title, subtitle, details, menuButton, buttonText]);
   container.setVisible(false);
   container.setDepth(200);
 
-  return { container, title, buttonText };
+  return { container, plate, title, subtitle, menuButton, buttonText, details };
 }
 
 export function updateCardStates(cardStates: CardState[], state: CardUpdateState) {
@@ -582,10 +597,82 @@ export function showToast(scene: Phaser.Scene, ui: GameHudElements, text: string
   });
 }
 
-export function showGameOverlay(overlay: GameOverlayElements, titleText: string, buttonText: string) {
+export function showGameOverlay(
+  overlay: GameOverlayElements,
+  titleText: string,
+  buttonText: string,
+  unlockedCardIds: CardId[] = []
+) {
+  const hasUnlocks = unlockedCardIds.length > 0;
+  overlay.details.removeAll(true);
+  overlay.plate.setSize(hasUnlocks ? 1_040 : 360, hasUnlocks ? 600 : 160);
   overlay.title.setText(titleText);
+  overlay.title.setPosition(GAME_WIDTH / 2, hasUnlocks ? 112 : GAME_HEIGHT / 2 - 24);
+  overlay.subtitle.setText(hasUnlocks ? t("overlay.newCards") : "");
+  overlay.subtitle.setPosition(GAME_WIDTH / 2, 154);
+  overlay.subtitle.setVisible(hasUnlocks);
+  overlay.menuButton.setPosition(GAME_WIDTH / 2, hasUnlocks ? 640 : GAME_HEIGHT / 2 + 34);
   overlay.buttonText.setText(buttonText);
+  overlay.buttonText.setPosition(GAME_WIDTH / 2, hasUnlocks ? 637 : GAME_HEIGHT / 2 + 31);
+  if (hasUnlocks) {
+    createUnlockedCardDetails(overlay, unlockedCardIds);
+  }
   overlay.container.setVisible(true);
+}
+
+function createUnlockedCardDetails(overlay: GameOverlayElements, unlockedCardIds: CardId[]) {
+  const scene = overlay.container.scene;
+  const rowHeight = unlockedCardIds.length > 1 ? 195 : 260;
+  const startY = unlockedCardIds.length > 1 ? 190 : 220;
+
+  unlockedCardIds.forEach((id, index) => {
+    const entry = towerEncyclopediaEntry(id);
+    const card = entry.card ?? getCardDefinition(id);
+    const y = startY + index * rowHeight;
+    const iconX = 176;
+    const contentX = 226;
+    const icon = createUnitBorder(scene, card.category, 25, 2).setPosition(iconX, y + 28);
+    const cardLabel = scene.add
+      .text(iconX, y + 25, card.id, {
+        color: "#f5f5f5",
+        fontFamily: "monospace",
+        fontSize: "24px",
+        fontStyle: "700"
+      })
+      .setOrigin(0.5);
+    const title = scene.add
+      .text(contentX, y, entry.title, {
+        color: "#f5f5f5",
+        fontFamily: "monospace",
+        fontSize: "20px",
+        fontStyle: "700"
+      })
+      .setOrigin(0, 0);
+    const stats = scene.add
+      .text(contentX, y + 32, entry.lines.join("\n"), {
+        color: "#8c8c8c",
+        fontFamily: "monospace",
+        fontSize: "12px",
+        lineSpacing: 2,
+        wordWrap: { width: 870, useAdvancedWrap: true }
+      })
+      .setOrigin(0, 0);
+    const description = scene.add
+      .text(contentX, y + 92, entry.description, {
+        color: "#d8d8d8",
+        fontFamily: "monospace",
+        fontSize: "14px",
+        lineSpacing: 2,
+        wordWrap: { width: 870, useAdvancedWrap: true }
+      })
+      .setOrigin(0, 0);
+
+    overlay.details.add([icon, cardLabel, title, stats, description]);
+    if (index < unlockedCardIds.length - 1) {
+      const divider = scene.add.rectangle(GAME_WIDTH / 2, y + rowHeight - 18, 900, 1, palette.dim, 0.7);
+      overlay.details.add(divider);
+    }
+  });
 }
 
 function createToolButton(scene: Phaser.Scene, x: number, y: number, width: number, label: string) {

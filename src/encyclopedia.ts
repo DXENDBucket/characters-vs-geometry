@@ -6,7 +6,7 @@ import {
 } from "./config";
 import { attackIntervalMs } from "./game/attackSpeed";
 import { DAMAGE_SYMBOLS, EFFECT_SYMBOLS, getLanguage, t } from "./i18n";
-import { allCardDefinitions } from "./registry/cards";
+import { allCardDefinitions, getCardDefinition } from "./registry/cards";
 import { getEnemyDefinition } from "./registry/enemies";
 import type { CardDefinition, CardId, DamageType, EnemyKind, UnitCategory } from "./types";
 
@@ -651,12 +651,17 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
 }
 
 export function towerEncyclopediaEntries(): EncyclopediaEntry[] {
-  return allCardDefinitions.map((card) => ({
+  return allCardDefinitions.map((card) => towerEncyclopediaEntry(card.id));
+}
+
+export function towerEncyclopediaEntry(id: CardId): EncyclopediaEntry {
+  const card = getCardDefinition(id);
+  return {
     title: `${card.id}  ${categoryName(card.category)}`,
     card,
     lines: towerLines(card),
     description: towerDescription(card.id)
-  }));
+  };
 }
 
 function towerLines(card: CardDefinition) {

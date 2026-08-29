@@ -463,7 +463,6 @@ export interface LevelNode {
   id: string;
   x: number;
   y: number;
-  unlocked: boolean;
 }
 
 export interface LevelConfig {

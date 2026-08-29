@@ -29,6 +29,7 @@ import { defaultChapterId, getChapterDefinition, levelNodesForChapter } from "..
 import { getLevelConfig } from "../data/levels";
 import { toRomanNumeral } from "../format";
 import { t } from "../i18n";
+import { isChapterUnlocked, isLevelCompleted, isLevelUnlocked } from "../progress";
 import { EncyclopediaPanel } from "../render/encyclopediaPanel";
 import type { BossKind, LevelNode } from "../types";
 
@@ -84,12 +85,13 @@ export class LevelSelectScene extends Phaser.Scene {
   }
 
   init(data: { chapterId?: string; difficulty?: number; unlimitedFirepower?: boolean; selectedLevelId?: string }) {
-    this.selectedChapterId = data.chapterId ?? defaultChapterId();
+    const requestedChapterId = data.chapterId ?? defaultChapterId();
+    this.selectedChapterId = isChapterUnlocked(requestedChapterId) ? requestedChapterId : defaultChapterId();
     this.difficulty = clampDifficulty(data.difficulty);
     this.unlimitedFirepower = Boolean(data.unlimitedFirepower);
     const nodes = this.chapterNodes();
-    const selectedNode = nodes.find((node) => node.id === data.selectedLevelId && node.unlocked);
-    this.selectedLevelId = selectedNode?.id ?? nodes.find((node) => node.unlocked)?.id ?? nodes[0]?.id ?? null;
+    const selectedNode = nodes.find((node) => node.id === data.selectedLevelId && isLevelUnlocked(node.id));
+    this.selectedLevelId = selectedNode?.id ?? nodes.find((node) => isLevelUnlocked(node.id))?.id ?? null;
   }
 
   create() {
@@ -286,11 +288,13 @@ export class LevelSelectScene extends Phaser.Scene {
   }
 
   private createLevelNode(node: LevelNode) {
-    const alpha = node.unlocked ? 1 : 0.28;
+    const unlocked = isLevelUnlocked(node.id);
+    const completed = isLevelCompleted(node.id);
+    const alpha = unlocked ? 1 : 0.28;
     const frame = this.add
       .rectangle(node.x, node.y, LEVEL_NODE_WIDTH, LEVEL_NODE_HEIGHT, palette.black, 1)
-      .setStrokeStyle(2, node.unlocked ? palette.mid : palette.dim, 1)
-      .setInteractive({ useHandCursor: true })
+      .setStrokeStyle(2, completed ? palette.green : unlocked ? palette.mid : palette.dim, 1)
+      .setInteractive({ useHandCursor: unlocked })
       .setAlpha(alpha);
     const label = this.add
       .text(node.x, node.y - 3, node.id, {
@@ -303,18 +307,30 @@ export class LevelSelectScene extends Phaser.Scene {
       .setAlpha(alpha);
 
     this.mapContainer.add([frame, label]);
+    if (completed) {
+      const completedMark = this.add
+        .text(node.x + LEVEL_NODE_WIDTH / 2 - 12, node.y - LEVEL_NODE_HEIGHT / 2 + 10, "✓", {
+          color: "#48ff88",
+          fontFamily: "monospace",
+          fontSize: "17px",
+          fontStyle: "700"
+        })
+        .setOrigin(0.5);
+      this.mapContainer.add(completedMark);
+    }
     this.createBossNodePreview(node, alpha);
 
     frame.on("pointerup", (pointer: Phaser.Input.Pointer) => {
       this.selectLevelNode(node, pointer);
     });
-    label.setInteractive({ useHandCursor: true }).on("pointerup", (pointer: Phaser.Input.Pointer) => {
+    label.setInteractive({ useHandCursor: unlocked }).on("pointerup", (pointer: Phaser.Input.Pointer) => {
       this.selectLevelNode(node, pointer);
     });
   }
 
   private selectLevelNode(node: LevelNode, pointer: Phaser.Input.Pointer) {
     if (
+      !isLevelUnlocked(node.id) ||
       this.mapDragging ||
       this.time.now < this.suppressNodeClickUntil ||
       this.encyclopediaPanel.isOpen() ||
@@ -732,7 +748,7 @@ export class LevelSelectScene extends Phaser.Scene {
     this.lockGraphics.lineStyle(3, palette.white, 1);
     this.drawCornerLocks(selected.x, selected.y, LEVEL_NODE_WIDTH + 24, LEVEL_NODE_HEIGHT + 24, 18);
 
-    const enabled = selected.unlocked;
+    const enabled = isLevelUnlocked(selected.id);
     this.startButton.setStrokeStyle(2, enabled ? palette.white : palette.dim, enabled ? 1 : 0.45);
     this.startButton.setAlpha(enabled ? 1 : 0.36);
     this.startText.setAlpha(enabled ? 1 : 0.28);
@@ -760,7 +776,7 @@ export class LevelSelectScene extends Phaser.Scene {
     }
 
     const selected = this.chapterNodes().find((node) => node.id === this.selectedLevelId);
-    if (selected?.unlocked) {
+    if (selected && isLevelUnlocked(selected.id)) {
       this.scene.start("CardSelectScene", {
         levelId: selected.id,
         chapterId: this.selectedChapterId,
