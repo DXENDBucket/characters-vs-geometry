@@ -412,7 +412,9 @@ export class SettingsScene extends Phaser.Scene {
         total: summary.totalLevels,
         unlocked: summary.unlockedLevels,
         cards: summary.unlockedCards,
-        cardTotal: summary.totalCards
+        cardTotal: summary.totalCards,
+        slots: summary.unlockedCardSlots,
+        slotTotal: summary.totalCardSlots
       })
     );
   }

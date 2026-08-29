@@ -1,5 +1,7 @@
+import { CARD_SLOT_COUNT } from "./config";
 import { chapterDefinitions, levelNodesForChapter } from "./data/chapters";
 import { cardUnlockRequirement, cardUnlockRequirements } from "./data/cardUnlocks";
+import { CARD_SLOT_UNLOCK_CHAPTER_IDS, INITIAL_CARD_SLOT_COUNT } from "./data/cardSlotUnlocks";
 import { levelNodes } from "./data/levels";
 import type { CardId } from "./types";
 
@@ -18,6 +20,8 @@ export interface ProgressSummary {
   unlockedLevels: number;
   unlockedCards: number;
   totalCards: number;
+  unlockedCardSlots: number;
+  totalCardSlots: number;
   allCardsUnlocked: boolean;
 }
 
@@ -49,8 +53,7 @@ export function isChapterUnlocked(chapterId: string) {
 }
 
 export function isChapterCompleted(chapterId: string) {
-  const nodes = levelNodesForChapter(chapterId);
-  return nodes.length > 0 && nodes.every((node) => isLevelCompleted(node.id));
+  return chapterCompletedInState(progress(), chapterId);
 }
 
 export function completedLevelCountForChapter(chapterId: string) {
@@ -65,6 +68,14 @@ export function isCardUnlocked(id: CardId) {
 
   const requiredLevelId = cardUnlockRequirement(id);
   return requiredLevelId === null || state.completedLevelIds.includes(requiredLevelId);
+}
+
+export function unlockedCardSlotCount() {
+  const state = progress();
+  const chapterSlots = CARD_SLOT_UNLOCK_CHAPTER_IDS.filter((chapterId) =>
+    chapterCompletedInState(state, chapterId)
+  ).length;
+  return Math.min(CARD_SLOT_COUNT, INITIAL_CARD_SLOT_COUNT + chapterSlots);
 }
 
 export function completeLevel(levelId: string) {
@@ -117,6 +128,8 @@ export function getProgressSummary(): ProgressSummary {
     unlockedLevels: levelNodes.filter((node) => isLevelUnlocked(node.id)).length,
     unlockedCards: allCardIds.filter((id) => isCardUnlocked(id)).length,
     totalCards: allCardIds.length,
+    unlockedCardSlots: unlockedCardSlotCount(),
+    totalCardSlots: CARD_SLOT_COUNT,
     allCardsUnlocked: state.allCardsUnlocked
   };
 }
@@ -147,6 +160,10 @@ function readProgress(): StoredProgress {
         ? parsed.completedLevelIds.filter((id): id is string => typeof id === "string" && knownLevelIds.has(id))
         : []
     );
+    // Saves created before the tutorial existed keep their established chapter access.
+    if (!completed.has("0-1") && [...completed].some((id) => id !== "0-1")) {
+      completed.add("0-1");
+    }
     return {
       version: SAVE_VERSION,
       completedLevelIds: levelNodes.map((node) => node.id).filter((id) => completed.has(id)),
@@ -155,6 +172,11 @@ function readProgress(): StoredProgress {
   } catch {
     return emptyProgress();
   }
+}
+
+function chapterCompletedInState(state: StoredProgress, chapterId: string) {
+  const nodes = levelNodesForChapter(chapterId);
+  return nodes.length > 0 && nodes.every((node) => state.completedLevelIds.includes(node.id));
 }
 
 function writeProgress(state: StoredProgress) {

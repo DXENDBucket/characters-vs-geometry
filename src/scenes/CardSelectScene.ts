@@ -17,11 +17,12 @@ import {
   isTetrahedronBossKind
 } from "../bosses/cubeBoss";
 import { cardUnlockRequirement } from "../data/cardUnlocks";
+import { cardSlotUnlockChapter } from "../data/cardSlotUnlocks";
 import { chapterIdForLevelId } from "../data/chapters";
 import { getLevelConfig } from "../data/levels";
 import { toRomanNumeral } from "../format";
 import { DAMAGE_SYMBOLS, t } from "../i18n";
-import { isCardUnlocked } from "../progress";
+import { isCardUnlocked, unlockedCardSlotCount } from "../progress";
 import { createEnemyShape, createUnitBorder } from "../render/unitShapes";
 import { allCardDefinitions, cardLetterCase, hasCardDefinition, type CardLetterCase } from "../registry/cards";
 import { enemyFamily, enemyRank, getEnemyDefinition, getEnemyDisplayName, type EnemyFamily } from "../registry/enemies";
@@ -47,6 +48,7 @@ export class CardSelectScene extends Phaser.Scene {
   private difficulty = DEFAULT_DIFFICULTY;
   private unlimitedFirepower = false;
   private selectedCards: CardId[] = [];
+  private cardSlotCount = 0;
   private enemyPreviewList!: Phaser.GameObjects.Container;
   private enemyPreviewViewport!: Phaser.Geom.Rectangle;
   private enemyPreviewContentHeight = 0;
@@ -84,7 +86,8 @@ export class CardSelectScene extends Phaser.Scene {
     this.chapterId = data.chapterId ?? chapterIdForLevelId(this.levelId);
     this.difficulty = clampDifficulty(data.difficulty);
     this.unlimitedFirepower = Boolean(data.unlimitedFirepower);
-    this.selectedCards = readStoredLoadout();
+    this.cardSlotCount = unlockedCardSlotCount();
+    this.selectedCards = readStoredLoadout(this.cardSlotCount);
     this.slotFrames = [];
     this.slotLabels = [];
     this.cardFrames = new Map();
@@ -124,7 +127,7 @@ export class CardSelectScene extends Phaser.Scene {
       .setOrigin(0, 0);
 
     this.add
-      .text(50, 88, t("label.loadout"), {
+      .text(50, 88, `${t("label.loadout")} ${this.cardSlotCount}/${CARD_SLOT_COUNT}`, {
         color: "#8c8c8c",
         fontFamily: "monospace",
         fontSize: "17px"
@@ -330,15 +333,31 @@ export class CardSelectScene extends Phaser.Scene {
     const y = 180;
     for (let index = 0; index < CARD_SLOT_COUNT; index += 1) {
       const x = startX + index * slotGap;
-      const frame = this.add.rectangle(x, y, slotWidth, 70, palette.black, 1).setStrokeStyle(2, palette.dim, 1);
+      const locked = index >= this.cardSlotCount;
+      const frame = this.add
+        .rectangle(x, y, slotWidth, 70, palette.black, 1)
+        .setStrokeStyle(2, palette.dim, locked ? 0.32 : 1);
       const label = this.add
-        .text(x, y - 3, "", {
+        .text(x, y - (locked ? 9 : 3), locked ? "×" : "", {
           color: "#f5f5f5",
           fontFamily: "monospace",
-          fontSize: "28px",
+          fontSize: locked ? "23px" : "28px",
           fontStyle: "700"
         })
-        .setOrigin(0.5);
+        .setOrigin(0.5)
+        .setAlpha(locked ? 0.28 : 1);
+      const unlockChapter = cardSlotUnlockChapter(index);
+      if (locked && unlockChapter) {
+        this.add
+          .text(x, y + 22, t("card.slotUnlockAfter", { chapter: unlockChapter }), {
+            color: "#8c8c8c",
+            fontFamily: "monospace",
+            fontSize: "10px",
+            fontStyle: "700"
+          })
+          .setOrigin(0.5)
+          .setAlpha(0.55);
+      }
       this.slotFrames.push(frame);
       this.slotLabels.push(label);
     }
@@ -618,7 +637,7 @@ export class CardSelectScene extends Phaser.Scene {
 
     if (this.selectedCards.includes(id)) {
       this.selectedCards = this.selectedCards.filter((cardId) => cardId !== id);
-    } else if (this.selectedCards.length < CARD_SLOT_COUNT) {
+    } else if (this.selectedCards.length < this.cardSlotCount) {
       this.selectedCards.push(id);
     }
     writeStoredLoadout(this.selectedCards);
@@ -637,6 +656,12 @@ export class CardSelectScene extends Phaser.Scene {
 
   private updateCardSelection() {
     this.slotFrames.forEach((slot, index) => {
+      if (index >= this.cardSlotCount) {
+        slot.setStrokeStyle(2, palette.dim, 0.32);
+        this.slotLabels[index].setText("×");
+        this.slotLabels[index].setAlpha(0.28);
+        return;
+      }
       const cardId = this.selectedCards[index];
       slot.setStrokeStyle(2, cardId ? palette.white : palette.dim, cardId ? 1 : 0.55);
       this.slotLabels[index].setText(cardId ?? "");
@@ -685,7 +710,7 @@ export class CardSelectScene extends Phaser.Scene {
   }
 }
 
-function readStoredLoadout() {
+function readStoredLoadout(cardSlotCount: number) {
   try {
     const raw = window.localStorage.getItem(LOADOUT_STORAGE_KEY);
     if (!raw) {
@@ -699,7 +724,7 @@ function readStoredLoadout() {
 
     return parsed
       .filter((id, index, cards) => isValidStoredCard(id) && isCardUnlocked(id) && cards.indexOf(id) === index)
-      .slice(0, CARD_SLOT_COUNT);
+      .slice(0, cardSlotCount);
   } catch {
     return [];
   }

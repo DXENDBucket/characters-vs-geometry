@@ -236,6 +236,18 @@ Upgrade scaling:
 | Eraser | Combat screen top-right. Hotkey: `1`. | Select `ERASE`, then click a placed character to remove it. No character refund. |
 | Pause | Spacebar | Freezes combat time while keeping deployment controls available. |
 
+## Card Slots
+
+- A new save starts with `6` of the current `9` card slots.
+- Fully clearing Chapters 1, 2, and 3 unlocks one additional slot each, reaching all `9` slots.
+- Stored loadouts are always trimmed to the currently unlocked slot count before combat starts.
+
+## Level 0-1 Tutorial
+
+- Guided introduction to enemy direction, base integrity, production, attacking, blocking, upgrading, lanes, waves, and victory.
+- Uses a fixed `X / A / B` loadout and `350` starting characters.
+- Three scripted Circle 1 waves only advance after the current lesson is complete.
+
 ## Level 1-1 Weight Growth
 
 Base rule:

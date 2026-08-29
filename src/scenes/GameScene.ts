@@ -28,10 +28,15 @@ import {
 import { createCubeBoss } from "../bosses/cubeBoss";
 import { chapterIdForLevelId } from "../data/chapters";
 import { getLevelConfig } from "../data/levels";
+import {
+  BASIC_TUTORIAL_LOADOUT,
+  BasicTutorialController,
+  type BasicTutorialEnemySpawn
+} from "../game/basicTutorial";
 import { updateBossRuntime, type BossRuntime } from "../game/bossRuntime";
 import { idleCardBehavior, type CardBehavior } from "../game/cardBehaviors";
 import type { CombatRuntime } from "../game/combatRuntime";
-import { advanceEnemies, spawnWaveEnemies } from "../game/enemyRuntime";
+import { advanceEnemies, spawnEnemyAt, spawnWaveEnemies } from "../game/enemyRuntime";
 import {
   updateEnemyProjectiles,
   updateMortarProjectiles,
@@ -81,7 +86,7 @@ import { volleyInterval, volleyShotCount } from "../game/upgrades";
 import { waveScheduleAction } from "../game/waves";
 import { attackIntervalMs } from "../game/attackSpeed";
 import { t } from "../i18n";
-import { completeLevel, isCardUnlocked } from "../progress";
+import { completeLevel, isCardUnlocked, unlockedCardSlotCount } from "../progress";
 import { makeEraseMark, makeProductionPulse, makeShellBurst, makeShockPulse } from "../render/combatEffects";
 import { createUnitBorder } from "../render/unitShapes";
 import {
@@ -97,6 +102,7 @@ import {
   type GameOverlayElements
 } from "../render/gameUi";
 import { allCardDefinitions, defaultCardLoadout, getCardBehavior, getCardDefinition, hasCardDefinition } from "../registry/cards";
+import { getEnemyDefinition } from "../registry/enemies";
 import {
   CONTROL_SLOT_COUNT,
   cardControlAction,
@@ -231,6 +237,7 @@ export class GameScene extends Phaser.Scene {
   private unitLifecycleRuntimeCache!: UnitLifecycleRuntime;
   private projectileRuntimeCache!: ProjectileRuntime;
   private triggerTowerRuntimeCache!: TriggerTowerRuntime;
+  private tutorial: BasicTutorialController | null = null;
   private ui!: GameHudElements;
   private overlay!: GameOverlayElements;
   private readonly scenePointerDownHandler = (pointer: Phaser.Input.Pointer) => this.handlePointerDown(pointer);
@@ -257,9 +264,10 @@ export class GameScene extends Phaser.Scene {
     this.chapterId = data.chapterId ?? chapterIdForLevelId(this.levelId);
     this.levelConfig = getLevelConfig(this.levelId);
     this.difficulty = clampDifficulty(data.difficulty);
-    this.unlimitedFirepower = Boolean(data.unlimitedFirepower);
+    const isBasicTutorial = this.levelConfig.specialMechanic === "tutorialBasics";
+    this.unlimitedFirepower = isBasicTutorial ? false : Boolean(data.unlimitedFirepower);
     this.difficultyConfig = this.adjustDifficultyForUnlimitedFirepower(getDifficultyConfig(this.difficulty));
-    this.selectedCardIds = this.sanitizeLoadout(data.selectedCards);
+    this.selectedCardIds = this.sanitizeLoadout(isBasicTutorial ? [...BASIC_TUTORIAL_LOADOUT] : data.selectedCards);
     this.setCardStates([]);
     this.selectedCardId = this.selectedCardIds.includes("X") ? "X" : this.selectedCardIds[0];
     this.towers = [];
@@ -296,6 +304,7 @@ export class GameScene extends Phaser.Scene {
     this.autoUpgradeEnabled = true;
     this.autoUpgradeReserveChars = 0;
     this.autoUpgradeReserveInputFocused = false;
+    this.tutorial = null;
     this.targetedEffects = new TargetedEffectCardController(() => this.targetedEffectCardRuntime());
     this.towerSkills = new TowerSkillController(this, () => this.towerSkillRuntime());
     this.shifter = new TowerShifterController(() => this.towerShifterRuntime());
@@ -336,6 +345,16 @@ export class GameScene extends Phaser.Scene {
     this.setCardStates(createCardStates(this, this.selectedCardIds, (id) => this.selectCard(id)));
     this.updateCards();
     this.overlay = createGameOverlay(this, () => this.handleOverlayAction());
+    if (this.levelConfig.specialMechanic === "tutorialBasics") {
+      this.tutorial = new BasicTutorialController({
+        scene: this,
+        getCardState: (id) => this.cardStatesById.get(id),
+        getTowers: () => this.towers,
+        getEnemies: () => this.enemies,
+        spawnWave: (spawns) => this.spawnTutorialWave(spawns),
+        finish: () => this.endLevel()
+      });
+    }
 
     this.input.on("pointerdown", this.scenePointerDownHandler);
     this.input.on("pointermove", this.scenePointerMoveHandler);
@@ -349,6 +368,8 @@ export class GameScene extends Phaser.Scene {
     this.input.keyboard?.off("keydown", this.sceneKeyDownHandler);
     this.pausedActions = [];
     this.clearPlacementGhosts();
+    this.tutorial?.destroy();
+    this.tutorial = null;
     this.shifter?.clearSelection();
     this.towerSkills?.cancelSpellMortarTargeting();
   }
@@ -369,6 +390,7 @@ export class GameScene extends Phaser.Scene {
     if (this.battlePaused) {
       this.mirrors.syncMirrors();
       this.updateLevelAurasIfNeeded();
+      this.tutorial?.update();
       this.shifter.syncSelectionVisuals();
       this.syncPlacementGhost(this.input.activePointer);
       this.updateCards();
@@ -397,7 +419,11 @@ export class GameScene extends Phaser.Scene {
     updateEnemyProjectiles(projectileRuntime, seconds);
     projectileRuntime.slowAuraSources = slowAuraSources(this.towers);
     updateMortarProjectiles(projectileRuntime, seconds);
-    this.updateWaveSchedule(this.levelElapsed, this.battleTime);
+    if (this.tutorial) {
+      this.tutorial.update();
+    } else {
+      this.updateWaveSchedule(this.levelElapsed, this.battleTime);
+    }
     this.attemptAutoUpgrades();
     this.shifter.syncSelectionVisuals();
     this.syncPlacementGhost(this.input.activePointer);
@@ -1570,6 +1596,35 @@ export class GameScene extends Phaser.Scene {
     );
   }
 
+  private spawnTutorialWave(spawns: BasicTutorialEnemySpawn[]) {
+    const waveNumber = this.wave + 1;
+    let totalWeight = 0;
+    this.wave = waveNumber;
+    spawns.forEach((spawn, index) => {
+      const definition = getEnemyDefinition(spawn.kind);
+      totalWeight += spawnEnemyAt(this.combatRuntime(), {
+        kind: spawn.kind,
+        waveNumber,
+        time: this.battleTime,
+        lane: spawn.lane,
+        x: spawn.x ?? BOARD_X + BOARD_WIDTH + 46 + index * 5,
+        waveWeight: definition.weight,
+        finalDamageReduction: 0
+      });
+    });
+    this.waveTracker = {
+      number: waveNumber,
+      totalWeight,
+      defeatedWeight: 0,
+      spawnedAt: this.levelElapsed
+    };
+    this.showToast(
+      waveNumber % this.levelConfig.wavesPerFlag === 0
+        ? `${t("label.flag")} ${waveNumber / this.levelConfig.wavesPerFlag}`
+        : `${t("label.wave")} ${waveNumber}`
+    );
+  }
+
   private handleBossDefeated(boss: CubeBoss) {
     const phases = this.levelConfig.bossPhases;
     if (!phases || this.bossPhaseIndex + 1 >= phases.length) {
@@ -2004,8 +2059,18 @@ export class GameScene extends Phaser.Scene {
 
   private endLevel() {
     this.gameOver = true;
+    const previousCardSlotCount = unlockedCardSlotCount();
     const unlockedCardIds = completeLevel(this.levelId);
-    showGameOverlay(this.overlay, t("overlay.clear"), t("button.menu"), unlockedCardIds);
+    const currentCardSlotCount = unlockedCardSlotCount();
+    showGameOverlay(
+      this.overlay,
+      t("overlay.clear"),
+      t("button.menu"),
+      unlockedCardIds,
+      currentCardSlotCount > previousCardSlotCount
+        ? { current: currentCardSlotCount, total: CARD_SLOT_COUNT }
+        : undefined
+    );
   }
 
   private handleOverlayAction() {
@@ -2174,11 +2239,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   private sanitizeLoadout(selectedCards?: CardId[]) {
+    const slotCount = unlockedCardSlotCount();
     const validCards = (selectedCards ?? defaultCardLoadout).filter((id, index, cards): id is CardId => {
       return hasCardDefinition(id) && isCardUnlocked(id) && cards.indexOf(id) === index;
     });
 
-    return validCards.length > 0 ? validCards.slice(0, CARD_SLOT_COUNT) : [...defaultCardLoadout];
+    return validCards.length > 0
+      ? validCards.slice(0, slotCount)
+      : [...defaultCardLoadout].slice(0, slotCount);
   }
 
   private isInsideBoard(x: number, y: number) {

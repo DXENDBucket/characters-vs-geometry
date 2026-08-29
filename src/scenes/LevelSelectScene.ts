@@ -777,11 +777,12 @@ export class LevelSelectScene extends Phaser.Scene {
 
     const selected = this.chapterNodes().find((node) => node.id === this.selectedLevelId);
     if (selected && isLevelUnlocked(selected.id)) {
-      this.scene.start("CardSelectScene", {
+      const sceneKey = getLevelConfig(selected.id).specialMechanic === "tutorialBasics" ? "GameScene" : "CardSelectScene";
+      this.scene.start(sceneKey, {
         levelId: selected.id,
         chapterId: this.selectedChapterId,
         difficulty: this.difficulty,
-        unlimitedFirepower: this.unlimitedFirepower
+        unlimitedFirepower: sceneKey === "GameScene" ? false : this.unlimitedFirepower
       });
     }
   }

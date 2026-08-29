@@ -601,20 +601,42 @@ export function showGameOverlay(
   overlay: GameOverlayElements,
   titleText: string,
   buttonText: string,
-  unlockedCardIds: CardId[] = []
+  unlockedCardIds: CardId[] = [],
+  unlockedCardSlot?: { current: number; total: number }
 ) {
-  const hasUnlocks = unlockedCardIds.length > 0;
+  const hasCardUnlocks = unlockedCardIds.length > 0;
+  const hasSlotUnlock = Boolean(unlockedCardSlot);
+  const hasUnlocks = hasCardUnlocks || hasSlotUnlock;
+  const compactSlotUnlock = hasSlotUnlock && !hasCardUnlocks;
+  const plateWidth = hasCardUnlocks ? 1_040 : compactSlotUnlock ? 460 : 360;
+  const plateHeight = hasCardUnlocks ? 600 : compactSlotUnlock ? 210 : 160;
+  const titleY = hasCardUnlocks
+    ? 112
+    : compactSlotUnlock
+      ? GAME_HEIGHT / 2 - 48
+      : GAME_HEIGHT / 2 - 24;
+  const menuY = hasCardUnlocks
+    ? 640
+    : compactSlotUnlock
+      ? GAME_HEIGHT / 2 + 58
+      : GAME_HEIGHT / 2 + 34;
   overlay.details.removeAll(true);
-  overlay.plate.setSize(hasUnlocks ? 1_040 : 360, hasUnlocks ? 600 : 160);
+  overlay.plate.setSize(plateWidth, plateHeight);
   overlay.title.setText(titleText);
-  overlay.title.setPosition(GAME_WIDTH / 2, hasUnlocks ? 112 : GAME_HEIGHT / 2 - 24);
-  overlay.subtitle.setText(hasUnlocks ? t("overlay.newCards") : "");
-  overlay.subtitle.setPosition(GAME_WIDTH / 2, 154);
+  overlay.title.setPosition(GAME_WIDTH / 2, titleY);
+  const unlockMessages = [
+    hasCardUnlocks ? t("overlay.newCards") : "",
+    unlockedCardSlot
+      ? t("overlay.newCardSlot", { current: unlockedCardSlot.current, total: unlockedCardSlot.total })
+      : ""
+  ].filter(Boolean);
+  overlay.subtitle.setText(unlockMessages.join("  +  "));
+  overlay.subtitle.setPosition(GAME_WIDTH / 2, hasCardUnlocks ? 154 : GAME_HEIGHT / 2 - 6);
   overlay.subtitle.setVisible(hasUnlocks);
-  overlay.menuButton.setPosition(GAME_WIDTH / 2, hasUnlocks ? 640 : GAME_HEIGHT / 2 + 34);
+  overlay.menuButton.setPosition(GAME_WIDTH / 2, menuY);
   overlay.buttonText.setText(buttonText);
-  overlay.buttonText.setPosition(GAME_WIDTH / 2, hasUnlocks ? 637 : GAME_HEIGHT / 2 + 31);
-  if (hasUnlocks) {
+  overlay.buttonText.setPosition(GAME_WIDTH / 2, menuY - 3);
+  if (hasCardUnlocks) {
     createUnlockedCardDetails(overlay, unlockedCardIds);
   }
   overlay.container.setVisible(true);
