@@ -103,7 +103,8 @@ export function createGameHud(
   scene: Phaser.Scene,
   levelId: string,
   difficulty: number,
-  actions: GameHudActions
+  actions: GameHudActions,
+  debugModeEnabled: boolean
 ): GameHudElements {
   scene.add
     .text(28, 24, `${t("app.title")} ${levelId} D${difficulty}`, {
@@ -249,14 +250,23 @@ export function createGameHud(
     .setDepth(31)
     .setInteractive({ useHandCursor: true });
 
-  bindPointerAction(debugDamageButton, actions.onDebugDamage);
-  debugDamageText.setInteractive({ useHandCursor: true });
-  bindPointerAction(debugDamageText, actions.onDebugDamage);
-  bindPointerAction(superDebugDamageButton, actions.onSuperDebugDamage);
-  superDebugDamageText.setInteractive({ useHandCursor: true });
-  bindPointerAction(superDebugDamageText, actions.onSuperDebugDamage);
-  debugButton.on("pointerdown", actions.onDebug);
-  debugText.setInteractive({ useHandCursor: true }).on("pointerdown", actions.onDebug);
+  if (debugModeEnabled) {
+    bindPointerAction(debugDamageButton, actions.onDebugDamage);
+    debugDamageText.setInteractive({ useHandCursor: true });
+    bindPointerAction(debugDamageText, actions.onDebugDamage);
+    bindPointerAction(superDebugDamageButton, actions.onSuperDebugDamage);
+    superDebugDamageText.setInteractive({ useHandCursor: true });
+    bindPointerAction(superDebugDamageText, actions.onSuperDebugDamage);
+    debugButton.on("pointerdown", actions.onDebug);
+    debugText.setInteractive({ useHandCursor: true }).on("pointerdown", actions.onDebug);
+  } else {
+    debugDamageButton.setVisible(false);
+    debugDamageText.setVisible(false);
+    superDebugDamageButton.setVisible(false);
+    superDebugDamageText.setVisible(false);
+    debugButton.setVisible(false);
+    debugText.setVisible(false);
+  }
   shifterButton.on("pointerdown", actions.onShifter);
   shifterText.setInteractive({ useHandCursor: true }).on("pointerdown", actions.onShifter);
   autoUpgradeButton.on("pointerdown", actions.onAutoUpgrade);

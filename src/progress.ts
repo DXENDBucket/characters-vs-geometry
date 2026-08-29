@@ -164,6 +164,8 @@ function readProgress(): StoredProgress {
     if ([...completed].some((id) => !id.startsWith("0-"))) {
       completed.add("0-1");
       completed.add("0-2");
+      completed.add("0-3");
+      completed.add("0-4");
     }
     return {
       version: SAVE_VERSION,

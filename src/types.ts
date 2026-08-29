@@ -479,7 +479,12 @@ export interface LevelConfig {
   bossPhases?: BossPhaseConfig[];
   endless?: boolean;
   ignoreEnemyMinFlag?: boolean;
-  specialMechanic?: "rightColumnSeal" | "tutorialBasics" | "tutorialTowerTypes";
+  specialMechanic?:
+    | "rightColumnSeal"
+    | "tutorialBasics"
+    | "tutorialTowerTypes"
+    | "tutorialAutoUpgrade"
+    | "tutorialShifter";
 }
 
 export interface BossPhaseConfig {

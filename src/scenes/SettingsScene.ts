@@ -13,12 +13,14 @@ import {
   captureKeyCode,
   formatKeyCode,
   getKeybinding,
+  isDebugToolControlAction,
   resetKeybindings,
   setKeybinding,
   slotControlAction,
   toolControlDefinitions,
   type ControlActionId
 } from "../settings/keybindings";
+import { isDebugModeEnabled, setDebugModeEnabled } from "../settings/preferences";
 
 interface KeybindingRow {
   actionId: ControlActionId;
@@ -71,6 +73,7 @@ export class SettingsScene extends Phaser.Scene {
     this.drawBackdrop();
     this.createBackButton();
     this.createLanguageControls();
+    this.createDebugModeControl();
     this.createControlRows();
     this.createProgressControls();
     this.createResetButton();
@@ -159,9 +162,47 @@ export class SettingsScene extends Phaser.Scene {
     this.languageButtons.push({ language, frame, label });
   }
 
+  private createDebugModeControl() {
+    const enabled = isDebugModeEnabled();
+    this.add
+      .text(334, 158, t("settings.debugMode"), {
+        color: "#f5f5f5",
+        fontFamily: "monospace",
+        fontSize: "18px",
+        fontStyle: "700"
+      })
+      .setOrigin(0, 0);
+
+    const box = this.add
+      .rectangle(343, 204, 18, 18, palette.black, 1)
+      .setStrokeStyle(2, enabled ? palette.gold : palette.dim, enabled ? 0.95 : 0.75)
+      .setInteractive({ useHandCursor: true });
+    const fill = this.add.rectangle(343, 204, 10, 10, palette.gold, 1).setVisible(enabled);
+    const label = this.add
+      .text(360, 202, t("settings.debugModeEnabled"), {
+        color: "#d8d8d8",
+        fontFamily: "monospace",
+        fontSize: "14px"
+      })
+      .setOrigin(0, 0.5)
+      .setAlpha(enabled ? 1 : 0.58)
+      .setInteractive({ useHandCursor: true });
+
+    const toggle = () => {
+      setDebugModeEnabled(!enabled);
+      this.scene.restart({ returnScene: this.returnScene, returnData: this.returnData });
+    };
+    box.on("pointerdown", toggle);
+    fill.setInteractive({ useHandCursor: true }).on("pointerdown", toggle);
+    label.on("pointerdown", toggle);
+  }
+
   private createControlRows() {
     this.createSectionTitle(66, 266, t("settings.tools"));
-    toolControlDefinitions.forEach((definition, index) => {
+    const toolDefinitions = toolControlDefinitions.filter((definition) => {
+      return isDebugModeEnabled() || !isDebugToolControlAction(definition.id);
+    });
+    toolDefinitions.forEach((definition, index) => {
       this.createBindingRow(t(definition.labelKey), definition.id, 66, 306 + index * 34, 150);
     });
 

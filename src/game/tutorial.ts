@@ -22,12 +22,30 @@ export interface TutorialEnemySpawn {
   x?: number;
 }
 
+export type TutorialToolId =
+  | "erase"
+  | "autoUpgrade"
+  | "autoUpgradeEnabled"
+  | "autoUpgradeReserve"
+  | "shifter";
+
+export interface TutorialToolState {
+  eraserMode: boolean;
+  autoUpgradeMode: boolean;
+  autoUpgradeEnabled: boolean;
+  shifterMode: boolean;
+  shifterReadyRatio: number;
+  shifterSelection: Tower[];
+}
+
 export interface TutorialRuntime {
   scene: Phaser.Scene;
   getCardState: (id: CardId) => CardState | undefined;
   getTowers: () => Tower[];
   getEnemies: () => Enemy[];
   getBattleTime: () => number;
+  getToolBounds: (id: TutorialToolId) => Phaser.Geom.Rectangle;
+  getToolState: () => TutorialToolState;
   spawnWave: (spawns: TutorialEnemySpawn[]) => void;
   finish: () => void;
 }
@@ -38,7 +56,10 @@ export interface TutorialController {
 }
 
 export function isTutorialMechanic(mechanic: LevelConfig["specialMechanic"]) {
-  return mechanic === "tutorialBasics" || mechanic === "tutorialTowerTypes";
+  return mechanic === "tutorialBasics" ||
+    mechanic === "tutorialTowerTypes" ||
+    mechanic === "tutorialAutoUpgrade" ||
+    mechanic === "tutorialShifter";
 }
 
 export interface GuidedTutorialCopy {
@@ -165,6 +186,12 @@ export class GuidedTutorialView {
     this.highlights.fillRect(x + 4, y + 4, CELL_WIDTH - 8, CELL_HEIGHT - 8);
     this.highlights.lineStyle(3, palette.gold, alpha);
     this.highlights.strokeRect(x + 4, y + 4, CELL_WIDTH - 8, CELL_HEIGHT - 8);
+  }
+
+  drawToolHighlight(id: TutorialToolId, alpha: number) {
+    const bounds = this.runtime.getToolBounds(id);
+    this.highlights.lineStyle(3, palette.gold, alpha);
+    this.highlights.strokeRect(bounds.x - 5, bounds.y - 5, bounds.width + 10, bounds.height + 10);
   }
 
   drawEnemyHighlights(alpha: number) {

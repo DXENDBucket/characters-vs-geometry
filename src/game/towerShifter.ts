@@ -86,6 +86,10 @@ export class TowerShifterController {
     return this.liveSelection().length > 0;
   }
 
+  selectedTowers() {
+    return [...this.liveSelection()];
+  }
+
   handlePointer(lane: number, column: number, existingTower: Tower | undefined, additive: boolean): TowerShifterPointerResult {
     const runtime = this.runtime();
     if (runtime.cardTime < this.readyAt) {

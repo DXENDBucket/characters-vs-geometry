@@ -230,11 +230,15 @@ Upgrade scaling:
 
 | Tool | Location | Effect |
 | --- | --- | --- |
-| Debug | Combat screen top-right, left of Auto Upgrade | Grants `10000` characters and `1000` base integrity, refreshes all card cooldowns, and triggers auto-upgrade checks. |
+| Debug | Combat screen top-right when Debug Mode is enabled | Grants `10000` characters and `1000` base integrity, refreshes all card cooldowns, and triggers auto-upgrade checks. |
+| True Damage | Combat screen top-right when Debug Mode is enabled | Applies `15000` true damage to the clicked cell. |
+| Super True Damage | Combat screen top-right when Debug Mode is enabled | Applies `105000` true damage to the clicked cell. |
 | Auto Upgrade | Combat screen top-right, left of Eraser. Hotkey: `2`. | Select `AUTO`, then click a tower to mark/unmark it. Marked towers show a green ring and auto-buy upgrades when their matching card slot is ready. |
 | Unlimited Firepower | Level select, left of the difficulty slider | Multiplies wave weight caps by `10` and Boss HP by `10`. Manual placement or upgrade applies to the whole clicked column; cells occupied by other tower types stay unchanged. |
 | Eraser | Combat screen top-right. Hotkey: `1`. | Select `ERASE`, then click a placed character to remove it. No character refund. |
 | Pause | Spacebar | Freezes combat time while keeping deployment controls available. |
+
+Debug Mode is disabled by default and persists locally from Settings. When disabled, Debug, True Damage, and Super True Damage are hidden in combat and their control rows and shortcuts are inactive.
 
 ## Card Slots
 
@@ -253,7 +257,19 @@ Upgrade scaling:
 - Introduces the five tower categories and their circle, diamond, square, triangle, and hexagon frames.
 - Uses a fixed `F / G` loadout and `500` starting characters.
 - Demonstrates F's manual area burst, G's `15s` arming time, and G's automatic contact trigger with two scripted Circle 1 targets.
-- Existing saves with progress in a formal chapter automatically count both Chapter 0 tutorials as completed.
+- Existing saves with progress in a formal chapter automatically count all Chapter 0 tutorials as completed.
+
+## Level 0-3 Tutorial
+
+- Uses a fixed `A` loadout and `150` starting characters.
+- Demonstrates marking a tower for Auto Upgrade, waiting for a real automatic level purchase, the global Run toggle, and the character Floor reserve.
+- Finishes by selecting Eraser and removing the marked tower with no refund.
+
+## Level 0-4 Tutorial
+
+- Uses a fixed `A / B` loadout and `500` starting characters.
+- Demonstrates a single-tower shift, the `15s` base cooldown, placement ghosts, and invalid-destination behavior.
+- Demonstrates `Ctrl + left-click` multi-selection, the upper-left anchor, preserved relative positions, and compounded cooldown growth.
 
 ## Level 1-1 Weight Growth
 

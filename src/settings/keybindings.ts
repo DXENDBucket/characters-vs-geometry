@@ -34,6 +34,16 @@ export const toolControlDefinitions: ToolControlDefinition[] = [
   { id: "tool:pause", labelKey: "control.pause" }
 ];
 
+const debugToolControlActions = new Set<ToolControlAction>([
+  "tool:debugDamage",
+  "tool:superDebugDamage",
+  "tool:debugChars"
+]);
+
+export function isDebugToolControlAction(actionId: ToolControlAction) {
+  return debugToolControlActions.has(actionId);
+}
+
 const defaultKeybindings: Partial<Record<ControlActionId, string>> = {
   "tool:erase": "Digit1",
   "tool:autoUpgrade": "Digit2",

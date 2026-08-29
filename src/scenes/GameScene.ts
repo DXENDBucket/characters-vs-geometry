@@ -28,10 +28,6 @@ import {
 import { createCubeBoss } from "../bosses/cubeBoss";
 import { chapterIdForLevelId } from "../data/chapters";
 import { getLevelConfig } from "../data/levels";
-import {
-  BASIC_TUTORIAL_LOADOUT,
-  BasicTutorialController
-} from "../game/basicTutorial";
 import { updateBossRuntime, type BossRuntime } from "../game/bossRuntime";
 import { idleCardBehavior, type CardBehavior } from "../game/cardBehaviors";
 import type { CombatRuntime } from "../game/combatRuntime";
@@ -65,15 +61,13 @@ import { MIRROR_COST_LIMIT, TowerMirrorController, type TowerMirrorRuntime, type
 import { TowerShifterController, type TowerShifterRuntime } from "../game/towerShifter";
 import { TowerSkillController, type TowerSkillRuntime } from "../game/towerSkills";
 import {
-  TOWER_TYPE_TUTORIAL_LOADOUT,
-  TowerTypeTutorialController
-} from "../game/towerTypeTutorial";
-import {
   isTutorialMechanic,
   type TutorialController,
   type TutorialEnemySpawn,
-  type TutorialRuntime
+  type TutorialRuntime,
+  type TutorialToolId
 } from "../game/tutorial";
+import { createTutorialController, tutorialLoadout } from "../game/tutorialRegistry";
 import { towerAuraSources } from "../game/towerAuras";
 import { slowAuraSources, type SlowAuraSources } from "../game/slowAura";
 import { charsAreSoftcapped, rawCharsForSoftcapped, softcapChars } from "../game/charSoftcap";
@@ -116,12 +110,14 @@ import {
   CONTROL_SLOT_COUNT,
   cardControlAction,
   getKeybindings,
+  isDebugToolControlAction,
   keyCodeForEvent,
   slotControlAction,
   toolControlDefinitions,
   type ControlActionId,
   type ToolControlAction
 } from "../settings/keybindings";
+import { isDebugModeEnabled } from "../settings/preferences";
 import type {
   CardDefinition,
   CardId,
@@ -228,6 +224,7 @@ export class GameScene extends Phaser.Scene {
   private pausedActions: Array<() => void> = [];
   private autoUpgradeMode = false;
   private debugDamageMode: DebugDamageMode = null;
+  private debugModeEnabled = false;
   private autoUpgradeEnabled = true;
   private autoUpgradeReserveChars = 0;
   private autoUpgradeReserveInputFocused = false;
@@ -275,14 +272,10 @@ export class GameScene extends Phaser.Scene {
     this.difficulty = clampDifficulty(data.difficulty);
     const tutorialMechanic = this.levelConfig.specialMechanic;
     const isTutorial = isTutorialMechanic(tutorialMechanic);
-    const tutorialLoadout = tutorialMechanic === "tutorialBasics"
-      ? [...BASIC_TUTORIAL_LOADOUT]
-      : tutorialMechanic === "tutorialTowerTypes"
-        ? [...TOWER_TYPE_TUTORIAL_LOADOUT]
-        : data.selectedCards;
     this.unlimitedFirepower = isTutorial ? false : Boolean(data.unlimitedFirepower);
+    this.debugModeEnabled = isDebugModeEnabled();
     this.difficultyConfig = this.adjustDifficultyForUnlimitedFirepower(getDifficultyConfig(this.difficulty));
-    this.selectedCardIds = this.sanitizeLoadout(tutorialLoadout);
+    this.selectedCardIds = this.sanitizeLoadout(tutorialLoadout(tutorialMechanic, data.selectedCards));
     this.setCardStates([]);
     this.selectedCardId = this.selectedCardIds.includes("X") ? "X" : this.selectedCardIds[0];
     this.towers = [];
@@ -354,7 +347,7 @@ export class GameScene extends Phaser.Scene {
       onAutoUpgradeReserveFocus: () => this.focusAutoUpgradeReserveInput(),
       onGameSpeedChange: (speed) => this.setGameSpeed(speed),
       onErase: () => this.toggleEraser()
-    });
+    }, this.debugModeEnabled);
     this.setGameSpeed(this.gameSpeed);
     this.spawnBossIfNeeded();
     this.setCardStates(createCardStates(this, this.selectedCardIds, (id) => this.selectCard(id)));
@@ -367,12 +360,19 @@ export class GameScene extends Phaser.Scene {
         getTowers: () => this.towers,
         getEnemies: () => this.enemies,
         getBattleTime: () => this.battleTime,
+        getToolBounds: (id) => this.tutorialToolBounds(id),
+        getToolState: () => ({
+          eraserMode: this.eraserMode,
+          autoUpgradeMode: this.autoUpgradeMode,
+          autoUpgradeEnabled: this.autoUpgradeEnabled,
+          shifterMode: this.shifter.isActive(),
+          shifterReadyRatio: this.shifter.cooldownRatio(),
+          shifterSelection: this.shifter.selectedTowers()
+        }),
         spawnWave: (spawns) => this.spawnTutorialWave(spawns),
         finish: () => this.endLevel()
       };
-      this.tutorial = this.levelConfig.specialMechanic === "tutorialBasics"
-        ? new BasicTutorialController(runtime)
-        : new TowerTypeTutorialController(runtime);
+      this.tutorial = createTutorialController(this.levelConfig.specialMechanic, runtime);
     }
 
     this.input.on("pointerdown", this.scenePointerDownHandler);
@@ -1644,6 +1644,21 @@ export class GameScene extends Phaser.Scene {
     );
   }
 
+  private tutorialToolBounds(id: TutorialToolId) {
+    switch (id) {
+      case "erase":
+        return this.ui.eraserButton.getBounds();
+      case "autoUpgrade":
+        return this.ui.autoUpgradeButton.getBounds();
+      case "autoUpgradeEnabled":
+        return this.ui.autoUpgradeEnabledBox.getBounds();
+      case "autoUpgradeReserve":
+        return this.ui.autoUpgradeReserveInput.getBounds();
+      case "shifter":
+        return this.ui.shifterButton.getBounds();
+    }
+  }
+
   private handleBossDefeated(boss: CubeBoss) {
     const phases = this.levelConfig.bossPhases;
     if (!phases || this.bossPhaseIndex + 1 >= phases.length) {
@@ -1833,7 +1848,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private grantDebugChars() {
-    if (this.gameOver) {
+    if (!this.debugModeEnabled || this.gameOver) {
       return;
     }
 
@@ -1946,7 +1961,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private toggleDebugDamageMode() {
-    if (this.gameOver) {
+    if (!this.debugModeEnabled || this.gameOver) {
       return;
     }
 
@@ -1955,7 +1970,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private toggleSuperDebugDamageMode() {
-    if (this.gameOver) {
+    if (!this.debugModeEnabled || this.gameOver) {
       return;
     }
 
@@ -2154,6 +2169,9 @@ export class GameScene extends Phaser.Scene {
 
     const bindings = getKeybindings();
     for (const definition of toolControlDefinitions) {
+      if (!this.debugModeEnabled && isDebugToolControlAction(definition.id)) {
+        continue;
+      }
       if (bindings[definition.id] === code) {
         return definition.id;
       }
