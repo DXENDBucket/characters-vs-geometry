@@ -28,6 +28,7 @@ import {
 import { defaultChapterId, getChapterDefinition, levelNodesForChapter } from "../data/chapters";
 import { getLevelConfig } from "../data/levels";
 import { toRomanNumeral } from "../format";
+import { isTutorialMechanic } from "../game/tutorial";
 import { t } from "../i18n";
 import { isChapterUnlocked, isLevelCompleted, isLevelUnlocked } from "../progress";
 import { EncyclopediaPanel } from "../render/encyclopediaPanel";
@@ -777,7 +778,7 @@ export class LevelSelectScene extends Phaser.Scene {
 
     const selected = this.chapterNodes().find((node) => node.id === this.selectedLevelId);
     if (selected && isLevelUnlocked(selected.id)) {
-      const sceneKey = getLevelConfig(selected.id).specialMechanic === "tutorialBasics" ? "GameScene" : "CardSelectScene";
+      const sceneKey = isTutorialMechanic(getLevelConfig(selected.id).specialMechanic) ? "GameScene" : "CardSelectScene";
       this.scene.start(sceneKey, {
         levelId: selected.id,
         chapterId: this.selectedChapterId,

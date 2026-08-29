@@ -248,6 +248,13 @@ Upgrade scaling:
 - Uses a fixed `X / A / B` loadout and `350` starting characters.
 - Three scripted Circle 1 waves only advance after the current lesson is complete.
 
+## Level 0-2 Tutorial
+
+- Introduces the five tower categories and their circle, diamond, square, triangle, and hexagon frames.
+- Uses a fixed `F / G` loadout and `500` starting characters.
+- Demonstrates F's manual area burst, G's `15s` arming time, and G's automatic contact trigger with two scripted Circle 1 targets.
+- Existing saves with progress in a formal chapter automatically count both Chapter 0 tutorials as completed.
+
 ## Level 1-1 Weight Growth
 
 Base rule:

@@ -1,32 +1,12 @@
-import Phaser from "phaser";
+import { BOARD_WIDTH, BOARD_X, CELL_WIDTH } from "../config";
+import type { CardId } from "../types";
 import {
-  BOARD_HEIGHT,
-  BOARD_WIDTH,
-  BOARD_X,
-  BOARD_Y,
-  CELL_HEIGHT,
-  CELL_WIDTH,
-  palette
-} from "../config";
-import { t } from "../i18n";
-import type { CardId, CardState, Enemy, EnemyKind, Tower } from "../types";
+  GuidedTutorialView,
+  type GuidedTutorialCopy,
+  type TutorialRuntime
+} from "./tutorial";
 
 export const BASIC_TUTORIAL_LOADOUT = ["X", "A", "B"] as const satisfies readonly CardId[];
-
-export interface BasicTutorialEnemySpawn {
-  kind: EnemyKind;
-  lane: number;
-  x?: number;
-}
-
-interface BasicTutorialRuntime {
-  scene: Phaser.Scene;
-  getCardState: (id: CardId) => CardState | undefined;
-  getTowers: () => Tower[];
-  getEnemies: () => Enemy[];
-  spawnWave: (spawns: BasicTutorialEnemySpawn[]) => void;
-  finish: () => void;
-}
 
 type TutorialStep =
   | "welcome"
@@ -43,14 +23,7 @@ type TutorialStep =
   | "finalWave"
   | "complete";
 
-interface TutorialCopy {
-  lesson: number;
-  titleKey: string;
-  bodyKey: string;
-  buttonKey?: string;
-}
-
-const TUTORIAL_COPY: Record<TutorialStep, TutorialCopy> = {
+const TUTORIAL_COPY: Record<TutorialStep, GuidedTutorialCopy> = {
   welcome: {
     lesson: 1,
     titleKey: "tutorial.welcome.title",
@@ -128,67 +101,14 @@ const CENTER_LANE = 3;
 const PRODUCER_TARGET = { lane: 1, column: 1 };
 const ATTACKER_TARGET = { lane: CENTER_LANE, column: 2 };
 const DEFENDER_TARGET = { lane: CENTER_LANE, column: 5 };
-const PANEL_X = 18;
-const PANEL_Y = 350;
-const PANEL_WIDTH = 200;
-const PANEL_HEIGHT = 374;
 
 export class BasicTutorialController {
   private step: TutorialStep = "welcome";
-  private readonly panel: Phaser.GameObjects.Container;
-  private readonly progressText: Phaser.GameObjects.Text;
-  private readonly titleText: Phaser.GameObjects.Text;
-  private readonly bodyText: Phaser.GameObjects.Text;
-  private readonly button: Phaser.GameObjects.Rectangle;
-  private readonly buttonText: Phaser.GameObjects.Text;
-  private readonly highlights: Phaser.GameObjects.Graphics;
+  private readonly view: GuidedTutorialView;
   private destroyed = false;
 
-  constructor(private readonly runtime: BasicTutorialRuntime) {
-    const scene = runtime.scene;
-    const plate = scene.add
-      .rectangle(PANEL_X, PANEL_Y, PANEL_WIDTH, PANEL_HEIGHT, palette.black, 0.96)
-      .setOrigin(0, 0)
-      .setStrokeStyle(2, palette.mid, 0.92);
-    this.progressText = scene.add.text(PANEL_X + 12, PANEL_Y + 14, "", {
-      color: "#8c8c8c",
-      fontFamily: "monospace",
-      fontSize: "12px",
-      fontStyle: "700"
-    });
-    this.titleText = scene.add.text(PANEL_X + 12, PANEL_Y + 43, "", {
-      color: "#f5f5f5",
-      fontFamily: "monospace",
-      fontSize: "19px",
-      fontStyle: "700"
-    });
-    const divider = scene.add.rectangle(PANEL_X + 12, PANEL_Y + 76, PANEL_WIDTH - 24, 1, palette.dim, 1).setOrigin(0, 0.5);
-    this.bodyText = scene.add.text(PANEL_X + 12, PANEL_Y + 94, "", {
-      color: "#d8d8d8",
-      fontFamily: "monospace",
-      fontSize: "14px",
-      lineSpacing: 6,
-      wordWrap: { width: PANEL_WIDTH - 24, useAdvancedWrap: true }
-    });
-    this.button = scene.add
-      .rectangle(PANEL_X + PANEL_WIDTH / 2, PANEL_Y + PANEL_HEIGHT - 31, PANEL_WIDTH - 24, 38, palette.panel, 1)
-      .setStrokeStyle(2, palette.white, 0.92)
-      .setInteractive({ useHandCursor: true });
-    this.buttonText = scene.add
-      .text(PANEL_X + PANEL_WIDTH / 2, PANEL_Y + PANEL_HEIGHT - 33, "", {
-        color: "#f5f5f5",
-        fontFamily: "monospace",
-        fontSize: "14px",
-        fontStyle: "700"
-      })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-
-    this.panel = scene.add.container(0, 0, [plate, this.progressText, this.titleText, divider, this.bodyText, this.button, this.buttonText]);
-    this.panel.setDepth(170);
-    this.highlights = scene.add.graphics().setDepth(165);
-    this.button.on("pointerdown", () => this.advance());
-    this.buttonText.on("pointerdown", () => this.advance());
+  constructor(private readonly runtime: TutorialRuntime) {
+    this.view = new GuidedTutorialView(runtime, TOTAL_LESSONS, "tutorial.progress", () => this.advance());
     this.syncCopy();
     this.drawHighlights();
   }
@@ -249,8 +169,7 @@ export class BasicTutorialController {
       return;
     }
     this.destroyed = true;
-    this.highlights.destroy();
-    this.panel.destroy(true);
+    this.view.destroy();
   }
 
   private advance() {
@@ -294,105 +213,54 @@ export class BasicTutorialController {
   }
 
   private syncCopy() {
-    const copy = TUTORIAL_COPY[this.step];
-    this.progressText.setText(t("tutorial.progress", { current: copy.lesson, total: TOTAL_LESSONS }));
-    this.titleText.setFontSize(19).setText(t(copy.titleKey));
-    if (this.titleText.width > PANEL_WIDTH - 24) {
-      this.titleText.setFontSize(16);
-    }
-    this.bodyText.setText(t(copy.bodyKey));
-    const buttonVisible = Boolean(copy.buttonKey);
-    this.button.setVisible(buttonVisible);
-    this.buttonText.setVisible(buttonVisible).setText(copy.buttonKey ? t(copy.buttonKey) : "");
-    if (buttonVisible) {
-      this.button.setInteractive({ useHandCursor: true });
-      this.buttonText.setInteractive({ useHandCursor: true });
-    } else {
-      this.button.disableInteractive();
-      this.buttonText.disableInteractive();
-    }
+    this.view.setCopy(TUTORIAL_COPY[this.step]);
   }
 
   private drawHighlights() {
-    const alpha = 0.6 + (Math.sin(this.runtime.scene.time.now / 150) + 1) * 0.17;
-    this.highlights.clear();
-    this.highlights.lineStyle(3, palette.gold, alpha);
+    const alpha = this.view.beginHighlights();
 
     switch (this.step) {
       case "welcome":
       case "incomingReady":
-        this.drawLaneDirectionGuide(alpha);
+        this.view.drawLaneDirectionGuide(CENTER_LANE, alpha);
         return;
       case "producer":
-        this.drawCardHighlight("X", alpha);
-        this.drawCellHighlight(PRODUCER_TARGET.lane, PRODUCER_TARGET.column, alpha);
+        this.view.drawCardHighlight("X", alpha);
+        this.view.drawCellHighlight(PRODUCER_TARGET.lane, PRODUCER_TARGET.column, alpha);
         return;
       case "attacker":
-        this.drawCardHighlight("A", alpha);
-        this.drawCellHighlight(ATTACKER_TARGET.lane, ATTACKER_TARGET.column, alpha);
+        this.view.drawCardHighlight("A", alpha);
+        this.view.drawCellHighlight(ATTACKER_TARGET.lane, ATTACKER_TARGET.column, alpha);
         return;
       case "defender":
-        this.drawCardHighlight("B", alpha);
-        this.drawCellHighlight(DEFENDER_TARGET.lane, DEFENDER_TARGET.column, alpha);
+        this.view.drawCardHighlight("B", alpha);
+        this.view.drawCellHighlight(DEFENDER_TARGET.lane, DEFENDER_TARGET.column, alpha);
         return;
       case "upgrade": {
-        this.drawCardHighlight("A", alpha);
+        this.view.drawCardHighlight("A", alpha);
         const attacker = this.centerAttacker();
         if (attacker) {
-          this.drawCellHighlight(attacker.lane, attacker.column, alpha);
+          this.view.drawCellHighlight(attacker.lane, attacker.column, alpha);
         }
         return;
       }
       case "reinforce": {
-        this.drawCardHighlight("A", alpha);
+        this.view.drawCardHighlight("A", alpha);
         const column = this.centerAttacker()?.column ?? ATTACKER_TARGET.column;
         if (!this.attackerInLane(CENTER_LANE - 1)) {
-          this.drawCellHighlight(CENTER_LANE - 1, column, alpha);
+          this.view.drawCellHighlight(CENTER_LANE - 1, column, alpha);
         }
         if (!this.attackerInLane(CENTER_LANE + 1)) {
-          this.drawCellHighlight(CENTER_LANE + 1, column, alpha);
+          this.view.drawCellHighlight(CENTER_LANE + 1, column, alpha);
         }
         return;
       }
       case "firstWave":
       case "blockingWave":
       case "finalWave":
-        for (const enemy of this.runtime.getEnemies()) {
-          this.highlights.strokeCircle(enemy.x, enemy.y, 32);
-        }
+        this.view.drawEnemyHighlights(alpha);
         return;
     }
-  }
-
-  private drawCardHighlight(id: CardId, alpha: number) {
-    const card = this.runtime.getCardState(id);
-    if (!card) {
-      return;
-    }
-    const bounds = card.frame.getBounds();
-    this.highlights.lineStyle(3, palette.gold, alpha);
-    this.highlights.strokeRect(bounds.x - 5, bounds.y - 4, bounds.width + 10, bounds.height + 8);
-  }
-
-  private drawCellHighlight(lane: number, column: number, alpha: number) {
-    const x = BOARD_X + column * CELL_WIDTH;
-    const y = BOARD_Y + lane * CELL_HEIGHT;
-    this.highlights.fillStyle(palette.gold, 0.07 + alpha * 0.04);
-    this.highlights.fillRect(x + 4, y + 4, CELL_WIDTH - 8, CELL_HEIGHT - 8);
-    this.highlights.lineStyle(3, palette.gold, alpha);
-    this.highlights.strokeRect(x + 4, y + 4, CELL_WIDTH - 8, CELL_HEIGHT - 8);
-  }
-
-  private drawLaneDirectionGuide(alpha: number) {
-    const centerY = BOARD_Y + (CENTER_LANE + 0.5) * CELL_HEIGHT;
-    const startX = BOARD_X + BOARD_WIDTH - 18;
-    const endX = BOARD_X + 24;
-    this.highlights.lineStyle(3, palette.gold, alpha);
-    this.highlights.lineBetween(startX, centerY, endX, centerY);
-    this.highlights.fillStyle(palette.gold, alpha);
-    this.highlights.fillTriangle(endX, centerY, endX + 18, centerY - 10, endX + 18, centerY + 10);
-    this.highlights.lineStyle(4, palette.white, alpha);
-    this.highlights.lineBetween(BOARD_X - 20, BOARD_Y, BOARD_X - 20, BOARD_Y + BOARD_HEIGHT);
   }
 
   private centerAttacker() {

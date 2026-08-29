@@ -30,8 +30,7 @@ import { chapterIdForLevelId } from "../data/chapters";
 import { getLevelConfig } from "../data/levels";
 import {
   BASIC_TUTORIAL_LOADOUT,
-  BasicTutorialController,
-  type BasicTutorialEnemySpawn
+  BasicTutorialController
 } from "../game/basicTutorial";
 import { updateBossRuntime, type BossRuntime } from "../game/bossRuntime";
 import { idleCardBehavior, type CardBehavior } from "../game/cardBehaviors";
@@ -65,6 +64,16 @@ import { TowerDeploymentController, type TowerDeploymentRuntime } from "../game/
 import { MIRROR_COST_LIMIT, TowerMirrorController, type TowerMirrorRuntime, type TowerMirrorShiftMove } from "../game/towerMirrors";
 import { TowerShifterController, type TowerShifterRuntime } from "../game/towerShifter";
 import { TowerSkillController, type TowerSkillRuntime } from "../game/towerSkills";
+import {
+  TOWER_TYPE_TUTORIAL_LOADOUT,
+  TowerTypeTutorialController
+} from "../game/towerTypeTutorial";
+import {
+  isTutorialMechanic,
+  type TutorialController,
+  type TutorialEnemySpawn,
+  type TutorialRuntime
+} from "../game/tutorial";
 import { towerAuraSources } from "../game/towerAuras";
 import { slowAuraSources, type SlowAuraSources } from "../game/slowAura";
 import { charsAreSoftcapped, rawCharsForSoftcapped, softcapChars } from "../game/charSoftcap";
@@ -237,7 +246,7 @@ export class GameScene extends Phaser.Scene {
   private unitLifecycleRuntimeCache!: UnitLifecycleRuntime;
   private projectileRuntimeCache!: ProjectileRuntime;
   private triggerTowerRuntimeCache!: TriggerTowerRuntime;
-  private tutorial: BasicTutorialController | null = null;
+  private tutorial: TutorialController | null = null;
   private ui!: GameHudElements;
   private overlay!: GameOverlayElements;
   private readonly scenePointerDownHandler = (pointer: Phaser.Input.Pointer) => this.handlePointerDown(pointer);
@@ -264,10 +273,16 @@ export class GameScene extends Phaser.Scene {
     this.chapterId = data.chapterId ?? chapterIdForLevelId(this.levelId);
     this.levelConfig = getLevelConfig(this.levelId);
     this.difficulty = clampDifficulty(data.difficulty);
-    const isBasicTutorial = this.levelConfig.specialMechanic === "tutorialBasics";
-    this.unlimitedFirepower = isBasicTutorial ? false : Boolean(data.unlimitedFirepower);
+    const tutorialMechanic = this.levelConfig.specialMechanic;
+    const isTutorial = isTutorialMechanic(tutorialMechanic);
+    const tutorialLoadout = tutorialMechanic === "tutorialBasics"
+      ? [...BASIC_TUTORIAL_LOADOUT]
+      : tutorialMechanic === "tutorialTowerTypes"
+        ? [...TOWER_TYPE_TUTORIAL_LOADOUT]
+        : data.selectedCards;
+    this.unlimitedFirepower = isTutorial ? false : Boolean(data.unlimitedFirepower);
     this.difficultyConfig = this.adjustDifficultyForUnlimitedFirepower(getDifficultyConfig(this.difficulty));
-    this.selectedCardIds = this.sanitizeLoadout(isBasicTutorial ? [...BASIC_TUTORIAL_LOADOUT] : data.selectedCards);
+    this.selectedCardIds = this.sanitizeLoadout(tutorialLoadout);
     this.setCardStates([]);
     this.selectedCardId = this.selectedCardIds.includes("X") ? "X" : this.selectedCardIds[0];
     this.towers = [];
@@ -345,15 +360,19 @@ export class GameScene extends Phaser.Scene {
     this.setCardStates(createCardStates(this, this.selectedCardIds, (id) => this.selectCard(id)));
     this.updateCards();
     this.overlay = createGameOverlay(this, () => this.handleOverlayAction());
-    if (this.levelConfig.specialMechanic === "tutorialBasics") {
-      this.tutorial = new BasicTutorialController({
+    if (isTutorialMechanic(this.levelConfig.specialMechanic)) {
+      const runtime: TutorialRuntime = {
         scene: this,
         getCardState: (id) => this.cardStatesById.get(id),
         getTowers: () => this.towers,
         getEnemies: () => this.enemies,
+        getBattleTime: () => this.battleTime,
         spawnWave: (spawns) => this.spawnTutorialWave(spawns),
         finish: () => this.endLevel()
-      });
+      };
+      this.tutorial = this.levelConfig.specialMechanic === "tutorialBasics"
+        ? new BasicTutorialController(runtime)
+        : new TowerTypeTutorialController(runtime);
     }
 
     this.input.on("pointerdown", this.scenePointerDownHandler);
@@ -1596,7 +1615,7 @@ export class GameScene extends Phaser.Scene {
     );
   }
 
-  private spawnTutorialWave(spawns: BasicTutorialEnemySpawn[]) {
+  private spawnTutorialWave(spawns: TutorialEnemySpawn[]) {
     const waveNumber = this.wave + 1;
     let totalWeight = 0;
     this.wave = waveNumber;

@@ -12,7 +12,8 @@ const CHAPTER_FIVE_WAVE_WEIGHT_INCREMENT = 50;
 const CHAPTER_FIVE_WAVE_WEIGHT_INCREMENT_GROWTH = 7;
 
 export const levelNodes: LevelNode[] = [
-  { id: "0-1", x: 640, y: 390 },
+  { id: "0-1", x: 500, y: 410 },
+  { id: "0-2", x: 820, y: 320 },
   { id: "1-1", x: 230, y: 405 },
   { id: "1-2", x: 450, y: 310 },
   { id: "1-3", x: 670, y: 430 },
@@ -75,6 +76,16 @@ export const levelConfigs: Record<string, LevelConfig> = {
     wavesPerFlag: 3,
     startingChars: 350,
     specialMechanic: "tutorialBasics"
+  },
+  "0-2": {
+    id: "0-2",
+    enemyKinds: ["circle"],
+    firstWaveWeight: 10,
+    waveWeightIncrement: 0,
+    totalWaves: 2,
+    wavesPerFlag: 2,
+    startingChars: 500,
+    specialMechanic: "tutorialTowerTypes"
   },
   "1-1": {
     id: "1-1",

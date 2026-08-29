@@ -160,9 +160,10 @@ function readProgress(): StoredProgress {
         ? parsed.completedLevelIds.filter((id): id is string => typeof id === "string" && knownLevelIds.has(id))
         : []
     );
-    // Saves created before the tutorial existed keep their established chapter access.
-    if (!completed.has("0-1") && [...completed].some((id) => id !== "0-1")) {
+    // Existing saves keep their established chapter access when tutorial operations are added.
+    if ([...completed].some((id) => !id.startsWith("0-"))) {
       completed.add("0-1");
+      completed.add("0-2");
     }
     return {
       version: SAVE_VERSION,
