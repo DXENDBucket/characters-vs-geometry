@@ -15,7 +15,7 @@ const STORAGE_KEY = "characters-vs-geometry-language";
 
 const dictionaries: Record<Language, Record<string, string>> = {
   en: {
-    "app.title": "CHARACTERS VS GEOMETRY",
+    "app.title": "CHARSET",
     "operation.root": "OPERATION 0",
     "operation.level": "OPERATION {level}  D{difficulty}",
     "chapter.0": "CHAPTER 0",
@@ -302,7 +302,7 @@ const dictionaries: Record<Language, Record<string, string>> = {
     "enemy.bossIcosahedron": "BOSS ICOSAHEDRON"
   },
   "zh-CN": {
-    "app.title": "字符大战几何体",
+    "app.title": "字里行军",
     "operation.root": "行动 0",
     "operation.level": "行动 {level}  难度 {difficulty}",
     "chapter.0": "第〇章",

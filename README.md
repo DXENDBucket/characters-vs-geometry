@@ -1,4 +1,4 @@
-# 字符大战几何体 / Characters vs Geometry
+# 字里行军 / Charset
 
 一个使用 TypeScript + Phaser 3 制作的极简黑白风五路选卡塔防 demo。玩家部署字符单位，对抗圆、三角、正方形和立方体 Boss 等几何敌人。
 
