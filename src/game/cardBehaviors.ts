@@ -61,6 +61,7 @@ import { repeatHits } from "./volley";
 import { towerAttackAmount, towerFinalStats } from "./unitStats";
 import { isPointInSlowAura } from "./slowAura";
 import { isInCentered3x3Aura } from "./towerAuras";
+import { drainSkillSp } from "./skillState";
 
 export interface CardBehavior {
   canUse: (
@@ -204,6 +205,7 @@ export const cardBehaviorsById: Record<CardId, CardBehavior> = {
   c: idleCardBehavior,
   D: idleCardBehavior,
   d: magicLaserCardBehavior,
+  z: magicLaserCardBehavior,
   O: idleCardBehavior,
   o: idleCardBehavior,
   R: idleCardBehavior,
@@ -363,7 +365,10 @@ function fireMagicLaser(tower: Tower, definition: CardDefinition, runtime: CardB
   try {
     for (const enemy of targets) {
       makeHitShards(runtime.scene, enemy.x, enemy.y, damageType);
-      runtime.damageEnemy(enemy, damage, damageType, tower);
+      const landed = runtime.damageEnemy(enemy, damage, damageType, tower);
+      if (landed && enemy.inPlay && definition.skillDrainOnHit) {
+        drainSkillSp(enemy, definition.skillDrainOnHit);
+      }
       if (enemy.inPlay && definition.projectileDebuff && definition.projectileDebuffDuration) {
         applyStatusEffect(enemy, definition.projectileDebuff, definition.projectileDebuffDuration, runtime.battleTime);
         if (definition.projectileDebuff === "sunder") {
@@ -377,7 +382,10 @@ function fireMagicLaser(tower: Tower, definition: CardDefinition, runtime: CardB
 
   const bossPart = magicLaserBossPart(tower, runtime.boss, endX);
   if (bossPart) {
-    runtime.damageBoss(damage, damageType, bossPart);
+    const landed = runtime.damageBoss(damage, damageType, bossPart);
+    if (landed && bossPart.hp > 0 && definition.skillDrainOnHit) {
+      drainSkillSp(bossPart, definition.skillDrainOnHit);
+    }
   }
 }
 

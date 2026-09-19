@@ -765,7 +765,7 @@ function visual() {
 function enemy(overrides = {}) {
   return {
     kind: "triangle", x: 0, y: 0, hp: 5000, maxHp: 5000, inPlay: true, movementDirection: -1,
-    statusEffects: [], statusMultiplierCache: { visualSyncedAt: NaN },
+    skills: {}, statusEffects: [], statusMultiplierCache: { visualSyncedAt: NaN },
     baseStats: { maxHp: 5000, armor: 150, magicResistance: 20, finalDamageReduction: 0 },
     body: visual(), shape: visual(), statusBorder: visual(), frozenBorder: visual(),
     powerIcon: visual(), sunderIcon: visual(), flyingHalo: visual(), ...overrides
@@ -899,11 +899,11 @@ function towerForCard(card, level = 1) {
 
 test("all cards preserve baseline attack and upgrade modes, including softcap and level bonuses", () => {
   const baseline = {
-    A: 400, a: 400, B: 400, C: 500, d: 400, x: 200, E: 400, e: 90, g: 90, M: 400, W: 400,
+    A: 400, a: 400, B: 400, C: 500, d: 400, z: 400, x: 200, E: 400, e: 90, g: 90, M: 400, W: 400,
     w: 400, F: 1400, l: 15000, r: 200, G: 15000, H: 700, I: 400, Q: 400, J: 600,
     K: 1800, k: 280, S: 5000, Z: 400, V: 1300, v: 350, P: 250, p: 250
   };
-  const attackUpgrades = new Set(["d", "x", "Q", "k", "S", "V", "v", "l", "G"]);
+  const attackUpgrades = new Set(["d", "z", "x", "Q", "k", "S", "V", "v", "l", "G"]);
   for (const card of cardDefinitions) {
     const base = baseline[card.id] ?? 0;
     assert.equal(card.attackPower, base, card.id);
@@ -1065,9 +1065,85 @@ test("projectiles and mortars snapshot final attack times the multiplier, withou
   }
 });
 
+test("z inherits d's panel and damage upgrades, replaces Sunder with 1 SP drain, and unlocks after 3-8", () => {
+  const z = cardDefinitions.find(card => card.id === "z");
+  const d = cardDefinitions.find(card => card.id === "d");
+  for (const key of ["category", "cost", "cooldown", "maxHp", "armor", "magicResistance", "attackSpeed", "attackPower", "damageType"]) {
+    assert.equal(z[key], d[key], key);
+  }
+  assert.equal(z.skillDrainOnHit, 1);
+  assert.equal(z.projectileDebuff, undefined);
+  assert.equal(load("src/data/cardUnlocks.ts").cardUnlockRequirement("z"), "3-8");
+  for (const level of [1, 2, 20, 21, 50]) {
+    assert.equal(towerForCard(z, level).finalStats.attackPower, towerForCard(d, level).finalStats.attackPower);
+  }
+});
+
+test("z pierces and drains each hit enemy, stops at MR, and preserves active skills and partial SP recovery", () => {
+  const card = cardDefinitions.find(card => card.id === "z");
+  const caster = towerForCard(card);
+  const target = (x, mr = 0) => enemy({ x, y: caster.y, lane: caster.lane,
+    baseStats: { maxHp: 5000, armor: 150, magicResistance: mr, finalDamageReduction: 0 },
+    skills: { wings: { sp: 3, spBuffer: 0.75, activeUntil: 9000, regenMultiplier: 1.2 }, heal: { sp: 0.5, spBuffer: 0.2, activeUntil: 0 } }
+  });
+  const first = target(500), stop = target(600, 20), behind = target(700), otherLane = target(520), rear = target(400);
+  otherLane.lane++;
+  const state = runtime([behind, first, otherLane, stop, rear]);
+  load("src/game/cardBehaviors.ts").cardBehaviorsById.z.execute(caster, card, state);
+  assert.equal(first.hp, 4600);
+  assert.equal(stop.hp, 4680);
+  for (const hit of [first, stop]) {
+    assert.deepEqual(hit.skills.wings, { sp: 2, spBuffer: 0.75, activeUntil: 9000, regenMultiplier: 1.2 });
+    assert.deepEqual(hit.skills.heal, { sp: 0, spBuffer: 0.2, activeUntil: 0 });
+    assert.equal(hit.statusEffects.some(effect => effect.name === "sunder"), false);
+  }
+  for (const miss of [behind, otherLane, rear]) {
+    assert.equal(miss.hp, 5000);
+    assert.equal(miss.skills.wings.sp, 3);
+  }
+});
+
+test("z respects invincibility, high flight, burrowing and reversed facing; repeated hits cannot make SP negative", () => {
+  const card = cardDefinitions.find(card => card.id === "z"), caster = towerForCard(card);
+  caster.facingDirection = -1;
+  const mk = overrides => enemy({ x: 400, y: caster.y, lane: caster.lane,
+    baseStats: { maxHp: 5000, armor: 0, magicResistance: 0, finalDamageReduction: 0 },
+    skills: { wings: { sp: 1, spBuffer: 0.4, activeUntil: 0 } }, ...overrides });
+  const ordinary = mk({}), invincible = mk({ statusEffects: [{ name: "invincible", expiresAt: 99999 }] });
+  const high = mk({ statusEffects: [{ name: "highFlying", expiresAt: 99999 }] }), burrowed = mk({ burrowed: true });
+  const forward = mk({ x: 500 });
+  const state = runtime([ordinary, invincible, high, burrowed, forward]);
+  const behavior = load("src/game/cardBehaviors.ts").cardBehaviorsById.z;
+  for (let i = 0; i < 2; i++) behavior.execute(caster, card, state);
+  assert.equal(ordinary.hp, 4200);
+  assert.equal(ordinary.skills.wings.sp, 0);
+  assert.equal(ordinary.skills.wings.spBuffer, 0.4);
+  for (const miss of [invincible, high, burrowed, forward]) {
+    assert.equal(miss.hp, 5000);
+    assert.equal(miss.skills.wings.sp, 1);
+  }
+});
+
+test("z drains every skill on the hit Boss part only, and invincible Boss parts lose no SP", () => {
+  const card = cardDefinitions.find(card => card.id === "z"), caster = towerForCard(card);
+  for (const invincibleUntil of [0, 99999]) {
+    const skills = () => ({ promotion: { sp: 5, spBuffer: 0.7, activeUntil: 0 }, advance: { sp: 1, spBuffer: 0.3, activeUntil: 0 } });
+    const boss = { kind: "cube", x: 700, y: 800, hp: 10000, maxHp: 10000, hitboxWidth: 100, hitboxHeight: 100,
+      skills: skills(), invincibleUntil: 0, baseStats: { armor: 300, magicResistance: 20, finalDamageReduction: 0 } };
+    const copy = { ...boss, y: caster.y, invincibleUntil, skills: skills() };
+    boss.octahedronCopies = [copy];
+    load("src/game/cardBehaviors.ts").cardBehaviorsById.z.execute(caster, card, runtime([], boss));
+    assert.equal(boss.hp, invincibleUntil ? 10000 : 9680);
+    assert.equal(copy.skills.promotion.sp, invincibleUntil ? 5 : 4);
+    assert.equal(copy.skills.advance.sp, invincibleUntil ? 1 : 0);
+    assert.equal(boss.skills.promotion.sp, 5);
+    assert.equal(boss.skills.advance.sp, 1);
+  }
+});
+
 test("lasers, slashes and arc waves use final attack with no extra level scaling", () => {
   const { cardBehaviorsById } = load("src/game/cardBehaviors.ts");
-  for (const id of ["d", "K", "Z", "k"]) {
+  for (const id of ["d", "z", "K", "Z", "k"]) {
     const card = { ...cardDefinitions.find((candidate) => candidate.id === id), attackMultiplier: 1.5 };
     const caster = towerForCard(card, 3);
     caster.finalStats.attackPower = 1234;

@@ -107,6 +107,20 @@ export const cardDefinitions: CardDefinition[] = [
     stats: `400${DAMAGE_SYMBOLS.magic} / LASER / SUNDER`
   },
   {
+    id: "z",
+    category: "attack",
+    cost: 175,
+    cooldown: 10_000,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 20,
+    attackSpeed: 20,
+    attackPower: 400,
+    damageType: "magic",
+    skillDrainOnHit: 1,
+    stats: `400${DAMAGE_SYMBOLS.magic} / -1SP`
+  },
+  {
     id: "O",
     category: "defense",
     cost: 125,

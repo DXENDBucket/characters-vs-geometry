@@ -50,6 +50,7 @@ export type CardId =
   | "p"
   | "Y"
   | "y"
+  | "z"
   | "Z";
 export type EnemyKind =
   | "circle"
@@ -227,6 +228,7 @@ export interface CardDefinition {
   armTime?: number;
   projectileDebuff?: StatusEffectName;
   projectileDebuffDuration?: number;
+  skillDrainOnHit?: number;
   reflectProjectiles?: boolean;
   produceEvery?: number;
   produceAmount?: number;

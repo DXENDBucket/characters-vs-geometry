@@ -11,8 +11,8 @@ export interface CombatRuntime {
   projectiles: Projectile[];
   enemyProjectiles: EnemyProjectile[];
   mortarProjectiles: MortarProjectile[];
-  damageEnemy: (enemy: Enemy, damage: number, damageType: DamageType, sourceTower?: Tower) => void;
-  damageBoss: (damage: number, damageType: DamageType, targetPart?: CubeBoss) => void;
+  damageEnemy: (enemy: Enemy, damage: number, damageType: DamageType, sourceTower?: Tower) => boolean;
+  damageBoss: (damage: number, damageType: DamageType, targetPart?: CubeBoss) => boolean;
   damageTower: (tower: Tower, damage: number, damageType: DamageType) => void;
   storeBlockedEnemies: (tower: Tower, definition: CardDefinition) => void;
   gainChars: (amount: number, x: number, y: number) => void;

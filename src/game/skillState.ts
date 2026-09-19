@@ -50,3 +50,10 @@ export function spendSkillSp(state: SkillState, cost: number) {
   state.sp = Math.max(0, state.sp - cost);
   state.spBuffer = 0;
 }
+
+export function drainSkillSp(unit: { skills: Partial<Record<string, SkillState>> }, amount: number) {
+  if (amount <= 0) return;
+  for (const skill of Object.values(unit.skills)) {
+    if (skill) skill.sp = Math.max(0, skill.sp - amount);
+  }
+}

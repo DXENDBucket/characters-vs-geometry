@@ -711,6 +711,7 @@ function towerDescription(id: CardId) {
     x: zh ? "追踪法术射手。每次从攻击形四角发射 4 枚 > 法术追踪弹。对命中时非飞行的目标伤害降低 35%，包括地面 Boss。小 x 开火时优先锁定离小 x 最近的可攻击飞行敌怪；没有飞行敌怪时锁定离小 x 最近的可攻击敌怪或 Boss。追踪弹只追锁定目标，目标死亡或消失后才改为锁定离子弹最近的可攻击敌怪或 Boss。" : "Homing magic attacker. Fires four > magic homing shots from the attack-shape corners. Deals 35% less damage to targets that are not Flying on impact, including ground Bosses. When x fires, it prioritizes the attackable Flying enemy nearest to x; if none exist, it locks the attackable enemy or Boss nearest to x. Shots keep chasing their locked target and only retarget to the nearest attackable enemy or Boss to the shot if that target dies or disappears.",
     Y: zh ? `受击生产塔。不攻击；每次受到攻击时产生 ${EFFECT_SYMBOLS.chars}12。` : `Hit producer. Does not attack; generates ${EFFECT_SYMBOLS.chars}12 each time it is attacked.`,
     d: zh ? "碎甲激光射手。沿本行发射浅蓝色法术激光，穿透敌怪，直到命中第一个拥有法术抗性的敌怪后停止。被命中的敌怪获得 10 秒碎甲，最终护甲降低 35%；重复命中会刷新持续时间。碎甲敌怪头顶显示白色 ▣ 图标。" : "Sunder laser attacker. Fires a light-blue magic laser along its lane, piercing enemies until it hits the first enemy with magic resistance. Hit enemies gain 10s Sunder, reducing final armor by 35%; repeated hits refresh the duration. Sundered enemies show a white ▣ icon above them.",
+    z: zh ? "削技激光射手。面板和激光规则同小 d：每 3 秒沿本行发射 400 法术伤害的浅蓝色穿透激光，击中第一个拥有法抗的敌怪后停止。命中时使目标每个已有技能各扣除 1 技力，最低为 0，包含领袖和 Boss；不重置回技进度，不中断已开启技能，也不施加碎甲。无敌目标不会被扣技力。通关首次出现天使五边形的 3-8 后解锁。" : "SP-draining laser attacker. Same panel and laser rules as d: fires a light-blue piercing laser for 400 magic damage every 3s, stopping after the first magic-resistant enemy. Each hit removes 1 SP from each existing skill, down to 0, including leaders and Bosses. Preserves recovery progress and active skills; does not apply Sunder. Invincible targets lose no SP. Unlocked after clearing 3-8, the first Angel Pentagon stage.",
     E: zh ? "三连物理射手。向前平射，并向上/下各偏转 10 度发射一发。" : "Triple physical shooter. Fires one straight shot plus two shots at +/-10 degrees.",
     e: zh ? "热忱治疗塔。拥有和 T 相同的 5x5 去角范围，并显示红色范围框；每次治疗范围内所有受伤塔 90 生命。范围内所有塔，包括自己，获得不叠加的热忱，攻击速度提高 35%。" : "Zeal healer. Uses the same centered 5x5 no-corner range as T and shows a red range border; each heal pulse restores 90 HP to every damaged tower in range. All towers in range, including itself, gain non-stacking Zeal for +35% attack speed.",
     g: zh ? "不屈治疗塔。红框范围为以自身为中心的 3x3，包含自身；每 2 秒治疗范围内所有受伤塔各 90 生命，包括负血量的塔。范围内塔获得基础生命 15% × 小 g 有效等级的不屈，受益塔升级加血不增加额度。多个小 g 取最高值，不叠加，不提供热忱。" : "Unyielding healer. Its red-bordered range covers a centered 3x3 area, including itself. Every 2s it heals every damaged tower in range for 90 HP, including towers with negative HP. Grants Unyielding equal to 15% of each target's base HP per effective g level, unaffected by the target's HP upgrades. Only the strongest source applies. Does not grant Zeal.",
@@ -809,6 +810,9 @@ function towerUpgradeText(id: CardId) {
   }
   if (id === "d" || id === "k" || id === "V") {
     return zh ? "每级攻击力增加基础值的 80%。" : "Each level adds 80% of base attack.";
+  }
+  if (id === "z") {
+    return zh ? "每级攻击力增加基础值的 80%（320）；每次命中扣除的技力固定为 1。" : "Each level adds 80% of base attack (320); SP drain stays at 1 per hit.";
   }
   if (id === "G") {
     return zh ? "每级攻击力增加基础值的 80%，并重置准备倒计时。" : "Each level adds 80% of base attack and resets arming.";
