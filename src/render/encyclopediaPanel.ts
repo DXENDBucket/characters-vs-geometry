@@ -18,7 +18,7 @@ import {
   type EncyclopediaTab
 } from "../encyclopedia";
 import { DAMAGE_SYMBOLS, getLanguage, t } from "../i18n";
-import { bossEncyclopediaIcon, visibleEncyclopediaEntries } from "../encyclopediaVisibility";
+import { bossEncyclopediaIcon, enemyEncyclopediaGroup, visibleEnemyEncyclopediaGroups, visibleEncyclopediaEntries } from "../encyclopediaVisibility";
 import { cardLetterCase, type CardLetterCase } from "../registry/cards";
 import { enemyFamily, getEnemyDefinition } from "../registry/enemies";
 import type { BossKind, DamageType, EnemyKind } from "../types";
@@ -98,8 +98,8 @@ export class EncyclopediaPanel {
   private overlay!: Phaser.GameObjects.Container;
   private grid!: Phaser.GameObjects.Container;
   private detail!: Phaser.GameObjects.Container;
-  private readonly gridViewport = new Phaser.Geom.Rectangle(144, 180, 604, 418);
-  private readonly detailViewport = new Phaser.Geom.Rectangle(778, 180, 358, 418);
+  private readonly gridViewport = new Phaser.Geom.Rectangle(144, 224, 604, 374);
+  private readonly detailViewport = new Phaser.Geom.Rectangle(778, 224, 358, 374);
   private gridContentHeight = 0;
   private detailContentHeight = 0;
   private gridScrollY = 0;
@@ -115,6 +115,8 @@ export class EncyclopediaPanel {
   private tabs: EncyclopediaTabButton[] = [];
   private cardCase: CardLetterCase = "uppercase";
   private cardCaseButtons: EncyclopediaCardCaseButton[] = [];
+  private enemyGroupId = "main";
+  private enemyGroupControls!: Phaser.GameObjects.Container;
   private statMode: EncyclopediaStatMode = "coarse";
   private statModeButtons: EncyclopediaStatModeButton[] = [];
   private tiles: EncyclopediaTile[] = [];
@@ -145,6 +147,8 @@ export class EncyclopediaPanel {
   }
 
   private openMatchingEnemy(matches: (entry: EncyclopediaEntry) => boolean) {
+    const target = visibleEncyclopediaEntries(enemyEncyclopediaEntries()).find(matches);
+    if (target) this.enemyGroupId = enemyEncyclopediaGroup(target);
     this.open("enemies");
     const entries = this.currentEntries();
     const index = entries.findIndex(matches);
@@ -194,8 +198,9 @@ export class EncyclopediaPanel {
     const enemyTab = this.createTabButton("enemies", 144, 136);
     const towerTab = this.createTabButton("towers", 284, 136);
     const mechanicTab = this.createTabButton("mechanics", 424, 136);
-    const upperCaseButton = this.createCardCaseButton("uppercase", 594, 136, "A");
-    const lowerCaseButton = this.createCardCaseButton("lowercase", 646, 136, "a");
+    const upperCaseButton = this.createCardCaseButton("uppercase", 144, 184, "A");
+    const lowerCaseButton = this.createCardCaseButton("lowercase", 196, 184, "a");
+    this.enemyGroupControls = this.scene.add.container(0, 0);
     const coarseModeButton = this.createStatModeButton("coarse", 760, 136, t("encyclopedia.coarse"));
     const exactModeButton = this.createStatModeButton("exact", 846, 136, t("encyclopedia.exact"));
 
@@ -270,6 +275,7 @@ export class EncyclopediaPanel {
       upperCaseButton.label,
       lowerCaseButton.frame,
       lowerCaseButton.label,
+      this.enemyGroupControls,
       coarseModeButton.frame,
       coarseModeButton.label,
       exactModeButton.frame,
@@ -355,6 +361,7 @@ export class EncyclopediaPanel {
     this.tab = tab;
     this.updateTabs();
     this.updateCardCaseButtons();
+    this.updateEnemyGroupButtons();
     this.updateStatModeButtons();
     this.rebuildGrid();
   }
@@ -369,6 +376,32 @@ export class EncyclopediaPanel {
     if (this.tab === "towers") {
       this.rebuildGrid();
     }
+  }
+
+  private updateEnemyGroupButtons() {
+    this.enemyGroupControls.removeAll(true);
+    this.enemyGroupControls.setVisible(this.tab === "enemies");
+    if (this.tab !== "enemies") return;
+    const groups = visibleEnemyEncyclopediaGroups(visibleEncyclopediaEntries(enemyEncyclopediaEntries()));
+    if (!groups.some(group => group.id === this.enemyGroupId)) this.enemyGroupId = groups[0]?.id ?? "main";
+    const width = (this.gridViewport.width - Math.max(0, groups.length - 1) * 12) / Math.max(1, groups.length);
+    groups.forEach((group, index) => {
+      const x = this.gridViewport.x + index * (width + 12) + width / 2;
+      const selected = group.id === this.enemyGroupId;
+      const frame = this.scene.add.rectangle(x, 184, width, 30, selected ? palette.panel : palette.black)
+        .setStrokeStyle(selected ? 3 : 2, selected ? palette.white : palette.dim, selected ? 1 : 0.7)
+        .setInteractive({ useHandCursor: true });
+      const label = this.scene.add.text(x, 183, t(group.labelKey), {
+        color: uiTextColors.primary, fontFamily: "monospace", fontSize: "15px", fontStyle: "700"
+      }).setOrigin(0.5).setAlpha(selected ? 1 : 0.78);
+      frame.on("pointerdown", () => {
+        if (this.enemyGroupId === group.id) return;
+        this.enemyGroupId = group.id;
+        this.updateEnemyGroupButtons();
+        this.rebuildGrid();
+      });
+      this.enemyGroupControls.add([frame, label]);
+    });
   }
 
   private setStatMode(mode: EncyclopediaStatMode) {
@@ -820,7 +853,8 @@ export class EncyclopediaPanel {
 
   private currentEntries() {
     if (this.tab === "enemies") {
-      return visibleEncyclopediaEntries(enemyEncyclopediaEntries());
+      return visibleEncyclopediaEntries(enemyEncyclopediaEntries())
+        .filter(entry => enemyEncyclopediaGroup(entry) === this.enemyGroupId);
     }
 
     if (this.tab === "mechanics") {

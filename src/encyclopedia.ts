@@ -31,6 +31,7 @@ export interface EncyclopediaEntry {
   lines: string[];
   description: string;
   enemyKind?: EnemyKind;
+  chapterGroupId?: string;
   card?: CardDefinition;
   mechanicId?: EncyclopediaMechanicId;
   mechanicIcon?: string;
@@ -103,6 +104,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
     {
       title: zh ? "波浪号系列" : "Tilde Series",
       enemyKind: "tilde",
+      chapterGroupId: "ascii",
       lines: [statLine([
         [t("label.hp"), triangle.hp], [t("label.armor"), triangle.armor],
         [t("label.mr"), triangle.magicResistance], [t("label.atk"), damageText(triangle.damage, triangle.damageType)]]),

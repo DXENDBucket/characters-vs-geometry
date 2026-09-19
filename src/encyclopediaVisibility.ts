@@ -1,4 +1,5 @@
 import type { EncyclopediaEntry } from "./encyclopedia";
+import { chapterGroups } from "./data/chapterGroups";
 import { discoveredEnemies, isCardUnlocked } from "./progress";
 import { enemyFamily } from "./registry/enemies";
 import type { BossKind } from "./types";
@@ -18,6 +19,16 @@ const BOSS_ICONS: Record<BossKind, NonNullable<EncyclopediaEntry["icon"]>> = {
 
 export function bossEncyclopediaIcon(kind: BossKind) {
   return BOSS_ICONS[kind];
+}
+
+// Reused enemies retain their origin group, including in endless operations.
+export function enemyEncyclopediaGroup(entry: EncyclopediaEntry) {
+  return entry.chapterGroupId ?? "main";
+}
+
+export function visibleEnemyEncyclopediaGroups(entries: EncyclopediaEntry[]) {
+  const groups = new Set(entries.map(enemyEncyclopediaGroup));
+  return chapterGroups.filter(group => groups.has(group.id));
 }
 
 export function visibleEncyclopediaEntries(entries: EncyclopediaEntry[]) {

@@ -37,6 +37,22 @@ function fixture(saved) {
   };
 }
 
+test("enemy encyclopedia groups preserve origins and hide undiscovered groups", () => {
+  const { progress, visibility } = fixture();
+  const entries = [{ enemyKind: "circle" }, { enemyKind: "tilde", chapterGroupId: "ascii" }, { icon: "cube" }];
+  const groups = () => visibility.visibleEnemyEncyclopediaGroups(visibility.visibleEncyclopediaEntries(entries)).map(group => group.id);
+  assert.deepEqual(groups(), ["main"]);
+  progress.completeLevel("4-10");
+  assert.deepEqual(groups(), ["main", "ascii"]);
+  assert.equal(visibility.enemyEncyclopediaGroup(entries[0]), "main");
+  assert.equal(visibility.enemyEncyclopediaGroup(entries[1]), "ascii");
+  assert.equal(visibility.enemyEncyclopediaGroup(entries[2]), "main");
+  progress.completeLevel("1-9");
+  assert.deepEqual(groups(), ["main", "ascii"]);
+  progress.resetProgress();
+  assert.deepEqual(groups(), ["main"]);
+});
+
 test("new saves show initial cards and tutorial enemies, but no future bosses or towers", () => {
   const { progress, visibility } = fixture();
   assert.deepEqual([...progress.discoveredEnemies().enemies], ["circle"]);
