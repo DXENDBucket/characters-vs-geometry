@@ -15,6 +15,7 @@ import { t } from "../i18n";
 import { getCardDefinition } from "../registry/cards";
 import type { AlphaGameObject, CardId, CardState, CubeBoss } from "../types";
 import { createUnitBorder } from "./unitShapes";
+import type { TowerExtractionPool } from "../game/towerExtraction";
 
 export interface GameHudElements {
   titleText: Phaser.GameObjects.Text;
@@ -22,6 +23,7 @@ export interface GameHudElements {
   pauseMenuText: Phaser.GameObjects.Text;
   pauseMenuTooltip: Phaser.GameObjects.Text;
   charsText: Phaser.GameObjects.Text;
+  extractionText: Phaser.GameObjects.Text;
   statusText: Phaser.GameObjects.Text;
   progressText: Phaser.GameObjects.Text;
   progressBack: Phaser.GameObjects.Rectangle;
@@ -81,6 +83,7 @@ interface GameHudActions {
 }
 
 interface CardUpdateState {
+  extraction: TowerExtractionPool;
   selectedCardId: CardId;
   chars: number;
   eraserMode: boolean;
@@ -130,6 +133,9 @@ export function createGameHud(
     fontFamily: "monospace",
     fontSize: "18px"
   });
+  const extractionText = scene.add.text(GAME_WIDTH - 500, 112, "", {
+    color: "#ffd75a", fontFamily: "monospace", fontSize: "13px"
+  }).setOrigin(0.5).setVisible(false);
 
   const statusText = scene.add.text(240, 92, "", {
     color: "#8c8c8c",
@@ -311,6 +317,7 @@ export function createGameHud(
     pauseMenuText,
     pauseMenuTooltip,
     charsText,
+    extractionText,
     statusText,
     progressText,
     progressBack,
@@ -394,6 +401,9 @@ export function createCardStates(scene: Phaser.Scene, selectedCardIds: CardId[],
       fontFamily: "monospace",
       fontSize: "13px"
     });
+    const batchText = scene.add.text(x + 78, y + 35, "", {
+      color: "#ffd75a", fontFamily: "monospace", fontSize: "13px"
+    }).setVisible(false);
 
     const barBack = scene.add.rectangle(x + 17, y + 58, CARD_BAR_WIDTH, 4, palette.dim, 1).setOrigin(0, 0.5);
     const cooldownFill = scene.add
@@ -406,7 +416,10 @@ export function createCardStates(scene: Phaser.Scene, selectedCardIds: CardId[],
       definition,
       frame,
       cooldownFill,
-      content: [previewBorder, label, costText, statsText, barBack],
+      costText,
+      statsText,
+      batchText,
+      content: [previewBorder, label, costText, statsText, barBack, batchText],
       readyAt: 0,
       displayTime: 0
     };
@@ -493,7 +506,14 @@ export function updateCardStates(cardStates: CardState[], state: CardUpdateState
       !state.autoUpgradeMode &&
       !state.debugDamageMode &&
       card.definition.id === state.selectedCardId;
-    const isAffordable = state.chars >= card.definition.cost;
+    const batch = state.extraction.plan(card.definition);
+    const isAffordable = state.chars >= batch.cost;
+    setTextIfChanged(card.costText, `${batch.cost}`);
+    setTextIfChanged(card.batchText, `x${batch.levels}`);
+    setVisibleIfChanged(card.statsText, !batch.usesPool);
+    setVisibleIfChanged(card.batchText, batch.usesPool);
+    fitCardText(card.costText, CARD_WIDTH - 84);
+    fitCardText(card.batchText, CARD_WIDTH - 84);
     const cooldownRatio = Phaser.Math.Clamp((card.readyAt - card.displayTime) / card.definition.cooldown, 0, 1);
     const readyRatio = 1 - cooldownRatio;
     const contentAlpha = isSelected ? (isAffordable ? 1 : 0.56) : isAffordable ? 0.82 : 0.22;
@@ -512,6 +532,16 @@ export function updateCardStates(cardStates: CardState[], state: CardUpdateState
     setRectangleWidthIfChanged(card.cooldownFill, CARD_BAR_WIDTH * readyRatio);
     setAlphaIfChanged(card.cooldownFill, contentAlpha * (cooldownRatio > 0 ? 0.86 : 1));
   }
+}
+
+function fitCardText(text: Phaser.GameObjects.Text, maxWidth: number) {
+  const scale = text.width > maxWidth ? maxWidth / text.width : 1;
+  if (text.scaleX !== scale) text.setScale(scale);
+}
+
+export function updateExtractionPool(ui: GameHudElements, amount: number) {
+  setVisibleIfChanged(ui.extractionText, amount > 0);
+  setTextIfChanged(ui.extractionText, `y: ${amount}`);
 }
 
 export function updateToolButtonStates(

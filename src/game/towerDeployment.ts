@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { LANES } from "../config";
 import { makeAutoUpgradePulse } from "../render/combatEffects";
 import type { CardDefinition, CardId, CardState, Tower } from "../types";
+import type { TowerExtractionPool } from "./towerExtraction";
 import { gridCellKey } from "./targeting";
 import {
   applyTowerUpgradeStats,
@@ -32,6 +33,7 @@ export interface TowerDeploymentRuntime {
   isCellDeployable?: (lane: number, column: number) => boolean;
   updateLevelAuras: () => void;
   updateCards: () => void;
+  extraction: TowerExtractionPool;
 }
 
 export class TowerDeploymentController {
@@ -39,10 +41,24 @@ export class TowerDeploymentController {
 
   constructor(private readonly runtime: () => TowerDeploymentRuntime) {}
 
-  deploy(definition: CardDefinition, lane: number, column: number) {
+  useCard(definition: CardDefinition, lane: number, column: number): "deployed" | "occupied" | "cooldown" | "noChars" {
+    const runtime = this.runtime();
+    const card = runtime.cardStates.find((state) => state.definition.id === definition.id);
+    if (!card || runtime.cardTimeFor(definition.id) < card.readyAt) return "cooldown";
+    const batch = runtime.extraction.plan(definition);
+    if (runtime.getChars() < batch.cost) return "noChars";
+    if (!this.deploy(definition, lane, column, batch.levels)) return "occupied";
+    runtime.spendChars(batch.cost);
+    runtime.extraction.consume(batch);
+    card.readyAt = runtime.cardTimeFor(definition.id) + definition.cooldown;
+    runtime.updateCards();
+    return "deployed";
+  }
+
+  private deploy(definition: CardDefinition, lane: number, column: number, levels: number) {
     return this.runtime().unlimitedFirepower
-      ? this.deployColumn(definition, column)
-      : this.deploySingle(definition, lane, column);
+      ? this.deployColumn(definition, column, levels)
+      : this.deploySingle(definition, lane, column, levels);
   }
 
   attemptAutoUpgrades() {
@@ -67,19 +83,14 @@ export class TowerDeploymentController {
       }
 
       const target = findAutoUpgradeTarget(runtime.towers, cardState.definition.id);
-      if (!target || availableChars - cardState.definition.cost < runtime.autoUpgradeReserveChars) {
+      const batch = runtime.extraction.plan(cardState.definition);
+      if (!target || availableChars - batch.cost < runtime.autoUpgradeReserveChars) {
         continue;
       }
 
-      runtime.spendChars(cardState.definition.cost);
+      if (this.useCard(cardState.definition, target.lane, target.column) !== "deployed") continue;
       availableChars = runtime.getChars();
-      if (runtime.unlimitedFirepower) {
-        this.deployColumn(cardState.definition, target.column);
-      } else {
-        this.upgradeTower(target);
-      }
       makeAutoUpgradePulse(runtime.scene, target.x, target.y);
-      cardState.readyAt = runtime.cardTimeFor(cardState.definition.id) + cardState.definition.cooldown;
       upgraded = true;
     }
 
@@ -93,7 +104,7 @@ export class TowerDeploymentController {
     runtime.towers.forEach((tower) => syncTowerAutoUpgradeVisual(tower, runtime.autoUpgradeEnabled));
   }
 
-  private deploySingle(definition: CardDefinition, lane: number, column: number) {
+  private deploySingle(definition: CardDefinition, lane: number, column: number, levels: number) {
     const runtime = this.runtime();
     const key = gridCellKey(lane, column);
     const existingTower = runtime.occupied.get(key);
@@ -102,7 +113,7 @@ export class TowerDeploymentController {
         return false;
       }
 
-      this.upgradeTower(existingTower);
+      this.upgradeTower(existingTower, levels);
       return true;
     }
 
@@ -110,11 +121,11 @@ export class TowerDeploymentController {
       return false;
     }
 
-    this.placeTower(definition, lane, column);
+    this.placeTower(definition, lane, column, levels);
     return true;
   }
 
-  private deployColumn(definition: CardDefinition, column: number) {
+  private deployColumn(definition: CardDefinition, column: number, levels: number) {
     const runtime = this.runtime();
     let deployed = false;
     const upgradedGroups = this.upgradedGroupsBuffer;
@@ -127,7 +138,7 @@ export class TowerDeploymentController {
             const groupKey = this.upgradeGroupKey(existingTower);
             if (!upgradedGroups.has(groupKey)) {
               upgradedGroups.add(groupKey);
-              this.upgradeTower(existingTower);
+              this.upgradeTower(existingTower, levels);
             }
             deployed = true;
           }
@@ -138,7 +149,7 @@ export class TowerDeploymentController {
           continue;
         }
 
-        this.placeTower(definition, lane, column);
+        this.placeTower(definition, lane, column, levels);
         deployed = true;
       }
     } finally {
@@ -148,7 +159,7 @@ export class TowerDeploymentController {
     return deployed;
   }
 
-  private placeTower(definition: CardDefinition, lane: number, column: number) {
+  private placeTower(definition: CardDefinition, lane: number, column: number, levels: number) {
     const runtime = this.runtime();
     const tower = createTower(
       runtime.scene,
@@ -159,12 +170,17 @@ export class TowerDeploymentController {
       runtime.nextTowerOrder()
     );
 
+    if (levels > 1) {
+      const gainedEffectiveUpgrades = upgradeTowerLevel(tower, levels - 1);
+      applyTowerUpgradeStats(tower, definition, gainedEffectiveUpgrades, runtime.battleTime);
+      runtime.resetTowerSkill(tower);
+    }
     runtime.towers.push(tower);
     runtime.occupied.set(gridCellKey(lane, column), tower);
     runtime.updateLevelAuras();
   }
 
-  private upgradeTower(tower: Tower) {
+  private upgradeTower(tower: Tower, levels: number) {
     const runtime = this.runtime();
     const targets: Tower[] = [];
     const targetBodies: Phaser.GameObjects.GameObject[] = [];
@@ -180,7 +196,7 @@ export class TowerDeploymentController {
 
     for (const target of targets) {
       const definition = runtime.getDefinition(target.type);
-      const gainedEffectiveUpgrades = upgradeTowerLevel(target);
+      const gainedEffectiveUpgrades = upgradeTowerLevel(target, levels);
       applyTowerUpgradeStats(target, definition, gainedEffectiveUpgrades, runtime.battleTime);
       runtime.resetTowerSkill(target);
     }

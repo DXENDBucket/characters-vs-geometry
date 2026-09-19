@@ -195,6 +195,7 @@ export const cardBehaviorsById: Record<CardId, CardBehavior> = {
   a: projectileCardBehavior,
   B: idleCardBehavior,
   b: idleCardBehavior,
+  y: idleCardBehavior,
   C: projectileCardBehavior,
   c: idleCardBehavior,
   D: idleCardBehavior,

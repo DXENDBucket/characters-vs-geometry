@@ -347,6 +347,17 @@ export const cardDefinitions: CardDefinition[] = [
     stats: `${DAMAGE_SYMBOLS.true} DMG / 12s/LV`
   },
   {
+    id: "y",
+    category: "function",
+    cost: 1_500,
+    cooldown: 120_000,
+    maxHp: 1_200,
+    attackPower: 0,
+    armor: 150,
+    magicResistance: 0,
+    stats: "EXTRACT 50%"
+  },
+  {
     id: "H",
     category: "healing",
     cost: 150,

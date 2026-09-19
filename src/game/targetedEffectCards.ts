@@ -1,6 +1,7 @@
 import type Phaser from "phaser";
 import { palette } from "../config";
 import type { CardDefinition, CardId, CardState, Tower } from "../types";
+import type { TowerExtractionPool } from "./towerExtraction";
 import {
   applyTowerTrueDamage,
   applyTowerUpgradeStats,
@@ -30,23 +31,35 @@ export interface TargetedEffectCardRuntime {
   runWhenBattleActive: (action: () => void) => void;
   updateLevelAuras: () => void;
   updateCards: () => void;
+  extraction: TowerExtractionPool;
 }
 
 interface TargetedEffectDefinition {
   apply: (runtime: TargetedEffectCardRuntime, target: Tower, level: number) => void;
+  refundCooldownByLevel?: boolean;
 }
 
 const targetedEffectDefinitions: Partial<Record<CardId, TargetedEffectDefinition>> = {
   b: {
+    refundCooldownByLevel: true,
     apply: (runtime, target) => {
       toggleTowerFacing(target);
       makeTurnCardPulse(runtime.scene, target);
     }
   },
   t: {
+    refundCooldownByLevel: true,
     apply: (runtime, target, level) => {
       applyTowerTrueDamage(target, runtime.battleTime, level);
-      makeTrueDamagePulse(runtime.scene, target);
+      makeTargetedEffectPulse(runtime.scene, target);
+    }
+  },
+  y: {
+    apply: (runtime, target, level) => {
+      runtime.extraction.extract(target, runtime.getDefinition(target.type).cost, level);
+      makeTargetedEffectPulse(runtime.scene, target);
+      runtime.removeTower(target);
+      runtime.updateCards();
     }
   }
 };
@@ -69,22 +82,24 @@ export class TargetedEffectCardController {
       return "cooldown";
     }
 
-    if (runtime.getChars() < definition.cost) {
+    const batch = runtime.extraction.plan(definition);
+    if (runtime.getChars() < batch.cost) {
       return "noChars";
     }
 
-    if (!target) {
+    if (!target?.inPlay) {
       return "empty";
     }
 
     const pendingEffectCard = this.findPendingEffectCard(runtime, definition.id, lane, column);
     if (pendingEffectCard) {
-      this.upgradePendingEffectCard(pendingEffectCard, definition);
+      this.upgradePendingEffectCard(pendingEffectCard, definition, batch.levels);
     } else {
-      this.placePendingEffectCard(definition, lane, column, target);
+      this.placePendingEffectCard(definition, lane, column, target, { level: batch.levels });
     }
 
-    runtime.spendChars(definition.cost);
+    runtime.spendChars(batch.cost);
+    runtime.extraction.consume(batch);
     cardState.readyAt = runtime.cardTimeFor(definition.id) + definition.cooldown;
     runtime.updateCards();
     return "handled";
@@ -141,9 +156,9 @@ export class TargetedEffectCardController {
     return effectCard;
   }
 
-  private upgradePendingEffectCard(tower: Tower, definition: CardDefinition) {
+  private upgradePendingEffectCard(tower: Tower, definition: CardDefinition, levels = 1) {
     const runtime = this.runtime();
-    const gainedEffectiveUpgrades = upgradeTowerLevel(tower);
+    const gainedEffectiveUpgrades = upgradeTowerLevel(tower, levels);
     applyTowerUpgradeStats(tower, definition, gainedEffectiveUpgrades, runtime.battleTime);
     runtime.updateLevelAuras();
     runtime.scene.tweens.add({
@@ -186,7 +201,7 @@ export class TargetedEffectCardController {
     const definition = runtime.getDefinition(effectCard.type);
     const level = effectiveTowerLevel(effectCard);
     const target = runtime.towers.find((tower) => tower.id === effectCard.turnTargetId);
-    if (target) {
+    if (target?.inPlay) {
       targetedEffectDefinitions[effectCard.type]?.apply(runtime, target, level);
     }
 
@@ -195,7 +210,7 @@ export class TargetedEffectCardController {
     const cardState = effectCard.mirroredEffect
       ? undefined
       : runtime.cardStates.find((card) => card.definition.id === definition.id);
-    if (cardState) {
+    if (cardState && targetedEffectDefinitions[effectCard.type]?.refundCooldownByLevel) {
       cardState.readyAt = Math.min(
         cardState.readyAt,
         runtime.cardTimeFor(definition.id) + definition.cooldown / level
@@ -242,7 +257,7 @@ function makeTurnCardPulse(scene: Phaser.Scene, tower: Tower) {
   });
 }
 
-function makeTrueDamagePulse(scene: Phaser.Scene, tower: Tower) {
+function makeTargetedEffectPulse(scene: Phaser.Scene, tower: Tower) {
   const ring = scene.add.circle(tower.x, tower.y, 36, palette.black, 0).setStrokeStyle(2, palette.gold, 0.95);
   ring.setDepth(108);
   scene.tweens.add({

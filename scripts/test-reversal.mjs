@@ -8,6 +8,7 @@ import ts from "typescript";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const noop = () => {};
 const effects = {
+  makeAutoUpgradePulse: noop,
   makeReversalPulse: noop, makeBossHitFlash: noop, makeBossInvincibleFlash: noop, makeEnemyInvincibleFlash: noop,
   makeShockPulse: noop, makeTrapBurst: noop, makeSlashEffect: noop, makeArcWaveEffect: noop, makeShiftEffect: noop,
   makeTowerLaserEffect: noop, makeHitShards: noop, makeSunderEffect: noop, makeHealParticles: noop,
@@ -16,7 +17,7 @@ const effects = {
 // Keep real card data, hit resolution, status logic and trigger code; stub rendering.
 const stubs = new Map(Object.entries({
   "src/render/combatEffects.ts": effects,
-  "src/render/unitShapes.ts": { syncSolarBombShape: noop },
+  "src/render/unitShapes.ts": { syncSolarBombShape: noop, createUnitBorder: () => uiVisual() },
   "src/i18n.ts": { DAMAGE_SYMBOLS: {}, EFFECT_SYMBOLS: {} },
   "src/registry/enemies.ts": { enemyFamily: (kind) => kind.replace(/[23]$/, ""), enemyIsBossCompanion: () => false },
   "src/game/enemyBehaviors.ts": {
@@ -68,6 +69,209 @@ const lifecycle = load("src/game/unitLifecycle.ts");
 const triggers = load("src/game/triggerTowers.ts");
 const { cardDefinitions } = load("src/data/cards.ts");
 const definition = cardDefinitions.find((card) => card.id === "r");
+
+function uiVisual() {
+  const object = { x: 0, y: 0, width: 42, alpha: 1, visible: true, scaleX: 1, scaleY: 1 };
+  const proxy = new Proxy(object, {
+    get(target, property) {
+      if (property in target) return target[property];
+      return (...args) => {
+        if (property === "setVisible") target.visible = args[0];
+        if (property === "setText") target.text = args[0];
+        if (property === "destroy") target.destroyed = true;
+        return proxy;
+      };
+    }
+  });
+  return proxy;
+}
+
+function extractionFixture() {
+  const { TowerExtractionPool } = load("src/game/towerExtraction.ts");
+  const { TowerDeploymentController } = load("src/game/towerDeployment.ts");
+  const { TargetedEffectCardController } = load("src/game/targetedEffectCards.ts");
+  let order = 0;
+  const pending = [];
+  const removed = [];
+  const state = {
+    scene: { add: new Proxy({}, { get: () => () => uiVisual() }), time: { delayedCall: (_delay, action) => pending.push(action) }, tweens: { add: noop } },
+    towers: [], occupied: new Map(), chars: 10_000, battleTime: 0, unlimitedFirepower: false,
+    autoUpgradeEnabled: true, autoUpgradeReserveChars: 0, autoUpgradeReserveInputFocused: false,
+    extraction: new TowerExtractionPool(), cardStates: cardDefinitions.map(definition => ({ definition, readyAt: 0 })),
+    getDefinition: id => cardDefinitions.find(card => card.id === id), cardTimeFor: () => state.battleTime,
+    getChars: () => state.chars, spendChars: amount => { state.chars -= amount; }, nextTowerOrder: () => order++,
+    resetTowerSkill: noop, updateLevelAuras: noop, updateCards: noop, runWhenBattleActive: action => action(),
+    isCellDeployable: (lane, column) => lane >= 0 && lane < 7 && column >= 0 && column < 13,
+    removeTower: unit => {
+      if (!unit.inPlay) return;
+      removed.push(unit.id);
+      unit.inPlay = false;
+      state.towers.splice(state.towers.indexOf(unit), 1);
+      if (!unit.transient) state.occupied.delete(`${unit.lane}:${unit.column}`);
+    }
+  };
+  const deployment = new TowerDeploymentController(() => state);
+  const targeted = new TargetedEffectCardController(() => state);
+  const place = (id, level = 1, lane = 1, column = 1) => {
+    const card = state.getDefinition(id);
+    const unit = towers.createTower(state.scene, card, lane, column, state.battleTime, order++);
+    if (level > 1) towers.applyTowerUpgradeStats(unit, card, towers.upgradeTowerLevel(unit, level - 1), state.battleTime);
+    state.towers.push(unit);
+    state.occupied.set(`${lane}:${column}`, unit);
+    return unit;
+  };
+  return { state, deployment, targeted, place, removed, flush: () => { while (pending.length) pending.shift()(); } };
+}
+
+test("y has a 4-4 unlock and accumulates exact permanent-level value at additive extraction rates", () => {
+  const { state } = extractionFixture();
+  const y = state.getDefinition("y");
+  assert.equal(y.cost, 1500);
+  assert.equal(y.cooldown, 120000);
+  assert.equal(y.attackPower, 0);
+  assert.equal(load("src/data/cardUnlocks.ts").cardUnlockRequirement("y"), "4-4");
+  const source = { level: 3, levelBonus: 90, mirrorLevelBonus: 50 };
+  for (const [level, amount] of [[1, 112.5], [2, 168.75], [3, 225], [4, 281.25]]) {
+    assert.equal(state.extraction.extract(source, 75, level), amount);
+  }
+  assert.equal(state.extraction.value, 787.5);
+  assert.deepEqual(state.extraction.plan({ cost: 50 }), { levels: 15, cost: 750, usesPool: true });
+});
+
+test("y resolves once, erases its target, keeps 120s cooldown and adds to an existing pool", () => {
+  const f = extractionFixture();
+  const target = f.place("A", 20);
+  target.levelBonus = 500;
+  f.state.extraction.extract({ level: 1 }, 20, 1);
+  const y = f.state.getDefinition("y");
+  assert.equal(f.targeted.use(y, 1, 1, target), "handled");
+  assert.equal(f.state.extraction.value, 10);
+  f.flush();
+  assert.equal(f.state.extraction.value, 510);
+  assert.equal(f.state.chars, 8500);
+  assert.equal(target.inPlay, false);
+  assert.equal(f.state.towers.length, 0);
+  assert.equal(f.state.occupied.size, 0);
+  assert.equal(f.state.cardStates.find(card => card.definition.id === "y").readyAt, 120000);
+  f.flush();
+  assert.equal(f.state.extraction.value, 510);
+  assert.equal(f.removed.length, 2);
+});
+
+test("multi-level pending y uses its own level but never refunds its cooldown or duplicates a lost target", () => {
+  const f = extractionFixture();
+  const target = f.place("B", 4);
+  const y = f.state.getDefinition("y");
+  f.targeted.use(y, 1, 1, target);
+  f.state.towers.find(unit => unit.type === "y").level = 2;
+  f.flush();
+  assert.equal(f.state.extraction.value, 225);
+  assert.equal(f.state.cardStates.find(card => card.definition.id === "y").readyAt, 120000);
+  f.state.battleTime = 120000;
+  const lost = f.place("A");
+  f.targeted.use(y, 1, 1, lost);
+  f.state.removeTower(lost);
+  f.flush();
+  assert.equal(f.state.extraction.value, 225);
+});
+
+test("510 extraction buys one level-10 A for 500, consumes all remainder and preserves failed deployments", () => {
+  const f = extractionFixture();
+  const a = f.state.getDefinition("A");
+  f.state.extraction.extract({ level: 1 }, 1020, 1);
+  f.state.chars = 499;
+  assert.equal(f.deployment.useCard(a, 1, 1), "noChars");
+  assert.equal(f.state.extraction.value, 510);
+  f.state.chars = 500;
+  assert.equal(f.deployment.useCard(a, -1, 1), "occupied");
+  f.place("B");
+  assert.equal(f.deployment.useCard(a, 1, 1), "occupied");
+  f.state.cardStates.find(card => card.definition.id === "A").readyAt = 1;
+  assert.equal(f.deployment.useCard(a, 1, 2), "cooldown");
+  assert.equal(f.state.extraction.value, 510);
+  f.state.battleTime = 1;
+  assert.equal(f.deployment.useCard(a, 1, 2), "deployed");
+  assert.equal(f.state.occupied.get("1:2").level, 10);
+  assert.equal(f.state.chars, 0);
+  assert.equal(f.state.extraction.value, 0);
+  assert.equal(f.state.cardStates.find(card => card.definition.id === "A").readyAt, 1001);
+});
+
+test("expensive cards keep the pool; matching towers and mirror members gain the batch exactly once", () => {
+  const f = extractionFixture();
+  f.state.extraction.extract({ level: 1 }, 1500, 1);
+  assert.equal(f.deployment.useCard(f.state.getDefinition("m"), 0, 0), "deployed");
+  assert.equal(f.state.extraction.value, 750);
+  const first = f.place("B", 1, 1, 1);
+  const second = f.place("B", 1, 1, 2);
+  f.state.mirrorGroupFor = () => [first, second];
+  const before = f.state.chars;
+  assert.equal(f.deployment.useCard(f.state.getDefinition("B"), 1, 1), "deployed");
+  assert.deepEqual([first.level, second.level], [11, 11]);
+  assert.equal(first.hp, stats.towerFinalStats(first).maxHp);
+  assert.equal(f.state.chars, before - 750);
+  assert.equal(f.state.extraction.value, 0);
+});
+
+test("automatic upgrades respect the full batch price and reserve and consume the shared pool once", () => {
+  const f = extractionFixture();
+  f.state.extraction.extract({ level: 1 }, 1020, 1);
+  const a = f.place("A"); a.autoUpgrade = true;
+  const b = f.place("B", 1, 1, 2); b.autoUpgrade = true;
+  f.state.chars = 600;
+  f.state.autoUpgradeReserveChars = 150;
+  f.deployment.attemptAutoUpgrades();
+  assert.equal(f.state.extraction.value, 0); // B's 450 batch fits the reserve; A's 500 batch does not.
+  assert.equal(a.level, 1);
+  assert.equal(b.level, 7);
+  assert.equal(f.state.chars, 150);
+});
+
+test("targeted b and t consume shared batches once and keep their level-based effects", () => {
+  const f = extractionFixture();
+  const target = f.place("A");
+  f.state.extraction.extract({ level: 1 }, 5100, 1);
+  const b = f.state.getDefinition("b");
+  assert.equal(f.targeted.use(b, 1, 1, target), "handled");
+  assert.equal(f.state.extraction.value, 0);
+  assert.equal(f.state.chars, 7450);
+  f.flush();
+  assert.equal(target.facingDirection, -1);
+  assert.equal(f.state.cardStates.find(card => card.definition.id === "b").readyAt, 10000 / 34);
+  f.state.extraction.extract({ level: 1 }, 5550, 1);
+  assert.equal(f.targeted.use(f.state.getDefinition("t"), 1, 1, target), "handled");
+  f.flush();
+  assert.equal(target.trueDamageUntil, 36000);
+  assert.equal(f.state.extraction.value, 0);
+});
+
+test("pool eligibility includes cost 999, excludes 1000 and handles small pools without zero-level deployments", () => {
+  const { state } = extractionFixture();
+  assert.deepEqual(state.extraction.plan({ cost: 50 }), { levels: 1, cost: 50, usesPool: false });
+  state.extraction.extract({ level: 1 }, 20, 1);
+  assert.deepEqual(state.extraction.plan({ cost: 999 }), { levels: 1, cost: 999, usesPool: true });
+  assert.deepEqual(state.extraction.plan({ cost: 1000 }), { levels: 1, cost: 1000, usesPool: false });
+  state.extraction.consume(state.extraction.plan({ cost: 1000 }));
+  assert.equal(state.extraction.value, 10);
+  state.extraction.consume(state.extraction.plan({ cost: 999 }));
+  assert.equal(state.extraction.value, 0);
+});
+
+test("unlimited-firepower batch charges once and upgrades a mirrored column group only once", () => {
+  const f = extractionFixture();
+  f.state.unlimitedFirepower = true;
+  f.state.extraction.extract({ level: 1 }, 1020, 1);
+  const a = f.place("A", 1, 1, 1);
+  const b = f.place("A", 1, 2, 1);
+  a.mirrorGroupId = b.mirrorGroupId = 1;
+  f.state.mirrorGroupFor = () => [a, b];
+  assert.equal(f.deployment.useCard(f.state.getDefinition("A"), 1, 1), "deployed");
+  assert.deepEqual([a.level, b.level], [11, 11]);
+  assert.equal(f.state.towers.length, 7);
+  assert(f.state.towers.filter(unit => unit !== a && unit !== b).every(unit => unit.level === 10));
+  assert.equal(f.state.chars, 9500);
+  assert.equal(f.state.extraction.value, 0);
+});
 
 function visual() {
   return {

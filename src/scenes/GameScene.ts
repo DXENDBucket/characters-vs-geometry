@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { PauseMenu } from "../render/pauseMenu";
+import { TowerExtractionPool } from "../game/towerExtraction";
 import { LoadoutReselection, RESELECT_UNLOCK_LEVEL } from "../game/loadoutReselection";
 import { TowerStorageController } from "../game/towerStorage";
 import { expireReversalEffect } from "../game/rules/reversal";
@@ -102,6 +103,7 @@ import {
   createCardStates,
   destroyCardStates,
   updateReselectButtonState,
+  updateExtractionPool,
   createGameHud,
   refreshGameHudSettings,
   createGameOverlay,
@@ -260,6 +262,7 @@ export class GameScene extends Phaser.Scene {
   private menuOpen = false;
   private reselectOpen = false;
   private reselection = new LoadoutReselection();
+  private extraction = new TowerExtractionPool();
   private reselectShade?: Phaser.GameObjects.Rectangle;
   private readonly scenePointerDownHandler = (pointer: Phaser.Input.Pointer) => this.handlePointerDown(pointer);
   private readonly scenePointerMoveHandler = (pointer: Phaser.Input.Pointer) => {
@@ -320,6 +323,7 @@ export class GameScene extends Phaser.Scene {
     this.menuOpen = false;
     this.reselectOpen = false;
     this.reselection = new LoadoutReselection();
+    this.extraction = new TowerExtractionPool();
     this.reselectShade = undefined;
     this.battlePaused = false;
     this.gameSpeed = DEFAULT_GAME_SPEED;
@@ -615,7 +619,7 @@ export class GameScene extends Phaser.Scene {
     const cardState = this.cardStatesById.get(definition.id);
     const effectiveChars = this.effectiveChars();
     if (this.canUpgradeSelectedTower(existingTower, definition, cardState, effectiveChars)) {
-      this.deploySelectedCard(definition, cardState!, lane, column, pointer);
+      this.deploySelectedCard(definition, lane, column, pointer);
       return;
     }
 
@@ -665,12 +669,12 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    if (effectiveChars < definition.cost) {
+    if (effectiveChars < this.extraction.plan(definition).cost) {
       this.showToast(t("toast.noChars"));
       return;
     }
 
-    this.deploySelectedCard(definition, cardState, lane, column, pointer);
+    this.deploySelectedCard(definition, lane, column, pointer);
   }
 
   private canUpgradeSelectedTower(
@@ -682,25 +686,22 @@ export class GameScene extends Phaser.Scene {
     return (
       Boolean(tower && tower.type === definition.id) &&
       Boolean(cardState && this.cardTimeFor(definition.id) >= cardState.readyAt) &&
-      effectiveChars >= definition.cost
+      effectiveChars >= this.extraction.plan(definition).cost
     );
   }
 
   private deploySelectedCard(
     definition: CardDefinition,
-    cardState: CardState,
     lane: number,
     column: number,
     pointer: Phaser.Input.Pointer
   ) {
-    const deployed = this.deployment.deploy(definition, lane, column);
-    if (!deployed) {
-      this.showToast(t("toast.occupied"));
+    const result = this.deployment.useCard(definition, lane, column);
+    if (result !== "deployed") {
+      this.showToast(t(`toast.${result}`));
       return;
     }
 
-    this.spendChars(definition.cost);
-    cardState.readyAt = this.cardTimeFor(definition.id) + definition.cooldown;
     this.mirrors.syncMirrors();
     this.updateLevelAuras();
     this.syncPlacementGhost(pointer);
@@ -793,7 +794,7 @@ export class GameScene extends Phaser.Scene {
       this.targetedEffects.canHandle(definition.id) ||
       !cardState ||
       this.cardTimeFor(definition.id) < cardState.readyAt ||
-      this.effectiveChars() < definition.cost
+      this.effectiveChars() < this.extraction.plan(definition).cost
     ) {
       return ghosts;
     }
@@ -1238,6 +1239,7 @@ export class GameScene extends Phaser.Scene {
 
   private createTargetedEffectCardRuntime(): TargetedEffectCardRuntime {
     return {
+      extraction: this.extraction,
       scene: this,
       towers: this.towers,
       cardStates: this.cardStates,
@@ -1316,6 +1318,7 @@ export class GameScene extends Phaser.Scene {
 
   private createTowerDeploymentRuntime(): TowerDeploymentRuntime {
     return {
+      extraction: this.extraction,
       scene: this,
       towers: this.towers,
       occupied: this.occupied,
@@ -1857,6 +1860,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     updateCardStates(this.cardStates, {
+      extraction: this.extraction,
       selectedCardId: this.selectedCardId,
       chars: this.effectiveChars(),
       eraserMode: this.eraserMode,
@@ -1864,6 +1868,7 @@ export class GameScene extends Phaser.Scene {
       autoUpgradeMode: this.autoUpgradeMode,
       debugDamageMode: this.debugDamageMode !== null
     });
+    updateExtractionPool(this.ui, this.extraction.value);
     updateToolButtonStates(
       this.ui,
       this.eraserMode,

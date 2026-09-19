@@ -50,6 +50,7 @@ export const cardUnlockRequirements: Record<CardId, string | null> = {
   P: "1-7",
   p: "1-8",
   Y: "1-5",
+  y: "4-4",
   Z: "1-9"
 };
 

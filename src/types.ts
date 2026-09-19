@@ -46,6 +46,7 @@ export type CardId =
   | "P"
   | "p"
   | "Y"
+  | "y"
   | "Z";
 export type EnemyKind =
   | "circle"
@@ -255,6 +256,9 @@ export interface CardState {
   definition: CardDefinition;
   frame: Phaser.GameObjects.Rectangle;
   cooldownFill: Phaser.GameObjects.Rectangle;
+  costText: Phaser.GameObjects.Text;
+  statsText: Phaser.GameObjects.Text;
+  batchText: Phaser.GameObjects.Text;
   content: AlphaGameObject[];
   readyAt: number;
   displayTime: number;

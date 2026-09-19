@@ -693,6 +693,7 @@ function towerLines(card: CardDefinition) {
 function towerDescription(id: CardId) {
   const zh = isZh();
   const descriptions: Record<CardId, string> = {
+    y: zh ? "提取卡。放在已有塔上，按目标基础费用乘永久等级计算总价，提取其中一部分加入共享池，并像橡皮擦一样擦除目标。临时等级不计入总价；多次提取会累加。下一次使用基础费用不超过 999 的卡时，按池内金额向下取整计算部署次数，至少一次，并支付全部部署费用；新塔直接获得相应等级，已有同类塔则增加相应等级。成功后消耗整个池，失败不消耗。" : "Extraction card. Erases a target tower and adds a fraction of its base cost times permanent level to a shared pool, excluding temporary levels. Repeated extractions accumulate. The next card costing at most 999 deploys floor(pool / base cost) times, at least once, charging the full cost. New towers start at that level; matching towers gain that many levels. Success empties the entire pool; failure preserves it.",
     A: zh ? "直线物理射手。沿本行平射，命中后有碎片粒子。" : "Straight physical shooter. Fires along its lane with hit shards.",
     a: zh ? "短程免费物理射手。机制类似 A，但只攻击自身和前方 4 格内的目标。" : "Free short-range physical shooter. Similar to A, but only attacks within itself plus 4 tiles ahead.",
     B: zh ? "防御塔。阻挡敌怪，只会对近战伤害反伤 400 物理伤害。" : "Defender. Blocks enemies and reflects 400 physical damage only against melee hits.",
@@ -745,6 +746,9 @@ function towerDescription(id: CardId) {
 
 function towerUpgradeText(id: CardId) {
   const zh = isZh();
+  if (id === "y") {
+    return zh ? "1 级提取总价的 50%，之后每级增加 25 个百分点：75%、100%、125%……；冷却保持 120 秒。" : "Extracts 50% at level 1, then +25 percentage points per level: 75%, 100%, 125%, etc. Cooldown stays at 120s.";
+  }
   if (id === "U") {
     return zh ? "每级提高自身等级，因此光环提供的额外等级也会提高。" : "Each level raises U's own level, increasing the bonus levels its aura grants.";
   }

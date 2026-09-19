@@ -154,9 +154,9 @@ export function syncTowerFacingVisual(tower: Tower) {
   setVisibleIfChanged(tower.facingIcon, reversed);
 }
 
-export function upgradeTowerLevel(tower: Tower) {
+export function upgradeTowerLevel(tower: Tower, levels = 1) {
   const previousLevel = tower.level;
-  tower.level += 1;
+  tower.level += Math.max(0, Math.floor(levels));
   syncTowerLevelText(tower);
   setAlphaIfChanged(tower.levelText, 1);
   return effectiveUpgradeDelta(previousLevel, tower.level);
