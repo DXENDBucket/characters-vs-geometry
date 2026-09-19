@@ -754,7 +754,7 @@ function towerUpgradeText(id: CardId) {
     return zh ? "每个有效等级提供 12 秒真实伤害持续时间；生效后冷却返还方式与 b 相同。" : "Each effective level grants 12 seconds of true-damage duration; after it resolves, cooldown refund works like b.";
   }
   if (id === "x") {
-    return zh ? "每级追踪弹伤害增加基础值的 80%。" : "Each level adds 80% of base homing-shot damage.";
+    return zh ? "每级攻击力增加基础值的 80%，每颗追踪弹造成 100% 攻击力的伤害。" : "Each level adds 80% of base attack; each homing shot deals 100% ATK damage.";
   }
   if (id === "m") {
     return zh ? "每级提高小 m 自身等级；2 级小 m 会持续为周围镜像状态塔所属的整个镜像网络提供 +1 有效等级，3 级提供 +2，以此类推。" : "Each level raises m's own level; a level 2 m continuously grants +1 effective level to the full mirror networks adjacent to it, level 3 grants +2, and so on.";
@@ -769,7 +769,7 @@ function towerUpgradeText(id: CardId) {
     return zh ? "技能倍率按当前激活的 c 的等级和计算。" : "Skill multiplier uses the sum of active c tower levels.";
   }
   if (id === "S") {
-    return zh ? "每级每发迫击弹伤害增加基础值的 80%（4000），并重置技力。" : "Each level adds 80% of base mortar damage per shell (+4000) and resets SP.";
+    return zh ? "每级攻击力增加基础值的 80%（4000），每发迫击弹造成 100% 攻击力的伤害，并重置技力。" : "Each level adds 80% of base attack (+4000) and resets SP; each mortar deals 100% ATK damage.";
   }
   if (id === "s") {
     return zh ? "每级提高自身等级；生成的小 a 等级等于小 s 当前有效等级。" : "Each level raises s's own level; created a towers use s's current effective level.";
@@ -787,16 +787,16 @@ function towerUpgradeText(id: CardId) {
     return zh ? "每个有效等级提供 5 秒反转持续时间。" : "Each effective level grants 5 seconds of Reversal.";
   }
   if (id === "l") {
-    return zh ? "每级伤害增加基础值的 80%。" : "Each level adds 80% of base damage.";
+    return zh ? "每级攻击力增加基础值的 80%。" : "Each level adds 80% of base attack.";
   }
   if (id === "Q" || id === "v") {
-    return zh ? "每级伤害增加基础值的 80%。" : "Each level adds 80% of base damage.";
+    return zh ? "每级攻击力增加基础值的 80%。" : "Each level adds 80% of base attack.";
   }
   if (id === "d" || id === "k" || id === "V") {
     return zh ? "每级攻击力增加基础值的 80%。" : "Each level adds 80% of base attack.";
   }
   if (id === "G") {
-    return zh ? "每级伤害增加基础值的 80%，并重置准备倒计时。" : "Each level adds 80% of base damage and resets arming.";
+    return zh ? "每级攻击力增加基础值的 80%，并重置准备倒计时。" : "Each level adds 80% of base attack and resets arming.";
   }
   if (id === "w") {
     return zh ? "每级最大生命增加基础值的 80%，当前生命同步补充，并重置巡空技力。" : "Each level adds 80% of base max HP, heals by the same amount, and resets Air Patrol SP.";

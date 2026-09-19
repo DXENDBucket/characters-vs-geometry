@@ -165,6 +165,8 @@ Tetrahedron skills:
 
 ## Character Attributes
 
+Towers have separate base and final `attackPower`. Attack damage and healing use final ATK times the attack multiplier (default `100%`; r uses `500%`). Damage upgrades now raise ATK: d, x, Q, k, S, V, v, l and G gain `80%` of base ATK per effective upgrade, with the existing level softcap. Other upgrade effects are unchanged. B/w counterattacks use `100%` final ATK; fixed self-damage, h's max-HP healing, and R's reflected enemy damage keep their own rules. Projectiles snapshot their damage when fired.
+
 | Character | Category | Border | Cost | CD | HP | Armor | MR | Main Effect | Upgrade |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- |
 | A | Attack | Diamond | 50 | 1s | 1200 | 150 | 0 | Fires 1 bolt, `400◆`, every `2s` | +1 volley per level |
@@ -211,7 +213,7 @@ Tetrahedron skills:
 | T | Function | Triangle | 650 | 50s | 4000 | 150 | 20 | Every `1s`, takes `700◇`; ordinary units and projectiles in a centered `5x5` no-corner area move at `1/6` speed. Bosses ignore the slow. The area is shown with a deep-purple time border. Whenever it disappears for any reason, clears all projectiles and mortars in that area | +`3200` max/current HP per level |
 | U | Function | Triangle | 1275 | 50s | 1200 | 150 | 40 | Grants towers in a centered `3x3` area, excluding itself, bonus levels equal to U's real level. Only affects towers with base cost `999` or lower. Multiple U auras stack additively | Each level raises U's aura bonus by `+1` level |
 | V | Attack | Diamond | 775 | 6s | 1200 | 150 | 40 | Every `2s`, lobs a single-target `*` magic shell for `1300` damage along its lane. It prefers the attackable enemy with the lowest max HP, predicts the landing point from target speed at lock time, and can miss | +`1040` magic attack per level |
-| v | Attack | Diamond | 500 | 6s | 1200 | 150 | 40 | Every `4s`, lobs a `#` magic shell at the first enemy ahead. It predicts the landing point from target speed at lock time, then deals `500✦` in a circular `1.75` tile radius AOE with distance falloff and applies `2s` Stasis to ordinary enemies hit | +`400✦` damage per level |
+| v | Attack | Diamond | 500 | 6s | 1200 | 150 | 40 | ATK `350`; every `4s`, lobs a `#` magic shell at the first enemy ahead. It predicts the landing point from target speed at lock time, then deals `100% ATK` magic damage in a circular `1.75` tile radius AOE with distance falloff and applies `2s` Stasis to ordinary enemies hit | +`280` ATK per effective upgrade |
 
 Volley upgrades spread consecutive shots or heals across a fixed total volley duration of `interval / 5`, regardless of shot count. The attack/heal interval itself is unchanged and starts after the volley finishes.
 

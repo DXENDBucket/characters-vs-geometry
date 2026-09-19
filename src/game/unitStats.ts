@@ -11,6 +11,7 @@ import type {
 import {
   effectiveUpgradeCountForLevel,
   isMaxHpUpgradeable,
+  upgradedAttackPower,
   maxHpGainForEffectiveUpgrades
 } from "./upgrades";
 import { attackIntervalMs } from "./attackSpeed";
@@ -22,7 +23,7 @@ export function towerBaseStatsFromDefinition(definition: CardDefinition): TowerB
     armor: definition.armor ?? 0,
     magicResistance: definition.magicResistance ?? 0,
     attackSpeed: definition.attackSpeed,
-    damage: definition.damage,
+    attackPower: definition.attackPower,
     damageType: definition.damageType
   };
 }
@@ -61,13 +62,17 @@ export function calculateTowerFinalStats(tower: Tower, towers?: Tower[], towerAu
   finalStats.armor = baseStats.armor;
   finalStats.magicResistance = baseStats.magicResistance;
   finalStats.attackSpeed = attackSpeed;
-  finalStats.damage = baseStats.damage;
+  finalStats.attackPower = upgradedAttackPower(tower.type, baseStats.attackPower, effectiveTowerStatLevel(tower));
   finalStats.damageType = baseStats.damageType;
   return finalStats;
 }
 
 export function towerFinalStats(tower: Tower) {
   return tower.finalStats;
+}
+
+export function towerAttackAmount(tower: Tower, definition: CardDefinition, multiplier = definition.attackMultiplier ?? 1) {
+  return towerFinalStats(tower).attackPower * multiplier;
 }
 
 export function towerBaseStats(tower: Tower) {

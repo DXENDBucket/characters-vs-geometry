@@ -56,8 +56,7 @@ import {
 } from "./targeting";
 import { applyStatusEffect, hasStatusEffectName, syncEnemyBodyPosition } from "./statusEffects";
 import { effectiveTowerLevel, getProductionAmount, syncTowerHpBar, towerDamageType, towerFacingDirection } from "./towers";
-import { towerFinalStats } from "./unitStats";
-import { scaledByEffectiveUpgrades } from "./upgrades";
+import { towerAttackAmount, towerFinalStats } from "./unitStats";
 import { isPointInSlowAura } from "./slowAura";
 
 export interface CardBehavior {
@@ -78,7 +77,7 @@ export const idleCardBehavior: CardBehavior = {
 
 export const projectileCardBehavior: CardBehavior = {
   canUse: (tower, definition, time, runtime, cooldownAlreadyReady) => {
-    return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(definition.damage && hasAttackTarget(tower, definition, runtime.enemies, runtime.boss));
+    return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(towerAttackAmount(tower, definition) > 0 && hasAttackTarget(tower, definition, runtime.enemies, runtime.boss));
   },
   execute: (tower, definition, runtime) => {
     fireTowerProjectiles(tower, definition, runtime);
@@ -89,7 +88,7 @@ export const homingCardBehavior: CardBehavior = {
   canUse: (tower, definition, time, runtime, cooldownAlreadyReady) => {
     return (
       cooldownReady(tower, time, cooldownAlreadyReady) &&
-      Boolean(definition.damage && selectSmallXTarget(runtime.enemies, runtime.boss, tower.x, tower.y))
+      Boolean(towerAttackAmount(tower, definition) > 0 && selectSmallXTarget(runtime.enemies, runtime.boss, tower.x, tower.y))
     );
   },
   execute: fireHomingVolley
@@ -97,7 +96,7 @@ export const homingCardBehavior: CardBehavior = {
 
 export const magicLaserCardBehavior: CardBehavior = {
   canUse: (tower, definition, time, runtime, cooldownAlreadyReady) => {
-    return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(definition.damage && hasMagicLaserTarget(tower, runtime));
+    return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(towerAttackAmount(tower, definition) > 0 && hasMagicLaserTarget(tower, runtime));
   },
   execute: fireMagicLaser
 };
@@ -106,7 +105,7 @@ export const healingCardBehavior: CardBehavior = {
   canUse: (tower, definition, time, runtime, cooldownAlreadyReady) => {
     return (
       cooldownReady(tower, time, cooldownAlreadyReady) &&
-      Boolean(definition.healAmount && hasHealTarget(tower, definition, runtime.occupied, definition.healTargets ?? 1))
+      Boolean(towerAttackAmount(tower, definition) > 0 && hasHealTarget(tower, definition, runtime.occupied, definition.healTargets ?? 1))
     );
   },
   execute: fireHealingPulse
@@ -114,7 +113,7 @@ export const healingCardBehavior: CardBehavior = {
 
 export const zealHealingCardBehavior: CardBehavior = {
   canUse: (tower, definition, time, runtime, cooldownAlreadyReady) => {
-    return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(definition.healAmount && hasZealHealTarget(tower, runtime.towers));
+    return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(towerAttackAmount(tower, definition) > 0 && hasZealHealTarget(tower, runtime.towers));
   },
   execute: fireZealHealingPulse
 };
@@ -160,21 +159,21 @@ export const slowAuraCardBehavior: CardBehavior = {
 
 export const slashCardBehavior: CardBehavior = {
   canUse: (tower, definition, time, runtime, cooldownAlreadyReady) => {
-    return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(definition.damage && hasAttackTarget(tower, definition, runtime.enemies, runtime.boss));
+    return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(towerAttackAmount(tower, definition) > 0 && hasAttackTarget(tower, definition, runtime.enemies, runtime.boss));
   },
   execute: fireSlash
 };
 
 export const arcWaveCardBehavior: CardBehavior = {
   canUse: (tower, definition, time, runtime, cooldownAlreadyReady) => {
-    return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(definition.damage && hasArcWaveTarget(tower, runtime.enemies, runtime.boss));
+    return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(towerAttackAmount(tower, definition) > 0 && hasArcWaveTarget(tower, runtime.enemies, runtime.boss));
   },
   execute: fireArcWave
 };
 
 export const predictiveMortarCardBehavior: CardBehavior = {
   canUse: (tower, definition, time, runtime, cooldownAlreadyReady) => {
-    return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(definition.damage && hasPredictiveMortarTarget(tower, definition, runtime));
+    return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(towerAttackAmount(tower, definition) > 0 && hasPredictiveMortarTarget(tower, definition, runtime));
   },
   execute: firePredictiveMortar
 };
@@ -266,7 +265,7 @@ function fireHomingVolley(tower: Tower, definition: CardDefinition, runtime: Car
     return;
   }
 
-  const damage = scaledByEffectiveUpgrades(definition.damage ?? 0, effectiveTowerLevel(tower));
+  const damage = towerAttackAmount(tower, definition);
   const damageType = towerDamageType(tower, definition.damageType ?? "magic", runtime.battleTime);
   for (const muzzle of HOMING_PROJECTILE_MUZZLES) {
     runtime.projectiles.push(
@@ -344,7 +343,7 @@ function fireMagicLaser(tower: Tower, definition: CardDefinition, runtime: CardB
   const endX = magicLaserEndX(tower, runtime.enemies, runtime, direction);
   const startX = tower.x + direction * MAGIC_LASER_START_OFFSET;
   const targets = magicLaserTargets(tower, runtime.enemies, direction, endX);
-  const damage = scaledByEffectiveUpgrades(definition.damage ?? 0, effectiveTowerLevel(tower));
+  const damage = towerAttackAmount(tower, definition);
   const damageType = towerDamageType(tower, definition.damageType ?? "magic", runtime.battleTime);
 
   makeTowerLaserEffect(runtime.scene, startX, tower.y, endX);
@@ -462,7 +461,7 @@ function fireHealingPulse(
 
   try {
     for (const target of targets) {
-      healTower(runtime.scene, target, definition.healAmount ?? 60);
+      healTower(runtime.scene, target, towerAttackAmount(tower, definition));
     }
   } finally {
     targets.length = 0;
@@ -475,7 +474,7 @@ function fireZealHealingPulse(tower: Tower, definition: CardDefinition, runtime:
     return;
   }
 
-  const amount = definition.healAmount ?? definition.damage ?? 0;
+  const amount = towerAttackAmount(tower, definition);
   try {
     for (const target of targets) {
       healTower(runtime.scene, target, amount);
@@ -615,7 +614,7 @@ function laneIsInBoard(lane: number) {
 }
 
 function fireSlash(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {
-  const damage = definition.damage ?? 0;
+  const damage = towerAttackAmount(tower, definition);
   const damageType = towerDamageType(tower, definition.damageType, runtime.battleTime);
   const target = getAttackTarget(tower, definition, runtime.enemies);
   if (target) {
@@ -639,7 +638,7 @@ function fireSlash(tower: Tower, definition: CardDefinition, runtime: CardBehavi
 }
 
 function fireArcWave(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {
-  const damage = scaledByEffectiveUpgrades(definition.damage ?? 0, effectiveTowerLevel(tower));
+  const damage = towerAttackAmount(tower, definition);
   const damageType = towerDamageType(tower, definition.damageType ?? "magic", runtime.battleTime);
   const direction = towerFacingDirection(tower);
   makeArcWaveEffect(runtime.scene, tower.x - direction * CELL_WIDTH * 0.24, tower.y, damageType, direction);
@@ -665,7 +664,7 @@ function hasPredictiveMortarTarget(
 }
 
 function firePredictiveMortar(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {
-  const damage = scaledByEffectiveUpgrades(definition.damage ?? 0, effectiveTowerLevel(tower));
+  const damage = towerAttackAmount(tower, definition);
   const damageType = towerDamageType(tower, definition.damageType ?? "magic", runtime.battleTime);
   const enemy = getPredictiveMortarEnemyTarget(tower, definition, runtime.enemies);
   const target = enemy
@@ -884,7 +883,7 @@ function fireTowerProjectiles(tower: Tower, definition: CardDefinition, runtime:
   }
 
   const damageType = towerDamageType(tower, definition.damageType, runtime.battleTime);
-  const damage = towerProjectileDamage(tower, definition);
+  const damage = towerAttackAmount(tower, definition);
   const mirrored = shouldMirrorProjectilePattern(tower, pattern);
   const splashRadius = projectileSplashRadius(pattern, definition);
   for (const shot of pattern.shots) {
@@ -910,14 +909,6 @@ function fireTowerProjectiles(tower: Tower, definition: CardDefinition, runtime:
       })
     );
   }
-}
-
-function towerProjectileDamage(tower: Tower, definition: CardDefinition) {
-  if (tower.type === "Q") {
-    return scaledByEffectiveUpgrades(definition.damage ?? 0, effectiveTowerLevel(tower));
-  }
-
-  return definition.damage ?? 0;
 }
 
 function projectileMuzzlePoint(tower: Tower, muzzle: MuzzlePoint, mirrored: boolean) {

@@ -233,14 +233,6 @@ export function getTriggerDebuffDuration(tower: Tower, definition: CardDefinitio
   return scaledByEffectiveUpgrades(definition.triggerDebuffDuration ?? 0, effectiveTowerLevel(tower));
 }
 
-export function getTrapDamage(tower: Tower, definition: CardDefinition) {
-  return scaledByEffectiveUpgrades(definition.triggerDamage ?? 1_500, effectiveTowerLevel(tower));
-}
-
-export function getSpellMortarDamage(tower: Tower, definition: CardDefinition) {
-  return scaledByEffectiveUpgrades(definition.damage ?? 8_000, effectiveTowerLevel(tower));
-}
-
 export function isTrapArmed(tower: Tower, time: number) {
   return tower.type === "G" && time >= tower.armedAt;
 }

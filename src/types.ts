@@ -163,7 +163,7 @@ export interface TowerBaseStats {
   armor: number;
   magicResistance: number;
   attackSpeed?: number;
-  damage?: number;
+  attackPower: number;
   damageType?: DamageType;
 }
 
@@ -202,17 +202,13 @@ export interface CardDefinition {
   armor?: number;
   magicResistance?: number;
   attackSpeed?: number;
-  damage?: number;
+  attackPower: number;
+  attackMultiplier?: number;
   damageType?: DamageType;
   rangeCells?: number;
-  healAmount?: number;
   healTargets?: number;
   splashRadius?: number;
-  reflectDamage?: number;
-  reflectDamageType?: DamageType;
-  triggerDamage?: number;
-  triggerAttackMultiplier?: number;
-  triggerDamageType?: DamageType;
+  reflectAttackMultiplier?: number;
   triggerCount?: number;
   triggerInterval?: number;
   triggerRangeX?: number;

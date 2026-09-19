@@ -17,6 +17,7 @@ const VOLLEY_UPGRADEABLE_CARDS = new Set<CardId>([
   "Z"
 ]);
 const MAX_HP_UPGRADEABLE_CARDS = new Set<CardId>(["B", "D", "O", "R", "h", "L", "N", "n", "T"]);
+const ATTACK_POWER_UPGRADEABLE_CARDS = new Set<CardId>(["d", "x", "Q", "k", "S", "V", "v", "l", "G"]);
 const UPGRADE_SCALE = 0.8;
 const UPGRADE_SOFTCAP_START = 20;
 
@@ -57,6 +58,12 @@ export function isVolleyUpgradeable(type: CardId) {
 
 export function isMaxHpUpgradeable(type: CardId) {
   return MAX_HP_UPGRADEABLE_CARDS.has(type);
+}
+
+export function upgradedAttackPower(type: CardId, baseAttackPower: number, level: number) {
+  return ATTACK_POWER_UPGRADEABLE_CARDS.has(type)
+    ? scaledByEffectiveUpgrades(baseAttackPower, level)
+    : baseAttackPower;
 }
 
 export function volleyShotCount(type: CardId, level: number) {

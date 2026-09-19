@@ -23,13 +23,12 @@ import { createTowerSkillRegistry, type TowerSkillDefinition } from "./towerSkil
 import { bossPartInRect } from "./targeting";
 import {
   effectiveTowerLevel,
-  getSpellMortarDamage,
   setTowerFlyingUntil,
   syncTowerFlyingVisual,
   syncTowerHpBar,
   towerDamageType
 } from "./towers";
-import { towerFinalStats } from "./unitStats";
+import { towerAttackAmount, towerFinalStats } from "./unitStats";
 
 const AIR_PATROL_SKILL_MAX = 10;
 const AIR_PATROL_SKILL_COST = 10;
@@ -378,7 +377,7 @@ export class TowerSkillController {
   private fireSpellMortar(tower: Tower, targetX: number, targetY: number) {
     const runtime = this.runtime();
     const definition = runtime.getDefinition(tower.type);
-    const damage = getSpellMortarDamage(tower, definition);
+    const damage = towerAttackAmount(tower, definition);
     const damageType = towerDamageType(tower, definition.damageType ?? "magic", runtime.battleTime);
     const state = getTowerSkillState(tower, "spellMortar");
     state.sp = Math.max(0, state.sp - SPELL_MORTAR_SKILL_COST);

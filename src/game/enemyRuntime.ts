@@ -85,7 +85,7 @@ import {
   type RectBounds
 } from "./targeting";
 import { isTrapArmed, towerDamageType } from "./towers";
-import { towerFinalStats } from "./unitStats";
+import { towerAttackAmount, towerFinalStats } from "./unitStats";
 import { volleyInterval } from "./upgrades";
 import { buildWaveKinds, waveWeightLimit } from "./waves";
 
@@ -420,11 +420,11 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
       if (canEnemyMelee(enemy) && time >= enemy.attackAt) {
         runtime.damageTower(blocker, enemyAttackDamage(enemy, time), enemy.damageType);
         const blockerDefinition = getCardDefinition(blocker.type);
-        if (blockerDefinition.reflectDamage) {
+        if (blockerDefinition.reflectAttackMultiplier) {
           runtime.damageEnemy(
             enemy,
-            blockerDefinition.reflectDamage,
-            towerDamageType(blocker, blockerDefinition.reflectDamageType ?? "physical", time),
+            towerAttackAmount(blocker, blockerDefinition, blockerDefinition.reflectAttackMultiplier),
+            towerDamageType(blocker, blockerDefinition.damageType ?? "physical", time),
             blocker
           );
           makeReflectFlash(runtime.scene, blocker.x, blocker.y);

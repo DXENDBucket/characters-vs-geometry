@@ -6,8 +6,8 @@ import { enemyIsBurrowed, enemyIsHighFlying } from "./enemyBehaviors";
 import { forEachSnapshot } from "./iteration";
 import { applyStatusEffect } from "./statusEffects";
 import { bossPartDistanceSqToPoint, bossPartInRect, forEachBossPart } from "./targeting";
-import { getShockCount, getTriggerDebuffDuration, getTrapDamage, towerDamageType } from "./towers";
-import { towerFinalStats } from "./unitStats";
+import { getShockCount, getTriggerDebuffDuration, towerDamageType } from "./towers";
+import { towerAttackAmount } from "./unitStats";
 
 export interface TriggerTowerRuntime {
   scene: Phaser.Scene;
@@ -31,10 +31,8 @@ export function isShockTower(tower: Tower | undefined): tower is Tower & { type:
 export function triggerShockTower(runtime: TriggerTowerRuntime, tower: Tower) {
   const definition = runtime.getDefinition(tower.type);
   const interval = definition.triggerInterval ?? 50;
-  const damage = definition.triggerAttackMultiplier !== undefined
-    ? (towerFinalStats(tower).damage ?? 0) * definition.triggerAttackMultiplier
-    : tower.type === "l" ? getTrapDamage(tower, definition) : definition.triggerDamage ?? 100;
-  const damageType = towerDamageType(tower, definition.triggerDamageType ?? "physical", runtime.battleTime);
+  const damage = towerAttackAmount(tower, definition);
+  const damageType = towerDamageType(tower, definition.damageType ?? "physical", runtime.battleTime);
   const rangeX = definition.triggerRangeX ?? CELL_WIDTH;
   const rangeY = definition.triggerRangeY ?? CELL_HEIGHT;
   const triggerShape = definition.triggerShape ?? "rect";
@@ -102,8 +100,8 @@ export function triggerShockTower(runtime: TriggerTowerRuntime, tower: Tower) {
 
 export function triggerTrapTower(runtime: TriggerTowerRuntime, tower: Tower, target: Enemy | CubeBoss | "boss") {
   const definition = runtime.getDefinition(tower.type);
-  const damage = getTrapDamage(tower, definition);
-  const damageType = towerDamageType(tower, definition.triggerDamageType ?? "magic", runtime.battleTime);
+  const damage = towerAttackAmount(tower, definition);
+  const damageType = towerDamageType(tower, definition.damageType ?? "magic", runtime.battleTime);
   const x = tower.x;
   const y = tower.y;
 
