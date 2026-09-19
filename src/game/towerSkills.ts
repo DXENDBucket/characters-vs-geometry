@@ -92,6 +92,7 @@ export class TowerSkillController {
     this.syncSpellMortarTargetingTowers();
     let activeClockLevelSum = 0;
     for (const tower of this.runtime().towers) {
+      if (tower.moveVisual) syncTowerFlyingVisual(tower, time);
       const definition = this.skillDefinitions[tower.type];
       if (!definition) {
         continue;

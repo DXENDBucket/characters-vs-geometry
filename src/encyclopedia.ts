@@ -707,6 +707,7 @@ function towerLines(card: CardDefinition) {
 function towerDescription(id: CardId) {
   const zh = isZh();
   const descriptions: Record<CardId, string> = {
+    "#": zh ? "推箱子。初始 0 技力，上限 30，每秒恢复 1；满技力后点击，再选择上下左右一个有塔的相邻格。消耗 30 技力，将该方向连续相接的塔整体推动一格，自身不动，移动持续约 0.5 秒。越界或被推入封禁格的塔按擦除处理。右键取消选向，无效选择不消耗技力。" : "Box Push. Starts at 0 SP, recovers 1 SP/s up to 30. Click when ready, then select a cardinally adjacent occupied cell. Spends 30 SP to push the contiguous line of towers one cell over 0.5s without moving itself. Towers pushed off the board or into sealed cells are erased. Right-click cancels targeting; invalid selections cost no SP.",
     u: zh ? "连结防御塔。与上下左右接壤的塔共享生命，相邻或共用邻塔的小 u 会合并为同一网络。网络生命上限为所有成员自身生命上限之和，除以小 u 的实际数量（不计等级）。伤害按被击中塔的抗性结算后扣除共享生命，治疗补充共享池；共享生命耗尽时所有成员死亡。加入、退出与拆分保持生命比例，已有网络合并按原网络生命上限加权平均。每座塔显示相同的共享生命比例。" : "Links cardinally adjacent towers into a shared health network. Adjacent u towers or those sharing a neighbor merge networks. Shared max HP is the sum of members' own max HP divided by the number of u towers, not their levels. Hits use the struck tower's defenses; damage and healing affect the pool. All members die when it empties. Joining, leaving and splitting preserve HP ratio; merging existing networks uses their previous max-HP-weighted ratio. All members display the same HP ratio.",
     y: zh ? "提取卡。放在已有塔上，按目标基础费用乘永久等级计算总价，提取其中一部分加入共享池，并像橡皮擦一样擦除目标。临时等级不计入总价；多次提取会累加。下一次使用基础费用不超过 999 的卡时，按池内金额向下取整计算部署次数，至少一次，并支付全部部署费用；新塔直接获得相应等级，已有同类塔则增加相应等级。成功后消耗整个池，失败不消耗。" : "Extraction card. Erases a target tower and adds a fraction of its base cost times permanent level to a shared pool, excluding temporary levels. Repeated extractions accumulate. The next card costing at most 999 deploys floor(pool / base cost) times, at least once, charging the full cost. New towers start at that level; matching towers gain that many levels. Success empties the entire pool; failure preserves it.",
     A: zh ? "直线物理射手。沿本行平射，命中后有碎片粒子。" : "Straight physical shooter. Fires along its lane with hit shards.",
@@ -723,7 +724,7 @@ function towerDescription(id: CardId) {
     X: zh ? `生产塔。按攻速每 10 秒产生 ${EFFECT_SYMBOLS.chars}25，也是主要字符来源之一；热忱可以加快生产。` : `Producer. Generates ${EFFECT_SYMBOLS.chars}25 every 10s using attack speed, so Zeal speeds it up.`,
     x: zh ? "追踪法术射手。每次从攻击形四角发射 4 枚 > 法术追踪弹。对命中时非飞行的目标伤害降低 35%，包括地面 Boss。小 x 开火时优先锁定离小 x 最近的可攻击飞行敌怪；没有飞行敌怪时锁定离小 x 最近的可攻击敌怪或 Boss。追踪弹只追锁定目标，目标死亡或消失后才改为锁定离子弹最近的可攻击敌怪或 Boss。" : "Homing magic attacker. Fires four > magic homing shots from the attack-shape corners. Deals 35% less damage to targets that are not Flying on impact, including ground Bosses. When x fires, it prioritizes the attackable Flying enemy nearest to x; if none exist, it locks the attackable enemy or Boss nearest to x. Shots keep chasing their locked target and only retarget to the nearest attackable enemy or Boss to the shot if that target dies or disappears.",
     Y: zh ? `受击生产塔。不攻击；每次受到攻击时产生 ${EFFECT_SYMBOLS.chars}12。` : `Hit producer. Does not attack; generates ${EFFECT_SYMBOLS.chars}12 each time it is attacked.`,
-    d: zh ? "碎甲激光射手。沿本行发射浅蓝色法术激光，穿透敌怪，直到命中第一个拥有法术抗性的敌怪后停止。被命中的敌怪获得 10 秒碎甲，最终护甲降低 35%；重复命中会刷新持续时间。碎甲敌怪头顶显示白色 ▣ 图标。" : "Sunder laser attacker. Fires a light-blue magic laser along its lane, piercing enemies until it hits the first enemy with magic resistance. Hit enemies gain 10s Sunder, reducing final armor by 35%; repeated hits refresh the duration. Sundered enemies show a white ▣ icon above them.",
+    d: zh ? "碎甲激光射手。沿本行发射浅蓝色法术激光，穿透敌怪，直到命中第一个拥有法术抗性的敌怪后停止。被命中的敌怪获得 10 秒碎甲，最终护甲降低 50%；重复命中会刷新持续时间。碎甲敌怪头顶显示白色 ▣ 图标。" : "Sunder laser attacker. Fires a light-blue magic laser along its lane, piercing enemies until it hits the first enemy with magic resistance. Hit enemies gain 10s Sunder, reducing final armor by 50%; repeated hits refresh the duration. Sundered enemies show a white ▣ icon above them.",
     z: zh ? "削技激光射手。面板和激光规则同小 d：每 3 秒沿本行发射 400 法术伤害的浅蓝色穿透激光，击中第一个拥有法抗的敌怪后停止。命中时使目标每个已有技能各扣除 1 技力，最低为 0，包含领袖但不包含 Boss；对 Boss 仍正常造成伤害。不重置回技进度，不中断已开启技能，也不施加碎甲。无敌目标不会被扣技力。通关首次出现天使五边形的 3-8 后解锁。" : "SP-draining laser attacker. Same panel and laser rules as d: fires a light-blue piercing laser for 400 magic damage every 3s, stopping after the first magic-resistant enemy. Each hit removes 1 SP from each existing skill, down to 0, including leaders but excluding Bosses. Bosses still take normal damage. Preserves recovery progress and active skills; does not apply Sunder. Invincible targets lose no SP. Unlocked after clearing 3-8, the first Angel Pentagon stage.",
     E: zh ? "三连物理射手。向前平射，并向上/下各偏转 10 度发射一发。" : "Triple physical shooter. Fires one straight shot plus two shots at +/-10 degrees.",
     e: zh ? "热忱治疗塔。拥有和 T 相同的 5x5 去角范围，并显示红色范围框；每次治疗范围内所有受伤塔 90 生命。范围内所有塔，包括自己，获得不叠加的热忱，攻击速度提高 35%。" : "Zeal healer. Uses the same centered 5x5 no-corner range as T and shows a red range border; each heal pulse restores 90 HP to every damaged tower in range. All towers in range, including itself, gain non-stacking Zeal for +35% attack speed.",
@@ -764,6 +765,9 @@ function towerDescription(id: CardId) {
 }
 
 function towerUpgradeText(id: CardId) {
+  if (id === "#") {
+    return isZh() ? "每个额外有效等级增加每秒 0.5 技力恢复速度，升级重置技力。" : "Each additional effective level adds 0.5 SP/s recovery. Upgrading resets SP.";
+  }
   const zh = isZh();
   if (id === "u") {
     return zh ? "每级仅增加小 u 自身 80% 基础生命（2400），不放大其他成员的生命贡献；网络生命上限最后再除以小 u 的数量。" : "Each upgrade adds 80% of u's own base HP (2400), not other members' contributions. Network max HP is then divided by the number of u towers.";
@@ -947,8 +951,8 @@ export function mechanicEncyclopediaEntries(): EncyclopediaEntry[] {
       icon: "▣-",
       titleZh: "碎甲",
       titleEn: "Sunder",
-      linesZh: ["效果：最终护甲降低 35%", "刷新：重复命中刷新持续时间"],
-      linesEn: ["Effect: final armor is reduced by 35%", "Refresh: repeated hits reset duration"],
+      linesZh: ["效果：最终护甲降低 50%", "刷新：重复命中刷新持续时间"],
+      linesEn: ["Effect: final armor is reduced by 50%", "Refresh: repeated hits reset duration"],
       descriptionZh:
         "碎甲会降低敌怪最终护甲，让后续物理伤害更容易打穿。被碎甲的敌怪头顶会显示白色 ▣ 标识。",
       descriptionEn:

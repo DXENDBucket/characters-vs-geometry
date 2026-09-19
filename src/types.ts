@@ -1,6 +1,7 @@
 import type Phaser from "phaser";
 
 export type CardId =
+  | "#"
   | "A"
   | "a"
   | "B"
@@ -261,6 +262,7 @@ export interface Tower {
   nextProduceAt: number;
   armedAt: number;
   skills: Record<string, SkillState>;
+  moveVisual?: { fromX: number; fromY: number; startedAt: number; duration: number };
   autoUpgrade: boolean;
   reflectProjectiles: boolean;
   nextRepelDirection: -1 | 1;

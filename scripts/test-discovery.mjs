@@ -37,6 +37,15 @@ function fixture(saved) {
   };
 }
 
+test("the first ASCII character unlocks only after clearing AE-1", () => {
+  const { progress } = fixture();
+  assert.equal(progress.isCardUnlocked("#"), false);
+  progress.completeLevel("4-10");
+  assert.equal(progress.isCardUnlocked("#"), false);
+  progress.completeLevel("AE-1");
+  assert.equal(progress.isCardUnlocked("#"), true);
+});
+
 test("enemy encyclopedia groups preserve origins and hide undiscovered groups", () => {
   const { progress, visibility } = fixture();
   const entries = [{ enemyKind: "circle" }, { enemyKind: "tilde", chapterGroupId: "ascii" }, { icon: "cube" }];

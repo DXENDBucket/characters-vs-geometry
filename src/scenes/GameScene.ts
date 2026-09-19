@@ -73,6 +73,8 @@ import {
 import { TowerDeploymentController, type TowerDeploymentRuntime } from "../game/towerDeployment";
 import { MIRROR_COST_LIMIT, TowerMirrorController, type TowerMirrorRuntime } from "../game/towerMirrors";
 import { TowerShifterController, type TowerShifterRuntime } from "../game/towerShifter";
+import { TowerPushController } from "../game/towerPush";
+import { pushIsReady } from "../game/pushSkill";
 import { TowerSkillController, type TowerSkillRuntime } from "../game/towerSkills";
 import {
   isTutorialMechanic,
@@ -260,6 +262,7 @@ export class GameScene extends Phaser.Scene {
   private targetedEffects!: TargetedEffectCardController;
   private towerSkills!: TowerSkillController;
   private shifter!: TowerShifterController;
+  private towerPush!: TowerPushController;
   private mirrors!: TowerMirrorController;
   private storage!: TowerStorageController;
   private deployment!: TowerDeploymentController;
@@ -368,6 +371,10 @@ export class GameScene extends Phaser.Scene {
     this.targetedEffects = new TargetedEffectCardController(() => this.targetedEffectCardRuntime());
     this.towerSkills = new TowerSkillController(this, () => this.towerSkillRuntime());
     this.shifter = new TowerShifterController(() => this.towerShifterRuntime());
+    this.towerPush = new TowerPushController(this, () => ({
+      ...this.towerShifterRuntime(),
+      eraseTower: tower => removeTower(this.unitLifecycleRuntime(), tower)
+    }));
     this.mirrors = new TowerMirrorController(() => this.towerMirrorRuntime());
     this.storage = new TowerStorageController(() => this.combatRuntime());
     this.deployment = new TowerDeploymentController(() => this.towerDeploymentRuntime());
@@ -484,6 +491,7 @@ export class GameScene extends Phaser.Scene {
     this.tutorial?.destroy();
     this.tutorial = null;
     this.shifter?.clearSelection();
+    this.towerPush?.destroy();
     this.towerSkills?.cancelSpellMortarTargeting();
     this.storage?.clear();
   }
@@ -525,6 +533,7 @@ export class GameScene extends Phaser.Scene {
     this.battleTime += scaledDelta;
     this.actionQueue.update(this.battleTime, action => this.executeBattleAction(action));
     this.towerSkills.update(seconds, this.battleTime);
+    this.towerPush.update(this.battleTime);
     this.mirrors.syncMirrors();
     this.updateLevelAurasIfNeeded();
     this.cardTime += scaledDelta * this.cardCooldownMultiplier();
@@ -588,11 +597,21 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.isRightPointer(pointer)) {
+      this.towerPush.cancel();
       this.towerSkills.cancelSpellMortarTargeting();
       if (this.shifter.isActive()) {
         this.shifter.deactivate();
         this.clearPlacementGhosts();
         this.updateCards();
+      }
+      return;
+    }
+
+    if (this.towerPush.isTargeting()) {
+      if (this.isInsideBoard(x, y)) {
+        this.towerPush.choose(Math.floor((y - BOARD_Y) / CELL_HEIGHT), Math.floor((x - BOARD_X) / CELL_WIDTH));
+      } else {
+        this.towerPush.cancel();
       }
       return;
     }
@@ -719,6 +738,13 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    if (existingTower?.type === "#" && pushIsReady(existingTower)) {
+      this.prepareSpellMortarTargeting();
+      this.towerPush.begin(existingTower);
+      this.updateCards();
+      return;
+    }
+
     if (existingTower?.type === "j" && this.towerSkills.isGatheringReady(existingTower)) {
       this.towerSkills.activateGatheringTower(existingTower);
       this.updateCards();
@@ -805,6 +831,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private syncPlacementGhost(pointer?: Phaser.Input.Pointer) {
+    if (this.towerPush.isTargeting()) { this.clearPlacementGhosts(); return; }
     const ghosts = this.placementGhostSpecs(pointer);
     const nextKey = placementGhostKey(ghosts);
     if (nextKey === this.placementGhostKey) {
@@ -1161,6 +1188,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private cancelSpellMortarTargeting() {
+    this.towerPush.cancel();
     this.towerSkills.cancelSpellMortarTargeting();
   }
 

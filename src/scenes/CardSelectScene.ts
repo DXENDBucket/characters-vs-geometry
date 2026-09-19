@@ -535,7 +535,8 @@ export class CardSelectScene extends Phaser.Scene {
   private createCardPoolCaseButtons(x: number, y: number) {
     this.cardPoolCaseButtons = [
       this.createCardPoolCaseButton("uppercase", x, y, "A"),
-      this.createCardPoolCaseButton("lowercase", x + 54, y, "a")
+      this.createCardPoolCaseButton("lowercase", x + 54, y, "a"),
+      this.createCardPoolCaseButton("ascii", x + 108, y, "@")
     ];
     this.updateCardPoolCaseButtons();
   }

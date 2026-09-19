@@ -5,7 +5,7 @@ import {
 import { cardBehaviorsById, idleCardBehavior, type CardBehavior } from "../game/cardBehaviors";
 import type { CardDefinition, CardId } from "../types";
 
-export type CardLetterCase = "uppercase" | "lowercase";
+export type CardLetterCase = "uppercase" | "lowercase" | "ascii";
 
 const definitionsById = new Map<CardId, CardDefinition>(
   rawCardDefinitions.map((definition) => [definition.id, definition])
@@ -18,6 +18,7 @@ export const allCardDefinitions = [...rawCardDefinitions].sort((a, b) => a.id.lo
 export const defaultCardLoadout = [...rawDefaultLoadout].sort((a, b) => a.localeCompare(b));
 
 export function cardLetterCase(id: CardId): CardLetterCase {
+  if (!/^[A-Za-z]$/.test(id)) return "ascii";
   return id === id.toUpperCase() ? "uppercase" : "lowercase";
 }
 

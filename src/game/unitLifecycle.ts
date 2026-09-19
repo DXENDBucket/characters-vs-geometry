@@ -296,7 +296,7 @@ export function removeTower(runtime: UnitLifecycleRuntime, tower: Tower) {
 
   Phaser.Utils.Array.Remove(runtime.towers, tower);
   tower.inPlay = false;
-  if (!tower.transient) {
+  if (!tower.transient && runtime.occupied.get(gridCellKey(tower.lane, tower.column)) === tower) {
     runtime.occupied.delete(gridCellKey(tower.lane, tower.column));
   }
   syncTowerHealthNetworks(runtime.towers);

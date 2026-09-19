@@ -259,7 +259,8 @@ export class SettingsScene extends Phaser.Scene {
   private createCardCaseButtons(x: number, y: number) {
     this.cardCaseButtons = [
       this.createCardCaseButton("uppercase", x, y, "A"),
-      this.createCardCaseButton("lowercase", x + 54, y, "a")
+      this.createCardCaseButton("lowercase", x + 54, y, "a"),
+      this.createCardCaseButton("ascii", x + 108, y, "@")
     ];
     this.updateCardCaseButtons();
   }

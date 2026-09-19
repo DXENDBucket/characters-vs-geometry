@@ -246,6 +246,7 @@ export class TowerShifterController {
     }
 
     for (const { tower, toLane: lane, toColumn: column } of positions) {
+      tower.moveVisual = undefined;
       tower.lane = lane;
       tower.column = column;
       tower.x = BOARD_X + column * CELL_WIDTH + CELL_WIDTH / 2;

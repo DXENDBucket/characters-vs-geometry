@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import ts from "typescript";
 import { createTypeScriptLoader } from "./helpers/load-typescript.mjs";
 
 const files = {
@@ -131,9 +132,9 @@ function parseCardUnlockRequirements(source) {
     return [];
   }
 
-  return [...body.matchAll(/^\s{2}([A-Za-z]):\s*(?:null|"([^"]+)"),?$/gm)].map((match) => ({
-    id: match[1],
-    levelId: match[2] ?? null
+  return objectProperties(source, "cardUnlockRequirements").map(property => ({
+    id: property.name.text,
+    levelId: ts.isStringLiteral(property.initializer) ? property.initializer.text : null
   }));
 }
 
@@ -152,7 +153,21 @@ function parseObjectKeys(source, objectName) {
     errors.push(`Could not find object "${objectName}".`);
     return [];
   }
-  return [...objectBody.matchAll(/^\s{2}([A-Za-z][A-Za-z0-9]*):/gm)].map((match) => match[1]);
+  return objectProperties(source, objectName).map(property => property.name.text);
+}
+
+function objectProperties(source, name) {
+  const file = ts.createSourceFile("data.ts", source, ts.ScriptTarget.Latest, true);
+  let properties = [];
+  function visit(node) {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === name &&
+        node.initializer && ts.isObjectLiteralExpression(node.initializer)) {
+      properties = node.initializer.properties.filter(ts.isPropertyAssignment);
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(file);
+  return properties;
 }
 
 function parseObjectBody(source, objectName) {
@@ -182,7 +197,7 @@ function parseObjectBody(source, objectName) {
 
 function parseWaveReferenceCards(source) {
   return new Map(
-    [...source.matchAll(/^\| ([A-Za-z]) \| [^|]+ \| [^|]+ \| (\d+) \| [^|]+ \| (\d+) \| (\d+) \| (\d+) \|/gm)].map(
+    [...source.matchAll(/^\| ([^|\s]+) \| [^|]+ \| [^|]+ \| (\d+) \| [^|]+ \| (\d+) \| (\d+) \| (\d+) \|/gm)].map(
       (match) => [
         match[1],
         {

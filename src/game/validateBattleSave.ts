@@ -79,6 +79,10 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
         require(["laser", "mortar", "wings"].includes(value.bossCompanionActionPhase as string));
       }
       if (kind === "tower") {
+        if (value.moveVisual) {
+          require(record(value.moveVisual) && [value.moveVisual.fromX, value.moveVisual.fromY,
+            value.moveVisual.startedAt].every(finite) && finite(value.moveVisual.duration) && value.moveVisual.duration > 0);
+        }
         require(typeof value.id === "string" && value.id.startsWith("tower:") && Number.isInteger(value.placedOrder));
         require(Number.isInteger(value.column) && (value.column as number) >= 0 && (value.column as number) < 13);
         require(timestamp(value.lastFire) && timestamp(value.nextProduceAt) && finite(value.level) && value.level >= 1);

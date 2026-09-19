@@ -291,15 +291,25 @@ export function setTowerFlyingUntil(tower: Tower, until: number) {
 }
 
 export function syncTowerFlyingVisual(tower: Tower, time: number) {
+  let x = tower.x;
+  let y = tower.y;
+  if (tower.moveVisual) {
+    const move = tower.moveVisual;
+    const progress = Phaser.Math.Clamp((time - move.startedAt) / move.duration, 0, 1);
+    const eased = progress * progress * (3 - 2 * progress);
+    x = move.fromX + (x - move.fromX) * eased;
+    y = move.fromY + (y - move.fromY) * eased;
+    if (progress >= 1) tower.moveVisual = undefined;
+  }
   const active = towerIsFlying(tower);
   setVisibleIfChanged(tower.flyingHalo, active);
   if (!active) {
-    setPositionIfChanged(tower.body, tower.x, tower.y);
+    setPositionIfChanged(tower.body, x, y);
     setScaleIfChanged(tower.flyingHalo, 1, 1);
     return;
   }
 
-  tower.body.setPosition(tower.x, tower.y + FLYING_DISPLAY_OFFSET_Y + Math.sin(time / 130) * 2);
+  tower.body.setPosition(x, y + FLYING_DISPLAY_OFFSET_Y + Math.sin(time / 130) * 2);
   tower.flyingHalo.setY(-38 + Math.sin(time / 110) * 2);
   tower.flyingHalo.setScale(1 + Math.sin(time / 150) * 0.05, 1);
 }

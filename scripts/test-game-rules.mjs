@@ -10,6 +10,44 @@ const { outputText } = ts.transpileModule(source, {
 });
 const { planTowerMove } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
 
+const pushModule = ts.transpileModule(fs.readFileSync(new URL("../src/game/rules/towerPush.ts", import.meta.url), "utf8"), {
+  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 }
+});
+const { planTowerPush } = await import(`data:text/javascript;base64,${Buffer.from(pushModule.outputText).toString("base64")}`);
+
+test("box push moves contiguous chains in all four directions, leaving the source and towers beyond gaps unchanged", () => {
+  for (const [dy, dx] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    const source = { id: "source", lane: 3, column: 6, inPlay: true };
+    const towers = [source, ...[1, 2, 4].map(n => ({ id: String(n), lane: 3 + n * dy, column: 6 + n * dx, inPlay: true }))];
+    const board = { lanes: 7, columns: 13, getTower: id => towers.find(t => t.id === id),
+      occupantAt: (lane, column) => towers.find(t => t.lane === lane && t.column === column)?.id,
+      isCellDeployable: () => true };
+    const plan = planTowerPush(source, towers[1], board);
+    assert.deepEqual(plan.map(m => m.towerId), ["1", "2"]);
+    assert.equal(plan.every(m => m.toLane - m.fromLane === dy && m.toColumn - m.fromColumn === dx && !m.erased), true);
+    assert.equal(source.lane, 3);
+    assert.equal(source.column, 6);
+    assert.equal(planTowerPush(source, source, board), null);
+    assert.equal(planTowerPush(source, { lane: 4, column: 7 }, board), null);
+    assert.equal(planTowerPush(source, { lane: 3 - dy, column: 6 - dx }, board), null);
+  }
+});
+
+test("box push erases at board edges and sealed destinations instead of blocking", () => {
+  for (const [dy, dx] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    const source = { id: "source", lane: dy < 0 ? 2 : dy > 0 ? 4 : 3, column: dx < 0 ? 2 : dx > 0 ? 10 : 6, inPlay: true };
+    const towers = [source, ...[1, 2].map(n => ({ id: String(n), lane: source.lane + n * dy, column: source.column + n * dx, inPlay: true }))];
+    const board = { lanes: 7, columns: 13, getTower: id => towers.find(t => t.id === id),
+      occupantAt: (lane, column) => towers.find(t => t.lane === lane && t.column === column)?.id,
+      isCellDeployable: () => true };
+    assert.deepEqual(planTowerPush(source, towers[1], board).map(m => m.erased), [false, true]);
+    board.isCellDeployable = (lane, column) => lane !== towers[2].lane || column !== towers[2].column;
+    const sealed = planTowerPush(source, towers[1], board);
+    assert.equal(sealed.length, 1);
+    assert.equal(sealed[0].erased, true);
+  }
+});
+
 const reselectSource = fs.readFileSync(new URL("../src/game/loadoutReselection.ts", import.meta.url), "utf8");
 const reselectModule = ts.transpileModule(reselectSource, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 }

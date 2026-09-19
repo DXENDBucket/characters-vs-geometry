@@ -21,7 +21,7 @@ const STATUS_ATTACK_MULTIPLIERS: Partial<Record<StatusEffectName, number>> = {
   power: 1.3
 };
 const STATUS_ARMOR_MULTIPLIERS: Partial<Record<StatusEffectName, number>> = {
-  sunder: 0.65
+  sunder: 0.5
 };
 const BURROW_DISPLAY_OFFSET_Y = CELL_HEIGHT * 0.55;
 

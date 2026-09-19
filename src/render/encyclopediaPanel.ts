@@ -200,6 +200,7 @@ export class EncyclopediaPanel {
     const mechanicTab = this.createTabButton("mechanics", 424, 136);
     const upperCaseButton = this.createCardCaseButton("uppercase", 144, 184, "A");
     const lowerCaseButton = this.createCardCaseButton("lowercase", 196, 184, "a");
+    const asciiButton = this.createCardCaseButton("ascii", 248, 184, "@");
     this.enemyGroupControls = this.scene.add.container(0, 0);
     const coarseModeButton = this.createStatModeButton("coarse", 760, 136, t("encyclopedia.coarse"));
     const exactModeButton = this.createStatModeButton("exact", 846, 136, t("encyclopedia.exact"));
@@ -275,6 +276,8 @@ export class EncyclopediaPanel {
       upperCaseButton.label,
       lowerCaseButton.frame,
       lowerCaseButton.label,
+      asciiButton.frame,
+      asciiButton.label,
       this.enemyGroupControls,
       coarseModeButton.frame,
       coarseModeButton.label,

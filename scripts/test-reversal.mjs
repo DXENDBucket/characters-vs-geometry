@@ -100,6 +100,35 @@ function uiVisual() {
   return proxy;
 }
 
+test("ASCII box pusher costs 475, unlocks after AE-1, and gains 0.5 SP/s per extra level", () => {
+  const { getCardDefinition, cardLetterCase } = load("src/registry/cards.ts");
+  const { updatePushSkill, resetPushSkill, pushIsReady } = load("src/game/pushSkill.ts");
+  const definition = getCardDefinition("#");
+  assert.equal(definition.cost, 475);
+  assert.equal(definition.cooldown, 30000);
+  assert.equal(definition.attackPower, 0);
+  assert.equal(cardLetterCase("#"), "ascii");
+  assert.equal(load("src/data/cardUnlocks.ts").cardUnlockRequirement("#"), "AE-1");
+  const tower = { type: "#", inPlay: true, level: 1, levelBonus: 0, mirrorLevelBonus: 0, skills: {}, border: uiVisual() };
+  assert.equal(pushIsReady(tower), false);
+  const state = tower.skills.push;
+  updatePushSkill(tower, state, 10, 10000);
+  assert.equal(state.sp, 10);
+  tower.level = 2;
+  updatePushSkill(tower, state, 1, 11000);
+  assert.equal(state.sp, 11);
+  assert.equal(state.spBuffer, 0.5);
+  updatePushSkill(tower, state, 1, 12000);
+  assert.equal(state.sp, 13);
+  tower.level = 3;
+  updatePushSkill(tower, state, 100, 112000);
+  assert.equal(state.sp, 30);
+  assert.equal(pushIsReady(tower), true);
+  resetPushSkill(tower, state);
+  assert.equal(state.sp, 0);
+  assert.equal(state.spBuffer, 0);
+});
+
 function extractionFixture() {
   const { TowerExtractionPool } = load("src/game/towerExtraction.ts");
   const { TowerDeploymentController } = load("src/game/towerDeployment.ts");
@@ -990,6 +1019,16 @@ function runtime(enemies = [], boss = null) {
   };
   return state;
 }
+
+test("d sunder halves armor, refreshes for ten seconds and does not stack", () => {
+  const target = enemy();
+  statuses.applyStatusEffect(target, "sunder", 10000, 0);
+  assert.equal(statuses.statusArmorMultiplier(target, 1000), 0.5);
+  statuses.applyStatusEffect(target, "sunder", 10000, 9000);
+  assert.equal(target.statusEffects.length, 1);
+  assert.equal(statuses.statusArmorMultiplier(target, 10000), 0.5);
+  assert.equal(statuses.statusArmorMultiplier(target, 19000), 1);
+});
 
 test("r uses the requested panel and l cooldown; duration is linear including aura levels", () => {
   assert.equal(definition.cost, 275);
