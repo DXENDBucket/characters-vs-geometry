@@ -50,6 +50,7 @@ import {
   type ProjectileRuntime
 } from "../game/projectileRuntime";
 import { forEachSnapshot } from "../game/iteration";
+import { ProjectileMotionFrame } from "../game/projectileMotion";
 import { gridCellKey, isBossInRect } from "../game/targeting";
 import {
   createTower,
@@ -270,6 +271,7 @@ export class GameScene extends Phaser.Scene {
   private bossRuntimeCache!: BossRuntime;
   private unitLifecycleRuntimeCache!: UnitLifecycleRuntime;
   private projectileRuntimeCache!: ProjectileRuntime;
+  private readonly projectileMotion = new ProjectileMotionFrame();
   private triggerTowerRuntimeCache!: TriggerTowerRuntime;
   private tutorial: TutorialController | null = null;
   private ui!: GameHudElements;
@@ -532,10 +534,12 @@ export class GameScene extends Phaser.Scene {
     this.updateArmingTowers(this.battleTime);
     this.storage.update();
     updateBossRuntime(this.bossRuntime(), seconds);
+    this.projectileMotion.begin(this.projectiles);
     this.updateEnemies(this.battleTime, seconds);
     this.updateTowers(this.battleTime);
     const projectileRuntime = this.projectileRuntime(slowAuraSources(this.towers));
     updateTowerProjectiles(projectileRuntime, seconds);
+    this.projectileMotion.finish();
     updateEnemyProjectiles(projectileRuntime, seconds);
     projectileRuntime.slowAuraSources = slowAuraSources(this.towers);
     updateMortarProjectiles(projectileRuntime, seconds);
@@ -1446,6 +1450,7 @@ export class GameScene extends Phaser.Scene {
       triggerTrapTower: (tower, target) => this.triggerTrapTower(tower, target),
       triggerShockTower: (tower) => this.triggerShockTower(tower),
       onEnemyReachedBase: (enemy) => this.handleEnemyReachedBase(enemy),
+      projectileMotion: this.projectileMotion,
       runWhenBattleActive: (action) => this.runWhenBattleActive(action)
     };
   }
@@ -1496,6 +1501,7 @@ export class GameScene extends Phaser.Scene {
 
   private createProjectileRuntime(): ProjectileRuntime {
     return {
+      projectileMotion: this.projectileMotion,
       scene: this,
       projectiles: this.projectiles,
       enemyProjectiles: this.enemyProjectiles,

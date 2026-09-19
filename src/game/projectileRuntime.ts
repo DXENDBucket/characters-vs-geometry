@@ -42,8 +42,10 @@ import {
   pointInTowerBounds
 } from "./targeting";
 import { towerDamageType, towerFacingDirection } from "./towers";
+import { segmentCircleHitTime, type ProjectileMotionFrame } from "./projectileMotion";
 
 export interface ProjectileRuntime {
+  projectileMotion?: ProjectileMotionFrame;
   scene: Phaser.Scene;
   projectiles: Projectile[];
   enemyProjectiles: EnemyProjectile[];
@@ -92,8 +94,9 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
     }
 
     const speedMultiplier = movementSpeedMultiplier(runtime.towers, projectile.x, projectile.y, slowSources);
-    const previousX = projectile.x;
-    const previousY = projectile.y;
+    let previousX = projectile.x;
+    let previousY = projectile.y;
+    let motion = runtime.projectileMotion;
     const nextX = projectile.x + projectile.vx * seconds * speedMultiplier;
     const reachedLimitX = projectile.limitDirection < 0 ? nextX <= projectile.maxX : nextX >= projectile.maxX;
     projectile.x = reachedLimitX ? projectile.maxX : nextX;
@@ -104,10 +107,14 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
       // Self-damage can remove linked towers and clear projectiles through T's removal effect.
       if (!runtime.projectiles.includes(projectile)) return;
       directTargets = undefined;
+      previousX = projectile.x;
+      previousY = projectile.y;
+      motion = undefined;
     }
 
-    const homingHit = projectile.type === "chevron" ? getHomingProjectileHit(runtime, projectile) : undefined;
-    const hit = homingHit?.enemy ?? (projectile.type === "chevron" ? undefined : findDirectProjectileHit(getDirectTargets(), projectile));
+    const homingHit = projectile.type === "chevron" ? getHomingProjectileHit(runtime, projectile, previousX, previousY, motion) : undefined;
+    const hit = homingHit?.enemy ?? (projectile.type === "chevron" ? undefined :
+      findDirectProjectileHit(getDirectTargets(), projectile, previousX, previousY, motion));
     const hitBoss =
       homingHit?.bossPart ??
       (!hit && projectile.type !== "chevron"
@@ -327,9 +334,13 @@ function resolveHomingTarget(runtime: ProjectileRuntime, projectile: Projectile)
   return nextTarget;
 }
 
-function getHomingProjectileHit(runtime: ProjectileRuntime, projectile: Projectile) {
+function getHomingProjectileHit(
+  runtime: ProjectileRuntime, projectile: Projectile, previousX: number, previousY: number,
+  motion?: ProjectileMotionFrame
+) {
   const target = projectile.targetEnemy;
-  if (target && canEnemyBeDirectlyHit(target) && projectileHitsEnemy(projectile.x, projectile.y, target)) {
+  if (target && canEnemyBeDirectlyHit(target) &&
+      projectileEnemyHitTime(projectile, target, previousX, previousY, motion) < Infinity) {
     return { enemy: target };
   }
 
@@ -367,13 +378,22 @@ function buildDirectProjectileTargets(enemies: Enemy[]): DirectProjectileTargets
   return directProjectileTargetBuffers;
 }
 
-function findDirectProjectileHit(targets: DirectProjectileTargets, projectile: Projectile) {
+function findDirectProjectileHit(
+  targets: DirectProjectileTargets, projectile: Projectile, previousX: number, previousY: number,
+  motion?: ProjectileMotionFrame
+) {
+  let firstHit: Enemy | undefined;
+  let firstTime = Infinity;
   for (const enemy of targets[projectile.lane] ?? []) {
-    if (canEnemyBeDirectlyHit(enemy) && projectileHitsEnemy(projectile.x, projectile.y, enemy)) {
-      return enemy;
+    if (!canEnemyBeDirectlyHit(enemy)) continue;
+    const time = projectileEnemyHitTime(projectile, enemy, previousX, previousY, motion);
+    if (time < firstTime) {
+      firstTime = time;
+      firstHit = enemy;
+      if (time === 0) break;
     }
   }
-  return undefined;
+  return firstHit;
 }
 
 function enemyCanOverlapEveryDirectProjectileLane(enemy: Enemy) {
@@ -427,9 +447,12 @@ function homingTargetPoint(projectile: Projectile, target: HomingTarget) {
   };
 }
 
-function projectileHitsEnemy(x: number, y: number, enemy: Enemy) {
+function projectileEnemyHitTime(
+  projectile: Projectile, enemy: Enemy, x: number, y: number, motion?: ProjectileMotionFrame
+) {
   const radius = enemyProjectileHitRadius(enemy);
-  return distanceSq(enemy.x, enemy.y, x, y) < radius * radius;
+  return motion ? motion.hitTime(enemy, projectile, x, y, radius) :
+    segmentCircleHitTime(x - enemy.x, y - enemy.y, projectile.x - enemy.x, projectile.y - enemy.y, radius);
 }
 
 function buildEnemyProjectileTransientTargets(towers: Tower[]): EnemyProjectileTransientTargets {

@@ -1,8 +1,10 @@
 import type Phaser from "phaser";
 import type { ScheduleBattleAction } from "./battleActions";
+import type { ProjectileMotionFrame } from "./projectileMotion";
 import type { CardDefinition, CardId, CubeBoss, DamageType, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower } from "../types";
 
 export interface CombatRuntime {
+  projectileMotion?: ProjectileMotionFrame;
   scheduleBattleAction?: ScheduleBattleAction;
   scene: Phaser.Scene;
   enemies: Enemy[];
@@ -54,6 +56,7 @@ export type EnemySpawnRuntime = Pick<CombatRuntime, "scene" | "enemies">;
 
 export type EnemyAdvanceRuntime = Pick<
   CombatRuntime,
+  | "projectileMotion"
   | "scheduleBattleAction"
   | "scene"
   | "battleTime"

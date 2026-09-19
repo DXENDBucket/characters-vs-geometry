@@ -366,6 +366,7 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
         ? hexMaceMovementTargetX(runtime, enemy, seconds, time, status, supportSources, slowSources)
         : enemy.x + enemyMovementDirection(enemy) * movementSpeed * seconds;
       const contact = getSweptBlockingTowerFromOccupied(runtime.occupied, enemy, nextX);
+      runtime.projectileMotion?.record(enemy, enemy.x, enemy.y, contact?.x ?? nextX, enemy.y);
       if (contact) {
         enemy.x = contact.x;
         syncEnemyBodyPosition(enemy);
@@ -435,12 +436,15 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
       return;
     }
 
-    if (movementDirection < 0 && enemy.x < BOARD_X - 34 && runtime.onEnemyReachedBase(enemy)) {
-      return false;
+    if (movementDirection < 0 && enemy.x < BOARD_X - 34) {
+      const exit = () => runtime.onEnemyReachedBase(enemy);
+      if (runtime.projectileMotion ? runtime.projectileMotion.deferExit(enemy, exit) : exit()) return false;
     }
 
     if (movementDirection > 0 && enemy.x > BOARD_X + BOARD_WIDTH + 70) {
-      removeEscapedReverseEnemy(runtime, enemy);
+      const exit = () => removeEscapedReverseEnemy(runtime, enemy);
+      if (runtime.projectileMotion) runtime.projectileMotion.deferExit(enemy, exit);
+      else exit();
     }
   });
 }
