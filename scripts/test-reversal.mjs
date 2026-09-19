@@ -155,14 +155,14 @@ test("g costs 425, unlocks after 3-8 and shares e's healing panel and volley upg
   f.refresh();
   stats.calculateTowerFinalStats(a, f.state.towers);
   assert.equal(a.finalStats.attackSpeed, a.baseStats.attackSpeed);
-  assert.equal(g.unyieldingRatio, 0);
+  assert.equal(g.unyieldingRatio, 0.45);
   assert.equal(a.unyieldingRatio, 0.45);
 });
 
-test("Unyielding covers exactly eight neighbors, ignores transient towers, and takes the strongest effective level", () => {
+test("Unyielding covers the centered 3x3 including itself, ignores transient towers, and takes the strongest effective level", () => {
   const f = unyieldingFixture();
   const g = f.place("g", 1, 3, 5);
-  const targets = [];
+  const targets = [g];
   for (let dl = -1; dl <= 1; dl++) for (let dc = -1; dc <= 1; dc++) {
     if (dl || dc) targets.push(f.place("A", 1, 3 + dl, 5 + dc));
   }
@@ -207,7 +207,7 @@ test("negative HP survives zero, takes normal mitigated damage, heals continuous
   assert.equal(normal.inPlay, false);
 });
 
-test("g heals every damaged neighbor including negative HP, excludes itself and distant cells, and honors multi-hit healing", () => {
+test("g heals every damaged tower in its centered 3x3 including itself and negative HP, excludes distant cells, and honors multi-hit healing", () => {
   const f = unyieldingFixture();
   const g = f.place("g", 6, 3, 5);
   const a = f.place("A", 1, 3, 6);
@@ -223,8 +223,24 @@ test("g heals every damaged neighbor including negative HP, excludes itself and 
   behavior.execute(g, f.state.getDefinition("g"), f.runtime, 2);
   assert.equal(a.hp, 80);
   assert.equal(diagonal.hp, 380);
-  assert.equal(g.hp, 500);
+  assert.equal(g.hp, 680);
   assert.equal(outside.hp, 100);
+});
+
+test("g can heal itself as its only damaged target and survives on its own negative HP allowance", () => {
+  const f = unyieldingFixture();
+  const g = f.place("g", 1, 0, 0);
+  f.refresh();
+  assert.equal(health.towerMinimumHealth(g), -180);
+  lifecycle.damageTower(f.runtime, g, 1250, "true");
+  assert.equal(g.hp, -50);
+  assert.equal(g.inPlay, true);
+  const behavior = load("src/game/cardBehaviors.ts").cardBehaviorsById.g;
+  assert.equal(behavior.canUse(g, f.state.getDefinition("g"), 0, f.runtime, true), true);
+  behavior.execute(g, f.state.getDefinition("g"), f.runtime, 1);
+  assert.equal(g.hp, 40);
+  lifecycle.damageTower(f.runtime, g, 220, "true");
+  assert.equal(g.inPlay, false);
 });
 
 test("losing an aura resolves negative-HP death cascades, while a sufficient weaker aura preserves life", () => {
@@ -242,11 +258,11 @@ test("losing an aura resolves negative-HP death cascades, while a sufficient wea
   f.refresh();
   assert.equal(b.inPlay, false);
 
-  const left = f.place("g", 1, 1, 1);
+  const left = f.place("g", 3, 1, 1);
   const middle = f.place("g", 1, 1, 2);
   const end = f.place("A", 1, 1, 3);
   f.refresh();
-  lifecycle.damageTower(f.runtime, middle, 1250, "true");
+  lifecycle.damageTower(f.runtime, middle, 1450, "true");
   lifecycle.damageTower(f.runtime, end, 1250, "true");
   lifecycle.removeTower(f.runtime, left);
   assert.equal(middle.inPlay, false);

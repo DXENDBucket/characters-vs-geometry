@@ -60,7 +60,7 @@ import { changeTowerHealth } from "./towerHealth";
 import { repeatHits } from "./volley";
 import { towerAttackAmount, towerFinalStats } from "./unitStats";
 import { isPointInSlowAura } from "./slowAura";
-import { isInNeighborAura } from "./towerAuras";
+import { isInCentered3x3Aura } from "./towerAuras";
 
 export interface CardBehavior {
   canUse: (
@@ -518,7 +518,7 @@ function hasAreaHealTarget(tower: Tower, towers: Tower[]) {
 }
 
 function isAreaHealTarget(tower: Tower, target: Tower) {
-  const inRange = tower.type === "g" ? isInNeighborAura(tower, target) : isPointInSlowAura(tower, target.x, target.y);
+  const inRange = tower.type === "g" ? isInCentered3x3Aura(tower, target) : isPointInSlowAura(tower, target.x, target.y);
   return target.inPlay && !target.transient && inRange && target.hp < towerFinalStats(target).maxHp;
 }
 

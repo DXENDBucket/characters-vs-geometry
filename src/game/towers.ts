@@ -349,7 +349,6 @@ function createRangeBorder(scene: Phaser.Scene, definition: CardDefinition) {
     const border = scene.add.graphics();
     border.lineStyle(2, palette.enemyShot, 0.86);
     border.strokeRect(-CELL_WIDTH * 1.5, -CELL_HEIGHT * 1.5, CELL_WIDTH * 3, CELL_HEIGHT * 3);
-    border.strokeRect(-CELL_WIDTH / 2, -CELL_HEIGHT / 2, CELL_WIDTH, CELL_HEIGHT);
     return border;
   }
 
