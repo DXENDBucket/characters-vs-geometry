@@ -8,13 +8,17 @@ import { LevelSelectScene } from "./scenes/LevelSelectScene";
 import { SettingsScene } from "./scenes/SettingsScene";
 import { MainMenuScene } from "./scenes/MainMenuScene";
 import { EncyclopediaScene } from "./scenes/EncyclopediaScene";
+import { TextQualityPlugin } from "./render/textQuality";
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: "app",
   width: GAME_WIDTH,
   height: GAME_HEIGHT,
-  pixelArt: true,
+  pixelArt: false,
+  plugins: {
+    scene: [{ key: "TextQuality", plugin: TextQualityPlugin, start: true }]
+  },
   scene: [MainMenuScene, ChapterSelectScene, LevelSelectScene, SettingsScene, EncyclopediaScene, CardSelectScene, GameScene],
   scale: {
     mode: Phaser.Scale.FIT,
@@ -22,7 +26,7 @@ const game = new Phaser.Game({
     autoRound: true
   },
   render: {
-    antialias: false,
+    antialias: true,
     roundPixels: true
   }
 });
