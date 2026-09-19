@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { BOARD_X, CELL_WIDTH, COLUMNS, LANES, palette } from "../config";
+import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, COLUMNS, LANES, palette } from "../config";
 import { getCardDefinition } from "../registry/cards";
 import { enemyIsBossCompanion } from "../registry/enemies";
 import {
@@ -69,6 +69,7 @@ type EnemyProjectileTransientTargets = Tower[][];
 const directProjectileTargetBuffers: DirectProjectileTargets = Array.from({ length: LANES }, () => []);
 const enemyProjectileTransientTargetBuffers: EnemyProjectileTransientTargets = Array.from({ length: LANES }, () => []);
 const emptyEnemyProjectileTransientTargets: EnemyProjectileTransientTargets = Array.from({ length: LANES }, () => []);
+const DIRECT_ENEMY_HIT_RADIUS = 22;
 
 export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: number) {
   if (runtime.projectiles.length === 0) {
@@ -277,7 +278,7 @@ function removeProjectile(projectiles: Projectile[], projectile: Projectile) {
 }
 
 function enemyProjectileHitRadius(enemy: Enemy) {
-  return enemyIsBossCompanion(enemy.kind) ? CELL_WIDTH * 0.475 : 22;
+  return enemyIsBossCompanion(enemy.kind) ? CELL_WIDTH * 0.475 : DIRECT_ENEMY_HIT_RADIUS;
 }
 
 function directImpactDamage(projectile: Projectile, target: Enemy | CubeBoss) {
@@ -384,13 +385,22 @@ function findDirectProjectileHit(
 ) {
   let firstHit: Enemy | undefined;
   let firstTime = Infinity;
-  for (const enemy of targets[projectile.lane] ?? []) {
-    if (!canEnemyBeDirectlyHit(enemy)) continue;
-    const time = projectileEnemyHitTime(projectile, enemy, previousX, previousY, motion);
-    if (time < firstTime) {
-      firstTime = time;
-      firstHit = enemy;
-      if (time === 0) break;
+  // Angled/vertical shots keep their launch lane; use the swept Y span for candidate rows.
+  // Horizontal shots retain the single-lane fast path. Cross-row enemies are in every bucket.
+  const angled = projectile.vy !== 0;
+  const firstLane = angled ? Math.max(0, Math.min(LANES - 1,
+    Math.floor((Math.min(previousY, projectile.y) - DIRECT_ENEMY_HIT_RADIUS - BOARD_Y) / CELL_HEIGHT))) : projectile.lane;
+  const lastLane = angled ? Math.max(0, Math.min(LANES - 1,
+    Math.floor((Math.max(previousY, projectile.y) + DIRECT_ENEMY_HIT_RADIUS - BOARD_Y) / CELL_HEIGHT))) : projectile.lane;
+  for (let lane = firstLane; lane <= lastLane; lane++) {
+    for (const enemy of targets[lane] ?? []) {
+      if (!canEnemyBeDirectlyHit(enemy)) continue;
+      const time = projectileEnemyHitTime(projectile, enemy, previousX, previousY, motion);
+      if (time < firstTime) {
+        firstTime = time;
+        firstHit = enemy;
+        if (time === 0) return firstHit;
+      }
     }
   }
   return firstHit;

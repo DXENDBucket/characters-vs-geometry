@@ -27,6 +27,7 @@ const load = createTypeScriptLoader({
 });
 const { ProjectileMotionFrame, segmentCircleHitTime } = load("src/game/projectileMotion.ts");
 const { updateTowerProjectiles } = load("src/game/projectileRuntime.ts");
+const { BOARD_Y, CELL_HEIGHT } = load("src/config.ts");
 const makeEnemy = (x, extras = {}) => ({ x, y: 0, lane: 0, inPlay: true, statusEffects: [], ...extras });
 const makeProjectile = (extras = {}) => ({
   x: 0, y: 0, vx: 100, vy: 0, lane: 0, type: "bolt", damage: 100, damageType: "physical",
@@ -128,6 +129,43 @@ test("unrelated lanes are not collision candidates", () => {
   const r = runtime([makeEnemy(50, { lane: 1 })], [makeProjectile()]);
   updateTowerProjectiles(r, 1);
   assert.equal(r.hits.length, 0);
+});
+
+test("E's upper and lower angled shots hit adjacent lanes in either facing direction", () => {
+  for (const direction of [-1, 1]) for (const angle of [-10, 10]) {
+    const radians = angle * Math.PI / 180;
+    const startY = BOARD_Y + 3.5 * CELL_HEIGHT;
+    const targetLane = 3 + Math.sign(angle);
+    const travelTime = CELL_HEIGHT / Math.abs(540 * Math.sin(radians));
+    const e = makeEnemy(direction * 540 * Math.cos(radians) * travelTime, {
+      y: BOARD_Y + (targetLane + 0.5) * CELL_HEIGHT, lane: targetLane
+    });
+    const p = makeProjectile({ lane: 3, y: startY, vx: direction * 540 * Math.cos(radians), vy: 540 * Math.sin(radians),
+      limitDirection: direction, maxX: direction * 10000 });
+    const r = runtime([e], [p]);
+    for (let frame = 0; frame < 120 && r.projectiles.length; frame++) {
+      r.projectileMotion.begin(r.projectiles);
+      updateTowerProjectiles(r, 1 / 60);
+    }
+    assert.equal(r.hits.length, 1, `direction ${direction}, angle ${angle}`);
+    assert.equal(r.hits[0].enemy, e);
+  }
+});
+
+test("cross-lane sweeps choose earliest contact, include hitbox margins and reject distant lanes", () => {
+  const y = BOARD_Y + 1.5 * CELL_HEIGHT;
+  const near = makeEnemy(0, { y: y + CELL_HEIGHT, lane: 2 });
+  const far = makeEnemy(0, { y: y + CELL_HEIGHT * 2, lane: 3 });
+  const r = runtime([far, near], [makeProjectile({ y, lane: 1, vx: 0, vy: CELL_HEIGHT * 3 })]);
+  updateTowerProjectiles(r, 1);
+  assert.equal(r.hits[0].enemy, near);
+  const edge = makeEnemy(0, { y: BOARD_Y + 2 * CELL_HEIGHT + 4, lane: 2 });
+  const r2 = runtime([edge], [makeProjectile({ y: BOARD_Y + 2 * CELL_HEIGHT - 18, lane: 1, vx: 0, vy: 2 })]);
+  updateTowerProjectiles(r2, 1);
+  assert.equal(r2.hits[0].enemy, edge);
+  const r3 = runtime([far], [makeProjectile({ y, lane: 1, vx: 0, vy: 5 })]);
+  updateTowerProjectiles(r3, 1);
+  assert.equal(r3.hits.length, 0);
 });
 
 test("oscillating enemies remain candidates when crossing into a different projectile lane", () => {
