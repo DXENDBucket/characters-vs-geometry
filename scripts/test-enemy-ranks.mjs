@@ -302,6 +302,7 @@ test("AE-1 uses the fourth chapter template and tildes match triangle panels at 
     const tilde = enemyKindAtRank("tilde", rank), triangle = enemyKindAtRank("triangle", rank);
     assert.deepEqual({ ...registry.getEnemyDefinition(tilde), kind: triangle }, registry.getEnemyDefinition(triangle));
     assert.equal(enemyAttackInterval(tilde), enemyAttackInterval(triangle));
+    assert.equal(registry.getEnemyDefinition(tilde).speedMultiplier, 1.5 + (rank - 1) * 0.5);
   }
   const level = load("src/data/levels.ts").getLevelConfig("AE-1");
   assert.equal(level.unlockAfter, "4-10");
