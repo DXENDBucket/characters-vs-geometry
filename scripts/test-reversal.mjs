@@ -126,7 +126,7 @@ function extractionFixture() {
 test("y has a 4-4 unlock and accumulates exact permanent-level value at additive extraction rates", () => {
   const { state } = extractionFixture();
   const y = state.getDefinition("y");
-  assert.equal(y.cost, 1500);
+  assert.equal(y.cost, 3250);
   assert.equal(y.cooldown, 120000);
   assert.equal(y.attackPower, 0);
   assert.equal(load("src/data/cardUnlocks.ts").cardUnlockRequirement("y"), "4-4");
@@ -148,7 +148,7 @@ test("y resolves once, erases its target, keeps 120s cooldown and adds to an exi
   assert.equal(f.state.extraction.value, 10);
   f.flush();
   assert.equal(f.state.extraction.value, 510);
-  assert.equal(f.state.chars, 8500);
+  assert.equal(f.state.chars, 6750);
   assert.equal(target.inPlay, false);
   assert.equal(f.state.towers.length, 0);
   assert.equal(f.state.occupied.size, 0);

@@ -349,7 +349,7 @@ export const cardDefinitions: CardDefinition[] = [
   {
     id: "y",
     category: "function",
-    cost: 1_500,
+    cost: 3_250,
     cooldown: 120_000,
     maxHp: 1_200,
     attackPower: 0,
