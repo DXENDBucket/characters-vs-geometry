@@ -39,6 +39,11 @@ rank. `allEnemyDefinitions` and `allEnemyRegistrations` enumerate that catalog;
 runtime code must use the resolver functions. Wave generation accepts a resolver
 so it can budget unregistered ranks without expanding a table.
 
+Endless pools use `LevelConfig.unlimitedRankFamilies`. The sampler counts
+affordable ranks arithmetically and respects an optional archetype `spawnRankCap`.
+Circle currently has a rank-IV spawning cap; the resolver still accepts higher
+legacy ranks, so loading older data is not destructive.
+
 High-rank discoveries survive local-save reloads and reveal their family entry
 in the encyclopedia. Dynamic names use one translation per family. Numerals
 above 3999 use decimal notation; unit labels shrink to fit the shape.
@@ -47,7 +52,7 @@ Dynamic registrations are cached with a 512-entry limit. Rank lookup does not
 enumerate or allocate every preceding rank.
 
 Bosses, Boss companions and the unranked Solar Bomb are not extended in this
-change. No endless mode, new wave pool or new progression unlock is added.
+rank abstraction. Endless battle persistence is documented in `survival-saves.md`.
 
 ## Verification
 

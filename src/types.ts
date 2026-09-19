@@ -360,6 +360,7 @@ export interface Enemy {
 }
 
 export interface Projectile {
+  lastGatheredAt?: number;
   hitCount?: number;
   type: ProjectileKind;
   lane: number;
@@ -384,6 +385,7 @@ export interface Projectile {
 }
 
 export interface EnemyProjectile {
+  appearance?: "bolt" | "star";
   hitCount?: number;
   x: number;
   y: number;

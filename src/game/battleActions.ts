@@ -1,0 +1,35 @@
+import type { DamageType, Enemy, Tower } from "../types";
+
+export type BattleAction =
+  | { type: "enemyShot" | "enemyLaser" | "enemyMortar"; enemy: Enemy; time: number; hitCount: number }
+  | { type: "volley"; tower: Tower; hitCount: number }
+  | { type: "targetedEffect"; tower: Tower }
+  | { type: "shock"; tower: Tower; x: number; y: number; rangeX: number; rangeY: number; damage: number; damageType: DamageType }
+  | { type: "spellMortar"; tower: Tower; targetX: number; targetY: number; damage: number; damageType: DamageType };
+
+export type ScheduleBattleAction = (delay: number, action: BattleAction) => void;
+export interface ScheduledBattleAction { at: number; action: BattleAction }
+
+export class BattleActionQueue {
+  private pending: ScheduledBattleAction[] = [];
+
+  schedule(now: number, delay: number, action: BattleAction) {
+    this.pending.push({ at: now + Math.max(0, delay), action });
+  }
+
+  update(now: number, execute: (action: BattleAction) => void) {
+    if (this.pending.length === 0) return;
+    const ready: ScheduledBattleAction[] = [];
+    let writeIndex = 0;
+    for (const entry of this.pending) {
+      if (entry.at <= now) ready.push(entry);
+      else this.pending[writeIndex++] = entry;
+    }
+    this.pending.length = writeIndex;
+    ready.sort((a, b) => a.at - b.at);
+    for (const entry of ready) execute(entry.action);
+  }
+
+  snapshot() { return this.pending.slice(); }
+  restore(entries: ScheduledBattleAction[]) { this.pending = entries.slice(); }
+}

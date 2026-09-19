@@ -45,6 +45,17 @@ export class TowerShifterController {
 
   constructor(private readonly runtime: () => TowerShifterRuntime) {}
 
+  snapshot() {
+    return { readyAt: this.readyAt, cooldownStartedAt: this.cooldownStartedAt, cooldownDuration: this.cooldownDuration };
+  }
+
+  restore(state: ReturnType<TowerShifterController["snapshot"]>) {
+    this.reset();
+    this.readyAt = state.readyAt;
+    this.cooldownStartedAt = state.cooldownStartedAt;
+    this.cooldownDuration = state.cooldownDuration;
+  }
+
   reset() {
     this.active = false;
     this.readyAt = 0;

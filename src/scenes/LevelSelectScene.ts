@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { readSurvivalSave } from "../survivalSaves";
 import {
   DEFAULT_DIFFICULTY,
   DIFFICULTY_MAX,
@@ -70,6 +71,9 @@ export class LevelSelectScene extends Phaser.Scene {
   private lockGraphics!: Phaser.GameObjects.Graphics;
   private startButton!: Phaser.GameObjects.Rectangle;
   private startText!: Phaser.GameObjects.Text;
+  private newRunButton!: Phaser.GameObjects.Rectangle;
+  private newRunText!: Phaser.GameObjects.Text;
+  private resumeError = false;
   private backButton!: Phaser.GameObjects.Rectangle;
   private backText!: Phaser.GameObjects.Text;
   private difficultyText!: Phaser.GameObjects.Text;
@@ -87,7 +91,8 @@ export class LevelSelectScene extends Phaser.Scene {
     super("LevelSelectScene");
   }
 
-  init(data: { chapterId?: string; difficulty?: number; unlimitedFirepower?: boolean; selectedLevelId?: string }) {
+  init(data: { chapterId?: string; difficulty?: number; unlimitedFirepower?: boolean; selectedLevelId?: string; resumeError?: boolean }) {
+    this.resumeError = Boolean(data.resumeError);
     const requestedChapterId = data.chapterId ?? defaultChapterId();
     this.selectedChapterId = isChapterUnlocked(requestedChapterId) ? requestedChapterId : defaultChapterId();
     this.difficulty = clampDifficulty(data.difficulty);
@@ -111,6 +116,9 @@ export class LevelSelectScene extends Phaser.Scene {
     this.createStartButton();
     this.createDifficultySlider();
     this.updateSelection();
+    if (this.resumeError) this.add.text(GAME_WIDTH / 2, this.footerY - 90, t("save.invalid"), {
+      fontFamily: "monospace", fontSize: "17px", color: "#ff8888"
+    }).setOrigin(0.5);
 
     this.input.keyboard?.on("keydown-ENTER", () => this.startSelectedLevel());
   }
@@ -616,6 +624,14 @@ export class LevelSelectScene extends Phaser.Scene {
 
     this.startButton.on("pointerdown", () => this.startSelectedLevel());
     this.startText.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.startSelectedLevel());
+    this.newRunButton = this.add.rectangle(x - 180, y, 160, 46, palette.black)
+      .setStrokeStyle(1, palette.mid).setInteractive({ useHandCursor: true }).setVisible(false);
+    this.newRunText = this.add.text(x - 180, y - 2, t("button.restart"), {
+      color: uiTextColors.secondary, fontFamily: "monospace", fontSize: "17px"
+    }).setOrigin(0.5).setVisible(false);
+    this.newRunButton.on("pointerdown", () => {
+      if (window.confirm(t("save.replace"))) this.startSelectedLevel(true);
+    });
   }
 
   private createSettingsButton() {
@@ -749,6 +765,10 @@ export class LevelSelectScene extends Phaser.Scene {
   private updateSelection() {
     const nodes = this.chapterNodes();
     const selected = nodes.find((node) => node.id === this.selectedLevelId) ?? nodes[0];
+    const saved = selected && isLevelUnlocked(selected.id) ? readSurvivalSave(selected.id) : undefined;
+    this.startText.setText(t(saved ? "button.resume" : "button.start"));
+    this.newRunButton.setVisible(Boolean(saved));
+    this.newRunText.setVisible(Boolean(saved));
     this.lockGraphics.clear();
     if (!selected) {
       this.startButton.setStrokeStyle(2, palette.dim, 0.45);
@@ -782,13 +802,17 @@ export class LevelSelectScene extends Phaser.Scene {
     this.lockGraphics.lineBetween(right, bottom, right, bottom - length);
   }
 
-  private startSelectedLevel() {
+  private startSelectedLevel(newRun = false) {
     if (this.encyclopediaPanel.isOpen()) {
       return;
     }
 
     const selected = this.chapterNodes().find((node) => node.id === this.selectedLevelId);
     if (selected && isLevelUnlocked(selected.id)) {
+      if (!newRun && readSurvivalSave(selected.id)) {
+        this.scene.start("GameScene", { levelId: selected.id, chapterId: this.selectedChapterId, resume: true });
+        return;
+      }
       const sceneKey = isTutorialMechanic(getLevelConfig(selected.id).specialMechanic) ? "GameScene" : "CardSelectScene";
       this.scene.start(sceneKey, {
         levelId: selected.id,

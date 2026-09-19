@@ -5,7 +5,7 @@ import ts from "typescript";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 
-export function createTypeScriptLoader(overrides = {}) {
+export function createTypeScriptLoader(overrides = {}, globals = {}) {
   const modules = new Map();
   function load(name) {
     if (Object.hasOwn(overrides, name)) return overrides[name];
@@ -19,7 +19,7 @@ export function createTypeScriptLoader(overrides = {}) {
     new Function("require", "exports", "window", "navigator", outputText)(specifier => {
       if (Object.hasOwn(overrides, specifier)) return overrides[specifier];
       return load(path.relative(root, path.resolve(path.dirname(filename), `${specifier}.ts`)).replaceAll("\\", "/"));
-    }, exports, { localStorage: { getItem: () => null, setItem() {} } }, { language: "en" });
+    }, exports, globals.window ?? { localStorage: { getItem: () => null, setItem() {} } }, { language: "en" });
     return exports;
   }
   return load;

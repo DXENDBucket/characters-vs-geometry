@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { enemyArchetypes } from "../data/enemyArchetypes";
 import {
   CARD_SLOT_COUNT,
   CUBE_BOSS_STATS,
@@ -361,13 +362,14 @@ export class CardSelectScene extends Phaser.Scene {
         color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "16px",
-        fontStyle: "700"
+        fontStyle: "700",
+        wordWrap: { width: this.enemyPreviewViewport.width - textX - 4, useAdvancedWrap: true }
       })
       .setOrigin(0, 0);
     const stats = this.add
       .text(
         textX,
-        y + 2,
+        y + (name.height > 24 ? 20 : 2),
         `${t("label.hp")} ${definition.hp}  ${t("label.atk")} ${definition.damage}${DAMAGE_SYMBOLS[definition.damageType]}  ${t("label.weight")} ${definition.weight}`,
         {
           color: uiTextColors.secondary,
@@ -380,6 +382,12 @@ export class CardSelectScene extends Phaser.Scene {
   }
 
   private enemyPreviewGroupTitle(group: EnemyPreviewGroup) {
+    if (getLevelConfig(this.levelId).unlimitedRankFamilies?.includes(group.family)) {
+      const name = getEnemyDisplayName(group.primaryKind);
+      const base = name.replace(/ \d+$/, "");
+      const cap = enemyArchetypes[group.family].spawnRankCap;
+      return `${base} ${cap ? Array.from({ length: cap }, (_, i) => i + 1).join("/") : "1/2/3/..."}`;
+    }
     if (group.kinds.length === 1) {
       return getEnemyDisplayName(group.primaryKind);
     }

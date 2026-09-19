@@ -14,7 +14,7 @@ const { enemyKindAtRank, isEnemyKind } = registry;
 const { enemyArchetypes } = load("src/data/enemyArchetypes.ts");
 const legacy = JSON.parse(fs.readFileSync(new URL("./fixtures/enemy-legacy.json", import.meta.url), "utf8"));
 
-test("IF-1 uses +2 increment growth while 1-9 retains its original linear weights", () => {
+test("IF-1 uses +1 increment growth while 1-9 retains its original linear weights", () => {
   const { getLevelConfig } = load("src/data/levels.ts");
   const { waveWeightLimit, waveScheduleAction } = load("src/game/waves.ts");
   const endless = getLevelConfig("IF-1");
@@ -24,8 +24,8 @@ test("IF-1 uses +2 increment growth while 1-9 retains its original linear weight
   assert.equal(endless.waveWeightCap, undefined);
   const difficulty = { weightMultiplier: 1 };
   assert.deepEqual([1, 2, 3, 4, 5, 10, 11, 20].map(wave => waveWeightLimit(endless, difficulty, wave)),
-    [19, 29, 41, 55, 71, 362, 209, 1102]);
-  assert.equal(waveWeightLimit(endless, { weightMultiplier: 1.4 }, 10), 506);
+    [19, 29, 40, 52, 65, 290, 164, 760]);
+  assert.equal(waveWeightLimit(endless, { weightMultiplier: 1.4 }, 10), 406);
   assert.deepEqual([1, 2, 3, 10].map(wave => waveWeightLimit(getLevelConfig("1-9"), difficulty, wave)),
     [19, 29, 39, 218]);
   assert.equal(waveScheduleAction(endless, 10000, null, 0, 30000), "spawn");
@@ -40,9 +40,34 @@ test("infinite wave sampling supports every affordable rank without enumerating 
     assert.ok(spent <= weight);
     assert.ok(weight - spent < 10);
   }
-  assert.deepEqual(buildInfiniteWaveKinds(["circle"], 40000010, 1, 10, length => length - 1), ["circle1000001"]);
+  assert.deepEqual(buildInfiniteWaveKinds(["triangle"], 60000030, 1, 10, length => length - 1), ["triangle1000001"]);
   assert.deepEqual(buildInfiniteWaveKinds(["circle"], 130, 1, 10, length => length - 1), ["circle4"]);
+  const circles = buildInfiniteWaveKinds(["circle"], 1300, 1, 10, length => length - 1);
+  assert.deepEqual(circles, Array(10).fill("circle4"));
   assert.throws(() => buildInfiniteWaveKinds(families, Infinity, 1, 10, () => 0), RangeError);
+});
+
+test("IF-2 extends the 2-4 enemy families to dynamic ranks with an independent clear requirement", () => {
+  const { getLevelConfig } = load("src/data/levels.ts");
+  const level = getLevelConfig("IF-2");
+  assert.deepEqual(level.enemyKinds, getLevelConfig("2-4").enemyKinds);
+  assert.equal(level.unlockAfter, "2-4");
+  assert.equal(level.endless, true);
+  assert.equal(level.survival, true);
+  assert.equal(level.totalWaves, undefined);
+  assert.equal(level.startingChars, 300);
+  assert.equal(level.waveWeightIncrement, getLevelConfig("2-4").waveWeightIncrement);
+  assert.equal(level.waveWeightIncrementGrowth, 1);
+  const { waveWeightLimit } = load("src/game/waves.ts");
+  for (const wave of [1, 2, 3, 10, 100]) {
+    assert.equal(waveWeightLimit(level, { weightMultiplier: 1.4 }, wave),
+      waveWeightLimit(getLevelConfig("2-4"), { weightMultiplier: 1.4 }, wave));
+  }
+  const { buildInfiniteWaveKinds } = load("src/game/infiniteWaves.ts");
+  for (const family of level.unlimitedRankFamilies.filter(family => family !== "circle")) {
+    const weight = registry.getEnemyDefinition(enemyKindAtRank(family, 10)).weight;
+    assert.deepEqual(buildInfiniteWaveKinds([family], weight, 100, 10, length => length - 1), [enemyKindAtRank(family, 10)]);
+  }
 });
 
 test("all 66 existing enemy panels and registrations exactly match the pre-refactor snapshot", () => {

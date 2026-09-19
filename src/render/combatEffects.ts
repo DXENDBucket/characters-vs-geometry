@@ -481,29 +481,36 @@ export function makeSpellMortarShot(
   targetX: number,
   targetY: number,
   onImpact: () => void,
-  onComplete?: () => void
+  onComplete?: () => void,
+  startProgress = 0
 ) {
   const projectile = acquireEffectText(scene, "spell-mortar-shot", fromX, fromY, "S", SPELL_MORTAR_SHOT_TEXT_STYLE, 120);
   const distance = Math.hypot(targetX - fromX, targetY - fromY);
   const controlX = (fromX + targetX) / 2;
   const controlY = Math.min(fromY, targetY) - 420 - distance * 0.4;
 
+  const position = (elapsed: number) => {
+    const progress = (1 - Math.cos(elapsed * Math.PI)) / 2;
+    const inverse = 1 - progress;
+    projectile.x = inverse * inverse * fromX + 2 * inverse * progress * controlX + progress * progress * targetX;
+    projectile.y = inverse * inverse * fromY + 2 * inverse * progress * controlY + progress * progress * targetY;
+    projectile.rotation = progress * Math.PI * 1.4;
+    projectile.setScale(1 + Math.sin(progress * Math.PI) * 0.26);
+  };
+  position(startProgress);
+
   return scene.tweens.addCounter({
-    from: 0,
+    from: startProgress,
     to: 1,
-    duration: 3240,
-    ease: "Sine.easeInOut",
+    duration: 3240 * (1 - startProgress),
+    ease: "Linear",
     onUpdate: (tween) => {
       const progress = tween.getValue();
       if (typeof progress !== "number") {
         return;
       }
 
-      const inverse = 1 - progress;
-      projectile.x = inverse * inverse * fromX + 2 * inverse * progress * controlX + progress * progress * targetX;
-      projectile.y = inverse * inverse * fromY + 2 * inverse * progress * controlY + progress * progress * targetY;
-      projectile.rotation = progress * Math.PI * 1.4;
-      projectile.setScale(1 + Math.sin(progress * Math.PI) * 0.26);
+      position(progress);
     },
     onComplete: () => {
       releaseEffectText(scene, "spell-mortar-shot", projectile);

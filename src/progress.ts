@@ -5,6 +5,7 @@ import { cardUnlockRequirement, cardUnlockRequirements } from "./data/cardUnlock
 import { CARD_SLOT_UNLOCK_CHAPTER_IDS, INITIAL_CARD_SLOT_COUNT } from "./data/cardSlotUnlocks";
 import { getLevelConfig, levelNodes } from "./data/levels";
 import { isEnemyKind } from "./game/enemyIdentity";
+import { clearSurvivalSaves } from "./survivalSaves";
 import type { BossKind, CardId, EnemyKind } from "./types";
 
 const STORAGE_KEY = "characters-vs-geometry-progress-v1";
@@ -172,6 +173,7 @@ export function discoveredEnemies() {
 }
 
 export function resetProgress() {
+  clearSurvivalSaves();
   cachedProgress = emptyProgress();
   try {
     window.localStorage.removeItem(STORAGE_KEY);

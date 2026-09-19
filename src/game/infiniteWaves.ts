@@ -22,8 +22,8 @@ export function buildInfiniteWaveKinds(
   let remaining = weightLimit;
   while (true) {
     // Count affordable ranks arithmetically; never materialize an unbounded catalog.
-    const counts = pool.map(entry => Math.max(0,
-      Math.floor((remaining - entry.base.weight) / entry.growth.weight!) + 1));
+    const counts = pool.map(entry => Math.min(entry.spawnRankCap ?? Infinity, Math.max(0,
+      Math.floor((remaining - entry.base.weight) / entry.growth.weight!) + 1)));
     const count = counts.reduce((sum, value) => sum + value, 0);
     if (count === 0) return kinds;
     let index = randomIndex(count);

@@ -12,6 +12,7 @@ export class PauseMenu {
   private readonly backdrop = document.createElement("div");
   private readonly panel = document.createElement("section");
   private readonly title = document.createElement("h2");
+  private readonly error = document.createElement("p");
   private readonly buttons: Array<{ element: HTMLButtonElement; key: string }> = [];
   private previousFocus: HTMLElement | null = null;
 
@@ -25,6 +26,10 @@ export class PauseMenu {
     this.title.id = "pause-menu-title";
     this.panel.setAttribute("aria-labelledby", this.title.id);
     this.panel.append(this.title);
+    this.error.hidden = true;
+    this.error.style.color = "#ff8888";
+    this.error.setAttribute("role", "alert");
+    this.panel.append(this.error);
     for (const [action, key] of [
       ["resume", "button.resume"],
       ["settings", "button.settings"],
@@ -52,9 +57,15 @@ export class PauseMenu {
   }
 
   hide() {
+    this.error.hidden = true;
     this.backdrop.hidden = true;
     this.previousFocus?.focus();
     this.previousFocus = null;
+  }
+
+  showError(message: string) {
+    this.error.textContent = message;
+    this.error.hidden = false;
   }
 
   destroy() {

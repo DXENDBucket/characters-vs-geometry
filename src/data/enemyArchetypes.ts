@@ -8,6 +8,7 @@ export interface EnemyArchetype {
   base: EnemyPanel;
   growth: Partial<Record<GrowthField, number>>;
   catalogRanks: number;
+  spawnRankCap?: number;
   attackMode: EnemyAttackMode;
   leader?: boolean;
   promotionMaxRank?: number;
@@ -20,6 +21,7 @@ export const enemyArchetypes: Record<EnemyFamily, EnemyArchetype> = {
   circle: {
     base: { hp: 3000, armor: 100, magicResistance: 0, damage: 400, damageType: "physical", weight: 10 },
     growth: { weight: 40 },
+    spawnRankCap: 4,
     catalogRanks: 3,
     attackMode: "melee",
     promotionMaxRank: 3,

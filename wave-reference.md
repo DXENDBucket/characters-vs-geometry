@@ -555,13 +555,23 @@ Base rule:
 ## Infinite Front: IF-1
 
 - The entire Infinite Front chapter group unlocks after clearing `1-9`, including Regular Endless and Boss Endless.
-- Regular endless mode; Circle, Triangle and Square can appear at any positive rank.
+- Regular endless mode; Circle is capped at rank IV. Triangle and Square can appear at any positive rank.
 - Starting characters and baseline rules follow `1-9`.
-- First-wave weight: `19`; first increment: `+10`; increment growth: `+2`.
-- Base weight at wave `n`: `19 + 10 * (n - 1) + (n - 1) * (n - 2)`.
-- Base weights begin `19, 29, 41, 55, 71`; each 10th wave doubles its weight before difficulty scaling.
-- No wave count, rank or weight cap. Only ranks affordable within the current wave budget can spawn.
+- First-wave weight: `19`; first increment: `+10`; increment growth: `+1`.
+- Base weight at wave `n`: `19 + 10 * (n - 1) + (n - 1) * (n - 2) / 2`.
+- Base weights begin `19, 29, 40, 52, 65`; each 10th wave doubles its weight before difficulty scaling.
+- No wave count or weight cap. Only ranks affordable within the current wave budget can spawn, respecting each family's rank cap.
 - Records use completed waves, not stage-clear status.
+- Exit saves the current battlefield locally. Resume restores it paused, including units, projectiles, skills and pending attacks. Restart or defeat removes the run save but retains the best-wave record.
+
+## Infinite Front: IF-2
+
+- Unlock requirement: clear `2-4` (Infinite Front itself requires `1-9`).
+- Enemy families follow `2-4`: Circle, Triangle, Shooting Triangle, Inverted Triangle and Square.
+- Circle is capped at IV; the other families have no rank limit.
+- Starting characters: `300`, matching `2-4`.
+- Weight growth follows `2-4`: initial `19`, increment `+12`, increment growth `+1`; flag waves double weight before difficulty scaling.
+- Endless waves, independent best-wave record and battlefield save.
 
 ## Level 1-9 Weight Growth
 

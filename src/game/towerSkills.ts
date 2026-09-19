@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import type { BattleAction, ScheduleBattleAction } from "./battleActions";
 import { changeTowerHealth } from "./towerHealth";
 import { activateOrientation, orientationIsReady } from "./orientation";
 import { activateGathering, gatheringIsReady } from "./gathering";
@@ -37,6 +38,7 @@ const AIR_PATROL_SKILL_COST = 10;
 const AIR_PATROL_SKILL_DURATION = 6_000;
 
 export interface TowerSkillRuntime {
+  scheduleBattleAction?: ScheduleBattleAction;
   towers: Tower[];
   enemies: Enemy[];
   boss: CubeBoss | null;
@@ -50,11 +52,23 @@ export interface TowerSkillRuntime {
   onTargetingChanged: () => void;
 }
 
+export interface SpellMortarFlight {
+  source: Tower;
+  fromX: number;
+  fromY: number;
+  targetX: number;
+  targetY: number;
+  damage: number;
+  damageType: DamageType;
+  progress: number;
+}
+
 export class TowerSkillController {
   private spellMortarTargetingTowers: Tower[] = [];
   private spellMortarTargetingTowerSet = new Set<Tower>();
   private spellMortarReticle: Phaser.GameObjects.Container | null = null;
   private activeSpellMortarTweens: Phaser.Tweens.Tween[] = [];
+  private readonly spellMortarFlights = new Map<Phaser.Tweens.Tween, SpellMortarFlight>();
   private readonly guardianHealTargetsBuffer: Tower[] = [];
   private cachedCardCooldownMultiplier = 1;
   private readonly skillDefinitions: Partial<Record<CardId, TowerSkillDefinition>>;
@@ -404,34 +418,42 @@ export class TowerSkillController {
     setTowerBorderVisible(tower, true);
 
     for (let shotIndex = 0; shotIndex < SPELL_MORTAR_SHOT_COUNT; shotIndex += 1) {
+      if (runtime.scheduleBattleAction) {
+        runtime.scheduleBattleAction(shotIndex * SPELL_MORTAR_SHOT_INTERVAL,
+          { type: "spellMortar", tower, targetX, targetY, damage, damageType });
+        continue;
+      }
       this.scene.time.delayedCall(shotIndex * SPELL_MORTAR_SHOT_INTERVAL, () => {
         this.runtime().runWhenBattleActive(() => {
-          const latest = this.runtime();
-          if (latest.gameOver || !tower.inPlay) {
-            return;
-          }
-
-          let tween: Phaser.Tweens.Tween;
-          tween = makeSpellMortarShot(
-            this.scene,
-            tower.x,
-            tower.y,
-            targetX,
-            targetY,
-            () => {
-              this.detonateSpellMortar(targetX, targetY, damage, damageType, tower);
-            },
-            () => {
-              Phaser.Utils.Array.Remove(this.activeSpellMortarTweens, tween);
-            }
-          );
-          this.activeSpellMortarTweens.push(tween);
-          if (latest.battlePaused) {
-            tween.pause();
-          }
+          this.launchSpellMortar({ type: "spellMortar", tower, targetX, targetY, damage, damageType });
         });
       });
     }
+  }
+
+  launchSpellMortar(action: Extract<BattleAction, { type: "spellMortar" }>) {
+    if (this.runtime().gameOver || !action.tower.inPlay) return;
+    this.restoreSpellMortarFlight({ source: action.tower, fromX: action.tower.x, fromY: action.tower.y,
+      targetX: action.targetX, targetY: action.targetY, damage: action.damage, damageType: action.damageType, progress: 0 });
+  }
+
+  snapshotFlights(): SpellMortarFlight[] {
+    return [...this.spellMortarFlights].map(([tween, flight]) => ({
+      ...flight, progress: flight.progress + (1 - flight.progress) * tween.progress
+    }));
+  }
+
+  restoreSpellMortarFlight(flight: SpellMortarFlight) {
+    let tween: Phaser.Tweens.Tween;
+    tween = makeSpellMortarShot(this.scene, flight.fromX, flight.fromY, flight.targetX, flight.targetY,
+      () => this.detonateSpellMortar(flight.targetX, flight.targetY, flight.damage, flight.damageType, flight.source),
+      () => {
+        Phaser.Utils.Array.Remove(this.activeSpellMortarTweens, tween);
+        this.spellMortarFlights.delete(tween);
+      }, flight.progress);
+    this.spellMortarFlights.set(tween, flight);
+    this.activeSpellMortarTweens.push(tween);
+    if (this.runtime().battlePaused) tween.pause();
   }
 
   private detonateSpellMortar(x: number, y: number, damage: number, damageType: DamageType, sourceTower: Tower) {

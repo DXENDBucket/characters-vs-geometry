@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import type { BattleAction, ScheduleBattleAction } from "./battleActions";
 import { BOARD_HEIGHT, BOARD_WIDTH, BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH } from "../config";
 import { makeFreezePulse, makeReversalPulse, makeShockPulse, makeTrapBurst } from "../render/combatEffects";
 import type { CardDefinition, CardId, CubeBoss, DamageType, Enemy, Tower } from "../types";
@@ -10,6 +11,7 @@ import { getShockCount, getTriggerDebuffDuration, towerDamageType } from "./towe
 import { towerAttackAmount } from "./unitStats";
 
 export interface TriggerTowerRuntime {
+  scheduleBattleAction?: ScheduleBattleAction;
   scene: Phaser.Scene;
   enemies: Enemy[];
   boss: CubeBoss | null;
@@ -77,25 +79,30 @@ export function triggerShockTower(runtime: TriggerTowerRuntime, tower: Tower) {
 
   const count = getShockCount(tower, definition);
   for (let index = 0; index < count; index += 1) {
+    if (runtime.scheduleBattleAction) {
+      runtime.scheduleBattleAction(index * interval, { type: "shock", tower, x, y, rangeX, rangeY, damage, damageType });
+      continue;
+    }
     runtime.scene.time.delayedCall(index * interval, () => {
       runtime.runWhenBattleActive(() => {
-        if (runtime.gameOver) {
-          return;
-        }
-
-        makeShockPulse(runtime.scene, area.x, area.y, area.rangeX, area.rangeY, damageType);
-        forEachSnapshot(runtime.enemies, (enemy) => {
-          if (!enemyIsHighFlying(enemy) && Math.abs(enemy.x - x) <= rangeX && Math.abs(enemy.y - y) <= rangeY) {
-            runtime.damageEnemy(enemy, damage, damageType, tower);
-          }
-        });
-        const bossPart = bossPartInRect(runtime.boss, area.left, area.top, area.width, area.height);
-        if (bossPart) {
-          runtime.damageBoss(damage, damageType, bossPart);
-        }
+        executeShockPulse(runtime, { type: "shock", tower, x, y, rangeX, rangeY, damage, damageType });
       });
     });
   }
+}
+
+export function executeShockPulse(runtime: TriggerTowerRuntime, action: Extract<BattleAction, { type: "shock" }>) {
+  if (runtime.gameOver) return;
+  const { tower, x, y, rangeX, rangeY, damage, damageType } = action;
+  const area = triggerEffectArea(x, y, rangeX, rangeY);
+  makeShockPulse(runtime.scene, area.x, area.y, area.rangeX, area.rangeY, damageType);
+  forEachSnapshot(runtime.enemies, enemy => {
+    if (!enemyIsHighFlying(enemy) && Math.abs(enemy.x - x) <= rangeX && Math.abs(enemy.y - y) <= rangeY) {
+      runtime.damageEnemy(enemy, damage, damageType, tower);
+    }
+  });
+  const part = bossPartInRect(runtime.boss, area.left, area.top, area.width, area.height);
+  if (part) runtime.damageBoss(damage, damageType, part);
 }
 
 export function triggerTrapTower(runtime: TriggerTowerRuntime, tower: Tower, target: Enemy | CubeBoss | "boss") {

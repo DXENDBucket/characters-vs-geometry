@@ -9,8 +9,6 @@ export const GATHERING_MAX_SP = 10;
 export const GATHERING_DURATION = 10_000;
 export const GATHERING_TRANSFER_INTERVAL = 100;
 
-const lastTransferAt = new WeakMap<Projectile, number>();
-
 export function gatheringIsActive(tower: Tower, time: number) {
   return tower.inPlay && !tower.transient && tower.type === "j" && time < (tower.skills.gathering?.activeUntil ?? 0);
 }
@@ -58,7 +56,7 @@ export function gatherProjectile(
   previousX: number,
   previousY: number
 ) {
-  if (runtime.battleTime - (lastTransferAt.get(projectile) ?? -Infinity) < GATHERING_TRANSFER_INTERVAL) return false;
+  if (runtime.battleTime - (projectile.lastGatheredAt ?? -Infinity) < GATHERING_TRANSFER_INTERVAL) return false;
   let source: Tower | undefined;
   for (const tower of sources) {
     if (!gatheringIsActive(tower, runtime.battleTime)) continue;
@@ -74,7 +72,7 @@ export function gatherProjectile(
   }
   if (!source) return false;
 
-  lastTransferAt.set(projectile, runtime.battleTime);
+  projectile.lastGatheredAt = runtime.battleTime;
   const fromY = projectile.y;
   projectile.y = source.y;
   projectile.lane = source.lane;

@@ -7,6 +7,14 @@ export class LoadoutReselection {
   private readyAt = RESELECT_COOLDOWN;
   private readonly cardReadyTimes = new Map<CardId, number>();
 
+  snapshot() { return { readyAt: this.readyAt, cards: [...this.cardReadyTimes] }; }
+
+  restore(state: ReturnType<LoadoutReselection["snapshot"]>) {
+    this.readyAt = state.readyAt;
+    this.cardReadyTimes.clear();
+    for (const [id, time] of state.cards) this.cardReadyTimes.set(id, time);
+  }
+
   isReady(battleTime: number) {
     return battleTime >= this.readyAt;
   }

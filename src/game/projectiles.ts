@@ -118,9 +118,16 @@ export function createEnemyProjectile(scene: Phaser.Scene, enemy: Enemy, time: n
   const isDiamondShot = enemyFamily(enemy.kind) === "diamond";
   const direction = enemyMovementDirection(enemy);
   const shotX = enemy.x + direction * 22;
+  return restoreEnemyProjectile(scene, { x: shotX, y: enemy.y, hitCount, vx: direction * 430,
+    damage: enemyAttackDamage(enemy, time), damageType: enemy.damageType, sourceLane: enemy.lane,
+    appearance: isDiamondShot ? "star" : "bolt" });
+}
+
+export function restoreEnemyProjectile(scene: Phaser.Scene, state: Omit<EnemyProjectile, "body">): EnemyProjectile {
+  const isDiamondShot = state.appearance === "star";
   const body = isDiamondShot
     ? scene.add
-        .text(shotX, enemy.y - 1, "*", {
+        .text(state.x, state.y - 1, "*", {
           color: "#ff6464",
           fontFamily: "monospace",
           fontSize: "22px",
@@ -128,16 +135,10 @@ export function createEnemyProjectile(scene: Phaser.Scene, enemy: Enemy, time: n
         })
         .setOrigin(0.5)
         .setDepth(91)
-    : scene.add.rectangle(shotX, enemy.y, 18, 4, palette.enemyShot, 1).setDepth(91);
-  body.rotation = isDiamondShot ? 0 : direction < 0 ? Math.PI : 0;
+    : scene.add.rectangle(state.x, state.y, 18, 4, palette.enemyShot, 1).setDepth(91);
+  body.rotation = isDiamondShot ? 0 : state.vx < 0 ? Math.PI : 0;
   return {
-    x: shotX,
-    hitCount,
-    y: enemy.y,
-    vx: direction * 430,
-    damage: enemyAttackDamage(enemy, time),
-    damageType: enemy.damageType,
-    sourceLane: enemy.lane,
+    ...state,
     body
   };
 }

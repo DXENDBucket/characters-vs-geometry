@@ -13,6 +13,8 @@ export class TowerExtractionPool {
     return this.amount;
   }
 
+  restore(amount: number) { this.amount = amount; }
+
   extract(target: Pick<Tower, "level">, baseCost: number, effectLevel: number) {
     const rate = 0.5 + 0.25 * (Math.max(1, Math.floor(effectLevel)) - 1);
     const extracted = baseCost * Math.max(1, Math.floor(target.level)) * rate;

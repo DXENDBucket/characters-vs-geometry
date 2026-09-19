@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import type { BattleAction } from "./battleActions";
 import { enemyFacingDirection, enemyMovementDirection } from "./rules/reversal";
 import { isShockTower } from "./triggerTowers";
 import { redirectOrientedTarget } from "./orientation";
@@ -1134,6 +1135,10 @@ function fireEnemyVolley(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: numbe
   const interval = volleyInterval(enemy.finalStats.attackInterval, shots);
   for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
     const hitCount = volleyHitsAt(totalHits, shotIndex);
+    if (runtime.scheduleBattleAction) {
+      runtime.scheduleBattleAction(shotIndex * interval, { type: "enemyShot", enemy, time, hitCount });
+      continue;
+    }
     runtime.scene.time.delayedCall(shotIndex * interval, () => {
       runtime.runWhenBattleActive(() => fireEnemyShot(runtime, enemy, time, hitCount));
     });
@@ -1154,6 +1159,10 @@ function fireEnemyLaserVolley(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: 
   const interval = volleyInterval(enemy.finalStats.attackInterval, shots);
   for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
     const hitCount = volleyHitsAt(totalHits, shotIndex);
+    if (runtime.scheduleBattleAction) {
+      runtime.scheduleBattleAction(shotIndex * interval, { type: "enemyLaser", enemy, time, hitCount });
+      continue;
+    }
     runtime.scene.time.delayedCall(shotIndex * interval, () => {
       runtime.runWhenBattleActive(() => fireEnemyLaser(runtime, enemy, time, hitCount));
     });
@@ -1196,11 +1205,21 @@ function fireEnemyMortarVolley(runtime: EnemyAdvanceRuntime, enemy: Enemy, time:
   const interval = volleyInterval(enemy.finalStats.attackInterval, shots);
   for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
     const hitCount = volleyHitsAt(totalHits, shotIndex);
+    if (runtime.scheduleBattleAction) {
+      runtime.scheduleBattleAction(shotIndex * interval, { type: "enemyMortar", enemy, time, hitCount });
+      continue;
+    }
     runtime.scene.time.delayedCall(shotIndex * interval, () => {
       runtime.runWhenBattleActive(() => fireEnemyMortarShot(runtime, enemy, time, hitCount));
     });
   }
   return true;
+}
+
+export function executeEnemyAttack(runtime: EnemyAdvanceRuntime, action: Extract<BattleAction, { enemy: Enemy }>) {
+  if (action.type === "enemyShot") fireEnemyShot(runtime, action.enemy, action.time, action.hitCount);
+  else if (action.type === "enemyLaser") fireEnemyLaser(runtime, action.enemy, action.time, action.hitCount);
+  else fireEnemyMortarShot(runtime, action.enemy, action.time, action.hitCount);
 }
 
 function fireEnemyMortarShot(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number, hitCount: number) {

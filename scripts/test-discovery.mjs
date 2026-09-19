@@ -64,6 +64,9 @@ test("IF-1 requires clearing 1-9 independently of main-story ordering or card un
   assert.equal(progress.isChapterUnlocked("IF"), true);
   assert.equal(progress.isChapterUnlocked("IFB"), true);
   assert.equal(progress.isLevelUnlocked("IF-1"), true);
+  assert.equal(progress.isLevelUnlocked("IF-2"), false);
+  progress.completeLevel("2-4");
+  assert.equal(progress.isLevelUnlocked("IF-2"), true);
   assert.equal(progress.isLevelUnlocked("1-10"), true);
   assert.equal(progress.isLevelUnlocked("not-a-level"), false);
   progress.resetProgress();

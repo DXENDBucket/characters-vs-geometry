@@ -1,4 +1,5 @@
 import type Phaser from "phaser";
+import type { ScheduleBattleAction } from "./battleActions";
 import { palette } from "../config";
 import type { CardDefinition, CardId, CardState, Tower } from "../types";
 import type { TowerExtractionPool } from "./towerExtraction";
@@ -17,6 +18,7 @@ import {
 export type TargetedEffectCardResult = "handled" | "cooldown" | "empty" | "noChars";
 
 export interface TargetedEffectCardRuntime {
+  scheduleBattleAction?: ScheduleBattleAction;
   scene: Phaser.Scene;
   towers: Tower[];
   cardStates: CardState[];
@@ -150,7 +152,9 @@ export class TargetedEffectCardController {
     effectCard.body.setDepth(45 + lane);
     runtime.towers.push(effectCard);
     runtime.updateLevelAuras();
-    runtime.scene.time.delayedCall(0, () => {
+    if (runtime.scheduleBattleAction) {
+      runtime.scheduleBattleAction(0, { type: "targetedEffect", tower: effectCard });
+    } else runtime.scene.time.delayedCall(0, () => {
       runtime.runWhenBattleActive(() => this.resolvePendingEffectCard(effectCard));
     });
     return effectCard;
@@ -176,7 +180,7 @@ export class TargetedEffectCardController {
     }
   }
 
-  private resolvePendingEffectCard(effectCard: Tower) {
+  resolvePendingEffectCard(effectCard: Tower) {
     const runtime = this.runtime();
     if (!effectCard.inPlay) {
       return;

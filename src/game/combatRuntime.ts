@@ -1,7 +1,9 @@
 import type Phaser from "phaser";
+import type { ScheduleBattleAction } from "./battleActions";
 import type { CardDefinition, CardId, CubeBoss, DamageType, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower } from "../types";
 
 export interface CombatRuntime {
+  scheduleBattleAction?: ScheduleBattleAction;
   scene: Phaser.Scene;
   enemies: Enemy[];
   towers: Tower[];
@@ -52,6 +54,7 @@ export type EnemySpawnRuntime = Pick<CombatRuntime, "scene" | "enemies">;
 
 export type EnemyAdvanceRuntime = Pick<
   CombatRuntime,
+  | "scheduleBattleAction"
   | "scene"
   | "battleTime"
   | "enemies"

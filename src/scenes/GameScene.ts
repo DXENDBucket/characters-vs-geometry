@@ -1,4 +1,8 @@
 import Phaser from "phaser";
+import { BattleActionQueue, type BattleAction, type ScheduleBattleAction } from "../game/battleActions";
+import type { BattleSaveState } from "../game/battleSaveState";
+import { captureBattleSnapshot, restoreBattleSnapshot } from "../game/battleSnapshot";
+import { deleteSurvivalSave, readSurvivalSave, writeSurvivalSave, type SurvivalSave } from "../survivalSaves";
 import { syncTowerHealthNetworks } from "../game/towerHealth";
 import { PauseMenu } from "../render/pauseMenu";
 import { BattleCardList } from "../render/battleCardList";
@@ -38,7 +42,7 @@ import { getLevelConfig } from "../data/levels";
 import { updateBossRuntime, type BossRuntime } from "../game/bossRuntime";
 import { idleCardBehavior, type CardBehavior } from "../game/cardBehaviors";
 import type { CombatRuntime } from "../game/combatRuntime";
-import { advanceEnemies, spawnEnemyAt, spawnWaveEnemies } from "../game/enemyRuntime";
+import { advanceEnemies, executeEnemyAttack, spawnEnemyAt, spawnWaveEnemies } from "../game/enemyRuntime";
 import {
   updateEnemyProjectiles,
   updateMortarProjectiles,
@@ -90,6 +94,7 @@ import {
 } from "../game/unitLifecycle";
 import {
   isShockTower,
+  executeShockPulse,
   triggerShockTower as runTriggerShockTower,
   triggerTrapTower as runTriggerTrapTower,
   type TriggerTowerRuntime
@@ -184,6 +189,13 @@ function combineDamageReduction(baseReduction: number, extraReduction: number) {
 }
 
 export class GameScene extends Phaser.Scene {
+  private actionQueue = new BattleActionQueue();
+  private resumeSave?: SurvivalSave;
+  private resumeRequested = false;
+  private readonly saveOnPageHide = () => { this.saveSurvivalBattle(); };
+  private readonly scheduleBattleAction: ScheduleBattleAction = (delay, action) => {
+    this.actionQueue.schedule(this.battleTime, delay, action);
+  };
   private levelId = "1-1";
   private chapterId = "1";
   private levelConfig = getLevelConfig("1-1");
@@ -291,7 +303,12 @@ export class GameScene extends Phaser.Scene {
     super("GameScene");
   }
 
-  init(data: { levelId?: string; chapterId?: string; selectedCards?: CardId[]; difficulty?: number; unlimitedFirepower?: boolean }) {
+  init(data: { levelId?: string; chapterId?: string; selectedCards?: CardId[]; difficulty?: number; unlimitedFirepower?: boolean; resume?: boolean }) {
+    this.resumeRequested = Boolean(data.resume);
+    this.resumeSave = data.resume && data.levelId ? readSurvivalSave(data.levelId) : undefined;
+    if (this.resumeSave) data = { ...data, difficulty: this.resumeSave.difficulty,
+      unlimitedFirepower: this.resumeSave.unlimitedFirepower, selectedCards: this.resumeSave.selectedCards };
+    this.actionQueue = new BattleActionQueue();
     this.levelId = data.levelId ?? "1-1";
     this.chapterId = data.chapterId ?? chapterIdForLevelId(this.levelId);
     this.levelConfig = getLevelConfig(this.levelId);
@@ -367,6 +384,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
+    if (this.resumeRequested && !this.resumeSave) {
+      this.scene.start("LevelSelectScene", { chapterId: this.chapterId, resumeError: true });
+      return;
+    }
+    this.events.once("shutdown", () => this.cleanupSceneHandlers());
     this.cameras.main.setBackgroundColor(palette.black);
     this.drawBoard();
     this.ui = createGameHud(this, this.levelId, this.difficulty, {
@@ -405,6 +427,17 @@ export class GameScene extends Phaser.Scene {
     this.createCardList();
     this.updateCards();
     this.overlay = createGameOverlay(this, () => this.handleOverlayAction());
+    if (this.resumeSave) {
+      try {
+        this.applyBattleSave(restoreBattleSnapshot(this, this.resumeSave.graph));
+      } catch {
+        this.scene.start("LevelSelectScene", { chapterId: this.chapterId, resumeError: true });
+        return;
+      }
+      this.resumeSave = undefined;
+    } else if (this.levelConfig.survival) {
+      deleteSurvivalSave(this.levelId);
+    }
     if (isTutorialMechanic(this.levelConfig.specialMechanic)) {
       const runtime: TutorialRuntime = {
         scene: this,
@@ -430,10 +463,12 @@ export class GameScene extends Phaser.Scene {
     this.input.on("pointerdown", this.scenePointerDownHandler);
     this.input.on("pointermove", this.scenePointerMoveHandler);
     this.input.keyboard?.on("keydown", this.sceneKeyDownHandler);
-    this.events.once("shutdown", () => this.cleanupSceneHandlers());
+    window.addEventListener("pagehide", this.saveOnPageHide);
+    if (this.levelConfig.survival && this.battlePaused) this.openPauseMenu();
   }
 
   private cleanupSceneHandlers() {
+    window.removeEventListener("pagehide", this.saveOnPageHide);
     this.cardList?.destroy();
     this.cardList = undefined;
     this.pauseMenu?.destroy();
@@ -484,6 +519,7 @@ export class GameScene extends Phaser.Scene {
     const seconds = scaledDelta / 1000;
     this.levelElapsed += scaledDelta;
     this.battleTime += scaledDelta;
+    this.actionQueue.update(this.battleTime, action => this.executeBattleAction(action));
     this.towerSkills.update(seconds, this.battleTime);
     this.mirrors.syncMirrors();
     this.updateLevelAurasIfNeeded();
@@ -1244,6 +1280,7 @@ export class GameScene extends Phaser.Scene {
 
   private createTowerSkillRuntime(): TowerSkillRuntime {
     return {
+      scheduleBattleAction: this.levelConfig.survival ? this.scheduleBattleAction : undefined,
       towers: this.towers,
       enemies: this.enemies,
       boss: this.boss,
@@ -1269,6 +1306,7 @@ export class GameScene extends Phaser.Scene {
 
   private createTargetedEffectCardRuntime(): TargetedEffectCardRuntime {
     return {
+      scheduleBattleAction: this.levelConfig.survival ? this.scheduleBattleAction : undefined,
       extraction: this.extraction,
       scene: this,
       towers: this.towers,
@@ -1386,6 +1424,7 @@ export class GameScene extends Phaser.Scene {
 
   private createCombatRuntime(): CombatRuntime {
     return {
+      scheduleBattleAction: this.levelConfig.survival ? this.scheduleBattleAction : undefined,
       scene: this,
       enemies: this.enemies,
       towers: this.towers,
@@ -1526,6 +1565,7 @@ export class GameScene extends Phaser.Scene {
 
   private createTriggerTowerRuntime(): TriggerTowerRuntime {
     return {
+      scheduleBattleAction: this.levelConfig.survival ? this.scheduleBattleAction : undefined,
       scene: this,
       enemies: this.enemies,
       boss: this.boss,
@@ -1612,6 +1652,10 @@ export class GameScene extends Phaser.Scene {
 
     for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
       const hitCount = volleyHitsAt(totalHits, shotIndex);
+      if (this.levelConfig.survival) {
+        this.scheduleBattleAction(shotIndex * interval, { type: "volley", tower, hitCount });
+        continue;
+      }
       this.time.delayedCall(shotIndex * interval, () => {
         this.runWhenBattleActive(() => {
           if (this.gameOver || !tower.inPlay) {
@@ -2239,6 +2283,7 @@ export class GameScene extends Phaser.Scene {
 
   private endGame() {
     this.gameOver = true;
+    if (this.levelConfig.survival) deleteSurvivalSave(this.levelId);
     showGameOverlay(this.overlay, t("overlay.breach"), t("button.menu"));
   }
 
@@ -2261,8 +2306,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handleOverlayAction() {
+    if (this.levelConfig.survival && !this.gameOver && !this.saveSurvivalBattle()) {
+      this.pauseMenu.showError(t("save.failed"));
+      this.showToast(t("save.failed"));
+      return;
+    }
     this.scene.start("LevelSelectScene", {
       chapterId: this.chapterId,
+      selectedLevelId: this.levelId,
       difficulty: this.difficulty,
       unlimitedFirepower: this.unlimitedFirepower
     });
@@ -2441,6 +2492,82 @@ export class GameScene extends Phaser.Scene {
     return validCards.length > 0
       ? validCards.slice(0, slotCount)
       : [...defaultCardLoadout].slice(0, slotCount);
+  }
+
+  private executeBattleAction(action: BattleAction) {
+    if (this.gameOver) return;
+    switch (action.type) {
+      case "enemyShot": case "enemyLaser": case "enemyMortar": executeEnemyAttack(this.combatRuntime(), action); break;
+      case "volley":
+        if (action.tower.inPlay) getCardBehavior(action.tower.type).execute(action.tower,
+          this.getDefinition(action.tower.type), this.combatRuntime(), action.hitCount);
+        break;
+      case "targetedEffect": this.targetedEffects.resolvePendingEffectCard(action.tower); break;
+      case "shock": executeShockPulse(this.triggerTowerRuntime(), action); break;
+      case "spellMortar": this.towerSkills.launchSpellMortar(action); break;
+    }
+  }
+
+  private saveSurvivalBattle() {
+    if (!this.levelConfig.survival || this.gameOver || this.boss) return false;
+    try {
+      const state: BattleSaveState = {
+        levelElapsed: this.levelElapsed, battleTime: this.battleTime, cardTime: this.cardTime,
+        nextNaturalProduceAt: this.nextNaturalProduceAt, chars: this.chars, baseIntegrity: this.baseIntegrity,
+        wave: this.wave, waveTracker: this.waveTracker, enemiesDefeated: this.enemiesDefeated,
+        towerOrder: this.towerOrder, gameSpeed: this.gameSpeed, selectedCardId: this.selectedCardId,
+        cardDeadlines: this.cardStates.map(card => ({ id: card.definition.id, readyAt: card.readyAt })),
+        autoUpgradeEnabled: this.autoUpgradeEnabled, autoUpgradeReserveChars: this.autoUpgradeReserveChars,
+        towers: this.towers, enemies: this.enemies, projectiles: this.projectiles,
+        enemyProjectiles: this.enemyProjectiles, mortarProjectiles: this.mortarProjectiles,
+        actions: this.actionQueue.snapshot(), storage: this.storage.snapshot(), shifter: this.shifter.snapshot(),
+        reselection: this.reselection.snapshot(), extraction: this.extraction.value,
+        spellMortarFlights: this.towerSkills.snapshotFlights(), sealedCells: [...this.sealedCells]
+      };
+      return writeSurvivalSave({ version: 1, levelId: this.levelId, savedAt: Date.now(), wave: this.wave,
+        difficulty: this.difficulty, unlimitedFirepower: this.unlimitedFirepower,
+        selectedCards: [...this.selectedCardIds], graph: captureBattleSnapshot(state) });
+    } catch { return false; }
+  }
+
+  private applyBattleSave(state: BattleSaveState) {
+    this.levelElapsed = state.levelElapsed;
+    this.battleTime = state.battleTime;
+    this.cardTime = state.cardTime;
+    this.nextNaturalProduceAt = state.nextNaturalProduceAt;
+    this.chars = state.chars;
+    this.baseIntegrity = state.baseIntegrity;
+    this.wave = state.wave;
+    this.waveTracker = state.waveTracker;
+    this.enemiesDefeated = state.enemiesDefeated;
+    this.towerOrder = state.towerOrder;
+    this.selectedCardId = state.selectedCardId;
+    this.autoUpgradeEnabled = state.autoUpgradeEnabled;
+    this.autoUpgradeReserveChars = state.autoUpgradeReserveChars;
+    this.towers = state.towers;
+    this.enemies = state.enemies;
+    this.projectiles = state.projectiles;
+    this.enemyProjectiles = state.enemyProjectiles;
+    this.mortarProjectiles = state.mortarProjectiles;
+    this.occupied.clear();
+    for (const tower of this.towers) if (tower.inPlay && !tower.transient) this.occupied.set(gridCellKey(tower.lane, tower.column), tower);
+    this.sealedCells = new Set(state.sealedCells);
+    this.storage.restore(state.storage);
+    this.shifter.restore(state.shifter);
+    this.reselection.restore(state.reselection);
+    this.extraction.restore(state.extraction);
+    this.actionQueue.restore(state.actions);
+    this.mirrors.restoreGroups();
+    for (const deadline of state.cardDeadlines) {
+      const card = this.cardStatesById.get(deadline.id);
+      if (card) card.readyAt = deadline.readyAt;
+    }
+    this.battlePaused = true;
+    for (const flight of state.spellMortarFlights) this.towerSkills.restoreSpellMortarFlight(flight);
+    this.setGameSpeed(state.gameSpeed);
+    this.syncAutoUpgradeBorders();
+    this.updateCards();
+    this.updateHud();
   }
 
   private isInsideBoard(x: number, y: number) {

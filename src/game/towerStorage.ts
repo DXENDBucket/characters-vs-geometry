@@ -22,6 +22,9 @@ export class TowerStorageController {
 
   constructor(private readonly runtime: () => StorageRuntime) {}
 
+  snapshot() { return this.stored.slice(); }
+  restore(entries: StoredEnemy[]) { this.stored.splice(0, this.stored.length, ...entries); }
+
   get count() {
     return this.stored.length;
   }

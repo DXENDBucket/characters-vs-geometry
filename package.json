@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "validate": "node scripts/validate-data.mjs",
-    "test:rules": "node --test scripts/test-game-rules.mjs scripts/test-reversal.mjs scripts/test-effect-pools.mjs scripts/test-discovery.mjs scripts/test-enemy-ranks.mjs",
+    "test:rules": "node --test scripts/test-game-rules.mjs scripts/test-reversal.mjs scripts/test-effect-pools.mjs scripts/test-discovery.mjs scripts/test-enemy-ranks.mjs scripts/test-survival-saves.mjs",
     "build": "tsc && vite build",
     "preview": "vite preview --host 127.0.0.1"
   },
