@@ -65,10 +65,23 @@ export const levelNodes: LevelNode[] = [
   { id: "5-7", x: 1550, y: 430 },
   { id: "5-8", x: 1770, y: 330 },
   { id: "5-9", x: 1990, y: 430 },
-  { id: "5-10", x: 2210, y: 330 }
+  { id: "5-10", x: 2210, y: 330 },
+  { id: "IF-1", x: 500, y: 380 }
 ];
 
 export const levelConfigs: Record<string, LevelConfig> = {
+  "IF-1": {
+    id: "IF-1",
+    unlockAfter: "1-9",
+    survival: true,
+    endless: true,
+    enemyKinds: ["circle", "circle2", "circle3", "triangle", "triangle2", "triangle3", "square", "square2", "square3"],
+    unlimitedRankFamilies: ["circle", "triangle", "square"],
+    firstWaveWeight: 19,
+    waveWeightIncrement: 10,
+    waveWeightIncrementGrowth: 2,
+    wavesPerFlag: WAVES_PER_FLAG
+  },
   "0-1": {
     id: "0-1",
     enemyKinds: ["circle"],

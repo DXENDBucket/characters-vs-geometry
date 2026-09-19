@@ -1,0 +1,42 @@
+import { enemyArchetypes } from "../data/enemyArchetypes";
+import { enemyKindAtRank } from "./enemyIdentity";
+import type { EnemyFamily, EnemyKind } from "../types";
+
+export function buildInfiniteWaveKinds(
+  families: readonly EnemyFamily[],
+  weightLimit: number,
+  waveNumber: number,
+  wavesPerFlag: number,
+  randomIndex: (length: number) => number
+): EnemyKind[] {
+  if (!Number.isFinite(weightLimit) || weightLimit < 0) throw new RangeError("Invalid wave weight");
+  const flag = Math.floor(waveNumber / wavesPerFlag);
+  const pool = [...new Set(families)].map(family => ({ family, ...enemyArchetypes[family] }))
+    .filter(entry => entry.base.weight > 0 && flag >= (entry.base.minFlag ?? 0));
+  for (const entry of pool) {
+    if (!Number.isFinite(entry.growth.weight) || entry.growth.weight! <= 0) {
+      throw new RangeError(`Unlimited ranks require positive weight growth: ${entry.family}`);
+    }
+  }
+  const kinds: EnemyKind[] = [];
+  let remaining = weightLimit;
+  while (true) {
+    // Count affordable ranks arithmetically; never materialize an unbounded catalog.
+    const counts = pool.map(entry => Math.max(0,
+      Math.floor((remaining - entry.base.weight) / entry.growth.weight!) + 1));
+    const count = counts.reduce((sum, value) => sum + value, 0);
+    if (count === 0) return kinds;
+    let index = randomIndex(count);
+    if (!Number.isSafeInteger(index) || index < 0 || index >= count) throw new RangeError("Invalid random wave index");
+    for (let i = 0; i < pool.length; i++) {
+      if (index >= counts[i]) {
+        index -= counts[i];
+        continue;
+      }
+      const entry = pool[i];
+      kinds.push(enemyKindAtRank(entry.family, index + 1));
+      remaining -= entry.base.weight + entry.growth.weight! * index;
+      break;
+    }
+  }
+}

@@ -8,6 +8,7 @@ export interface ChapterDefinition {
   y: number;
   levelPrefix: string;
   parentId?: string;
+  survival?: boolean;
 }
 
 export const chapterDefinitions: ChapterDefinition[] = [
@@ -16,7 +17,9 @@ export const chapterDefinitions: ChapterDefinition[] = [
   { id: "2", labelKey: "chapter.2", x: 860, y: 290, levelPrefix: "2-", parentId: "1" },
   { id: "3", labelKey: "chapter.3", x: 1200, y: 430, levelPrefix: "3-", parentId: "2" },
   { id: "4", labelKey: "chapter.4", x: 1540, y: 290, levelPrefix: "4-", parentId: "3" },
-  { id: "5", labelKey: "chapter.5", x: 1880, y: 430, levelPrefix: "5-", parentId: "4" }
+  { id: "5", labelKey: "chapter.5", x: 1880, y: 430, levelPrefix: "5-", parentId: "4" },
+  { id: "IF", labelKey: "chapter.IF", x: 420, y: 350, levelPrefix: "IF-", survival: true },
+  { id: "IFB", labelKey: "chapter.IFB", x: 820, y: 350, levelPrefix: "IFB-", survival: true }
 ];
 
 export function defaultChapterId() {

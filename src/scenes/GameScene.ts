@@ -100,7 +100,7 @@ import { volleyHitsAt, volleyTimingCount } from "../game/volley";
 import { waveScheduleAction } from "../game/waves";
 import { attackIntervalMs } from "../game/attackSpeed";
 import { t } from "../i18n";
-import { completeLevel, isCardUnlocked, isLevelCompleted, recordBossSeen, unlockedCardSlotCount } from "../progress";
+import { completeLevel, isCardUnlocked, isLevelCompleted, recordBossSeen, recordCompletedWaves, unlockedCardSlotCount } from "../progress";
 import { makeEraseMark, makeProductionPulse, makeShellBurst, makeShockPulse } from "../render/combatEffects";
 import { createUnitBorder } from "../render/unitShapes";
 import {
@@ -1642,6 +1642,13 @@ export class GameScene extends Phaser.Scene {
 
   private updateWaveSchedule(levelElapsed: number, gameTime: number) {
     const activeLevelConfig = this.activeLevelConfig();
+    if (activeLevelConfig.survival) {
+      let earliestWave = Math.min(this.wave + 1, this.storage.earliestWaveNumber);
+      for (const enemy of this.enemies) {
+        if (enemy.inPlay) earliestWave = Math.min(earliestWave, enemy.waveNumber);
+      }
+      recordCompletedWaves(this.levelId, Math.max(0, earliestWave - 1));
+    }
     const action = waveScheduleAction(
       activeLevelConfig,
       this.wave,

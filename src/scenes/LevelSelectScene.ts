@@ -32,7 +32,7 @@ import { getLevelConfig } from "../data/levels";
 import { toRomanNumeral } from "../format";
 import { isTutorialMechanic } from "../game/tutorial";
 import { t } from "../i18n";
-import { isChapterUnlocked, isLevelCompleted, isLevelUnlocked } from "../progress";
+import { bestWaveForLevel, isChapterUnlocked, isLevelCompleted, isLevelUnlocked } from "../progress";
 import { EncyclopediaPanel } from "../render/encyclopediaPanel";
 import type { BossKind, LevelNode } from "../types";
 
@@ -310,6 +310,14 @@ export class LevelSelectScene extends Phaser.Scene {
       .setAlpha(alpha);
 
     this.mapContainer.add([frame, label]);
+    const level = getLevelConfig(node.id);
+    if (level.survival) {
+      this.mapContainer.add(this.add.text(node.x, node.y + LEVEL_NODE_HEIGHT / 2 + 28,
+        unlocked ? t("label.bestWave", { count: bestWaveForLevel(node.id) })
+          : t("label.unlockAfter", { level: level.unlockAfter ?? "" }), {
+          color: uiTextColors.secondary, fontFamily: "monospace", fontSize: "17px"
+        }).setOrigin(0.5));
+    }
     if (completed) {
       const completedMark = this.add
         .text(node.x + LEVEL_NODE_WIDTH / 2 - 12, node.y - LEVEL_NODE_HEIGHT / 2 + 10, "✓", {

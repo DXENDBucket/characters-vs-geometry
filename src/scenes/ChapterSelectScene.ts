@@ -5,6 +5,7 @@ import { chaptersInGroup, getChapterGroup } from "../data/chapterGroups";
 import { t } from "../i18n";
 import {
   completedLevelCountForChapter,
+  isChapterGroupUnlocked,
   isChapterCompleted,
   isChapterUnlocked
 } from "../progress";
@@ -51,6 +52,10 @@ export class ChapterSelectScene extends Phaser.Scene {
   }
 
   create() {
+    if (!isChapterGroupUnlocked(this.groupId)) {
+      this.scene.start("ChapterGroupSelectScene", { groupId: this.groupId });
+      return;
+    }
     this.chapterCards = [];
     this.cameras.main.setBackgroundColor(palette.black);
     this.drawBackdrop();
@@ -226,7 +231,7 @@ export class ChapterSelectScene extends Phaser.Scene {
         .text(
           chapter.x,
           chapter.y + 20,
-          levelCount > 0
+          levelCount > 0 && !chapter.survival
             ? t("label.chapterProgress", { completed: completedCount, count: levelCount })
             : t("label.levelCount", { count: levelCount }),
           {

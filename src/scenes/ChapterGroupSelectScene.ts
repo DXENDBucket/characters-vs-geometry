@@ -3,7 +3,7 @@ import { GAME_HEIGHT, GAME_WIDTH, palette, uiTextColors } from "../config";
 import { chapterGroups, type ChapterGroupDefinition } from "../data/chapterGroups";
 import { levelNodesForChapter } from "../data/chapters";
 import { t } from "../i18n";
-import { completedLevelCountForChapter } from "../progress";
+import { completedLevelCountForChapter, isChapterGroupUnlocked } from "../progress";
 import { createTowerWord } from "../render/towerWord";
 
 export class ChapterGroupSelectScene extends Phaser.Scene {
@@ -105,6 +105,8 @@ export class ChapterGroupSelectScene extends Phaser.Scene {
 
   private drawGroup(group: ChapterGroupDefinition, index: number) {
     const card = this.add.container(index * this.step, 0).setScale(this.cardSize / 480);
+    const unlocked = isChapterGroupUnlocked(group.id);
+    card.setAlpha(unlocked ? 1 : 0.5);
     const frame = this.add.rectangle(0, 0, 480, 480, palette.black, 1).setStrokeStyle(2, palette.mid);
     card.add(frame);
     this.frames.push(frame);
@@ -114,16 +116,39 @@ export class ChapterGroupSelectScene extends Phaser.Scene {
     }
     for (const y of [-206, -110, -14, 82]) grid.lineBetween(-216, y, 216, y);
     card.add(grid);
+    if (group.backgroundSymbol === "infinity") {
+      const symbol = this.add.graphics().lineStyle(26, 0x242424, 0.85);
+      symbol.beginPath();
+      for (let i = 0; i <= 160; i++) {
+        const angle = i / 160 * Math.PI * 2;
+        const sin = Math.sin(angle);
+        const x = 186 * Math.cos(angle) / (1 + sin * sin);
+        const y = -62 + 310 * sin * Math.cos(angle) / (1 + sin * sin);
+        if (i === 0) symbol.moveTo(x, y);
+        else symbol.lineTo(x, y);
+      }
+      symbol.closePath();
+      symbol.strokePath();
+      card.add(symbol);
+    }
+    const spacing = group.titleSpacing ?? 128;
+    const rowScale = (row: number) => group.titleRowScales?.[row] ?? (row === 0 ? 0.8 : 0.5);
+    const titleFit = Math.min(1, ...group.titleRows.map((letters, row) =>
+      416 / (letters.length * spacing * rowScale(row))));
     group.titleRows.forEach((letters, row) => {
-      card.add(createTowerWord(this, letters).setPosition(0, -145 + row * 128).setScale(row === 0 ? 0.8 : 0.5));
+      const scale = rowScale(row) * titleFit;
+      card.add(createTowerWord(this, letters, spacing)
+        .setPosition(0, -145 + row * (group.titleRowSpacing ?? 128)).setScale(scale));
     });
     card.add(this.add.text(0, 132, t(group.labelKey), {
       fontFamily: "monospace", fontSize: "28px", fontStyle: "700", color: uiTextColors.primary
     }).setOrigin(0.5));
     const count = group.chapterIds.reduce((total, id) => total + levelNodesForChapter(id).length, 0);
     const completed = group.chapterIds.reduce((total, id) => total + completedLevelCountForChapter(id), 0);
-    card.add(this.add.text(0, 190, t("label.chapterProgress", { completed, count }), {
-      fontFamily: "monospace", fontSize: "17px", color: completed === count ? "#48ff88" : uiTextColors.secondary
+    const meta = unlocked ? t(group.survival ? "label.levelCount" : "label.chapterProgress", { completed, count })
+      : t("label.unlockAfter", { level: group.unlockAfter ?? "" });
+    card.add(this.add.text(0, 190, meta, {
+      fontFamily: "monospace", fontSize: "17px", color: !group.survival && completed === count ? "#48ff88" : uiTextColors.secondary
     }).setOrigin(0.5));
     this.strip.add(card);
   }
@@ -160,7 +185,8 @@ export class ChapterGroupSelectScene extends Phaser.Scene {
   }
 
   private highlight(index: number) {
-    this.frames.forEach((frame, i) => frame.setStrokeStyle(2, i === index ? palette.green : palette.mid));
+    this.frames.forEach((frame, i) => frame.setStrokeStyle(2,
+      i === index && isChapterGroupUnlocked(chapterGroups[i].id) ? palette.green : palette.mid));
   }
 
   private readonly onDown = (pointer: Phaser.Input.Pointer) => {
@@ -181,7 +207,7 @@ export class ChapterGroupSelectScene extends Phaser.Scene {
     }
     const index = this.cardAt(pointer.x, pointer.y);
     this.highlight(index);
-    this.input.setDefaultCursor(index >= 0 ? "pointer" : "default");
+    this.input.setDefaultCursor(index >= 0 && isChapterGroupUnlocked(chapterGroups[index].id) ? "pointer" : "default");
   };
 
   private readonly onUp = (pointer: Phaser.Input.Pointer) => {
@@ -215,6 +241,7 @@ export class ChapterGroupSelectScene extends Phaser.Scene {
   };
 
   private openGroup(index: number) {
+    if (!isChapterGroupUnlocked(chapterGroups[index].id)) return;
     this.scene.start("ChapterSelectScene", { groupId: chapterGroups[index].id });
   }
 

@@ -26,6 +26,10 @@ export class TowerStorageController {
     return this.stored.length;
   }
 
+  get earliestWaveNumber() {
+    return this.stored.reduce((wave, entry) => Math.min(wave, entry.enemy.waveNumber), Infinity);
+  }
+
   storeBlockedEnemies(tower: Tower, definition: CardDefinition) {
     if (!tower.inPlay) {
       return;

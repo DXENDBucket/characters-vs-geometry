@@ -48,6 +48,48 @@ test("new saves show initial cards and tutorial enemies, but no future bosses or
   assert.deepEqual(visibility.visibleEncyclopediaEntries(entries), [entries[0], entries[2]]);
 });
 
+test("IF-1 requires clearing 1-9 independently of main-story ordering or card unlocks", () => {
+  const { progress } = fixture();
+  assert.equal(progress.isChapterGroupUnlocked("main"), true);
+  assert.equal(progress.isChapterGroupUnlocked("infinite"), false);
+  assert.equal(progress.isChapterUnlocked("IF"), false);
+  assert.equal(progress.isChapterUnlocked("IFB"), false);
+  assert.equal(progress.isLevelUnlocked("IF-1"), false);
+  progress.unlockAllCards();
+  progress.completeLevel("1-8");
+  progress.completeLevel("5-10");
+  assert.equal(progress.isLevelUnlocked("IF-1"), false);
+  progress.completeLevel("1-9");
+  assert.equal(progress.isChapterGroupUnlocked("infinite"), true);
+  assert.equal(progress.isChapterUnlocked("IF"), true);
+  assert.equal(progress.isChapterUnlocked("IFB"), true);
+  assert.equal(progress.isLevelUnlocked("IF-1"), true);
+  assert.equal(progress.isLevelUnlocked("1-10"), true);
+  assert.equal(progress.isLevelUnlocked("not-a-level"), false);
+  progress.resetProgress();
+  assert.equal(progress.isChapterGroupUnlocked("infinite"), false);
+  assert.equal(progress.isLevelUnlocked("IF-1"), false);
+});
+
+test("survival records persist as best completed waves, never as cleared stages", () => {
+  const f = fixture();
+  f.progress.completeAllLevels();
+  assert.equal(f.progress.isLevelUnlocked("IF-1"), true);
+  assert.equal(f.progress.isLevelCompleted("IF-1"), false);
+  f.progress.completeLevel("IF-1");
+  assert.equal(f.progress.isLevelCompleted("IF-1"), false);
+  assert.equal(f.progress.isChapterCompleted("IF"), false);
+  assert.equal(f.progress.getProgressSummary().completedLevels, f.progress.getProgressSummary().totalLevels);
+  f.progress.recordCompletedWaves("IF-1", 12);
+  const writes = f.writes();
+  for (const count of [12, 3, -1, NaN, Infinity, 3.5]) f.progress.recordCompletedWaves("IF-1", count);
+  assert.equal(f.writes(), writes);
+  const reloaded = fixture(JSON.parse(f.storage.get(storageKey)));
+  assert.equal(reloaded.progress.bestWaveForLevel("IF-1"), 12);
+  reloaded.progress.resetProgress();
+  assert.equal(reloaded.progress.bestWaveForLevel("IF-1"), 0);
+});
+
 test("newly unlocked stages expose their enemies before entry, and cards unlock at their configured clear", () => {
   const { progress, visibility } = fixture();
   progress.completeLevel("1-3");

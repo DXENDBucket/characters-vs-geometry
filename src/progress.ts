@@ -1,5 +1,6 @@
 import { CARD_SLOT_COUNT, CUBE_BOSS_STATS } from "./config";
 import { chapterDefinitions, levelNodesForChapter } from "./data/chapters";
+import { chapterGroups, groupForChapter } from "./data/chapterGroups";
 import { cardUnlockRequirement, cardUnlockRequirements } from "./data/cardUnlocks";
 import { CARD_SLOT_UNLOCK_CHAPTER_IDS, INITIAL_CARD_SLOT_COUNT } from "./data/cardSlotUnlocks";
 import { getLevelConfig, levelNodes } from "./data/levels";
@@ -15,6 +16,7 @@ interface StoredProgress {
   allCardsUnlocked: boolean;
   seenEnemyKinds: EnemyKind[];
   seenBossKinds: BossKind[];
+  bestWaves: Record<string, number>;
 }
 
 export interface ProgressSummary {
@@ -28,7 +30,8 @@ export interface ProgressSummary {
   allCardsUnlocked: boolean;
 }
 
-const knownLevelIds = new Set(levelNodes.map((node) => node.id));
+const completableNodes = levelNodes.filter(node => !getLevelConfig(node.id).survival);
+const knownLevelIds = new Set(completableNodes.map((node) => node.id));
 const allCardIds = Object.keys(cardUnlockRequirements) as CardId[];
 let cachedProgress: StoredProgress | null = null;
 
@@ -38,8 +41,30 @@ export function isLevelCompleted(levelId: string) {
 
 export function isLevelUnlocked(levelId: string) {
   const state = progress();
-  const index = levelNodes.findIndex((node) => node.id === levelId);
-  return index === 0 || (index > 0 && state.completedLevelIds.includes(levelNodes[index - 1].id));
+  if (!levelNodes.some(node => node.id === levelId)) return false;
+  const chapter = chapterDefinitions.find(chapter => levelId.startsWith(chapter.levelPrefix));
+  if (chapter && !isChapterGroupUnlocked(groupForChapter(chapter.id).id)) return false;
+  const level = getLevelConfig(levelId);
+  if (level.unlockAfter) return state.completedLevelIds.includes(level.unlockAfter);
+  if (level.survival) return true;
+  const index = completableNodes.findIndex((node) => node.id === levelId);
+  return index === 0 || (index > 0 && state.completedLevelIds.includes(completableNodes[index - 1].id));
+}
+
+export function isChapterGroupUnlocked(groupId: string) {
+  const group = chapterGroups.find(group => group.id === groupId);
+  return !!group && (!group.unlockAfter || isLevelCompleted(group.unlockAfter));
+}
+
+export function bestWaveForLevel(levelId: string) {
+  return progress().bestWaves[levelId] ?? 0;
+}
+
+export function recordCompletedWaves(levelId: string, count: number) {
+  if (!levelNodes.some(node => node.id === levelId) || !getLevelConfig(levelId).survival ||
+      !Number.isSafeInteger(count) || count <= bestWaveForLevel(levelId)) return;
+  const state = progress();
+  writeProgress({ ...state, bestWaves: { ...state.bestWaves, [levelId]: count } });
 }
 
 export function isChapterUnlocked(chapterId: string) {
@@ -47,7 +72,8 @@ export function isChapterUnlocked(chapterId: string) {
   if (!chapter) {
     return false;
   }
-  if (chapter.id === "0") {
+  if (!isChapterGroupUnlocked(groupForChapter(chapter.id).id)) return false;
+  if (chapter.id === "0" || chapter.survival) {
     return true;
   }
 
@@ -106,7 +132,7 @@ export function completeLevel(levelId: string) {
 
 export function completeAllLevels() {
   const state = progress();
-  writeProgress({ ...state, completedLevelIds: levelNodes.map((node) => node.id) });
+  writeProgress({ ...state, completedLevelIds: completableNodes.map((node) => node.id) });
 }
 
 export function unlockAllCards() {
@@ -158,8 +184,8 @@ export function getProgressSummary(): ProgressSummary {
   const state = progress();
   return {
     completedLevels: state.completedLevelIds.length,
-    totalLevels: levelNodes.length,
-    unlockedLevels: levelNodes.filter((node) => isLevelUnlocked(node.id)).length,
+    totalLevels: completableNodes.length,
+    unlockedLevels: completableNodes.filter((node) => isLevelUnlocked(node.id)).length,
     unlockedCards: allCardIds.filter((id) => isCardUnlocked(id)).length,
     totalCards: allCardIds.length,
     unlockedCardSlots: unlockedCardSlotCount(),
@@ -174,7 +200,7 @@ function progress() {
 }
 
 function emptyProgress(): StoredProgress {
-  return { version: SAVE_VERSION, completedLevelIds: [], allCardsUnlocked: false, seenEnemyKinds: [], seenBossKinds: [] };
+  return { version: SAVE_VERSION, completedLevelIds: [], allCardsUnlocked: false, seenEnemyKinds: [], seenBossKinds: [], bestWaves: {} };
 }
 
 function readProgress(): StoredProgress {
@@ -206,7 +232,11 @@ function readProgress(): StoredProgress {
       completedLevelIds: levelNodes.map((node) => node.id).filter((id) => completed.has(id)),
       allCardsUnlocked: parsed.allCardsUnlocked === true,
       seenEnemyKinds: Array.isArray(parsed.seenEnemyKinds) ? [...new Set(parsed.seenEnemyKinds.filter(isEnemyKind))] : [],
-      seenBossKinds: validStoredKinds(parsed.seenBossKinds, CUBE_BOSS_STATS)
+      seenBossKinds: validStoredKinds(parsed.seenBossKinds, CUBE_BOSS_STATS),
+      bestWaves: Object.fromEntries(levelNodes.filter(node => getLevelConfig(node.id).survival).map(node => {
+        const value = parsed.bestWaves?.[node.id];
+        return [node.id, typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : 0];
+      }))
     };
   } catch {
     return emptyProgress();

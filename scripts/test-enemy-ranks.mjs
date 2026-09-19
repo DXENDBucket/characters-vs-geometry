@@ -14,6 +14,37 @@ const { enemyKindAtRank, isEnemyKind } = registry;
 const { enemyArchetypes } = load("src/data/enemyArchetypes.ts");
 const legacy = JSON.parse(fs.readFileSync(new URL("./fixtures/enemy-legacy.json", import.meta.url), "utf8"));
 
+test("IF-1 uses +2 increment growth while 1-9 retains its original linear weights", () => {
+  const { getLevelConfig } = load("src/data/levels.ts");
+  const { waveWeightLimit, waveScheduleAction } = load("src/game/waves.ts");
+  const endless = getLevelConfig("IF-1");
+  assert.equal(endless.unlockAfter, "1-9");
+  assert.deepEqual(endless.enemyKinds, getLevelConfig("1-9").enemyKinds);
+  assert.equal(endless.totalWaves, undefined);
+  assert.equal(endless.waveWeightCap, undefined);
+  const difficulty = { weightMultiplier: 1 };
+  assert.deepEqual([1, 2, 3, 4, 5, 10, 11, 20].map(wave => waveWeightLimit(endless, difficulty, wave)),
+    [19, 29, 41, 55, 71, 362, 209, 1102]);
+  assert.equal(waveWeightLimit(endless, { weightMultiplier: 1.4 }, 10), 506);
+  assert.deepEqual([1, 2, 3, 10].map(wave => waveWeightLimit(getLevelConfig("1-9"), difficulty, wave)),
+    [19, 29, 39, 218]);
+  assert.equal(waveScheduleAction(endless, 10000, null, 0, 30000), "spawn");
+});
+
+test("infinite wave sampling supports every affordable rank without enumerating the catalog", () => {
+  const { buildInfiniteWaveKinds } = load("src/game/infiniteWaves.ts");
+  const families = ["circle", "triangle", "square"];
+  for (const weight of [0, 9, 19, 100, 550, 1000, 10000000]) {
+    const kinds = buildInfiniteWaveKinds(families, weight, 1, 10, length => length - 1);
+    const spent = kinds.reduce((sum, kind) => sum + registry.getEnemyDefinition(kind).weight, 0);
+    assert.ok(spent <= weight);
+    assert.ok(weight - spent < 10);
+  }
+  assert.deepEqual(buildInfiniteWaveKinds(["circle"], 40000010, 1, 10, length => length - 1), ["circle1000001"]);
+  assert.deepEqual(buildInfiniteWaveKinds(["circle"], 130, 1, 10, length => length - 1), ["circle4"]);
+  assert.throws(() => buildInfiniteWaveKinds(families, Infinity, 1, 10, () => 0), RangeError);
+});
+
 test("all 66 existing enemy panels and registrations exactly match the pre-refactor snapshot", () => {
   assert.deepEqual(Object.keys(registry.allEnemyDefinitions), Object.keys(legacy));
   for (const [kind, expected] of Object.entries(legacy)) {

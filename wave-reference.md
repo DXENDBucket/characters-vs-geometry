@@ -552,6 +552,17 @@ Base rule:
 | 19 | - | 181 | 181 |
 | 20 | 2 | 190 | 380 |
 
+## Infinite Front: IF-1
+
+- The entire Infinite Front chapter group unlocks after clearing `1-9`, including Regular Endless and Boss Endless.
+- Regular endless mode; Circle, Triangle and Square can appear at any positive rank.
+- Starting characters and baseline rules follow `1-9`.
+- First-wave weight: `19`; first increment: `+10`; increment growth: `+2`.
+- Base weight at wave `n`: `19 + 10 * (n - 1) + (n - 1) * (n - 2)`.
+- Base weights begin `19, 29, 41, 55, 71`; each 10th wave doubles its weight before difficulty scaling.
+- No wave count, rank or weight cap. Only ranks affordable within the current wave budget can spawn.
+- Records use completed waves, not stage-clear status.
+
 ## Level 1-9 Weight Growth
 
 Enemy pool:

@@ -4,10 +4,10 @@ import { getCardDefinition } from "../registry/cards";
 import type { CardId } from "../types";
 import { createUnitBorder } from "./unitShapes";
 
-export function createTowerWord(scene: Phaser.Scene, letters: readonly CardId[]) {
+export function createTowerWord(scene: Phaser.Scene, letters: readonly CardId[], spacing = 128) {
   const word = scene.add.container(0, 0);
   letters.forEach((id, index) => {
-    const tower = scene.add.container((index - (letters.length - 1) / 2) * 128, 0);
+    const tower = scene.add.container((index - (letters.length - 1) / 2) * spacing, 0);
     const category = getCardDefinition(id).category;
     const border = createUnitBorder(scene, category, 51, category === "defense" ? 3 : 2);
     const label = scene.add.text(0, category === "function" ? 3 : -3, id, {

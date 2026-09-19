@@ -90,6 +90,7 @@ import { towerAttackAmount, towerFinalStats } from "./unitStats";
 import { volleyInterval } from "./upgrades";
 import { repeatHits, volleyHitsAt, volleyTimingCount } from "./volley";
 import { buildWaveKinds, waveWeightLimit } from "./waves";
+import { buildInfiniteWaveKinds } from "./infiniteWaves";
 
 interface SpawnEnemyOptions {
   kind: EnemyKind;
@@ -121,7 +122,10 @@ export function spawnEnemyAt(runtime: EnemySpawnRuntime, options: SpawnEnemyOpti
 
 export function spawnWaveEnemies(runtime: EnemySpawnRuntime, options: SpawnWaveOptions): WaveTracker {
   const weightLimit = waveWeightLimit(options.levelConfig, options.difficultyConfig, options.waveNumber);
-  const kinds = buildWaveKinds(
+  const kinds = options.levelConfig.unlimitedRankFamilies
+    ? buildInfiniteWaveKinds(options.levelConfig.unlimitedRankFamilies, weightLimit, options.waveNumber,
+      options.levelConfig.wavesPerFlag, length => Phaser.Math.Between(0, length - 1))
+    : buildWaveKinds(
     options.levelConfig.enemyKinds,
     getEnemyDefinition,
     weightLimit,

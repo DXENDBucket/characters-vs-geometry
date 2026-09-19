@@ -453,6 +453,9 @@ export interface LevelNode {
 
 export interface LevelConfig {
   id: string;
+  unlockAfter?: string;
+  survival?: boolean;
+  unlimitedRankFamilies?: EnemyFamily[];
   enemyKinds: EnemyKind[];
   firstWaveWeight: number;
   waveWeightIncrement: number;
