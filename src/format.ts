@@ -1,4 +1,7 @@
 export function toRomanNumeral(value: number) {
+  if (!Number.isFinite(value)) return "/";
+  // Conventional Roman numerals stop at 3999; avoid unbounded strings for endless ranks.
+  if (value >= 4_000) return String(Math.floor(value));
   const numerals: Array<[number, string]> = [
     [1000, "M"],
     [900, "CM"],

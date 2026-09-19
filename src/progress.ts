@@ -3,7 +3,7 @@ import { chapterDefinitions, levelNodesForChapter } from "./data/chapters";
 import { cardUnlockRequirement, cardUnlockRequirements } from "./data/cardUnlocks";
 import { CARD_SLOT_UNLOCK_CHAPTER_IDS, INITIAL_CARD_SLOT_COUNT } from "./data/cardSlotUnlocks";
 import { getLevelConfig, levelNodes } from "./data/levels";
-import { allEnemyDefinitions } from "./registry/enemies";
+import { isEnemyKind } from "./game/enemyIdentity";
 import type { BossKind, CardId, EnemyKind } from "./types";
 
 const STORAGE_KEY = "characters-vs-geometry-progress-v1";
@@ -205,7 +205,7 @@ function readProgress(): StoredProgress {
       version: SAVE_VERSION,
       completedLevelIds: levelNodes.map((node) => node.id).filter((id) => completed.has(id)),
       allCardsUnlocked: parsed.allCardsUnlocked === true,
-      seenEnemyKinds: validStoredKinds(parsed.seenEnemyKinds, allEnemyDefinitions),
+      seenEnemyKinds: Array.isArray(parsed.seenEnemyKinds) ? [...new Set(parsed.seenEnemyKinds.filter(isEnemyKind))] : [],
       seenBossKinds: validStoredKinds(parsed.seenBossKinds, CUBE_BOSS_STATS)
     };
   } catch {

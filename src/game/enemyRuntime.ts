@@ -5,7 +5,7 @@ import { redirectOrientedTarget } from "./orientation";
 import { BOARD_HEIGHT, BOARD_WIDTH, BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, LANES } from "../config";
 import { getCardDefinition } from "../registry/cards";
 import {
-  allEnemyDefinitions,
+  enemyKindAtRank,
   enemyBlockedDetonation,
   enemyFamily,
   enemyIsBossCompanion,
@@ -123,7 +123,7 @@ export function spawnWaveEnemies(runtime: EnemySpawnRuntime, options: SpawnWaveO
   const weightLimit = waveWeightLimit(options.levelConfig, options.difficultyConfig, options.waveNumber);
   const kinds = buildWaveKinds(
     options.levelConfig.enemyKinds,
-    allEnemyDefinitions,
+    getEnemyDefinition,
     weightLimit,
     options.waveNumber,
     options.levelConfig.wavesPerFlag,
@@ -217,7 +217,7 @@ export function spawnSplitEnemies(
 }
 
 function spawnSiegeRamTriangles(runtime: EnemySpawnRuntime, enemy: Enemy, time: number) {
-  const spawnKind = triangleKindForRank(enemyRank(enemy.kind));
+  const spawnKind = enemyKindAtRank("triangle", enemyRank(enemy.kind));
   const direction = enemyFacingDirection(enemy);
   const offsets = [-18, 18];
   for (const offset of offsets) {
@@ -238,8 +238,8 @@ function spawnAngelPentagonRamSplit(runtime: EnemySpawnRuntime, enemy: Enemy, ti
   const rank = enemyRank(enemy.kind);
   const direction = enemyFacingDirection(enemy);
   const spawns: Array<{ kind: EnemyKind; offset: number }> = [
-    { kind: angelPentagonKindForRank(rank), offset: direction * 18 },
-    { kind: pentagonKindForRank(rank), offset: -direction * 18 }
+    { kind: enemyKindAtRank("angelPentagon", rank), offset: direction * 18 },
+    { kind: enemyKindAtRank("pentagon", rank), offset: -direction * 18 }
   ];
   for (const spawn of spawns) {
     spawnEnemyAt(runtime, {
@@ -259,8 +259,8 @@ function spawnHexMaceSplit(runtime: EnemySpawnRuntime, enemy: Enemy, time: numbe
   const rank = enemyRank(enemy.kind);
   const direction = enemyFacingDirection(enemy);
   const spawns: Array<{ kind: EnemyKind; offset: number }> = [
-    { kind: chargingHexagonKindForRank(rank), offset: direction * 18 },
-    { kind: hexagonKindForRank(rank), offset: -direction * 18 }
+    { kind: enemyKindAtRank("chargingHexagon", rank), offset: direction * 18 },
+    { kind: enemyKindAtRank("hexagon", rank), offset: -direction * 18 }
   ];
   for (const spawn of spawns) {
     spawnEnemyAt(runtime, {
@@ -274,50 +274,6 @@ function spawnHexMaceSplit(runtime: EnemySpawnRuntime, enemy: Enemy, time: numbe
       movementDirection: direction
     });
   }
-}
-
-function angelPentagonKindForRank(rank: number): EnemyKind {
-  if (rank >= 3) {
-    return "angelPentagon3";
-  }
-
-  return rank >= 2 ? "angelPentagon2" : "angelPentagon";
-}
-
-function pentagonKindForRank(rank: number): EnemyKind {
-  if (rank >= 3) {
-    return "pentagon3";
-  }
-
-  return rank >= 2 ? "pentagon2" : "pentagon";
-}
-
-function chargingHexagonKindForRank(rank: number): EnemyKind {
-  if (rank >= 3) {
-    return "chargingHexagon3";
-  }
-
-  return rank >= 2 ? "chargingHexagon2" : "chargingHexagon";
-}
-
-function hexagonKindForRank(rank: number): EnemyKind {
-  if (rank >= 3) {
-    return "hexagon3";
-  }
-
-  return rank >= 2 ? "hexagon2" : "hexagon";
-}
-
-function triangleKindForRank(rank: number): EnemyKind {
-  if (rank === 2) {
-    return "triangle2";
-  }
-
-  if (rank >= 3) {
-    return "triangle3";
-  }
-
-  return "triangle";
 }
 
 export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, seconds: number) {

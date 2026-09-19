@@ -1,12 +1,11 @@
 import fs from "node:fs";
+import { createTypeScriptLoader } from "./helpers/load-typescript.mjs";
 
 const files = {
   types: read("src/types.ts"),
   cards: read("src/data/cards.ts"),
   cardBehaviors: read("src/game/cardBehaviors.ts"),
   cardUnlocks: read("src/data/cardUnlocks.ts"),
-  enemies: read("src/data/enemies.ts"),
-  enemyRegistry: read("src/registry/enemies.ts"),
   levels: read("src/data/levels.ts"),
   waveReference: read("wave-reference.md")
 };
@@ -14,11 +13,14 @@ const files = {
 const errors = [];
 
 const cardIds = parseUnionLiterals(files.types, "CardId");
-const enemyKinds = parseUnionLiterals(files.types, "EnemyKind");
+const enemyFamilies = parseUnionLiterals(files.types, "EnemyFamily");
+const load = createTypeScriptLoader();
+const enemyRegistry = load("src/registry/enemies.ts");
+const { enemyArchetypes } = load("src/data/enemyArchetypes.ts");
 const bossKinds = parseUnionLiterals(files.types, "BossKind");
 const cardDefinitions = parseCardDefinitions(files.cards);
-const enemyDefinitions = parseObjectKeys(files.enemies, "enemyDefinitions");
-const enemyRegistrations = parseObjectKeys(files.enemyRegistry, "enemyRegistrations");
+const enemyDefinitions = Object.keys(enemyRegistry.allEnemyDefinitions);
+const enemyRegistrations = Object.keys(enemyRegistry.allEnemyRegistrations);
 const cardBehaviorIds = parseObjectKeys(files.cardBehaviors, "cardBehaviorsById");
 const cardUnlockRequirements = parseCardUnlockRequirements(files.cardUnlocks);
 const initialCardIds = parseStringArray(files.cardUnlocks, "INITIAL_CARD_IDS");
@@ -37,13 +39,18 @@ expectSameSet(
   "cards with no unlock requirement",
   cardUnlockRequirements.filter((entry) => entry.levelId === null).map((entry) => entry.id)
 );
-expectSameSet("EnemyKind union", enemyKinds, "enemyDefinitions", enemyDefinitions);
-expectSameSet("EnemyKind union", enemyKinds, "enemyRegistrations", enemyRegistrations);
+expectSameSet("EnemyFamily union", enemyFamilies, "enemyArchetypes", Object.keys(enemyArchetypes));
+expectSameSet("enemyDefinitions", enemyDefinitions, "enemyRegistrations", enemyRegistrations);
 expectSameSet("levelNodes", levelNodeIds, "levelConfigs", levelConfigIds);
 
 for (const kind of levelEnemyKinds) {
-  if (!enemyKinds.includes(kind)) {
+  if (!enemyRegistry.isEnemyKind(kind)) {
     errors.push(`Level config references unknown enemy kind "${kind}".`);
+  } else {
+    const definition = enemyRegistry.getEnemyDefinition(kind);
+    for (const field of ["hp", "armor", "magicResistance", "damage", "weight"]) {
+      if (!Number.isFinite(definition[field]) || definition[field] < 0) errors.push(`Invalid ${kind}.${field}.`);
+    }
   }
 }
 

@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { recordEnemySeen } from "../progress";
 import { enemyFacingDirection } from "./rules/reversal";
-import { ATTACK_INTERVAL, CELL_WIDTH, ENEMY_SPEED, ENEMY_SPEED_VARIANCE, LANES, palette } from "../config";
+import { ANGEL_WINGS_SKILL_MAX, ATTACK_INTERVAL, CELL_WIDTH, ENEMY_SPEED, ENEMY_SPEED_VARIANCE, LANES, palette } from "../config";
 import {
   enemyFamily,
   enemyIsBlockedDetonator,
@@ -84,7 +84,7 @@ export function initialEnemySkillStates(kind: EnemyKind): Record<string, SkillSt
       const extraRanks = rank - 1;
       return {
         wings: {
-          sp: extraRanks * ANGEL_PENTAGON_INITIAL_WINGS_SP_PER_EXTRA_RANK,
+          sp: Math.min(ANGEL_WINGS_SKILL_MAX, extraRanks * ANGEL_PENTAGON_INITIAL_WINGS_SP_PER_EXTRA_RANK),
           spBuffer: 0,
           activeUntil: 0,
           regenMultiplier: 1 + extraRanks * ANGEL_PENTAGON_SKILL_REGEN_MULTIPLIER_PER_EXTRA_RANK

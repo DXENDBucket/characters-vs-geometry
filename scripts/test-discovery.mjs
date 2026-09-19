@@ -82,6 +82,20 @@ test("old saves migrate without losing progress and malformed discovery values a
   assert.equal(progress.discoveredEnemies().bosses.size, 0);
 });
 
+test("unregistered enemy ranks survive save reload and reveal their family entry", () => {
+  const f = fixture();
+  f.progress.recordEnemySeen("triangle100");
+  f.progress.recordEnemySeen("heart10000");
+  const saved = JSON.parse(f.storage.get(storageKey));
+  saved.seenEnemyKinds.push("triangle-1", "triangle1.5", "triangle01", "cube100");
+  const reloaded = fixture(saved);
+  assert.ok(reloaded.progress.discoveredEnemies().enemies.has("triangle100"));
+  assert.ok(reloaded.progress.discoveredEnemies().enemies.has("heart10000"));
+  assert.ok(!reloaded.progress.discoveredEnemies().enemies.has("cube100"));
+  assert.deepEqual(reloaded.visibility.visibleEncyclopediaEntries([{ enemyKind: "triangle" }, { enemyKind: "heart" }, { enemyKind: "hexagon" }]),
+    [{ enemyKind: "triangle" }, { enemyKind: "heart" }]);
+});
+
 test("card unlock cheat does not reveal enemies; clearing all stages includes every phase pool", () => {
   const { progress, levels } = fixture();
   progress.unlockAllCards();

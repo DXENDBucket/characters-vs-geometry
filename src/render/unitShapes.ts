@@ -861,8 +861,12 @@ function projectIconPoint(x: number, y: number, z: number, rotationX: number, ro
 
 function createEnemyLabel(scene: Phaser.Scene, x: number, y: number, kind: EnemyKind, size = 18, color = "#f5f5f5") {
   const label = romanLabel(getEnemyDefinition(kind).label);
+  const family = enemyFamily(kind);
+  const maxWidth = family === "triangleRam" ? 14
+    : ["triangle", "invertedTriangle", "shootingTriangle", "mortarTriangle"].includes(family) ? 22
+    : family === "slopeTriangle" ? 26 : 30;
 
-  return scene.add
+  const text = scene.add
     .text(x, y, label, {
       color,
       fontFamily: "Georgia, 'Times New Roman', serif",
@@ -871,6 +875,9 @@ function createEnemyLabel(scene: Phaser.Scene, x: number, y: number, kind: Enemy
     })
     .setOrigin(0.5)
     .setScale(0.64, 1);
+  const fit = Math.min(1, maxWidth / Math.max(1, text.displayWidth));
+  text.setScale(0.64 * fit, fit);
+  return text;
 }
 
 function drawPentagonPath(

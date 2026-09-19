@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { BOARD_X, CELL_HEIGHT, CELL_WIDTH, LANES } from "../config";
+import { ANGEL_WINGS_SKILL_MAX, BOARD_X, CELL_HEIGHT, CELL_WIDTH, LANES } from "../config";
 import { makeHealParticles, makeShiftEffect } from "../render/combatEffects";
 import type { CubeBoss, Enemy, SkillState } from "../types";
 import { enemyFamily, enemyIsBossCompanion, enemyRank } from "../registry/enemies";
@@ -28,7 +28,6 @@ const HEART_LEAD_SKILL_COST = 5;
 const HEART_LEAD_REGEN_PER_SECOND = 1;
 const HEART_LEAD_COLUMN_SPAN = 5;
 const HEART_LEAD_LANE_RADIUS = 2;
-const ANGEL_WINGS_SKILL_MAX = 15;
 const ANGEL_WINGS_SKILL_COST = 15;
 const ANGEL_WINGS_REGEN_PER_SECOND = 1;
 const ANGEL_WINGS_DURATION = 3_000;

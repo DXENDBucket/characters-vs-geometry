@@ -18,6 +18,7 @@ export const BASE_INTEGRITY = 6;
 export const ENEMY_SPEED = 10;
 export const ENEMY_SPEED_VARIANCE = 0.1;
 export const ATTACK_INTERVAL = 1_000;
+export const ANGEL_WINGS_SKILL_MAX = 15;
 export const NEXT_WAVE_DELAY = 30_000;
 export const NATURAL_PRODUCE_INTERVAL = 5_000;
 export const NATURAL_PRODUCE_AMOUNT = 25;

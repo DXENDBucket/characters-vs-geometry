@@ -1,42 +1,11 @@
-import { enemyDefinitions as rawEnemyDefinitions } from "../data/enemies";
+import { enemyDefinitionAtRank, enemyDefinitions } from "../data/enemies";
+import { enemyArchetypes, type EnemyAttackMode } from "../data/enemyArchetypes";
+import { enemyKindAtRank, parseEnemyKind } from "../game/enemyIdentity";
 import { t } from "../i18n";
-import type { DamageType, EnemyDefinition, EnemyKind } from "../types";
+import type { DamageType, EnemyDefinition, EnemyFamily, EnemyKind } from "../types";
 
-export type EnemyFamily =
-  | "circle"
-  | "triangle"
-  | "triangleRam"
-  | "angelPentagonRam"
-  | "mortarTriangle"
-  | "pentagon"
-  | "angelPentagon"
-  | "archangelHeptagon"
-  | "shootingPentagon"
-  | "diamond"
-  | "hexagon"
-  | "chargingHexagon"
-  | "hexMace"
-  | "hexSpellBulwark"
-  | "heart"
-  | "burrowArrow"
-  | "slopeTriangle"
-  | "invertedTriangle"
-  | "shootingTriangle"
-  | "dodecahedronCompanion"
-  | "trapezoid"
-  | "solarBomb"
-  | "square";
-export type EnemyAttackMode =
-  | "melee"
-  | "ranged"
-  | "mortar"
-  | "laser"
-  | "blockedDetonator"
-  | "siegeRam"
-  | "mace"
-  | "special"
-  | "leader"
-  | "companion";
+export type { EnemyFamily, EnemyAttackMode };
+export { enemyKindAtRank, isEnemyKind } from "../game/enemyIdentity";
 
 export interface BlockedDetonation {
   delay: number;
@@ -56,594 +25,70 @@ export interface EnemyRegistration {
   leader?: boolean;
 }
 
-const enemyRegistrations: Record<EnemyKind, EnemyRegistration> = {
-  circle: {
-    definition: rawEnemyDefinitions.circle,
-    family: "circle",
-    rank: 1,
-    nameKey: "enemy.circle",
-    attackMode: "melee",
-    promotionKind: "circle2"
-  },
-  circle2: {
-    definition: rawEnemyDefinitions.circle2,
-    family: "circle",
-    rank: 2,
-    nameKey: "enemy.circle2",
-    attackMode: "melee",
-    promotionKind: "circle3",
-    splitSpawnKind: "circle"
-  },
-  circle3: {
-    definition: rawEnemyDefinitions.circle3,
-    family: "circle",
-    rank: 3,
-    nameKey: "enemy.circle3",
-    attackMode: "melee",
-    splitSpawnKind: "circle2"
-  },
-  triangle: {
-    definition: rawEnemyDefinitions.triangle,
-    family: "triangle",
-    rank: 1,
-    nameKey: "enemy.triangle",
-    attackMode: "melee",
-    promotionKind: "triangle2"
-  },
-  triangle2: {
-    definition: rawEnemyDefinitions.triangle2,
-    family: "triangle",
-    rank: 2,
-    nameKey: "enemy.triangle2",
-    attackMode: "melee",
-    promotionKind: "triangle3"
-  },
-  triangle3: {
-    definition: rawEnemyDefinitions.triangle3,
-    family: "triangle",
-    rank: 3,
-    nameKey: "enemy.triangle3",
-    attackMode: "melee"
-  },
-  triangleRam: {
-    definition: rawEnemyDefinitions.triangleRam,
-    family: "triangleRam",
-    rank: 1,
-    nameKey: "enemy.triangleRam",
-    attackMode: "siegeRam",
-    promotionKind: "triangleRam2"
-  },
-  triangleRam2: {
-    definition: rawEnemyDefinitions.triangleRam2,
-    family: "triangleRam",
-    rank: 2,
-    nameKey: "enemy.triangleRam2",
-    attackMode: "siegeRam",
-    promotionKind: "triangleRam3"
-  },
-  triangleRam3: {
-    definition: rawEnemyDefinitions.triangleRam3,
-    family: "triangleRam",
-    rank: 3,
-    nameKey: "enemy.triangleRam3",
-    attackMode: "siegeRam"
-  },
-  angelPentagonRam: {
-    definition: rawEnemyDefinitions.angelPentagonRam,
-    family: "angelPentagonRam",
-    rank: 1,
-    nameKey: "enemy.angelPentagonRam",
-    attackMode: "siegeRam",
-    promotionKind: "angelPentagonRam2"
-  },
-  angelPentagonRam2: {
-    definition: rawEnemyDefinitions.angelPentagonRam2,
-    family: "angelPentagonRam",
-    rank: 2,
-    nameKey: "enemy.angelPentagonRam2",
-    attackMode: "siegeRam",
-    promotionKind: "angelPentagonRam3"
-  },
-  angelPentagonRam3: {
-    definition: rawEnemyDefinitions.angelPentagonRam3,
-    family: "angelPentagonRam",
-    rank: 3,
-    nameKey: "enemy.angelPentagonRam3",
-    attackMode: "siegeRam"
-  },
-  mortarTriangle: {
-    definition: rawEnemyDefinitions.mortarTriangle,
-    family: "mortarTriangle",
-    rank: 1,
-    nameKey: "enemy.mortarTriangle",
-    attackMode: "mortar",
-    promotionKind: "mortarTriangle2"
-  },
-  mortarTriangle2: {
-    definition: rawEnemyDefinitions.mortarTriangle2,
-    family: "mortarTriangle",
-    rank: 2,
-    nameKey: "enemy.mortarTriangle2",
-    attackMode: "mortar",
-    promotionKind: "mortarTriangle3"
-  },
-  mortarTriangle3: {
-    definition: rawEnemyDefinitions.mortarTriangle3,
-    family: "mortarTriangle",
-    rank: 3,
-    nameKey: "enemy.mortarTriangle3",
-    attackMode: "mortar"
-  },
-  pentagon: {
-    definition: rawEnemyDefinitions.pentagon,
-    family: "pentagon",
-    rank: 1,
-    nameKey: "enemy.pentagon",
-    attackMode: "mortar",
-    promotionKind: "pentagon2"
-  },
-  pentagon2: {
-    definition: rawEnemyDefinitions.pentagon2,
-    family: "pentagon",
-    rank: 2,
-    nameKey: "enemy.pentagon2",
-    attackMode: "mortar",
-    promotionKind: "pentagon3"
-  },
-  pentagon3: {
-    definition: rawEnemyDefinitions.pentagon3,
-    family: "pentagon",
-    rank: 3,
-    nameKey: "enemy.pentagon3",
-    attackMode: "mortar"
-  },
-  angelPentagon: {
-    definition: rawEnemyDefinitions.angelPentagon,
-    family: "angelPentagon",
-    rank: 1,
-    nameKey: "enemy.angelPentagon",
-    attackMode: "melee",
-    promotionKind: "angelPentagon2"
-  },
-  angelPentagon2: {
-    definition: rawEnemyDefinitions.angelPentagon2,
-    family: "angelPentagon",
-    rank: 2,
-    nameKey: "enemy.angelPentagon2",
-    attackMode: "melee",
-    promotionKind: "angelPentagon3"
-  },
-  angelPentagon3: {
-    definition: rawEnemyDefinitions.angelPentagon3,
-    family: "angelPentagon",
-    rank: 3,
-    nameKey: "enemy.angelPentagon3",
-    attackMode: "melee"
-  },
-  archangelHeptagon: {
-    definition: rawEnemyDefinitions.archangelHeptagon,
-    family: "archangelHeptagon",
-    rank: 1,
-    nameKey: "enemy.archangelHeptagon",
-    attackMode: "melee",
-    leader: true
-  },
-  archangelHeptagon2: {
-    definition: rawEnemyDefinitions.archangelHeptagon2,
-    family: "archangelHeptagon",
-    rank: 2,
-    nameKey: "enemy.archangelHeptagon2",
-    attackMode: "melee",
-    leader: true
-  },
-  archangelHeptagon3: {
-    definition: rawEnemyDefinitions.archangelHeptagon3,
-    family: "archangelHeptagon",
-    rank: 3,
-    nameKey: "enemy.archangelHeptagon3",
-    attackMode: "melee",
-    leader: true
-  },
-  shootingPentagon: {
-    definition: rawEnemyDefinitions.shootingPentagon,
-    family: "shootingPentagon",
-    rank: 1,
-    nameKey: "enemy.shootingPentagon",
-    attackMode: "laser",
-    promotionKind: "shootingPentagon2"
-  },
-  shootingPentagon2: {
-    definition: rawEnemyDefinitions.shootingPentagon2,
-    family: "shootingPentagon",
-    rank: 2,
-    nameKey: "enemy.shootingPentagon2",
-    attackMode: "laser",
-    promotionKind: "shootingPentagon3"
-  },
-  shootingPentagon3: {
-    definition: rawEnemyDefinitions.shootingPentagon3,
-    family: "shootingPentagon",
-    rank: 3,
-    nameKey: "enemy.shootingPentagon3",
-    attackMode: "laser"
-  },
-  diamond: {
-    definition: rawEnemyDefinitions.diamond,
-    family: "diamond",
-    rank: 1,
-    nameKey: "enemy.diamond",
-    attackMode: "ranged",
-    promotionKind: "diamond2"
-  },
-  diamond2: {
-    definition: rawEnemyDefinitions.diamond2,
-    family: "diamond",
-    rank: 2,
-    nameKey: "enemy.diamond2",
-    attackMode: "ranged",
-    promotionKind: "diamond3"
-  },
-  diamond3: {
-    definition: rawEnemyDefinitions.diamond3,
-    family: "diamond",
-    rank: 3,
-    nameKey: "enemy.diamond3",
-    attackMode: "ranged"
-  },
-  hexagon: {
-    definition: rawEnemyDefinitions.hexagon,
-    family: "hexagon",
-    rank: 1,
-    nameKey: "enemy.hexagon",
-    attackMode: "melee",
-    promotionKind: "hexagon2"
-  },
-  hexagon2: {
-    definition: rawEnemyDefinitions.hexagon2,
-    family: "hexagon",
-    rank: 2,
-    nameKey: "enemy.hexagon2",
-    attackMode: "melee",
-    promotionKind: "hexagon3"
-  },
-  hexagon3: {
-    definition: rawEnemyDefinitions.hexagon3,
-    family: "hexagon",
-    rank: 3,
-    nameKey: "enemy.hexagon3",
-    attackMode: "melee"
-  },
-  chargingHexagon: {
-    definition: rawEnemyDefinitions.chargingHexagon,
-    family: "chargingHexagon",
-    rank: 1,
-    nameKey: "enemy.chargingHexagon",
-    attackMode: "melee",
-    promotionKind: "chargingHexagon2"
-  },
-  chargingHexagon2: {
-    definition: rawEnemyDefinitions.chargingHexagon2,
-    family: "chargingHexagon",
-    rank: 2,
-    nameKey: "enemy.chargingHexagon2",
-    attackMode: "melee",
-    promotionKind: "chargingHexagon3"
-  },
-  chargingHexagon3: {
-    definition: rawEnemyDefinitions.chargingHexagon3,
-    family: "chargingHexagon",
-    rank: 3,
-    nameKey: "enemy.chargingHexagon3",
-    attackMode: "melee"
-  },
-  hexMace: {
-    definition: rawEnemyDefinitions.hexMace,
-    family: "hexMace",
-    rank: 1,
-    nameKey: "enemy.hexMace",
-    attackMode: "mace",
-    promotionKind: "hexMace2"
-  },
-  hexMace2: {
-    definition: rawEnemyDefinitions.hexMace2,
-    family: "hexMace",
-    rank: 2,
-    nameKey: "enemy.hexMace2",
-    attackMode: "mace",
-    promotionKind: "hexMace3"
-  },
-  hexMace3: {
-    definition: rawEnemyDefinitions.hexMace3,
-    family: "hexMace",
-    rank: 3,
-    nameKey: "enemy.hexMace3",
-    attackMode: "mace"
-  },
-  hexSpellBulwark: {
-    definition: rawEnemyDefinitions.hexSpellBulwark,
-    family: "hexSpellBulwark",
-    rank: 1,
-    nameKey: "enemy.hexSpellBulwark",
-    attackMode: "melee",
-    leader: true
-  },
-  hexSpellBulwark2: {
-    definition: rawEnemyDefinitions.hexSpellBulwark2,
-    family: "hexSpellBulwark",
-    rank: 2,
-    nameKey: "enemy.hexSpellBulwark2",
-    attackMode: "melee",
-    leader: true
-  },
-  hexSpellBulwark3: {
-    definition: rawEnemyDefinitions.hexSpellBulwark3,
-    family: "hexSpellBulwark",
-    rank: 3,
-    nameKey: "enemy.hexSpellBulwark3",
-    attackMode: "melee",
-    leader: true
-  },
-  heart: {
-    definition: rawEnemyDefinitions.heart,
-    family: "heart",
-    rank: 1,
-    nameKey: "enemy.heart",
-    attackMode: "leader",
-    leader: true
-  },
-  heart2: {
-    definition: rawEnemyDefinitions.heart2,
-    family: "heart",
-    rank: 2,
-    nameKey: "enemy.heart2",
-    attackMode: "leader",
-    leader: true
-  },
-  heart3: {
-    definition: rawEnemyDefinitions.heart3,
-    family: "heart",
-    rank: 3,
-    nameKey: "enemy.heart3",
-    attackMode: "leader",
-    leader: true
-  },
-  burrowArrow: {
-    definition: rawEnemyDefinitions.burrowArrow,
-    family: "burrowArrow",
-    rank: 1,
-    nameKey: "enemy.burrowArrow",
-    attackMode: "melee",
-    leader: true
-  },
-  burrowArrow2: {
-    definition: rawEnemyDefinitions.burrowArrow2,
-    family: "burrowArrow",
-    rank: 2,
-    nameKey: "enemy.burrowArrow2",
-    attackMode: "melee",
-    leader: true
-  },
-  burrowArrow3: {
-    definition: rawEnemyDefinitions.burrowArrow3,
-    family: "burrowArrow",
-    rank: 3,
-    nameKey: "enemy.burrowArrow3",
-    attackMode: "melee",
-    leader: true
-  },
-  slopeTriangle: {
-    definition: rawEnemyDefinitions.slopeTriangle,
-    family: "slopeTriangle",
-    rank: 1,
-    nameKey: "enemy.slopeTriangle",
-    attackMode: "leader",
-    leader: true
-  },
-  slopeTriangle2: {
-    definition: rawEnemyDefinitions.slopeTriangle2,
-    family: "slopeTriangle",
-    rank: 2,
-    nameKey: "enemy.slopeTriangle2",
-    attackMode: "leader",
-    leader: true
-  },
-  slopeTriangle3: {
-    definition: rawEnemyDefinitions.slopeTriangle3,
-    family: "slopeTriangle",
-    rank: 3,
-    nameKey: "enemy.slopeTriangle3",
-    attackMode: "leader",
-    leader: true
-  },
-  invertedTriangle: {
-    definition: rawEnemyDefinitions.invertedTriangle,
-    family: "invertedTriangle",
-    rank: 1,
-    nameKey: "enemy.invertedTriangle",
-    attackMode: "blockedDetonator",
-    promotionKind: "invertedTriangle2",
-    blockedDetonation: {
-      delay: 2_000,
-      damage: 2_000,
-      damageType: "magic"
-    }
-  },
-  invertedTriangle2: {
-    definition: rawEnemyDefinitions.invertedTriangle2,
-    family: "invertedTriangle",
-    rank: 2,
-    nameKey: "enemy.invertedTriangle2",
-    attackMode: "blockedDetonator",
-    promotionKind: "invertedTriangle3",
-    blockedDetonation: {
-      delay: 2_000,
-      damage: 2_600,
-      damageType: "magic"
-    }
-  },
-  invertedTriangle3: {
-    definition: rawEnemyDefinitions.invertedTriangle3,
-    family: "invertedTriangle",
-    rank: 3,
-    nameKey: "enemy.invertedTriangle3",
-    attackMode: "blockedDetonator",
-    blockedDetonation: {
-      delay: 2_000,
-      damage: 3_200,
-      damageType: "magic"
-    }
-  },
-  shootingTriangle: {
-    definition: rawEnemyDefinitions.shootingTriangle,
-    family: "shootingTriangle",
-    rank: 1,
-    nameKey: "enemy.shootingTriangle",
-    attackMode: "ranged"
-  },
-  shootingTriangle2: {
-    definition: rawEnemyDefinitions.shootingTriangle2,
-    family: "shootingTriangle",
-    rank: 2,
-    nameKey: "enemy.shootingTriangle2",
-    attackMode: "ranged"
-  },
-  shootingTriangle3: {
-    definition: rawEnemyDefinitions.shootingTriangle3,
-    family: "shootingTriangle",
-    rank: 3,
-    nameKey: "enemy.shootingTriangle3",
-    attackMode: "ranged"
-  },
-  dodecahedronCompanion: {
-    definition: rawEnemyDefinitions.dodecahedronCompanion,
-    family: "dodecahedronCompanion",
-    rank: 1,
-    nameKey: "enemy.dodecahedronCompanion",
-    attackMode: "companion"
-  },
-  dodecahedronCompanion2: {
-    definition: rawEnemyDefinitions.dodecahedronCompanion2,
-    family: "dodecahedronCompanion",
-    rank: 2,
-    nameKey: "enemy.dodecahedronCompanion2",
-    attackMode: "companion"
-  },
-  trapezoid: {
-    definition: rawEnemyDefinitions.trapezoid,
-    family: "trapezoid",
-    rank: 1,
-    nameKey: "enemy.trapezoid",
-    attackMode: "melee"
-  },
-  trapezoid2: {
-    definition: rawEnemyDefinitions.trapezoid2,
-    family: "trapezoid",
-    rank: 2,
-    nameKey: "enemy.trapezoid2",
-    attackMode: "melee"
-  },
-  trapezoid3: {
-    definition: rawEnemyDefinitions.trapezoid3,
-    family: "trapezoid",
-    rank: 3,
-    nameKey: "enemy.trapezoid3",
-    attackMode: "melee"
-  },
-  solarBomb: {
-    definition: rawEnemyDefinitions.solarBomb,
-    family: "solarBomb",
-    rank: 1,
-    nameKey: "enemy.solarBomb",
-    attackMode: "special"
-  },
-  square: {
-    definition: rawEnemyDefinitions.square,
-    family: "square",
-    rank: 1,
-    nameKey: "enemy.square",
-    attackMode: "melee",
-    promotionKind: "square2"
-  },
-  square2: {
-    definition: rawEnemyDefinitions.square2,
-    family: "square",
-    rank: 2,
-    nameKey: "enemy.square2",
-    attackMode: "melee",
-    promotionKind: "square3"
-  },
-  square3: {
-    definition: rawEnemyDefinitions.square3,
-    family: "square",
-    rank: 3,
-    nameKey: "enemy.square3",
-    attackMode: "melee"
+function createRegistration(kind: EnemyKind): EnemyRegistration {
+  const identity = parseEnemyKind(kind);
+  if (!identity) throw new RangeError(`Unknown enemy kind: ${kind}`);
+  const { family, rank } = identity;
+  const archetype = enemyArchetypes[family];
+  const definition = enemyDefinitions[kind] ?? enemyDefinitionAtRank(family, rank);
+  const registration: EnemyRegistration = {
+    definition, family, rank, nameKey: `enemy.${kind}`, attackMode: archetype.attackMode
+  };
+  if (archetype.leader) registration.leader = true;
+  // Existing Boss promotion skills retain their rank-three ceiling.
+  if (rank < (archetype.promotionMaxRank ?? 0)) registration.promotionKind = enemyKindAtRank(family, rank + 1);
+  if (archetype.splitToPreviousRank && rank > 1) registration.splitSpawnKind = enemyKindAtRank(family, rank - 1);
+  if (archetype.blockedDetonationDelay !== undefined) {
+    registration.blockedDetonation = { delay: archetype.blockedDetonationDelay, damage: definition.damage, damageType: definition.damageType };
   }
-};
-
-export const allEnemyDefinitions = rawEnemyDefinitions;
-export const allEnemyRegistrations = enemyRegistrations;
-
-export function getEnemyDefinition(kind: EnemyKind) {
-  return enemyRegistrations[kind].definition;
+  return registration;
 }
 
+export const allEnemyDefinitions = enemyDefinitions;
+export const allEnemyRegistrations = Object.fromEntries(
+  Object.keys(enemyDefinitions).map(kind => [kind, createRegistration(kind as EnemyKind)])
+) as Partial<Record<EnemyKind, EnemyRegistration>>;
+
+const dynamicRegistrations = new Map<EnemyKind, EnemyRegistration>();
+const MAX_DYNAMIC_REGISTRATIONS = 512;
+
 export function getEnemyRegistration(kind: EnemyKind) {
-  return enemyRegistrations[kind];
+  const known = Object.hasOwn(allEnemyRegistrations, kind) ? allEnemyRegistrations[kind] : undefined;
+  if (known) return known;
+  const cached = dynamicRegistrations.get(kind);
+  if (cached) return cached;
+  const registration = createRegistration(kind);
+  // Endless runs must not retain every rank ever encountered.
+  if (dynamicRegistrations.size >= MAX_DYNAMIC_REGISTRATIONS) {
+    dynamicRegistrations.delete(dynamicRegistrations.keys().next().value!);
+  }
+  dynamicRegistrations.set(kind, registration);
+  return registration;
+}
+
+export function getEnemyDefinition(kind: EnemyKind) {
+  return getEnemyRegistration(kind).definition;
 }
 
 export function getEnemyDisplayName(kind: EnemyKind) {
-  return t(enemyRegistrations[kind].nameKey);
+  const registration = getEnemyRegistration(kind);
+  if (registration.rank <= enemyArchetypes[registration.family].catalogRanks) return t(registration.nameKey);
+  return t("enemy.rankedName", { name: t(`enemyFamily.${registration.family}`), rank: registration.rank });
 }
 
-export function enemyRank(kind: EnemyKind) {
-  return enemyRegistrations[kind].rank;
-}
-
-export function enemyFamily(kind: EnemyKind) {
-  return enemyRegistrations[kind].family;
-}
-
-export function enemyPromotionKind(kind: EnemyKind) {
-  return enemyRegistrations[kind].promotionKind;
-}
-
-export function enemySplitSpawnKind(kind: EnemyKind) {
-  return enemyRegistrations[kind].splitSpawnKind;
-}
-
-export function enemyIsRanged(kind: EnemyKind) {
-  return enemyRegistrations[kind].attackMode === "ranged";
-}
-
-export function enemyIsMortar(kind: EnemyKind) {
-  return enemyRegistrations[kind].attackMode === "mortar";
-}
-
-export function enemyIsLaser(kind: EnemyKind) {
-  return enemyRegistrations[kind].attackMode === "laser";
-}
-
-export function enemyIsBlockedDetonator(kind: EnemyKind) {
-  return enemyRegistrations[kind].attackMode === "blockedDetonator";
-}
-
-export function enemyIsSiegeRam(kind: EnemyKind) {
-  return enemyRegistrations[kind].attackMode === "siegeRam";
-}
-
-export function enemyIsMace(kind: EnemyKind) {
-  return enemyRegistrations[kind].attackMode === "mace";
-}
-
+export function enemyRank(kind: EnemyKind) { return getEnemyRegistration(kind).rank; }
+export function enemyFamily(kind: EnemyKind) { return getEnemyRegistration(kind).family; }
+export function enemyPromotionKind(kind: EnemyKind) { return getEnemyRegistration(kind).promotionKind; }
+export function enemySplitSpawnKind(kind: EnemyKind) { return getEnemyRegistration(kind).splitSpawnKind; }
+export function enemyIsRanged(kind: EnemyKind) { return getEnemyRegistration(kind).attackMode === "ranged"; }
+export function enemyIsMortar(kind: EnemyKind) { return getEnemyRegistration(kind).attackMode === "mortar"; }
+export function enemyIsLaser(kind: EnemyKind) { return getEnemyRegistration(kind).attackMode === "laser"; }
+export function enemyIsBlockedDetonator(kind: EnemyKind) { return getEnemyRegistration(kind).attackMode === "blockedDetonator"; }
+export function enemyIsSiegeRam(kind: EnemyKind) { return getEnemyRegistration(kind).attackMode === "siegeRam"; }
+export function enemyIsMace(kind: EnemyKind) { return getEnemyRegistration(kind).attackMode === "mace"; }
 export function enemyIsLeader(kind: EnemyKind) {
-  return enemyRegistrations[kind].leader === true || enemyRegistrations[kind].attackMode === "leader";
+  const registration = getEnemyRegistration(kind);
+  return registration.leader === true || registration.attackMode === "leader";
 }
-
-export function enemyIsBossCompanion(kind: EnemyKind) {
-  return enemyRegistrations[kind].attackMode === "companion";
-}
-
-export function enemyBlockedDetonation(kind: EnemyKind) {
-  return enemyRegistrations[kind].blockedDetonation;
-}
+export function enemyIsBossCompanion(kind: EnemyKind) { return getEnemyRegistration(kind).attackMode === "companion"; }
+export function enemyBlockedDetonation(kind: EnemyKind) { return getEnemyRegistration(kind).blockedDetonation; }
