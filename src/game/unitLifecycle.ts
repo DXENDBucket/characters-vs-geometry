@@ -23,7 +23,8 @@ import {
 } from "./solarBomb";
 import { addFrozenPhysicalDamage, hasStatusEffect, syncEnemyBodyPosition } from "./statusEffects";
 import { forEachBossPart, gridCellKey } from "./targeting";
-import { changeTowerHealth, syncTowerHealthNetworks } from "./towerHealth";
+import { changeTowerHealth, syncHealthBar, syncTowerHealthNetworks, towerHealthDepleted } from "./towerHealth";
+import { syncUnyieldingAuras } from "./towerAuras";
 import { towerFinalStats } from "./unitStats";
 
 export interface UnitLifecycleRuntime {
@@ -48,6 +49,34 @@ export interface UnitLifecycleRuntime {
 }
 
 const ICOSAHEDRON_FINAL_LOCK_DURATION = 15_000;
+const settlingHealth = new WeakSet<Tower[]>();
+
+export function settleTowerHealth(runtime: UnitLifecycleRuntime) {
+  if (settlingHealth.has(runtime.towers) || !runtime.towers.some(tower =>
+    tower.type === "g" || (tower.unyieldingRatio ?? 0) > 0 || tower.hp <= 0
+  )) return false;
+  settlingHealth.add(runtime.towers);
+  let removed = false;
+  try {
+    // Losing one aura can kill another source. Resolve the whole cascade before returning.
+    while (true) {
+      syncUnyieldingAuras(runtime.towers);
+      const defeated = new Set<Tower>();
+      for (const tower of runtime.towers) {
+        if (tower.inPlay && towerHealthDepleted(tower)) {
+          for (const member of tower.healthPool?.members ?? [tower]) defeated.add(member);
+        }
+        syncHealthBar(tower);
+      }
+      if (defeated.size === 0) break;
+      removed = true;
+      for (const tower of defeated) removeTower(runtime, tower);
+    }
+  } finally {
+    settlingHealth.delete(runtime.towers);
+  }
+  return removed;
+}
 
 export function damageTower(runtime: UnitLifecycleRuntime, tower: Tower, damage: number, damageType: DamageType) {
   if (!tower.inPlay) {
@@ -57,7 +86,7 @@ export function damageTower(runtime: UnitLifecycleRuntime, tower: Tower, damage:
   const stats = towerFinalStats(tower);
   const actualDamage = calculateDamage(damage, damageType, stats.armor, stats.magicResistance);
   changeTowerHealth(tower, -actualDamage);
-  const defeated = tower.hp <= 0 ? [...(tower.healthPool?.members ?? [tower])] : undefined;
+  const defeated = towerHealthDepleted(tower) ? [...(tower.healthPool?.members ?? [tower])] : undefined;
   runtime.onTowerDamaged(tower);
   if (defeated) {
     for (const member of defeated) removeTower(runtime, member);
@@ -267,6 +296,7 @@ export function removeTower(runtime: UnitLifecycleRuntime, tower: Tower) {
   }
   syncTowerHealthNetworks(runtime.towers);
   runtime.onTowerRemoved?.(tower);
+  settleTowerHealth(runtime);
   runtime.scene.tweens.add({
     targets: tower.body,
     alpha: 0,

@@ -124,6 +124,7 @@ export const palette = {
   green: 0x48ff88,
   gold: 0xffd75a,
   heart: 0xff7eb6,
+  unyielding: 0xffaaaa,
   time: 0x5b2a91,
   enemyShot: 0xff6464
 };

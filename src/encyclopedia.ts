@@ -19,6 +19,7 @@ export type EncyclopediaMechanicId =
   | "reversal"
   | "sunder"
   | "zeal"
+  | "unyielding"
   | "trueDamage"
   | "mirror"
   | "sp"
@@ -711,6 +712,7 @@ function towerDescription(id: CardId) {
     d: zh ? "碎甲激光射手。沿本行发射浅蓝色法术激光，穿透敌怪，直到命中第一个拥有法术抗性的敌怪后停止。被命中的敌怪获得 10 秒碎甲，最终护甲降低 35%；重复命中会刷新持续时间。碎甲敌怪头顶显示白色 ▣ 图标。" : "Sunder laser attacker. Fires a light-blue magic laser along its lane, piercing enemies until it hits the first enemy with magic resistance. Hit enemies gain 10s Sunder, reducing final armor by 35%; repeated hits refresh the duration. Sundered enemies show a white ▣ icon above them.",
     E: zh ? "三连物理射手。向前平射，并向上/下各偏转 10 度发射一发。" : "Triple physical shooter. Fires one straight shot plus two shots at +/-10 degrees.",
     e: zh ? "热忱治疗塔。拥有和 T 相同的 5x5 去角范围，并显示红色范围框；每次治疗范围内所有受伤塔 90 生命。范围内所有塔，包括自己，获得不叠加的热忱，攻击速度提高 35%。" : "Zeal healer. Uses the same centered 5x5 no-corner range as T and shows a red range border; each heal pulse restores 90 HP to every damaged tower in range. All towers in range, including itself, gain non-stacking Zeal for +35% attack speed.",
+    g: zh ? "不屈治疗塔。红框范围为周围八格，不包含自身；每 2 秒治疗范围内所有受伤塔各 90 生命，包括负血量的塔。范围内塔获得基础生命 15% × 小 g 有效等级的不屈，受益塔升级加血不增加额度。多个小 g 取最高值，不叠加，不提供热忱。" : "Unyielding healer. Its red-bordered range covers the eight adjacent cells, excluding itself. Every 2s it heals every damaged tower in range for 90 HP, including towers with negative HP. Grants Unyielding equal to 15% of each target's base HP per effective g level, unaffected by the target's HP upgrades. Only the strongest source applies. Does not grant Zeal.",
     M: zh ? "下向三连物理射手。攻击方向朝下，出弹点保持在列中心。" : "Downward triple physical shooter. Fires downward from the column center.",
     m: zh ? "镜像塔。若小 m 的左右或上下相邻格一边有可镜像塔、另一边为空且可部署，会在空格生成同种类、同朝向、同等级的镜像。小 b / 小 t 这类短暂效果塔也可被镜像；若对面已有塔，会在对面塔上生成对应效果。基础费用 999 以上的塔不能被镜像。镜像关系会组成网络；网络内任一塔消失会让全网以同一事件消失。小 m 消失时，会擦除自己周围镜像状态塔所属的整个镜像网络。" : "Mirror tower. If one side of m has a mirrorable tower and the opposite side is an empty deployable cell, m creates a same-type, same-facing, same-level mirror there. Transient effect towers like b / t can also be mirrored; if the opposite side already has a tower, the mirrored effect applies to that tower. Towers with base cost above 999 cannot be mirrored. Mirror links form networks; if any tower in a network disappears, the whole network disappears through the same event. When m disappears, it erases the full mirror networks adjacent to it.",
     V: zh ? "预判术法炮。沿本行投掷 * 炮弹，优先锁定可攻击目标中最大生命值最低的敌怪，并按锁定瞬间的移速预判落点；落点没有命中目标时会打空。" : "Predictive magic cannon. Lobs * shells along its lane, prioritizing the attackable enemy with the lowest max HP and predicting the landing point from target speed at lock time; it can miss.",
@@ -767,6 +769,9 @@ function towerUpgradeText(id: CardId) {
   }
   if (id === "m") {
     return zh ? "每级提高小 m 自身等级；2 级小 m 会持续为周围镜像状态塔所属的整个镜像网络提供 +1 有效等级，3 级提供 +2，以此类推。" : "Each level raises m's own level; a level 2 m continuously grants +1 effective level to the full mirror networks adjacent to it, level 3 grants +2, and so on.";
+  }
+  if (id === "g") {
+    return zh ? "不屈比例为 15% × 小 g 当前有效等级。治疗连发随升级增加，与小 e 相同，适用连发软上限及最多五发、多次判定规则。" : "Unyielding is 15% per current effective g level. Healing volleys upgrade like e, including the level softcap and five-shot multi-hit rule.";
   }
   if (id === "A" || id === "a" || id === "C" || id === "E" || id === "e" || id === "M" || id === "W" || id === "I" || id === "J" || id === "H" || id === "P" || id === "p" || id === "K" || id === "Z") {
     return zh ? "增加攻击/治疗判定次数；最多 5 连射，超出部分依次分配到前面的各发，每次独立计算抗性。6 次为 2/1/1/1/1，11 次为 3/2/2/2/2。整段连射仍占攻击/治疗间隔的五分之一。" : "Adds attack/heal judgments, with at most 5 shots. Extra judgments are distributed from the first shot, each resolving defenses independently: 6 = 2/1/1/1/1, 11 = 3/2/2/2/2. Volley duration remains one fifth of the attack/heal interval.";
@@ -925,6 +930,16 @@ export function mechanicEncyclopediaEntries(): EncyclopediaEntry[] {
         "Sunder reduces an enemy's final armor, making later physical damage punch through more easily. Sundered enemies show a white ▣ marker overhead."
     },
     {
+      id: "unyielding",
+      icon: "-HP",
+      titleZh: "不屈",
+      titleEn: "Unyielding",
+      linesZh: ["效果：允许生命降为负值", "叠加：同类光环只取最高比例"],
+      linesEn: ["Effect: permits negative HP", "Stacking: strongest aura only"],
+      descriptionZh: "不屈允许塔在负血量下继续行动和接受治疗；生命降到负血量下限时死亡。小 g 每有效等级提供受益塔基础生命 15% 的额度，不叠加，不受受益塔升级加血影响。血条总长度不变，左侧浅红段与右侧正常生命按额度分配长度。失去光环后若已达到新的死亡线，会立刻死亡。小 u 网络将各成员按基础生命计算的不屈额度相加后除以小 u 数量，所有成员共用这个下限。",
+      descriptionEn: "Towers can act and receive healing below zero HP, dying at the negative limit. g grants 15% of the target's base HP per effective level; target HP upgrades do not increase this allowance. The health bar keeps its total length: a pale red reserve on the left and normal HP on the right share the width in proportion to capacity. Losing the aura kills towers already at the new limit. A u network sums members' base-HP allowances and divides by its u count, sharing the resulting limit."
+    },
+    {
       id: "zeal",
       icon: "✦",
       titleZh: "热忱",
@@ -1016,6 +1031,7 @@ export function mechanicLinksForEntry(entry: EncyclopediaEntry): EncyclopediaMec
   addIfMatched("reversal", ["反转", "reversal"]);
   addIfMatched("sunder", ["碎甲", "sunder"]);
   addIfMatched("zeal", ["热忱", "zeal"]);
+  addIfMatched("unyielding", ["不屈", "unyielding"]);
   addIfMatched("trueDamage", ["真实伤害", "true damage", DAMAGE_SYMBOLS.true]);
   addIfMatched("mirror", ["镜像", "mirror"]);
   addIfMatched("sp", ["技力", " sp", "sp/"]);

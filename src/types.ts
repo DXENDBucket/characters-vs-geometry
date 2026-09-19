@@ -10,6 +10,7 @@ export type CardId =
   | "D"
   | "d"
   | "e"
+  | "g"
   | "O"
   | "R"
   | "X"
@@ -274,6 +275,7 @@ export interface TowerHealthPool {
 
 export interface Tower {
   healthPool?: TowerHealthPool;
+  unyieldingRatio?: number;
   id: string;
   type: CardId;
   lane: number;
@@ -314,6 +316,8 @@ export interface Tower {
   trueDamageBorder: Phaser.GameObjects.Graphics;
   flyingHalo: Phaser.GameObjects.Ellipse;
   hpFill: Phaser.GameObjects.Rectangle;
+  negativeHpBack?: Phaser.GameObjects.Rectangle;
+  negativeHpFill?: Phaser.GameObjects.Rectangle;
   levelText: Phaser.GameObjects.Text;
   trueDamageUntil: number;
   flyingUntil: number;

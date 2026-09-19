@@ -1,13 +1,41 @@
 import type { Tower, TowerHealthPool } from "../types";
 
 function ratio(hp: number, maxHp: number) {
-  return maxHp > 0 ? Math.max(0, Math.min(1, hp / maxHp)) : 0;
+  return maxHp > 0 ? Math.min(1, hp / maxHp) : 0;
+}
+
+export function towerMinimumHealth(tower: Tower) {
+  const pool = tower.healthPool;
+  if (pool) {
+    return -pool.members.reduce((sum, member) =>
+      sum + member.baseStats.maxHp * (member.unyieldingRatio ?? 0), 0
+    ) / pool.linkCount;
+  }
+  return -tower.baseStats.maxHp * (tower.unyieldingRatio ?? 0);
+}
+
+export function towerHealthDepleted(tower: Tower) {
+  return (tower.healthPool?.hp ?? tower.hp) <= towerMinimumHealth(tower);
 }
 
 export function syncHealthBar(tower: Tower) {
   const pool = tower.healthPool;
-  const width = 42 * (pool ? ratio(pool.hp, pool.maxHp) : ratio(tower.hp, tower.finalStats.maxHp));
+  const hp = pool?.hp ?? tower.hp;
+  const maxHp = pool?.maxHp ?? tower.finalStats.maxHp;
+  const capacity = -towerMinimumHealth(tower);
+  const total = maxHp + capacity;
+  const reserveWidth = total > 0 ? 42 * capacity / total : 0;
+  const normalWidth = 42 - reserveWidth;
+  const width = normalWidth * Math.max(0, ratio(hp, maxHp));
   if (tower.hpFill.width !== width) tower.hpFill.width = width;
+  tower.hpFill.x = -21 + reserveWidth;
+  if (tower.negativeHpBack && tower.negativeHpFill) {
+    const remaining = capacity > 0 ? Math.max(0, Math.min(1, (capacity + Math.min(0, hp)) / capacity)) : 0;
+    tower.negativeHpBack.setPosition(-21, 31).setVisible(capacity > 0);
+    tower.negativeHpFill.setPosition(-21, 31).setVisible(capacity > 0);
+    tower.negativeHpBack.width = reserveWidth;
+    tower.negativeHpFill.width = reserveWidth * remaining;
+  }
 }
 
 function syncPool(pool: TowerHealthPool) {
@@ -22,12 +50,12 @@ export function changeTowerHealth(tower: Tower, amount: number) {
   const pool = tower.healthPool;
   if (pool) {
     const before = pool.hp;
-    pool.hp = Math.max(0, Math.min(pool.maxHp, pool.hp + amount));
+    pool.hp = Math.max(Math.min(pool.hp, towerMinimumHealth(tower)), Math.min(pool.maxHp, pool.hp + amount));
     syncPool(pool);
     return pool.hp - before;
   }
   const before = tower.hp;
-  tower.hp = Math.max(0, Math.min(tower.finalStats.maxHp, tower.hp + amount));
+  tower.hp = Math.max(Math.min(tower.hp, towerMinimumHealth(tower)), Math.min(tower.finalStats.maxHp, tower.hp + amount));
   syncHealthBar(tower);
   return tower.hp - before;
 }

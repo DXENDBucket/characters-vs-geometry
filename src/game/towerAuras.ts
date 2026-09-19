@@ -5,6 +5,37 @@ import { isPointInSlowAura } from "./slowAura";
 const ZEAL_ATTACK_SPEED_MULTIPLIER = 1.35;
 const ZEAL_RADIUS_CELLS = 2;
 const BOARD_CELL_COUNT = COLUMNS * LANES;
+const UNYIELDING_PERCENT_PER_LEVEL = 15;
+const unyieldingCells = new Float64Array(BOARD_CELL_COUNT);
+
+export function isInNeighborAura(source: Tower, target: Tower) {
+  const dc = Math.abs(source.column - target.column);
+  const dl = Math.abs(source.lane - target.lane);
+  return dc <= 1 && dl <= 1 && (dc !== 0 || dl !== 0);
+}
+
+export function syncUnyieldingAuras(towers: Tower[]) {
+  unyieldingCells.fill(0);
+  for (const tower of towers) {
+    if (!tower.inPlay || tower.transient || tower.type !== "g") continue;
+    const strength = Math.max(1, tower.level + tower.levelBonus + tower.mirrorLevelBonus) * UNYIELDING_PERCENT_PER_LEVEL / 100;
+    for (let dl = -1; dl <= 1; dl++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        if (dl === 0 && dc === 0) continue;
+        const lane = tower.lane + dl;
+        const column = tower.column + dc;
+        if (lane < 0 || lane >= LANES || column < 0 || column >= COLUMNS) continue;
+        const index = cellIndex(column, lane);
+        unyieldingCells[index] = Math.max(unyieldingCells[index], strength);
+      }
+    }
+  }
+  for (const tower of towers) {
+    tower.unyieldingRatio = tower.inPlay && !tower.transient
+      ? unyieldingCells[cellIndex(tower.column, tower.lane)] ?? 0
+      : 0;
+  }
+}
 
 export interface TowerAuraSources {
   zealCells: Uint8Array;

@@ -193,6 +193,18 @@ export const cardDefinitions: CardDefinition[] = [
     stats: `${EFFECT_SYMBOLS.heal}90 / ZEAL / 5x5`
   },
   {
+    id: "g",
+    category: "healing",
+    cost: 425,
+    cooldown: 20_000,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 20,
+    attackSpeed: 30,
+    attackPower: 90,
+    stats: `${EFFECT_SYMBOLS.heal}90 / 15%`
+  },
+  {
     id: "M",
     category: "attack",
     cost: 75,

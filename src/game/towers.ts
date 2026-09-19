@@ -52,6 +52,10 @@ export function createTower(
     .setVisible(false);
   const hpBack = scene.add.rectangle(0, 31, 42, 4, palette.dim, 1);
   const hpFill = scene.add.rectangle(-21, 31, 42, 4, palette.white, 1).setOrigin(0, 0.5);
+  const negativeHpBack = scene.add.rectangle(-21, 31, 0, 4, palette.unyielding, 0.25)
+    .setOrigin(0, 0.5).setVisible(false);
+  const negativeHpFill = scene.add.rectangle(-21, 31, 0, 4, palette.unyielding, 1)
+    .setOrigin(0, 0.5).setVisible(false);
   const levelText = scene.add
     .text(0, 17, "1", {
       color: "#8c8c8c",
@@ -71,7 +75,9 @@ export function createTower(
     facingIcon,
     levelText,
     hpBack,
-    hpFill
+    hpFill,
+    negativeHpBack,
+    negativeHpFill
   ]);
   if (definition.id === "G" || definition.id === "c" || definition.id === "S") {
     border.setVisible(false);
@@ -128,6 +134,8 @@ export function createTower(
     trueDamageBorder,
     flyingHalo,
     hpFill,
+    negativeHpBack,
+    negativeHpFill,
     levelText,
     trueDamageUntil: 0,
     flyingUntil: 0
@@ -335,6 +343,14 @@ function createRangeBorder(scene: Phaser.Scene, definition: CardDefinition) {
 
   if (definition.id === "e") {
     return createNoCornerRangeBorder(scene, palette.enemyShot, 0.86);
+  }
+
+  if (definition.id === "g") {
+    const border = scene.add.graphics();
+    border.lineStyle(2, palette.enemyShot, 0.86);
+    border.strokeRect(-CELL_WIDTH * 1.5, -CELL_HEIGHT * 1.5, CELL_WIDTH * 3, CELL_HEIGHT * 3);
+    border.strokeRect(-CELL_WIDTH / 2, -CELL_HEIGHT / 2, CELL_WIDTH, CELL_HEIGHT);
+    return border;
   }
 
   return null;

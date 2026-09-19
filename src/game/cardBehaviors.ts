@@ -60,6 +60,7 @@ import { changeTowerHealth } from "./towerHealth";
 import { repeatHits } from "./volley";
 import { towerAttackAmount, towerFinalStats } from "./unitStats";
 import { isPointInSlowAura } from "./slowAura";
+import { isInNeighborAura } from "./towerAuras";
 
 export interface CardBehavior {
   canUse: (
@@ -113,11 +114,11 @@ export const healingCardBehavior: CardBehavior = {
   execute: fireHealingPulse
 };
 
-export const zealHealingCardBehavior: CardBehavior = {
+export const areaHealingCardBehavior: CardBehavior = {
   canUse: (tower, definition, time, runtime, cooldownAlreadyReady) => {
-    return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(towerAttackAmount(tower, definition) > 0 && hasZealHealTarget(tower, runtime.towers));
+    return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(towerAttackAmount(tower, definition) > 0 && hasAreaHealTarget(tower, runtime.towers));
   },
-  execute: fireZealHealingPulse
+  execute: fireAreaHealingPulse
 };
 
 export const productionCardBehavior: CardBehavior = {
@@ -208,7 +209,8 @@ export const cardBehaviorsById: Record<CardId, CardBehavior> = {
   X: productionCardBehavior,
   x: homingCardBehavior,
   E: projectileCardBehavior,
-  e: zealHealingCardBehavior,
+  e: areaHealingCardBehavior,
+  g: areaHealingCardBehavior,
   M: projectileCardBehavior,
   m: idleCardBehavior,
   W: projectileCardBehavior,
@@ -257,7 +259,7 @@ const HOMING_PROJECTILE_MUZZLES = [
 ] as const;
 const magicLaserTargetsBuffer: Enemy[] = [];
 const healingPulseTargetsBuffer: Tower[] = [];
-const zealHealTargetsBuffer: Tower[] = [];
+const areaHealTargetsBuffer: Tower[] = [];
 const shiftTargetsBuffer: Enemy[] = [];
 const laneRepelTargetsBuffer: Enemy[] = [];
 const blockedPushTargetsBuffer: Enemy[] = [];
@@ -479,8 +481,8 @@ function fireHealingPulse(
   }
 }
 
-function fireZealHealingPulse(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime, hitCount = 1) {
-  const targets = getZealHealTargets(tower, runtime.towers);
+function fireAreaHealingPulse(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime, hitCount = 1) {
+  const targets = getAreaHealTargets(tower, runtime.towers);
   if (targets.length === 0) {
     return;
   }
@@ -495,28 +497,29 @@ function fireZealHealingPulse(tower: Tower, definition: CardDefinition, runtime:
   }
 }
 
-function getZealHealTargets(tower: Tower, towers: Tower[]) {
-  const targets = zealHealTargetsBuffer;
+function getAreaHealTargets(tower: Tower, towers: Tower[]) {
+  const targets = areaHealTargetsBuffer;
   targets.length = 0;
   for (const target of towers) {
-    if (isZealHealTarget(tower, target)) {
+    if (isAreaHealTarget(tower, target)) {
       targets.push(target);
     }
   }
   return targets;
 }
 
-function hasZealHealTarget(tower: Tower, towers: Tower[]) {
+function hasAreaHealTarget(tower: Tower, towers: Tower[]) {
   for (const target of towers) {
-    if (isZealHealTarget(tower, target)) {
+    if (isAreaHealTarget(tower, target)) {
       return true;
     }
   }
   return false;
 }
 
-function isZealHealTarget(tower: Tower, target: Tower) {
-  return !target.transient && isPointInSlowAura(tower, target.x, target.y) && target.hp < towerFinalStats(target).maxHp;
+function isAreaHealTarget(tower: Tower, target: Tower) {
+  const inRange = tower.type === "g" ? isInNeighborAura(tower, target) : isPointInSlowAura(tower, target.x, target.y);
+  return target.inPlay && !target.transient && inRange && target.hp < towerFinalStats(target).maxHp;
 }
 
 function fireShiftPulse(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {

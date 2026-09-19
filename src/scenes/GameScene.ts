@@ -84,6 +84,7 @@ import {
   damageTower,
   removeEnemy,
   removeTower,
+  settleTowerHealth,
   type UnitLifecycleRuntime
 } from "../game/unitLifecycle";
 import {
@@ -972,6 +973,10 @@ export class GameScene extends Phaser.Scene {
     snapshotTowers.length = 0;
     snapshotValues.length = 0;
     syncTowerHealthNetworks(this.towers);
+    if (settleTowerHealth(this.unitLifecycleRuntime())) {
+      this.updateLevelAuras();
+      return;
+    }
     this.cacheLevelAuraState();
   }
 

@@ -132,6 +132,199 @@ function extractionFixture() {
 
 const health = load("src/game/towerHealth.ts");
 
+function unyieldingFixture() {
+  const f = extractionFixture();
+  const runtime = { ...f.state, projectiles: [], enemyProjectiles: [], mortarProjectiles: [], onTowerDamaged: noop };
+  return { ...f, runtime, refresh: () => lifecycle.settleTowerHealth(runtime) };
+}
+
+test("g costs 425, unlocks after 3-8 and shares e's healing panel and volley upgrades, but not Zeal", () => {
+  const f = unyieldingFixture();
+  const g = f.place("g", 3, 3, 5);
+  const a = f.place("A", 1, 3, 6);
+  const card = f.state.getDefinition("g");
+  const e = f.state.getDefinition("e");
+  assert.equal(card.cost, 425);
+  assert.equal(load("src/data/cardUnlocks.ts").cardUnlockRequirement("g"), "3-8");
+  for (const key of ["category", "cooldown", "maxHp", "armor", "magicResistance", "attackSpeed", "attackPower"]) {
+    assert.equal(card[key], e[key]);
+  }
+  for (const level of [1, 2, 6, 22, 60]) {
+    assert.equal(upgrades.volleyShotCount("g", level), upgrades.volleyShotCount("e", level));
+  }
+  f.refresh();
+  stats.calculateTowerFinalStats(a, f.state.towers);
+  assert.equal(a.finalStats.attackSpeed, a.baseStats.attackSpeed);
+  assert.equal(g.unyieldingRatio, 0);
+  assert.equal(a.unyieldingRatio, 0.45);
+});
+
+test("Unyielding covers exactly eight neighbors, ignores transient towers, and takes the strongest effective level", () => {
+  const f = unyieldingFixture();
+  const g = f.place("g", 1, 3, 5);
+  const targets = [];
+  for (let dl = -1; dl <= 1; dl++) for (let dc = -1; dc <= 1; dc++) {
+    if (dl || dc) targets.push(f.place("A", 1, 3 + dl, 5 + dc));
+  }
+  const outside = f.place("A", 1, 1, 5);
+  const transient = f.place("b", 1, 2, 5);
+  transient.transient = true;
+  f.refresh();
+  assert.ok(targets.every(t => t.unyieldingRatio === 0.15));
+  assert.equal(outside.unyieldingRatio, 0);
+  assert.equal(transient.unyieldingRatio, 0);
+  const stronger = f.place("g", 2, 3, 7);
+  stronger.levelBonus = 1;
+  stronger.mirrorLevelBonus = 2;
+  f.refresh();
+  assert.equal(targets.find(t => t.column === 6 && t.lane === 3).unyieldingRatio, 0.75);
+  assert.equal(targets.find(t => t.column === 4 && t.lane === 3).unyieldingRatio, 0.15);
+  g.column = 12;
+  f.refresh();
+  assert.equal(targets.find(t => t.column === 4 && t.lane === 3).unyieldingRatio, 0);
+});
+
+test("negative HP survives zero, takes normal mitigated damage, heals continuously, and dies at its exact lower limit", () => {
+  const f = unyieldingFixture();
+  f.place("g", 1, 3, 5);
+  const b = f.place("B", 1, 3, 6);
+  f.refresh();
+  lifecycle.damageTower(f.runtime, b, 3500, "physical");
+  assert.equal(b.hp, 0);
+  assert.equal(b.inPlay, true);
+  lifecycle.damageTower(f.runtime, b, 200, "true");
+  assert.equal(b.hp, -200);
+  assert.equal(b.inPlay, true);
+  assert.equal(health.changeTowerHealth(b, 90), 90);
+  assert.equal(b.hp, -110);
+  assert.equal(health.changeTowerHealth(b, 200), 200);
+  assert.equal(b.hp, 90);
+  lifecycle.damageTower(f.runtime, b, 540, "magic");
+  assert.equal(b.hp, -450);
+  assert.equal(b.inPlay, false);
+  const normal = f.place("A", 1, 0, 0);
+  lifecycle.damageTower(f.runtime, normal, 1200, "true");
+  assert.equal(normal.inPlay, false);
+});
+
+test("g heals every damaged neighbor including negative HP, excludes itself and distant cells, and honors multi-hit healing", () => {
+  const f = unyieldingFixture();
+  const g = f.place("g", 6, 3, 5);
+  const a = f.place("A", 1, 3, 6);
+  const diagonal = f.place("B", 1, 2, 4);
+  const outside = f.place("A", 1, 1, 5);
+  f.refresh();
+  g.hp = 500;
+  a.hp = -100;
+  diagonal.hp = 200;
+  outside.hp = 100;
+  const behavior = load("src/game/cardBehaviors.ts").cardBehaviorsById.g;
+  assert.equal(behavior.canUse(g, f.state.getDefinition("g"), 0, f.runtime, true), true);
+  behavior.execute(g, f.state.getDefinition("g"), f.runtime, 2);
+  assert.equal(a.hp, 80);
+  assert.equal(diagonal.hp, 380);
+  assert.equal(g.hp, 500);
+  assert.equal(outside.hp, 100);
+});
+
+test("losing an aura resolves negative-HP death cascades, while a sufficient weaker aura preserves life", () => {
+  const f = unyieldingFixture();
+  const strong = f.place("g", 3, 3, 4);
+  const weak = f.place("g", 1, 3, 6);
+  const b = f.place("B", 1, 3, 5);
+  f.refresh();
+  lifecycle.damageTower(f.runtime, b, 3250, "true");
+  lifecycle.removeTower(f.runtime, strong);
+  assert.equal(b.hp, -250);
+  assert.equal(b.unyieldingRatio, 0.15);
+  assert.equal(b.inPlay, true);
+  weak.column = 10;
+  f.refresh();
+  assert.equal(b.inPlay, false);
+
+  const left = f.place("g", 1, 1, 1);
+  const middle = f.place("g", 1, 1, 2);
+  const end = f.place("A", 1, 1, 3);
+  f.refresh();
+  lifecycle.damageTower(f.runtime, middle, 1250, "true");
+  lifecycle.damageTower(f.runtime, end, 1250, "true");
+  lifecycle.removeTower(f.runtime, left);
+  assert.equal(middle.inPlay, false);
+  assert.equal(end.inPlay, false);
+});
+
+test("health bars share a fixed 42-pixel width between normal HP and the pale red negative reserve at any level", () => {
+  const f = unyieldingFixture();
+  const g = f.place("g", 1, 3, 5);
+  const b = f.place("B", 1, 3, 6);
+  for (const level of [1, 10, 50]) {
+    g.level = level;
+    f.refresh();
+    assert.ok(Math.abs(b.hpFill.width + b.negativeHpFill.width - 42) < 1e-10);
+    assert.ok(Math.abs(b.negativeHpFill.width / b.hpFill.width - level * 0.15) < 1e-10);
+    assert.ok(b.hpFill.x >= -21 && b.hpFill.x <= 21);
+  }
+  b.hp = -11250;
+  health.syncHealthBar(b);
+  assert.equal(b.hpFill.width, 0);
+  assert.ok(Math.abs(b.negativeHpFill.width / b.negativeHpBack.width - 0.5) < 1e-10);
+  b.hp = 3000;
+  g.column = 12;
+  f.refresh();
+  assert.equal(b.hpFill.width, 42);
+  assert.equal(b.hpFill.x, -21);
+  assert.equal(b.negativeHpFill.visible, false);
+});
+
+test("u networks share summed negative allowance divided by u count and preserve negative ratios through topology changes", () => {
+  const f = unyieldingFixture();
+  f.place("g", 1, 2, 3);
+  const left = f.place("u", 1, 3, 2);
+  const bridge = f.place("A", 1, 3, 3);
+  const right = f.place("u", 1, 3, 4);
+  health.syncTowerHealthNetworks(f.state.towers);
+  f.refresh();
+  assert.equal(left.healthPool.maxHp, 3600);
+  assert.equal(health.towerMinimumHealth(left), -540);
+  lifecycle.damageTower(f.runtime, bridge, 3780, "true");
+  assert.equal(left.healthPool.hp, -180);
+  assert.ok([left, bridge, right].every(t => t.inPlay && t.hp < 0 && t.hpFill.width === 0));
+  assert.equal(left.negativeHpFill.width, right.negativeHpFill.width);
+  for (let i = 0; i < 3; i++) health.syncTowerHealthNetworks(f.state.towers);
+  assert.equal(left.healthPool.hp, -180);
+  right.column = 9;
+  health.syncTowerHealthNetworks(f.state.towers);
+  f.refresh();
+  assert.equal(right.inPlay, false);
+  assert.equal(left.healthPool.hp, -210);
+  assert.equal(left.inPlay, true);
+  assert.equal(health.changeTowerHealth(bridge, 300), 300);
+  assert.equal(left.healthPool.hp, 90);
+});
+
+test("Unyielding uses base HP, never upgraded or aura-boosted max HP, including u pools", () => {
+  const f = unyieldingFixture();
+  const g = f.place("g", 1, 2, 3);
+  const b = f.place("B", 1, 3, 3);
+  f.refresh();
+  assert.equal(health.towerMinimumHealth(b), -450);
+  towers.applyTowerUpgradeStats(b, f.state.getDefinition("B"), towers.upgradeTowerLevel(b, 2), 0);
+  b.levelBonus = 4;
+  b.mirrorLevelBonus = 3;
+  towers.syncTowerDerivedStats(b, false, f.state.towers);
+  f.refresh();
+  assert.ok(b.finalStats.maxHp > 3000);
+  assert.equal(health.towerMinimumHealth(b), -450);
+  assert.ok(Math.abs(b.negativeHpBack.width - 42 * 450 / (b.finalStats.maxHp + 450)) < 1e-10);
+  const u = f.place("u", 6, 3, 2);
+  health.syncTowerHealthNetworks(f.state.towers);
+  f.refresh();
+  assert.equal(health.towerMinimumHealth(u), -900); // Base HP of u + B, regardless of their upgraded max HP.
+  g.level = 2;
+  f.refresh();
+  assert.equal(health.towerMinimumHealth(u), -1800);
+});
+
 test("u has its requested panel and only upgrades its own HP contribution", () => {
   const f = extractionFixture();
   const u = f.place("u", 1, 2, 2);
@@ -575,7 +768,7 @@ function towerForCard(card, level = 1) {
 
 test("all cards preserve baseline attack and upgrade modes, including softcap and level bonuses", () => {
   const baseline = {
-    A: 400, a: 400, B: 400, C: 500, d: 400, x: 200, E: 400, e: 90, M: 400, W: 400,
+    A: 400, a: 400, B: 400, C: 500, d: 400, x: 200, E: 400, e: 90, g: 90, M: 400, W: 400,
     w: 400, F: 1400, l: 15000, r: 200, G: 15000, H: 700, I: 400, Q: 400, J: 600,
     K: 1800, k: 280, S: 5000, Z: 400, V: 1300, v: 350, P: 250, p: 250
   };
