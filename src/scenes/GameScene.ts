@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { expireReversalEffect } from "../game/rules/reversal";
 import {
   BASE_INTEGRITY,
   BOARD_HEIGHT,
@@ -48,6 +49,7 @@ import {
   setTowerFacing,
   setTowerAutoUpgradeState,
   syncTowerDerivedStats,
+  syncTowerFacingVisual,
   syncTowerLevelText,
   syncTowerTrueDamageVisual
 } from "../game/towers";
@@ -80,6 +82,7 @@ import {
   type UnitLifecycleRuntime
 } from "../game/unitLifecycle";
 import {
+  isShockTower,
   triggerShockTower as runTriggerShockTower,
   triggerTrapTower as runTriggerTrapTower,
   type TriggerTowerRuntime
@@ -835,6 +838,10 @@ export class GameScene extends Phaser.Scene {
 
   private updateArmingTowers(time: number) {
     for (const tower of this.towers) {
+      if (tower.statusEffects.length > 0) {
+        expireReversalEffect(tower, time);
+        syncTowerFacingVisual(tower);
+      }
       if (tower.trueDamageUntil > 0 || tower.trueDamageBorder.visible) {
         syncTowerTrueDamageVisual(tower, time);
       }
@@ -844,7 +851,7 @@ export class GameScene extends Phaser.Scene {
         continue;
       }
 
-      if (tower.type === "F" || tower.type === "f" || tower.type === "l") {
+      if (isShockTower(tower) && tower.type !== "i") {
         this.setTowerBorderVisible(tower, true);
         tower.border.setAlpha(0.55 + Math.sin(time / 95) * 0.27);
       }
@@ -2245,7 +2252,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private isManualShockTower(tower?: Tower): tower is Tower {
-    return tower?.type === "F" || tower?.type === "f" || tower?.type === "i" || tower?.type === "l";
+    return isShockTower(tower);
   }
 
   private getDefinition(id: CardId) {

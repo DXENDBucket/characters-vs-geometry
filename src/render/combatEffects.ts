@@ -576,6 +576,24 @@ export function makeShockPulse(
   });
 }
 
+export function makeReversalPulse(scene: Phaser.Scene, x: number, y: number, radius: number) {
+  const ring = acquireEffectCircle(scene, x, y, radius, palette.black, 0, 2, palette.heart, 0.9, 106);
+  const arrows = acquireEffectText(scene, "reversal-pulse", x, y, "< >", {
+    fontFamily: "monospace", fontSize: "32px", color: `#${palette.heart.toString(16).padStart(6, "0")}`
+  }, 107);
+  scene.tweens.add({
+    targets: [ring, arrows],
+    scale: 1.15,
+    alpha: 0,
+    duration: 300,
+    ease: "Quad.easeOut",
+    onComplete: () => {
+      releaseEffectCircle(scene, ring);
+      releaseEffectText(scene, "reversal-pulse", arrows);
+    }
+  });
+}
+
 export function makeFreezePulse(scene: Phaser.Scene, x: number, y: number, radius: number) {
   const ring = acquireEffectCircle(scene, x, y, radius, palette.black, 0, 3, palette.magic, 0.9, 106);
   scene.tweens.add({

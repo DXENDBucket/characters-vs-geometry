@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { enemyFacingDirection, enemyMovementDirection } from "./rules/reversal";
 import { CELL_HEIGHT, CELL_WIDTH, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
 import { enemyFamily, enemyIsBossCompanion, enemyIsMace } from "../registry/enemies";
 import { makeShiftEffect, makeShockPulse } from "../render/combatEffects";
@@ -88,7 +89,7 @@ export function advanceSlopeTriangle(
 }
 
 function launchTouchingEnemies(runtime: EnemyAdvanceRuntime, slope: Enemy, time: number) {
-  const facingDirection = slope.slopeFacingDirection ?? slope.movementDirection ?? -1;
+  const facingDirection = enemyFacingDirection(slope);
   forEachSnapshot(runtime.enemies, (target) => {
     if (!canSlopeLaunchEnemy(target, slope)) {
       return;
@@ -137,7 +138,7 @@ function currentMotionDirection(enemy: Enemy) {
     return velocityDirection === 0 ? undefined : (velocityDirection as -1 | 1);
   }
 
-  return enemy.movementDirection ?? -1;
+  return enemyMovementDirection(enemy);
 }
 
 function currentBaseSpeed(enemy: Enemy) {

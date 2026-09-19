@@ -70,16 +70,16 @@ export function damageBoss(
   damage: number,
   damageType: DamageType,
   targetPart?: CubeBoss
-) {
+): boolean {
   const boss = runtime.getBoss();
   if (!boss) {
-    return;
+    return false;
   }
 
   const damagedPart = targetPart ?? boss;
   if (damagedPart.invincibleUntil > runtime.battleTime) {
     makeBossInvincibleFlash(runtime.scene, damagedPart.x, damagedPart.y, damagedPart.hitboxWidth, damagedPart.hitboxHeight);
-    return;
+    return false;
   }
 
   const stats = bossFinalStats(damagedPart, runtime.enemies, boss);
@@ -97,7 +97,7 @@ export function damageBoss(
     syncBossCopyHp(boss);
     makeBossHitFlash(runtime.scene, damagedPart.x, damagedPart.y, damageType, damagedPart.hitboxWidth, damagedPart.hitboxHeight);
     makeBossInvincibleFlash(runtime.scene, damagedPart.x, damagedPart.y, damagedPart.hitboxWidth, damagedPart.hitboxHeight);
-    return;
+    return true;
   }
 
   if (shouldTriggerTetrahedronCritical(runtime, boss, nextHp)) {
@@ -110,7 +110,7 @@ export function damageBoss(
     syncBossCopyHp(boss);
     makeBossHitFlash(runtime.scene, damagedPart.x, damagedPart.y, damageType, damagedPart.hitboxWidth, damagedPart.hitboxHeight);
     makeBossInvincibleFlash(runtime.scene, damagedPart.x, damagedPart.y, damagedPart.hitboxWidth, damagedPart.hitboxHeight);
-    return;
+    return true;
   }
 
   boss.hp = nextHp;
@@ -121,11 +121,12 @@ export function damageBoss(
     boss.hp = 0;
     syncBossCopyHp(boss);
     if (runtime.onBossDefeated?.(boss)) {
-      return;
+      return true;
     }
     removeBoss(runtime);
     runtime.endLevel();
   }
+  return true;
 }
 
 function syncBossCopyHp(boss: CubeBoss) {
@@ -150,9 +151,9 @@ export function damageEnemy(
   damage: number,
   damageType: DamageType,
   sourceTower?: Tower
-) {
+): boolean {
   if (!enemy.inPlay) {
-    return;
+    return false;
   }
 
   if (enemyIsSolarBomb(enemy) && sourceTower) {
@@ -161,18 +162,18 @@ export function damageEnemy(
   }
 
   if (enemyIsHighFlying(enemy)) {
-    return;
+    return false;
   }
 
   if (solarBombIsDepleted(enemy)) {
     makeEnemyInvincibleFlash(runtime.scene, enemy.x, enemy.y);
     syncSolarBombVisual(enemy);
-    return;
+    return false;
   }
 
   if (hasStatusEffect(enemy, "invincible", runtime.battleTime)) {
     makeEnemyInvincibleFlash(runtime.scene, enemy.x, enemy.y);
-    return;
+    return false;
   }
 
   const stats = enemyDefenseStats(enemy, runtime.enemies, runtime.battleTime);
@@ -191,7 +192,7 @@ export function damageEnemy(
   if (enemyIsSolarBomb(enemy) && enemy.hp <= 0) {
     depleteSolarBomb(enemy);
     syncEnemyBodyPosition(enemy);
-    return;
+    return true;
   }
 
   syncSolarBombVisual(enemy);
@@ -208,6 +209,7 @@ export function damageEnemy(
     spawnSplitEnemies(runtime, enemy, runtime.battleTime, runtime.finalDamageReduction);
     removeEnemy(runtime, enemy, true);
   }
+  return true;
 }
 
 export function removeBoss(runtime: UnitLifecycleRuntime) {

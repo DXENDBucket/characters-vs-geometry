@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { bossMovementDirection, enemyMovementDirection } from "./rules/reversal";
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, COLUMNS, LANES } from "../config";
 import {
   damageEffectTextColor,
@@ -208,6 +209,7 @@ export const cardBehaviorsById: Record<CardId, CardBehavior> = {
   f: idleCardBehavior,
   i: idleCardBehavior,
   l: idleCardBehavior,
+  r: idleCardBehavior,
   G: idleCardBehavior,
   t: idleCardBehavior,
   H: healingCardBehavior,
@@ -722,7 +724,7 @@ function predictedEnemyMortarTarget(enemy: Enemy, runtime: CardBehaviorRuntime) 
         { enemies: runtime.enemies, towers: runtime.towers, time: runtime.battleTime },
         siegeRamSpeed(enemy)
       );
-  const direction = Math.sign(enemy.maceVelocity ?? 0) || (enemy.movementDirection ?? -1);
+  const direction = Math.sign(enemy.maceVelocity ?? 0) || enemyMovementDirection(enemy);
   return {
     x: enemy.x + direction * speed * durationSeconds,
     y: enemy.y
@@ -737,7 +739,7 @@ function predictedBossMortarTarget(tower: Tower, definition: CardDefinition, bos
   const part = findBossPart(boss, (candidate) => canAttackBossPart(tower, definition, candidate)) ?? boss;
   const durationSeconds = PREDICTIVE_MORTAR_DURATION / 1_000;
   const distance = part.finalStats.speed * durationSeconds;
-  const direction = part.movementDirection ?? -1;
+  const direction = bossMovementDirection(part);
   return {
     x: part.x + ((part.movementAxis ?? "x") === "x" ? direction * distance : 0),
     y:

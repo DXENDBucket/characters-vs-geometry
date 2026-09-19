@@ -1,4 +1,6 @@
 import Phaser from "phaser";
+import { enemyFacingDirection, enemyMovementDirection } from "./rules/reversal";
+import { isShockTower } from "./triggerTowers";
 import { BOARD_HEIGHT, BOARD_WIDTH, BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, LANES } from "../config";
 import { getCardDefinition } from "../registry/cards";
 import {
@@ -398,7 +400,7 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
         return;
       }
 
-      if (blocker.type === "F" || blocker.type === "f" || blocker.type === "i" || blocker.type === "l") {
+      if (isShockTower(blocker)) {
         runtime.triggerShockTower(blocker);
         return;
       }
@@ -985,14 +987,6 @@ function burrowCargoRank(enemy: Enemy) {
   return total;
 }
 
-function enemyMovementDirection(enemy: Enemy) {
-  return enemy.movementDirection ?? -1;
-}
-
-function enemyFacingDirection(enemy: Enemy) {
-  return enemy.maceFacingDirection ?? enemyMovementDirection(enemy);
-}
-
 function removeEscapedReverseEnemy(runtime: EnemyAdvanceRuntime, enemy: Enemy) {
   enemy.inPlay = false;
   Phaser.Utils.Array.Remove(runtime.enemies, enemy);
@@ -1044,7 +1038,7 @@ function advanceHexMace(
     runtime.damageTower(blocker, damage, enemy.damageType);
   }
 
-  const bounceDirection = -Math.sign(rawVelocity) || -(enemy.maceFacingDirection ?? -1);
+  const bounceDirection = -Math.sign(rawVelocity) || -enemyFacingDirection(enemy);
   const bounceSpeed = Math.max(Math.abs(rawVelocity), hexMaceMaxSpeed(enemy) * 0.12);
   enemy.maceVelocity = bounceDirection * bounceSpeed;
   enemy.blockedByTowerId = undefined;
@@ -1068,7 +1062,7 @@ function advanceHexMaceMovement(
   }
 
   const velocity = enemy.maceVelocity ?? 0;
-  const facingDirection = enemy.maceFacingDirection ?? -1;
+  const facingDirection = enemyFacingDirection(enemy);
   const nextVelocity = Phaser.Math.Clamp(
     velocity + facingDirection * hexMaceAcceleration(enemy) * seconds,
     -hexMaceMaxSpeed(enemy),

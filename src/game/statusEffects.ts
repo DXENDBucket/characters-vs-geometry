@@ -1,6 +1,9 @@
 import { CELL_HEIGHT, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
 import { enemyFamily } from "../registry/enemies";
-import type { Enemy, StatusEffectName } from "../types";
+import type { CubeBoss, Enemy, StatusEffectName, Tower } from "../types";
+import { syncEnemyFacingVisual } from "./enemyBehaviors";
+import { applyReversalEffect } from "./rules/reversal";
+import { syncTowerFacingVisual } from "./towers";
 import { setPositionIfChanged, setScaleIfChanged, setVisibleIfChanged } from "./visualGuards";
 
 const STATUS_SPEED_MULTIPLIERS: Record<StatusEffectName, number> = {
@@ -11,7 +14,8 @@ const STATUS_SPEED_MULTIPLIERS: Record<StatusEffectName, number> = {
   invincible: 1,
   highFlying: 1,
   sunder: 1,
-  frozen: 0
+  frozen: 0,
+  reversed: 1
 };
 const STATUS_ATTACK_MULTIPLIERS: Partial<Record<StatusEffectName, number>> = {
   power: 1.3
@@ -33,8 +37,27 @@ export function applyStatusEffect(
   duration: number,
   time: number,
   speedMultiplier?: number,
+  showHalo?: boolean
+): void;
+export function applyStatusEffect(unit: Tower | CubeBoss, name: "reversed", duration: number, time: number): void;
+export function applyStatusEffect(
+  unit: Enemy | Tower | CubeBoss,
+  name: StatusEffectName,
+  duration: number,
+  time: number,
+  speedMultiplier?: number,
   showHalo = false
 ) {
+  if (!("statusMultiplierCache" in unit)) {
+    if (name === "reversed") {
+      applyReversalEffect(unit, duration, time);
+      if ("facingDirection" in unit) {
+        syncTowerFacingVisual(unit);
+      }
+    }
+    return;
+  }
+  const enemy = unit;
   if (enemyFamily(enemy.kind) === "archangelHeptagon" && name === "flying") {
     applyStatusEffect(enemy, "highFlying", duration, time, speedMultiplier, false);
     return;
@@ -203,6 +226,12 @@ function syncStatusVisuals(enemy: Enemy, time: number) {
   const cache = enemy.statusMultiplierCache;
   if (cache.visualSyncedAt === time && cache.visualSyncedX === enemy.x && cache.visualSyncedY === enemy.y) {
     return;
+  }
+
+  const reversed = hasStatusEffectName(enemy, "reversed");
+  if (cache.reversed !== reversed) {
+    cache.reversed = reversed;
+    syncEnemyFacingVisual(enemy);
   }
 
   let stasisActive = false;

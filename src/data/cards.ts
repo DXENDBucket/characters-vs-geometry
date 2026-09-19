@@ -294,6 +294,25 @@ export const cardDefinitions: CardDefinition[] = [
     stats: `15000${DAMAGE_SYMBOLS.magic} / COLUMN`
   },
   {
+    id: "r",
+    category: "function",
+    cost: 275,
+    cooldown: 30_000,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 0,
+    damage: 200,
+    damageType: "magic",
+    triggerAttackMultiplier: 5,
+    triggerDamageType: "magic",
+    triggerRangeX: CELL_WIDTH * 1.8,
+    triggerRangeY: CELL_HEIGHT * 1.8,
+    triggerShape: "circle",
+    triggerDebuff: "reversed",
+    triggerDebuffDuration: 5_000,
+    stats: `1000${DAMAGE_SYMBOLS.magic} / REVERSE R1.8`
+  },
+  {
     id: "G",
     category: "function",
     cost: 15,

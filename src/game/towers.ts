@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { facingWithEffects } from "./rules/reversal";
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
 import { createUnitBorder } from "../render/unitShapes";
 import type { CardDefinition, CardId, CardState, SkillState, Tower } from "../types";
@@ -112,6 +113,7 @@ export function createTower(
     reflectProjectiles: Boolean(definition.reflectProjectiles),
     nextRepelDirection: placedOrder % 2 === 0 ? -1 : 1,
     facingDirection: 1,
+    statusEffects: [],
     transient: Boolean(options.transient),
     mirroredEffect: false,
     turnTargetId: options.turnTargetId,
@@ -132,11 +134,11 @@ export function createTower(
 }
 
 export function towerFacingDirection(tower: Tower) {
-  return tower.facingDirection ?? 1;
+  return facingWithEffects(tower, tower.facingDirection ?? 1);
 }
 
 export function toggleTowerFacing(tower: Tower) {
-  setTowerFacing(tower, towerFacingDirection(tower) === -1 ? 1 : -1);
+  setTowerFacing(tower, tower.facingDirection === -1 ? 1 : -1);
 }
 
 export function setTowerFacing(tower: Tower, direction: -1 | 1) {
@@ -225,6 +227,9 @@ export function getShockCount(tower: Tower, definition: CardDefinition) {
 }
 
 export function getTriggerDebuffDuration(tower: Tower, definition: CardDefinition) {
+  if (definition.triggerDebuff === "reversed") {
+    return (definition.triggerDebuffDuration ?? 0) * effectiveTowerLevel(tower);
+  }
   return scaledByEffectiveUpgrades(definition.triggerDebuffDuration ?? 0, effectiveTowerLevel(tower));
 }
 

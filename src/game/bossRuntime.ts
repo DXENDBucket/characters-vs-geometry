@@ -1,4 +1,6 @@
 import Phaser from "phaser";
+import { bossMovementDirection } from "./rules/reversal";
+import { isShockTower } from "./triggerTowers";
 import {
   BOARD_HEIGHT,
   BOARD_WIDTH,
@@ -292,7 +294,7 @@ function updateBossPartsMotion(runtime: BossRuntime, boss: CubeBoss, seconds: nu
 }
 
 function bossPartReachesBase(boss: CubeBoss) {
-  return (boss.movementAxis ?? "x") === "x" && (boss.movementDirection ?? -1) < 0 && bossBounds(boss).left <= BOARD_X - 20;
+  return (boss.movementAxis ?? "x") === "x" && bossMovementDirection(boss) < 0 && bossBounds(boss).left <= BOARD_X - 20;
 }
 
 function triggerOctahedronSplits(runtime: BossRuntime, boss: CubeBoss) {
@@ -1194,7 +1196,7 @@ function triggerFunctionalTowersTouchingBoss(runtime: BossRuntime, boss: CubeBos
       return;
     }
 
-    if (tower.type === "F" || tower.type === "f" || tower.type === "i" || tower.type === "l") {
+    if (isShockTower(tower)) {
       runtime.triggerShockTower(tower);
     }
   });
@@ -1471,7 +1473,7 @@ function summonBossAdvanceMinions(runtime: BossRuntime, boss: CubeBoss) {
 function summonIcosahedronUltimateAdvance(runtime: BossRuntime, boss: CubeBoss) {
   const waveNumber = runtime.wave || 0;
   const bounds = bossBounds(boss);
-  const direction = boss.movementDirection ?? -1;
+  const direction = bossMovementDirection(boss);
   const frontX = direction < 0 ? bounds.left - CELL_WIDTH / 2 : bounds.right + CELL_WIDTH / 2;
   const rearX = frontX - direction * CELL_WIDTH;
 

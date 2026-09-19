@@ -16,6 +16,7 @@ export type EncyclopediaMechanicId =
   | "highFlying"
   | "stasis"
   | "freeze"
+  | "reversal"
   | "sunder"
   | "zeal"
   | "trueDamage"
@@ -718,6 +719,7 @@ function towerDescription(id: CardId) {
     f: zh ? "全场凝滞触发器。机制和 F 类似，可被点击主动触发；触发时消失，不造成伤害，而是让全场普通敌怪获得凝滞。" : "Global Stasis trigger. Similar trigger rules to F and can be clicked manually; disappears on trigger and deals no damage, applying Stasis to all ordinary enemies on the field.",
     i: zh ? "冻结触发器。机制和 f 类似，可被点击主动引爆；触发时消失，冻结半径 2.6 格内的所有敌怪。冻结期间敌怪无法移动，攻击和技能不会触发；冻结期间累计受到的实际物理伤害达到最大生命值一半时，会提前解除冻结。" : "Freeze trigger. Similar trigger rules to f and can be clicked manually; disappears on trigger and freezes all enemies in a 2.6-cell radius. Frozen enemies cannot move, attack, or use skills; accumulated physical damage taken during Freeze breaks it early once it reaches half max HP.",
     l: zh ? "列式法术触发器。机制和 F 类似，可被点击主动引爆；触发时消失，对整列横向 0.75 格范围造成一次法术伤害。" : "Column magic trigger. Similar to F and can be clicked to detonate manually; disappears on trigger and deals one magic hit to a full-column area with 0.75-cell horizontal range.",
+    r: zh ? "反转触发器。点击或阻挡敌怪时消耗自身，以粉色脉冲对半径 1.8 格内造成一次攻击力 500% 的法术伤害（基础 1000），命中后赋予反转，每个有效等级持续 5 秒。对高空飞行、潜地和无敌目标无效。反转期间左右朝向相反，到期恢复；重复命中延长持续时间，不叠加翻转。" : "Reversal trigger. Consumed on click or contact, releasing a pink pulse that deals 500% ATK magic damage (1000 base) once within a 1.8-cell radius. Successful hits apply Reversal for 5 seconds per effective level. High Flight, burrowed and invincible targets are unaffected. Temporarily reverses horizontal facing; repeated hits extend duration without stacking flips.",
     G: zh ? "延迟触发器。放置 15 秒后准备完成，接触敌怪时消失并造成高额法术伤害。" : "Delayed trigger. Arms after 15s, then disappears on contact to deal heavy magic damage.",
     H: zh ? "治疗塔。治疗以自身为中心 3x3 范围内生命百分比最低的一座塔。" : "Healer. Heals the lowest-HP-percent tower in a centered 3x3 area.",
     h: zh ? "守护者。每秒回复 1 技力，20 技力满后若自己或 3x3 范围内有缺血塔，会自动消耗 20 技力治疗自己，并治疗范围内生命百分比最低的一座缺血塔。" : "Guardian. Gains 1 SP/s up to 20; when full, if itself or a tower in its 3x3 area is damaged, it spends 20 SP to heal itself and the lowest-HP-percent damaged tower in that area.",
@@ -780,6 +782,9 @@ function towerUpgradeText(id: CardId) {
   }
   if (id === "i") {
     return zh ? "每级冻结持续时间增加基础值的 80%。" : "Each level adds 80% of base Freeze duration.";
+  }
+  if (id === "r") {
+    return zh ? "每个有效等级提供 5 秒反转持续时间。" : "Each effective level grants 5 seconds of Reversal.";
   }
   if (id === "l") {
     return zh ? "每级伤害增加基础值的 80%。" : "Each level adds 80% of base damage.";
@@ -889,6 +894,16 @@ export function mechanicEncyclopediaEntries(): EncyclopediaEntry[] {
         "Freeze fully pauses enemy action. Physical damage actually taken while frozen is accumulated; once it reaches half max HP, Freeze breaks immediately."
     },
     {
+      id: "reversal",
+      icon: "↔",
+      titleZh: "反转",
+      titleEn: "Reversal",
+      linesZh: ["效果：临时反转左右朝向", "适用：塔和敌怪", "重复施加：延长时间，不叠加翻转"],
+      linesEn: ["Effect: temporarily reverse horizontal facing", "Applies to: towers and enemies", "Reapply: extend duration without stacking flips"],
+      descriptionZh: "反转不改写原有朝向。持有期间，移动、攻击及方向相关机制使用反转后的左右朝向；上下方向不变，状态结束后恢复。小 r 仅对命中的敌怪施加此状态。",
+      descriptionEn: "Reversal preserves base facing. Movement, attacks, and directional mechanics use the opposite horizontal facing while active; vertical directions are unchanged. Expiry restores base facing. The r tower applies this status only to enemies it hits."
+    },
+    {
       id: "sunder",
       icon: "▣-",
       titleZh: "碎甲",
@@ -989,6 +1004,7 @@ export function mechanicLinksForEntry(entry: EncyclopediaEntry): EncyclopediaMec
   addIfMatched("flying", ["飞行", "flying"]);
   addIfMatched("stasis", ["凝滞", "stasis"]);
   addIfMatched("freeze", ["冻结", "freeze", "frozen"]);
+  addIfMatched("reversal", ["反转", "reversal"]);
   addIfMatched("sunder", ["碎甲", "sunder"]);
   addIfMatched("zeal", ["热忱", "zeal"]);
   addIfMatched("trueDamage", ["真实伤害", "true damage", DAMAGE_SYMBOLS.true]);

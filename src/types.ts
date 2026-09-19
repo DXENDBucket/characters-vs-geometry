@@ -34,6 +34,7 @@ export type CardId =
   | "s"
   | "L"
   | "l"
+  | "r"
   | "N"
   | "n"
   | "T"
@@ -147,7 +148,8 @@ export type StatusEffectName =
   | "invincible"
   | "highFlying"
   | "sunder"
-  | "frozen";
+  | "frozen"
+  | "reversed";
 export type BossCompanionActionPhase = "laser" | "mortar" | "wings";
 export type AlphaGameObject = Phaser.GameObjects.GameObject & { setAlpha(alpha: number): unknown };
 
@@ -209,6 +211,7 @@ export interface CardDefinition {
   reflectDamage?: number;
   reflectDamageType?: DamageType;
   triggerDamage?: number;
+  triggerAttackMultiplier?: number;
   triggerDamageType?: DamageType;
   triggerCount?: number;
   triggerInterval?: number;
@@ -287,6 +290,7 @@ export interface Tower {
   reflectProjectiles: boolean;
   nextRepelDirection: -1 | 1;
   facingDirection: -1 | 1;
+  statusEffects: StatusEffect[];
   transient: boolean;
   mirroredEffect: boolean;
   turnTargetId?: string;
@@ -351,6 +355,7 @@ export interface Enemy {
   skills: Record<string, SkillState>;
   statusEffects: StatusEffect[];
   statusMultiplierCache: {
+    reversed?: boolean;
     speed: number;
     attack: number;
     armor: number;
@@ -503,6 +508,7 @@ export interface BossSkill<Name extends BossSkillName = BossSkillName> extends S
 }
 
 export interface CubeBoss {
+  statusEffects: StatusEffect[];
   kind: BossKind;
   rank: number;
   label: string;

@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { bossMovementDirection, expireReversalEffect } from "../game/rules/reversal";
 import {
   BOARD_HEIGHT,
   BOARD_WIDTH,
@@ -281,6 +282,7 @@ export function createCubeBoss(
     speed: baseStats.speed,
     movementAxis: options.movementAxis ?? "x",
     movementDirection: options.movementDirection ?? -1,
+    statusEffects: [],
     advanceMinionKind: rank >= 2 ? "square2" : "square",
     hasSkills: !isSkilllessBossKind(kind),
     skills: {
@@ -379,8 +381,9 @@ export function createCubeBoss(
 }
 
 export function updateCubeBossMotion(boss: CubeBoss, seconds: number, movementMultiplier = 1, time = 0) {
+  expireReversalEffect(boss, time);
   const distance = boss.finalStats.speed * seconds * movementMultiplier;
-  const direction = boss.movementDirection ?? -1;
+  const direction = bossMovementDirection(boss);
   if ((boss.movementAxis ?? "x") === "y") {
     boss.y += direction * distance;
   } else {

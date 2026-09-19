@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { enemyFacingDirection } from "./rules/reversal";
 import { ATTACK_INTERVAL, CELL_WIDTH, ENEMY_SPEED, ENEMY_SPEED_VARIANCE, LANES, palette } from "../config";
 import {
   enemyFamily,
@@ -122,7 +123,7 @@ export function syncEnemyVisualScale(enemy: Enemy) {
 }
 
 export function syncEnemyFacingVisual(enemy: Enemy) {
-  const facingScale = (enemy.movementDirection ?? -1) > 0 ? -1 : 1;
+  const facingScale = enemyFacingDirection(enemy) > 0 ? -1 : 1;
   const shape = enemy.shape as Phaser.GameObjects.GameObject & { list?: Phaser.GameObjects.GameObject[] };
   for (const child of shape.list ?? []) {
     if (child instanceof Phaser.GameObjects.Text) {

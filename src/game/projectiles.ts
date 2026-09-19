@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { enemyMovementDirection } from "./rules/reversal";
 import { BOARD_HEIGHT, BOARD_WIDTH, BOARD_X, BOARD_Y, palette } from "../config";
 import { enemyFamily } from "../registry/enemies";
 import { damageEffectColor, damageEffectTextColor } from "../render/combatEffects";
@@ -113,7 +114,7 @@ export function createHomingTowerProjectile(scene: Phaser.Scene, spec: HomingTow
 
 export function createEnemyProjectile(scene: Phaser.Scene, enemy: Enemy, time: number): EnemyProjectile {
   const isDiamondShot = enemyFamily(enemy.kind) === "diamond";
-  const direction = enemy.movementDirection ?? -1;
+  const direction = enemyMovementDirection(enemy);
   const shotX = enemy.x + direction * 22;
   const body = isDiamondShot
     ? scene.add

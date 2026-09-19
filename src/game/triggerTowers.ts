@@ -1,12 +1,13 @@
 import Phaser from "phaser";
 import { BOARD_HEIGHT, BOARD_WIDTH, BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH } from "../config";
-import { makeFreezePulse, makeShockPulse, makeTrapBurst } from "../render/combatEffects";
+import { makeFreezePulse, makeReversalPulse, makeShockPulse, makeTrapBurst } from "../render/combatEffects";
 import type { CardDefinition, CardId, CubeBoss, DamageType, Enemy, Tower } from "../types";
-import { enemyIsHighFlying } from "./enemyBehaviors";
+import { enemyIsBurrowed, enemyIsHighFlying } from "./enemyBehaviors";
 import { forEachSnapshot } from "./iteration";
 import { applyStatusEffect } from "./statusEffects";
-import { bossPartInRect } from "./targeting";
+import { bossPartDistanceSqToPoint, bossPartInRect, forEachBossPart } from "./targeting";
 import { getShockCount, getTriggerDebuffDuration, getTrapDamage, towerDamageType } from "./towers";
+import { towerFinalStats } from "./unitStats";
 
 export interface TriggerTowerRuntime {
   scene: Phaser.Scene;
@@ -16,15 +17,23 @@ export interface TriggerTowerRuntime {
   gameOver: boolean;
   getDefinition: (id: CardId) => CardDefinition;
   removeTower: (tower: Tower) => void;
-  damageEnemy: (enemy: Enemy, damage: number, damageType: DamageType, sourceTower?: Tower) => void;
-  damageBoss: (damage: number, damageType: DamageType, targetPart?: CubeBoss) => void;
+  damageEnemy: (enemy: Enemy, damage: number, damageType: DamageType, sourceTower?: Tower) => boolean;
+  damageBoss: (damage: number, damageType: DamageType, targetPart?: CubeBoss) => boolean;
   runWhenBattleActive: (action: () => void) => void;
+}
+
+const SHOCK_TOWER_IDS = new Set<CardId>(["F", "f", "i", "l", "r"]);
+
+export function isShockTower(tower: Tower | undefined): tower is Tower & { type: "F" | "f" | "i" | "l" | "r" } {
+  return tower !== undefined && SHOCK_TOWER_IDS.has(tower.type);
 }
 
 export function triggerShockTower(runtime: TriggerTowerRuntime, tower: Tower) {
   const definition = runtime.getDefinition(tower.type);
   const interval = definition.triggerInterval ?? 50;
-  const damage = tower.type === "l" ? getTrapDamage(tower, definition) : definition.triggerDamage ?? 100;
+  const damage = definition.triggerAttackMultiplier !== undefined
+    ? (towerFinalStats(tower).damage ?? 0) * definition.triggerAttackMultiplier
+    : tower.type === "l" ? getTrapDamage(tower, definition) : definition.triggerDamage ?? 100;
   const damageType = towerDamageType(tower, definition.triggerDamageType ?? "physical", runtime.battleTime);
   const rangeX = definition.triggerRangeX ?? CELL_WIDTH;
   const rangeY = definition.triggerRangeY ?? CELL_HEIGHT;
@@ -32,6 +41,7 @@ export function triggerShockTower(runtime: TriggerTowerRuntime, tower: Tower) {
   const x = tower.x;
   const y = tower.y;
   const area = triggerEffectArea(x, y, rangeX, rangeY);
+  const debuffDuration = getTriggerDebuffDuration(tower, definition);
 
   runtime.removeTower(tower);
 
@@ -39,6 +49,8 @@ export function triggerShockTower(runtime: TriggerTowerRuntime, tower: Tower) {
   if (triggerDebuff) {
     if (triggerDebuff === "frozen") {
       makeFreezePulse(runtime.scene, x, y, rangeX);
+    } else if (triggerDebuff === "reversed") {
+      makeReversalPulse(runtime.scene, x, y, rangeX);
     } else {
       makeShockPulse(runtime.scene, area.x, area.y, area.rangeX, area.rangeY, damageType);
     }
@@ -47,8 +59,21 @@ export function triggerShockTower(runtime: TriggerTowerRuntime, tower: Tower) {
         return;
       }
 
-      applyStatusEffect(enemy, triggerDebuff, getTriggerDebuffDuration(tower, definition), runtime.battleTime);
+      if (triggerDebuff === "reversed" && (!runtime.damageEnemy(enemy, damage, damageType, tower) || !enemy.inPlay)) {
+        return;
+      }
+      applyStatusEffect(enemy, triggerDebuff, debuffDuration, runtime.battleTime);
     });
+    if (triggerDebuff === "reversed") {
+      forEachBossPart(runtime.boss, (part) => {
+        if (
+          bossPartDistanceSqToPoint(part, x, y) <= rangeX * rangeX &&
+          runtime.damageBoss(damage, damageType, part) && part.hp > 0
+        ) {
+          applyStatusEffect(part, "reversed", debuffDuration, runtime.battleTime);
+        }
+      });
+    }
     return;
   }
 
@@ -110,6 +135,9 @@ function canApplyTriggerDebuff(
   rangeY: number,
   triggerShape: CardDefinition["triggerShape"]
 ) {
+  if (!enemy.inPlay || (debuff === "reversed" && enemyIsBurrowed(enemy))) {
+    return false;
+  }
   if (debuff !== "frozen" && enemyIsHighFlying(enemy)) {
     return false;
   }
