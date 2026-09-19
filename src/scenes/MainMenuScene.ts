@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { GAME_HEIGHT, GAME_WIDTH, palette } from "../config";
+import { GAME_HEIGHT, GAME_WIDTH, palette, uiTextColors } from "../config";
 import { t } from "../i18n";
 import { getCardDefinition } from "../registry/cards";
 import { createUnitBorder } from "../render/unitShapes";
@@ -106,7 +106,7 @@ export class MainMenuScene extends Phaser.Scene {
       const category = getCardDefinition(id).category;
       const border = createUnitBorder(this, category, 51, category === "defense" ? 3 : 2);
       const label = this.add.text(0, category === "function" ? 3 : -3, id, {
-        fontFamily: "monospace", fontSize: "54px", fontStyle: "700", color: "#f5f5f5"
+        fontFamily: "monospace", fontSize: "54px", fontStyle: "700", color: uiTextColors.primary
       }).setOrigin(0.5);
       const hp = this.add.rectangle(0, 73, 42, 3, palette.white, 0.75);
       tower.add([border, label, hp]);
@@ -120,7 +120,7 @@ export class MainMenuScene extends Phaser.Scene {
     const hitArea = this.add.rectangle(x, y, 368, 50, palette.white, 0);
     const label = this.add.text(x - 130, y, text, {
       fontFamily: "monospace", fontSize: "24px", fontStyle: "700",
-      color: enabled ? "#f5f5f5" : "#666666"
+      color: enabled ? uiTextColors.primary : "#666666"
     }).setOrigin(0, 0.5);
     const arrow = this.add.text(x - 165, y, ">", {
       fontFamily: "monospace", fontSize: "22px", color: "#48ff88"
@@ -145,7 +145,7 @@ export class MainMenuScene extends Phaser.Scene {
     this.items.forEach((item, itemIndex) => {
       const selected = itemIndex === index && item.enabled;
       item.arrow.setVisible(selected);
-      item.label.setColor(!item.enabled ? "#666666" : selected ? "#48ff88" : "#f5f5f5");
+      item.label.setColor(!item.enabled ? "#666666" : selected ? "#48ff88" : uiTextColors.primary);
       item.hitArea.setFillStyle(palette.white, selected ? 0.045 : 0);
     });
   }
@@ -181,10 +181,10 @@ export class MainMenuScene extends Phaser.Scene {
 
   private drawExitState(width: number, height: number) {
     this.root.add(this.add.text(width / 2, height / 2 - 72, t("menu.exited"), {
-      fontFamily: "monospace", fontSize: "28px", color: "#f5f5f5"
+      fontFamily: "monospace", fontSize: "28px", color: uiTextColors.primary
     }).setOrigin(0.5));
     this.root.add(this.add.text(width / 2, height / 2 - 18, t("menu.closeBlocked"), {
-      fontFamily: "monospace", fontSize: "18px", color: "#8c8c8c",
+      fontFamily: "monospace", fontSize: "18px", color: uiTextColors.secondary,
       align: "center", wordWrap: { width: Math.min(width - 80, 560), useAdvancedWrap: true }
     }).setOrigin(0.5));
     this.addMenuItem(width / 2, height / 2 + 72, t("menu.return"), () => this.resumeMenu());

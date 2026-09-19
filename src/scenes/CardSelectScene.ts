@@ -6,7 +6,8 @@ import {
   GAME_HEIGHT,
   GAME_WIDTH,
   clampDifficulty,
-  palette
+  palette,
+  uiTextColors
 } from "../config";
 import {
   bossRank,
@@ -166,7 +167,7 @@ export class CardSelectScene extends Phaser.Scene {
         40,
         `${t("operation.level", { level: this.levelId, difficulty: this.difficulty })}${this.unlimitedFirepower ? `  ${t("label.unlimitedFirepower")}` : ""}`,
         {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "28px",
         fontStyle: "700"
@@ -176,7 +177,7 @@ export class CardSelectScene extends Phaser.Scene {
 
     this.add
       .text(50, 88, `${t("label.loadout")} ${this.cardSlotCount}/${CARD_SLOT_COUNT}`, {
-        color: "#8c8c8c",
+        color: uiTextColors.secondary,
         fontFamily: "monospace",
         fontSize: "17px"
       })
@@ -195,7 +196,7 @@ export class CardSelectScene extends Phaser.Scene {
     const viewportHeight = GAME_HEIGHT - listY - 118;
     this.add
       .text(panelX, panelY, t("label.enemy"), {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "18px",
         fontStyle: "700"
@@ -216,7 +217,7 @@ export class CardSelectScene extends Phaser.Scene {
     if (levelConfig.bossKind) {
       const bossText = this.add
         .text(0, contentY, `${this.bossDisplayName(levelConfig.bossKind)}  ${t("label.hp")} ${CUBE_BOSS_STATS[levelConfig.bossKind].hp}`, {
-          color: "#8c8c8c",
+          color: uiTextColors.secondary,
           fontFamily: "monospace",
           fontSize: "14px"
         })
@@ -357,7 +358,7 @@ export class CardSelectScene extends Phaser.Scene {
     shape.setAlpha(0.92);
     const name = this.add
       .text(textX, y - 25, this.enemyPreviewGroupTitle(group), {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "16px",
         fontStyle: "700"
@@ -369,7 +370,7 @@ export class CardSelectScene extends Phaser.Scene {
         y + 2,
         `${t("label.hp")} ${definition.hp}  ${t("label.atk")} ${definition.damage}${DAMAGE_SYMBOLS[definition.damageType]}  ${t("label.weight")} ${definition.weight}`,
         {
-          color: "#8c8c8c",
+          color: uiTextColors.secondary,
           fontFamily: "monospace",
           fontSize: "14px"
         }
@@ -432,7 +433,7 @@ export class CardSelectScene extends Phaser.Scene {
         .setStrokeStyle(2, palette.dim, locked ? 0.32 : 1);
       const label = this.add
         .text(x, y - (locked ? 9 : 3), locked ? "×" : "", {
-          color: "#f5f5f5",
+          color: uiTextColors.primary,
           fontFamily: "monospace",
           fontSize: locked ? "23px" : "28px",
           fontStyle: "700"
@@ -443,7 +444,7 @@ export class CardSelectScene extends Phaser.Scene {
       if (locked && unlockChapter) {
         this.add
           .text(x, y + 22, t("card.slotUnlockAfter", { chapter: unlockChapter }), {
-            color: "#8c8c8c",
+            color: uiTextColors.secondary,
             fontFamily: "monospace",
             fontSize: "10px",
             fontStyle: "700"
@@ -495,7 +496,7 @@ export class CardSelectScene extends Phaser.Scene {
       const border = createUnitBorder(this, definition.category, 22, 2).setPosition(x - 55, y - 6);
       const label = this.add
         .text(x - 55, y - 9, definition.id, {
-          color: "#f5f5f5",
+          color: uiTextColors.primary,
           fontFamily: "monospace",
           fontSize: "29px",
           fontStyle: "700"
@@ -503,14 +504,14 @@ export class CardSelectScene extends Phaser.Scene {
         .setOrigin(0.5);
       const costText = this.add
         .text(x - 10, y - 30, `${definition.cost}`, {
-          color: "#f5f5f5",
+          color: uiTextColors.primary,
           fontFamily: "monospace",
           fontSize: "17px"
         })
         .setOrigin(0, 0);
       const statsText = this.add
         .text(x - 10, y - 5, definition.stats, {
-          color: "#8c8c8c",
+          color: uiTextColors.secondary,
           fontFamily: "monospace",
           fontSize: "13px"
         })
@@ -555,7 +556,7 @@ export class CardSelectScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     const label = this.add
       .text(x + 21, y - 1, text, {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "17px",
         fontStyle: "700"
@@ -583,7 +584,7 @@ export class CardSelectScene extends Phaser.Scene {
       const selected = button.letterCase === this.cardPoolCase;
       button.frame.setStrokeStyle(selected ? 3 : 2, selected ? palette.white : palette.dim, selected ? 1 : 0.7);
       button.frame.setFillStyle(selected ? palette.panel : palette.black, selected ? 1 : 0.78);
-      button.label.setAlpha(selected ? 1 : 0.55);
+      button.label.setAlpha(selected ? 1 : 0.78);
     }
   }
 
@@ -670,7 +671,7 @@ export class CardSelectScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     this.clearText = this.add
       .text(GAME_WIDTH - 514, y - 2, t("button.clearLoadout"), {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "18px",
         fontStyle: "700"
@@ -683,7 +684,7 @@ export class CardSelectScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     this.backText = this.add
       .text(GAME_WIDTH - 344, y - 2, t(this.reselect ? "button.cancel" : "button.back"), {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "18px",
         fontStyle: "700"
@@ -696,7 +697,7 @@ export class CardSelectScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     this.startText = this.add
       .text(GAME_WIDTH - 164, y - 2, t(this.reselect ? "button.confirm" : "button.start"), {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "20px",
         fontStyle: "700"

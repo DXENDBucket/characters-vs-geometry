@@ -5,7 +5,8 @@ import {
   ENEMY_SPEED,
   GAME_HEIGHT,
   GAME_WIDTH,
-  palette
+  palette,
+  uiTextColors
 } from "../config";
 import {
   enemyEncyclopediaEntries,
@@ -171,7 +172,7 @@ export class EncyclopediaPanel {
       .setStrokeStyle(2, palette.white, 0.95);
     const title = this.scene.add
       .text(144, 86, t("encyclopedia.title"), {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "26px",
         fontStyle: "700"
@@ -183,7 +184,7 @@ export class EncyclopediaPanel {
       .setInteractive({ useHandCursor: true });
     const closeText = this.scene.add
       .text(1128, 100, "X", {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "18px",
         fontStyle: "700"
@@ -292,7 +293,7 @@ export class EncyclopediaPanel {
       .setInteractive({ useHandCursor: true });
     const label = this.scene.add
       .text(x + 66, y - 1, t(this.tabLabelKey(tab)), {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "15px",
         fontStyle: "700"
@@ -314,7 +315,7 @@ export class EncyclopediaPanel {
       .setInteractive({ useHandCursor: true });
     const label = this.scene.add
       .text(x + 21, y - 1, text, {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "16px",
         fontStyle: "700"
@@ -336,7 +337,7 @@ export class EncyclopediaPanel {
       .setInteractive({ useHandCursor: true });
     const label = this.scene.add
       .text(x + 39, y - 1, text, {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "14px",
         fontStyle: "700"
@@ -388,7 +389,7 @@ export class EncyclopediaPanel {
       const selected = button.tab === this.tab;
       button.frame.setStrokeStyle(selected ? 3 : 2, selected ? palette.white : palette.dim, selected ? 1 : 0.75);
       button.frame.setFillStyle(selected ? palette.panel : palette.black, selected ? 1 : 0.86);
-      button.label.setAlpha(selected ? 1 : 0.55);
+      button.label.setAlpha(selected ? 1 : 0.78);
     }
   }
 
@@ -400,7 +401,7 @@ export class EncyclopediaPanel {
       button.label.setVisible(visible);
       button.frame.setStrokeStyle(selected ? 3 : 2, selected ? palette.white : palette.dim, selected ? 1 : 0.7);
       button.frame.setFillStyle(selected ? palette.panel : palette.black, selected ? 1 : 0.78);
-      button.label.setAlpha(selected ? 1 : 0.55);
+      button.label.setAlpha(selected ? 1 : 0.78);
     }
   }
 
@@ -412,7 +413,7 @@ export class EncyclopediaPanel {
       button.label.setVisible(visible);
       button.frame.setStrokeStyle(selected ? 3 : 2, selected ? palette.white : palette.dim, selected ? 1 : 0.7);
       button.frame.setFillStyle(selected ? palette.panel : palette.black, selected ? 1 : 0.78);
-      button.label.setAlpha(selected ? 1 : 0.55);
+      button.label.setAlpha(selected ? 1 : 0.78);
     }
   }
 
@@ -447,7 +448,7 @@ export class EncyclopediaPanel {
       .setInteractive({ useHandCursor: true });
     const title = this.scene.add
       .text(TILE_SIZE / 2, TILE_SIZE - 18, this.shortTitle(entry), {
-        color: "#cfcfcf",
+        color: uiTextColors.body,
         fontFamily: "monospace",
         fontSize: "12px",
         fontStyle: "700",
@@ -510,7 +511,7 @@ export class EncyclopediaPanel {
     this.addEntryIcon(this.detail, entry, 46, y + 34, 1.08);
     const title = this.scene.add
       .text(92, y, entry.title, {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "19px",
         fontStyle: "700",
@@ -522,7 +523,7 @@ export class EncyclopediaPanel {
 
     const statsTitle = this.scene.add
       .text(18, y, t("encyclopedia.details"), {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "14px",
         fontStyle: "700"
@@ -537,7 +538,7 @@ export class EncyclopediaPanel {
     if (notes.length > 0) {
       const noteText = this.scene.add
         .text(18, y, notes.join("\n"), {
-          color: "#d8d8d8",
+          color: uiTextColors.body,
           fontFamily: "monospace",
           fontSize: "12px",
           lineSpacing: 4,
@@ -550,7 +551,7 @@ export class EncyclopediaPanel {
 
     const description = this.scene.add
       .text(18, y, entry.description, {
-        color: "#a8a8a8",
+        color: uiTextColors.secondary,
         fontFamily: "monospace",
         fontSize: "12px",
         lineSpacing: 4,
@@ -584,7 +585,7 @@ export class EncyclopediaPanel {
       const rowY = y + index * DETAIL_TABLE_ROW_HEIGHT + DETAIL_TABLE_ROW_HEIGHT / 2 - 1;
       const label = this.scene.add
         .text(x + 8, rowY, row.label, {
-          color: "#8c8c8c",
+          color: uiTextColors.secondary,
           fontFamily: "monospace",
           fontSize: "11px",
           fontStyle: "700"
@@ -592,7 +593,7 @@ export class EncyclopediaPanel {
         .setOrigin(0, 0.5);
       const value = this.scene.add
         .text(x + DETAIL_TABLE_LABEL_WIDTH + 8, rowY, row.value, {
-          color: "#f5f5f5",
+          color: uiTextColors.primary,
           fontFamily: "monospace",
           fontSize: "11px",
           wordWrap: detailTextWrap(width - DETAIL_TABLE_LABEL_WIDTH - 16)
@@ -612,7 +613,7 @@ export class EncyclopediaPanel {
 
     const heading = this.scene.add
       .text(18, y, t("encyclopedia.relatedMechanics"), {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "13px",
         fontStyle: "700"
@@ -627,7 +628,7 @@ export class EncyclopediaPanel {
       const label = this.mechanicTitle(mechanicId);
       const link = this.scene.add
         .text(x, rowY, label, {
-          color: "#f5f5f5",
+          color: uiTextColors.primary,
           fontFamily: "monospace",
           fontSize: "13px",
           fontStyle: "700"
@@ -679,7 +680,7 @@ export class EncyclopediaPanel {
         .setPosition(x, y);
       const label = this.scene.add
         .text(x, y - 2, entry.card.id, {
-          color: "#f5f5f5",
+          color: uiTextColors.primary,
           fontFamily: "monospace",
           fontSize: `${Math.round(30 * scale)}px`,
           fontStyle: "700"
@@ -691,7 +692,7 @@ export class EncyclopediaPanel {
 
     const iconText = this.scene.add
       .text(x, y - 2, entry.mechanicIcon ?? "?", {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: `${Math.round(25 * scale)}px`,
         fontStyle: "700"

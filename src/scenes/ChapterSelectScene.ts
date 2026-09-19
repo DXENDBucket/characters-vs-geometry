@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { GAME_HEIGHT, GAME_WIDTH, palette } from "../config";
+import { GAME_HEIGHT, GAME_WIDTH, palette, uiTextColors } from "../config";
 import { chapterDefinitions, levelNodesForChapter, type ChapterDefinition } from "../data/chapters";
 import { t } from "../i18n";
 import {
@@ -61,7 +61,7 @@ export class ChapterSelectScene extends Phaser.Scene {
   private drawBackdrop() {
     this.add
       .text(48, 40, t("app.title"), {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "30px",
         fontStyle: "700"
@@ -70,7 +70,7 @@ export class ChapterSelectScene extends Phaser.Scene {
 
     this.add
       .text(50, 88, t("label.chapterSelect"), {
-        color: "#8c8c8c",
+        color: uiTextColors.secondary,
         fontFamily: "monospace",
         fontSize: "17px"
       })
@@ -208,7 +208,7 @@ export class ChapterSelectScene extends Phaser.Scene {
         .setInteractive({ useHandCursor: unlocked });
       const label = this.add
         .text(chapter.x, chapter.y - 18, t(chapter.labelKey), {
-          color: "#f5f5f5",
+          color: uiTextColors.primary,
           fontFamily: "monospace",
           fontSize: "22px",
           fontStyle: "700"
@@ -222,7 +222,7 @@ export class ChapterSelectScene extends Phaser.Scene {
             ? t("label.chapterProgress", { completed: completedCount, count: levelCount })
             : t("label.levelCount", { count: levelCount }),
           {
-            color: completed ? "#48ff88" : "#8c8c8c",
+            color: completed ? "#48ff88" : uiTextColors.secondary,
             fontFamily: "monospace",
             fontSize: "14px"
           }
@@ -253,7 +253,7 @@ export class ChapterSelectScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     this.settingsText = this.add
       .text(GAME_WIDTH - 78, 50, t("button.settings"), {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "15px",
         fontStyle: "700"
@@ -269,7 +269,7 @@ export class ChapterSelectScene extends Phaser.Scene {
       .setStrokeStyle(2, palette.mid, 0.85)
       .setInteractive({ useHandCursor: true });
     this.add.text(GAME_WIDTH - 358, 50, t("menu.return"), {
-      color: "#f5f5f5", fontFamily: "monospace", fontSize: "15px", fontStyle: "700"
+      color: uiTextColors.primary, fontFamily: "monospace", fontSize: "15px", fontStyle: "700"
     }).setOrigin(0.5);
     button.on("pointerdown", this.goToMainMenu, this);
   }
@@ -289,7 +289,7 @@ export class ChapterSelectScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     this.encyclopediaText = this.add
       .text(GAME_WIDTH - 206, 50, t("button.encyclopedia"), {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "15px",
         fontStyle: "700"

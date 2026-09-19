@@ -106,6 +106,12 @@ export const CUBE_BOSS_WAVE_CAP = 600;
 export const CUBE_BOSS_CONTACT_DAMAGE = 2_000;
 export const CUBE_BOSS_CONTACT_INTERVAL = 0.5;
 
+export const uiTextColors = {
+  primary: "#ffffff",
+  body: "#e8e8e8",
+  secondary: "#bcbcbc"
+};
+
 export const palette = {
   black: 0x050505,
   nearBlack: 0x101010,

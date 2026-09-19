@@ -8,7 +8,8 @@ import {
   LEVEL_NODE_HEIGHT,
   LEVEL_NODE_WIDTH,
   clampDifficulty,
-  palette
+  palette,
+  uiTextColors
 } from "../config";
 import {
   DODECAHEDRON_EDGES,
@@ -126,7 +127,7 @@ export class LevelSelectScene extends Phaser.Scene {
   private drawBackdrop() {
     this.add
       .text(48, 40, t("app.title"), {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "28px",
         fontStyle: "700"
@@ -135,7 +136,7 @@ export class LevelSelectScene extends Phaser.Scene {
 
     this.add
       .text(50, 86, this.chapterLabel(), {
-        color: "#8c8c8c",
+        color: uiTextColors.secondary,
         fontFamily: "monospace",
         fontSize: "17px"
       })
@@ -299,7 +300,7 @@ export class LevelSelectScene extends Phaser.Scene {
       .setAlpha(alpha);
     const label = this.add
       .text(node.x, node.y - 3, node.id, {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "26px",
         fontStyle: "700"
@@ -356,7 +357,7 @@ export class LevelSelectScene extends Phaser.Scene {
     const frame = this.add.graphics().setPosition(x, y).setAlpha(alpha);
     const label = this.add
       .text(x, y - 1, toRomanNumeral(rank), {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "12px",
         fontStyle: "700"
@@ -556,7 +557,7 @@ export class LevelSelectScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     this.encyclopediaText = this.add
       .text(GAME_WIDTH - 206, 50, t("button.encyclopedia"), {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "15px",
         fontStyle: "700"
@@ -576,7 +577,7 @@ export class LevelSelectScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     this.backText = this.add
       .text(GAME_WIDTH - 344, 50, t("button.back"), {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "15px",
         fontStyle: "700"
@@ -596,7 +597,7 @@ export class LevelSelectScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     this.startText = this.add
       .text(x, y - 2, t("button.start"), {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "20px",
         fontStyle: "700"
@@ -614,7 +615,7 @@ export class LevelSelectScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     this.settingsText = this.add
       .text(GAME_WIDTH - 78, 50, t("button.settings"), {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "15px",
         fontStyle: "700"
@@ -646,7 +647,7 @@ export class LevelSelectScene extends Phaser.Scene {
 
     this.add
       .text(labelX, trackY - 10, t("label.difficulty"), {
-        color: "#8c8c8c",
+        color: uiTextColors.secondary,
         fontFamily: "monospace",
         fontSize: "15px"
       })
@@ -654,7 +655,7 @@ export class LevelSelectScene extends Phaser.Scene {
 
     this.difficultyText = this.add
       .text(trackX + trackWidth + 28, trackY - 2, "", {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "22px",
         fontStyle: "700"
@@ -696,7 +697,7 @@ export class LevelSelectScene extends Phaser.Scene {
     this.unlimitedFirepowerFill = this.add.rectangle(x, y, 10, 10, palette.white, 1);
     this.unlimitedFirepowerText = this.add
       .text(x + 16, y - 2, t("label.unlimitedFirepower"), {
-        color: "#d8d8d8",
+        color: uiTextColors.body,
         fontFamily: "monospace",
         fontSize: "14px",
         fontStyle: "700"

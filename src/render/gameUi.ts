@@ -8,7 +8,8 @@ import {
   GAME_SPEED_MAX,
   GAME_SPEED_MIN,
   PROGRESS_BAR_WIDTH,
-  palette
+  palette,
+  uiTextColors
 } from "../config";
 import { towerEncyclopediaEntry } from "../encyclopedia";
 import { t } from "../i18n";
@@ -121,7 +122,7 @@ export function createGameHud(
 ): GameHudElements {
   const titleText = scene.add
     .text(28, 24, `${t("app.title")} ${levelId} D${difficulty}`, {
-      color: "#f5f5f5",
+      color: uiTextColors.primary,
       fontFamily: "monospace",
       fontSize: "25px",
       fontStyle: "700"
@@ -129,7 +130,7 @@ export function createGameHud(
     .setOrigin(0, 0);
 
   const charsText = scene.add.text(28, 70, "", {
-    color: "#f5f5f5",
+    color: uiTextColors.primary,
     fontFamily: "monospace",
     fontSize: "18px"
   });
@@ -138,7 +139,7 @@ export function createGameHud(
   }).setOrigin(0.5).setVisible(false);
 
   const statusText = scene.add.text(240, 92, "", {
-    color: "#8c8c8c",
+    color: uiTextColors.secondary,
     fontFamily: "monospace",
     fontSize: "16px"
   });
@@ -147,7 +148,7 @@ export function createGameHud(
   const speedSliderWidth = 176;
   const speedText = scene.add
     .text(240, speedSliderY - 2, "", {
-      color: "#8c8c8c",
+      color: uiTextColors.secondary,
       fontFamily: "monospace",
       fontSize: "13px"
     })
@@ -176,7 +177,7 @@ export function createGameHud(
 
   const progressText = scene.add
     .text(GAME_WIDTH - 28, GAME_HEIGHT - 50, "", {
-      color: "#f5f5f5",
+      color: uiTextColors.primary,
       fontFamily: "monospace",
       fontSize: "15px"
     })
@@ -190,7 +191,7 @@ export function createGameHud(
 
   const toastText = scene.add
     .text(GAME_WIDTH / 2, GAME_HEIGHT - 34, "", {
-      color: "#d8d8d8",
+      color: uiTextColors.body,
       fontFamily: "monospace",
       fontSize: "16px"
     })
@@ -236,7 +237,7 @@ export function createGameHud(
   const autoUpgradeEnabledFill = scene.add.rectangle(GAME_WIDTH - 252, 88, 10, 10, palette.green, 1).setDepth(31);
   const autoUpgradeEnabledLabel = scene.add
     .text(GAME_WIDTH - 238, 86, t("label.autoUpgradeEnabled"), {
-      color: "#d8d8d8",
+      color: uiTextColors.body,
       fontFamily: "monospace",
       fontSize: "12px"
     })
@@ -245,7 +246,7 @@ export function createGameHud(
     .setInteractive({ useHandCursor: true });
   const autoUpgradeReserveLabel = scene.add
     .text(GAME_WIDTH - 205, 86, t("label.autoUpgradeReserve"), {
-      color: "#8c8c8c",
+      color: uiTextColors.secondary,
       fontFamily: "monospace",
       fontSize: "12px"
     })
@@ -258,7 +259,7 @@ export function createGameHud(
     .setDepth(30);
   const autoUpgradeReserveText = scene.add
     .text(GAME_WIDTH - 145, 86, "0", {
-      color: "#f5f5f5",
+      color: uiTextColors.primary,
       fontFamily: "monospace",
       fontSize: "13px"
     })
@@ -288,7 +289,7 @@ export function createGameHud(
   const { button: pauseMenuButton, text: pauseMenuText } = createToolButton(scene, 0, 42, 40, "\u2630");
   bindPointerAction(pauseMenuButton, actions.onMenu);
   const pauseMenuTooltip = scene.add.text(0, 69, `${t("button.menu")} (Esc)`, {
-    color: "#f5f5f5", backgroundColor: "#101010", fontFamily: "monospace", fontSize: "13px",
+    color: uiTextColors.primary, backgroundColor: "#101010", fontFamily: "monospace", fontSize: "13px",
     padding: { x: 8, y: 5 }
   }).setOrigin(1, 0).setDepth(100).setVisible(false);
   pauseMenuButton.on("pointerover", () => pauseMenuTooltip.setVisible(true));
@@ -385,19 +386,19 @@ export function createCardStates(scene: Phaser.Scene, selectedCardIds: CardId[],
     const previewBorder = createUnitBorder(scene, definition.category, 19, 2).setPosition(x + 37, y + 34);
     const label = scene.add
       .text(x + 37, y + 31, definition.id, {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "27px",
         fontStyle: "700"
       })
       .setOrigin(0.5);
     const costText = scene.add.text(x + 78, y + 11, `${definition.cost}`, {
-      color: "#f5f5f5",
+      color: uiTextColors.primary,
       fontFamily: "monospace",
       fontSize: "18px"
     });
     const statsText = scene.add.text(x + 78, y + 35, definition.stats, {
-      color: "#8c8c8c",
+      color: uiTextColors.secondary,
       fontFamily: "monospace",
       fontSize: "13px"
     });
@@ -461,7 +462,7 @@ export function createGameOverlay(scene: Phaser.Scene, onAction: () => void): Ga
     .setStrokeStyle(2, palette.white, 1);
   const title = scene.add
     .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 24, t("overlay.breach"), {
-      color: "#f5f5f5",
+      color: uiTextColors.primary,
       fontFamily: "monospace",
       fontSize: "30px",
       fontStyle: "700"
@@ -469,7 +470,7 @@ export function createGameOverlay(scene: Phaser.Scene, onAction: () => void): Ga
     .setOrigin(0.5);
   const subtitle = scene.add
     .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 6, "", {
-      color: "#8c8c8c",
+      color: uiTextColors.secondary,
       fontFamily: "monospace",
       fontSize: "17px",
       fontStyle: "700"
@@ -482,7 +483,7 @@ export function createGameOverlay(scene: Phaser.Scene, onAction: () => void): Ga
     .setInteractive({ useHandCursor: true });
   const buttonText = scene.add
     .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 31, t("button.menu"), {
-      color: "#f5f5f5",
+      color: uiTextColors.primary,
       fontFamily: "monospace",
       fontSize: "16px"
     })
@@ -516,7 +517,7 @@ export function updateCardStates(cardStates: CardState[], state: CardUpdateState
     fitCardText(card.batchText, CARD_WIDTH - 84);
     const cooldownRatio = Phaser.Math.Clamp((card.readyAt - card.displayTime) / card.definition.cooldown, 0, 1);
     const readyRatio = 1 - cooldownRatio;
-    const contentAlpha = isSelected ? (isAffordable ? 1 : 0.56) : isAffordable ? 0.82 : 0.22;
+    const contentAlpha = isSelected ? (isAffordable ? 1 : 0.56) : isAffordable ? 0.95 : 0.22;
 
     setStrokeStyleIfChanged(
       card.frame,
@@ -583,7 +584,7 @@ export function updateToolButtonStates(
   setStrokeStyleIfChanged(ui.autoUpgradeEnabledBox, 2, autoUpgradeEnabled ? palette.green : palette.dim, autoUpgradeEnabled ? 0.86 : 0.62);
   setVisibleIfChanged(ui.autoUpgradeEnabledFill, autoUpgradeEnabled);
   setAlphaIfChanged(ui.autoUpgradeEnabledLabel, autoUpgradeEnabled ? 0.95 : 0.42);
-  setAlphaIfChanged(ui.autoUpgradeReserveLabel, autoUpgradeEnabled ? 0.72 : 0.34);
+  setAlphaIfChanged(ui.autoUpgradeReserveLabel, autoUpgradeEnabled ? 0.9 : 0.34);
   setStrokeStyleIfChanged(
     ui.autoUpgradeReserveInput,
     reserveInputFocused ? 3 : 2,
@@ -778,7 +779,7 @@ function createUnlockedCardDetails(overlay: GameOverlayElements, unlockedCardIds
     const icon = createUnitBorder(scene, card.category, 25, 2).setPosition(iconX, y + 28);
     const cardLabel = scene.add
       .text(iconX, y + 25, card.id, {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "24px",
         fontStyle: "700"
@@ -786,7 +787,7 @@ function createUnlockedCardDetails(overlay: GameOverlayElements, unlockedCardIds
       .setOrigin(0.5);
     const title = scene.add
       .text(contentX, y, entry.title, {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "20px",
         fontStyle: "700"
@@ -794,7 +795,7 @@ function createUnlockedCardDetails(overlay: GameOverlayElements, unlockedCardIds
       .setOrigin(0, 0);
     const stats = scene.add
       .text(contentX, y + 32, entry.lines.join("\n"), {
-        color: "#8c8c8c",
+        color: uiTextColors.secondary,
         fontFamily: "monospace",
         fontSize: "12px",
         lineSpacing: 2,
@@ -803,7 +804,7 @@ function createUnlockedCardDetails(overlay: GameOverlayElements, unlockedCardIds
       .setOrigin(0, 0);
     const description = scene.add
       .text(contentX, y + 92, entry.description, {
-        color: "#d8d8d8",
+        color: uiTextColors.body,
         fontFamily: "monospace",
         fontSize: "14px",
         lineSpacing: 2,
@@ -827,7 +828,7 @@ function createToolButton(scene: Phaser.Scene, x: number, y: number, width: numb
     .setDepth(30);
   const text = scene.add
     .text(x, y - 2, label, {
-      color: "#f5f5f5",
+      color: uiTextColors.primary,
       fontFamily: "monospace",
       fontSize: width >= 110 ? "15px" : "16px",
       fontStyle: "700"

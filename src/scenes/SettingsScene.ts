@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { GAME_HEIGHT, GAME_WIDTH, palette } from "../config";
+import { GAME_HEIGHT, GAME_WIDTH, palette, uiTextColors } from "../config";
 import { getLanguage, setLanguage, t, type Language } from "../i18n";
 import {
   completeAllLevels,
@@ -92,7 +92,7 @@ export class SettingsScene extends Phaser.Scene {
   private drawBackdrop() {
     this.add
       .text(48, 40, t("settings.title"), {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "30px",
         fontStyle: "700"
@@ -101,7 +101,7 @@ export class SettingsScene extends Phaser.Scene {
 
     this.add
       .text(50, 88, t("settings.controls"), {
-        color: "#8c8c8c",
+        color: uiTextColors.secondary,
         fontFamily: "monospace",
         fontSize: "17px"
       })
@@ -119,7 +119,7 @@ export class SettingsScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     const label = this.add
       .text(GAME_WIDTH - 78, 50, t("button.back"), {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "15px",
         fontStyle: "700"
@@ -133,7 +133,7 @@ export class SettingsScene extends Phaser.Scene {
   private createLanguageControls() {
     this.add
       .text(66, 158, t("settings.language"), {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "18px",
         fontStyle: "700"
@@ -153,7 +153,7 @@ export class SettingsScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     const label = this.add
       .text(x + 46, y - 1, text, {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "15px",
         fontStyle: "700"
@@ -170,7 +170,7 @@ export class SettingsScene extends Phaser.Scene {
     const enabled = isDebugModeEnabled();
     this.add
       .text(334, 158, t("settings.debugMode"), {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "18px",
         fontStyle: "700"
@@ -184,12 +184,12 @@ export class SettingsScene extends Phaser.Scene {
     const fill = this.add.rectangle(343, 204, 10, 10, palette.gold, 1).setVisible(enabled);
     const label = this.add
       .text(360, 202, t("settings.debugModeEnabled"), {
-        color: "#d8d8d8",
+        color: uiTextColors.body,
         fontFamily: "monospace",
         fontSize: "14px"
       })
       .setOrigin(0, 0.5)
-      .setAlpha(enabled ? 1 : 0.58)
+      .setAlpha(enabled ? 1 : 0.78)
       .setInteractive({ useHandCursor: true });
 
     const toggle = () => {
@@ -242,7 +242,7 @@ export class SettingsScene extends Phaser.Scene {
   private createSectionTitle(x: number, y: number, text: string) {
     this.add
       .text(x, y, text, {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "18px",
         fontStyle: "700"
@@ -260,7 +260,7 @@ export class SettingsScene extends Phaser.Scene {
   ) {
     const labelText = this.add
       .text(x, y, label, {
-        color: "#d8d8d8",
+        color: uiTextColors.body,
         fontFamily: "monospace",
         fontSize: "14px"
       })
@@ -274,7 +274,7 @@ export class SettingsScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     const keyText = this.add
       .text(buttonX + 37, y - 1, "", {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "12px",
         fontStyle: "700"
@@ -304,7 +304,7 @@ export class SettingsScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     const label = this.add
       .text(x + 21, y - 1, text, {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "17px",
         fontStyle: "700"
@@ -335,7 +335,7 @@ export class SettingsScene extends Phaser.Scene {
       const selected = button.letterCase === this.cardCase;
       button.frame.setStrokeStyle(selected ? 3 : 2, selected ? palette.white : palette.dim, selected ? 1 : 0.7);
       button.frame.setFillStyle(selected ? palette.panel : palette.black, selected ? 1 : 0.78);
-      button.label.setAlpha(selected ? 1 : 0.55);
+      button.label.setAlpha(selected ? 1 : 0.78);
     }
   }
 
@@ -347,7 +347,7 @@ export class SettingsScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     const label = this.add
       .text(132, y - 2, t("settings.resetControls"), {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "15px",
         fontStyle: "700"
@@ -368,7 +368,7 @@ export class SettingsScene extends Phaser.Scene {
     this.createSectionTitle(x, 480, t("settings.progress"));
     this.progressSummaryText = this.add
       .text(x, 518, "", {
-        color: "#8c8c8c",
+        color: uiTextColors.secondary,
         fontFamily: "monospace",
         fontSize: "13px"
       })
@@ -393,7 +393,7 @@ export class SettingsScene extends Phaser.Scene {
 
     this.progressMessageText = this.add
       .text(x, 604, "", {
-        color: "#d8d8d8",
+        color: uiTextColors.body,
         fontFamily: "monospace",
         fontSize: "13px",
         fontStyle: "700"
@@ -409,7 +409,7 @@ export class SettingsScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     const label = this.add
       .text(x, y - 1, text, {
-        color: "#f5f5f5",
+        color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "14px",
         fontStyle: "700"
@@ -492,7 +492,7 @@ export class SettingsScene extends Phaser.Scene {
       row.keyText.setText(editing ? t("control.capture") : formatKeyCode(code) || t("control.empty"));
       row.button.setStrokeStyle(editing ? 3 : 2, editing ? palette.white : code ? palette.mid : palette.dim, editing ? 1 : 0.9);
       row.button.setFillStyle(editing ? palette.panel : palette.black, editing ? 1 : 0.82);
-      row.keyText.setAlpha(code || editing ? 1 : 0.5);
+      row.keyText.setAlpha(code || editing ? 1 : 0.72);
     }
   }
 
@@ -502,7 +502,7 @@ export class SettingsScene extends Phaser.Scene {
       const selected = button.language === current;
       button.frame.setStrokeStyle(selected ? 3 : 2, selected ? palette.white : palette.dim, selected ? 1 : 0.8);
       button.frame.setFillStyle(selected ? palette.panel : palette.black, selected ? 1 : 0.82);
-      button.label.setAlpha(selected ? 1 : 0.62);
+      button.label.setAlpha(selected ? 1 : 0.78);
     }
   }
 
