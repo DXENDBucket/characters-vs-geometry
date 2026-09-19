@@ -25,6 +25,7 @@ import { forEachInitial, forEachSnapshot } from "./iteration";
 import { repeatHits } from "./volley";
 import { movementSpeedMultiplier, slowAuraSources, type SlowAuraSources } from "./slowAura";
 import { enemyIsSolarBomb } from "./solarBomb";
+import { redirectOrientedTarget } from "./orientation";
 import { applyStatusEffect } from "./statusEffects";
 import {
   bossPartAtPoint,
@@ -522,6 +523,9 @@ function updateBossRadiusFalloffResult(part: CubeBoss, x: number, y: number, rad
 }
 
 function syncMortarTarget(runtime: ProjectileRuntime, projectile: MortarProjectile) {
+  if (projectile.owner === "enemy") {
+    projectile.targetTower = redirectOrientedTarget(runtime.towers, projectile.targetTower, runtime.battleTime);
+  }
   if (projectile.targetEnemy?.inPlay) {
     projectile.targetX = projectile.targetEnemy.x;
     projectile.targetY = projectile.targetEnemy.y;

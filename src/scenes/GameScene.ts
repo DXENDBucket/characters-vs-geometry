@@ -662,6 +662,12 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    if (existingTower?.type === "o" && this.towerSkills.isOrientationReady(existingTower)) {
+      this.towerSkills.activateOrientationTower(existingTower);
+      this.updateCards();
+      return;
+    }
+
     if (this.isManualShockTower(existingTower)) {
       this.triggerShockTower(existingTower);
       return;

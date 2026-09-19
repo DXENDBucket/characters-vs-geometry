@@ -12,6 +12,7 @@ export type CardId =
   | "e"
   | "g"
   | "O"
+  | "o"
   | "R"
   | "X"
   | "x"
@@ -318,6 +319,7 @@ export interface Tower {
   hpFill: Phaser.GameObjects.Rectangle;
   negativeHpBack?: Phaser.GameObjects.Rectangle;
   negativeHpFill?: Phaser.GameObjects.Rectangle;
+  rangeBorder?: Phaser.GameObjects.Graphics;
   levelText: Phaser.GameObjects.Text;
   trueDamageUntil: number;
   flyingUntil: number;

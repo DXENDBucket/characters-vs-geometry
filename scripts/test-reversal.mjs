@@ -67,6 +67,12 @@ function load(name) {
   return exports;
 }
 
+const slowAuraPath = path.resolve(root, "src/game/slowAura.ts");
+const slowAuraStub = stubs.get(slowAuraPath);
+stubs.delete(slowAuraPath);
+const { isCellInSlowAura } = load("src/game/slowAura.ts");
+stubs.set(slowAuraPath, { ...slowAuraStub, isCellInSlowAura });
+
 const rules = load("src/game/rules/reversal.ts");
 const statuses = load("src/game/statusEffects.ts");
 const towers = load("src/game/towers.ts");
@@ -84,6 +90,7 @@ function uiVisual() {
       if (property in target) return target[property];
       return (...args) => {
         if (property === "setVisible") target.visible = args[0];
+        if (property === "setAlpha") target.alpha = args[0];
         if (property === "setText") target.text = args[0];
         if (property === "destroy") target.destroyed = true;
         return proxy;
@@ -137,6 +144,113 @@ function unyieldingFixture() {
   const runtime = { ...f.state, projectiles: [], enemyProjectiles: [], mortarProjectiles: [], onTowerDamaged: noop };
   return { ...f, runtime, refresh: () => lifecycle.settleTowerHealth(runtime) };
 }
+
+test("o matches B except for zero attack and no retaliation, unlocks after 2-8 and upgrades its own HP", () => {
+  const f = extractionFixture();
+  const card = f.state.getDefinition("o");
+  const b = f.state.getDefinition("B");
+  for (const key of ["category", "cost", "cooldown", "maxHp", "armor", "magicResistance"]) {
+    assert.equal(card[key], b[key]);
+  }
+  assert.equal(card.attackPower, 0);
+  assert.equal(card.reflectAttackMultiplier, undefined);
+  assert.equal(load("src/data/cardUnlocks.ts").cardUnlockRequirement("o"), "2-8");
+  const o = f.place("o");
+  towers.applyTowerUpgradeStats(o, card, towers.upgradeTowerLevel(o), 0);
+  assert.equal(o.finalStats.maxHp, 5400);
+  assert.equal(o.hp, 5400);
+  assert.equal(o.finalStats.attackPower, 0);
+});
+
+test("Orientation starts empty, charges at 1 SP/s, spends 10, pauses for 6s, resets on upgrade and syncs its range", () => {
+  const f = extractionFixture();
+  const o = f.place("o");
+  const { TowerSkillController } = load("src/game/towerSkills.ts");
+  const runtime = { ...f.state, battleTime: 0 };
+  const controller = new TowerSkillController(f.state.scene, () => runtime);
+  const step = (seconds) => { runtime.battleTime += seconds * 1000; controller.update(seconds, runtime.battleTime); };
+  controller.update(0, 0);
+  assert.equal(o.skills.orientation.sp, 0);
+  assert.equal(controller.isOrientationReady(o), false);
+  assert.equal(o.rangeBorder.alpha, 0.22);
+  step(9.5);
+  assert.equal(o.skills.orientation.sp, 9);
+  step(0.5);
+  assert.equal(controller.isOrientationReady(o), true);
+  controller.activateOrientationTower(o);
+  assert.equal(o.skills.orientation.sp, 0);
+  assert.equal(o.skills.orientation.activeUntil, 16000);
+  assert.equal(o.rangeBorder.alpha, 0.9);
+  step(5.5);
+  assert.equal(o.skills.orientation.sp, 0);
+  step(1);
+  assert.equal(o.skills.orientation.sp, 0);
+  assert.equal(o.skills.orientation.spBuffer, 0.5);
+  assert.equal(o.rangeBorder.alpha, 0.22);
+  step(9.5);
+  assert.equal(controller.isOrientationReady(o), true);
+  controller.activateOrientationTower(o);
+  controller.resetTowerSkill(o);
+  assert.equal(o.skills.orientation.sp, 0);
+  assert.equal(o.skills.orientation.activeUntil, 0);
+  assert.equal(o.rangeBorder.alpha, 0.22);
+});
+
+test("Orientation protects exactly the centered 21 cells, expires, follows movement and ignores removed or transient sources", () => {
+  const f = extractionFixture();
+  const o = f.place("o", 1, 3, 6);
+  o.skills.orientation = { sp: 0, spBuffer: 0, activeUntil: 6000 };
+  const { redirectOrientedTarget } = load("src/game/orientation.ts");
+  let protectedCells = 0;
+  for (let dl = -3; dl <= 3; dl++) for (let dc = -3; dc <= 3; dc++) {
+    const target = { inPlay: true, lane: 3 + dl, column: 6 + dc };
+    const expected = Math.abs(dl) <= 2 && Math.abs(dc) <= 2 && !(Math.abs(dl) === 2 && Math.abs(dc) === 2);
+    assert.equal(redirectOrientedTarget([o], target, 1000), expected ? o : target);
+    if (expected) protectedCells++;
+  }
+  assert.equal(protectedCells, 21);
+  const target = f.place("B", 1, 3, 7);
+  assert.equal(redirectOrientedTarget([o], target, 6000), target);
+  o.column = 0;
+  assert.equal(redirectOrientedTarget([o], target, 1000), target);
+  o.column = 6;
+  o.transient = true;
+  assert.equal(redirectOrientedTarget([o], target, 1000), target);
+  o.transient = false;
+  o.inPlay = false;
+  assert.equal(redirectOrientedTarget([o], target, 1000), target);
+});
+
+test("overlapping Orientation uses the newest activation and never chains between active o towers", () => {
+  const f = extractionFixture();
+  const first = f.place("o", 1, 3, 5), second = f.place("o", 1, 3, 6);
+  const target = f.place("B", 1, 3, 7);
+  first.skills.orientation = { sp: 0, spBuffer: 0, activeUntil: 8000 };
+  second.skills.orientation = { sp: 0, spBuffer: 0, activeUntil: 7000 };
+  const { redirectOrientedTarget } = load("src/game/orientation.ts");
+  assert.equal(redirectOrientedTarget(f.state.towers, target, 2000), first);
+  second.skills.orientation.activeUntil = 9000;
+  assert.equal(redirectOrientedTarget(f.state.towers, target, 2000), second);
+  assert.equal(redirectOrientedTarget(f.state.towers, first, 2000), first);
+  assert.equal(redirectOrientedTarget(f.state.towers, second, 2000), second);
+});
+
+test("active Orientation redirects enemy locked mortars already in flight, not friendly mortars or untargeted shots", () => {
+  const f = extractionFixture();
+  const o = f.place("o", 1, 3, 5), target = f.place("B", 1, 3, 6);
+  o.skills.orientation = { sp: 0, spBuffer: 0, activeUntil: 6000 };
+  const { updateMortarProjectiles } = load("src/game/projectileRuntime.ts");
+  for (const [owner, locked] of [["enemy", true], ["tower", true], ["enemy", false]]) {
+    const shot = { owner, targetTower: locked ? target : undefined, fromX: 1000, fromY: 0,
+      targetX: target.x, targetY: target.y, progress: 0, duration: 1000, body: visual() };
+    const state = { ...f.state, battleTime: 1000, mortarProjectiles: [shot] };
+    updateMortarProjectiles(state, 0);
+    const redirected = owner === "enemy" && locked;
+    assert.equal(shot.targetTower, redirected ? o : locked ? target : undefined);
+    assert.equal(shot.targetX, redirected ? o.x : target.x);
+    assert.equal(shot.targetY, redirected ? o.y : target.y);
+  }
+});
 
 test("g costs 425, unlocks after 3-8 and shares e's healing panel and volley upgrades, but not Zeal", () => {
   const f = unyieldingFixture();

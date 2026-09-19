@@ -1,5 +1,6 @@
 import type { CardId, Tower } from "../types";
 import type { RegisteredSkillDefinition } from "./skillRegistry";
+import { resetOrientation, updateOrientation } from "./orientation";
 
 export type TowerSkillDefinition = RegisteredSkillDefinition<Tower, void>;
 
@@ -15,6 +16,11 @@ export interface TowerSkillActions {
 
 export function createTowerSkillRegistry(actions: TowerSkillActions): Partial<Record<CardId, TowerSkillDefinition>> {
   return {
+    o: {
+      stateKey: "orientation",
+      update: updateOrientation,
+      reset: resetOrientation
+    },
     c: {
       stateKey: "clock",
       update: actions.updateClockTower,

@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { bossMovementDirection } from "./rules/reversal";
 import { isShockTower } from "./triggerTowers";
+import { redirectOrientedTarget } from "./orientation";
 import {
   BOARD_HEIGHT,
   BOARD_WIDTH,
@@ -904,7 +905,7 @@ function fireDodecahedronCompanionMortar(runtime: BossRuntime, companion: Enemy,
 }
 
 function findDodecahedronCompanionMortarTarget(runtime: BossRuntime) {
-  return latestPlacedTower(runtime.towers);
+  return redirectOrientedTarget(runtime.towers, latestPlacedTower(runtime.towers), runtime.battleTime);
 }
 
 function handleDodecahedronCompanionDeaths(runtime: BossRuntime, boss: CubeBoss, livingCompanions: Enemy[]) {
@@ -1098,6 +1099,7 @@ function fireIcosahedronDeathMortars(runtime: BossRuntime, boss: CubeBoss) {
 }
 
 function fireDodecahedronBossMortar(runtime: BossRuntime, boss: CubeBoss, target: Tower) {
+  target = redirectOrientedTarget(runtime.towers, target, runtime.battleTime)!;
   if (runtime.getBoss() !== boss || !target.inPlay) {
     return;
   }

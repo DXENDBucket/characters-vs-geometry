@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { enemyFacingDirection, enemyMovementDirection } from "./rules/reversal";
 import { isShockTower } from "./triggerTowers";
+import { redirectOrientedTarget } from "./orientation";
 import { BOARD_HEIGHT, BOARD_WIDTH, BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, LANES } from "../config";
 import { getCardDefinition } from "../registry/cards";
 import {
@@ -419,16 +420,17 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
       }
 
       if (canEnemyMelee(enemy) && time >= enemy.attackAt) {
-        runtime.damageTower(blocker, enemyAttackDamage(enemy, time), enemy.damageType);
-        const blockerDefinition = getCardDefinition(blocker.type);
+        const target = redirectOrientedTarget(runtime.towers, blocker, time)!;
+        runtime.damageTower(target, enemyAttackDamage(enemy, time), enemy.damageType);
+        const blockerDefinition = getCardDefinition(target.type);
         if (blockerDefinition.reflectAttackMultiplier) {
           runtime.damageEnemy(
             enemy,
-            towerAttackAmount(blocker, blockerDefinition, blockerDefinition.reflectAttackMultiplier),
-            towerDamageType(blocker, blockerDefinition.damageType ?? "physical", time),
-            blocker
+            towerAttackAmount(target, blockerDefinition, blockerDefinition.reflectAttackMultiplier),
+            towerDamageType(target, blockerDefinition.damageType ?? "physical", time),
+            target
           );
-          makeReflectFlash(runtime.scene, blocker.x, blocker.y);
+          makeReflectFlash(runtime.scene, target.x, target.y);
         }
         enemy.attackAt = time + enemy.finalStats.attackInterval;
       }
@@ -1036,7 +1038,7 @@ function advanceHexMace(
   makeShellBurst(runtime.scene, enemy.x, enemy.y, CELL_WIDTH * 0.85, enemy.damageType);
   makeShockPulse(runtime.scene, enemy.x, enemy.y, CELL_WIDTH * 0.9, CELL_HEIGHT * 0.72);
   if (damage > 0) {
-    runtime.damageTower(blocker, damage, enemy.damageType);
+    runtime.damageTower(redirectOrientedTarget(runtime.towers, blocker, time)!, damage, enemy.damageType);
   }
 
   const bounceDirection = -Math.sign(rawVelocity) || -enemyFacingDirection(enemy);
@@ -1114,7 +1116,7 @@ function advanceSiegeRam(
 
   makeShellBurst(runtime.scene, enemy.x, enemy.y, CELL_WIDTH * 0.85, enemy.damageType);
   makeShockPulse(runtime.scene, enemy.x, enemy.y, CELL_WIDTH * 0.82, CELL_HEIGHT * 0.62);
-  runtime.damageTower(blocker, enemyAttackDamage(enemy, time), enemy.damageType);
+  runtime.damageTower(redirectOrientedTarget(runtime.towers, blocker, time)!, enemyAttackDamage(enemy, time), enemy.damageType);
   runtime.damageEnemy(enemy, enemy.baseStats.maxHp * 10_000, "true");
   return true;
 }
@@ -1136,7 +1138,7 @@ function advanceBlockedDetonator(
     if (blocker && blocker.id === startedByTowerId) {
       makeShellBurst(runtime.scene, enemy.x, enemy.y, CELL_WIDTH, detonation.damageType);
       makeShockPulse(runtime.scene, enemy.x, enemy.y, CELL_WIDTH * 0.72, CELL_HEIGHT * 0.72);
-      runtime.damageTower(blocker, detonation.damage * enemyAttackMultiplier(enemy, time), detonation.damageType);
+      runtime.damageTower(redirectOrientedTarget(runtime.towers, blocker, time)!, detonation.damage * enemyAttackMultiplier(enemy, time), detonation.damageType);
       runtime.damageEnemy(enemy, enemy.baseStats.maxHp * 10_000, "true");
       return true;
     }
@@ -1224,7 +1226,7 @@ function fireEnemyMortarVolley(runtime: EnemyAdvanceRuntime, enemy: Enemy, time:
     return false;
   }
 
-  const target = findLockedAttackTarget(runtime.towers, runtime.enemies, runtime.occupied, enemy);
+  const target = redirectOrientedTarget(runtime.towers, findLockedAttackTarget(runtime.towers, runtime.enemies, runtime.occupied, enemy), runtime.battleTime);
   if (!target) {
     return false;
   }
@@ -1246,7 +1248,7 @@ function fireEnemyMortarShot(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: n
     return;
   }
 
-  const target = findLockedAttackTarget(runtime.towers, runtime.enemies, runtime.occupied, enemy);
+  const target = redirectOrientedTarget(runtime.towers, findLockedAttackTarget(runtime.towers, runtime.enemies, runtime.occupied, enemy), runtime.battleTime);
   if (!target) {
     return;
   }

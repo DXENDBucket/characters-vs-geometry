@@ -137,6 +137,7 @@ export function createTower(
     negativeHpBack,
     negativeHpFill,
     levelText,
+    rangeBorder: rangeBorder ?? undefined,
     trueDamageUntil: 0,
     flyingUntil: 0
   };
@@ -337,6 +338,10 @@ function createTowerFlyingHalo(scene: Phaser.Scene) {
 }
 
 function createRangeBorder(scene: Phaser.Scene, definition: CardDefinition) {
+  if (definition.id === "o") {
+    return createNoCornerRangeBorder(scene, 0xa2efb0, 1).setAlpha(0.22);
+  }
+
   if (definition.id === "T") {
     return createNoCornerRangeBorder(scene, palette.time, 0.86);
   }

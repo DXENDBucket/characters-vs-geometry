@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { changeTowerHealth } from "./towerHealth";
+import { activateOrientation, orientationIsReady } from "./orientation";
 import {
   CELL_WIDTH,
   CLOCK_TOWER_SKILL_DURATION,
@@ -123,6 +124,14 @@ export class TowerSkillController {
     const runtime = this.runtime();
     const state = getTowerSkillState(tower, "airPatrol");
     return tower.type === "w" && runtime.battleTime >= state.activeUntil && state.sp >= AIR_PATROL_SKILL_MAX;
+  }
+
+  isOrientationReady(tower: Tower) {
+    return orientationIsReady(tower, this.runtime().battleTime);
+  }
+
+  activateOrientationTower(tower: Tower) {
+    activateOrientation(tower, this.runtime().battleTime);
   }
 
   activateAirPatrolTower(tower: Tower) {

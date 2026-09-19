@@ -53,6 +53,7 @@ export type EnemySpawnRuntime = Pick<CombatRuntime, "scene" | "enemies">;
 export type EnemyAdvanceRuntime = Pick<
   CombatRuntime,
   | "scene"
+  | "battleTime"
   | "enemies"
   | "towers"
   | "boss"

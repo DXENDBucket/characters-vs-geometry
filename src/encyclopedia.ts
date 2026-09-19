@@ -705,6 +705,7 @@ function towerDescription(id: CardId) {
     c: zh ? "极速钟。每秒回复 1 技力，20 满后显示边框；点击消耗全部技力，使自身进入 10 秒闪烁状态。所有激活的 c 会让基础费用 999 或以下的其他卡槽冷却速度变为等级和 +1 倍，c 自身卡槽冷却不受影响；Shift+点击可同时激活所有满技力的 c。" : "Speed clock. Gains 1 SP/s up to 20 and shows its border when full; clicking it spends all SP and makes it flash for 10s. Active c towers make other card-slot cooldown speed equal active level sum + 1 for cards with base cost 999 or lower; c's own card cooldown is unaffected. Shift-click activates all full c towers.",
     D: zh ? "纯防御塔。高护甲，用来拖住近战敌怪。" : "Pure defender with high armor for stalling melee enemies.",
     O: zh ? "抗法防御塔。机制和 D 类似，拥有高护甲和中等法术抗性。" : "Magic-resistant defender. Similar to D, with high armor and moderate magic resistance.",
+    o: zh ? "导向防御塔。面板同 B，但攻击力为 0，不反伤。导向（orientation）：初始 0 技力，每秒回复 1，上限 10；满技力后点击消耗 10，持续 6 秒，期间不回技。原本瞄准自身缺角 5x5 范围内塔的敌方攻击和技能改为瞄准小 o，包括已在飞行中的锁定迫击弹；无目标弹幕、直线激光和范围攻击不受影响。范围开启时为浅绿色，未开启时暗淡。多个导向重叠时优先最近开启的，已锁定生效中小 o 的攻击不再互相转移。" : "Orientation defender. Same baseline as B, but 0 ATK and no retaliation. Starts with 0 SP, recovers 1 SP/s up to 10. Click when ready to spend 10 SP for 6s; SP recovery pauses while active. Enemy attacks and skills targeting towers in its centered 5x5 area without corners are redirected to o, including airborne locked mortars. Untargeted projectiles, line lasers and area attacks are unchanged. The range is pale green while active and dim otherwise. The most recently activated overlapping o takes priority; attacks already targeting an active o do not bounce between redirectors.",
     R: zh ? "反弹防御塔。机制和 O 类似；敌方弹幕击中它时仍会造成伤害，但弹幕会被反射为同伤害、同类型的我方弹幕。锁定迫击弹命中 R 时会被反射回发射者。" : "Reflect defender. Similar to O; enemy projectiles still damage it on hit, then reflect into friendly projectiles with the same damage and damage type. Locked mortars that hit R are reflected back at the shooter.",
     X: zh ? `生产塔。按攻速每 10 秒产生 ${EFFECT_SYMBOLS.chars}25，也是主要字符来源之一；热忱可以加快生产。` : `Producer. Generates ${EFFECT_SYMBOLS.chars}25 every 10s using attack speed, so Zeal speeds it up.`,
     x: zh ? "追踪法术射手。每次从攻击形四角发射 4 枚 > 法术追踪弹。对命中时非飞行的目标伤害降低 35%，包括地面 Boss。小 x 开火时优先锁定离小 x 最近的可攻击飞行敌怪；没有飞行敌怪时锁定离小 x 最近的可攻击敌怪或 Boss。追踪弹只追锁定目标，目标死亡或消失后才改为锁定离子弹最近的可攻击敌怪或 Boss。" : "Homing magic attacker. Fires four > magic homing shots from the attack-shape corners. Deals 35% less damage to targets that are not Flying on impact, including ground Bosses. When x fires, it prioritizes the attackable Flying enemy nearest to x; if none exist, it locks the attackable enemy or Boss nearest to x. Shots keep chasing their locked target and only retarget to the nearest attackable enemy or Boss to the shot if that target dies or disappears.",
@@ -814,6 +815,9 @@ function towerUpgradeText(id: CardId) {
   }
   if (id === "w") {
     return zh ? "每级最大生命增加基础值的 80%，当前生命同步补充，并重置巡空技力。" : "Each level adds 80% of base max HP, heals by the same amount, and resets Air Patrol SP.";
+  }
+  if (id === "o") {
+    return zh ? "每级最大生命增加基础值的 80%（2400），当前生命同步补充，并重置导向技力；技能持续时间不变。" : "Each level adds 80% of base max HP (2400), heals by the same amount, and resets Orientation SP; skill duration is unchanged.";
   }
   return zh ? "每级最大生命增加基础值的 80%，当前生命同步补充。" : "Each level adds 80% of base max HP and heals by the same amount.";
 }

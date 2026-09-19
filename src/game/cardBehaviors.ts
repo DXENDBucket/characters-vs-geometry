@@ -205,6 +205,7 @@ export const cardBehaviorsById: Record<CardId, CardBehavior> = {
   D: idleCardBehavior,
   d: magicLaserCardBehavior,
   O: idleCardBehavior,
+  o: idleCardBehavior,
   R: idleCardBehavior,
   X: productionCardBehavior,
   x: homingCardBehavior,

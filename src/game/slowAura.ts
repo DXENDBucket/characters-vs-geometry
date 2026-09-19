@@ -141,7 +141,7 @@ function cellIndex(column: number, lane: number) {
   return lane * COLUMNS + column;
 }
 
-function isCellInSlowAura(tower: Tower, column: number, lane: number) {
+export function isCellInSlowAura(tower: Tower, column: number, lane: number) {
   const columnDelta = Math.abs(column - tower.column);
   const laneDelta = Math.abs(lane - tower.lane);
   const inFiveByFive = columnDelta <= SLOW_AURA_RADIUS_CELLS && laneDelta <= SLOW_AURA_RADIUS_CELLS;
