@@ -2937,6 +2937,15 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 - Volleys use at most five firing times with separate stacked hits. Companion count, 95% Boss damage reduction while companions live, 10-second survivor invincibility and Endless Wings stay unchanged.
 - Leaving saves companion state and pending attacks; old companions are removed on Boss replacement and old Boss attack actions cannot affect the new round.
 
+## Infinite Front: IF-BE-4
+
+- Boss Endless based on `5-8`; unlocks after clearing `5-8`, with `10000` initial characters.
+- Weight starts at `50`, increment `+50`, extra increment `+7`, without a cap. Enemy families follow `5-8` with shared IF dynamic ranks and flag-based leader ranks.
+- Octahedron starts at rank I and respawns immediately at the fixed entry after defeat. HP is `120000 + 50000 * (rank - 1)`; armor `200`, MR `60`, speed `0.6` stay unchanged.
+- Copies at 75%, 50%, and 25% HP share health and rank, but keep independent statuses and shield states. Body-count reduction remains 20%/40%/60% with 2/3/4 bodies.
+- Initial spawn and each split shield every body and summon two Mirage Sun Bombs. Only the 25% split summons reinforcements, all at the Boss's rank: Bulwarks in all rows, Burrow Arrows in rows 2/4/6, Hearts in rows 2/4/6, Slopes in all rows, Archangels in all rows, separated by 0.5s.
+- Save/resume preserves copies, movement directions, independent shields, bomb states and pending reinforcements. Replacing the Boss removes old bombs and copies; the new rank begins with a fresh pair of bombs.
+
 ## Recent Enemy Additions
 
 - Shooting Triangle 2: weight `100`, HP `2000`, armor `70`, attack `400` physical, average speed `4`, body label `II`.

@@ -93,8 +93,11 @@ export function restoreBattleSnapshot(scene: Phaser.Scene, graph: SaveGraph): Ba
       if (!tower.inPlay) tower.body.destroy();
     }
     for (const boss of bosses) {
-      if (boss !== state.boss) boss.body.destroy();
-      else updateCubeBossMotion(boss, 0, 0, state.battleTime);
+      if (boss !== state.boss && !state.boss?.octahedronCopies?.includes(boss)) boss.body.destroy();
+      else {
+        if (boss !== state.boss) boss.body.setDepth(87);
+        updateCubeBossMotion(boss, 0, 0, state.battleTime);
+      }
     }
     const storedEnemies = new Set(state.storage.map(entry => entry.enemy));
     const retainCargo = (enemy: Enemy) => {

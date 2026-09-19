@@ -157,4 +157,25 @@ test("Boss Endless saves preserve Boss references and reject missing, dead or in
   assert.equal(f.saves.writeSurvivalSave(makeSave(dodecaState, "IF-BE-2")), false);
   for (const change of [{ companionDeathsHandled: 4 }, { companionsInitialized: undefined }, { skills: boss.skills }])
     assert.equal(f.saves.writeSurvivalSave(makeSave({ ...dodecaState, actions: [], boss: { ...dodecaBoss, ...change } }, "IF-BE-3")), false);
+  const octaStats = { ...stats, maxHp: 220000, armor: 200, magicResistance: 60 };
+  const octaBoss = { ...boss, kind: "octahedron", hp: 50000, maxHp: 220000, baseStats: octaStats, finalStats: { ...octaStats },
+    movementAxis: "x", movementDirection: -1, invincibleUntil: Infinity, octahedronSolarBombsInitialized: true,
+    octahedronSpawn75Triggered: true, octahedronSpawn50Triggered: true, octahedronSpawn25Triggered: true };
+  const copy = { ...octaBoss, movementAxis: "y", movementDirection: 1, invincibleUntil: 0 };
+  octaBoss.octahedronCopies = [copy];
+  const octaState = { ...state, boss: octaBoss, target: copy,
+    actions: [{ at: 2000, action: { type: "bossReinforcements", boss: octaBoss, kind: "heart3", lanes: [1, 3, 5] } }] };
+  const octaSave = () => ({ ...makeSave(octaState, "IF-BE-4"), graph: f.graph.encodeSaveGraph(octaState,
+    value => value === octaBoss || value === copy ? { kind: "boss" } : classify(value)) });
+  assert.equal(f.saves.writeSurvivalSave(octaSave()), true);
+  const octaLoaded = f.graph.decodeSaveGraph(f.saves.readSurvivalSave("IF-BE-4").graph, () => ({}));
+  assert.equal(octaLoaded.boss.invincibleUntil, Infinity);
+  assert.equal(octaLoaded.target, octaLoaded.boss.octahedronCopies[0]);
+  assert.equal(octaLoaded.target.invincibleUntil, 0);
+  assert.equal(octaLoaded.target.movementAxis, "y");
+  assert.equal(octaLoaded.actions[0].action.boss, octaLoaded.boss);
+  for (const copies of [[copy, copy], [octaBoss], [copy, copy, copy, copy]]) {
+    octaBoss.octahedronCopies = copies;
+    assert.equal(f.saves.writeSurvivalSave(octaSave()), false);
+  }
 });

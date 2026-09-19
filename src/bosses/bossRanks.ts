@@ -7,6 +7,7 @@ export function rankedBossFamily(kind: unknown) {
   if (kind === "cube" || kind === "cube2") return "cube";
   if (kind === "tetrahedron" || kind === "tetrahedron2") return "tetrahedron";
   if (kind === "dodecahedron" || kind === "dodecahedron2") return "dodecahedron";
+  if (kind === "octahedron" || kind === "octahedron2") return "octahedron";
   return undefined;
 }
 

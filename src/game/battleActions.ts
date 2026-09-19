@@ -1,6 +1,7 @@
-import type { CubeBoss, DamageType, Enemy, Tower } from "../types";
+import type { CubeBoss, DamageType, Enemy, EnemyKind, Tower } from "../types";
 
 export type BossAttackAction =
+  | { type: "bossReinforcements"; boss: CubeBoss; kind: EnemyKind; lanes: readonly number[] }
   | { type: "companionLaser" | "companionMortar"; boss: CubeBoss; companion: Enemy; hitCount: number }
   | { type: "bossDeathLaser"; boss: CubeBoss; laneRadius: number; hitCount: number }
   | { type: "bossDeathMortar"; boss: CubeBoss; target: Tower };

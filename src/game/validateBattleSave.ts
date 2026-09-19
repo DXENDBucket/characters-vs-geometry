@@ -42,10 +42,19 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
       require(record(skill) && [skill.sp, skill.spBuffer, skill.activeUntil, skill.maxSp, skill.cost].every(finite));
     }
     require(array(boss.statusEffects, effect => record(effect) && typeof effect.name === "string" && timestamp(effect.expiresAt)));
-    require(!boss.octahedronCopies || (Array.isArray(boss.octahedronCopies) && boss.octahedronCopies.length === 0));
+    if (family === "octahedron") {
+      require(!boss.octahedronCopies || (Array.isArray(boss.octahedronCopies) && boss.octahedronCopies.length <= 3 &&
+        new Set(boss.octahedronCopies).size === boss.octahedronCopies.length && boss.octahedronCopies.every(copy =>
+          member("boss")(copy) && copy !== boss && copy.rank === boss.rank && copy.kind === boss.kind &&
+          copy.hp === boss.hp && copy.maxHp === boss.maxHp && !copy.octahedronCopies?.length)));
+      require(["x", "y"].includes(boss.movementAxis as string) && (boss.movementDirection === -1 || boss.movementDirection === 1));
+      for (const key of ["octahedronSolarBombsInitialized", "octahedronSpawn75Triggered", "octahedronSpawn50Triggered", "octahedronSpawn25Triggered"])
+        require(boss[key] === undefined || typeof boss[key] === "boolean");
+    } else require(!boss.octahedronCopies || (Array.isArray(boss.octahedronCopies) && boss.octahedronCopies.length === 0));
     require(boss.advanceMinionKind === ((boss.rank as number) === 1 ? "square" : `square${boss.rank}`));
     for (const key of ["hitboxWidth", "hitboxHeight", "rotationX", "rotationY", "rotationZ", "velocityX", "velocityY", "velocityZ",
-      "targetVelocityX", "targetVelocityY", "targetVelocityZ", "nextTurnIn", "invincibleUntil", "contactAttackBuffer"]) require(finite(boss[key]));
+      "targetVelocityX", "targetVelocityY", "targetVelocityZ", "nextTurnIn", "contactAttackBuffer"]) require(finite(boss[key]));
+    require(finite(boss.invincibleUntil) || (family === "octahedron" && boss.invincibleUntil === Infinity));
     if (family === "tetrahedron") {
       for (const key of ["halfHpTriggered", "criticalHpTriggered", "pendingCriticalSummon"]) require(typeof boss[key] === "boolean");
       for (const key of ["chargeExpiresAt", "bossHasteUntil", "nextBossHasteTrailAt"]) require(finite(boss[key]));
@@ -88,7 +97,10 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
        member("enemy")(entry.action.companion) && finite(entry.action.hitCount) && entry.action.hitCount > 0) ||
      (entry.action.type === "bossDeathLaser" && member("boss")(entry.action.boss) &&
        finite(entry.action.hitCount) && entry.action.hitCount > 0 && finite(entry.action.laneRadius) && entry.action.laneRadius >= 0) ||
-     (entry.action.type === "bossDeathMortar" && member("boss")(entry.action.boss) && member("tower")(entry.action.target)))));
+     (entry.action.type === "bossDeathMortar" && member("boss")(entry.action.boss) && member("tower")(entry.action.target)) ||
+     (entry.action.type === "bossReinforcements" && member("boss")(entry.action.boss) &&
+       ["hexSpellBulwark", "burrowArrow", "heart", "slopeTriangle", "archangelHeptagon"].includes(parseEnemyKind(entry.action.kind)?.family ?? "") &&
+       array(entry.action.lanes, lane => Number.isInteger(lane) && (lane as number) >= 0 && (lane as number) < 7)))));
   require(array(state.storage, entry => record(entry) && member("enemy")(entry.enemy) && member("tower")(entry.carrier) && finite(entry.releaseAt)));
   require(array(state.spellMortarFlights, entry => record(entry) && member("tower")(entry.source) && finite(entry.progress) && entry.progress >= 0 && entry.progress <= 1));
   require(array(state.sealedCells, cell => typeof cell === "string"));

@@ -24,7 +24,6 @@ import {
 } from "../config";
 import {
   bossAdvanceSpawnPoints,
-  bossRank,
   chargeBossSkill,
   createCubeBoss,
   isDodecahedronBoss,
@@ -129,17 +128,6 @@ const OCTAHEDRON_REINFORCEMENTS: Array<{
   { delay: OCTAHEDRON_REINFORCEMENT_DELAY * 2, kind: "heart", lanes: OCTAHEDRON_HEART_REINFORCEMENT_LANES },
   { delay: OCTAHEDRON_REINFORCEMENT_DELAY * 3, kind: "slopeTriangle", lanes: allBoardLanes() },
   { delay: OCTAHEDRON_REINFORCEMENT_DELAY * 4, kind: "archangelHeptagon", lanes: allBoardLanes() }
-];
-const OCTAHEDRON2_REINFORCEMENTS: Array<{
-  delay: number;
-  kind: Enemy["kind"];
-  lanes: readonly number[];
-}> = [
-  { delay: 0, kind: "hexSpellBulwark2", lanes: allBoardLanes() },
-  { delay: OCTAHEDRON_REINFORCEMENT_DELAY, kind: "burrowArrow2", lanes: OCTAHEDRON_BURROW_REINFORCEMENT_LANES },
-  { delay: OCTAHEDRON_REINFORCEMENT_DELAY * 2, kind: "heart2", lanes: OCTAHEDRON_HEART_REINFORCEMENT_LANES },
-  { delay: OCTAHEDRON_REINFORCEMENT_DELAY * 3, kind: "slopeTriangle2", lanes: allBoardLanes() },
-  { delay: OCTAHEDRON_REINFORCEMENT_DELAY * 4, kind: "archangelHeptagon2", lanes: allBoardLanes() }
 ];
 const ICOSAHEDRON_FINAL_PHASE_INDEX = 3;
 const ICOSAHEDRON_FINAL_REINFORCEMENTS: Array<{
@@ -380,7 +368,7 @@ function spawnOctahedronCopy(
     triggerReinforcements?: boolean;
   }
 ) {
-  const copy = createCubeBoss(runtime.scene, boss.kind, runtime.finalDamageReduction, options);
+  const copy = createCubeBoss(runtime.scene, boss.kind, runtime.finalDamageReduction, { ...options, rank: boss.rank });
   if (boss.maxHp !== copy.maxHp) {
     copy.baseStats.maxHp = boss.maxHp;
     copy.maxHp = boss.maxHp;
@@ -449,7 +437,7 @@ function triggerIcosahedronFinalFatalSummon(runtime: BossRuntime, boss: CubeBoss
   });
 }
 
-function initializeOctahedronSolarBombs(runtime: BossRuntime, boss: CubeBoss) {
+export function initializeOctahedronSolarBombs(runtime: BossRuntime, boss: CubeBoss) {
   if (!isOctahedronBoss(boss) || boss.octahedronSolarBombsInitialized) {
     return;
   }
@@ -484,17 +472,9 @@ function spawnOctahedronSolarBombs(runtime: BossRuntime) {
 }
 
 function scheduleOctahedronReinforcements(runtime: BossRuntime, boss: CubeBoss) {
-  const reinforcements = bossRank(boss.kind) >= 2 ? OCTAHEDRON2_REINFORCEMENTS : OCTAHEDRON_REINFORCEMENTS;
-  for (const wave of reinforcements) {
-    runtime.scene.time.delayedCall(wave.delay, () => {
-      runtime.runWhenBattleActive(() => {
-        if (runtime.getBoss() !== boss) {
-          return;
-        }
-
-        spawnOctahedronReinforcementWave(runtime, wave.kind, wave.lanes, runtime.battleTime);
-      });
-    });
+  for (const wave of OCTAHEDRON_REINFORCEMENTS) {
+    scheduleBossAttack(runtime, wave.delay, { type: "bossReinforcements", boss,
+      kind: enemyKindAtRank(enemyFamily(wave.kind), boss.rank), lanes: wave.lanes });
   }
 }
 
@@ -1122,6 +1102,7 @@ function scheduleBossAttack(runtime: BossRuntime, delay: number, action: BossAtt
 export function executeBossAttack(runtime: BossRuntime, action: BossAttackAction) {
   if (runtime.getBoss() !== action.boss) return;
   switch (action.type) {
+    case "bossReinforcements": spawnOctahedronReinforcementWave(runtime, action.kind, action.lanes, runtime.battleTime); break;
     case "companionLaser": fireDodecahedronCompanionLaser(runtime, action.companion, action.hitCount); break;
     case "companionMortar": fireDodecahedronCompanionMortar(runtime, action.companion, action.hitCount); break;
     case "bossDeathLaser": fireBossDeathLasers(runtime, action.boss, action.laneRadius, action.hitCount); break;

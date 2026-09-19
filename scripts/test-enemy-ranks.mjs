@@ -151,7 +151,7 @@ test("IF-BE-1 is isolated in Boss Endless and inherits 1-10 enemies and funding 
   const { chapterIdForLevelId, levelNodesForChapter } = load("src/data/chapters.ts");
   assert.equal(chapterIdForLevelId("IF-BE-1"), "IFB");
   assert.equal(levelNodesForChapter("IF").length, 12);
-  assert.deepEqual(levelNodesForChapter("IFB").map(node => node.id), ["IF-BE-1", "IF-BE-2", "IF-BE-3"]);
+  assert.deepEqual(levelNodesForChapter("IFB").map(node => node.id), ["IF-BE-1", "IF-BE-2", "IF-BE-3", "IF-BE-4"]);
   const level = getLevelConfig("IF-BE-1"), source = getLevelConfig("1-10");
   for (const key of ["firstWaveWeight", "waveWeightIncrement", "wavesPerFlag"])
     assert.deepEqual(level[key], source[key], key);
@@ -176,8 +176,8 @@ test("tetrahedron ranks preserve I/II panels and extend Charge linearly", () => 
     assert.equal(tetrahedronChargeSpeedAtRank(rank), 2 + 0.5 * (rank - 1));
   }
   assert.equal(rankedBossFamily("tetrahedron2"), "tetrahedron");
-  assert.equal(rankedBossFamily("octahedron"), undefined);
-  assert.throws(() => bossStatsAtRank("octahedron", 3));
+  assert.equal(rankedBossFamily("icosahedron"), undefined);
+  assert.throws(() => bossStatsAtRank("icosahedron", 3));
   for (const rank of [0, -1, 1.5, Infinity, NaN]) assert.throws(() => tetrahedronChargeSpeedAtRank(rank));
 });
 
@@ -185,7 +185,7 @@ test("all Boss Endless stages inherit source funding and weights but use IF dyna
   const { getLevelConfig } = load("src/data/levels.ts");
   const { chapterIdForLevelId } = load("src/data/chapters.ts");
   const { buildInfiniteWaveKinds } = load("src/game/infiniteWaves.ts");
-  for (const [index, sourceId] of ["1-10", "2-10", "5-5"].entries()) {
+  for (const [index, sourceId] of ["1-10", "2-10", "5-5", "5-8"].entries()) {
     const id = `IF-BE-${index + 1}`, level = getLevelConfig(id), source = getLevelConfig(sourceId);
     assert.equal(chapterIdForLevelId(id), "IFB");
     assert.equal(level.unlockAfter, sourceId);
@@ -277,6 +277,21 @@ test("dodecahedron ranks extend companion health and attacks without changing th
   assert.equal(level.startingChars, 10000);
   assert.equal(level.firstWaveWeight, 50);
   assert.equal(level.waveWeightIncrement, 50);
+  assert.equal(level.waveWeightIncrementGrowth, 7);
+  assert.equal(level.waveWeightCap, undefined);
+});
+
+test("octahedron endless ranks grow HP linearly and inherit 5-8 without a weight cap", () => {
+  const { bossStatsAtRank } = load("src/bosses/bossRanks.ts");
+  for (const rank of [1, 2, 3, 100]) {
+    assert.deepEqual(bossStatsAtRank("octahedron", rank), {
+      hp: 120000 + 50000 * (rank - 1), armor: 200, magicResistance: 60, speed: 0.6
+    });
+  }
+  const level = load("src/data/levels.ts").getLevelConfig("IF-BE-4");
+  assert.equal(level.bossKind, "octahedron");
+  assert.equal(level.unlockAfter, "5-8");
+  assert.equal(level.startingChars, 10000);
   assert.equal(level.waveWeightIncrementGrowth, 7);
   assert.equal(level.waveWeightCap, undefined);
 });

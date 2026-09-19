@@ -36,11 +36,11 @@ import {
   getDifficultyConfig,
   palette
 } from "../config";
-import { createCubeBoss, isDodecahedronBoss } from "../bosses/cubeBoss";
+import { createCubeBoss, isDodecahedronBoss, isOctahedronBoss } from "../bosses/cubeBoss";
 import { enemyIsBossCompanion } from "../registry/enemies";
 import { chapterIdForLevelId } from "../data/chapters";
 import { getLevelConfig } from "../data/levels";
-import { updateBossRuntime, executeBossAttack, initializeDodecahedronCompanions, type BossRuntime } from "../game/bossRuntime";
+import { updateBossRuntime, executeBossAttack, initializeDodecahedronCompanions, initializeOctahedronSolarBombs, type BossRuntime } from "../game/bossRuntime";
 import { idleCardBehavior, type CardBehavior } from "../game/cardBehaviors";
 import type { CombatRuntime } from "../game/combatRuntime";
 import { advanceEnemies, executeEnemyAttack, spawnEnemyAt, spawnWaveEnemies } from "../game/enemyRuntime";
@@ -1213,6 +1213,9 @@ export class GameScene extends Phaser.Scene {
     if (this.levelConfig.bossEndless && isDodecahedronBoss(this.boss)) {
       initializeDodecahedronCompanions(this.bossRuntime(), this.boss);
     }
+    if (this.levelConfig.bossEndless && isOctahedronBoss(this.boss)) {
+      initializeOctahedronSolarBombs(this.bossRuntime(), this.boss);
+    }
     if (this.currentBossPhaseConfig()) {
       this.applyBossPhaseStats(this.boss);
       this.applyBossPhaseSkillState(this.boss);
@@ -1790,6 +1793,11 @@ export class GameScene extends Phaser.Scene {
   private handleBossDefeated(boss: CubeBoss) {
     if (this.levelConfig.bossEndless) {
       recordDefeatedBossRank(this.levelId, boss.rank);
+      if (isOctahedronBoss(boss)) {
+        forEachSnapshot(this.enemies, enemy => {
+          if (enemy.kind === "solarBomb") removeEnemy(this.unitLifecycleRuntime(), enemy, false);
+        });
+      }
       if (isDodecahedronBoss(boss)) {
         forEachSnapshot(this.enemies, enemy => {
           if (enemyIsBossCompanion(enemy.kind)) removeEnemy(this.unitLifecycleRuntime(), enemy, false);
@@ -2521,7 +2529,7 @@ export class GameScene extends Phaser.Scene {
   private executeBattleAction(action: BattleAction) {
     if (this.gameOver) return;
     switch (action.type) {
-      case "companionLaser": case "companionMortar": case "bossDeathLaser": case "bossDeathMortar":
+      case "companionLaser": case "companionMortar": case "bossDeathLaser": case "bossDeathMortar": case "bossReinforcements":
         executeBossAttack(this.bossRuntime(), action); break;
       case "enemyShot": case "enemyLaser": case "enemyMortar": executeEnemyAttack(this.combatRuntime(), action); break;
       case "volley":
