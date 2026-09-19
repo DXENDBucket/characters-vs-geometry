@@ -31,6 +31,7 @@ export type CardId =
   | "Q"
   | "q"
   | "J"
+  | "j"
   | "K"
   | "k"
   | "S"

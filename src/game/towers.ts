@@ -338,6 +338,15 @@ function createTowerFlyingHalo(scene: Phaser.Scene) {
 }
 
 function createRangeBorder(scene: Phaser.Scene, definition: CardDefinition) {
+  if (definition.id === "j") {
+    const border = scene.add.graphics();
+    border.lineStyle(2, 0xa2efb0, 1);
+    for (const direction of [-1, 1]) {
+      border.strokeRect(-CELL_WIDTH / 2, (direction - 0.5) * CELL_HEIGHT, CELL_WIDTH, CELL_HEIGHT);
+    }
+    return border.setAlpha(0.22);
+  }
+
   if (definition.id === "o") {
     return createNoCornerRangeBorder(scene, 0xa2efb0, 1).setAlpha(0.22);
   }

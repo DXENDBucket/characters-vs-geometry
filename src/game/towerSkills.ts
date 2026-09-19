@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { changeTowerHealth } from "./towerHealth";
 import { activateOrientation, orientationIsReady } from "./orientation";
+import { activateGathering, gatheringIsReady } from "./gathering";
 import {
   CELL_WIDTH,
   CLOCK_TOWER_SKILL_DURATION,
@@ -128,6 +129,14 @@ export class TowerSkillController {
 
   isOrientationReady(tower: Tower) {
     return orientationIsReady(tower, this.runtime().battleTime);
+  }
+
+  isGatheringReady(tower: Tower) {
+    return gatheringIsReady(tower, this.runtime().battleTime);
+  }
+
+  activateGatheringTower(tower: Tower) {
+    activateGathering(tower, this.runtime().battleTime);
   }
 
   activateOrientationTower(tower: Tower) {

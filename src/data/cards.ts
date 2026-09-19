@@ -543,6 +543,19 @@ export const cardDefinitions: CardDefinition[] = [
     stats: `SHIFT / 1s`
   },
   {
+    id: "j",
+    category: "function",
+    cost: 225,
+    cooldown: 20_000,
+    maxHp: 3_000,
+    attackPower: 0,
+    armor: 200,
+    magicResistance: 0,
+    selfDamage: 100,
+    selfDamageType: "true",
+    stats: "GATHER / 10SP / 10s"
+  },
+  {
     id: "N",
     category: "defense",
     cost: 125,

@@ -236,6 +236,7 @@ export const cardBehaviorsById: Record<CardId, CardBehavior> = {
   S: idleCardBehavior,
   s: smallSummonerCardBehavior,
   L: shiftCardBehavior,
+  j: idleCardBehavior,
   N: blockedPushCardBehavior,
   n: laneRepelCardBehavior,
   T: slowAuraCardBehavior,

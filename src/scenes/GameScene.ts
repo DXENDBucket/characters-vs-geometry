@@ -677,6 +677,12 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    if (existingTower?.type === "j" && this.towerSkills.isGatheringReady(existingTower)) {
+      this.towerSkills.activateGatheringTower(existingTower);
+      this.updateCards();
+      return;
+    }
+
     if (this.isManualShockTower(existingTower)) {
       this.triggerShockTower(existingTower);
       return;

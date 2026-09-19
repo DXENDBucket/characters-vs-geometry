@@ -26,6 +26,7 @@ import { repeatHits } from "./volley";
 import { movementSpeedMultiplier, slowAuraSources, type SlowAuraSources } from "./slowAura";
 import { enemyIsSolarBomb } from "./solarBomb";
 import { redirectOrientedTarget } from "./orientation";
+import { gatherProjectile, gatheringIsActive } from "./gathering";
 import { applyStatusEffect } from "./statusEffects";
 import {
   bossPartAtPoint,
@@ -73,6 +74,7 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
   }
 
   const slowSources = projectileSlowAuraSources(runtime);
+  const gatherers = runtime.towers.filter(tower => gatheringIsActive(tower, runtime.battleTime));
   let directTargets: DirectProjectileTargets | undefined;
   const getDirectTargets = () => {
     directTargets ??= buildDirectProjectileTargets(runtime.enemies);
@@ -90,11 +92,19 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
     }
 
     const speedMultiplier = movementSpeedMultiplier(runtime.towers, projectile.x, projectile.y, slowSources);
+    const previousX = projectile.x;
+    const previousY = projectile.y;
     const nextX = projectile.x + projectile.vx * seconds * speedMultiplier;
     const reachedLimitX = projectile.limitDirection < 0 ? nextX <= projectile.maxX : nextX >= projectile.maxX;
     projectile.x = reachedLimitX ? projectile.maxX : nextX;
     projectile.y += projectile.vy * seconds * speedMultiplier;
     projectile.body.setPosition(projectile.x, projectile.y);
+
+    if (gatherers.length > 0 && gatherProjectile(runtime, gatherers, projectile, previousX, previousY)) {
+      // Self-damage can remove linked towers and clear projectiles through T's removal effect.
+      if (!runtime.projectiles.includes(projectile)) return;
+      directTargets = undefined;
+    }
 
     const homingHit = projectile.type === "chevron" ? getHomingProjectileHit(runtime, projectile) : undefined;
     const hit = homingHit?.enemy ?? (projectile.type === "chevron" ? undefined : findDirectProjectileHit(getDirectTargets(), projectile));

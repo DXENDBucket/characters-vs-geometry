@@ -145,6 +145,208 @@ function unyieldingFixture() {
   return { ...f, runtime, refresh: () => lifecycle.settleTowerHealth(runtime) };
 }
 
+function gatheringFixture() {
+  const f = unyieldingFixture();
+  const j = f.place("j", 1, 3, 4);
+  j.skills.gathering = { sp: 0, spBuffer: 0, activeUntil: 10000 };
+  Object.assign(f.runtime, { enemies: [], battleTime: 1000, getBoss: () => null,
+    damageTower: (tower, amount, type) => lifecycle.damageTower(f.runtime, tower, amount, type) });
+  const { CELL_HEIGHT } = load("src/config.ts");
+  const shot = (overrides = {}) => ({ type: "bolt", lane: 2, x: j.x, y: j.y - CELL_HEIGHT,
+    vx: 0, vy: 0, damage: 400, damageType: "physical", hitCount: 3,
+    maxX: 10000, limitDirection: 1, splashRadius: 0, body: visual(), ...overrides });
+  return { ...f, j, shot, ...load("src/game/gathering.ts"),
+    update: seconds => load("src/game/projectileRuntime.ts").updateTowerProjectiles(f.runtime, seconds) };
+}
+
+test("j matches L's panel and HP upgrades, costs 225 and unlocks one stage after L", () => {
+  const f = extractionFixture();
+  const card = f.state.getDefinition("j");
+  const l = f.state.getDefinition("L");
+  for (const key of ["category", "cooldown", "maxHp", "armor", "magicResistance", "attackPower"]) assert.equal(card[key], l[key]);
+  assert.equal(card.cost, 225);
+  assert.equal(card.selfDamage, 100);
+  assert.equal(card.selfDamageType, "true");
+  assert.equal(load("src/data/cardUnlocks.ts").cardUnlockRequirement("j"), "2-6");
+  const j = f.place("j");
+  towers.applyTowerUpgradeStats(j, card, towers.upgradeTowerLevel(j), 0);
+  assert.equal(j.finalStats.maxHp, 5400);
+  assert.equal(j.hp, 5400);
+  assert.equal(j.finalStats.attackPower, 0);
+});
+
+test("Gathering charges from 0, spends 10, stays active for 10s, pauses regeneration and resets on upgrade", () => {
+  const f = extractionFixture();
+  const j = f.place("j");
+  const { TowerSkillController } = load("src/game/towerSkills.ts");
+  const controller = new TowerSkillController(f.state.scene, () => f.state);
+  const step = seconds => { f.state.battleTime += seconds * 1000; controller.update(seconds, f.state.battleTime); };
+  step(0);
+  assert.equal(j.skills.gathering.sp, 0);
+  assert.equal(controller.isGatheringReady(j), false);
+  controller.activateGatheringTower(j);
+  assert.equal(j.skills.gathering.activeUntil, 0);
+  step(10);
+  assert.equal(controller.isGatheringReady(j), true);
+  controller.activateGatheringTower(j);
+  assert.equal(j.skills.gathering.activeUntil, 20000);
+  assert.equal(j.skills.gathering.sp, 0);
+  assert.equal(j.rangeBorder.alpha, 0.9);
+  step(9.5);
+  controller.activateGatheringTower(j);
+  assert.equal(j.skills.gathering.activeUntil, 20000);
+  step(1);
+  assert.equal(j.skills.gathering.sp, 0);
+  assert.equal(j.skills.gathering.spBuffer, 0.5);
+  assert.equal(j.rangeBorder.alpha, 0.22);
+  step(9.5);
+  assert.equal(controller.isGatheringReady(j), true);
+  controller.activateGatheringTower(j);
+  controller.resetTowerSkill(j);
+  assert.equal(j.skills.gathering.sp, 0);
+  assert.equal(j.skills.gathering.activeUntil, 0);
+  assert.equal(j.rangeBorder.alpha, 0.22);
+});
+
+test("Gathering moves only bullets in the two adjacent same-column cells and costs once per bullet, not hit", () => {
+  const f = gatheringFixture();
+  const { CELL_HEIGHT, CELL_WIDTH } = load("src/config.ts");
+  const shots = [f.shot(), f.shot({ y: f.j.y + CELL_HEIGHT, lane: 4 }),
+    f.shot({ y: f.j.y, lane: 3 }), f.shot({ y: f.j.y - 2 * CELL_HEIGHT, lane: 1 }),
+    f.shot({ x: f.j.x + CELL_WIDTH })];
+  f.runtime.projectiles.push(...shots);
+  f.update(0);
+  assert.equal(f.j.hp, 3000 - 200);
+  assert.deepEqual(shots.map(s => s.lane), [3, 3, 3, 1, 2]);
+  assert.equal(shots[0].body.y, f.j.y);
+  assert.equal(shots[0].damage, 400);
+  assert.equal(shots[0].hitCount, 3);
+  f.update(0);
+  assert.equal(f.j.hp, 2800);
+});
+
+test("Gathering catches fast shots from either direction, preserves velocity/targets, and hits enemies in the new lane", () => {
+  const { CELL_WIDTH } = load("src/config.ts");
+  for (const direction of [-1, 1]) {
+    const f = gatheringFixture();
+    const target = enemy();
+    const shot = f.shot({ x: f.j.x - direction * CELL_WIDTH, vx: direction * CELL_WIDTH * 2,
+      targetEnemy: target });
+    f.runtime.projectiles.push(shot);
+    f.update(1);
+    assert.equal(shot.lane, f.j.lane);
+    assert.equal(shot.y, f.j.y);
+    assert.equal(shot.x, f.j.x + direction * CELL_WIDTH);
+    assert.equal(shot.vx, direction * CELL_WIDTH * 2);
+    assert.equal(shot.targetEnemy, target);
+    assert.equal(f.j.hp, 2900);
+  }
+  const f = gatheringFixture();
+  const shot = f.shot();
+  const target = enemy({ lane: f.j.lane, x: f.j.x, y: f.j.y });
+  f.runtime.enemies.push(target);
+  const hits = [];
+  f.runtime.damageEnemy = (target, damage, type) => hits.push([target, damage, type]);
+  f.runtime.projectiles.push(shot);
+  f.update(0);
+  assert.equal(hits.length, 3);
+  assert.deepEqual(hits[0], [target, 400, "physical"]);
+  assert.equal(f.runtime.projectiles.length, 0);
+});
+
+test("Gathering leaves enemy bullets and mortars alone, and ignores expired, transient or removed gatherers", () => {
+  const f = gatheringFixture();
+  const enemyShot = { x: f.j.x, y: f.shot().y, vx: 0, sourceLane: 2, body: visual() };
+  const mortar = { owner: "tower", fromX: 300, fromY: 200, targetX: 600, targetY: 200,
+    x: f.j.x, y: f.shot().y, progress: 0, duration: 1000, body: visual() };
+  f.runtime.enemyProjectiles.push(enemyShot);
+  f.runtime.mortarProjectiles.push(mortar);
+  load("src/game/projectileRuntime.ts").updateEnemyProjectiles(f.runtime, 0);
+  load("src/game/projectileRuntime.ts").updateMortarProjectiles(f.runtime, 0.01);
+  assert.equal(enemyShot.sourceLane, 2);
+  assert.equal(mortar.targetY, 200);
+  assert.equal(f.j.hp, 3000);
+  const shot = f.shot();
+  f.runtime.projectiles.push(shot);
+  for (const state of [{ inPlay: false }, { inPlay: true, transient: true }, { transient: false }]) {
+    Object.assign(f.j, state);
+    if (!f.j.transient && f.j.inPlay) f.runtime.battleTime = 10000;
+    f.update(0);
+    assert.equal(shot.lane, 2);
+    assert.equal(f.j.hp, 3000);
+  }
+});
+
+test("Gathering stops immediately on lethal self-damage and tolerates linked projectile cleanup", () => {
+  const f = gatheringFixture();
+  f.j.hp = 100;
+  const first = f.shot(), second = f.shot();
+  f.runtime.projectiles.push(first, second);
+  f.update(0);
+  assert.equal(f.j.inPlay, false);
+  assert.equal(first.lane, 3);
+  assert.equal(second.lane, 2);
+  const other = gatheringFixture();
+  const shot = other.shot();
+  other.runtime.projectiles.push(shot);
+  other.runtime.damageTower = () => { other.j.inPlay = false; other.runtime.projectiles.length = 0; shot.body.destroy(); };
+  other.update(0);
+  assert.equal(shot.body.destroyed, true);
+  assert.equal(other.runtime.projectiles.length, 0);
+});
+
+test("gatherers can steal the same bullet repeatedly, respecting its 100ms transfer interval", () => {
+  const f = gatheringFixture();
+  const other = f.place("j", 1, 2, 4);
+  other.skills.gathering = { sp: 0, spBuffer: 0, activeUntil: 10000 };
+  const shot = f.shot();
+  f.runtime.projectiles.push(shot);
+  f.update(0);
+  assert.equal(shot.lane, 3);
+  f.runtime.battleTime = 1099;
+  f.update(0);
+  assert.equal(shot.lane, 3);
+  assert.equal(other.hp, 3000);
+  f.runtime.battleTime = 1100;
+  f.update(0);
+  assert.equal(shot.lane, 2);
+  f.runtime.battleTime = 1200;
+  f.update(0);
+  assert.equal(shot.lane, 3);
+  assert.equal(f.j.hp, 2800);
+  assert.equal(other.hp, 2900);
+});
+
+test("same-frame competing gatherers all cancel without damage, regardless of tower order or crossing order", () => {
+  for (const reverseOrder of [false, true]) {
+    const f = gatheringFixture();
+    const other = f.place("j", 1, 1, 4);
+    other.skills.gathering = { sp: 0, spBuffer: 0, activeUntil: 10000 };
+    if (reverseOrder) f.runtime.towers.reverse();
+    const shot = f.shot();
+    f.runtime.projectiles.push(shot);
+    f.update(0);
+    assert.equal(shot.lane, 2);
+    assert.equal(f.j.hp, 3000);
+    assert.equal(other.hp, 3000);
+    other.skills.gathering.activeUntil = 0;
+    f.runtime.battleTime++;
+    f.update(0);
+    assert.equal(shot.lane, 3);
+    assert.equal(f.j.hp, 2900);
+  }
+  const f = gatheringFixture();
+  const { CELL_WIDTH } = load("src/config.ts");
+  const earlier = f.place("j", 1, 3, 2);
+  earlier.skills.gathering = { sp: 0, spBuffer: 0, activeUntil: 10000 };
+  const fast = f.shot({ x: earlier.x - CELL_WIDTH, vx: CELL_WIDTH * 4 });
+  f.runtime.projectiles.push(fast);
+  f.update(1);
+  assert.equal(fast.lane, 2);
+  assert.equal(earlier.hp, 3000);
+  assert.equal(f.j.hp, 3000);
+});
+
 test("o costs 175, otherwise matches B except for zero attack and no retaliation, and upgrades HP like B", () => {
   const f = extractionFixture();
   const card = f.state.getDefinition("o");
