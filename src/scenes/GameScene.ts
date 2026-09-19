@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { TowerStorageController } from "../game/towerStorage";
 import { expireReversalEffect } from "../game/rules/reversal";
 import {
   BASE_INTEGRITY,
@@ -235,6 +236,7 @@ export class GameScene extends Phaser.Scene {
   private towerSkills!: TowerSkillController;
   private shifter!: TowerShifterController;
   private mirrors!: TowerMirrorController;
+  private storage!: TowerStorageController;
   private deployment!: TowerDeploymentController;
   private towerSkillRuntimeCache!: TowerSkillRuntime;
   private targetedEffectCardRuntimeCache!: TargetedEffectCardRuntime;
@@ -320,6 +322,7 @@ export class GameScene extends Phaser.Scene {
     this.towerSkills = new TowerSkillController(this, () => this.towerSkillRuntime());
     this.shifter = new TowerShifterController(() => this.towerShifterRuntime());
     this.mirrors = new TowerMirrorController(() => this.towerMirrorRuntime());
+    this.storage = new TowerStorageController(() => this.combatRuntime());
     this.deployment = new TowerDeploymentController(() => this.towerDeploymentRuntime());
     this.towerSkillRuntimeCache = this.createTowerSkillRuntime();
     this.targetedEffectCardRuntimeCache = this.createTargetedEffectCardRuntime();
@@ -394,6 +397,7 @@ export class GameScene extends Phaser.Scene {
     this.tutorial = null;
     this.shifter?.clearSelection();
     this.towerSkills?.cancelSpellMortarTargeting();
+    this.storage?.clear();
   }
 
   private setCardStates(cardStates: CardState[]) {
@@ -433,6 +437,7 @@ export class GameScene extends Phaser.Scene {
       this.updateProducers(this.battleTime);
     }
     this.updateArmingTowers(this.battleTime);
+    this.storage.update();
     updateBossRuntime(this.bossRuntime(), seconds);
     this.updateEnemies(this.battleTime, seconds);
     this.updateTowers(this.battleTime);
@@ -1321,6 +1326,7 @@ export class GameScene extends Phaser.Scene {
         damageEnemy(this.unitLifecycleRuntime(), enemy, damage, damageType, sourceTower),
       damageBoss: (damage, damageType, targetPart) => damageBoss(this.unitLifecycleRuntime(), damage, damageType, targetPart),
       damageTower: (tower, damage, damageType) => damageTower(this.unitLifecycleRuntime(), tower, damage, damageType),
+      storeBlockedEnemies: (tower, definition) => this.storage.storeBlockedEnemies(tower, definition),
       gainChars: (amount, x, y) => this.gainChars(amount, x, y),
       spawnTower: (id, lane, column, level, facingDirection) => this.spawnGeneratedTower(id, lane, column, level, facingDirection),
       isCellDeployable: (lane, column) => this.cellIsDeployable(lane, column),
@@ -1565,7 +1571,7 @@ export class GameScene extends Phaser.Scene {
       activeLevelConfig,
       this.wave,
       this.waveTracker,
-      this.enemies.length,
+      this.enemies.length + this.storage.count,
       this.currentPhaseElapsed(levelElapsed)
     );
 
@@ -1662,6 +1668,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private clearEnemiesForBossPhaseTransition() {
+    this.storage.clear();
     const bodies: Phaser.GameObjects.Container[] = [];
     forEachSnapshot(this.enemies, (enemy) => {
       enemy.inPlay = false;

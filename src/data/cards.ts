@@ -510,6 +510,20 @@ export const cardDefinitions: CardDefinition[] = [
     stats: `PUSH5 / 1s`
   },
   {
+    id: "q",
+    category: "defense",
+    cost: 200,
+    cooldown: 20_000,
+    maxHp: 3_000,
+    attackPower: 0,
+    armor: 500,
+    magicResistance: 0,
+    attackSpeed: 60,
+    selfDamage: 400,
+    selfDamageType: "true",
+    stats: "STORE 5s / BACK1 / 1s"
+  },
+  {
     id: "n",
     category: "function",
     cost: 375,

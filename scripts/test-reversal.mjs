@@ -9,7 +9,7 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 const noop = () => {};
 const effects = {
   makeReversalPulse: noop, makeBossHitFlash: noop, makeBossInvincibleFlash: noop, makeEnemyInvincibleFlash: noop,
-  makeShockPulse: noop, makeTrapBurst: noop, makeSlashEffect: noop, makeArcWaveEffect: noop,
+  makeShockPulse: noop, makeTrapBurst: noop, makeSlashEffect: noop, makeArcWaveEffect: noop, makeShiftEffect: noop,
   makeTowerLaserEffect: noop, makeHitShards: noop, makeSunderEffect: noop, makeHealParticles: noop,
   damageEffectTextColor: () => "#ffffff"
 };
@@ -75,7 +75,8 @@ function visual() {
     setPosition(x, y) { this.x = x; this.y = y; },
     setVisible(visible) { this.visible = visible; },
     setScale(x, y = x) { this.scaleX = x; this.scaleY = y; },
-    setY(y) { this.y = y; }, setStrokeStyle: noop
+    setY(y) { this.y = y; }, setStrokeStyle: noop,
+    setDepth(depth) { this.depth = depth; }, destroy() { this.destroyed = true; }
   };
 }
 function enemy(overrides = {}) {
@@ -311,4 +312,116 @@ test("healing uses final attack while healing upgrades still add volleys", () =>
     assert.equal(caster.hp, previousHp + 150, id);
     assert.equal(upgrades.volleyShotCount(id, 2), 2);
   }
+});
+
+function storageFixture() {
+  const card = cardDefinitions.find((candidate) => candidate.id === "q");
+  const caster = towerForCard(card);
+  caster.id = "tower:q";
+  const target = enemy({ x: caster.x, y: caster.y, lane: caster.lane });
+  const state = {
+    enemies: [target], towers: [caster], battleTime: 1000, scene: {},
+    occupied: new Map([[`${caster.lane}:${caster.column}`, caster]]),
+    damageTower: (unit, damage, type) => {
+      assert.equal(type, "true");
+      unit.hp -= damage;
+      if (unit.hp <= 0) unit.inPlay = false;
+    }
+  };
+  const { TowerStorageController } = load("src/game/towerStorage.ts");
+  const storage = new TowerStorageController(() => state);
+  state.storeBlockedEnemies = (unit, definition) => storage.storeBlockedEnemies(unit, definition);
+  return { card, caster, target, state, storage };
+}
+
+test("q matches N panel, upgrade and self-damage but costs 200", () => {
+  const { card, caster } = storageFixture();
+  const n = cardDefinitions.find((candidate) => candidate.id === "N");
+  for (const field of ["maxHp", "armor", "magicResistance", "attackPower", "attackSpeed", "cooldown", "selfDamage", "selfDamageType"]) {
+    assert.equal(card[field], n[field], field);
+  }
+  assert.equal(card.cost, 200);
+  caster.level = 2;
+  stats.calculateTowerFinalStats(caster);
+  assert.equal(caster.finalStats.maxHp, 5400);
+});
+
+test("q stores only its blocked enemies, hides them and releases exactly once after 5 battle seconds", () => {
+  const { card, caster, target, state, storage } = storageFixture();
+  const second = enemy({ x: caster.x + 10, y: caster.y, lane: caster.lane });
+  const high = enemy({ x: caster.x, lane: caster.lane, highFlightUntil: 99999 });
+  const far = enemy({ x: caster.x + 100, lane: caster.lane });
+  state.enemies.push(second, high, far);
+  const behavior = load("src/game/cardBehaviors.ts").cardBehaviorsById.q;
+  assert.equal(behavior.canUse(caster, card, 1000, state, true), true);
+  behavior.execute(caster, card, state);
+  assert.equal(caster.hp, 2200);
+  assert.equal(storage.count, 2);
+  assert.deepEqual(state.enemies, [high, far]);
+  assert.equal(target.inPlay, false);
+  assert.equal(target.body.visible, false);
+  assert.equal(second.inPlay, false);
+  storage.storeBlockedEnemies(caster, card);
+  assert.equal(storage.count, 2);
+  state.battleTime = 5999;
+  storage.update();
+  storage.update();
+  assert.equal(storage.count, 2);
+  state.battleTime = 6000;
+  storage.update();
+  storage.update();
+  assert.equal(storage.count, 0);
+  assert.equal(state.enemies.length, 4);
+  assert.equal(target.x, caster.x - load("src/config.ts").CELL_WIDTH);
+  assert.equal(target.hp, 5000);
+  assert.equal(target.inPlay, true);
+  assert.equal(target.body.visible, true);
+});
+
+test("stored enemies follow q's shifted position and facing, and survive carrier removal", () => {
+  const { card, caster, target, state, storage } = storageFixture();
+  storage.storeBlockedEnemies(caster, card);
+  caster.x += 156;
+  caster.y += 78;
+  caster.lane += 1;
+  caster.facingDirection = -1;
+  caster.inPlay = false;
+  caster.body = { destroyed: true };
+  state.towers.length = 0;
+  state.battleTime = 6000;
+  storage.update();
+  assert.equal(target.x, caster.x + load("src/config.ts").CELL_WIDTH);
+  assert.equal(target.y, caster.y);
+  assert.equal(target.lane, caster.lane);
+  assert.equal(target.movementDirection, -1);
+  assert.equal(storage.count, 0);
+});
+
+test("q's lethal storage cost does not lose cargo or release it early", () => {
+  const { card, caster, target, state, storage } = storageFixture();
+  caster.hp = 400;
+  storage.storeBlockedEnemies(caster, card);
+  assert.equal(caster.inPlay, false);
+  assert.equal(target.inPlay, false);
+  assert.equal(storage.count, 1);
+  state.battleTime = 6000;
+  storage.update();
+  assert.deepEqual(state.enemies, [target]);
+});
+
+test("stored enemies keep the final wave open and phase cleanup also destroys nested cargo", () => {
+  const { card, caster, target, state, storage } = storageFixture();
+  const child = enemy();
+  target.burrowCargo = [child];
+  storage.storeBlockedEnemies(caster, card);
+  const { waveScheduleAction } = load("src/game/waves.ts");
+  assert.equal(waveScheduleAction({ enemyKinds: ["circle"], totalWaves: 1 }, 1, null, state.enemies.length + storage.count, 99999), "wait");
+  storage.clear();
+  storage.clear();
+  assert.equal(storage.count, 0);
+  assert.equal(target.body.destroyed, true);
+  assert.equal(child.body.destroyed, true);
+  state.battleTime = 99999;
+  storage.update();
+  assert.equal(state.enemies.length, 0);
 });

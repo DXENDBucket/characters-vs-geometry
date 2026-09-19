@@ -1,5 +1,5 @@
 import type Phaser from "phaser";
-import type { CardId, CubeBoss, DamageType, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower } from "../types";
+import type { CardDefinition, CardId, CubeBoss, DamageType, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower } from "../types";
 
 export interface CombatRuntime {
   scene: Phaser.Scene;
@@ -14,6 +14,7 @@ export interface CombatRuntime {
   damageEnemy: (enemy: Enemy, damage: number, damageType: DamageType, sourceTower?: Tower) => void;
   damageBoss: (damage: number, damageType: DamageType, targetPart?: CubeBoss) => void;
   damageTower: (tower: Tower, damage: number, damageType: DamageType) => void;
+  storeBlockedEnemies: (tower: Tower, definition: CardDefinition) => void;
   gainChars: (amount: number, x: number, y: number) => void;
   spawnTower: (id: CardId, lane: number, column: number, level: number, facingDirection?: -1 | 1) => Tower | null;
   isCellDeployable?: (lane: number, column: number) => boolean;
@@ -41,6 +42,7 @@ export type CardBehaviorRuntime = Pick<
   | "damageEnemy"
   | "damageBoss"
   | "damageTower"
+  | "storeBlockedEnemies"
   | "gainChars"
   | "spawnTower"
   | "isCellDeployable"

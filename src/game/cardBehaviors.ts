@@ -148,6 +148,11 @@ export const blockedPushCardBehavior: CardBehavior = {
   execute: fireBlockedPushPulse
 };
 
+export const blockedStorageCardBehavior: CardBehavior = {
+  canUse: blockedPushCardBehavior.canUse,
+  execute: (tower, definition, runtime) => runtime.storeBlockedEnemies(tower, definition)
+};
+
 export const slowAuraCardBehavior: CardBehavior = {
   canUse: (tower, definition, time, _runtime, cooldownAlreadyReady) => {
     return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(definition.selfDamage);
@@ -215,6 +220,7 @@ export const cardBehaviorsById: Record<CardId, CardBehavior> = {
   h: idleCardBehavior,
   I: projectileCardBehavior,
   Q: projectileCardBehavior,
+  q: blockedStorageCardBehavior,
   J: projectileCardBehavior,
   K: slashCardBehavior,
   k: arcWaveCardBehavior,
