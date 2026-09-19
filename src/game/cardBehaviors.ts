@@ -382,10 +382,7 @@ function fireMagicLaser(tower: Tower, definition: CardDefinition, runtime: CardB
 
   const bossPart = magicLaserBossPart(tower, runtime.boss, endX);
   if (bossPart) {
-    const landed = runtime.damageBoss(damage, damageType, bossPart);
-    if (landed && bossPart.hp > 0 && definition.skillDrainOnHit) {
-      drainSkillSp(bossPart, definition.skillDrainOnHit);
-    }
+    runtime.damageBoss(damage, damageType, bossPart);
   }
 }
 

@@ -1124,7 +1124,7 @@ test("z respects invincibility, high flight, burrowing and reversed facing; repe
   }
 });
 
-test("z drains every skill on the hit Boss part only, and invincible Boss parts lose no SP", () => {
+test("z damages vulnerable Boss parts normally but never drains Boss SP", () => {
   const card = cardDefinitions.find(card => card.id === "z"), caster = towerForCard(card);
   for (const invincibleUntil of [0, 99999]) {
     const skills = () => ({ promotion: { sp: 5, spBuffer: 0.7, activeUntil: 0 }, advance: { sp: 1, spBuffer: 0.3, activeUntil: 0 } });
@@ -1134,8 +1134,7 @@ test("z drains every skill on the hit Boss part only, and invincible Boss parts 
     boss.octahedronCopies = [copy];
     load("src/game/cardBehaviors.ts").cardBehaviorsById.z.execute(caster, card, runtime([], boss));
     assert.equal(boss.hp, invincibleUntil ? 10000 : 9680);
-    assert.equal(copy.skills.promotion.sp, invincibleUntil ? 5 : 4);
-    assert.equal(copy.skills.advance.sp, invincibleUntil ? 1 : 0);
+    assert.deepEqual(copy.skills, skills());
     assert.equal(boss.skills.promotion.sp, 5);
     assert.equal(boss.skills.advance.sp, 1);
   }
