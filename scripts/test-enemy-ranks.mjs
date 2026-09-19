@@ -270,7 +270,7 @@ test("dodecahedron ranks extend companion health and attacks without changing th
     assert.equal(stats.magicResistance, 40);
     assert.equal(registry.enemyIsBossCompanion(kind), true);
     assert.deepEqual(dodecahedronAttacksAtRank(rank), { companionLaserHits: 4 * rank,
-      companionMortarHits: 2 * rank, deathLaserHits: 7 * rank, deathMortarTargets: 2 * rank + 2 });
+      companionMortarHits: 2 * rank, deathLaserHits: 7 * rank, deathMortarTargets: 4 });
   }
   const level = load("src/data/levels.ts").getLevelConfig("IF-BE-3");
   assert.equal(level.bossKind, "dodecahedron");

@@ -578,8 +578,8 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           ? "眷属运动循环：旋转 47s，1s 平移到 Boss 前方一列并分布在本行/上二行/下二行，停留 47s，再 1s 回到旋转。"
           : "Companion motion loop: orbits for 47s, spends 1s shifting to the front column on the boss lane / two lanes up / two lanes down, holds 47s, then spends 1s returning to orbit.",
         zh
-          ? "第 1 个眷属死亡时，Boss 在自身三行发射射击五边形激光（I 7 次判定 / II 14 次判定，分为 5 连射，各次独立计算抗性）；第 2 个眷属死亡时，按五边形规则瞄准不同目标发射法术迫击弹（I 4 个 / II 6 个，超出第 5 发的目标同时发射）。"
-          : "When the 1st companion dies, the Boss fires lasers across its 3 lanes (I 7 / II 14 independent hit judgments over 5 shots). When the 2nd dies, it fires magic mortars at different Pentagon-rule targets (I 4 / II 6); overflow targets fire simultaneously at earlier timings.",
+          ? "第 1 个眷属死亡时，Boss 在自身三行发射射击五边形激光（I 7 次判定 / II 14 次判定，分为 5 连射，各次独立计算抗性）；第 2 个眷属死亡时，瞄准最后放置的最多 4 座不同的塔，各发射一颗法术迫击弹，目标数不随 Boss 等级增长。"
+          : "When the 1st companion dies, the Boss fires lasers across its 3 lanes (I 7 / II 14 independent hit judgments over 5 shots). When the 2nd dies, it fires one magic mortar at each of up to 4 most recently placed towers, regardless of Boss rank.",
         zh
           ? "每次眷属死亡时，存活眷属获得 10s 无敌。全部眷属死亡后，正十二面体失去眷属减伤，且无尽羽翼开始回技：4 技力满后消耗 4，使接触 Boss 碰撞体且未飞行的敌怪获得 7s 羽翼飞行。"
           : "Each companion death gives surviving companions 10s Invincible. After all companions die, Dodecahedron loses companion damage reduction and Endless Wings starts charging: at 4 SP, spend 4 to give 7s Wings Flying to non-flying enemies touching the Boss hitbox."

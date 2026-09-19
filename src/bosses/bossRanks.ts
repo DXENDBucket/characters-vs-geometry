@@ -32,7 +32,7 @@ export function tetrahedronChargeSpeedAtRank(rank: number) {
 export function dodecahedronAttacksAtRank(rank: number) {
   if (!Number.isSafeInteger(rank) || rank < 1) throw new RangeError("Invalid dodecahedron rank");
   return { companionLaserHits: 4 * rank, companionMortarHits: 2 * rank,
-    deathLaserHits: 7 * rank, deathMortarTargets: 2 * rank + 2 };
+    deathLaserHits: 7 * rank, deathMortarTargets: 4 };
 }
 
 export function cubePromotionKind(kind: EnemyKind, bossRank: number): EnemyKind | undefined {
