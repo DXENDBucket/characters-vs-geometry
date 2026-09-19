@@ -27,6 +27,7 @@ import {
   isTetrahedronBossKind
 } from "../bosses/cubeBoss";
 import { defaultChapterId, getChapterDefinition, levelNodesForChapter } from "../data/chapters";
+import { groupForChapter } from "../data/chapterGroups";
 import { getLevelConfig } from "../data/levels";
 import { toRomanNumeral } from "../format";
 import { isTutorialMechanic } from "../game/tutorial";
@@ -584,8 +585,9 @@ export class LevelSelectScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    this.backButton.on("pointerdown", () => this.scene.start("ChapterSelectScene"));
-    this.backText.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.scene.start("ChapterSelectScene"));
+    const back = () => this.scene.start("ChapterSelectScene", { groupId: groupForChapter(this.selectedChapterId).id });
+    this.backButton.on("pointerdown", back);
+    this.backText.setInteractive({ useHandCursor: true }).on("pointerdown", back);
   }
 
   private createStartButton() {

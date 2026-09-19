@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { GAME_HEIGHT, GAME_WIDTH, palette, uiTextColors } from "../config";
-import { chapterDefinitions, levelNodesForChapter, type ChapterDefinition } from "../data/chapters";
+import { levelNodesForChapter, type ChapterDefinition } from "../data/chapters";
+import { chaptersInGroup, getChapterGroup } from "../data/chapterGroups";
 import { t } from "../i18n";
 import {
   completedLevelCountForChapter,
@@ -20,6 +21,8 @@ const CHAPTER_CARD_WIDTH = 196;
 const CHAPTER_CARD_HEIGHT = 86;
 
 export class ChapterSelectScene extends Phaser.Scene {
+  private groupId = "main";
+  private chapters: ChapterDefinition[] = [];
   private chapterCards: ChapterCard[] = [];
   private mapContainer!: Phaser.GameObjects.Container;
   private mapBounds!: Phaser.Geom.Rectangle;
@@ -42,6 +45,11 @@ export class ChapterSelectScene extends Phaser.Scene {
     super("ChapterSelectScene");
   }
 
+  init(data: { groupId?: string }) {
+    this.groupId = getChapterGroup(data.groupId).id;
+    this.chapters = chaptersInGroup(this.groupId);
+  }
+
   create() {
     this.chapterCards = [];
     this.cameras.main.setBackgroundColor(palette.black);
@@ -53,9 +61,9 @@ export class ChapterSelectScene extends Phaser.Scene {
     this.encyclopediaPanel = new EncyclopediaPanel(this);
     this.createEncyclopediaButton();
     this.createSettingsButton();
-    this.createMainMenuButton();
-    this.input.keyboard?.on("keydown-ESC", this.goToMainMenu, this);
-    this.events.once("shutdown", () => this.input.keyboard?.off("keydown-ESC", this.goToMainMenu, this));
+    this.createGroupBackButton();
+    this.input.keyboard?.on("keydown-ESC", this.goToGroups, this);
+    this.events.once("shutdown", () => this.input.keyboard?.off("keydown-ESC", this.goToGroups, this));
   }
 
   private drawBackdrop() {
@@ -94,10 +102,10 @@ export class ChapterSelectScene extends Phaser.Scene {
 
   private calculateMapBounds() {
     const padding = 96;
-    const left = Math.min(...chapterDefinitions.map((chapter) => chapter.x - CHAPTER_CARD_WIDTH / 2)) - padding;
-    const right = Math.max(...chapterDefinitions.map((chapter) => chapter.x + CHAPTER_CARD_WIDTH / 2)) + padding;
-    const top = Math.min(...chapterDefinitions.map((chapter) => chapter.y - CHAPTER_CARD_HEIGHT / 2)) - padding;
-    const bottom = Math.max(...chapterDefinitions.map((chapter) => chapter.y + CHAPTER_CARD_HEIGHT / 2)) + padding;
+    const left = Math.min(...this.chapters.map((chapter) => chapter.x - CHAPTER_CARD_WIDTH / 2)) - padding;
+    const right = Math.max(...this.chapters.map((chapter) => chapter.x + CHAPTER_CARD_WIDTH / 2)) + padding;
+    const top = Math.min(...this.chapters.map((chapter) => chapter.y - CHAPTER_CARD_HEIGHT / 2)) - padding;
+    const bottom = Math.max(...this.chapters.map((chapter) => chapter.y + CHAPTER_CARD_HEIGHT / 2)) + padding;
     return new Phaser.Geom.Rectangle(left, top, right - left, bottom - top);
   }
 
@@ -178,12 +186,12 @@ export class ChapterSelectScene extends Phaser.Scene {
     const graphics = this.add.graphics();
     this.mapContainer.add(graphics);
     graphics.lineStyle(2, palette.dim, 0.9);
-    for (const chapter of chapterDefinitions) {
+    for (const chapter of this.chapters) {
       if (!chapter.parentId) {
         continue;
       }
 
-      const parent = chapterDefinitions.find((candidate) => candidate.id === chapter.parentId);
+      const parent = this.chapters.find((candidate) => candidate.id === chapter.parentId);
       if (!parent) {
         continue;
       }
@@ -193,7 +201,7 @@ export class ChapterSelectScene extends Phaser.Scene {
   }
 
   private createChapterCards() {
-    for (const chapter of chapterDefinitions) {
+    for (const chapter of this.chapters) {
       const levelCount = levelNodesForChapter(chapter.id).length;
       const completedCount = completedLevelCountForChapter(chapter.id);
       const unlocked = isChapterUnlocked(chapter.id);
@@ -264,22 +272,22 @@ export class ChapterSelectScene extends Phaser.Scene {
     this.settingsText.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.openSettings());
   }
 
-  private createMainMenuButton() {
+  private createGroupBackButton() {
     const button = this.add.rectangle(GAME_WIDTH - 358, 52, 140, 34, palette.black, 1)
       .setStrokeStyle(2, palette.mid, 0.85)
       .setInteractive({ useHandCursor: true });
-    this.add.text(GAME_WIDTH - 358, 50, t("menu.return"), {
+    this.add.text(GAME_WIDTH - 358, 50, t("button.back"), {
       color: uiTextColors.primary, fontFamily: "monospace", fontSize: "15px", fontStyle: "700"
     }).setOrigin(0.5);
-    button.on("pointerdown", this.goToMainMenu, this);
+    button.on("pointerdown", this.goToGroups, this);
   }
 
-  private goToMainMenu() {
+  private goToGroups() {
     if (this.encyclopediaPanel.isOpen()) {
       this.encyclopediaPanel.close();
       return;
     }
-    this.scene.start("MainMenuScene");
+    this.scene.start("ChapterGroupSelectScene", { groupId: this.groupId });
   }
 
   private createEncyclopediaButton() {
@@ -317,6 +325,6 @@ export class ChapterSelectScene extends Phaser.Scene {
   }
 
   private openSettings() {
-    this.scene.start("SettingsScene", { returnScene: "ChapterSelectScene" });
+    this.scene.start("SettingsScene", { returnScene: "ChapterSelectScene", returnData: { groupId: this.groupId } });
   }
 }

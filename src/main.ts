@@ -3,6 +3,7 @@ import "./styles.css";
 import { GAME_HEIGHT, GAME_WIDTH } from "./config";
 import { CardSelectScene } from "./scenes/CardSelectScene";
 import { ChapterSelectScene } from "./scenes/ChapterSelectScene";
+import { ChapterGroupSelectScene } from "./scenes/ChapterGroupSelectScene";
 import { GameScene } from "./scenes/GameScene";
 import { LevelSelectScene } from "./scenes/LevelSelectScene";
 import { SettingsScene } from "./scenes/SettingsScene";
@@ -19,7 +20,7 @@ const game = new Phaser.Game({
   plugins: {
     scene: [{ key: "TextQuality", plugin: TextQualityPlugin, start: true }]
   },
-  scene: [MainMenuScene, ChapterSelectScene, LevelSelectScene, SettingsScene, EncyclopediaScene, CardSelectScene, GameScene],
+  scene: [MainMenuScene, ChapterGroupSelectScene, ChapterSelectScene, LevelSelectScene, SettingsScene, EncyclopediaScene, CardSelectScene, GameScene],
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,

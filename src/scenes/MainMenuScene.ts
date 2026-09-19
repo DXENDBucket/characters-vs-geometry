@@ -1,8 +1,7 @@
 import Phaser from "phaser";
 import { GAME_HEIGHT, GAME_WIDTH, palette, uiTextColors } from "../config";
 import { t } from "../i18n";
-import { getCardDefinition } from "../registry/cards";
-import { createUnitBorder } from "../render/unitShapes";
+import { createTowerWord } from "../render/towerWord";
 import type { CardId } from "../types";
 
 interface MenuItem {
@@ -80,7 +79,7 @@ export class MainMenuScene extends Phaser.Scene {
     const portrait = height > width;
     const spacing = portrait ? 72 : 56;
     const startY = Math.max(subtitleY + 70, height * 0.49);
-    this.addMenuItem(centerX, startY, t("menu.singlePlayer"), () => this.scene.start("ChapterSelectScene"));
+    this.addMenuItem(centerX, startY, t("menu.singlePlayer"), () => this.scene.start("ChapterGroupSelectScene"));
     this.addMenuItem(centerX, startY + spacing, t("menu.multiplayer"), () => {}, false);
     this.addMenuItem(centerX, startY + spacing * 2, t("button.encyclopedia"), () => this.scene.start("EncyclopediaScene"));
     this.addMenuItem(centerX, startY + spacing * 3, t("button.settings"), () => {
@@ -101,17 +100,7 @@ export class MainMenuScene extends Phaser.Scene {
     grid.lineBetween(-472, 64, 472, 64);
     title.add(grid);
 
-    TITLE_TOWERS.forEach((id, index) => {
-      const tower = this.add.container((index - 3) * 128, 0);
-      const category = getCardDefinition(id).category;
-      const border = createUnitBorder(this, category, 51, category === "defense" ? 3 : 2);
-      const label = this.add.text(0, category === "function" ? 3 : -3, id, {
-        fontFamily: "monospace", fontSize: "54px", fontStyle: "700", color: uiTextColors.primary
-      }).setOrigin(0.5);
-      const hp = this.add.rectangle(0, 73, 42, 3, palette.white, 0.75);
-      tower.add([border, label, hp]);
-      title.add(tower);
-    });
+    title.add(createTowerWord(this, TITLE_TOWERS));
     this.root.add(title);
   }
 
