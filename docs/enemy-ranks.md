@@ -52,8 +52,10 @@ Dynamic registrations are cached with a 512-entry limit. Rank lookup does not
 enumerate or allocate every preceding rank.
 
 Boss companions and the unranked Solar Bomb are not extended in this abstraction.
-Cube Bosses use a separate explicit rank in `cubeBossRanks.ts`, with linear HP/armor,
-same-rank Square summons and rank-aware Promotion. Other Boss families remain fixed.
+Cube and Tetrahedron Bosses use a separate explicit rank in `bossRanks.ts`.
+Cube has linear HP/armor, same-rank Square summons and rank-aware Promotion.
+Tetrahedron retains its identical I/II base panels, summons same-rank Inverted/Shooting
+Triangles and gains 0.5 additional Charge speed multiplier per rank. Other Boss families remain fixed.
 Endless battle persistence is documented in `survival-saves.md`.
 
 ## Verification

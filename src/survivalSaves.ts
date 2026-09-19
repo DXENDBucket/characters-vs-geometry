@@ -34,7 +34,8 @@ function validate(save: SurvivalSave) {
       if ("body" in data || "shape" in data) throw new Error("Visual objects cannot be loaded from saves");
     }
   }
-  validateBattleSave(save.graph, save.wave, Boolean(levelConfigs[save.levelId].bossEndless));
+  const level = levelConfigs[save.levelId];
+  validateBattleSave(save.graph, save.wave, level.bossEndless ? level.bossKind : undefined);
 }
 
 export function readSurvivalSave(levelId: string): SurvivalSave | undefined {

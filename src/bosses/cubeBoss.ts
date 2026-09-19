@@ -44,7 +44,7 @@ import { gainSkillSp, isSkillReady, spendSkillSp } from "../game/skillState";
 import { bossRect } from "../game/targeting";
 import { bossBaseStatsFromValues } from "../game/unitStats";
 import type { BossKind, BossSkill, BossSkillName, CubeBoss } from "../types";
-import { cubeStatsAtRank } from "./cubeBossRanks";
+import { bossStatsAtRank, rankedBossFamily } from "./bossRanks";
 import { enemyKindAtRank } from "../game/enemyIdentity";
 
 const CUBE_DRAW_SIZE = 59;
@@ -247,9 +247,9 @@ export function createCubeBoss(
   finalDamageReduction: number,
   options: CreateCubeBossOptions = {}
 ) {
-  const isCube = kind === "cube" || kind === "cube2";
-  const rank = isCube ? options.rank ?? bossRank(kind) : bossRank(kind);
-  const stats = isCube ? cubeStatsAtRank(rank) : CUBE_BOSS_STATS[kind];
+  const ranked = rankedBossFamily(kind);
+  const rank = ranked ? options.rank ?? bossRank(kind) : bossRank(kind);
+  const stats = ranked ? bossStatsAtRank(kind, rank) : CUBE_BOSS_STATS[kind];
   const baseStats = bossBaseStatsFromValues(stats, finalDamageReduction);
   const hitboxWidth = stats.hitboxCells ? CELL_WIDTH * stats.hitboxCells : BOSS_HITBOX_WIDTH;
   const hitboxHeight = stats.hitboxCells ? CELL_HEIGHT * stats.hitboxCells : BOSS_HITBOX_HEIGHT;

@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { cubePromotionKind } from "../bosses/cubeBossRanks";
+import { cubePromotionKind } from "../bosses/bossRanks";
 import { recordEnemySeen } from "../progress";
 import { enemyFacingDirection } from "./rules/reversal";
 import { ANGEL_WINGS_SKILL_MAX, ATTACK_INTERVAL, CELL_WIDTH, ENEMY_SPEED, ENEMY_SPEED_VARIANCE, LANES, palette } from "../config";

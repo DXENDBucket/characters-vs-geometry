@@ -598,10 +598,22 @@ Base rule:
 ## Infinite Front: IF-BE-1
 
 - Boss Endless chapter; unlocks after clearing `1-10`.
+- Uses IF dynamic enemy ranks and preview titles (`1/2/3/...`), with Circle capped at IV (`1/2/3/4`); source ranks are not spawn limits.
 - Ordinary enemy pool, initial characters (`300`), weight growth (`19`, `+10`, no extra increment) and weight cap (`600`, before difficulty scaling) follow `1-10`.
 - Starts with Cube I. Each defeat immediately spawns the next Cube rank at its original entry position. Existing towers, minions, projectiles, waves and resources remain.
 - Cube rank N: HP `150000 + 50000 * (N - 1)`, armor `300 * N`, MR `20`, speed `0.6`. Advance summons rank N Squares. Promotion prioritizes eligible ranks up to N.
 - No final victory. Records show highest defeated Boss rank, not completed waves. Restart/defeat retains this record; exiting or reloading saves the active Boss and battlefield for continuation.
+
+## Infinite Front: IF-BE-2
+
+- Boss Endless chapter; unlocks after clearing `2-10`. Initial characters `500`.
+- Enemy families follow `2-10`, using the same dynamic ranks and preview format as IF; Circle capped at IV, other families uncapped.
+- Weight growth follows `2-10`: initial `19`, increment `+12`, extra increment `+1`, cap `800` before difficulty scaling.
+- Starts with Tetrahedron I. Each defeat immediately spawns the next rank at the fixed entry position; waves and battlefield are not reset.
+- All ranks retain `120000` HP, `150` armor, `20` MR, and `1.2` speed (I and II have identical base panels).
+- All Inverted/Shooting Triangle summons match Boss rank, including the two-column half-HP burst and five-column critical burst.
+- Charge grants `2 + 0.5 * (rank - 1)` speed multiplier for 7s. Existing skill costs, threshold invincibility, critical haste and doubled SP recovery remain unchanged. Each new Boss starts with fresh skill/threshold state.
+- Independent highest defeated Boss rank and resumable battlefield save, including pending threshold summons and invincibility deadlines.
 
 ## Level 1-9 Weight Growth
 

@@ -124,4 +124,22 @@ test("Boss Endless saves preserve Boss references and reject missing, dead or in
   assert.equal(f.saves.writeSurvivalSave(makeSave({ ...state, boss: null, target: undefined })), false);
   assert.equal(f.saves.writeSurvivalSave(makeSave(state, "IF-1")), false);
   assert.deepEqual(f.saves.readSurvivalSave("IF-BE-1"), valid);
+  const tetraStats = { ...stats, maxHp: 120000, armor: 150, speed: 1.2 };
+  const tetraBoss = { ...boss, kind: "tetrahedron", hp: 1, maxHp: 120000, baseStats: tetraStats, finalStats: { ...tetraStats },
+    halfHpTriggered: true, criticalHpTriggered: true, pendingCriticalSummon: true,
+    chargeExpiresAt: 7000, bossHasteUntil: 60000, nextBossHasteTrailAt: 1500, invincibleUntil: 15000,
+    skills: { ...boss.skills, ...Object.fromEntries(["charge", "impact", "suppression", "desperation"].map(name =>
+      [name, { sp: 10, spBuffer: 0.5, activeUntil: 0, maxSp: 120, cost: 30 }])) } };
+  const tetraState = { ...state, boss: tetraBoss, target: undefined };
+  const tetraSave = makeSave(tetraState, "IF-BE-2");
+  assert.equal(f.saves.writeSurvivalSave(tetraSave), true);
+  const tetraLoaded = f.graph.decodeSaveGraph(f.saves.readSurvivalSave("IF-BE-2").graph, () => ({}));
+  assert.equal(tetraLoaded.boss.pendingCriticalSummon, true);
+  assert.equal(tetraLoaded.boss.invincibleUntil, 15000);
+  assert.equal(tetraLoaded.boss.skills.charge.spBuffer, 0.5);
+  assert.equal(f.saves.writeSurvivalSave(makeSave(tetraState, "IF-BE-1")), false);
+  assert.equal(f.saves.writeSurvivalSave(makeSave(state, "IF-BE-2")), false);
+  for (const change of [{ pendingCriticalSummon: undefined }, { bossHasteUntil: NaN }, { skills: boss.skills }])
+    assert.equal(f.saves.writeSurvivalSave(makeSave({ ...tetraState, boss: { ...tetraBoss, ...change } }, "IF-BE-2")), false);
+  assert.deepEqual(f.saves.readSurvivalSave("IF-BE-2"), tetraSave);
 });

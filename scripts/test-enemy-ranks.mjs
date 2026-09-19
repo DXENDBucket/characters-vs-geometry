@@ -127,12 +127,12 @@ test("infinite leaders start at rank I even when the template has rank II or dup
 });
 
 test("cube ranks extend I/II linearly and promotion prioritizes highest eligible ranks then distance", () => {
-  const { cubeStatsAtRank, cubePromotionKind } = load("src/bosses/cubeBossRanks.ts");
+  const { bossStatsAtRank, cubePromotionKind } = load("src/bosses/bossRanks.ts");
   for (const rank of [1, 2, 3, 10, 1000]) {
-    assert.deepEqual(cubeStatsAtRank(rank), { hp: 150000 + 50000 * (rank - 1), armor: 300 * rank, magicResistance: 20, speed: 0.6 });
+    assert.deepEqual(bossStatsAtRank("cube", rank), { hp: 150000 + 50000 * (rank - 1), armor: 300 * rank, magicResistance: 20, speed: 0.6 });
     assert.equal(cubePromotionKind(enemyKindAtRank("square", rank), rank), enemyKindAtRank("square", rank + 1));
   }
-  for (const rank of [0, -1, 1.5, Infinity, NaN]) assert.throws(() => cubeStatsAtRank(rank));
+  for (const rank of [0, -1, 1.5, Infinity, NaN]) assert.throws(() => bossStatsAtRank("cube", rank));
   assert.equal(cubePromotionKind("circle4", 10), undefined);
   assert.equal(cubePromotionKind("heart", 10), undefined);
   assert.equal(cubePromotionKind("triangle3", 2), undefined);
@@ -151,7 +151,7 @@ test("IF-BE-1 is isolated in Boss Endless and inherits 1-10 waves, cap and fundi
   const { chapterIdForLevelId, levelNodesForChapter } = load("src/data/chapters.ts");
   assert.equal(chapterIdForLevelId("IF-BE-1"), "IFB");
   assert.equal(levelNodesForChapter("IF").length, 12);
-  assert.deepEqual(levelNodesForChapter("IFB").map(node => node.id), ["IF-BE-1"]);
+  assert.deepEqual(levelNodesForChapter("IFB").map(node => node.id), ["IF-BE-1", "IF-BE-2"]);
   const level = getLevelConfig("IF-BE-1"), source = getLevelConfig("1-10");
   for (const key of ["enemyKinds", "firstWaveWeight", "waveWeightIncrement", "waveWeightIncrementGrowth", "waveWeightCap", "wavesPerFlag"])
     assert.deepEqual(level[key], source[key], key);
@@ -161,6 +161,37 @@ test("IF-BE-1 is isolated in Boss Endless and inherits 1-10 waves, cap and fundi
   assert.equal(level.survival, true);
   assert.equal(level.endless, true);
   assert.equal(level.unlockAfter, "1-10");
+});
+
+test("tetrahedron ranks preserve I/II panels and extend Charge linearly", () => {
+  const { bossStatsAtRank, tetrahedronChargeSpeedAtRank, rankedBossFamily } = load("src/bosses/bossRanks.ts");
+  for (const rank of [1, 2, 3, 10, 100]) {
+    assert.deepEqual(bossStatsAtRank("tetrahedron", rank), { hp: 120000, armor: 150, magicResistance: 20, speed: 1.2 });
+    assert.equal(tetrahedronChargeSpeedAtRank(rank), 2 + 0.5 * (rank - 1));
+  }
+  assert.equal(rankedBossFamily("tetrahedron2"), "tetrahedron");
+  assert.equal(rankedBossFamily("octahedron"), undefined);
+  assert.throws(() => bossStatsAtRank("octahedron", 3));
+  for (const rank of [0, -1, 1.5, Infinity, NaN]) assert.throws(() => tetrahedronChargeSpeedAtRank(rank));
+});
+
+test("all Boss Endless stages inherit source funding and weights but use IF dynamic ranks", () => {
+  const { getLevelConfig } = load("src/data/levels.ts");
+  const { chapterIdForLevelId } = load("src/data/chapters.ts");
+  const { buildInfiniteWaveKinds } = load("src/game/infiniteWaves.ts");
+  for (const [index, sourceId] of ["1-10", "2-10"].entries()) {
+    const id = `IF-BE-${index + 1}`, level = getLevelConfig(id), source = getLevelConfig(sourceId);
+    assert.equal(chapterIdForLevelId(id), "IFB");
+    assert.equal(level.unlockAfter, sourceId);
+    assert.equal(level.startingChars, source.startingChars ?? 300);
+    assert.deepEqual(level.unlimitedRankFamilies, [...new Set(source.enemyKinds.map(registry.enemyFamily))]);
+    for (const field of ["firstWaveWeight", "waveWeightIncrement", "waveWeightIncrementGrowth", "wavesPerFlag", "waveWeightCap"])
+      assert.equal(level[field], source[field], field);
+    const kinds = buildInfiniteWaveKinds(level.unlimitedRankFamilies, 600, 20, 10, length => length - 1);
+    assert.ok(kinds.some(kind => registry.enemyRank(kind) > 3 && registry.enemyFamily(kind) !== "circle"));
+    assert.ok(kinds.every(kind => registry.enemyFamily(kind) !== "circle" || registry.enemyRank(kind) <= 4));
+    assert.ok(kinds.reduce((sum, kind) => sum + registry.getEnemyDefinition(kind).weight, 0) <= 600);
+  }
 });
 
 test("all 66 existing enemy panels and registrations exactly match the pre-refactor snapshot", () => {

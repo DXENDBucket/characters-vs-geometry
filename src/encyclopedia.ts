@@ -537,11 +537,11 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.atk"), `${damageText(CUBE_BOSS_CONTACT_DAMAGE, "physical")} / ${CUBE_BOSS_CONTACT_INTERVAL}s`]
         ]),
         zh
-          ? "正四面体 II 使用同一套技能，但 Boss 技能召唤的倒三角和射击三角均为 II。"
-          : "Tetrahedron II uses the same skill kit, but all Inverted/Shooting Triangles summoned by Boss skills are rank II.",
+          ? "各等级正四面体使用同一套技能，所有技能和血量阈值召唤的倒三角、射击三角均与自身同等级。无尽高等级保持相同基础面板。"
+          : "All ranks share one skill kit. Skill and HP-threshold summons match the Boss rank. Higher endless ranks retain the same base panel.",
         zh
-          ? "冲锋：60技力满后消耗30，使所有普通敌怪在 7 秒内获得加速，移动速度变为 200%；正四面体 II 为 250%。并使压制技力 +15。"
-          : "Charge: at 60 SP, spend 30 to give ordinary enemies 7s Haste, raising movement speed to 200%; Tetrahedron II uses 250%. It also gives Suppression +15 SP.",
+          ? "冲锋：60技力满后消耗30，使所有普通敌怪在 7 秒内获得加速，I 为 200%、II 为 250%，每级增加 50 个百分点。并使压制技力 +15。"
+          : "Charge: at 60 SP, spend 30 to give ordinary enemies 7s Haste: 200% at I, 250% at II, plus 50 percentage points per rank. It also gives Suppression +15 SP.",
         zh
           ? "冲击：120技力满后消耗60，在 Boss 前方两列每行召唤倒三角 I，并使冲锋技力 +10。压制：160技力满后消耗40，在出怪线每行召唤射击三角 I，并使冲击技力 +20。"
           : "Impact: at 120 SP, spend 60 to summon Inverted Triangle I in every lane across two columns in front of the Boss, and gives Charge +10 SP. Suppression: at 160 SP, spend 40 to summon Shooting Triangle I in every lane at the spawn line, and gives Impact +20 SP.",
@@ -553,8 +553,8 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           : "The first time HP reaches 10% or lower, gains 15s Invincible and 60s Boss Haste at 300% speed, summons Inverted Triangle I in every cell of the five columns farthest from the base, and permanently doubles all skill natural SP gain. If it would die before this triggers, it locks at 1 HP and triggers the same package. Last Stand: below 50% HP, gains 1 SP/s; at 10 SP, grants permanent Power to enemies touching the Boss and gives Charge +5 SP."
       ],
       description: zh
-        ? "Boss 不会被阻挡，也不会随血量缩小；到达底线会失败，死亡会直接胜利。"
-        : "Boss cannot be blocked and does not shrink with HP. Reaching the base is defeat; killing it clears the stage."
+        ? "Boss 不会被阻挡，也不会随血量缩小；到达底线会失败。主线击败后胜利；Boss 无尽则在固定位置立即生成更高一级正四面体。"
+        : "Boss cannot be blocked and does not shrink with HP. Reaching the base is defeat. Story defeats clear the stage; Boss Endless immediately spawns the next rank at the fixed entry position."
     },
     {
       title: zh ? "正十二面体 Boss 系列" : "Dodecahedron Boss Series",

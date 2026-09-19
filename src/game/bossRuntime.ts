@@ -53,7 +53,8 @@ import type { BossCompanionActionPhase, BossSkill, CubeBoss, DamageType, Enemy, 
 import { createBossSkillRegistry, runRegisteredBossSkills } from "./bossSkillRegistry";
 import { enemyAttackMultiplier } from "./combatStats";
 import { applyEnemyPromotion, enemyIsHighFlying, findPromotionTargets } from "./enemyBehaviors";
-import { cubePromotionKind } from "../bosses/cubeBossRanks";
+import { cubePromotionKind, tetrahedronChargeSpeedAtRank } from "../bosses/bossRanks";
+import { enemyKindAtRank } from "./enemyIdentity";
 import { spawnEnemyAt } from "./enemyRuntime";
 import { forEachSnapshot } from "./iteration";
 import { createMortarProjectile } from "./projectiles";
@@ -1373,21 +1374,21 @@ function isIcosahedronFinalPhase(runtime: BossRuntime, boss: CubeBoss) {
 }
 
 function tetrahedronChargeSpeedMultiplier(runtime: BossRuntime, boss: CubeBoss) {
-  return boss.rank >= 2 || isIcosahedronTetrahedronPhase(runtime, boss) ? 2.5 : 2;
+  return isIcosahedronTetrahedronPhase(runtime, boss) ? 2.5 : tetrahedronChargeSpeedAtRank(boss.rank);
 }
 
 function tetrahedronInvertedKind(runtime: BossRuntime, boss: CubeBoss): Enemy["kind"] {
   if (isIcosahedronTetrahedronPhase(runtime, boss)) {
     return "invertedTriangle3";
   }
-  return boss.rank >= 2 ? "invertedTriangle2" : "invertedTriangle";
+  return enemyKindAtRank("invertedTriangle", boss.rank);
 }
 
 function tetrahedronShootingKind(runtime: BossRuntime, boss: CubeBoss): Enemy["kind"] {
   if (isIcosahedronTetrahedronPhase(runtime, boss)) {
     return "shootingTriangle3";
   }
-  return boss.rank >= 2 ? "shootingTriangle2" : "shootingTriangle";
+  return enemyKindAtRank("shootingTriangle", boss.rank);
 }
 
 function gainBossSkillSp(skill: BossSkill | undefined, amount: number) {

@@ -1,6 +1,7 @@
 import type Phaser from "phaser";
 import type { CubeBoss, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower } from "../types";
 import { createCubeBoss, updateCubeBossMotion } from "../bosses/cubeBoss";
+import { rankedBossFamily } from "../bosses/bossRanks";
 import { getCardDefinition } from "../registry/cards";
 import { createEnemy } from "./enemyFactory";
 import { createTower, syncTowerFacingVisual, syncTowerFlyingVisual, syncTowerHpBar, syncTowerLevelText, syncTowerTrueDamageVisual } from "./towers";
@@ -23,7 +24,7 @@ export function captureBattleSnapshot(state: BattleSaveState) {
     if (typeof value.id === "string" && value.id.startsWith("tower:")) return { kind: "tower", omit: towerVisuals };
     if ("kind" in value && "waveNumber" in value) return { kind: "enemy", omit: enemyVisuals };
     if ("advanceMinionKind" in value && "rank" in value) {
-      if (value.kind !== "cube" && value.kind !== "cube2") throw new Error("Unsupported boss save");
+      if (!rankedBossFamily(value.kind)) throw new Error("Unsupported boss save");
       return { kind: "boss", omit: bossVisuals };
     }
     if ("body" in value) {

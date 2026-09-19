@@ -99,6 +99,10 @@ test("Boss Endless records highest defeated rank independently of waves and surv
   f.progress.completeLevel("1-10");
   assert.equal(f.progress.isLevelUnlocked("IF-BE-1"), true);
   assert.equal(f.progress.bestBossRankForLevel("IF-BE-1"), 0);
+  assert.equal(f.progress.isLevelUnlocked("IF-BE-2"), false);
+  f.progress.completeLevel("2-10");
+  assert.equal(f.progress.isLevelUnlocked("IF-BE-2"), true);
+  f.progress.recordDefeatedBossRank("IF-BE-2", 7);
   f.progress.recordDefeatedBossRank("IF-BE-1", 3);
   const writes = f.writes();
   for (const rank of [2, 0, -1, 3.5, NaN, Infinity]) f.progress.recordDefeatedBossRank("IF-BE-1", rank);
@@ -108,6 +112,7 @@ test("Boss Endless records highest defeated rank independently of waves and surv
   assert.equal(f.progress.bestWaveForLevel("IF-BE-1"), 0);
   const reloaded = fixture(JSON.parse(f.storage.get(storageKey)));
   assert.equal(reloaded.progress.bestBossRankForLevel("IF-BE-1"), 3);
+  assert.equal(reloaded.progress.bestBossRankForLevel("IF-BE-2"), 7);
   assert.equal(reloaded.progress.isLevelCompleted("IF-BE-1"), false);
   reloaded.progress.resetProgress();
   assert.equal(reloaded.progress.bestBossRankForLevel("IF-BE-1"), 0);

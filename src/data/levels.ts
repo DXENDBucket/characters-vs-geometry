@@ -72,6 +72,7 @@ export const levelNodes: LevelNode[] = [
   { id: "IF-3", x: 1160, y: 430 },
   { id: "IF-4", x: 1500, y: 320 },
   { id: "IF-BE-1", x: 500, y: 380 },
+  { id: "IF-BE-2", x: 820, y: 320 },
   ...Array.from({ length: 8 }, (_, index) => ({
     id: `IF-${index + 5}`, x: 1840 + index * 340, y: index % 2 === 0 ? 430 : 320
   }))
@@ -1048,15 +1049,20 @@ for (const [index, sourceId] of ["4-1", "4-4", "4-6", "4-7", "5-2", "5-4", "5-6"
   };
 }
 
-levelConfigs["IF-BE-1"] = {
-  ...levelConfigs["1-10"],
-  id: "IF-BE-1",
-  unlockAfter: "1-10",
-  survival: true,
-  bossEndless: true,
-  startingChars: levelConfigs["1-10"].startingChars ?? 300,
-  bossKind: "cube"
-};
+for (const [index, [sourceId, bossKind]] of ([["1-10", "cube"], ["2-10", "tetrahedron"]] as const).entries()) {
+  const source = levelConfigs[sourceId];
+  const id = `IF-BE-${index + 1}`;
+  levelConfigs[id] = {
+    ...source,
+    id,
+    unlockAfter: sourceId,
+    survival: true,
+    bossEndless: true,
+    unlimitedRankFamilies: [...new Set(source.enemyKinds.map(kind => parseEnemyKind(kind)!.family))],
+    startingChars: source.startingChars ?? 300,
+    bossKind
+  };
+}
 
 export function getLevelConfig(levelId: string) {
   return levelConfigs[levelId] ?? levelConfigs["1-1"];
