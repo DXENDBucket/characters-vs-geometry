@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { syncTowerHealthNetworks } from "../game/towerHealth";
 import { PauseMenu } from "../render/pauseMenu";
+import { BattleCardList } from "../render/battleCardList";
 import { TowerExtractionPool } from "../game/towerExtraction";
 import { LoadoutReselection, RESELECT_UNLOCK_LEVEL } from "../game/loadoutReselection";
 import { TowerStorageController } from "../game/towerStorage";
@@ -103,8 +104,6 @@ import { completeLevel, isCardUnlocked, isLevelCompleted, recordBossSeen, unlock
 import { makeEraseMark, makeProductionPulse, makeShellBurst, makeShockPulse } from "../render/combatEffects";
 import { createUnitBorder } from "../render/unitShapes";
 import {
-  createCardStates,
-  destroyCardStates,
   updateReselectButtonState,
   updateExtractionPool,
   createGameHud,
@@ -197,6 +196,7 @@ export class GameScene extends Phaser.Scene {
   private cardTime = 0;
   private nextNaturalProduceAt = NATURAL_PRODUCE_INTERVAL;
   private cardStates: CardState[] = [];
+  private cardList?: BattleCardList;
   private cardStatesById = new Map<CardId, CardState>();
   private selectedCardId: CardId = "X";
   private towers: Tower[] = [];
@@ -402,7 +402,7 @@ export class GameScene extends Phaser.Scene {
     });
     this.setGameSpeed(this.gameSpeed);
     this.spawnBossIfNeeded();
-    this.setCardStates(createCardStates(this, this.selectedCardIds, (id) => this.selectCard(id)));
+    this.createCardList();
     this.updateCards();
     this.overlay = createGameOverlay(this, () => this.handleOverlayAction());
     if (isTutorialMechanic(this.levelConfig.specialMechanic)) {
@@ -434,6 +434,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private cleanupSceneHandlers() {
+    this.cardList?.destroy();
+    this.cardList = undefined;
     this.pauseMenu?.destroy();
     this.input.off("pointerdown", this.scenePointerDownHandler);
     this.input.off("pointermove", this.scenePointerMoveHandler);
@@ -445,6 +447,13 @@ export class GameScene extends Phaser.Scene {
     this.shifter?.clearSelection();
     this.towerSkills?.cancelSpellMortarTargeting();
     this.storage?.clear();
+  }
+
+  private createCardList() {
+    this.cardList = new BattleCardList(this, this.selectedCardIds, (id) => this.selectCard(id),
+      () => !this.gameOver && !this.menuOpen && !this.reselectOpen);
+    this.setCardStates(this.cardList.cards);
+    this.cardList.ensureVisible(this.selectedCardId);
   }
 
   private setCardStates(cardStates: CardState[]) {
@@ -1937,10 +1946,9 @@ export class GameScene extends Phaser.Scene {
     if (!this.reselectOpen) return;
     if (cards?.length && this.reselection.confirm(this.battleTime, this.cardStates)) {
       this.selectedCardIds = this.sanitizeLoadout(cards);
-      destroyCardStates(this.cardStates);
-      const nextCards = createCardStates(this, this.selectedCardIds, (id) => this.selectCard(id));
-      for (const card of nextCards) card.readyAt = this.reselection.cardReadyAt(card.definition.id);
-      this.setCardStates(nextCards);
+      this.cardList?.destroy();
+      this.createCardList();
+      for (const card of this.cardStates) card.readyAt = this.reselection.cardReadyAt(card.definition.id);
       this.selectCard(this.selectedCardIds.includes(this.selectedCardId) ? this.selectedCardId : this.selectedCardIds[0]);
     }
     this.reselectOpen = false;
@@ -2394,6 +2402,7 @@ export class GameScene extends Phaser.Scene {
     this.autoUpgradeReserveInputFocused = false;
     this.cancelSpellMortarTargeting();
     this.selectedCardId = id;
+    this.cardList?.ensureVisible(id);
     this.syncPlacementGhost(this.input.activePointer);
     this.updateCards();
   }

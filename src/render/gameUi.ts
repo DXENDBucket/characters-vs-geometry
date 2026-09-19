@@ -372,7 +372,7 @@ export function refreshGameHudSettings(ui: GameHudElements, levelId: string, dif
   ui.pauseMenuTooltip.setText(`${t("button.menu")} (Esc)`).setVisible(false);
 }
 
-export function createCardStates(scene: Phaser.Scene, selectedCardIds: CardId[], onSelect: (id: CardId) => void) {
+export function createCardStates(scene: Phaser.Scene, selectedCardIds: CardId[]) {
   return selectedCardIds.map((cardId, index): CardState => {
     const definition = getCardDefinition(cardId);
     const x = 28;
@@ -410,8 +410,6 @@ export function createCardStates(scene: Phaser.Scene, selectedCardIds: CardId[],
     const cooldownFill = scene.add
       .rectangle(x + 17, y + 58, CARD_BAR_WIDTH, 4, palette.white, 1)
       .setOrigin(0, 0.5);
-
-    frame.on("pointerdown", () => onSelect(definition.id));
 
     return {
       definition,
@@ -514,6 +512,7 @@ export function updateCardStates(cardStates: CardState[], state: CardUpdateState
     setVisibleIfChanged(card.statsText, !batch.usesPool);
     setVisibleIfChanged(card.batchText, batch.usesPool);
     fitCardText(card.costText, CARD_WIDTH - 84);
+    fitCardText(card.statsText, CARD_WIDTH - 84);
     fitCardText(card.batchText, CARD_WIDTH - 84);
     const cooldownRatio = Phaser.Math.Clamp((card.readyAt - card.displayTime) / card.definition.cooldown, 0, 1);
     const readyRatio = 1 - cooldownRatio;

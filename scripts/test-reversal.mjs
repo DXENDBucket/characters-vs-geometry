@@ -145,14 +145,15 @@ function unyieldingFixture() {
   return { ...f, runtime, refresh: () => lifecycle.settleTowerHealth(runtime) };
 }
 
-test("o matches B except for zero attack and no retaliation, unlocks after 2-8 and upgrades its own HP", () => {
+test("o costs 175, otherwise matches B except for zero attack and no retaliation, and upgrades HP like B", () => {
   const f = extractionFixture();
   const card = f.state.getDefinition("o");
   const b = f.state.getDefinition("B");
-  for (const key of ["category", "cost", "cooldown", "maxHp", "armor", "magicResistance"]) {
+  for (const key of ["category", "cooldown", "maxHp", "armor", "magicResistance"]) {
     assert.equal(card[key], b[key]);
   }
   assert.equal(card.attackPower, 0);
+  assert.equal(card.cost, 175);
   assert.equal(card.reflectAttackMultiplier, undefined);
   assert.equal(load("src/data/cardUnlocks.ts").cardUnlockRequirement("o"), "2-8");
   const o = f.place("o");
