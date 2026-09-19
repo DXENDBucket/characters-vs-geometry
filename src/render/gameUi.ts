@@ -423,8 +423,8 @@ export function destroyCardStates(cards: CardState[]) {
 
 export function updateReselectButtonState(ui: GameHudElements, unlocked: boolean, readyRatio: number, visible: boolean) {
   const ready = unlocked && readyRatio >= 1;
-  setVisibleIfChanged(ui.reselectButton, visible);
-  setVisibleIfChanged(ui.reselectText, visible);
+  setVisibleIfChanged(ui.reselectButton, visible && unlocked);
+  setVisibleIfChanged(ui.reselectText, visible && unlocked);
   setStrokeStyleIfChanged(ui.reselectButton, 2, ready ? palette.mid : palette.dim, 1);
   setAlphaIfChanged(ui.reselectButton, ready ? 0.78 : 0.42);
   setAlphaIfChanged(ui.reselectText, ready ? 0.78 : 0.42);

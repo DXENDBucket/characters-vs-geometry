@@ -18,19 +18,24 @@ const { LoadoutReselection, RESELECT_UNLOCK_LEVEL, RESELECT_COOLDOWN } = await i
   `data:text/javascript;base64,${Buffer.from(reselectModule.outputText).toString("base64")}`
 );
 
-test("reselection is initially ready, unlocks after 2-4 and cools down for 240 battle seconds after confirmation", () => {
+test("reselection unlocks after 2-4 and starts each battle and confirmation with a full 240-second cooldown", () => {
   const state = new LoadoutReselection();
   assert.equal(RESELECT_UNLOCK_LEVEL, "2-4");
   assert.equal(RESELECT_COOLDOWN, 240_000);
-  assert.equal(state.isReady(0), true);
-  assert.equal(state.readyRatio(0), 1);
-  assert.equal(state.confirm(10_000, []), true);
-  assert.equal(state.isReady(10_000), false);
-  assert.equal(state.readyRatio(10_000), 0);
-  assert.equal(state.readyRatio(130_000), 0.5);
-  assert.equal(state.isReady(249_999), false);
-  assert.equal(state.isReady(250_000), true);
+  assert.equal(state.isReady(0), false);
+  assert.equal(state.readyRatio(0), 0);
+  assert.equal(state.confirm(0, []), false);
+  assert.equal(state.readyRatio(120_000), 0.5);
+  assert.equal(state.isReady(239_999), false);
+  assert.equal(state.isReady(240_000), true);
+  assert.equal(state.confirm(240_000, []), true);
+  assert.equal(state.isReady(240_000), false);
+  assert.equal(state.readyRatio(240_000), 0);
+  assert.equal(state.readyRatio(360_000), 0.5);
+  assert.equal(state.isReady(479_999), false);
+  assert.equal(state.isReady(480_000), true);
   assert.equal(state.readyRatio(999_999), 1);
+  assert.equal(new LoadoutReselection().readyRatio(0), 0);
 });
 
 test("reselection preserves card deadlines across removal, return and separate card clocks", () => {
@@ -38,17 +43,17 @@ test("reselection preserves card deadlines across removal, return and separate c
   const a = { definition: { id: "A" }, readyAt: 900_000 };
   const c = { definition: { id: "c" }, readyAt: 123_456 };
   const cards = [a, c];
-  state.confirm(0, cards);
+  state.confirm(240_000, cards);
   a.readyAt = 0;
   assert.equal(state.cardReadyAt("A"), 900_000);
   assert.equal(state.cardReadyAt("c"), 123_456);
   assert.equal(state.cardReadyAt("B"), 0);
-  assert.equal(state.confirm(239_999, [a]), false);
+  assert.equal(state.confirm(479_999, [a]), false);
   assert.equal(state.cardReadyAt("A"), 900_000);
-  state.confirm(240_000, [{ definition: { id: "B" }, readyAt: 600_000 }]);
+  state.confirm(480_000, [{ definition: { id: "B" }, readyAt: 600_000 }]);
   assert.equal(state.cardReadyAt("A"), 900_000);
   assert.equal(state.cardReadyAt("B"), 600_000);
-  state.confirm(480_000, [{ definition: { id: "A" }, readyAt: 950_000 }]);
+  state.confirm(720_000, [{ definition: { id: "A" }, readyAt: 950_000 }]);
   assert.equal(state.cardReadyAt("A"), 950_000);
   assert.equal(state.cardReadyAt("c"), 123_456);
 });

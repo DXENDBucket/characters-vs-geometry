@@ -4,7 +4,7 @@ export const RESELECT_UNLOCK_LEVEL = "2-4";
 export const RESELECT_COOLDOWN = 240_000;
 
 export class LoadoutReselection {
-  private readyAt = 0;
+  private readyAt = RESELECT_COOLDOWN;
   private readonly cardReadyTimes = new Map<CardId, number>();
 
   isReady(battleTime: number) {
