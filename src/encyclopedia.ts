@@ -101,6 +101,17 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
 
   return [
     {
+      title: zh ? "波浪号系列" : "Tilde Series",
+      enemyKind: "tilde",
+      lines: [statLine([
+        [t("label.hp"), triangle.hp], [t("label.armor"), triangle.armor],
+        [t("label.mr"), triangle.magicResistance], [t("label.atk"), damageText(triangle.damage, triangle.damageType)]]),
+        zh ? "权重 I/II/III：30 / 90 / 150；移速：15 / 20 / 25；攻击间隔：1s / 0.5s / 0.33s。"
+          : "Weight I/II/III: 30 / 90 / 150; speed: 15 / 20 / 25; attack interval: 1s / 0.5s / 0.33s."],
+      description: zh ? "从随机两行之间入场，以行间隙为中心正弦振荡前进，周期 4 秒，最大偏移 0.6 格。阻挡和冻结会暂停移动，按实际位置判定命中。"
+        : "Enters between two random adjacent lanes and advances in a sine wave with a 4s period and 0.6-cell amplitude. Blocking and freezing pause movement; collisions use its actual position."
+    },
+    {
       title: zh ? "圆系列" : "Circle Series",
       enemyKind: "circle",
       lines: [

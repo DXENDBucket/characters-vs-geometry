@@ -93,6 +93,7 @@ import { volleyInterval } from "./upgrades";
 import { repeatHits, volleyHitsAt, volleyTimingCount } from "./volley";
 import { buildWaveKinds, waveWeightLimit } from "./waves";
 import { buildInfiniteWaveKinds, infiniteLeaderKinds } from "./infiniteWaves";
+import { oscillationTarget, commitOscillation } from "./oscillatingMovement";
 
 interface SpawnEnemyOptions {
   kind: EnemyKind;
@@ -139,7 +140,7 @@ export function spawnWaveEnemies(runtime: EnemySpawnRuntime, options: SpawnWaveO
   let totalWeight = 0;
 
   kinds.forEach((kind, index) => {
-    const lane = Phaser.Math.Between(0, LANES - 1);
+    const lane = Phaser.Math.Between(0, LANES - (enemyFamily(kind) === "tilde" ? 2 : 1));
     const x = BOARD_X + BOARD_WIDTH + 46 + Phaser.Math.Between(0, 18) + (index % 3) * 5;
     totalWeight += spawnEnemyAt(runtime, {
       kind,
@@ -361,14 +362,25 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
 
     let blocker = getBlockingTowerFromOccupied(runtime.occupied, enemy);
     let nextX = enemy.x;
+    let nextY = enemy.y;
+    let nextPhase = enemy.oscillationPhase ?? 0;
     if (!blocker) {
       nextX = enemyIsMace(enemy.kind)
         ? hexMaceMovementTargetX(runtime, enemy, seconds, time, status, supportSources, slowSources)
         : enemy.x + enemyMovementDirection(enemy) * movementSpeed * seconds;
-      const contact = getSweptBlockingTowerFromOccupied(runtime.occupied, enemy, nextX);
-      runtime.projectileMotion?.record(enemy, enemy.x, enemy.y, contact?.x ?? nextX, enemy.y);
+      if (enemy.oscillationCenterY !== undefined && movementSpeed > 0) {
+        const target = oscillationTarget(enemy, seconds * movementSpeed / Math.max(1, enemy.baseStats.speed));
+        nextY = target.y;
+        nextPhase = target.phase;
+      }
+      const contact = getSweptBlockingTowerFromOccupied(runtime.occupied, enemy, nextX, nextY);
+      runtime.projectileMotion?.record(enemy, enemy.x, enemy.y, contact?.x ?? nextX, contact?.y ?? nextY);
       if (contact) {
         enemy.x = contact.x;
+        if (enemy.oscillationCenterY !== undefined) {
+          const phase = enemy.oscillationPhase ?? 0;
+          commitOscillation(enemy, contact.y, phase + (nextPhase - phase) * contact.fraction);
+        }
         syncEnemyBodyPosition(enemy);
         blocker = contact.tower;
       }
@@ -425,6 +437,7 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
     const movementDirection = enemyIsMace(enemy.kind) ? Math.sign(enemy.maceVelocity ?? 0) : enemyMovementDirection(enemy);
     if (!blocker) {
       enemy.x = nextX;
+      if (enemy.oscillationCenterY !== undefined) commitOscillation(enemy, nextY, nextPhase);
       syncEnemyBodyPosition(enemy);
     }
 

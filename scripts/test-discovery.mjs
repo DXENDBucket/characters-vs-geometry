@@ -128,6 +128,18 @@ test("Boss Endless records highest defeated rank independently of waves and surv
   assert.equal(reloaded.progress.bestBossRankForLevel("IF-BE-1"), 0);
 });
 
+test("ASCII Expansion opens after 4-10 independently of the main finale", () => {
+  const { progress } = fixture();
+  assert.equal(progress.isChapterGroupUnlocked("ascii"), false);
+  assert.equal(progress.isLevelUnlocked("AE-1"), false);
+  progress.completeLevel("4-10");
+  assert.equal(progress.isChapterGroupUnlocked("ascii"), true);
+  assert.equal(progress.isChapterUnlocked("AE"), true);
+  assert.equal(progress.isLevelUnlocked("AE-1"), true);
+  assert.equal(progress.isLevelCompleted("5-10"), false);
+  assert.equal(progress.discoveredEnemies().enemies.has("tilde3"), true);
+});
+
 test("survival records persist as best completed waves, never as cleared stages", () => {
   const f = fixture();
   f.progress.completeAllLevels();

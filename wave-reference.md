@@ -2946,6 +2946,14 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 - Initial spawn and each split shield every body and summon two Mirage Sun Bombs. Only the 25% split summons reinforcements, all at the Boss's rank: Bulwarks in all rows, Burrow Arrows in rows 2/4/6, Hearts in rows 2/4/6, Slopes in all rows, Archangels in all rows, separated by 0.5s.
 - Save/resume preserves copies, movement directions, independent shields, bomb states and pending reinforcements. Replacing the Boss removes old bombs and copies; the new rank begins with a fresh pair of bombs.
 
+## ASCII Expansion: AE-1
+
+- New side-story chapter group `ASCII Expansion`, with an `@` backdrop, unlocked by clearing `4-10`.
+- AE-1 is a normal 20-wave operation. Chapter 4 template: initial characters `500`, initial weight `25`, increment `+18`, extra increment `+3`, a flag every 10 waves.
+- Pool: Circle I; Triangle I/II/III; Triangle Ram I/II/III; Tilde I/II/III.
+- Tildes have Triangle panels and rank growth: HP `5000`, armor `100`, MR `0`, physical attack `600`; weights `30/90/150`, average speeds `15/20/25`, attack intervals `1/0.5/0.33s`.
+- Tildes appear at one of six gaps between adjacent lanes. While advancing, they oscillate sinusoidally with a 4-second period and maximum offset of 0.6 cells from that gap. Blocking/freezing pause motion; movement modifiers affect oscillation speed as well as forward speed. Collision uses actual coordinates, including cross-lane projectile sweeps. Their Roman rank label sits above the tilde shape.
+
 ## Recent Enemy Additions
 
 - Shooting Triangle 2: weight `100`, HP `2000`, armor `70`, attack `400` physical, average speed `4`, body label `II`.

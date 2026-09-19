@@ -8,7 +8,7 @@ export interface ChapterGroupDefinition {
   titleSpacing?: number;
   titleRowScales?: readonly number[];
   titleRowSpacing?: number;
-  backgroundSymbol?: "infinity" | "Aa";
+  backgroundSymbol?: "infinity" | "Aa" | "@";
   chapterIds: readonly string[];
   survival?: boolean;
   unlockAfter?: string;
@@ -31,6 +31,13 @@ export const chapterGroups: ChapterGroupDefinition[] = [{
   backgroundSymbol: "infinity",
   titleRows: [["I", "n", "f", "i", "n", "i", "t", "e"], ["F", "r", "o", "n", "t"]],
   chapterIds: ["IF", "IFB"]
+}, {
+  id: "ascii",
+  labelKey: "chapterGroup.ascii",
+  unlockAfter: "4-10",
+  backgroundSymbol: "@",
+  titleRows: [["A", "S", "C", "I", "I"], ["E", "x", "p", "a", "n", "s", "i", "o", "n"]],
+  chapterIds: ["AE"]
 }];
 
 export function getChapterGroup(id?: string) {

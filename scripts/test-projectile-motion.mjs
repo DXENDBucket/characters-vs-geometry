@@ -129,3 +129,14 @@ test("unrelated lanes are not collision candidates", () => {
   updateTowerProjectiles(r, 1);
   assert.equal(r.hits.length, 0);
 });
+
+test("oscillating enemies remain candidates when crossing into a different projectile lane", () => {
+  const e = makeEnemy(0, { y: 40, lane: 1, oscillationCenterY: 0 });
+  const p = makeProjectile({ vx: 0 });
+  const r = runtime([e], [p]);
+  r.projectileMotion.begin(r.projectiles);
+  r.projectileMotion.record(e, 0, -40, 0, 40);
+  updateTowerProjectiles(r, 1 / 60);
+  assert.equal(r.hits.length, 1);
+  assert.equal(r.hits[0].enemy, e);
+});

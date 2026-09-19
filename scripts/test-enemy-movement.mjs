@@ -15,11 +15,11 @@ const load = createTypeScriptLoader({
   "src/game/towers.ts": { towerIsFlying: tower => !!tower.flying },
   "src/game/unitStats.ts": {}
 });
-const { BOARD_X, CELL_WIDTH, COLUMNS } = load("src/config.ts");
+const { BOARD_X, BOARD_Y, CELL_WIDTH, CELL_HEIGHT, COLUMNS } = load("src/config.ts");
 const { getSweptBlockingTowerFromOccupied: sweep, getBlockingTowerFromOccupied: blocker } =
   load("src/game/targeting.ts");
 const tower = (column, extras = {}) => ({
-  column, lane: 0, x: BOARD_X + (column + 0.5) * CELL_WIDTH,
+  column, lane: 0, x: BOARD_X + (column + 0.5) * CELL_WIDTH, y: BOARD_Y + CELL_HEIGHT / 2,
   inPlay: true, transient: false, ...extras
 });
 const occupied = (...towers) => new Map(towers.map(t => [`${t.lane}:${t.column}`, t]));
@@ -65,4 +65,30 @@ test("work stays bounded by board columns even at extreme speeds", () => {
   const cells = { get() { reads += 1; } };
   assert.equal(sweep(cells, enemy(1e100), -1e100), undefined);
   assert.equal(reads, COLUMNS);
+});
+
+test("oscillating enemies can sweep into a tower from an adjacent lane", () => {
+  const t = tower(5), cells = occupied(t);
+  const e = enemy(t.x + 200, { lane: 1, y: t.y + CELL_HEIGHT, oscillationCenterY: t.y + CELL_HEIGHT / 2 });
+  const hit = sweep(cells, e, t.x - 200, t.y);
+  assert.equal(hit.tower, t);
+  assert.ok(hit.fraction >= 0 && hit.fraction <= 1);
+  e.x = hit.x; e.y = hit.y;
+  assert.equal(blocker(cells, e), t);
+  assert.equal(sweep(cells, { ...e, x: t.x + 200, y: t.y + CELL_HEIGHT }, t.x - 200, t.y + CELL_HEIGHT), undefined);
+});
+
+test("tilde motion has a four second period, bounded amplitude, and follows teleports", () => {
+  const { oscillationTarget, commitOscillation, OSCILLATION_AMPLITUDE } = load("src/game/oscillatingMovement.ts");
+  const center = BOARD_Y + 3 * CELL_HEIGHT;
+  const e = enemy(800, { y: center, oscillationCenterY: center, oscillationPhase: 0, oscillationLastY: center });
+  const expected = [center + OSCILLATION_AMPLITUDE, center, center - OSCILLATION_AMPLITUDE, center];
+  for (const y of expected) {
+    const target = oscillationTarget(e, 1);
+    assert.ok(Math.abs(target.y - y) < 1e-9);
+    commitOscillation(e, target.y, target.phase);
+  }
+  e.y += CELL_HEIGHT;
+  assert.ok(Math.abs(oscillationTarget(e, 0).y - e.y) < 1e-9);
+  assert.equal(e.oscillationCenterY, center + CELL_HEIGHT);
 });

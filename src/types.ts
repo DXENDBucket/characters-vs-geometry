@@ -54,6 +54,7 @@ export type CardId =
   | "z"
   | "Z";
 export type EnemyFamily =
+  | "tilde"
   | "circle"
   | "triangle"
   | "triangleRam"
@@ -355,6 +356,9 @@ export interface Enemy {
   bossOrbitRadius?: number;
   bossCompanionIndex?: number;
   bossCompanionNextActionAt?: number;
+  oscillationCenterY?: number;
+  oscillationPhase?: number;
+  oscillationLastY?: number;
   bossCompanionActionPhase?: BossCompanionActionPhase;
 }
 

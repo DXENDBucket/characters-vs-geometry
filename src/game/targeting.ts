@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import {
   BOARD_X,
+  BOARD_Y,
   BOSS_HITBOX_HEIGHT,
   BOSS_HITBOX_WIDTH,
   CELL_HEIGHT,
@@ -16,6 +17,7 @@ import { getCardAttackArea, type AttackAreaConfig } from "./cardAttackConfigs";
 import { hasStatusEffectName } from "./statusEffects";
 import { towerFacingDirection, towerIsFlying } from "./towers";
 import { towerFinalStats } from "./unitStats";
+import { segmentBoxHitTime } from "./oscillatingMovement";
 
 interface AttackTargetQuery {
   area: AttackAreaConfig;
@@ -470,6 +472,7 @@ export function getBlockingTower(towers: Tower[], enemy: Enemy) {
 }
 
 export function getBlockingTowerFromOccupied(occupied: Map<string, Tower>, enemy: Enemy) {
+  if (enemy.oscillationCenterY !== undefined) return sweptOscillatingBlocker(occupied, enemy, enemy.x, enemy.y)?.tower;
   if (!enemyCanBeBlocked(enemy)) {
     return undefined;
   }
@@ -494,7 +497,8 @@ export function getBlockingTowerFromOccupied(occupied: Map<string, Tower>, enemy
   return blockingTower;
 }
 
-export function getSweptBlockingTowerFromOccupied(occupied: Map<string, Tower>, enemy: Enemy, nextX: number) {
+export function getSweptBlockingTowerFromOccupied(occupied: Map<string, Tower>, enemy: Enemy, nextX: number, nextY = enemy.y) {
+  if (enemy.oscillationCenterY !== undefined) return sweptOscillatingBlocker(occupied, enemy, nextX, nextY);
   if (!enemyCanBeBlocked(enemy) || nextX === enemy.x) return undefined;
   const direction = nextX < enemy.x ? -1 : 1;
   const left = Math.min(enemy.x, nextX);
@@ -509,7 +513,7 @@ export function getSweptBlockingTowerFromOccupied(occupied: Map<string, Tower>, 
     if (!tower || !towerCanBlockEnemy(tower, enemy, enemyFlying, false)) continue;
     const entryX = tower.x - direction * TOWER_BLOCK_RADIUS;
     const x = direction < 0 ? Math.min(enemy.x, entryX) : Math.max(enemy.x, entryX);
-    if (x >= left && x <= right) return { tower, x };
+    if (x >= left && x <= right) return { tower, x, y: enemy.y, fraction: (x - enemy.x) / (nextX - enemy.x) };
   }
   return undefined;
 }
@@ -518,11 +522,31 @@ function enemyCanBeBlocked(enemy: Enemy) {
   return !(enemyIsBossCompanion(enemy.kind) || enemyIsBurrowed(enemy) || enemyIsHighFlying(enemy) || enemyIsSolarBomb(enemy));
 }
 
+function sweptOscillatingBlocker(occupied: Map<string, Tower>, enemy: Enemy, nextX: number, nextY: number) {
+  if (!enemyCanBeBlocked(enemy)) return undefined;
+  const dx = nextX - enemy.x, dy = nextY - enemy.y;
+  const firstColumn = Math.max(0, Math.ceil((Math.min(enemy.x, nextX) - TOWER_BLOCK_RADIUS - BOARD_X - CELL_WIDTH / 2) / CELL_WIDTH));
+  const lastColumn = Math.min(COLUMNS - 1, Math.floor((Math.max(enemy.x, nextX) + TOWER_BLOCK_RADIUS - BOARD_X - CELL_WIDTH / 2) / CELL_WIDTH));
+  const firstLane = Math.max(0, Math.ceil((Math.min(enemy.y, nextY) - BOARD_Y) / CELL_HEIGHT) - 1);
+  const lastLane = Math.min(LANES - 1, Math.floor((Math.max(enemy.y, nextY) - BOARD_Y) / CELL_HEIGHT));
+  const flying = hasStatusEffectName(enemy, "flying");
+  let hit: Tower | undefined, fraction = Infinity;
+  for (let lane = firstLane; lane <= lastLane; lane++) {
+    for (let column = firstColumn; column <= lastColumn; column++) {
+      const tower = occupied.get(gridCellKey(lane, column));
+      if (!tower?.inPlay || tower.transient || towerIsFlying(tower) !== flying) continue;
+      const time = segmentBoxHitTime(enemy.x - tower.x, enemy.y - tower.y, dx, dy, TOWER_BLOCK_RADIUS, CELL_HEIGHT / 2);
+      if (time < fraction) { hit = tower; fraction = time; }
+    }
+  }
+  return hit ? { tower: hit, x: enemy.x + dx * fraction, y: enemy.y + dy * fraction, fraction } : undefined;
+}
+
 function towerCanBlockEnemy(tower: Tower, enemy: Enemy, enemyFlying: boolean, checkPosition = true) {
   return (
     tower.inPlay &&
     !tower.transient &&
-    tower.lane === enemy.lane &&
+    (enemy.oscillationCenterY !== undefined ? Math.abs(tower.y - enemy.y) <= CELL_HEIGHT / 2 : tower.lane === enemy.lane) &&
     (!checkPosition || Math.abs(enemy.x - tower.x) <= TOWER_BLOCK_RADIUS) &&
     !(enemyFlying ? !towerIsFlying(tower) : towerIsFlying(tower))
   );
@@ -753,7 +777,8 @@ function enemyIsInAttackArea(
   enemy: Enemy
 ) {
   const area = query.area;
-  if (area.kind !== "verticalFan" && enemy.lane !== tower.lane) {
+  if (area.kind !== "verticalFan" && (enemy.oscillationCenterY !== undefined
+    ? Math.abs(enemy.y - tower.y) > CELL_HEIGHT / 2 : enemy.lane !== tower.lane)) {
     return false;
   }
 

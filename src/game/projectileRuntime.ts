@@ -397,7 +397,7 @@ function findDirectProjectileHit(
 }
 
 function enemyCanOverlapEveryDirectProjectileLane(enemy: Enemy) {
-  return enemyIsSolarBomb(enemy) || enemyIsBossCompanion(enemy.kind);
+  return enemy.oscillationCenterY !== undefined || enemyIsSolarBomb(enemy) || enemyIsBossCompanion(enemy.kind);
 }
 
 type HomingTarget = Enemy | CubeBoss;

@@ -217,7 +217,7 @@ test("every Infinite Front stage has uncapped wave weights while story bosses ke
 });
 
 test("all 66 existing enemy panels and registrations exactly match the pre-refactor snapshot", () => {
-  assert.deepEqual(Object.keys(registry.allEnemyDefinitions), Object.keys(legacy));
+  assert.deepEqual(Object.keys(registry.allEnemyDefinitions).filter(kind => registry.enemyFamily(kind) !== "tilde"), Object.keys(legacy));
   for (const [kind, expected] of Object.entries(legacy)) {
     assert.deepEqual(registry.getEnemyRegistration(kind), expected, kind);
   }
@@ -225,7 +225,7 @@ test("all 66 existing enemy panels and registrations exactly match the pre-refac
 
 test("every minion and leader supports unregistered ranks through the same family growth rules", () => {
   for (const [family, archetype] of Object.entries(enemyArchetypes)) {
-    if (["solarBomb", "dodecahedronCompanion"].includes(family)) continue;
+    if (["solarBomb", "dodecahedronCompanion", "tilde"].includes(family)) continue;
     for (const rank of [4, 10, 100, 10000]) {
       const kind = enemyKindAtRank(family, rank);
       assert.equal(registry.enemyFamily(kind), family);
@@ -294,6 +294,21 @@ test("octahedron endless ranks grow HP linearly and inherit 5-8 without a weight
   assert.equal(level.startingChars, 10000);
   assert.equal(level.waveWeightIncrementGrowth, 7);
   assert.equal(level.waveWeightCap, undefined);
+});
+
+test("AE-1 uses the fourth chapter template and tildes match triangle panels at every rank", () => {
+  const { enemyAttackInterval } = load("src/game/enemyBehaviors.ts");
+  for (const rank of [1, 2, 3, 100]) {
+    const tilde = enemyKindAtRank("tilde", rank), triangle = enemyKindAtRank("triangle", rank);
+    assert.deepEqual({ ...registry.getEnemyDefinition(tilde), kind: triangle }, registry.getEnemyDefinition(triangle));
+    assert.equal(enemyAttackInterval(tilde), enemyAttackInterval(triangle));
+  }
+  const level = load("src/data/levels.ts").getLevelConfig("AE-1");
+  assert.equal(level.unlockAfter, "4-10");
+  assert.equal(level.totalWaves, 20);
+  assert.equal(level.startingChars, 500);
+  assert.deepEqual([level.firstWaveWeight, level.waveWeightIncrement, level.waveWeightIncrementGrowth], [25, 18, 3]);
+  assert.deepEqual(level.enemyKinds, ["circle", "triangle", "triangle2", "triangle3", "triangleRam", "triangleRam2", "triangleRam3", "tilde", "tilde2", "tilde3"]);
 });
 
 test("high-rank lookup stays cached without growing the finite catalog forever", () => {

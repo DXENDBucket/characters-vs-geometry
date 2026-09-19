@@ -81,6 +81,20 @@ export function createUnitBorder(
 
 export function createEnemyShape(scene: Phaser.Scene, kind: EnemyKind, options: EnemyShapeOptions = {}) {
   const family = enemyFamily(kind);
+  if (family === "tilde") {
+    const shape = scene.add.container(0, 0);
+    const wave = scene.add.graphics().lineStyle(4, palette.white, 1);
+    wave.beginPath();
+    for (let i = 0; i <= 24; i++) {
+      const x = -26 + i * 52 / 24;
+      const y = 9 * Math.sin(i / 24 * Math.PI * 2);
+      if (i === 0) wave.moveTo(x, y);
+      else wave.lineTo(x, y);
+    }
+    wave.strokePath();
+    shape.add([wave, createEnemyLabel(scene, 0, -25, kind)]);
+    return shape;
+  }
   if (family === "dodecahedronCompanion") {
     const shape = scene.add.container(0, 0);
     const frame = scene.add.graphics();

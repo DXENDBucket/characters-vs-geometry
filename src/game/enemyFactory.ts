@@ -1,6 +1,6 @@
 import type Phaser from "phaser";
 import { recordEnemySeen } from "../progress";
-import { BOARD_Y, CELL_HEIGHT, palette } from "../config";
+import { BOARD_Y, CELL_HEIGHT, LANES, palette } from "../config";
 import { enemyFamily, enemyIsMace, getEnemyDefinition } from "../registry/enemies";
 import { createEnemyShape } from "../render/unitShapes";
 import type { Enemy, EnemyKind } from "../types";
@@ -27,7 +27,10 @@ interface CreateEnemyOptions {
 export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): Enemy {
   recordEnemySeen(options.kind);
   const definition = getEnemyDefinition(options.kind);
-  const y = BOARD_Y + options.lane * CELL_HEIGHT + CELL_HEIGHT / 2;
+  const family = enemyFamily(options.kind);
+  const y = family === "tilde"
+    ? BOARD_Y + (Math.min(LANES - 2, options.lane) + 1) * CELL_HEIGHT
+    : BOARD_Y + options.lane * CELL_HEIGHT + CELL_HEIGHT / 2;
   const attackSpeed = enemyAttackSpeed(options.kind);
   const speed = randomizedEnemySpeed(options.kind);
   const baseStats = enemyBaseStatsFromDefinition(definition, {
@@ -35,7 +38,6 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
     attackSpeed,
     finalDamageReduction: options.finalDamageReduction
   });
-  const family = enemyFamily(options.kind);
   const isBurrowArrow = family === "burrowArrow";
   const movementDirection = options.movementDirection ?? -1;
   const body = scene.add.container(options.x, y).setDepth(60 + options.lane);
@@ -91,7 +93,10 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
     kind: options.kind,
     waveNumber: options.waveNumber,
     weight: options.waveWeight,
-    lane: options.lane,
+    lane: Math.min(LANES - 1, Math.floor((y - BOARD_Y) / CELL_HEIGHT)),
+    oscillationCenterY: family === "tilde" ? y : undefined,
+    oscillationPhase: family === "tilde" ? 0 : undefined,
+    oscillationLastY: family === "tilde" ? y : undefined,
     spawnX: options.x,
     x: options.x,
     y,

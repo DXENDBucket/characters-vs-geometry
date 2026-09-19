@@ -130,8 +130,8 @@ export class ChapterGroupSelectScene extends Phaser.Scene {
       symbol.closePath();
       symbol.strokePath();
       card.add(symbol);
-    } else if (group.backgroundSymbol === "Aa") {
-      card.add(this.add.text(0, -62, "Aa", {
+    } else if (group.backgroundSymbol) {
+      card.add(this.add.text(0, -62, group.backgroundSymbol, {
         fontFamily: "monospace", fontSize: "260px", fontStyle: "900", color: "#242424"
       }).setOrigin(0.5).setAlpha(0.85));
     }

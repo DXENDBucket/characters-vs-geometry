@@ -66,7 +66,7 @@ export function enemyAttackSpeed(kind: EnemyKind) {
     return attackSpeedFromInterval(2_000);
   }
 
-  if (family === "triangle") {
+  if (family === "triangle" || family === "tilde") {
     return attackSpeedFromInterval(ATTACK_INTERVAL / enemyRank(kind));
   }
 

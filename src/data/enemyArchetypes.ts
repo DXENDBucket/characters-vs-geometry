@@ -18,6 +18,13 @@ export interface EnemyArchetype {
 
 // Only the finite catalog is enumerated. Runtime ranks are resolved on demand.
 export const enemyArchetypes: Record<EnemyFamily, EnemyArchetype> = {
+  tilde: {
+    base: { hp: 5000, armor: 100, magicResistance: 0, damage: 600, damageType: "physical", speedMultiplier: 1.5, weight: 30 },
+    growth: { speedMultiplier: 0.5, weight: 60 },
+    catalogRanks: 3,
+    attackMode: "melee",
+    promotionMaxRank: 3
+  },
   circle: {
     base: { hp: 3000, armor: 100, magicResistance: 0, damage: 400, damageType: "physical", weight: 10 },
     growth: { weight: 40 },
