@@ -4,6 +4,7 @@ export type ToolControlAction =
   | "tool:erase"
   | "tool:autoUpgrade"
   | "tool:shifter"
+  | "tool:reselect"
   | "tool:debugDamage"
   | "tool:superDebugDamage"
   | "tool:debugChars"
@@ -26,6 +27,7 @@ export const toolControlDefinitions: ToolControlDefinition[] = [
   { id: "tool:erase", labelKey: "control.erase" },
   { id: "tool:autoUpgrade", labelKey: "control.autoUpgrade" },
   { id: "tool:shifter", labelKey: "control.shifter" },
+  { id: "tool:reselect", labelKey: "control.reselect" },
   { id: "tool:debugDamage", labelKey: "control.debugDamage" },
   { id: "tool:superDebugDamage", labelKey: "control.superDebugDamage" },
   { id: "tool:debugChars", labelKey: "control.debugChars" },

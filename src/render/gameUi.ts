@@ -40,6 +40,10 @@ export interface GameHudElements {
   shifterText: Phaser.GameObjects.Text;
   shifterCooldownBack: Phaser.GameObjects.Rectangle;
   shifterCooldownFill: Phaser.GameObjects.Rectangle;
+  reselectButton: Phaser.GameObjects.Rectangle;
+  reselectText: Phaser.GameObjects.Text;
+  reselectCooldownBack: Phaser.GameObjects.Rectangle;
+  reselectCooldownFill: Phaser.GameObjects.Rectangle;
   autoUpgradeButton: Phaser.GameObjects.Rectangle;
   autoUpgradeText: Phaser.GameObjects.Text;
   autoUpgradeEnabledBox: Phaser.GameObjects.Rectangle;
@@ -68,6 +72,7 @@ interface GameHudActions {
   onDebugDamage: () => void;
   onSuperDebugDamage: () => void;
   onShifter: () => void;
+  onReselect: () => void;
   onAutoUpgrade: () => void;
   onAutoUpgradeEnabled: () => void;
   onAutoUpgradeReserveFocus: () => void;
@@ -290,6 +295,15 @@ export function createGameHud(
     autoUpgradeEnabledLabel, autoUpgradeReserveLabel, autoUpgradeReserveInput, autoUpgradeReserveText,
     eraserButton, eraserText
   ]) element.x -= 40;
+  for (const element of [superDebugDamageButton, superDebugDamageText, debugDamageButton, debugDamageText, debugButton, debugText]) {
+    element.x -= 128;
+  }
+  const { button: reselectButton, text: reselectText } = createToolButton(scene, GAME_WIDTH - 500, 42, 110, t("button.reselect"));
+  bindPointerAction(reselectButton, actions.onReselect);
+  const reselectCooldownBack = scene.add.rectangle(GAME_WIDTH - 545, 59, 90, 4, palette.dim, 1)
+    .setOrigin(0, 0.5).setDepth(32).setVisible(false);
+  const reselectCooldownFill = scene.add.rectangle(GAME_WIDTH - 545, 59, 90, 4, palette.white, 1)
+    .setOrigin(0, 0.5).setDepth(33).setVisible(false);
 
   const ui: GameHudElements = {
     titleText,
@@ -315,6 +329,10 @@ export function createGameHud(
     shifterText,
     shifterCooldownBack,
     shifterCooldownFill,
+    reselectButton,
+    reselectText,
+    reselectCooldownBack,
+    reselectCooldownFill,
     autoUpgradeButton,
     autoUpgradeText,
     autoUpgradeEnabledBox,
@@ -335,6 +353,7 @@ export function refreshGameHudSettings(ui: GameHudElements, levelId: string, dif
   for (const [label, key] of [
     [ui.superDebugDamageText, "button.superDebugDamage"], [ui.debugDamageText, "button.debugDamage"],
     [ui.debugText, "button.debug"], [ui.shifterText, "button.shifter"],
+    [ui.reselectText, "button.reselect"],
     [ui.autoUpgradeText, "button.autoUpgrade"], [ui.eraserText, "button.erase"],
     [ui.autoUpgradeEnabledLabel, "label.autoUpgradeEnabled"], [ui.autoUpgradeReserveLabel, "label.autoUpgradeReserve"]
   ] as const) label.setText(t(key));
@@ -392,6 +411,35 @@ export function createCardStates(scene: Phaser.Scene, selectedCardIds: CardId[],
       displayTime: 0
     };
   });
+}
+
+export function destroyCardStates(cards: CardState[]) {
+  for (const card of cards) {
+    card.frame.destroy();
+    card.cooldownFill.destroy();
+    for (const element of card.content) element.destroy();
+  }
+}
+
+export function updateReselectButtonState(ui: GameHudElements, unlocked: boolean, readyRatio: number, visible: boolean) {
+  const ready = unlocked && readyRatio >= 1;
+  setVisibleIfChanged(ui.reselectButton, visible);
+  setVisibleIfChanged(ui.reselectText, visible);
+  setStrokeStyleIfChanged(ui.reselectButton, 2, ready ? palette.mid : palette.dim, 1);
+  setAlphaIfChanged(ui.reselectButton, ready ? 0.78 : 0.42);
+  setAlphaIfChanged(ui.reselectText, ready ? 0.78 : 0.42);
+  updateToolCooldownBar(ui.reselectCooldownBack, ui.reselectCooldownFill, readyRatio, visible && unlocked);
+}
+
+function updateToolCooldownBar(
+  back: Phaser.GameObjects.Rectangle,
+  fill: Phaser.GameObjects.Rectangle,
+  readyRatio: number,
+  visible = true
+) {
+  setVisibleIfChanged(back, visible && readyRatio < 1);
+  setVisibleIfChanged(fill, visible && readyRatio < 1);
+  setRectangleWidthIfChanged(fill, back.width * Phaser.Math.Clamp(readyRatio, 0, 1));
 }
 
 export function createGameOverlay(scene: Phaser.Scene, onAction: () => void): GameOverlayElements {
@@ -496,9 +544,7 @@ export function updateToolButtonStates(
   setFillStyleIfChanged(ui.shifterButton, shifterMode ? palette.panel : palette.black, shifterMode ? 1 : shifterReady ? 0.82 : 0.44);
   setAlphaIfChanged(ui.shifterButton, shifterMode ? 1 : shifterReady ? 0.78 : 0.42);
   setAlphaIfChanged(ui.shifterText, shifterMode ? 1 : shifterReady ? 0.78 : 0.42);
-  setVisibleIfChanged(ui.shifterCooldownBack, !shifterReady);
-  setVisibleIfChanged(ui.shifterCooldownFill, !shifterReady);
-  setRectangleWidthIfChanged(ui.shifterCooldownFill, 90 * Phaser.Math.Clamp(shifterReadyRatio, 0, 1));
+  updateToolCooldownBar(ui.shifterCooldownBack, ui.shifterCooldownFill, shifterReadyRatio);
 
   setStrokeStyleIfChanged(ui.autoUpgradeButton, autoUpgradeMode ? 4 : 2, autoUpgradeMode ? palette.green : palette.mid, 1);
   setFillStyleIfChanged(ui.autoUpgradeButton, autoUpgradeMode ? palette.panel : palette.black, autoUpgradeMode ? 1 : 0.82);
@@ -646,12 +692,13 @@ export function showGameOverlay(
   titleText: string,
   buttonText: string,
   unlockedCardIds: CardId[] = [],
-  unlockedCardSlot?: { current: number; total: number }
+  unlockedCardSlot?: { current: number; total: number },
+  unlockedToolMessage?: string
 ) {
   const hasCardUnlocks = unlockedCardIds.length > 0;
   const hasSlotUnlock = Boolean(unlockedCardSlot);
-  const hasUnlocks = hasCardUnlocks || hasSlotUnlock;
-  const compactSlotUnlock = hasSlotUnlock && !hasCardUnlocks;
+  const hasUnlocks = hasCardUnlocks || hasSlotUnlock || Boolean(unlockedToolMessage);
+  const compactSlotUnlock = hasUnlocks && !hasCardUnlocks;
   const plateWidth = hasCardUnlocks ? 1_040 : compactSlotUnlock ? 460 : 360;
   const plateHeight = hasCardUnlocks ? 600 : compactSlotUnlock ? 210 : 160;
   const titleY = hasCardUnlocks
@@ -672,7 +719,8 @@ export function showGameOverlay(
     hasCardUnlocks ? t("overlay.newCards") : "",
     unlockedCardSlot
       ? t("overlay.newCardSlot", { current: unlockedCardSlot.current, total: unlockedCardSlot.total })
-      : ""
+      : "",
+    unlockedToolMessage
   ].filter(Boolean);
   overlay.subtitle.setText(unlockMessages.join("  +  "));
   overlay.subtitle.setPosition(GAME_WIDTH / 2, hasCardUnlocks ? 154 : GAME_HEIGHT / 2 - 6);

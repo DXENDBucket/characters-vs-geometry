@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { PauseMenu } from "../render/pauseMenu";
+import { LoadoutReselection, RESELECT_UNLOCK_LEVEL } from "../game/loadoutReselection";
 import { TowerStorageController } from "../game/towerStorage";
 import { expireReversalEffect } from "../game/rules/reversal";
 import {
@@ -94,11 +95,13 @@ import { volleyInterval, volleyShotCount } from "../game/upgrades";
 import { waveScheduleAction } from "../game/waves";
 import { attackIntervalMs } from "../game/attackSpeed";
 import { t } from "../i18n";
-import { completeLevel, isCardUnlocked, unlockedCardSlotCount } from "../progress";
+import { completeLevel, isCardUnlocked, isLevelCompleted, unlockedCardSlotCount } from "../progress";
 import { makeEraseMark, makeProductionPulse, makeShellBurst, makeShockPulse } from "../render/combatEffects";
 import { createUnitBorder } from "../render/unitShapes";
 import {
   createCardStates,
+  destroyCardStates,
+  updateReselectButtonState,
   createGameHud,
   refreshGameHudSettings,
   createGameOverlay,
@@ -255,6 +258,9 @@ export class GameScene extends Phaser.Scene {
   private overlay!: GameOverlayElements;
   private pauseMenu!: PauseMenu;
   private menuOpen = false;
+  private reselectOpen = false;
+  private reselection = new LoadoutReselection();
+  private reselectShade?: Phaser.GameObjects.Rectangle;
   private readonly scenePointerDownHandler = (pointer: Phaser.Input.Pointer) => this.handlePointerDown(pointer);
   private readonly scenePointerMoveHandler = (pointer: Phaser.Input.Pointer) => {
     this.towerSkills.updateSpellMortarReticlePosition(pointer.x, pointer.y);
@@ -312,6 +318,9 @@ export class GameScene extends Phaser.Scene {
     this.towerOrder = 0;
     this.gameOver = false;
     this.menuOpen = false;
+    this.reselectOpen = false;
+    this.reselection = new LoadoutReselection();
+    this.reselectShade = undefined;
     this.battlePaused = false;
     this.gameSpeed = DEFAULT_GAME_SPEED;
     this.eraserMode = false;
@@ -359,6 +368,7 @@ export class GameScene extends Phaser.Scene {
       onDebugDamage: () => this.toggleDebugDamageMode(),
       onSuperDebugDamage: () => this.toggleSuperDebugDamageMode(),
       onShifter: () => this.toggleShifterMode(),
+      onReselect: () => this.openReselection(),
       onAutoUpgrade: () => this.toggleAutoUpgradeMode(),
       onAutoUpgradeEnabled: () => this.toggleAutoUpgradeEnabled(),
       onAutoUpgradeReserveFocus: () => this.focusAutoUpgradeReserveInput(),
@@ -439,7 +449,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number) {
-    if (this.gameOver || this.menuOpen) {
+    if (this.gameOver || this.menuOpen || this.reselectOpen) {
       return;
     }
 
@@ -515,7 +525,7 @@ export class GameScene extends Phaser.Scene {
   private handlePointerDown(pointer: Phaser.Input.Pointer) {
     const x = pointer.x;
     const y = pointer.y;
-    if (this.gameOver || this.menuOpen) {
+    if (this.gameOver || this.menuOpen || this.reselectOpen) {
       return;
     }
 
@@ -1866,6 +1876,57 @@ export class GameScene extends Phaser.Scene {
       this.autoUpgradeReserveChars,
       this.autoUpgradeReserveInputFocused
     );
+    updateReselectButtonState(this.ui, isLevelCompleted(RESELECT_UNLOCK_LEVEL),
+      this.reselection.readyRatio(this.battleTime), !isTutorialMechanic(this.levelConfig.specialMechanic));
+  }
+
+  private openReselection() {
+    if (this.gameOver || this.menuOpen || this.reselectOpen || isTutorialMechanic(this.levelConfig.specialMechanic)) return;
+    if (!isLevelCompleted(RESELECT_UNLOCK_LEVEL)) {
+      this.showToast(t("card.unlockAfter", { level: RESELECT_UNLOCK_LEVEL }));
+      return;
+    }
+    if (!this.reselection.isReady(this.battleTime)) {
+      this.showToast(t("toast.cooldown"));
+      return;
+    }
+
+    this.reselectOpen = true;
+    this.autoUpgradeReserveInputFocused = false;
+    this.cancelSpellMortarTargeting();
+    this.clearPlacementGhosts();
+    this.reselectShade = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, palette.black, 0.4)
+      .setDepth(1000);
+    this.scene.pause();
+    this.scene.launch("CardSelectScene", {
+      levelId: this.levelId,
+      chapterId: this.chapterId,
+      difficulty: this.difficulty,
+      unlimitedFirepower: this.unlimitedFirepower,
+      reselect: {
+        selectedCards: [...this.selectedCardIds],
+        onConfirm: (cards: CardId[]) => this.closeReselection(cards),
+        onCancel: () => this.closeReselection()
+      }
+    });
+  }
+
+  private closeReselection(cards?: CardId[]) {
+    if (!this.reselectOpen) return;
+    if (cards?.length && this.reselection.confirm(this.battleTime, this.cardStates)) {
+      this.selectedCardIds = this.sanitizeLoadout(cards);
+      destroyCardStates(this.cardStates);
+      const nextCards = createCardStates(this, this.selectedCardIds, (id) => this.selectCard(id));
+      for (const card of nextCards) card.readyAt = this.reselection.cardReadyAt(card.definition.id);
+      this.setCardStates(nextCards);
+      this.selectCard(this.selectedCardIds.includes(this.selectedCardId) ? this.selectedCardId : this.selectedCardIds[0]);
+    }
+    this.reselectOpen = false;
+    this.reselectShade?.destroy();
+    this.reselectShade = undefined;
+    this.scene.resume();
+    this.updateCards();
+    this.syncPlacementGhost(this.input.activePointer);
   }
 
   private grantDebugChars() {
@@ -2104,7 +2165,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private openPauseMenu() {
-    if (this.menuOpen) return;
+    if (this.menuOpen || this.reselectOpen) return;
     this.menuOpen = true;
     this.autoUpgradeReserveInputFocused = false;
     this.ui.pauseMenuTooltip.setVisible(false);
@@ -2140,6 +2201,7 @@ export class GameScene extends Phaser.Scene {
 
   private endLevel() {
     this.gameOver = true;
+    const reselectUnlocked = this.levelId === RESELECT_UNLOCK_LEVEL && !isLevelCompleted(RESELECT_UNLOCK_LEVEL);
     const previousCardSlotCount = unlockedCardSlotCount();
     const unlockedCardIds = completeLevel(this.levelId);
     const currentCardSlotCount = unlockedCardSlotCount();
@@ -2150,7 +2212,8 @@ export class GameScene extends Phaser.Scene {
       unlockedCardIds,
       currentCardSlotCount > previousCardSlotCount
         ? { current: currentCardSlotCount, total: CARD_SLOT_COUNT }
-        : undefined
+        : undefined,
+      reselectUnlocked ? t("toast.reselectUnlocked") : undefined
     );
   }
 
@@ -2272,6 +2335,9 @@ export class GameScene extends Phaser.Scene {
         return;
       case "tool:shifter":
         this.toggleShifterMode();
+        return;
+      case "tool:reselect":
+        this.openReselection();
         return;
       case "tool:debugDamage":
         this.toggleDebugDamageMode();

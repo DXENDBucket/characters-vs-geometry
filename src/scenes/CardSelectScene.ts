@@ -42,7 +42,21 @@ interface EnemyPreviewGroup {
   kinds: EnemyKind[];
 }
 
+interface CardSelectSceneData {
+  levelId?: string;
+  chapterId?: string;
+  difficulty?: number;
+  unlimitedFirepower?: boolean;
+  reselect?: {
+    selectedCards: CardId[];
+    onConfirm: (cards: CardId[]) => void;
+    onCancel: () => void;
+  };
+}
+
 export class CardSelectScene extends Phaser.Scene {
+  private reselect?: CardSelectSceneData["reselect"];
+  private selectionFinished = false;
   private levelId = "1-1";
   private chapterId = "1";
   private difficulty = DEFAULT_DIFFICULTY;
@@ -81,13 +95,15 @@ export class CardSelectScene extends Phaser.Scene {
     super("CardSelectScene");
   }
 
-  init(data: { levelId?: string; chapterId?: string; difficulty?: number; unlimitedFirepower?: boolean }) {
+  init(data: CardSelectSceneData) {
+    this.reselect = data.reselect;
+    this.selectionFinished = false;
     this.levelId = data.levelId ?? "1-1";
     this.chapterId = data.chapterId ?? chapterIdForLevelId(this.levelId);
     this.difficulty = clampDifficulty(data.difficulty);
     this.unlimitedFirepower = Boolean(data.unlimitedFirepower);
     this.cardSlotCount = unlockedCardSlotCount();
-    this.selectedCards = readStoredLoadout(this.cardSlotCount);
+    this.selectedCards = this.reselect ? [...this.reselect.selectedCards] : readStoredLoadout(this.cardSlotCount);
     this.slotFrames = [];
     this.slotLabels = [];
     this.cardFrames = new Map();
@@ -102,7 +118,22 @@ export class CardSelectScene extends Phaser.Scene {
   }
 
   create() {
-    this.cameras.main.setBackgroundColor(palette.black);
+    if (this.reselect) {
+      this.scene.bringToTop();
+      this.cameras.main.setBackgroundColor("rgba(0,0,0,0)").setZoom(0.88);
+      this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH - 20, GAME_HEIGHT - 20, palette.black, 0.97)
+        .setStrokeStyle(2, palette.mid, 1).setInteractive();
+      const onKey = (event: KeyboardEvent) => {
+        if (event.key === "Escape" && !event.repeat) {
+          event.preventDefault();
+          this.backToLevelSelect();
+        }
+      };
+      this.input.keyboard?.on("keydown", onKey);
+      this.events.once("shutdown", () => this.input.keyboard?.off("keydown", onKey));
+    } else {
+      this.cameras.main.setBackgroundColor(palette.black).setZoom(1);
+    }
     this.drawBackdrop();
     this.drawEnemyPreview();
     this.createSlots();
@@ -219,7 +250,7 @@ export class CardSelectScene extends Phaser.Scene {
 
     zone.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       this.enemyPreviewDragPointer = pointer;
-      this.enemyPreviewDragStartY = pointer.y;
+      this.enemyPreviewDragStartY = this.pointerPosition(pointer).y;
       this.enemyPreviewDragStartScrollY = this.enemyPreviewScrollY;
     });
 
@@ -228,14 +259,15 @@ export class CardSelectScene extends Phaser.Scene {
         return;
       }
 
-      this.setEnemyPreviewScroll(this.enemyPreviewDragStartScrollY - (pointer.y - this.enemyPreviewDragStartY));
+      this.setEnemyPreviewScroll(this.enemyPreviewDragStartScrollY - (this.pointerPosition(pointer).y - this.enemyPreviewDragStartY));
     });
     this.input.on("pointerup", (pointer: Phaser.Input.Pointer) => this.stopEnemyPreviewDrag(pointer));
     this.input.on("pointerupoutside", (pointer: Phaser.Input.Pointer) => this.stopEnemyPreviewDrag(pointer));
     this.input.on(
       "wheel",
       (pointer: Phaser.Input.Pointer, _gameObjects: Phaser.GameObjects.GameObject[], _deltaX: number, deltaY: number) => {
-        if (!this.enemyPreviewViewport.contains(pointer.x, pointer.y)) {
+        const position = this.pointerPosition(pointer);
+        if (!this.enemyPreviewViewport.contains(position.x, position.y)) {
           return;
         }
 
@@ -516,12 +548,13 @@ export class CardSelectScene extends Phaser.Scene {
 
   private createCardPoolScrollControls() {
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
-      if (!this.cardPoolViewport.contains(pointer.x, pointer.y)) {
+      const position = this.pointerPosition(pointer);
+      if (!this.cardPoolViewport.contains(position.x, position.y)) {
         return;
       }
 
       this.cardPoolDragPointer = pointer;
-      this.cardPoolDragStartY = pointer.y;
+      this.cardPoolDragStartY = position.y;
       this.cardPoolDragStartScrollY = this.cardPoolScrollY;
       this.cardPoolDragMoved = false;
     });
@@ -531,7 +564,7 @@ export class CardSelectScene extends Phaser.Scene {
         return;
       }
 
-      const deltaY = pointer.y - this.cardPoolDragStartY;
+      const deltaY = this.pointerPosition(pointer).y - this.cardPoolDragStartY;
       if (Math.abs(deltaY) > 4) {
         this.cardPoolDragMoved = true;
       }
@@ -542,7 +575,8 @@ export class CardSelectScene extends Phaser.Scene {
     this.input.on(
       "wheel",
       (pointer: Phaser.Input.Pointer, _gameObjects: Phaser.GameObjects.GameObject[], _deltaX: number, deltaY: number) => {
-        if (!this.cardPoolViewport.contains(pointer.x, pointer.y)) {
+        const position = this.pointerPosition(pointer);
+        if (!this.cardPoolViewport.contains(position.x, position.y)) {
           return;
         }
 
@@ -569,16 +603,21 @@ export class CardSelectScene extends Phaser.Scene {
   }
 
   private handleCardPointerUp(id: CardId, pointer: Phaser.Input.Pointer) {
+    const position = this.pointerPosition(pointer);
     if (
       !isCardUnlocked(id) ||
       this.cardPoolDragMoved ||
       this.time.now < this.suppressCardClickUntil ||
-      !this.cardPoolViewport.contains(pointer.x, pointer.y)
+      !this.cardPoolViewport.contains(position.x, position.y)
     ) {
       return;
     }
 
     this.toggleCard(id);
+  }
+
+  private pointerPosition(pointer: Phaser.Input.Pointer) {
+    return this.cameras.main.getWorldPoint(pointer.x, pointer.y);
   }
 
   private createStartButton() {
@@ -601,7 +640,7 @@ export class CardSelectScene extends Phaser.Scene {
       .setStrokeStyle(2, palette.mid, 0.85)
       .setInteractive({ useHandCursor: true });
     this.backText = this.add
-      .text(GAME_WIDTH - 344, y - 2, t("button.back"), {
+      .text(GAME_WIDTH - 344, y - 2, t(this.reselect ? "button.cancel" : "button.back"), {
         color: "#f5f5f5",
         fontFamily: "monospace",
         fontSize: "18px",
@@ -614,7 +653,7 @@ export class CardSelectScene extends Phaser.Scene {
       .setStrokeStyle(2, palette.white, 1)
       .setInteractive({ useHandCursor: true });
     this.startText = this.add
-      .text(GAME_WIDTH - 164, y - 2, t("button.start"), {
+      .text(GAME_WIDTH - 164, y - 2, t(this.reselect ? "button.confirm" : "button.start"), {
         color: "#f5f5f5",
         fontFamily: "monospace",
         fontSize: "20px",
@@ -640,7 +679,7 @@ export class CardSelectScene extends Phaser.Scene {
     } else if (this.selectedCards.length < this.cardSlotCount) {
       this.selectedCards.push(id);
     }
-    writeStoredLoadout(this.selectedCards);
+    if (!this.reselect) writeStoredLoadout(this.selectedCards);
     this.updateCardSelection();
   }
 
@@ -650,7 +689,7 @@ export class CardSelectScene extends Phaser.Scene {
     }
 
     this.selectedCards = [];
-    writeStoredLoadout(this.selectedCards);
+    if (!this.reselect) writeStoredLoadout(this.selectedCards);
     this.updateCardSelection();
   }
 
@@ -688,10 +727,18 @@ export class CardSelectScene extends Phaser.Scene {
   }
 
   private startLevel() {
-    if (this.selectedCards.length === 0) {
+    if (this.selectionFinished || this.selectedCards.length === 0) {
       return;
     }
+    this.selectionFinished = true;
     writeStoredLoadout(this.selectedCards);
+    if (this.reselect) {
+      const onConfirm = this.reselect.onConfirm;
+      this.reselect = undefined;
+      this.scene.stop();
+      onConfirm([...this.selectedCards]);
+      return;
+    }
     this.scene.start("GameScene", {
       levelId: this.levelId,
       chapterId: this.chapterId,
@@ -702,6 +749,15 @@ export class CardSelectScene extends Phaser.Scene {
   }
 
   private backToLevelSelect() {
+    if (this.selectionFinished) return;
+    this.selectionFinished = true;
+    if (this.reselect) {
+      const onCancel = this.reselect.onCancel;
+      this.reselect = undefined;
+      this.scene.stop();
+      onCancel();
+      return;
+    }
     this.scene.start("LevelSelectScene", {
       chapterId: this.chapterId,
       difficulty: this.difficulty,
@@ -731,7 +787,11 @@ function readStoredLoadout(cardSlotCount: number) {
 }
 
 function writeStoredLoadout(cards: CardId[]) {
-  window.localStorage.setItem(LOADOUT_STORAGE_KEY, JSON.stringify(cards));
+  try {
+    window.localStorage.setItem(LOADOUT_STORAGE_KEY, JSON.stringify(cards));
+  } catch {
+    // Storage failures must not prevent returning to a paused battle.
+  }
 }
 
 function isValidStoredCard(id: unknown): id is CardId {

@@ -72,6 +72,7 @@ export class SettingsScene extends Phaser.Scene {
   }
 
   create() {
+    if (this.onReturn) this.scene.bringToTop();
     this.cameras.main.setBackgroundColor(palette.black);
     this.drawBackdrop();
     this.createBackButton();

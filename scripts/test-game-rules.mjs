@@ -10,6 +10,49 @@ const { outputText } = ts.transpileModule(source, {
 });
 const { planTowerMove } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
 
+const reselectSource = fs.readFileSync(new URL("../src/game/loadoutReselection.ts", import.meta.url), "utf8");
+const reselectModule = ts.transpileModule(reselectSource, {
+  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 }
+});
+const { LoadoutReselection, RESELECT_UNLOCK_LEVEL, RESELECT_COOLDOWN } = await import(
+  `data:text/javascript;base64,${Buffer.from(reselectModule.outputText).toString("base64")}`
+);
+
+test("reselection is initially ready, unlocks after 2-4 and cools down for 240 battle seconds after confirmation", () => {
+  const state = new LoadoutReselection();
+  assert.equal(RESELECT_UNLOCK_LEVEL, "2-4");
+  assert.equal(RESELECT_COOLDOWN, 240_000);
+  assert.equal(state.isReady(0), true);
+  assert.equal(state.readyRatio(0), 1);
+  assert.equal(state.confirm(10_000, []), true);
+  assert.equal(state.isReady(10_000), false);
+  assert.equal(state.readyRatio(10_000), 0);
+  assert.equal(state.readyRatio(130_000), 0.5);
+  assert.equal(state.isReady(249_999), false);
+  assert.equal(state.isReady(250_000), true);
+  assert.equal(state.readyRatio(999_999), 1);
+});
+
+test("reselection preserves card deadlines across removal, return and separate card clocks", () => {
+  const state = new LoadoutReselection();
+  const a = { definition: { id: "A" }, readyAt: 900_000 };
+  const c = { definition: { id: "c" }, readyAt: 123_456 };
+  const cards = [a, c];
+  state.confirm(0, cards);
+  a.readyAt = 0;
+  assert.equal(state.cardReadyAt("A"), 900_000);
+  assert.equal(state.cardReadyAt("c"), 123_456);
+  assert.equal(state.cardReadyAt("B"), 0);
+  assert.equal(state.confirm(239_999, [a]), false);
+  assert.equal(state.cardReadyAt("A"), 900_000);
+  state.confirm(240_000, [{ definition: { id: "B" }, readyAt: 600_000 }]);
+  assert.equal(state.cardReadyAt("A"), 900_000);
+  assert.equal(state.cardReadyAt("B"), 600_000);
+  state.confirm(480_000, [{ definition: { id: "A" }, readyAt: 950_000 }]);
+  assert.equal(state.cardReadyAt("A"), 950_000);
+  assert.equal(state.cardReadyAt("c"), 123_456);
+});
+
 function fixture() {
   const a = { id: "tower:0", lane: 1, column: 2, inPlay: true };
   const b = { id: "tower:1", lane: 2, column: 3, inPlay: true };
