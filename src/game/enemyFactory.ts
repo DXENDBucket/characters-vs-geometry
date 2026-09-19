@@ -1,4 +1,5 @@
 import type Phaser from "phaser";
+import { battleRandom, isBattlePlayback } from "./battleSimulation";
 import { recordEnemySeen } from "../progress";
 import { BOARD_Y, CELL_HEIGHT, LANES, palette } from "../config";
 import { enemyFamily, enemyIsMace, getEnemyDefinition } from "../registry/enemies";
@@ -25,14 +26,14 @@ interface CreateEnemyOptions {
 }
 
 export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): Enemy {
-  recordEnemySeen(options.kind);
+  if (!isBattlePlayback(scene)) recordEnemySeen(options.kind);
   const definition = getEnemyDefinition(options.kind);
   const family = enemyFamily(options.kind);
   const y = family === "tilde"
     ? BOARD_Y + (Math.min(LANES - 2, options.lane) + 1) * CELL_HEIGHT
     : BOARD_Y + options.lane * CELL_HEIGHT + CELL_HEIGHT / 2;
   const attackSpeed = enemyAttackSpeed(options.kind);
-  const speed = randomizedEnemySpeed(options.kind);
+  const speed = randomizedEnemySpeed(options.kind, () => battleRandom(scene).next());
   const baseStats = enemyBaseStatsFromDefinition(definition, {
     speed,
     attackSpeed,

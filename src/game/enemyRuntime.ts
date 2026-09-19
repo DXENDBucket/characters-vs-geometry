@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { battleRandom } from "./battleSimulation";
 import type { BattleAction } from "./battleActions";
 import { enemyFacingDirection, enemyMovementDirection } from "./rules/reversal";
 import { isShockTower } from "./triggerTowers";
@@ -124,24 +125,25 @@ export function spawnEnemyAt(runtime: EnemySpawnRuntime, options: SpawnEnemyOpti
 }
 
 export function spawnWaveEnemies(runtime: EnemySpawnRuntime, options: SpawnWaveOptions): WaveTracker {
+  const random = battleRandom(runtime.scene);
   const weightLimit = waveWeightLimit(options.levelConfig, options.difficultyConfig, options.waveNumber);
   const kinds = options.levelConfig.unlimitedRankFamilies
     ? buildInfiniteWaveKinds(options.levelConfig.unlimitedRankFamilies, weightLimit, options.waveNumber,
-      options.levelConfig.wavesPerFlag, length => Phaser.Math.Between(0, length - 1))
+      options.levelConfig.wavesPerFlag, length => random.between(0, length - 1))
     : buildWaveKinds(
     options.levelConfig.enemyKinds,
     getEnemyDefinition,
     weightLimit,
     options.waveNumber,
     options.levelConfig.wavesPerFlag,
-    (length) => Phaser.Math.Between(0, length - 1),
+    (length) => random.between(0, length - 1),
     options.levelConfig.ignoreEnemyMinFlag
   );
   let totalWeight = 0;
 
   kinds.forEach((kind, index) => {
-    const lane = Phaser.Math.Between(0, LANES - (enemyFamily(kind) === "tilde" ? 2 : 1));
-    const x = BOARD_X + BOARD_WIDTH + 46 + Phaser.Math.Between(0, 18) + (index % 3) * 5;
+    const lane = random.between(0, LANES - (enemyFamily(kind) === "tilde" ? 2 : 1));
+    const x = BOARD_X + BOARD_WIDTH + 46 + random.between(0, 18) + (index % 3) * 5;
     totalWeight += spawnEnemyAt(runtime, {
       kind,
       waveNumber: options.waveNumber,
@@ -157,8 +159,8 @@ export function spawnWaveEnemies(runtime: EnemySpawnRuntime, options: SpawnWaveO
     ? infiniteLeaderKinds(options.levelConfig.enemyKinds.filter(enemyIsLeader), options.waveNumber, options.levelConfig.wavesPerFlag)
     : flagLeaderKinds(options.levelConfig.enemyKinds, options.waveNumber, options.levelConfig.wavesPerFlag);
   leaders.forEach((kind, index) => {
-    const lane = Phaser.Math.Between(0, LANES - 1);
-    const x = BOARD_X + BOARD_WIDTH + 58 + Phaser.Math.Between(0, 16) + index * 8;
+    const lane = random.between(0, LANES - 1);
+    const x = BOARD_X + BOARD_WIDTH + 58 + random.between(0, 16) + index * 8;
     spawnEnemyAt(runtime, {
       kind,
       waveNumber: options.waveNumber,

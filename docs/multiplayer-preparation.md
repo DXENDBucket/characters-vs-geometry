@@ -26,28 +26,70 @@ rules from browser input and rendering, not a multiplayer implementation.
   no longer share an ID just because their coordinates and time match.
   IDs are unique within a battle, not across restarts or independent peers.
 
+## Deterministic Battle Foundation
+
+- `battleSimulation.ts` advances gameplay at 60 fixed ticks per second. Frame
+  time only feeds an accumulator; catch-up work is bounded per render frame and
+  unprocessed ticks are retained. Pause does not advance gameplay.
+- Each battle has a seeded, serializable 32-bit random stream. Wave selection,
+  spawn positions and speed variance (including promotion) use this stream.
+  Particle and Boss rotation randomness remains cosmetic and separate.
+- All modes now use `BattleActionQueue` for delayed combat. S projectile progress
+  and impacts are simulation-owned, not Phaser tween completion callbacks.
+- `BattleCommand` records normalized board coordinates, modifiers, card/tool
+  selection, skills, erasure, reserve changes, reselection, debug actions and
+  tutorial progression. Commands run between ticks, ordered by tick and sequence.
+  These are single-player session commands; tool/selection state is not yet
+  independent per player. The existing movement planner remains reusable.
+- New endless saves retain the clock remainder, random state and mirror ID
+  counter. Older saves can still resume, but their pre-save random history cannot
+  be reconstructed. A recording started after loading uses that save as its
+  checkpoint, rather than pretending it is a recording from battle start.
+- Replay playback does not update progress, discovery, records or endless saves.
+
+### Developer API
+
+Given the active `GameScene` instance `scene` and its Phaser game:
+
+```ts
+const recording = scene.exportReplay(); // JSON-serializable
+const checksum = scene.battleChecksum();
+game.scene.start("GameScene", { replay: recording });
+
+// Same input adapter used by the local UI; accepted between simulation ticks.
+scene.submitBattleCommand({ type: "selectCard", id: "A" });
+scene.submitBattleCommand({ type: "pointer", pointer: {
+  x: 400, y: 300, ctrl: false, shift: false, right: false
+} });
+```
+
+Playback stops at `endTick`. Pause and playback speed remain local presentation
+controls; they do not need wall-clock events in the recording. There is no replay
+file picker or replay library UI yet. Checksums include logical state and pending
+attacks, but exclude purely visual Boss rotation and the render-time accumulator.
+
+Recordings require the same game rules and data. Bump `BATTLE_RULES_VERSION` when
+changing gameplay semantics or balance in an incompatible way. The checksum is a
+diagnostic, not authentication. Verification currently covers Chromium at multiple
+render rates; bit-identical floating-point results across different JS engines,
+architectures or game versions are not promised.
+
 ## Next Boundaries
 
-1. Apply the same command/validation/result boundary to placement, upgrades,
-   erasure, targeted cards, and manually activated skills. Keep card selection,
-   hover, tool selection, and targeting previews local to each player.
+1. Split session-level UI intent into per-player semantic commands and selection
+   state once multiplayer interaction and ownership rules are decided.
 2. Separate simulation state from Phaser objects in towers, enemies, projectiles,
    card cooldowns, and boss parts. Introduce stable IDs for the remaining units.
    Publish data snapshots and visual events instead of serializing game objects.
-3. Give combat a simulation-owned clock and scheduled event queue. Existing
-   delayed attacks use Phaser timers and callbacks; frame delta controls movement.
-   Extract those before claiming headless simulation or deterministic replays.
-4. Inject a seeded gameplay random generator for waves and movement variation.
-   Keep purely visual randomness separate from gameplay randomness.
-5. Once the multiplayer mode is chosen, define ownership, currencies, cooldowns,
+3. Once the multiplayer mode is chosen, define ownership, currencies, cooldowns,
    pause/speed permissions, and the authoritative simulation. Add session IDs,
    command sequence numbers, duplicate rejection, schema validation, snapshots,
    and reconnect support at the transport boundary.
 
-Moving towers by command is the first migrated operation. Other operations still
-mutate the local scene, and there is currently no server, lobby, synchronization,
-network authorization, or replay guarantee. The rendering adapter still requires
-Phaser even though its movement rules can run without it.
+There is still no server, lobby, rollback, network authorization, synchronization
+or reconnect protocol. The rendering adapter still requires Phaser; the entire
+battle is not yet a headless simulation. Replay commands are not a network trust
+boundary, and transport-level validation/authority must not be skipped.
 
 ## Verification
 
@@ -57,3 +99,11 @@ overlap, sealed and out-of-bounds cells, stale requests, replacement towers,
 invalid coordinates, compounded cooldown, and non-mutating validation.
 
 Run `npm run build` and `npm run validate` after adapter changes as well.
+
+`scripts/test-battle-determinism.mjs` tests seeded sequences, clock checkpointing,
+frame-rate independence, catch-up and replay command validation. For actual Phaser
+battles, start Vite and run `node scripts/test-battle-determinism-browser.mjs` with
+Playwright installed. Optional `--playwright=<absolute module path>`,
+`--browser=<Chromium executable>` and `--url=<Vite URL>` select local tools.
+This covers 30/144 FPS and jittered frames, active S flights, save continuation,
+normal/Boss/endless/ASCII stages, tutorial input and the four finale phases.

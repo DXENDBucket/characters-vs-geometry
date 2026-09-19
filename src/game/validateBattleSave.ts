@@ -3,6 +3,7 @@ import { decodeSaveGraph, type NodeKind, type SaveGraph } from "./saveGraph";
 import { rankedBossFamily } from "../bosses/bossRanks";
 import type { BossKind } from "../types";
 import { parseEnemyKind } from "./enemyIdentity";
+import { BATTLE_RULES_VERSION, validBattleClock } from "./battleSimulation";
 
 export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossKind?: BossKind) {
   const units = new Map<NodeKind, Set<object>>();
@@ -19,6 +20,12 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
   const array = (value: unknown, check: (item: unknown) => boolean): boolean => Array.isArray(value) && value.every(check);
   const member = (kind: NodeKind) => (value: unknown) => Boolean(value && typeof value === "object" && units.get(kind)?.has(value));
   require(record(state));
+  if (state.simulation !== undefined) {
+    const simulation = state.simulation;
+    require(record(simulation) && simulation.version === BATTLE_RULES_VERSION && validBattleClock(simulation.clock) &&
+      Number.isInteger(simulation.randomState) && simulation.randomState >= 0 && simulation.randomState <= 0xffffffff &&
+      Number.isSafeInteger(simulation.mirrorNextGroupId) && simulation.mirrorNextGroupId >= 1);
+  }
   for (const key of ["levelElapsed", "battleTime", "cardTime", "nextNaturalProduceAt", "chars", "baseIntegrity",
     "wave", "enemiesDefeated", "towerOrder", "gameSpeed", "autoUpgradeReserveChars", "extraction"] as const) {
     require(finite(state[key]) && state[key] >= 0);

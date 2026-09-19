@@ -1,6 +1,6 @@
 # Survival Battle Saves
 
-- Supported operations: regular endless IF-1 through IF-12, Cube Boss Endless IF-BE-1 and Tetrahedron Boss Endless IF-BE-2. Other Boss families are not enabled for battlefield saves.
+- Supported operations: regular endless IF-1 through IF-12 and Boss Endless IF-BE-1 through IF-BE-4.
 - Storage: one versioned `charset-survival-v1:<levelId>` localStorage entry per operation, separate from best-wave progress.
 - Save points: the pause menu's exit command, and browser `pagehide` (including a normal reload). No offline simulation or wall-clock catch-up.
 - Continue skips card selection, restores the saved difficulty and loadout, and opens the pause menu. Restart begins a new run and clears that operation's save. Defeat also clears it; neither clears the best-wave record.
@@ -14,6 +14,8 @@ The graph preserves shared health pools, mirror group IDs, projectile targets an
 
 Boss Endless keeps its highest defeated rank separately from best-wave records. A defeat records the current rank, then spawns the next Boss; ordinary wave progress is not reset. Saved active Bosses must be alive and have a valid rank, skill state and same-rank Advance summon.
 
-`BattleActionQueue` stores pending tower and enemy volleys, shock pulses, targeted-effect cards and S launches. Regular endless uses this battle-clock queue instead of closure-based timers. S flights retain their elapsed progress along the original easing curve. Other modes keep their existing scheduling.
+`BattleActionQueue` stores pending tower and enemy volleys, shock pulses, targeted-effect cards, Boss reinforcements and S launches. All game modes use this battle-clock queue instead of closure-based timers. S flights retain their simulation-owned progress along the original easing curve; impact damage no longer depends on tween callbacks.
+
+New snapshots also contain the fixed simulation tick, residual frame time, gameplay random state, rules version and next mirror-group ID. Old snapshots without these fields remain loadable; deterministic continuation starts from the migrated checkpoint. See `multiplayer-preparation.md` for replay APIs and version compatibility.
 
 Visual-only particles, active pointer selection, drag previews and unconfirmed targeting are not restored. Their underlying health, skills, resources and damage state are preserved. New gameplay timers added to regular endless must use serializable actions (or include an explicit state restore path).

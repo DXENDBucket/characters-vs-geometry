@@ -480,15 +480,8 @@ function scheduleOctahedronReinforcements(runtime: BossRuntime, boss: CubeBoss) 
 
 function scheduleIcosahedronFinalReinforcements(runtime: BossRuntime, boss: CubeBoss) {
   for (const wave of ICOSAHEDRON_FINAL_REINFORCEMENTS) {
-    runtime.scene.time.delayedCall(wave.delay, () => {
-      runtime.runWhenBattleActive(() => {
-        if (runtime.getBoss() !== boss) {
-          return;
-        }
-
-        spawnIcosahedronFinalReinforcementWave(runtime, wave.kind, wave.lanes, runtime.battleTime);
-      });
-    });
+    scheduleBossAttack(runtime, wave.delay, { type: "bossReinforcements", boss,
+      kind: wave.kind, lanes: wave.lanes, icosahedron: true });
   }
 }
 
@@ -1102,7 +1095,9 @@ function scheduleBossAttack(runtime: BossRuntime, delay: number, action: BossAtt
 export function executeBossAttack(runtime: BossRuntime, action: BossAttackAction) {
   if (runtime.getBoss() !== action.boss) return;
   switch (action.type) {
-    case "bossReinforcements": spawnOctahedronReinforcementWave(runtime, action.kind, action.lanes, runtime.battleTime); break;
+    case "bossReinforcements":
+      (action.icosahedron ? spawnIcosahedronFinalReinforcementWave : spawnOctahedronReinforcementWave)(
+        runtime, action.kind, action.lanes, runtime.battleTime); break;
     case "companionLaser": fireDodecahedronCompanionLaser(runtime, action.companion, action.hitCount); break;
     case "companionMortar": fireDodecahedronCompanionMortar(runtime, action.companion, action.hitCount); break;
     case "bossDeathLaser": fireBossDeathLasers(runtime, action.boss, action.laneRadius, action.hitCount); break;

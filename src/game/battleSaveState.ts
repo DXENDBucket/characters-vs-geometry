@@ -4,8 +4,13 @@ import type { LoadoutReselection } from "./loadoutReselection";
 import type { TowerShifterController } from "./towerShifter";
 import type { TowerStorageController } from "./towerStorage";
 import type { SpellMortarFlight } from "./towerSkills";
+import type { BattleClockState } from "./battleSimulation";
 
 export interface BattleSaveState {
+  simulation?: { version: number; clock: BattleClockState; randomState: number; mirrorNextGroupId: number };
+  bossPhaseIndex?: number;
+  bossPhaseStartedAt?: number;
+  bossHomePosition?: { x: number; y: number } | null;
   levelElapsed: number;
   battleTime: number;
   cardTime: number;

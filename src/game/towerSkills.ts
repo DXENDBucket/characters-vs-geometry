@@ -67,8 +67,7 @@ export class TowerSkillController {
   private spellMortarTargetingTowers: Tower[] = [];
   private spellMortarTargetingTowerSet = new Set<Tower>();
   private spellMortarReticle: Phaser.GameObjects.Container | null = null;
-  private activeSpellMortarTweens: Phaser.Tweens.Tween[] = [];
-  private readonly spellMortarFlights = new Map<Phaser.Tweens.Tween, SpellMortarFlight>();
+  private readonly spellMortarFlights = new Map<SpellMortarFlight, ReturnType<typeof makeSpellMortarShot>>();
   private readonly guardianHealTargetsBuffer: Tower[] = [];
   private cachedCardCooldownMultiplier = 1;
   private readonly skillDefinitions: Partial<Record<CardId, TowerSkillDefinition>>;
@@ -89,6 +88,15 @@ export class TowerSkillController {
   }
 
   update(seconds: number, time: number) {
+    for (const [flight, visual] of this.spellMortarFlights) {
+      flight.progress = Math.min(1, flight.progress + seconds * 1000 / 3240);
+      visual.position(flight.progress);
+      if (flight.progress >= 1) {
+        this.spellMortarFlights.delete(flight);
+        visual.destroy();
+        this.detonateSpellMortar(flight.targetX, flight.targetY, flight.damage, flight.damageType, flight.source);
+      }
+    }
     this.syncSpellMortarTargetingTowers();
     let activeClockLevelSum = 0;
     for (const tower of this.runtime().towers) {
@@ -233,16 +241,6 @@ export class TowerSkillController {
       return;
     }
     definition.reset(tower, getTowerSkillState(tower, definition.stateKey), undefined);
-  }
-
-  syncSpellMortarTweenPause(paused: boolean) {
-    for (const tween of this.activeSpellMortarTweens) {
-      if (paused) {
-        tween.pause();
-      } else {
-        tween.resume();
-      }
-    }
   }
 
   private readySpellMortarTowers(towers: Tower[]) {
@@ -439,22 +437,12 @@ export class TowerSkillController {
   }
 
   snapshotFlights(): SpellMortarFlight[] {
-    return [...this.spellMortarFlights].map(([tween, flight]) => ({
-      ...flight, progress: flight.progress + (1 - flight.progress) * tween.progress
-    }));
+    return [...this.spellMortarFlights.keys()].map(flight => ({ ...flight }));
   }
 
   restoreSpellMortarFlight(flight: SpellMortarFlight) {
-    let tween: Phaser.Tweens.Tween;
-    tween = makeSpellMortarShot(this.scene, flight.fromX, flight.fromY, flight.targetX, flight.targetY,
-      () => this.detonateSpellMortar(flight.targetX, flight.targetY, flight.damage, flight.damageType, flight.source),
-      () => {
-        Phaser.Utils.Array.Remove(this.activeSpellMortarTweens, tween);
-        this.spellMortarFlights.delete(tween);
-      }, flight.progress);
-    this.spellMortarFlights.set(tween, flight);
-    this.activeSpellMortarTweens.push(tween);
-    if (this.runtime().battlePaused) tween.pause();
+    this.spellMortarFlights.set(flight, makeSpellMortarShot(this.scene,
+      flight.fromX, flight.fromY, flight.targetX, flight.targetY, flight.progress));
   }
 
   private detonateSpellMortar(x: number, y: number, damage: number, damageType: DamageType, sourceTower: Tower) {

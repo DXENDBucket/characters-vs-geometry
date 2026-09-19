@@ -39,6 +39,7 @@ export interface TutorialToolState {
 }
 
 export interface TutorialRuntime {
+  registerAdvance?: (action: () => void) => () => void;
   scene: Phaser.Scene;
   getCardState: (id: CardId) => CardState | undefined;
   getTowers: () => Tower[];
@@ -134,8 +135,9 @@ export class GuidedTutorialView {
     ]);
     this.panel.setDepth(170);
     this.highlights = scene.add.graphics().setDepth(165);
-    this.button.on("pointerdown", onAdvance);
-    this.buttonText.on("pointerdown", onAdvance);
+    const advance = runtime.registerAdvance?.(onAdvance) ?? onAdvance;
+    this.button.on("pointerdown", advance);
+    this.buttonText.on("pointerdown", advance);
   }
 
   setCopy(copy: GuidedTutorialCopy) {

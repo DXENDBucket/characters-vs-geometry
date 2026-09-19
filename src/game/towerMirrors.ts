@@ -48,8 +48,11 @@ export class TowerMirrorController {
 
   constructor(private readonly runtime: () => TowerMirrorRuntime) {}
 
-  restoreGroups() {
+  snapshotNextGroupId() { return this.nextGroupId; }
+
+  restoreGroups(nextGroupId = 1) {
     this.reset();
+    this.nextGroupId = nextGroupId;
     for (const tower of this.runtime().towers) this.nextGroupId = Math.max(this.nextGroupId, (tower.mirrorGroupId ?? 0) + 1);
   }
 

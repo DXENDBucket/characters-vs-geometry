@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { battleRandom, isBattlePlayback } from "./battleSimulation";
 import { cubePromotionKind } from "../bosses/bossRanks";
 import { recordEnemySeen } from "../progress";
 import { enemyFacingDirection } from "./rules/reversal";
@@ -208,11 +209,11 @@ export function findPromotionTargets(boss: CubeBoss, enemies: Enemy[], maxRank: 
 }
 
 export function applyEnemyPromotion(scene: Phaser.Scene, enemy: Enemy, kind: EnemyKind, battleTime: number) {
-  recordEnemySeen(kind);
+  if (!isBattlePlayback(scene)) recordEnemySeen(kind);
   const hpRatio = Phaser.Math.Clamp(enemy.hp / enemy.baseStats.maxHp, 0, 1);
   const definition = getEnemyDefinition(kind);
   const baseStats = enemyBaseStatsFromDefinition(definition, {
-    speed: randomizedEnemySpeed(kind),
+    speed: randomizedEnemySpeed(kind, () => battleRandom(scene).next()),
     attackSpeed: enemyAttackSpeed(kind),
     finalDamageReduction: enemy.baseStats.finalDamageReduction
   });
@@ -328,7 +329,7 @@ export function enemyVolleyShotCount(enemy: Enemy) {
   return enemyIsRanged(enemy.kind) || enemyIsMortar(enemy.kind) || enemyIsLaser(enemy.kind) ? enemyRank(enemy.kind) : 1;
 }
 
-export function randomizedEnemySpeed(kind: EnemyKind) {
+export function randomizedEnemySpeed(kind: EnemyKind, random: () => number) {
   const definition = getEnemyDefinition(kind);
   const baseSpeed = ENEMY_SPEED * (definition.speedMultiplier ?? 1);
   if (enemyIsLeader(kind)) {
@@ -339,7 +340,7 @@ export function randomizedEnemySpeed(kind: EnemyKind) {
     return baseSpeed;
   }
 
-  return baseSpeed * Phaser.Math.FloatBetween(1 - ENEMY_SPEED_VARIANCE, 1 + ENEMY_SPEED_VARIANCE);
+  return baseSpeed * (1 - ENEMY_SPEED_VARIANCE + random() * 2 * ENEMY_SPEED_VARIANCE);
 }
 
 export function siegeRamSpeed(enemy: Enemy) {

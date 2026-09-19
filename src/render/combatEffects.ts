@@ -481,8 +481,6 @@ export function makeSpellMortarShot(
   fromY: number,
   targetX: number,
   targetY: number,
-  onImpact: () => void,
-  onComplete?: () => void,
   startProgress = 0
 ) {
   const projectile = acquireEffectText(scene, "spell-mortar-shot", fromX, fromY, "S", SPELL_MORTAR_SHOT_TEXT_STYLE, 120);
@@ -502,27 +500,13 @@ export function makeSpellMortarShot(
   };
   position(startProgress);
 
-  return scene.tweens.addCounter({
-    from: startProgress,
-    to: 1,
-    duration: 3240 * (1 - startProgress),
-    ease: "Linear",
-    onUpdate: (tween) => {
-      const progress = tween.getValue();
-      if (typeof progress !== "number") {
-        return;
-      }
-
-      position(progress);
-    },
-    onComplete: () => {
+  return {
+    position,
+    destroy: () => {
       removeProjectileTrail(projectile);
       releaseEffectText(scene, "spell-mortar-shot", projectile);
-      onImpact();
-      onComplete?.();
-    },
-    onStop: () => removeProjectileTrail(projectile)
-  });
+    }
+  };
 }
 
 interface MortarImpactStyle {
