@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { attachProjectileTrail } from "../render/projectileTrail";
 import { enemyMovementDirection } from "./rules/reversal";
 import { BOARD_HEIGHT, BOARD_WIDTH, BOARD_X, BOARD_Y, palette } from "../config";
 import { enemyFamily } from "../registry/enemies";
@@ -183,6 +184,11 @@ export function createMortarProjectile(scene: Phaser.Scene, spec: MortarProjecti
           .setOrigin(0.5)
           .setDepth(120)
       : scene.add.circle(spec.fromX, spec.fromY, 7, palette.black, 1).setStrokeStyle(2, projectileColor, 1).setDepth(120);
+
+  const trailColor = spec.marker === "text"
+    ? Phaser.Display.Color.HexStringToColor(spec.markerTextColor ?? damageEffectTextColor(spec.damageType)).color
+    : projectileColor;
+  attachProjectileTrail(scene, body, trailColor, 119);
 
   return {
     owner: spec.owner,

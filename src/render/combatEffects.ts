@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { attachProjectileTrail, removeProjectileTrail, updateProjectileTrail } from "./projectileTrail";
 import {
   DODECAHEDRON_EDGES,
   DODECAHEDRON_UNIT_VERTICES,
@@ -485,6 +486,7 @@ export function makeSpellMortarShot(
   startProgress = 0
 ) {
   const projectile = acquireEffectText(scene, "spell-mortar-shot", fromX, fromY, "S", SPELL_MORTAR_SHOT_TEXT_STYLE, 120);
+  attachProjectileTrail(scene, projectile, Phaser.Display.Color.HexStringToColor(SPELL_MORTAR_SHOT_TEXT_STYLE.color as string).color, 119);
   const distance = Math.hypot(targetX - fromX, targetY - fromY);
   const controlX = (fromX + targetX) / 2;
   const controlY = Math.min(fromY, targetY) - 420 - distance * 0.4;
@@ -496,6 +498,7 @@ export function makeSpellMortarShot(
     projectile.y = inverse * inverse * fromY + 2 * inverse * progress * controlY + progress * progress * targetY;
     projectile.rotation = progress * Math.PI * 1.4;
     projectile.setScale(1 + Math.sin(progress * Math.PI) * 0.26);
+    updateProjectileTrail(projectile, projectile.x, projectile.y, elapsed * 3240);
   };
   position(startProgress);
 
@@ -513,10 +516,12 @@ export function makeSpellMortarShot(
       position(progress);
     },
     onComplete: () => {
+      removeProjectileTrail(projectile);
       releaseEffectText(scene, "spell-mortar-shot", projectile);
       onImpact();
       onComplete?.();
-    }
+    },
+    onStop: () => removeProjectileTrail(projectile)
   });
 }
 

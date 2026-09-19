@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { updateProjectileTrail } from "../render/projectileTrail";
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, COLUMNS, LANES, palette } from "../config";
 import { getCardDefinition } from "../registry/cards";
 import { enemyIsBossCompanion } from "../registry/enemies";
@@ -616,6 +617,7 @@ function positionMortarProjectile(projectile: MortarProjectile) {
   projectile.body.setPosition(projectile.x, projectile.y);
   projectile.body.rotation = progress * Math.PI * 1.4;
   projectile.body.setScale(1 + Math.sin(progress * Math.PI) * 0.26);
+  updateProjectileTrail(projectile.body, projectile.x, projectile.y, progress * projectile.duration);
 }
 
 function detonateEnemyMortar(runtime: ProjectileRuntime, projectile: MortarProjectile) {

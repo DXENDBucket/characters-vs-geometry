@@ -8,12 +8,19 @@ const { outputText } = ts.transpileModule(
   fs.readFileSync(new URL("../src/render/combatEffects.ts", import.meta.url), "utf8"),
   { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }
 );
+const trailModule = ts.transpileModule(
+  fs.readFileSync(new URL("../src/render/projectileTrail.ts", import.meta.url), "utf8"),
+  { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }
+);
+const trails = {};
+new Function("exports", trailModule.outputText)(trails);
 const effects = {};
 new Function("require", "exports", outputText)(name => {
   if (name === "phaser") return { default: {} };
   if (name === "../config") return { palette: { white: 0xffffff, black: 0, green: 0x48ff88 } };
   if (name === "../i18n") return { EFFECT_SYMBOLS: { chars: "Aa" } };
   if (name === "../bosses/cubeBoss") return {};
+  if (name === "./projectileTrail") return trails;
   throw new Error(`Unexpected import: ${name}`);
 }, effects);
 
@@ -72,6 +79,43 @@ test("all four effect pools reuse live objects within a battle, including pause/
   assert.equal(f.objects.length, 4);
   assert.equal(f.scene.events.listenerCount("shutdown"), 1);
   assert.equal(f.scene.events.listenerCount("destroy"), 1);
+});
+
+test("projectile trails keep bounded same-color samples and clean up on body destruction", () => {
+  const body = new EventEmitter();
+  let segments = [];
+  let style;
+  let destroyed = 0;
+  const graphics = {
+    setDepth() { return this; }, setName() { return this; },
+    clear() { segments = []; return this; },
+    lineStyle(...args) { style = args; },
+    lineBetween(...args) { segments.push({ style, points: args }); },
+    destroy() { destroyed++; }
+  };
+  const scene = { add: { graphics: () => graphics } };
+  trails.attachProjectileTrail(scene, body, 0x9fdcff, 119);
+  for (let time = 0; time <= 10000; time += 16) {
+    trails.updateProjectileTrail(body, time, time / 2, time);
+    assert.ok(segments.length <= 16);
+    assert.ok(segments.every(s => s.style[1] === 0x9fdcff));
+  }
+  assert.ok(segments.length > 1);
+  assert.ok(segments[0].style[2] > segments.at(-1).style[2]);
+  const paused = structuredClone(segments);
+  trails.updateProjectileTrail(body, 10000, 5000, 10000);
+  assert.deepEqual(segments, paused);
+  trails.updateProjectileTrail(body, 0, 0, 0);
+  assert.equal(segments.length, 1);
+  body.emit("destroy");
+  assert.equal(destroyed, 1);
+  assert.equal(body.listenerCount("destroy"), 0);
+  trails.removeProjectileTrail(body);
+  assert.equal(destroyed, 1);
+  trails.attachProjectileTrail(scene, body, 0xffffff, 119);
+  trails.removeProjectileTrail(body);
+  assert.equal(destroyed, 2);
+  assert.equal(body.listenerCount("destroy"), 0);
 });
 
 test("restart clears all pooled objects and does not accumulate lifecycle listeners", () => {
