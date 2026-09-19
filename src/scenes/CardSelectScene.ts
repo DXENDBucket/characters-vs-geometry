@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { createPageHeading } from "../render/pageHeader";
 import { enemyArchetypes } from "../data/enemyArchetypes";
 import {
   CARD_SLOT_COUNT,
@@ -165,27 +166,7 @@ export class CardSelectScene extends Phaser.Scene {
   }
 
   private drawBackdrop() {
-    this.add
-      .text(
-        48,
-        40,
-        `${t("operation.level", { level: this.levelId, difficulty: this.difficulty })}${this.unlimitedFirepower ? `  ${t("label.unlimitedFirepower")}` : ""}`,
-        {
-        color: uiTextColors.primary,
-        fontFamily: "monospace",
-        fontSize: "28px",
-        fontStyle: "700"
-        }
-      )
-      .setOrigin(0, 0);
-
-    this.add
-      .text(50, 88, `${t("label.loadout")} ${this.cardSlotCount}/${CARD_SLOT_COUNT}`, {
-        color: uiTextColors.secondary,
-        fontFamily: "monospace",
-        fontSize: "17px"
-      })
-      .setOrigin(0, 0);
+    createPageHeading(this, `${t("operation.level", { level: this.levelId, difficulty: this.difficulty })}${this.unlimitedFirepower ? `  ${t("label.unlimitedFirepower")}` : ""}`, `${t("label.loadout")} ${this.cardSlotCount}/${CARD_SLOT_COUNT}`);
 
     const frame = this.add.graphics();
     frame.lineStyle(1, palette.dim, 1);

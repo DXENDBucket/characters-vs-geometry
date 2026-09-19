@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { createPageHeading, createHeaderNavigation } from "../render/pageHeader";
 import { readSurvivalSave } from "../survivalSaves";
 import {
   DEFAULT_DIFFICULTY,
@@ -75,17 +76,11 @@ export class LevelSelectScene extends Phaser.Scene {
   private newRunButton!: Phaser.GameObjects.Rectangle;
   private newRunText!: Phaser.GameObjects.Text;
   private resumeError = false;
-  private backButton!: Phaser.GameObjects.Rectangle;
-  private backText!: Phaser.GameObjects.Text;
   private difficultyText!: Phaser.GameObjects.Text;
   private difficultyKnob!: Phaser.GameObjects.Rectangle;
   private unlimitedFirepowerBox!: Phaser.GameObjects.Rectangle;
   private unlimitedFirepowerFill!: Phaser.GameObjects.Rectangle;
   private unlimitedFirepowerText!: Phaser.GameObjects.Text;
-  private encyclopediaButton!: Phaser.GameObjects.Rectangle;
-  private encyclopediaText!: Phaser.GameObjects.Text;
-  private settingsButton!: Phaser.GameObjects.Rectangle;
-  private settingsText!: Phaser.GameObjects.Text;
   private encyclopediaPanel!: EncyclopediaPanel;
 
   constructor() {
@@ -118,9 +113,11 @@ export class LevelSelectScene extends Phaser.Scene {
     this.drawLevelPath();
     this.createMapDragControls();
     this.encyclopediaPanel = new EncyclopediaPanel(this);
-    this.createEncyclopediaButton();
-    this.createSettingsButton();
-    this.createBackButton();
+    createHeaderNavigation(this, [
+      { label: t("button.back"), run: () => this.scene.start("ChapterSelectScene", { groupId: groupForChapter(this.selectedChapterId).id }) },
+      { label: t("button.encyclopedia"), run: () => this.encyclopediaPanel.open("enemies") },
+      { label: t("button.settings"), run: () => this.openSettings() }
+    ]);
     this.createStartButton();
     this.createDifficultySlider();
     this.updateSelection();
@@ -142,22 +139,7 @@ export class LevelSelectScene extends Phaser.Scene {
   }
 
   private drawBackdrop() {
-    this.add
-      .text(48, 40, t("app.title"), {
-        color: uiTextColors.primary,
-        fontFamily: "monospace",
-        fontSize: "28px",
-        fontStyle: "700"
-      })
-      .setOrigin(0, 0);
-
-    this.add
-      .text(50, 86, this.chapterLabel(), {
-        color: uiTextColors.secondary,
-        fontFamily: "monospace",
-        fontSize: "17px"
-      })
-      .setOrigin(0, 0);
+    createPageHeading(this, t("app.title"), this.chapterLabel());
 
     const frame = this.add.graphics();
     frame.lineStyle(1, palette.dim, 1);
@@ -576,45 +558,6 @@ export class LevelSelectScene extends Phaser.Scene {
     return { x: x3 * scale, y: y3 * scale };
   }
 
-  private createEncyclopediaButton() {
-    this.encyclopediaButton = this.add
-      .rectangle(GAME_WIDTH - 206, 52, 132, 34, palette.black, 1)
-      .setStrokeStyle(2, palette.mid, 0.85)
-      .setInteractive({ useHandCursor: true });
-    this.encyclopediaText = this.add
-      .text(GAME_WIDTH - 206, 50, t("button.encyclopedia"), {
-        color: uiTextColors.primary,
-        fontFamily: "monospace",
-        fontSize: "15px",
-        fontStyle: "700"
-      })
-      .setOrigin(0.5);
-
-    this.encyclopediaButton.on("pointerdown", () => this.encyclopediaPanel.open("enemies"));
-    this.encyclopediaText
-      .setInteractive({ useHandCursor: true })
-      .on("pointerdown", () => this.encyclopediaPanel.open("enemies"));
-  }
-
-  private createBackButton() {
-    this.backButton = this.add
-      .rectangle(GAME_WIDTH - 344, 52, 110, 34, palette.black, 1)
-      .setStrokeStyle(2, palette.mid, 0.85)
-      .setInteractive({ useHandCursor: true });
-    this.backText = this.add
-      .text(GAME_WIDTH - 344, 50, t("button.back"), {
-        color: uiTextColors.primary,
-        fontFamily: "monospace",
-        fontSize: "15px",
-        fontStyle: "700"
-      })
-      .setOrigin(0.5);
-
-    const back = () => this.scene.start("ChapterSelectScene", { groupId: groupForChapter(this.selectedChapterId).id });
-    this.backButton.on("pointerdown", back);
-    this.backText.setInteractive({ useHandCursor: true }).on("pointerdown", back);
-  }
-
   private createStartButton() {
     const x = GAME_WIDTH - 164;
     const y = this.footerY;
@@ -641,24 +584,6 @@ export class LevelSelectScene extends Phaser.Scene {
     this.newRunButton.on("pointerdown", () => {
       if (window.confirm(t("save.replace"))) this.startSelectedLevel(true);
     });
-  }
-
-  private createSettingsButton() {
-    this.settingsButton = this.add
-      .rectangle(GAME_WIDTH - 78, 52, 92, 34, palette.black, 1)
-      .setStrokeStyle(2, palette.mid, 0.85)
-      .setInteractive({ useHandCursor: true });
-    this.settingsText = this.add
-      .text(GAME_WIDTH - 78, 50, t("button.settings"), {
-        color: uiTextColors.primary,
-        fontFamily: "monospace",
-        fontSize: "15px",
-        fontStyle: "700"
-      })
-      .setOrigin(0.5);
-
-    this.settingsButton.on("pointerdown", () => this.openSettings());
-    this.settingsText.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.openSettings());
   }
 
   private openSettings() {

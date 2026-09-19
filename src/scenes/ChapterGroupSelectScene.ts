@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { createPageHeading } from "../render/pageHeader";
 import { GAME_HEIGHT, GAME_WIDTH, palette, uiTextColors } from "../config";
 import { chapterGroups, type ChapterGroupDefinition } from "../data/chapterGroups";
 import { levelNodesForChapter } from "../data/chapters";
@@ -75,12 +76,7 @@ export class ChapterGroupSelectScene extends Phaser.Scene {
     const height = Math.max(baseHeight, Math.round(width / aspect));
     this.scale.setGameSize(width, height);
     this.cameras.main.setSize(width, height);
-    this.root.add(this.add.text(40, 30, t("menu.singlePlayer"), {
-      fontFamily: "monospace", fontSize: "30px", fontStyle: "700", color: uiTextColors.primary
-    }));
-    this.root.add(this.add.text(42, 76, t("label.chapterGroupSelect"), {
-      fontFamily: "monospace", fontSize: "17px", color: uiTextColors.secondary
-    }));
+    this.root.add(createPageHeading(this, t("menu.singlePlayer"), t("label.chapterGroupSelect")));
     this.viewport.setTo(24, 112, width - 48, height - 226);
     this.cardSize = Math.min(480, this.viewport.width - 32, this.viewport.height - 20);
     this.step = this.cardSize + 64;

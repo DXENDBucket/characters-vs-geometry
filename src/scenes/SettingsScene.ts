@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { createPageHeading, createHeaderNavigation } from "../render/pageHeader";
 import { GAME_HEIGHT, GAME_WIDTH, palette, uiTextColors } from "../config";
 import { getLanguage, setLanguage, t, type Language } from "../i18n";
 import {
@@ -75,7 +76,7 @@ export class SettingsScene extends Phaser.Scene {
     if (this.onReturn) this.scene.bringToTop();
     this.cameras.main.setBackgroundColor(palette.black);
     this.drawBackdrop();
-    this.createBackButton();
+    createHeaderNavigation(this, [{ label: t("button.back"), run: () => this.goBack() }]);
     this.createLanguageControls();
     this.createDebugModeControl();
     this.createControlRows();
@@ -90,44 +91,11 @@ export class SettingsScene extends Phaser.Scene {
   }
 
   private drawBackdrop() {
-    this.add
-      .text(48, 40, t("settings.title"), {
-        color: uiTextColors.primary,
-        fontFamily: "monospace",
-        fontSize: "30px",
-        fontStyle: "700"
-      })
-      .setOrigin(0, 0);
-
-    this.add
-      .text(50, 88, t("settings.controls"), {
-        color: uiTextColors.secondary,
-        fontFamily: "monospace",
-        fontSize: "17px"
-      })
-      .setOrigin(0, 0);
+    createPageHeading(this, t("settings.title"), t("settings.controls"));
 
     const frame = this.add.graphics();
     frame.lineStyle(1, palette.dim, 1);
     frame.strokeRect(38, 130, GAME_WIDTH - 76, GAME_HEIGHT - 184);
-  }
-
-  private createBackButton() {
-    const button = this.add
-      .rectangle(GAME_WIDTH - 78, 52, 92, 34, palette.black, 1)
-      .setStrokeStyle(2, palette.mid, 0.85)
-      .setInteractive({ useHandCursor: true });
-    const label = this.add
-      .text(GAME_WIDTH - 78, 50, t("button.back"), {
-        color: uiTextColors.primary,
-        fontFamily: "monospace",
-        fontSize: "15px",
-        fontStyle: "700"
-      })
-      .setOrigin(0.5);
-
-    button.on("pointerdown", () => this.goBack());
-    label.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.goBack());
   }
 
   private createLanguageControls() {
