@@ -24,10 +24,13 @@ const enemyRegistrations = Object.keys(enemyRegistry.allEnemyRegistrations);
 const cardBehaviorIds = parseObjectKeys(files.cardBehaviors, "cardBehaviorsById");
 const cardUnlockRequirements = parseCardUnlockRequirements(files.cardUnlocks);
 const initialCardIds = parseStringArray(files.cardUnlocks, "INITIAL_CARD_IDS");
-const levelConfigIds = parseLevelConfigIds(files.levels);
-const levelNodeIds = parseLevelNodeIds(files.levels);
-const levelEnemyKinds = parseLevelEnemyKinds(files.levels);
-const levelBossKinds = parseLevelBossKinds(files.levels);
+const { levelConfigs, levelNodes } = load("src/data/levels.ts");
+const levelConfigIds = Object.keys(levelConfigs);
+const levelNodeIds = levelNodes.map(node => node.id);
+const levelEnemyKinds = unique(Object.values(levelConfigs).flatMap(level => [
+  ...level.enemyKinds, ...(level.bossPhases ?? []).flatMap(phase => phase.enemyKinds)
+]));
+const levelBossKinds = unique(Object.values(levelConfigs).map(level => level.bossKind).filter(Boolean));
 const cardRows = parseWaveReferenceCards(files.waveReference);
 
 expectSameSet("CardId union", cardIds, "cardDefinitions", cardDefinitions.map((card) => card.id));
@@ -175,32 +178,6 @@ function parseObjectBody(source, objectName) {
     }
   }
   return "";
-}
-
-function parseLevelConfigIds(source) {
-  const body = parseObjectBody(source, "levelConfigs");
-  return [...body.matchAll(/^\s{2}"([^"]+)":/gm)].map((match) => match[1]);
-}
-
-function parseLevelNodeIds(source) {
-  const match = source.match(/levelNodes:[\s\S]*?=\s*\[([\s\S]*?)\];/);
-  if (!match) {
-    errors.push("Could not find levelNodes.");
-    return [];
-  }
-  return [...match[1].matchAll(/id: "([^"]+)"/g)].map((node) => node[1]);
-}
-
-function parseLevelEnemyKinds(source) {
-  return unique(
-    [...source.matchAll(/enemyKinds:\s*\[([^\]]*)\]/g)].flatMap((match) =>
-      [...match[1].matchAll(/"([^"]+)"/g)].map((kind) => kind[1])
-    )
-  );
-}
-
-function parseLevelBossKinds(source) {
-  return unique([...source.matchAll(/bossKind: "([^"]+)"/g)].map((match) => match[1]));
 }
 
 function parseWaveReferenceCards(source) {

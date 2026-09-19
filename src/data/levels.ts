@@ -1,5 +1,6 @@
 import { CUBE_BOSS_STATS, CUBE_BOSS_WAVE_CAP, TOTAL_WAVES, WAVES_PER_FLAG } from "../config";
 import type { LevelConfig, LevelNode } from "../types";
+import { parseEnemyKind } from "../game/enemyIdentity";
 
 const CHAPTER_THREE_STARTING_CHARS = 350;
 const CHAPTER_FOUR_STARTING_CHARS = 500;
@@ -69,7 +70,10 @@ export const levelNodes: LevelNode[] = [
   { id: "IF-1", x: 500, y: 380 },
   { id: "IF-2", x: 820, y: 320 },
   { id: "IF-3", x: 1160, y: 430 },
-  { id: "IF-4", x: 1500, y: 320 }
+  { id: "IF-4", x: 1500, y: 320 },
+  ...Array.from({ length: 8 }, (_, index) => ({
+    id: `IF-${index + 5}`, x: 1840 + index * 340, y: index % 2 === 0 ? 430 : 320
+  }))
 ];
 
 export const levelConfigs: Record<string, LevelConfig> = {
@@ -1022,6 +1026,26 @@ export const levelConfigs: Record<string, LevelConfig> = {
     endless: true
   }
 };
+
+// Inherit only wave-template fields, not story bosses, finite limits or special mechanics.
+for (const [index, sourceId] of ["4-1", "4-4", "4-6", "4-7", "5-2", "5-4", "5-6", "5-7"].entries()) {
+  const source = levelConfigs[sourceId];
+  const id = `IF-${index + 5}`;
+  const families = [...new Set(source.enemyKinds.map(kind => parseEnemyKind(kind)!.family))];
+  levelConfigs[id] = {
+    id,
+    unlockAfter: sourceId,
+    survival: true,
+    endless: true,
+    enemyKinds: [...families],
+    unlimitedRankFamilies: families,
+    firstWaveWeight: source.firstWaveWeight,
+    waveWeightIncrement: source.waveWeightIncrement,
+    waveWeightIncrementGrowth: source.waveWeightIncrementGrowth,
+    wavesPerFlag: source.wavesPerFlag,
+    startingChars: source.startingChars
+  };
+}
 
 export function getLevelConfig(levelId: string) {
   return levelConfigs[levelId] ?? levelConfigs["1-1"];

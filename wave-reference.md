@@ -580,6 +580,23 @@ Base rule:
 - Both use unlimited ranks except Circle (capped at IV), with no wave count or weight cap.
 - Each has an independent best-wave record and resumable battlefield save. Flag waves double weight before difficulty scaling.
 
+## Infinite Front: IF-5 to IF-12
+
+| Endless stage | Source / clear requirement | Starting characters | Initial weight | Increment | Extra increment |
+| --- | --- | --- | --- | --- | --- |
+| IF-5 | 4-1 | 500 | 25 | 18 | 3 |
+| IF-6 | 4-4 | 500 | 25 | 18 | 3 |
+| IF-7 | 4-6 | 500 | 25 | 18 | 3 |
+| IF-8 | 4-7 | 500 | 25 | 18 | 3 |
+| IF-9 | 5-2 | 5000 | 50 | 50 | 7 |
+| IF-10 | 5-4 | 5000 | 50 | 50 | 7 |
+| IF-11 | 5-6 | 5000 | 50 | 50 | 7 |
+| IF-12 | 5-7 | 5000 | 50 | 50 | 7 |
+
+- Enemy families follow the source stage, with unlimited ordinary ranks except Circle (IV cap).
+- Leaders spawn once per family on flag waves, outside the ordinary weight budget. Their rank is the flag number: wave 10 = I, wave 20 = II, wave 30 = III, continuing without a rank cap regardless of the source rank.
+- No wave count or weight cap; independent best-wave records and resumable battlefield saves.
+
 ## Level 1-9 Weight Growth
 
 Enemy pool:

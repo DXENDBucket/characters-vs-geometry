@@ -91,7 +91,7 @@ import { towerAttackAmount, towerFinalStats } from "./unitStats";
 import { volleyInterval } from "./upgrades";
 import { repeatHits, volleyHitsAt, volleyTimingCount } from "./volley";
 import { buildWaveKinds, waveWeightLimit } from "./waves";
-import { buildInfiniteWaveKinds } from "./infiniteWaves";
+import { buildInfiniteWaveKinds, infiniteLeaderKinds } from "./infiniteWaves";
 
 interface SpawnEnemyOptions {
   kind: EnemyKind;
@@ -151,7 +151,10 @@ export function spawnWaveEnemies(runtime: EnemySpawnRuntime, options: SpawnWaveO
     });
   });
 
-  flagLeaderKinds(options.levelConfig.enemyKinds, options.waveNumber, options.levelConfig.wavesPerFlag).forEach((kind, index) => {
+  const leaders = options.levelConfig.unlimitedRankFamilies
+    ? infiniteLeaderKinds(options.levelConfig.enemyKinds.filter(enemyIsLeader), options.waveNumber, options.levelConfig.wavesPerFlag)
+    : flagLeaderKinds(options.levelConfig.enemyKinds, options.waveNumber, options.levelConfig.wavesPerFlag);
+  leaders.forEach((kind, index) => {
     const lane = Phaser.Math.Between(0, LANES - 1);
     const x = BOARD_X + BOARD_WIDTH + 58 + Phaser.Math.Between(0, 16) + index * 8;
     spawnEnemyAt(runtime, {

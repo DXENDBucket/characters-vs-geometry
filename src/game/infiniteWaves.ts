@@ -1,6 +1,13 @@
 import { enemyArchetypes } from "../data/enemyArchetypes";
-import { enemyKindAtRank } from "./enemyIdentity";
+import { enemyKindAtRank, parseEnemyKind } from "./enemyIdentity";
 import type { EnemyFamily, EnemyKind } from "../types";
+
+export function infiniteLeaderKinds(leaderKinds: readonly EnemyKind[], waveNumber: number, wavesPerFlag: number): EnemyKind[] {
+  if (waveNumber < wavesPerFlag || waveNumber % wavesPerFlag !== 0) return [];
+  const rank = waveNumber / wavesPerFlag;
+  const families = new Set(leaderKinds.map(kind => parseEnemyKind(kind)!.family));
+  return [...families].map(family => enemyKindAtRank(family, rank));
+}
 
 export function buildInfiniteWaveKinds(
   families: readonly EnemyFamily[],

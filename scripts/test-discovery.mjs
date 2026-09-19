@@ -81,6 +81,17 @@ test("IF-1 requires clearing 1-9 independently of main-story ordering or card un
   assert.equal(progress.isLevelUnlocked("IF-1"), false);
 });
 
+test("IF-5 through IF-12 unlock only after their corresponding story stages", () => {
+  const { progress } = fixture();
+  progress.completeLevel("1-9");
+  for (const [index, source] of ["4-1", "4-4", "4-6", "4-7", "5-2", "5-4", "5-6", "5-7"].entries()) {
+    const id = `IF-${index + 5}`;
+    assert.equal(progress.isLevelUnlocked(id), false);
+    progress.completeLevel(source);
+    assert.equal(progress.isLevelUnlocked(id), true);
+  }
+});
+
 test("survival records persist as best completed waves, never as cleared stages", () => {
   const f = fixture();
   f.progress.completeAllLevels();

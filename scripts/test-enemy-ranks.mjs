@@ -91,6 +91,41 @@ for (const [id, sourceId] of [["IF-3", "2-9"], ["IF-4", "3-9"]]) {
   });
 }
 
+for (const [index, sourceId] of ["4-1", "4-4", "4-6", "4-7", "5-2", "5-4", "5-6", "5-7"].entries()) {
+  test(`IF-${index + 5} inherits ${sourceId} including starting characters and flag leaders`, () => {
+    const { getLevelConfig, levelNodes } = load("src/data/levels.ts");
+    const { infiniteLeaderKinds, buildInfiniteWaveKinds } = load("src/game/infiniteWaves.ts");
+    const id = `IF-${index + 5}`;
+    const level = getLevelConfig(id);
+    const source = getLevelConfig(sourceId);
+    const families = [...new Set(source.enemyKinds.map(registry.enemyFamily))];
+    assert.equal(levelNodes.filter(node => node.id === id).length, 1);
+    assert.deepEqual(level.enemyKinds, families);
+    assert.deepEqual(level.unlimitedRankFamilies, families);
+    assert.equal(level.unlockAfter, sourceId);
+    for (const field of ["startingChars", "firstWaveWeight", "waveWeightIncrement", "waveWeightIncrementGrowth", "wavesPerFlag"])
+      assert.equal(level[field], source[field], field);
+    assert.equal(level.survival, true);
+    assert.equal(level.endless, true);
+    for (const field of ["totalWaves", "waveWeightCap", "bossKind", "specialMechanic"])
+      assert.equal(level[field], undefined);
+    const leaders = level.enemyKinds.filter(registry.enemyIsLeader);
+    for (const wave of [1, 9, 10, 11, 19, 20, 21, 30, 100]) {
+      const spawned = infiniteLeaderKinds(leaders, wave, 10);
+      assert.deepEqual(spawned, wave % 10 === 0 ? leaders.map(kind => enemyKindAtRank(kind, wave / 10)) : []);
+    }
+    const kinds = buildInfiniteWaveKinds(families, 2000, 30, 10, length => length - 1);
+    assert.ok(kinds.every(kind => !registry.enemyIsLeader(kind)));
+    assert.ok(kinds.reduce((sum, kind) => sum + registry.getEnemyDefinition(kind).weight, 0) <= 2000);
+  });
+}
+
+test("infinite leaders start at rank I even when the template has rank II or duplicate ranks", () => {
+  const { infiniteLeaderKinds } = load("src/game/infiniteWaves.ts");
+  assert.deepEqual(infiniteLeaderKinds(["heart2", "heart3", "burrowArrow2"], 10, 10), ["heart", "burrowArrow"]);
+  assert.deepEqual(infiniteLeaderKinds(["heart2"], 100, 10), ["heart10"]);
+});
+
 test("all 66 existing enemy panels and registrations exactly match the pre-refactor snapshot", () => {
   assert.deepEqual(Object.keys(registry.allEnemyDefinitions), Object.keys(legacy));
   for (const [kind, expected] of Object.entries(legacy)) {
