@@ -94,6 +94,7 @@ import {
 } from "../game/triggerTowers";
 import { syncBossBaseStats, towerFinalStats } from "../game/unitStats";
 import { volleyInterval, volleyShotCount } from "../game/upgrades";
+import { volleyHitsAt, volleyTimingCount } from "../game/volley";
 import { waveScheduleAction } from "../game/waves";
 import { attackIntervalMs } from "../game/attackSpeed";
 import { t } from "../i18n";
@@ -1578,16 +1579,18 @@ export class GameScene extends Phaser.Scene {
     time: number,
     attackInterval: number
   ) {
-    const shots = volleyShotCount(tower.type, effectiveTowerLevel(tower));
+    const totalHits = volleyShotCount(tower.type, effectiveTowerLevel(tower));
+    const shots = volleyTimingCount(totalHits);
     const interval = volleyInterval(attackInterval, shots);
 
     for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
+      const hitCount = volleyHitsAt(totalHits, shotIndex);
       this.time.delayedCall(shotIndex * interval, () => {
         this.runWhenBattleActive(() => {
           if (this.gameOver || !tower.inPlay) {
             return;
           }
-          behavior.execute(tower, definition, this.combatRuntime());
+          behavior.execute(tower, definition, this.combatRuntime(), hitCount);
         });
       });
     }

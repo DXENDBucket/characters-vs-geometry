@@ -87,6 +87,7 @@ import {
 import { isTrapArmed, towerDamageType } from "./towers";
 import { towerAttackAmount, towerFinalStats } from "./unitStats";
 import { volleyInterval } from "./upgrades";
+import { repeatHits, volleyHitsAt, volleyTimingCount } from "./volley";
 import { buildWaveKinds, waveWeightLimit } from "./waves";
 
 interface SpawnEnemyOptions {
@@ -374,7 +375,7 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
     }
 
     if (shouldEnemyShoot(enemy, time)) {
-      const shots = enemyVolleyShotCount(enemy);
+      const shots = volleyTimingCount(enemyVolleyShotCount(enemy));
       const interval = volleyInterval(enemy.finalStats.attackInterval, shots);
       if (enemyIsMortar(enemy.kind)) {
         enemy.attackAt = fireEnemyMortarVolley(runtime, enemy, time) ? time + enemy.finalStats.attackInterval + (shots - 1) * interval : time + 1_000;
@@ -1166,34 +1167,38 @@ function resetBlockedDetonation(enemy: Enemy) {
 }
 
 function fireEnemyVolley(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number) {
-  const shots = enemyVolleyShotCount(enemy);
+  const totalHits = enemyVolleyShotCount(enemy);
+  const shots = volleyTimingCount(totalHits);
   const interval = volleyInterval(enemy.finalStats.attackInterval, shots);
   for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
+    const hitCount = volleyHitsAt(totalHits, shotIndex);
     runtime.scene.time.delayedCall(shotIndex * interval, () => {
-      runtime.runWhenBattleActive(() => fireEnemyShot(runtime, enemy, time));
+      runtime.runWhenBattleActive(() => fireEnemyShot(runtime, enemy, time, hitCount));
     });
   }
 }
 
-function fireEnemyShot(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number) {
+function fireEnemyShot(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number, hitCount: number) {
   if (!enemy.inPlay) {
     return;
   }
 
-  runtime.enemyProjectiles.push(createEnemyProjectile(runtime.scene, enemy, time));
+  runtime.enemyProjectiles.push(createEnemyProjectile(runtime.scene, enemy, time, hitCount));
 }
 
 function fireEnemyLaserVolley(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number) {
-  const shots = enemyVolleyShotCount(enemy);
+  const totalHits = enemyVolleyShotCount(enemy);
+  const shots = volleyTimingCount(totalHits);
   const interval = volleyInterval(enemy.finalStats.attackInterval, shots);
   for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
+    const hitCount = volleyHitsAt(totalHits, shotIndex);
     runtime.scene.time.delayedCall(shotIndex * interval, () => {
-      runtime.runWhenBattleActive(() => fireEnemyLaser(runtime, enemy, time));
+      runtime.runWhenBattleActive(() => fireEnemyLaser(runtime, enemy, time, hitCount));
     });
   }
 }
 
-function fireEnemyLaser(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number) {
+function fireEnemyLaser(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number, hitCount: number) {
   if (!enemy.inPlay) {
     return;
   }
@@ -1207,7 +1212,7 @@ function fireEnemyLaser(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number
   try {
     for (const tower of hitTargets) {
       makeEnemyHitShards(runtime.scene, tower.x, tower.y);
-      runtime.damageTower(tower, enemyAttackDamage(enemy, time), enemy.damageType);
+      repeatHits(hitCount, () => runtime.damageTower(tower, enemyAttackDamage(enemy, time), enemy.damageType));
     }
   } finally {
     hitTargets.length = 0;
@@ -1224,17 +1229,19 @@ function fireEnemyMortarVolley(runtime: EnemyAdvanceRuntime, enemy: Enemy, time:
     return false;
   }
 
-  const shots = enemyVolleyShotCount(enemy);
+  const totalHits = enemyVolleyShotCount(enemy);
+  const shots = volleyTimingCount(totalHits);
   const interval = volleyInterval(enemy.finalStats.attackInterval, shots);
   for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
+    const hitCount = volleyHitsAt(totalHits, shotIndex);
     runtime.scene.time.delayedCall(shotIndex * interval, () => {
-      runtime.runWhenBattleActive(() => fireEnemyMortarShot(runtime, enemy, time));
+      runtime.runWhenBattleActive(() => fireEnemyMortarShot(runtime, enemy, time, hitCount));
     });
   }
   return true;
 }
 
-function fireEnemyMortarShot(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number) {
+function fireEnemyMortarShot(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number, hitCount: number) {
   if (!enemy.inPlay) {
     return;
   }
@@ -1247,6 +1254,7 @@ function fireEnemyMortarShot(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: n
   runtime.mortarProjectiles.push(
     createMortarProjectile(runtime.scene, {
       owner: "enemy",
+      hitCount,
       fromX: enemy.x,
       fromY: enemy.y,
       targetX: target.x,

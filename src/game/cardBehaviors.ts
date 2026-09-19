@@ -57,6 +57,7 @@ import {
 import { applyStatusEffect, hasStatusEffectName, syncEnemyBodyPosition } from "./statusEffects";
 import { effectiveTowerLevel, getProductionAmount, towerDamageType, towerFacingDirection } from "./towers";
 import { changeTowerHealth } from "./towerHealth";
+import { repeatHits } from "./volley";
 import { towerAttackAmount, towerFinalStats } from "./unitStats";
 import { isPointInSlowAura } from "./slowAura";
 
@@ -68,7 +69,7 @@ export interface CardBehavior {
     runtime: CardReadinessRuntime,
     cooldownAlreadyReady?: boolean
   ) => boolean;
-  execute: (tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) => void;
+  execute: (tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime, hitCount?: number) => void;
 }
 
 export const idleCardBehavior: CardBehavior = {
@@ -80,8 +81,8 @@ export const projectileCardBehavior: CardBehavior = {
   canUse: (tower, definition, time, runtime, cooldownAlreadyReady) => {
     return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(towerAttackAmount(tower, definition) > 0 && hasAttackTarget(tower, definition, runtime.enemies, runtime.boss));
   },
-  execute: (tower, definition, runtime) => {
-    fireTowerProjectiles(tower, definition, runtime);
+  execute: (tower, definition, runtime, hitCount) => {
+    fireTowerProjectiles(tower, definition, runtime, hitCount);
   }
 };
 
@@ -461,7 +462,8 @@ function magicLaserBossPart(tower: Tower, boss: CubeBoss | null, endX: number) {
 function fireHealingPulse(
   tower: Tower,
   definition: CardDefinition,
-  runtime: Pick<CardBehaviorRuntime, "scene" | "occupied">
+  runtime: Pick<CardBehaviorRuntime, "scene" | "occupied">,
+  hitCount = 1
 ) {
   const targets = getHealTargets(tower, definition, runtime.occupied, definition.healTargets ?? 1, healingPulseTargetsBuffer);
   if (targets.length === 0) {
@@ -470,14 +472,14 @@ function fireHealingPulse(
 
   try {
     for (const target of targets) {
-      healTower(runtime.scene, target, towerAttackAmount(tower, definition));
+      repeatHits(hitCount, () => healTower(runtime.scene, target, towerAttackAmount(tower, definition)));
     }
   } finally {
     targets.length = 0;
   }
 }
 
-function fireZealHealingPulse(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {
+function fireZealHealingPulse(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime, hitCount = 1) {
   const targets = getZealHealTargets(tower, runtime.towers);
   if (targets.length === 0) {
     return;
@@ -486,7 +488,7 @@ function fireZealHealingPulse(tower: Tower, definition: CardDefinition, runtime:
   const amount = towerAttackAmount(tower, definition);
   try {
     for (const target of targets) {
-      healTower(runtime.scene, target, amount);
+      repeatHits(hitCount, () => healTower(runtime.scene, target, amount));
     }
   } finally {
     targets.length = 0;
@@ -622,14 +624,17 @@ function laneIsInBoard(lane: number) {
   return lane >= 0 && lane < LANES;
 }
 
-function fireSlash(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {
+function fireSlash(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime, hitCount = 1) {
   const damage = towerAttackAmount(tower, definition);
   const damageType = towerDamageType(tower, definition.damageType, runtime.battleTime);
   const target = getAttackTarget(tower, definition, runtime.enemies);
   if (target) {
     makeSlashEffect(runtime.scene, target.x, target.y, damageType);
-    runtime.damageEnemy(target, damage, damageType, tower);
-    gainAttackProduction(definition, runtime, target.x, target.y);
+    repeatHits(hitCount, () => {
+      if (!target.inPlay) return;
+      runtime.damageEnemy(target, damage, damageType, tower);
+      gainAttackProduction(definition, runtime, target.x, target.y);
+    });
     return;
   }
 
@@ -642,8 +647,11 @@ function fireSlash(tower: Tower, definition: CardDefinition, runtime: CardBehavi
   const x = clampXToBossPart(bossPart, tower.x + towerFacingDirection(tower) * CELL_WIDTH);
   const y = clampYToBossPart(bossPart, tower.y);
   makeSlashEffect(runtime.scene, x, y, damageType);
-  runtime.damageBoss(damage, damageType, bossPart);
-  gainAttackProduction(definition, runtime, x, y);
+  repeatHits(hitCount, () => {
+    if (bossPart.hp <= 0) return;
+    runtime.damageBoss(damage, damageType, bossPart);
+    gainAttackProduction(definition, runtime, x, y);
+  });
 }
 
 function fireArcWave(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {
@@ -882,7 +890,7 @@ function healTower(scene: Phaser.Scene, tower: Tower, amount: number) {
   makeHealParticles(scene, tower.x, tower.y);
 }
 
-function fireTowerProjectiles(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {
+function fireTowerProjectiles(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime, hitCount = 1) {
   const pattern = getProjectilePattern(tower.type);
   if (!pattern) {
     return;
@@ -899,6 +907,7 @@ function fireTowerProjectiles(tower: Tower, definition: CardDefinition, runtime:
     runtime.projectiles.push(
       createTowerProjectile(runtime.scene, {
         type: pattern.projectileKind,
+        hitCount,
         x: muzzle.x,
         y: muzzle.y,
         lane: tower.lane,

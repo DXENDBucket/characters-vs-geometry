@@ -571,14 +571,14 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           : `Starts with 3 orbiting companions: I ${dodecahedronCompanion.hp} HP / II ${dodecahedronCompanion2.hp} HP; ${dodecahedronCompanion.armor} armor / ${dodecahedronCompanion.magicResistance} MR`,
         zh ? "眷属中心带有 I/II；有眷属存活时，正十二面体获得 95% 全伤害减免，全部眷属死亡后移除。" : "Companions show I/II at the center; while any companion is alive, Dodecahedron gains 95% all-damage reduction, removed after all companions die.",
         zh
-          ? "眷属攻击循环：20s 后连射射击五边形激光（I 4 发 / II 8 发）；再 30s 后连射五边形迫击（I 2 发 / II 4 发）；再 30s 后释放 3x3 羽翼。"
-          : "Companion attack loop: after 20s, fires Shooting-Pentagon lasers (I 4 / II 8); after 30s, fires Pentagon mortars (I 2 / II 4); after 30s, casts 3x3 Wings.",
+          ? "眷属攻击循环：20s 后连射射击五边形激光（I 4 次判定 / II 8 次判定，最多 5 连射）；再 30s 后连射五边形迫击（I 2 发 / II 4 发）；再 30s 后释放 3x3 羽翼。"
+          : "Companion attack loop: after 20s, fires Shooting-Pentagon lasers (I 4 / II 8 judgments, at most 5 shots); after 30s, fires Pentagon mortars (I 2 / II 4); after 30s, casts 3x3 Wings.",
         zh
           ? "眷属运动循环：旋转 47s，1s 平移到 Boss 前方一列并分布在本行/上二行/下二行，停留 47s，再 1s 回到旋转。"
           : "Companion motion loop: orbits for 47s, spends 1s shifting to the front column on the boss lane / two lanes up / two lanes down, holds 47s, then spends 1s returning to orbit.",
         zh
-          ? "第 1 个眷属死亡时，Boss 在自身三行连射射击五边形激光（I 7 次 / II 14 次）；第 2 个眷属死亡时，按五边形规则依次瞄准不同目标发射法术迫击弹（I 4 个 / II 6 个）。"
-          : "When the 1st companion dies, the Boss fires Shooting-Pentagon lasers across its 3 lanes (I 7 volleys / II 14 volleys). When the 2nd dies, it fires magic mortars at different Pentagon-rule targets in order (I 4 / II 6).",
+          ? "第 1 个眷属死亡时，Boss 在自身三行发射射击五边形激光（I 7 次判定 / II 14 次判定，分为 5 连射，各次独立计算抗性）；第 2 个眷属死亡时，按五边形规则瞄准不同目标发射法术迫击弹（I 4 个 / II 6 个，超出第 5 发的目标同时发射）。"
+          : "When the 1st companion dies, the Boss fires lasers across its 3 lanes (I 7 / II 14 independent hit judgments over 5 shots). When the 2nd dies, it fires magic mortars at different Pentagon-rule targets (I 4 / II 6); overflow targets fire simultaneously at earlier timings.",
         zh
           ? "每次眷属死亡时，存活眷属获得 10s 无敌。全部眷属死亡后，正十二面体失去眷属减伤，且无尽羽翼开始回技：4 技力满后消耗 4，使接触 Boss 碰撞体且未飞行的敌怪获得 7s 羽翼飞行。"
           : "Each companion death gives surviving companions 10s Invincible. After all companions die, Dodecahedron loses companion damage reduction and Endless Wings starts charging: at 4 SP, spend 4 to give 7s Wings Flying to non-flying enemies touching the Boss hitbox."
@@ -769,7 +769,7 @@ function towerUpgradeText(id: CardId) {
     return zh ? "每级提高小 m 自身等级；2 级小 m 会持续为周围镜像状态塔所属的整个镜像网络提供 +1 有效等级，3 级提供 +2，以此类推。" : "Each level raises m's own level; a level 2 m continuously grants +1 effective level to the full mirror networks adjacent to it, level 3 grants +2, and so on.";
   }
   if (id === "A" || id === "a" || id === "C" || id === "E" || id === "e" || id === "M" || id === "W" || id === "I" || id === "J" || id === "H" || id === "P" || id === "p" || id === "K" || id === "Z") {
-    return zh ? "增加连发次数；整段连射固定占攻击/治疗间隔的五分之一。" : "Adds burst count; the whole volley always takes one fifth of the attack/heal interval.";
+    return zh ? "增加攻击/治疗判定次数；最多 5 连射，超出部分依次分配到前面的各发，每次独立计算抗性。6 次为 2/1/1/1/1，11 次为 3/2/2/2/2。整段连射仍占攻击/治疗间隔的五分之一。" : "Adds attack/heal judgments, with at most 5 shots. Extra judgments are distributed from the first shot, each resolving defenses independently: 6 = 2/1/1/1/1, 11 = 3/2/2/2/2. Volley duration remains one fifth of the attack/heal interval.";
   }
   if (id === "X" || id === "Y") {
     return zh ? "每级单次生产量增加基础值的 80%。" : "Each level adds 80% of base production per trigger.";

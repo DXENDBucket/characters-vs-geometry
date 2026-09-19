@@ -392,6 +392,7 @@ export interface Enemy {
 }
 
 export interface Projectile {
+  hitCount?: number;
   type: ProjectileKind;
   lane: number;
   x: number;
@@ -415,6 +416,7 @@ export interface Projectile {
 }
 
 export interface EnemyProjectile {
+  hitCount?: number;
   x: number;
   y: number;
   vx: number;
@@ -425,6 +427,7 @@ export interface EnemyProjectile {
 }
 
 export interface MortarProjectile {
+  hitCount?: number;
   owner: "enemy" | "tower";
   x: number;
   y: number;

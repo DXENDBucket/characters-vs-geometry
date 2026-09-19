@@ -70,6 +70,7 @@ import {
 import { isTrapArmed } from "./towers";
 import { syncBossBaseStats, towerFinalStats } from "./unitStats";
 import { volleyInterval } from "./upgrades";
+import { repeatHits, volleyHitsAt, volleyTimingCount } from "./volley";
 import { getEnemyDefinition, enemyRank } from "../registry/enemies";
 
 const DODECAHEDRON_COMPANION_KIND: Enemy["kind"] = "dodecahedronCompanion";
@@ -819,16 +820,18 @@ function nextDodecahedronCompanionActionPhase(phase: BossCompanionActionPhase): 
 }
 
 function fireDodecahedronCompanionLaserVolley(runtime: BossRuntime, companion: Enemy) {
-  const shots = 4 * enemyRank(companion.kind);
+  const totalHits = 4 * enemyRank(companion.kind);
+  const shots = volleyTimingCount(totalHits);
   const interval = volleyInterval(DODECAHEDRON_COMPANION_LASER_INTERVAL, shots);
   for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
+    const hitCount = volleyHitsAt(totalHits, shotIndex);
     runtime.scene.time.delayedCall(shotIndex * interval, () => {
-      runtime.runWhenBattleActive(() => fireDodecahedronCompanionLaser(runtime, companion));
+      runtime.runWhenBattleActive(() => fireDodecahedronCompanionLaser(runtime, companion, hitCount));
     });
   }
 }
 
-function fireDodecahedronCompanionLaser(runtime: BossRuntime, companion: Enemy) {
+function fireDodecahedronCompanionLaser(runtime: BossRuntime, companion: Enemy, hitCount: number) {
   if (!companion.inPlay) {
     return;
   }
@@ -840,11 +843,11 @@ function fireDodecahedronCompanionLaser(runtime: BossRuntime, companion: Enemy) 
   try {
     for (const tower of laserPath.targets) {
       makeEnemyHitShards(runtime.scene, tower.x, tower.y);
-      runtime.damageTower(
+      repeatHits(hitCount, () => runtime.damageTower(
         tower,
         definition.damage * enemyAttackMultiplier(companion, runtime.battleTime),
         definition.damageType
-      );
+      ));
     }
   } finally {
     laserPath.targets.length = 0;
@@ -857,16 +860,18 @@ function fireDodecahedronCompanionMortarVolley(runtime: BossRuntime, companion: 
     return;
   }
 
-  const shots = 2 * enemyRank(companion.kind);
+  const totalHits = 2 * enemyRank(companion.kind);
+  const shots = volleyTimingCount(totalHits);
   const interval = volleyInterval(DODECAHEDRON_COMPANION_MORTAR_INTERVAL, shots);
   for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
+    const hitCount = volleyHitsAt(totalHits, shotIndex);
     runtime.scene.time.delayedCall(shotIndex * interval, () => {
-      runtime.runWhenBattleActive(() => fireDodecahedronCompanionMortar(runtime, companion));
+      runtime.runWhenBattleActive(() => fireDodecahedronCompanionMortar(runtime, companion, hitCount));
     });
   }
 }
 
-function fireDodecahedronCompanionMortar(runtime: BossRuntime, companion: Enemy) {
+function fireDodecahedronCompanionMortar(runtime: BossRuntime, companion: Enemy, hitCount: number) {
   if (!companion.inPlay) {
     return;
   }
@@ -881,6 +886,7 @@ function fireDodecahedronCompanionMortar(runtime: BossRuntime, companion: Enemy)
     createMortarProjectile(runtime.scene, {
       owner: "enemy",
       fromX: companion.x,
+      hitCount,
       fromY: companion.y,
       targetX: target.x,
       targetY: target.y,
@@ -977,14 +983,16 @@ function fireIcosahedronDeathLaserVolley(runtime: BossRuntime, boss: CubeBoss) {
 function fireBossDeathLaserVolley(
   runtime: BossRuntime,
   boss: CubeBoss,
-  shots: number,
+  totalHits: number,
   duration: number,
   laneRadius: number
 ) {
+  const shots = volleyTimingCount(totalHits);
   const interval = volleyInterval(duration, shots);
   for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
+    const hitCount = volleyHitsAt(totalHits, shotIndex);
     runtime.scene.time.delayedCall(shotIndex * interval, () => {
-      runtime.runWhenBattleActive(() => fireBossDeathLasers(runtime, boss, laneRadius));
+      runtime.runWhenBattleActive(() => fireBossDeathLasers(runtime, boss, laneRadius, hitCount));
     });
   }
 }
@@ -993,7 +1001,7 @@ function dodecahedronDeathLaserShots(boss: CubeBoss) {
   return boss.rank >= 2 ? 14 : DODECAHEDRON_COMPANION_DEATH_LASER_SHOTS;
 }
 
-function fireBossDeathLasers(runtime: BossRuntime, boss: CubeBoss, laneRadius: number) {
+function fireBossDeathLasers(runtime: BossRuntime, boss: CubeBoss, laneRadius: number, hitCount: number) {
   if (runtime.getBoss() !== boss) {
     return;
   }
@@ -1003,11 +1011,11 @@ function fireBossDeathLasers(runtime: BossRuntime, boss: CubeBoss, laneRadius: n
   const startLane = Math.max(0, centerLane - laneRadius);
   const endLane = Math.min(LANES - 1, centerLane + laneRadius);
   for (let lane = startLane; lane <= endLane; lane += 1) {
-    fireDodecahedronLaserInLane(runtime, fromX, lane);
+    fireDodecahedronLaserInLane(runtime, fromX, lane, hitCount);
   }
 }
 
-function fireDodecahedronLaserInLane(runtime: BossRuntime, fromX: number, lane: number) {
+function fireDodecahedronLaserInLane(runtime: BossRuntime, fromX: number, lane: number, hitCount: number) {
   const definition = getEnemyDefinition("shootingPentagon");
   const y = BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2;
   const laserPath = leftwardDodecahedronLaserPath(runtime.towers, lane, fromX);
@@ -1016,7 +1024,7 @@ function fireDodecahedronLaserInLane(runtime: BossRuntime, fromX: number, lane: 
   try {
     for (const tower of laserPath.targets) {
       makeEnemyHitShards(runtime.scene, tower.x, tower.y);
-      runtime.damageTower(tower, definition.damage, definition.damageType);
+      repeatHits(hitCount, () => runtime.damageTower(tower, definition.damage, definition.damageType));
     }
   } finally {
     laserPath.targets.length = 0;
@@ -1064,9 +1072,10 @@ function insertTowerByDescendingX(targets: Tower[], tower: Tower) {
 function fireDodecahedronDeathMortars(runtime: BossRuntime, boss: CubeBoss) {
   const targetCount = dodecahedronDeathMortarTargetCount(boss);
   const targets = findDodecahedronPentagonTargets(runtime, targetCount);
-  const interval = volleyInterval(DODECAHEDRON_COMPANION_MORTAR_INTERVAL, targetCount);
+  const shots = volleyTimingCount(targetCount);
+  const interval = volleyInterval(DODECAHEDRON_COMPANION_MORTAR_INTERVAL, shots);
   targets.forEach((target, index) => {
-    runtime.scene.time.delayedCall(index * interval, () => {
+    runtime.scene.time.delayedCall((index % shots) * interval, () => {
       runtime.runWhenBattleActive(() => fireDodecahedronBossMortar(runtime, boss, target));
     });
   });
@@ -1079,9 +1088,10 @@ function dodecahedronDeathMortarTargetCount(boss: CubeBoss) {
 function fireIcosahedronDeathMortars(runtime: BossRuntime, boss: CubeBoss) {
   const targetCount = ICOSAHEDRON_COMPANION_DEATH_MORTAR_TARGETS;
   const targets = findDodecahedronPentagonTargets(runtime, targetCount);
-  const interval = volleyInterval(DODECAHEDRON_COMPANION_MORTAR_INTERVAL, targetCount);
+  const shots = volleyTimingCount(targetCount);
+  const interval = volleyInterval(DODECAHEDRON_COMPANION_MORTAR_INTERVAL, shots);
   targets.forEach((target, index) => {
-    runtime.scene.time.delayedCall(index * interval, () => {
+    runtime.scene.time.delayedCall((index % shots) * interval, () => {
       runtime.runWhenBattleActive(() => fireDodecahedronBossMortar(runtime, boss, target));
     });
   });

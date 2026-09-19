@@ -17,6 +17,7 @@ import type {
 import { enemyAttackDamage } from "./combatStats";
 
 export interface TowerProjectileSpec {
+  hitCount?: number;
   type: ProjectileKind;
   x: number;
   y: number;
@@ -70,6 +71,7 @@ export function createTowerProjectile(scene: Phaser.Scene, spec: TowerProjectile
 
   return {
     type: spec.type,
+    hitCount: spec.hitCount ?? 1,
     lane: spec.lane,
     x: spec.x,
     y: spec.y,
@@ -112,7 +114,7 @@ export function createHomingTowerProjectile(scene: Phaser.Scene, spec: HomingTow
   return projectile;
 }
 
-export function createEnemyProjectile(scene: Phaser.Scene, enemy: Enemy, time: number): EnemyProjectile {
+export function createEnemyProjectile(scene: Phaser.Scene, enemy: Enemy, time: number, hitCount = 1): EnemyProjectile {
   const isDiamondShot = enemyFamily(enemy.kind) === "diamond";
   const direction = enemyMovementDirection(enemy);
   const shotX = enemy.x + direction * 22;
@@ -130,6 +132,7 @@ export function createEnemyProjectile(scene: Phaser.Scene, enemy: Enemy, time: n
   body.rotation = isDiamondShot ? 0 : direction < 0 ? Math.PI : 0;
   return {
     x: shotX,
+    hitCount,
     y: enemy.y,
     vx: direction * 430,
     damage: enemyAttackDamage(enemy, time),
@@ -140,6 +143,7 @@ export function createEnemyProjectile(scene: Phaser.Scene, enemy: Enemy, time: n
 }
 
 export interface MortarProjectileSpec {
+  hitCount?: number;
   owner: "enemy" | "tower";
   fromX: number;
   fromY: number;
@@ -181,6 +185,7 @@ export function createMortarProjectile(scene: Phaser.Scene, spec: MortarProjecti
 
   return {
     owner: spec.owner,
+    hitCount: spec.hitCount ?? 1,
     x: spec.fromX,
     y: spec.fromY,
     fromX: spec.fromX,
@@ -218,6 +223,7 @@ export function createReflectedProjectile(
   const reflectedAngle = projectile.vx < 0 ? 0 : 180;
   return createTowerProjectile(scene, {
     type: "bolt",
+    hitCount: projectile.hitCount,
     x: projectile.x,
     y: projectile.y,
     lane: projectile.sourceLane,

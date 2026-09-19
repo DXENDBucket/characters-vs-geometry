@@ -12,6 +12,7 @@ const effects = {
   makeReversalPulse: noop, makeBossHitFlash: noop, makeBossInvincibleFlash: noop, makeEnemyInvincibleFlash: noop,
   makeShockPulse: noop, makeTrapBurst: noop, makeSlashEffect: noop, makeArcWaveEffect: noop, makeShiftEffect: noop,
   makeTowerLaserEffect: noop, makeHitShards: noop, makeSunderEffect: noop, makeHealParticles: noop,
+  makeEnemyHitShards: noop, makeShellBurst: noop, makeReflectFlash: noop, makeSpellMortarImpact: noop,
   damageEffectTextColor: () => "#ffffff"
 };
 // Keep real card data, hit resolution, status logic and trigger code; stub rendering.
@@ -32,12 +33,15 @@ const stubs = new Map(Object.entries({
     enemyDefenseStats: (enemy) => enemy.baseStats, bossFinalStats: (boss) => boss.baseStats,
     enemyMovementSpeed: () => 10
   },
-  "src/game/slowAura.ts": { isPointInSlowAura: () => true },
+  "src/game/slowAura.ts": { isPointInSlowAura: () => true, slowAuraSources: () => [], movementSpeedMultiplier: () => 1 },
   "src/game/enemySupport.ts": { enemySupportSources: () => ({}) },
   "src/game/projectiles.ts": {
     createTowerProjectile: (_scene, spec) => ({ ...spec }),
     createHomingTowerProjectile: (_scene, spec) => ({ ...spec }),
-    createMortarProjectile: (_scene, spec) => ({ ...spec })
+    createMortarProjectile: (_scene, spec) => ({ ...spec }),
+    isEnemyProjectileOutOfBounds: () => false,
+    isTowerProjectileOutOfBounds: () => false,
+    createReflectedProjectile: (_scene, projectile) => ({ damage: projectile.damage, hitCount: projectile.hitCount })
   },
   "src/bosses/cubeBoss.ts": { isIcosahedronBoss: () => false, isTetrahedronBoss: () => false }
 }).map(([name, value]) => [path.resolve(root, name), value]));
@@ -595,6 +599,83 @@ test("all cards preserve baseline attack and upgrade modes, including softcap an
   assert.equal(upgrades.volleyShotCount("A", 2), 2);
   assert.equal(upgrades.volleyShotCount("Q", 2), 1);
   assert.equal(towerForCard(cardDefinitions.find((card) => card.id === "B"), 2).finalStats.maxHp, 5400);
+});
+
+test("volleys cap at five timings and distribute every judgment without changing the time window", () => {
+  const { volleyTimingCount, volleyHitsAt } = load("src/game/volley.ts");
+  for (const [total, expected] of [[1,[1]],[5,[1,1,1,1,1]],[6,[2,1,1,1,1]],[7,[2,2,1,1,1]],[10,[2,2,2,2,2]],[11,[3,2,2,2,2]],[14,[3,3,3,3,2]],[15,[3,3,3,3,3]]]) {
+    const shots = volleyTimingCount(total);
+    assert.deepEqual(Array.from({ length: shots }, (_, index) => volleyHitsAt(total, index)), expected);
+    assert.equal((shots - 1) * upgrades.volleyInterval(2000, shots), total === 1 ? 0 : 400);
+  }
+  for (let level = 1; level <= 300; level++) {
+    const hits = upgrades.volleyShotCount("A", level);
+    const count = volleyTimingCount(hits);
+    assert.ok(count <= 5);
+    assert.equal(Array.from({length:count},(_,i)=>volleyHitsAt(hits,i)).reduce((a,b)=>a+b,0), hits);
+  }
+});
+
+test("multi-hit volleys create one projectile pattern, with unchanged damage and snapshotted hit count", () => {
+  const { cardBehaviorsById } = load("src/game/cardBehaviors.ts");
+  for (const id of ["A", "a", "C", "E", "M", "W", "I", "J"]) {
+    const card = cardDefinitions.find(card => card.id === id);
+    const caster = towerForCard(card, 6);
+    const state = { scene: {}, projectiles: [], battleTime: 1000 };
+    cardBehaviorsById[id].execute(caster, card, state, 2);
+    assert.equal(state.projectiles.length, ["E", "M", "W"].includes(id) ? 3 : 1);
+    for (const shot of state.projectiles) {
+      assert.equal(shot.hitCount, 2);
+      assert.equal(shot.damage, card.attackPower);
+    }
+  }
+});
+
+test("multi-hit tower impacts preserve the physical armor breakpoint and resolve magic separately", () => {
+  const { updateTowerProjectiles } = load("src/game/projectileRuntime.ts");
+  for (const [type, damageType, armor, expected] of [["bolt","physical",300,200],["bolt","physical",500,80],["star","magic",300,640],["shell","physical",300,200]]) {
+    const target = enemy({ lane: 0, baseStats: { maxHp: 5000, armor, magicResistance: 20, finalDamageReduction: 0 } });
+    const state = runtime([target]);
+    const body = visual();
+    Object.assign(state, { towers: [], projectiles: [{ type, lane: 0, x: 0, y: 0, vx: 0, vy: 0, damage: 400, damageType, hitCount: 2, maxX: 1000, limitDirection: 1, splashRadius: 100, body }] });
+    updateTowerProjectiles(state, 0);
+    assert.equal(5000 - target.hp, expected, `${type} / ${armor} armor`);
+    assert.equal(state.projectiles.length, 0);
+    assert.equal(body.destroyed, true);
+  }
+});
+
+test("enemy projectiles and mortar impacts apply armor per judgment and reflections retain hit count", () => {
+  const { updateEnemyProjectiles, updateMortarProjectiles } = load("src/game/projectileRuntime.ts");
+  for (const mortar of [false, true]) {
+    const f = extractionFixture();
+    const target = f.place("R");
+    target.finalStats.armor = 300;
+    const before = target.hp;
+    const shot = { owner: "enemy", x: target.x, y: target.y, fromX: target.x, fromY: target.y, vx: 0, sourceLane: target.lane, targetX: target.x, targetY: target.y, progress: 1, duration: 1000, rangeX: 80, rangeY: 80, damage: 400, damageType: "physical", hitCount: 2, body: visual(), sourceEnemy: enemy() };
+    const state = { ...f.state, getBoss: () => null, projectiles: [], enemyProjectiles: mortar ? [] : [shot], mortarProjectiles: mortar ? [shot] : [], onTowerDamaged: noop };
+    state.damageTower = (tower, amount, type) => lifecycle.damageTower(state, tower, amount, type);
+    if (mortar) updateMortarProjectiles(state, 0);
+    else updateEnemyProjectiles(state, 0);
+    assert.equal(before - target.hp, 200);
+    const reflected = mortar ? state.mortarProjectiles[0] : state.projectiles[0];
+    assert.equal(reflected.hitCount, 2);
+    assert.equal(reflected.damage, 400);
+  }
+});
+
+test("healing and slashes keep separate simultaneous judgments", () => {
+  const { cardBehaviorsById } = load("src/game/cardBehaviors.ts");
+  const f = extractionFixture();
+  const healer = f.place("e");
+  healer.hp = 100;
+  cardBehaviorsById.e.execute(healer, f.state.getDefinition("e"), f.state, 2);
+  assert.equal(healer.hp, 280);
+  const slash = f.place("K", 6, 1, 2);
+  const target = enemy({ x: slash.x + 30, y: slash.y, lane: slash.lane });
+  const hits = [];
+  cardBehaviorsById.K.execute(slash, f.state.getDefinition("K"), { ...f.state, enemies: [target], boss: null, damageEnemy: (_target, amount) => hits.push(amount), gainChars: noop }, 2);
+  assert.deepEqual(hits, [1800, 1800]);
 });
 
 test("projectiles and mortars snapshot final attack times the multiplier, without double upgrades", () => {
