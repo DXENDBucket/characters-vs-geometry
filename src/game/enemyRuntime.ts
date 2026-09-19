@@ -83,6 +83,7 @@ import {
   bossBounds,
   forEachBossPart,
   getBlockingTowerFromOccupied,
+  getSweptBlockingTowerFromOccupied,
   latestPlacedTower,
   type RectBounds
 } from "./targeting";
@@ -358,7 +359,19 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
       enemy.attackAt = time + enemy.finalStats.attackInterval;
     }
 
-    const blocker = getBlockingTowerFromOccupied(runtime.occupied, enemy);
+    let blocker = getBlockingTowerFromOccupied(runtime.occupied, enemy);
+    let nextX = enemy.x;
+    if (!blocker) {
+      nextX = enemyIsMace(enemy.kind)
+        ? hexMaceMovementTargetX(runtime, enemy, seconds, time, status, supportSources, slowSources)
+        : enemy.x + enemyMovementDirection(enemy) * movementSpeed * seconds;
+      const contact = getSweptBlockingTowerFromOccupied(runtime.occupied, enemy, nextX);
+      if (contact) {
+        enemy.x = contact.x;
+        syncEnemyBodyPosition(enemy);
+        blocker = contact.tower;
+      }
+    }
 
     if (blocker) {
       if (blocker.type === "G" && isTrapArmed(blocker, time)) {
@@ -408,20 +421,9 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
       return;
     }
 
-    const movementDirection = enemyMovementDirection(enemy);
+    const movementDirection = enemyIsMace(enemy.kind) ? Math.sign(enemy.maceVelocity ?? 0) : enemyMovementDirection(enemy);
     if (!blocker) {
-      if (advanceHexMaceMovement(runtime, enemy, seconds, time, status, supportSources, slowSources)) {
-        if (!enemy.inPlay) {
-          return;
-        }
-
-        if (enemy.x < BOARD_X - 34 && runtime.onEnemyReachedBase(enemy)) {
-          return false;
-        }
-        return;
-      }
-
-      enemy.x += movementDirection * movementSpeed * seconds;
+      enemy.x = nextX;
       syncEnemyBodyPosition(enemy);
     }
 
@@ -1015,7 +1017,7 @@ function advanceHexMace(
   return true;
 }
 
-function advanceHexMaceMovement(
+function hexMaceMovementTargetX(
   runtime: EnemyAdvanceRuntime,
   enemy: Enemy,
   seconds: number,
@@ -1024,10 +1026,6 @@ function advanceHexMaceMovement(
   supportSources: EnemySupportSources,
   slowSources: SlowAuraSources
 ) {
-  if (!enemyIsMace(enemy.kind)) {
-    return false;
-  }
-
   const velocity = enemy.maceVelocity ?? 0;
   const facingDirection = enemyFacingDirection(enemy);
   const nextVelocity = Phaser.Math.Clamp(
@@ -1041,12 +1039,7 @@ function advanceHexMaceMovement(
     { enemies: runtime.enemies, towers: runtime.towers, time, status, supportSources, slowAuraSources: slowSources },
     Math.abs(nextVelocity)
   );
-  enemy.x +=
-    nextVelocity *
-    speedMultiplier *
-    seconds;
-  syncEnemyBodyPosition(enemy);
-  return true;
+  return enemy.x + nextVelocity * speedMultiplier * seconds;
 }
 
 function hexMaceAcceleration(enemy: Enemy) {

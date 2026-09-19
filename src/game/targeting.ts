@@ -37,6 +37,7 @@ export interface RectBounds {
 }
 
 const GRID_CELL_KEYS: string[][] = [];
+const TOWER_BLOCK_RADIUS = 38;
 for (let lane = 0; lane < LANES; lane += 1) {
   const row: string[] = [];
   for (let column = 0; column < COLUMNS; column += 1) {
@@ -493,15 +494,36 @@ export function getBlockingTowerFromOccupied(occupied: Map<string, Tower>, enemy
   return blockingTower;
 }
 
+export function getSweptBlockingTowerFromOccupied(occupied: Map<string, Tower>, enemy: Enemy, nextX: number) {
+  if (!enemyCanBeBlocked(enemy) || nextX === enemy.x) return undefined;
+  const direction = nextX < enemy.x ? -1 : 1;
+  const left = Math.min(enemy.x, nextX);
+  const right = Math.max(enemy.x, nextX);
+  const firstColumn = Math.max(0, Math.ceil((left - TOWER_BLOCK_RADIUS - BOARD_X - CELL_WIDTH / 2) / CELL_WIDTH));
+  const lastColumn = Math.min(COLUMNS - 1, Math.floor((right + TOWER_BLOCK_RADIUS - BOARD_X - CELL_WIDTH / 2) / CELL_WIDTH));
+  const enemyFlying = hasStatusEffectName(enemy, "flying");
+  // Scan in travel order, bounded by the board width rather than the enemy's speed.
+  for (let column = direction < 0 ? lastColumn : firstColumn;
+    direction < 0 ? column >= firstColumn : column <= lastColumn; column += direction) {
+    const tower = occupied.get(gridCellKey(enemy.lane, column));
+    if (!tower || !towerCanBlockEnemy(tower, enemy, enemyFlying, false)) continue;
+    const entryX = tower.x - direction * TOWER_BLOCK_RADIUS;
+    const x = direction < 0 ? Math.min(enemy.x, entryX) : Math.max(enemy.x, entryX);
+    if (x >= left && x <= right) return { tower, x };
+  }
+  return undefined;
+}
+
 function enemyCanBeBlocked(enemy: Enemy) {
   return !(enemyIsBossCompanion(enemy.kind) || enemyIsBurrowed(enemy) || enemyIsHighFlying(enemy) || enemyIsSolarBomb(enemy));
 }
 
-function towerCanBlockEnemy(tower: Tower, enemy: Enemy, enemyFlying: boolean) {
+function towerCanBlockEnemy(tower: Tower, enemy: Enemy, enemyFlying: boolean, checkPosition = true) {
   return (
+    tower.inPlay &&
     !tower.transient &&
     tower.lane === enemy.lane &&
-    Math.abs(enemy.x - tower.x) < 38 &&
+    (!checkPosition || Math.abs(enemy.x - tower.x) <= TOWER_BLOCK_RADIUS) &&
     !(enemyFlying ? !towerIsFlying(tower) : towerIsFlying(tower))
   );
 }
