@@ -67,10 +67,38 @@ export const levelNodes: LevelNode[] = [
   { id: "5-9", x: 1990, y: 430 },
   { id: "5-10", x: 2210, y: 330 },
   { id: "IF-1", x: 500, y: 380 },
-  { id: "IF-2", x: 820, y: 320 }
+  { id: "IF-2", x: 820, y: 320 },
+  { id: "IF-3", x: 1160, y: 430 },
+  { id: "IF-4", x: 1500, y: 320 }
 ];
 
 export const levelConfigs: Record<string, LevelConfig> = {
+  "IF-3": {
+    id: "IF-3",
+    unlockAfter: "2-9",
+    survival: true,
+    endless: true,
+    enemyKinds: ["circle", "triangle", "shootingTriangle", "triangleRam", "mortarTriangle", "mortarTriangle2", "triangleRam3"],
+    unlimitedRankFamilies: ["circle", "triangle", "shootingTriangle", "triangleRam", "mortarTriangle"],
+    firstWaveWeight: 19,
+    waveWeightIncrement: 12,
+    waveWeightIncrementGrowth: 1,
+    wavesPerFlag: WAVES_PER_FLAG,
+    startingChars: 300
+  },
+  "IF-4": {
+    id: "IF-4",
+    unlockAfter: "3-9",
+    survival: true,
+    endless: true,
+    enemyKinds: ["circle", "triangleRam", "triangle3", "pentagon", "angelPentagon", "shootingPentagon", "diamond2", "hexagon", "chargingHexagon"],
+    unlimitedRankFamilies: ["circle", "triangleRam", "triangle", "pentagon", "angelPentagon", "shootingPentagon", "diamond", "hexagon", "chargingHexagon"],
+    firstWaveWeight: 25,
+    waveWeightIncrement: 16,
+    waveWeightIncrementGrowth: 2,
+    wavesPerFlag: WAVES_PER_FLAG,
+    startingChars: CHAPTER_THREE_STARTING_CHARS
+  },
   "IF-2": {
     id: "IF-2",
     unlockAfter: "2-4",

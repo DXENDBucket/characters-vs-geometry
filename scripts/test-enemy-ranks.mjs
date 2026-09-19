@@ -70,6 +70,27 @@ test("IF-2 extends the 2-4 enemy families to dynamic ranks with an independent c
   }
 });
 
+for (const [id, sourceId] of [["IF-3", "2-9"], ["IF-4", "3-9"]]) {
+  test(`${id} inherits ${sourceId} enemies, funding and weights without wave or rank limits`, () => {
+    const { getLevelConfig } = load("src/data/levels.ts");
+    const { waveWeightLimit } = load("src/game/waves.ts");
+    const level = getLevelConfig(id);
+    const source = getLevelConfig(sourceId);
+    assert.equal(level.unlockAfter, sourceId);
+    assert.deepEqual(level.enemyKinds, source.enemyKinds);
+    assert.deepEqual(level.unlimitedRankFamilies, [...new Set(source.enemyKinds.map(registry.enemyFamily))]);
+    assert.equal(level.startingChars, source.startingChars);
+    assert.equal(level.endless, true);
+    assert.equal(level.survival, true);
+    assert.equal(level.totalWaves, undefined);
+    assert.equal(level.waveWeightCap, undefined);
+    for (const wave of [1, 2, 3, 10, 100]) {
+      assert.equal(waveWeightLimit(level, { weightMultiplier: 1.4 }, wave),
+        waveWeightLimit(source, { weightMultiplier: 1.4 }, wave));
+    }
+  });
+}
+
 test("all 66 existing enemy panels and registrations exactly match the pre-refactor snapshot", () => {
   assert.deepEqual(Object.keys(registry.allEnemyDefinitions), Object.keys(legacy));
   for (const [kind, expected] of Object.entries(legacy)) {

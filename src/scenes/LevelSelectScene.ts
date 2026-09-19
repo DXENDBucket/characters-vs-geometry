@@ -53,6 +53,7 @@ interface BossNodePreview {
 export class LevelSelectScene extends Phaser.Scene {
   private selectedChapterId = defaultChapterId();
   private selectedLevelId: string | null = "1-1";
+  private restoredMapOffset?: { x: number; y: number };
   private difficulty = DEFAULT_DIFFICULTY;
   private unlimitedFirepower = false;
   private mapContainer!: Phaser.GameObjects.Container;
@@ -91,10 +92,16 @@ export class LevelSelectScene extends Phaser.Scene {
     super("LevelSelectScene");
   }
 
-  init(data: { chapterId?: string; difficulty?: number; unlimitedFirepower?: boolean; selectedLevelId?: string; resumeError?: boolean }) {
+  init(data: { chapterId?: string; difficulty?: number; unlimitedFirepower?: boolean; selectedLevelId?: string; resumeError?: boolean; mapOffset?: { x: number; y: number } }) {
     this.resumeError = Boolean(data.resumeError);
     const requestedChapterId = data.chapterId ?? defaultChapterId();
     this.selectedChapterId = isChapterUnlocked(requestedChapterId) ? requestedChapterId : defaultChapterId();
+    this.restoredMapOffset = this.selectedChapterId === requestedChapterId &&
+      Number.isFinite(data.mapOffset?.x) && Number.isFinite(data.mapOffset?.y) ? data.mapOffset : undefined;
+    this.mapDragPointer = null;
+    this.mapDragTimer = null;
+    this.mapDragging = false;
+    this.suppressNodeClickUntil = 0;
     this.difficulty = clampDifficulty(data.difficulty);
     this.unlimitedFirepower = Boolean(data.unlimitedFirepower);
     const nodes = this.chapterNodes();
@@ -107,6 +114,7 @@ export class LevelSelectScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(palette.black);
     this.drawBackdrop();
     this.createMapContainer();
+    this.setMapOffset(this.restoredMapOffset?.x ?? 0, this.restoredMapOffset?.y ?? 0);
     this.drawLevelPath();
     this.createMapDragControls();
     this.encyclopediaPanel = new EncyclopediaPanel(this);
@@ -658,6 +666,7 @@ export class LevelSelectScene extends Phaser.Scene {
       returnData: {
         chapterId: this.selectedChapterId,
         selectedLevelId: this.selectedLevelId ?? undefined,
+        mapOffset: { x: this.mapContainer.x, y: this.mapContainer.y },
         difficulty: this.difficulty,
         unlimitedFirepower: this.unlimitedFirepower
       }
@@ -817,6 +826,7 @@ export class LevelSelectScene extends Phaser.Scene {
       this.scene.start(sceneKey, {
         levelId: selected.id,
         chapterId: this.selectedChapterId,
+        mapOffset: { x: this.mapContainer.x, y: this.mapContainer.y },
         difficulty: this.difficulty,
         unlimitedFirepower: sceneKey === "GameScene" ? false : this.unlimitedFirepower
       });

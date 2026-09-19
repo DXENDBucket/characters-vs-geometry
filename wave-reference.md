@@ -573,6 +573,13 @@ Base rule:
 - Weight growth follows `2-4`: initial `19`, increment `+12`, increment growth `+1`; flag waves double weight before difficulty scaling.
 - Endless waves, independent best-wave record and battlefield save.
 
+## Infinite Front: IF-3 / IF-4
+
+- IF-3 unlocks after `2-9` and inherits its enemy families, starting characters (`300`) and weight growth (`19`, `+12`, extra `+1`).
+- IF-4 unlocks after `3-9` and inherits its enemy families, starting characters and weight growth (`25`, `+16`, extra `+2`).
+- Both use unlimited ranks except Circle (capped at IV), with no wave count or weight cap.
+- Each has an independent best-wave record and resumable battlefield save. Flag waves double weight before difficulty scaling.
+
 ## Level 1-9 Weight Growth
 
 Enemy pool:

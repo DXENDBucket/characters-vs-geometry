@@ -52,6 +52,7 @@ interface EnemyPreviewLink {
 }
 
 interface CardSelectSceneData {
+  mapOffset?: { x: number; y: number };
   levelId?: string;
   chapterId?: string;
   difficulty?: number;
@@ -64,6 +65,7 @@ interface CardSelectSceneData {
 }
 
 export class CardSelectScene extends Phaser.Scene {
+  private levelSelectMapOffset?: { x: number; y: number };
   private reselect?: CardSelectSceneData["reselect"];
   private selectionFinished = false;
   private levelId = "1-1";
@@ -111,6 +113,7 @@ export class CardSelectScene extends Phaser.Scene {
   }
 
   init(data: CardSelectSceneData) {
+    this.levelSelectMapOffset = data.mapOffset;
     this.reselect = data.reselect;
     this.selectionFinished = false;
     this.levelId = data.levelId ?? "1-1";
@@ -811,6 +814,8 @@ export class CardSelectScene extends Phaser.Scene {
     }
     this.scene.start("LevelSelectScene", {
       chapterId: this.chapterId,
+      selectedLevelId: this.levelId,
+      mapOffset: this.levelSelectMapOffset,
       difficulty: this.difficulty,
       unlimitedFirepower: this.unlimitedFirepower
     });
