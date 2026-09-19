@@ -99,6 +99,8 @@ export class ChapterSelectScene extends Phaser.Scene {
   }
 
   private createMapDragControls() {
+    this.input.on("wheel", this.onMapWheel);
+    this.events.once("shutdown", () => this.input.off("wheel", this.onMapWheel));
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       if (this.encyclopediaPanel.isOpen() || !this.mapViewport.contains(pointer.x, pointer.y)) {
         return;
@@ -133,6 +135,17 @@ export class ChapterSelectScene extends Phaser.Scene {
     this.input.on("pointerup", (pointer: Phaser.Input.Pointer) => this.stopMapDrag(pointer));
     this.input.on("pointerupoutside", (pointer: Phaser.Input.Pointer) => this.stopMapDrag(pointer));
   }
+
+  private readonly onMapWheel = (
+    pointer: Phaser.Input.Pointer,
+    _objects: Phaser.GameObjects.GameObject[],
+    deltaX: number,
+    deltaY: number
+  ) => {
+    if (this.encyclopediaPanel.isOpen() || this.mapDragPointer || !this.mapViewport.contains(pointer.x, pointer.y)) return;
+    const delta = Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY;
+    this.setMapOffset(this.mapContainer.x - delta, this.mapContainer.y);
+  };
 
   private updateMapDrag(pointer: Phaser.Input.Pointer) {
     this.setMapOffset(
