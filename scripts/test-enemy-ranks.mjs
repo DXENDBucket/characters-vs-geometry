@@ -146,19 +146,19 @@ test("cube ranks extend I/II linearly and promotion prioritizes highest eligible
   assert.deepEqual(findPromotionTargets({ x: 0, y: 0 }, [oneNear, twoNear], 2, 0), []);
 });
 
-test("IF-BE-1 is isolated in Boss Endless and inherits 1-10 waves, cap and funding", () => {
+test("IF-BE-1 is isolated in Boss Endless and inherits 1-10 enemies and funding without a weight cap", () => {
   const { getLevelConfig } = load("src/data/levels.ts");
   const { chapterIdForLevelId, levelNodesForChapter } = load("src/data/chapters.ts");
   assert.equal(chapterIdForLevelId("IF-BE-1"), "IFB");
   assert.equal(levelNodesForChapter("IF").length, 12);
   assert.deepEqual(levelNodesForChapter("IFB").map(node => node.id), ["IF-BE-1", "IF-BE-2"]);
   const level = getLevelConfig("IF-BE-1"), source = getLevelConfig("1-10");
-  for (const key of ["enemyKinds", "firstWaveWeight", "waveWeightIncrement", "waveWeightCap", "wavesPerFlag"])
+  for (const key of ["enemyKinds", "firstWaveWeight", "waveWeightIncrement", "wavesPerFlag"])
     assert.deepEqual(level[key], source[key], key);
   assert.equal(level.waveWeightIncrementGrowth, 1);
   const { waveWeightLimit } = load("src/game/waves.ts");
   assert.deepEqual([1, 2, 3, 4, 5, 10, 20].map(wave => waveWeightLimit(level, { weightMultiplier: 1 }, wave)),
-    [19, 29, 40, 52, 65, 290, 600]);
+    [19, 29, 40, 52, 65, 290, 760]);
   assert.equal(source.waveWeightIncrementGrowth, undefined);
   assert.equal(waveWeightLimit(source, { weightMultiplier: 1 }, 10), 218);
   assert.equal(level.startingChars, source.startingChars ?? 300);
@@ -191,7 +191,7 @@ test("all Boss Endless stages inherit source funding and weights but use IF dyna
     assert.equal(level.unlockAfter, sourceId);
     assert.equal(level.startingChars, source.startingChars ?? 300);
     assert.deepEqual(level.unlimitedRankFamilies, [...new Set(source.enemyKinds.map(registry.enemyFamily))]);
-    for (const field of ["firstWaveWeight", "waveWeightIncrement", "wavesPerFlag", "waveWeightCap"])
+    for (const field of ["firstWaveWeight", "waveWeightIncrement", "wavesPerFlag"])
       assert.equal(level[field], source[field], field);
     assert.equal(level.waveWeightIncrementGrowth, 1);
     const kinds = buildInfiniteWaveKinds(level.unlimitedRankFamilies, 600, 20, 10, length => length - 1);
@@ -199,6 +199,20 @@ test("all Boss Endless stages inherit source funding and weights but use IF dyna
     assert.ok(kinds.every(kind => registry.enemyFamily(kind) !== "circle" || registry.enemyRank(kind) <= 4));
     assert.ok(kinds.reduce((sum, kind) => sum + registry.getEnemyDefinition(kind).weight, 0) <= 600);
   }
+});
+
+test("every Infinite Front stage has uncapped wave weights while story bosses keep their caps", () => {
+  const { levelConfigs } = load("src/data/levels.ts");
+  const { waveWeightLimit } = load("src/game/waves.ts");
+  for (const level of Object.values(levelConfigs).filter(level => level.survival)) {
+    assert.equal(level.waveWeightCap, undefined, level.id);
+    const n = 1000;
+    const expected = (level.firstWaveWeight + (n - 1) * level.waveWeightIncrement +
+      (level.waveWeightIncrementGrowth ?? 0) * (n - 1) * (n - 2) / 2) * 2;
+    assert.equal(waveWeightLimit(level, { weightMultiplier: 1 }, n), expected, level.id);
+  }
+  assert.equal(waveWeightLimit(levelConfigs["1-10"], { weightMultiplier: 1 }, 1000), 600);
+  assert.equal(waveWeightLimit(levelConfigs["2-10"], { weightMultiplier: 1 }, 1000), 800);
 });
 
 test("all 66 existing enemy panels and registrations exactly match the pre-refactor snapshot", () => {

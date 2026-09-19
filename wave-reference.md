@@ -599,7 +599,7 @@ Base rule:
 
 - Boss Endless chapter; unlocks after clearing `1-10`.
 - Uses IF dynamic enemy ranks and preview titles (`1/2/3/...`), with Circle capped at IV (`1/2/3/4`); source ranks are not spawn limits.
-- Enemy families, initial characters (`300`) and weight cap (`600`, before difficulty scaling) follow `1-10`. Weight growth is initial `19`, increment `+10`, extra increment `+1`; story `1-10` remains unchanged.
+- Enemy families and initial characters (`300`) follow `1-10`. Weight growth is initial `19`, increment `+10`, extra increment `+1`, with no weight cap; story `1-10` remains unchanged.
 - Starts with Cube I. Each defeat immediately spawns the next Cube rank at its original entry position. Existing towers, minions, projectiles, waves and resources remain.
 - Cube rank N: HP `150000 + 50000 * (N - 1)`, armor `300 * N`, MR `20`, speed `0.6`. Advance summons rank N Squares. Promotion prioritizes eligible ranks up to N.
 - No final victory. Records show highest defeated Boss rank, not completed waves. Restart/defeat retains this record; exiting or reloading saves the active Boss and battlefield for continuation.
@@ -608,7 +608,7 @@ Base rule:
 
 - Boss Endless chapter; unlocks after clearing `2-10`. Initial characters `500`.
 - Enemy families follow `2-10`, using the same dynamic ranks and preview format as IF; Circle capped at IV, other families uncapped.
-- Weight growth follows `2-10`: initial `19`, increment `+12`, extra increment `+1`, cap `800` before difficulty scaling.
+- Weight growth follows `2-10`: initial `19`, increment `+12`, extra increment `+1`, but without a weight cap. All IF and IF-BE operations have uncapped wave weights; story caps remain unchanged.
 - Starts with Tetrahedron I. Each defeat immediately spawns the next rank at the fixed entry position; waves and battlefield are not reset.
 - All ranks retain `120000` HP, `150` armor, `20` MR, and `1.2` speed (I and II have identical base panels).
 - All Inverted/Shooting Triangle summons match Boss rank, including the two-column half-HP burst and five-column critical burst.
