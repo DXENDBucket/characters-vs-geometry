@@ -707,7 +707,7 @@ function towerDescription(id: CardId) {
     O: zh ? "抗法防御塔。机制和 D 类似，拥有高护甲和中等法术抗性。" : "Magic-resistant defender. Similar to D, with high armor and moderate magic resistance.",
     R: zh ? "反弹防御塔。机制和 O 类似；敌方弹幕击中它时仍会造成伤害，但弹幕会被反射为同伤害、同类型的我方弹幕。锁定迫击弹命中 R 时会被反射回发射者。" : "Reflect defender. Similar to O; enemy projectiles still damage it on hit, then reflect into friendly projectiles with the same damage and damage type. Locked mortars that hit R are reflected back at the shooter.",
     X: zh ? `生产塔。按攻速每 10 秒产生 ${EFFECT_SYMBOLS.chars}25，也是主要字符来源之一；热忱可以加快生产。` : `Producer. Generates ${EFFECT_SYMBOLS.chars}25 every 10s using attack speed, so Zeal speeds it up.`,
-    x: zh ? "追踪法术射手。每次从攻击形四角发射 4 枚 > 法术追踪弹。小 x 开火时优先锁定离小 x 最近的可攻击飞行敌怪；没有飞行敌怪时锁定离小 x 最近的可攻击敌怪或 Boss。追踪弹只追锁定目标，目标死亡或消失后才改为锁定离子弹最近的可攻击敌怪或 Boss。" : "Homing magic attacker. Fires four > magic homing shots from the attack-shape corners. When x fires, it prioritizes the attackable Flying enemy nearest to x; if none exist, it locks the attackable enemy or Boss nearest to x. Shots keep chasing their locked target and only retarget to the nearest attackable enemy or Boss to the shot if that target dies or disappears.",
+    x: zh ? "追踪法术射手。每次从攻击形四角发射 4 枚 > 法术追踪弹。对命中时非飞行的目标伤害降低 35%，包括地面 Boss。小 x 开火时优先锁定离小 x 最近的可攻击飞行敌怪；没有飞行敌怪时锁定离小 x 最近的可攻击敌怪或 Boss。追踪弹只追锁定目标，目标死亡或消失后才改为锁定离子弹最近的可攻击敌怪或 Boss。" : "Homing magic attacker. Fires four > magic homing shots from the attack-shape corners. Deals 35% less damage to targets that are not Flying on impact, including ground Bosses. When x fires, it prioritizes the attackable Flying enemy nearest to x; if none exist, it locks the attackable enemy or Boss nearest to x. Shots keep chasing their locked target and only retarget to the nearest attackable enemy or Boss to the shot if that target dies or disappears.",
     Y: zh ? `受击生产塔。不攻击；每次受到攻击时产生 ${EFFECT_SYMBOLS.chars}12。` : `Hit producer. Does not attack; generates ${EFFECT_SYMBOLS.chars}12 each time it is attacked.`,
     d: zh ? "碎甲激光射手。沿本行发射浅蓝色法术激光，穿透敌怪，直到命中第一个拥有法术抗性的敌怪后停止。被命中的敌怪获得 10 秒碎甲，最终护甲降低 35%；重复命中会刷新持续时间。碎甲敌怪头顶显示白色 ▣ 图标。" : "Sunder laser attacker. Fires a light-blue magic laser along its lane, piercing enemies until it hits the first enemy with magic resistance. Hit enemies gain 10s Sunder, reducing final armor by 35%; repeated hits refresh the duration. Sundered enemies show a white ▣ icon above them.",
     E: zh ? "三连物理射手。向前平射，并向上/下各偏转 10 度发射一发。" : "Triple physical shooter. Fires one straight shot plus two shots at +/-10 degrees.",
@@ -765,7 +765,7 @@ function towerUpgradeText(id: CardId) {
     return zh ? "每个有效等级提供 12 秒真实伤害持续时间；生效后冷却返还方式与 b 相同。" : "Each effective level grants 12 seconds of true-damage duration; after it resolves, cooldown refund works like b.";
   }
   if (id === "x") {
-    return zh ? "每级攻击力增加基础值的 80%，每颗追踪弹造成 100% 攻击力的伤害。" : "Each level adds 80% of base attack; each homing shot deals 100% ATK damage.";
+    return zh ? "每级攻击力增加基础值的 80%，每颗追踪弹造成 100% 攻击力的伤害；对非飞行目标伤害降低 35%。" : "Each level adds 80% of base attack; each homing shot deals 100% ATK damage, reduced by 35% against non-Flying targets.";
   }
   if (id === "m") {
     return zh ? "每级提高小 m 自身等级；2 级小 m 会持续为周围镜像状态塔所属的整个镜像网络提供 +1 有效等级，3 级提供 +2，以此类推。" : "Each level raises m's own level; a level 2 m continuously grants +1 effective level to the full mirror networks adjacent to it, level 3 grants +2, and so on.";

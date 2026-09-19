@@ -116,14 +116,14 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
         const previousEnemyCount = runtime.enemies.length;
         repeatHits(projectile.hitCount, () => {
           if (!hit.inPlay) return;
-          runtime.damageEnemy(hit, projectile.damage, projectile.damageType, projectile.sourceTower);
+          runtime.damageEnemy(hit, directImpactDamage(projectile, hit), projectile.damageType, projectile.sourceTower);
           if (hit.inPlay) applyProjectileDebuff(runtime.scene, projectile, hit, runtime.battleTime);
         });
         invalidateDirectTargetsIfNeeded(hit, previousEnemyCount);
       } else {
         makeHitShards(runtime.scene, projectile.x, projectile.y, projectile.damageType);
         repeatHits(projectile.hitCount, () => {
-          if (hitBoss && hitBoss.hp > 0) runtime.damageBoss(projectile.damage, projectile.damageType, hitBoss);
+          if (hitBoss && hitBoss.hp > 0) runtime.damageBoss(directImpactDamage(projectile, hitBoss), projectile.damageType, hitBoss);
         });
       }
     } else {
@@ -260,6 +260,11 @@ function removeProjectile(projectiles: Projectile[], projectile: Projectile) {
 
 function enemyProjectileHitRadius(enemy: Enemy) {
   return enemyIsBossCompanion(enemy.kind) ? CELL_WIDTH * 0.475 : 22;
+}
+
+function directImpactDamage(projectile: Projectile, target: Enemy | CubeBoss) {
+  const groundPenalty = projectile.sourceTower?.type === "x" && !target.statusEffects.some(effect => effect.name === "flying");
+  return projectile.damage * (groundPenalty ? 0.65 : 1);
 }
 
 function canEnemyBeDirectlyHit(enemy: Enemy) {

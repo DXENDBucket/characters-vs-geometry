@@ -854,6 +854,49 @@ test("multi-hit tower impacts preserve the physical armor breakpoint and resolve
   }
 });
 
+test("x impacts reduce non-Flying damage by 35%, retain air damage and multi-hits, and leave other towers unchanged", () => {
+  const { updateTowerProjectiles } = load("src/game/projectileRuntime.ts");
+  for (const [sourceType, flying, damageType, expected] of [
+    ["x", false, "magic", 208], ["x", true, "magic", 320],
+    ["x", false, "true", 260], ["x", true, "true", 400],
+    ["I", false, "magic", 320]
+  ]) {
+    const target = enemy({ lane: 0 });
+    const source = tower({ type: sourceType, inPlay: false });
+    const shot = { type: "chevron", lane: 0, x: 0, y: 0, vx: 0, vy: 0, damage: 200,
+      damageType, hitCount: 2, maxX: 1000, limitDirection: 1, body: visual(), targetEnemy: target, sourceTower: source };
+    // Flight changes after firing must be evaluated on impact; the source may already be gone.
+    if (flying) target.statusEffects.push({ name: "flying", expiresAt: 99999 });
+    const state = Object.assign(runtime([target]), { towers: [], projectiles: [shot] });
+    updateTowerProjectiles(state, 0);
+    assert.equal(5000 - target.hp, expected, `${sourceType} / ${flying} / ${damageType}`);
+    assert.equal(state.projectiles.length, 0);
+  }
+});
+
+test("x retargeting to ground enemies or Bosses applies the ground penalty; high flight remains untargetable", () => {
+  const { updateTowerProjectiles } = load("src/game/projectileRuntime.ts");
+  for (const bossTarget of [false, true]) {
+    const dead = enemy({ inPlay: false, statusEffects: [{ name: "flying", expiresAt: 99999 }] });
+    const high = enemy({ statusEffects: [{ name: "highFlying", expiresAt: 99999 }] });
+    const boss = bossTarget ? { hp: 5000, x: 0, y: 0, statusEffects: [], hitboxWidth: 100, hitboxHeight: 100 } : null;
+    const target = boss ?? enemy({ lane: 0 });
+    const received = [];
+    const shot = { type: "chevron", lane: 0, x: 0, y: 0, vx: 0, vy: 0, damage: 360,
+      damageType: "magic", hitCount: 1, maxX: 1000, limitDirection: 1, body: visual(),
+      targetEnemy: dead, sourceTower: tower({ type: "x" }) };
+    const state = Object.assign(runtime(bossTarget ? [high] : [high, target], boss), {
+      towers: [], projectiles: [shot],
+      damageEnemy: (unit, damage) => received.push([unit, damage]),
+      damageBoss: (damage, _type, unit) => received.push([unit, damage])
+    });
+    updateTowerProjectiles(state, 0);
+    assert.deepEqual(received, [[target, 234]]);
+    assert.equal(high.hp, 5000);
+    assert.equal(state.projectiles.length, 0);
+  }
+});
+
 test("enemy projectiles and mortar impacts apply armor per judgment and reflections retain hit count", () => {
   const { updateEnemyProjectiles, updateMortarProjectiles } = load("src/game/projectileRuntime.ts");
   for (const mortar of [false, true]) {
