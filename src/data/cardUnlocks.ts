@@ -8,7 +8,7 @@ export const cardUnlockRequirements: Record<CardId, string | null> = {
   A: null,
   a: "1-1",
   B: null,
-  b: "2-2",
+  b: "4-1",
   C: "1-2",
   c: "2-4",
   D: null,

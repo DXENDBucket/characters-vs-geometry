@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { PauseMenu } from "../render/pauseMenu";
 import { TowerStorageController } from "../game/towerStorage";
 import { expireReversalEffect } from "../game/rules/reversal";
 import {
@@ -99,6 +100,7 @@ import { createUnitBorder } from "../render/unitShapes";
 import {
   createCardStates,
   createGameHud,
+  refreshGameHudSettings,
   createGameOverlay,
   showGameOverlay,
   showToast as showUiToast,
@@ -251,12 +253,19 @@ export class GameScene extends Phaser.Scene {
   private tutorial: TutorialController | null = null;
   private ui!: GameHudElements;
   private overlay!: GameOverlayElements;
+  private pauseMenu!: PauseMenu;
+  private menuOpen = false;
   private readonly scenePointerDownHandler = (pointer: Phaser.Input.Pointer) => this.handlePointerDown(pointer);
   private readonly scenePointerMoveHandler = (pointer: Phaser.Input.Pointer) => {
     this.towerSkills.updateSpellMortarReticlePosition(pointer.x, pointer.y);
     this.syncPlacementGhost(pointer);
   };
   private readonly sceneKeyDownHandler = (event: KeyboardEvent) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      if (!event.repeat) this.openPauseMenu();
+      return;
+    }
     if (this.handleAutoUpgradeReserveKey(event)) {
       return;
     }
@@ -302,6 +311,7 @@ export class GameScene extends Phaser.Scene {
     this.enemiesDefeated = 0;
     this.towerOrder = 0;
     this.gameOver = false;
+    this.menuOpen = false;
     this.battlePaused = false;
     this.gameSpeed = DEFAULT_GAME_SPEED;
     this.eraserMode = false;
@@ -344,6 +354,7 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(palette.black);
     this.drawBoard();
     this.ui = createGameHud(this, this.levelId, this.difficulty, {
+      onMenu: () => this.openPauseMenu(),
       onDebug: () => this.grantDebugChars(),
       onDebugDamage: () => this.toggleDebugDamageMode(),
       onSuperDebugDamage: () => this.toggleSuperDebugDamageMode(),
@@ -354,6 +365,24 @@ export class GameScene extends Phaser.Scene {
       onGameSpeedChange: (speed) => this.setGameSpeed(speed),
       onErase: () => this.toggleEraser()
     }, this.debugModeEnabled);
+    this.pauseMenu = new PauseMenu({
+      resume: () => this.closePauseMenu(),
+      settings: () => {
+        this.pauseMenu.hide();
+        this.scene.launch("SettingsScene", { onReturn: () => {
+          this.refreshBattleSettings();
+          this.pauseMenu.show();
+        } });
+      },
+      restart: () => this.scene.restart({
+        levelId: this.levelId,
+        chapterId: this.chapterId,
+        selectedCards: [...this.selectedCardIds],
+        difficulty: this.difficulty,
+        unlimitedFirepower: this.unlimitedFirepower
+      }),
+      exit: () => this.handleOverlayAction()
+    });
     this.setGameSpeed(this.gameSpeed);
     this.spawnBossIfNeeded();
     this.setCardStates(createCardStates(this, this.selectedCardIds, (id) => this.selectCard(id)));
@@ -388,6 +417,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private cleanupSceneHandlers() {
+    this.pauseMenu?.destroy();
     this.input.off("pointerdown", this.scenePointerDownHandler);
     this.input.off("pointermove", this.scenePointerMoveHandler);
     this.input.keyboard?.off("keydown", this.sceneKeyDownHandler);
@@ -409,7 +439,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number) {
-    if (this.gameOver) {
+    if (this.gameOver || this.menuOpen) {
       return;
     }
 
@@ -485,7 +515,7 @@ export class GameScene extends Phaser.Scene {
   private handlePointerDown(pointer: Phaser.Input.Pointer) {
     const x = pointer.x;
     const y = pointer.y;
-    if (this.gameOver) {
+    if (this.gameOver || this.menuOpen) {
       return;
     }
 
@@ -2071,6 +2101,32 @@ export class GameScene extends Phaser.Scene {
     state.phase = this.bossPhaseIndex + 1;
     state.totalPhases = phases.length;
     return state;
+  }
+
+  private openPauseMenu() {
+    if (this.menuOpen) return;
+    this.menuOpen = true;
+    this.autoUpgradeReserveInputFocused = false;
+    this.ui.pauseMenuTooltip.setVisible(false);
+    this.clearPlacementGhosts();
+    this.scene.pause();
+    this.pauseMenu.show();
+  }
+
+  private closePauseMenu() {
+    this.pauseMenu.hide();
+    this.menuOpen = false;
+    this.scene.resume();
+    if (this.battlePaused && !this.gameOver) this.toggleBattlePause();
+    this.syncPlacementGhost(this.input.activePointer);
+  }
+
+  private refreshBattleSettings() {
+    this.debugModeEnabled = isDebugModeEnabled();
+    if (!this.debugModeEnabled) this.debugDamageMode = null;
+    refreshGameHudSettings(this.ui, this.levelId, this.difficulty, this.debugModeEnabled);
+    this.updateCards();
+    this.updateHud();
   }
 
   private showToast(text: string) {

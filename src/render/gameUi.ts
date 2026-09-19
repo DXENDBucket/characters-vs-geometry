@@ -17,6 +17,10 @@ import type { AlphaGameObject, CardId, CardState, CubeBoss } from "../types";
 import { createUnitBorder } from "./unitShapes";
 
 export interface GameHudElements {
+  titleText: Phaser.GameObjects.Text;
+  pauseMenuButton: Phaser.GameObjects.Rectangle;
+  pauseMenuText: Phaser.GameObjects.Text;
+  pauseMenuTooltip: Phaser.GameObjects.Text;
   charsText: Phaser.GameObjects.Text;
   statusText: Phaser.GameObjects.Text;
   progressText: Phaser.GameObjects.Text;
@@ -59,6 +63,7 @@ export interface GameOverlayElements {
 }
 
 interface GameHudActions {
+  onMenu: () => void;
   onDebug: () => void;
   onDebugDamage: () => void;
   onSuperDebugDamage: () => void;
@@ -106,7 +111,7 @@ export function createGameHud(
   actions: GameHudActions,
   debugModeEnabled: boolean
 ): GameHudElements {
-  scene.add
+  const titleText = scene.add
     .text(28, 24, `${t("app.title")} ${levelId} D${difficulty}`, {
       color: "#f5f5f5",
       fontFamily: "monospace",
@@ -250,23 +255,14 @@ export function createGameHud(
     .setDepth(31)
     .setInteractive({ useHandCursor: true });
 
-  if (debugModeEnabled) {
-    bindPointerAction(debugDamageButton, actions.onDebugDamage);
-    debugDamageText.setInteractive({ useHandCursor: true });
-    bindPointerAction(debugDamageText, actions.onDebugDamage);
-    bindPointerAction(superDebugDamageButton, actions.onSuperDebugDamage);
-    superDebugDamageText.setInteractive({ useHandCursor: true });
-    bindPointerAction(superDebugDamageText, actions.onSuperDebugDamage);
-    debugButton.on("pointerdown", actions.onDebug);
-    debugText.setInteractive({ useHandCursor: true }).on("pointerdown", actions.onDebug);
-  } else {
-    debugDamageButton.setVisible(false);
-    debugDamageText.setVisible(false);
-    superDebugDamageButton.setVisible(false);
-    superDebugDamageText.setVisible(false);
-    debugButton.setVisible(false);
-    debugText.setVisible(false);
-  }
+  bindPointerAction(debugDamageButton, actions.onDebugDamage);
+  debugDamageText.setInteractive({ useHandCursor: true });
+  bindPointerAction(debugDamageText, actions.onDebugDamage);
+  bindPointerAction(superDebugDamageButton, actions.onSuperDebugDamage);
+  superDebugDamageText.setInteractive({ useHandCursor: true });
+  bindPointerAction(superDebugDamageText, actions.onSuperDebugDamage);
+  debugButton.on("pointerdown", actions.onDebug);
+  debugText.setInteractive({ useHandCursor: true }).on("pointerdown", actions.onDebug);
   shifterButton.on("pointerdown", actions.onShifter);
   shifterText.setInteractive({ useHandCursor: true }).on("pointerdown", actions.onShifter);
   autoUpgradeButton.on("pointerdown", actions.onAutoUpgrade);
@@ -278,7 +274,28 @@ export function createGameHud(
   eraserButton.on("pointerdown", actions.onErase);
   eraserText.setInteractive({ useHandCursor: true }).on("pointerdown", actions.onErase);
 
-  return {
+  const { button: pauseMenuButton, text: pauseMenuText } = createToolButton(scene, 0, 42, 40, "\u2630");
+  bindPointerAction(pauseMenuButton, actions.onMenu);
+  const pauseMenuTooltip = scene.add.text(0, 69, `${t("button.menu")} (Esc)`, {
+    color: "#f5f5f5", backgroundColor: "#101010", fontFamily: "monospace", fontSize: "13px",
+    padding: { x: 8, y: 5 }
+  }).setOrigin(1, 0).setDepth(100).setVisible(false);
+  pauseMenuButton.on("pointerover", () => pauseMenuTooltip.setVisible(true));
+  pauseMenuButton.on("pointerout", () => pauseMenuTooltip.setVisible(false));
+
+  for (const element of [
+    superDebugDamageButton, superDebugDamageText, debugDamageButton, debugDamageText,
+    debugButton, debugText, shifterButton, shifterText, shifterCooldownBack, shifterCooldownFill,
+    autoUpgradeButton, autoUpgradeText, autoUpgradeEnabledBox, autoUpgradeEnabledFill,
+    autoUpgradeEnabledLabel, autoUpgradeReserveLabel, autoUpgradeReserveInput, autoUpgradeReserveText,
+    eraserButton, eraserText
+  ]) element.x -= 40;
+
+  const ui: GameHudElements = {
+    titleText,
+    pauseMenuButton,
+    pauseMenuText,
+    pauseMenuTooltip,
     charsText,
     statusText,
     progressText,
@@ -309,6 +326,23 @@ export function createGameHud(
     eraserButton,
     eraserText
   };
+  refreshGameHudSettings(ui, levelId, difficulty, debugModeEnabled);
+  return ui;
+}
+
+export function refreshGameHudSettings(ui: GameHudElements, levelId: string, difficulty: number, debugModeEnabled: boolean) {
+  ui.titleText.setText(`${t("app.title")} ${levelId} D${difficulty}`);
+  for (const [label, key] of [
+    [ui.superDebugDamageText, "button.superDebugDamage"], [ui.debugDamageText, "button.debugDamage"],
+    [ui.debugText, "button.debug"], [ui.shifterText, "button.shifter"],
+    [ui.autoUpgradeText, "button.autoUpgrade"], [ui.eraserText, "button.erase"],
+    [ui.autoUpgradeEnabledLabel, "label.autoUpgradeEnabled"], [ui.autoUpgradeReserveLabel, "label.autoUpgradeReserve"]
+  ] as const) label.setText(t(key));
+  for (const element of [ui.superDebugDamageButton, ui.superDebugDamageText, ui.debugDamageButton,
+    ui.debugDamageText, ui.debugButton, ui.debugText]) element.setVisible(debugModeEnabled);
+  ui.pauseMenuButton.x = ui.pauseMenuText.x = GAME_WIDTH - 30;
+  ui.pauseMenuTooltip.x = GAME_WIDTH - 10;
+  ui.pauseMenuTooltip.setText(`${t("button.menu")} (Esc)`).setVisible(false);
 }
 
 export function createCardStates(scene: Phaser.Scene, selectedCardIds: CardId[], onSelect: (id: CardId) => void) {

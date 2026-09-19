@@ -35,11 +35,13 @@ interface CardCaseButton {
 }
 
 interface SettingsSceneData {
+  onReturn?: () => void;
   returnScene?: string;
   returnData?: Record<string, unknown>;
 }
 
 export class SettingsScene extends Phaser.Scene {
+  private onReturn?: () => void;
   private returnScene = "ChapterSelectScene";
   private returnData: Record<string, unknown> = {};
   private rows: KeybindingRow[] = [];
@@ -58,6 +60,7 @@ export class SettingsScene extends Phaser.Scene {
   }
 
   init(data: SettingsSceneData) {
+    this.onReturn = data.onReturn;
     this.returnScene = data.returnScene ?? "ChapterSelectScene";
     this.returnData = data.returnData ?? {};
     this.rows = [];
@@ -190,7 +193,7 @@ export class SettingsScene extends Phaser.Scene {
 
     const toggle = () => {
       setDebugModeEnabled(!enabled);
-      this.scene.restart({ returnScene: this.returnScene, returnData: this.returnData });
+      this.restartSettings();
     };
     box.on("pointerdown", toggle);
     fill.setInteractive({ useHandCursor: true }).on("pointerdown", toggle);
@@ -467,6 +470,10 @@ export class SettingsScene extends Phaser.Scene {
 
   private handleCaptureKey(event: KeyboardEvent) {
     if (!this.editingActionId) {
+      if (event.key === "Escape" && !event.repeat) {
+        event.preventDefault();
+        this.goBack();
+      }
       return;
     }
 
@@ -504,10 +511,19 @@ export class SettingsScene extends Phaser.Scene {
     }
 
     setLanguage(language);
-    this.scene.restart({ returnScene: this.returnScene, returnData: this.returnData });
+    this.restartSettings();
+  }
+
+  private restartSettings() {
+    this.scene.restart({ returnScene: this.returnScene, returnData: this.returnData, onReturn: this.onReturn });
   }
 
   private goBack() {
+    if (this.onReturn) {
+      this.scene.stop();
+      this.onReturn();
+      return;
+    }
     this.scene.start(this.returnScene, this.returnData);
   }
 }
