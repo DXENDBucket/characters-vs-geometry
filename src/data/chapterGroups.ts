@@ -8,7 +8,7 @@ export interface ChapterGroupDefinition {
   titleSpacing?: number;
   titleRowScales?: readonly number[];
   titleRowSpacing?: number;
-  backgroundSymbol?: "infinity";
+  backgroundSymbol?: "infinity" | "Aa";
   chapterIds: readonly string[];
   survival?: boolean;
   unlockAfter?: string;
@@ -17,6 +17,7 @@ export interface ChapterGroupDefinition {
 export const chapterGroups: ChapterGroupDefinition[] = [{
   id: "main",
   labelKey: "chapterGroup.main",
+  backgroundSymbol: "Aa",
   titleRows: [["M", "a", "i", "n"], ["S", "t", "o", "r", "y"]],
   chapterIds: ["0", "1", "2", "3", "4", "5"]
 }, {

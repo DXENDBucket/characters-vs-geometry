@@ -130,6 +130,10 @@ export class ChapterGroupSelectScene extends Phaser.Scene {
       symbol.closePath();
       symbol.strokePath();
       card.add(symbol);
+    } else if (group.backgroundSymbol === "Aa") {
+      card.add(this.add.text(0, -62, "Aa", {
+        fontFamily: "monospace", fontSize: "260px", fontStyle: "900", color: "#242424"
+      }).setOrigin(0.5).setAlpha(0.85));
     }
     const spacing = group.titleSpacing ?? 128;
     const rowScale = (row: number) => group.titleRowScales?.[row] ?? (row === 0 ? 0.8 : 0.5);
