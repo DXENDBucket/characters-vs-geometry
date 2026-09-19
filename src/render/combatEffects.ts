@@ -40,6 +40,7 @@ const effectGraphicsPools = new WeakMap<Phaser.Scene, Phaser.GameObjects.Graphic
 const effectRectanglePools = new WeakMap<Phaser.Scene, Phaser.GameObjects.Rectangle[]>();
 const effectCirclePools = new WeakMap<Phaser.Scene, Phaser.GameObjects.Arc[]>();
 const effectTextPools = new WeakMap<Phaser.Scene, Map<string, Phaser.GameObjects.Text[]>>();
+const effectPoolScenes = new WeakSet<Phaser.Scene>();
 const spellMortarMarkerTextStyleCache = new Map<string, Phaser.Types.GameObjects.Text.TextStyle>();
 const SPELL_MORTAR_SHOT_TEXT_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
   color: "#9fdcff",
@@ -83,9 +84,34 @@ const PRODUCTION_PULSE_TEXT_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
   fontStyle: "700"
 };
 
+function ensureEffectPoolLifecycle(scene: Phaser.Scene) {
+  if (effectPoolScenes.has(scene)) return;
+  effectPoolScenes.add(scene);
+
+  // Phaser reuses Scene instances across runs, but destroys their GameObjects.
+  const clearPools = () => {
+    effectGraphicsPools.delete(scene);
+    effectRectanglePools.delete(scene);
+    effectCirclePools.delete(scene);
+    effectTextPools.delete(scene);
+    effectPoolScenes.delete(scene);
+    scene.events.off("shutdown", clearPools);
+    scene.events.off("destroy", clearPools);
+  };
+  scene.events.once("shutdown", clearPools);
+  scene.events.once("destroy", clearPools);
+}
+
+function takeLiveEffect<T extends Phaser.GameObjects.GameObject>(scene: Phaser.Scene, pool?: T[]) {
+  let effect = pool?.pop();
+  while (effect && effect.scene !== scene) effect = pool?.pop();
+  return effect;
+}
+
 function acquireEffectGraphics(scene: Phaser.Scene, depth: number) {
+  ensureEffectPoolLifecycle(scene);
   const pool = effectGraphicsPools.get(scene);
-  const graphics = pool?.pop() ?? scene.add.graphics();
+  const graphics = takeLiveEffect(scene, pool) ?? scene.add.graphics();
   scene.tweens.killTweensOf(graphics);
   graphics.clear();
   graphics.setPosition(0, 0);
@@ -99,6 +125,7 @@ function acquireEffectGraphics(scene: Phaser.Scene, depth: number) {
 }
 
 function releaseEffectGraphics(scene: Phaser.Scene, graphics: Phaser.GameObjects.Graphics) {
+  if (!effectPoolScenes.has(scene) || graphics.scene !== scene) return;
   graphics.clear();
   graphics.setPosition(0, 0);
   graphics.setScale(1, 1);
@@ -131,8 +158,9 @@ function acquireEffectRectangle(
   depth: number,
   stroke?: { width: number; color: number; alpha: number }
 ) {
+  ensureEffectPoolLifecycle(scene);
   const pool = effectRectanglePools.get(scene);
-  const rectangle = pool?.pop() ?? scene.add.rectangle(0, 0, width, height, color, alpha);
+  const rectangle = takeLiveEffect(scene, pool) ?? scene.add.rectangle(0, 0, width, height, color, alpha);
   scene.tweens.killTweensOf(rectangle);
   rectangle.setPosition(x, y);
   rectangle.setSize(width, height);
@@ -152,6 +180,7 @@ function acquireEffectRectangle(
 }
 
 function releaseEffectRectangle(scene: Phaser.Scene, rectangle: Phaser.GameObjects.Rectangle) {
+  if (!effectPoolScenes.has(scene) || rectangle.scene !== scene) return;
   rectangle.setPosition(0, 0);
   rectangle.setScale(1, 1);
   rectangle.setRotation(0);
@@ -185,8 +214,9 @@ function acquireEffectCircle(
   strokeAlpha: number,
   depth: number
 ) {
+  ensureEffectPoolLifecycle(scene);
   const pool = effectCirclePools.get(scene);
-  const circle = pool?.pop() ?? scene.add.circle(0, 0, radius, fillColor, fillAlpha);
+  const circle = takeLiveEffect(scene, pool) ?? scene.add.circle(0, 0, radius, fillColor, fillAlpha);
   scene.tweens.killTweensOf(circle);
   circle.setPosition(x, y);
   circle.setRadius(radius);
@@ -202,6 +232,7 @@ function acquireEffectCircle(
 }
 
 function releaseEffectCircle(scene: Phaser.Scene, circle: Phaser.GameObjects.Arc) {
+  if (!effectPoolScenes.has(scene) || circle.scene !== scene) return;
   circle.setPosition(0, 0);
   circle.setScale(1, 1);
   circle.setRotation(0);
@@ -231,9 +262,10 @@ function acquireEffectText(
   style: Phaser.Types.GameObjects.Text.TextStyle,
   depth: number
 ) {
+  ensureEffectPoolLifecycle(scene);
   const scenePools = effectTextPools.get(scene);
   const pool = scenePools?.get(key);
-  const textObject = pool?.pop() ?? scene.add.text(0, 0, text, style);
+  const textObject = takeLiveEffect(scene, pool) ?? scene.add.text(0, 0, text, style);
   scene.tweens.killTweensOf(textObject);
   textObject.setText(text);
   textObject.setPosition(x, y);
@@ -248,6 +280,7 @@ function acquireEffectText(
 }
 
 function releaseEffectText(scene: Phaser.Scene, key: string, textObject: Phaser.GameObjects.Text) {
+  if (!effectPoolScenes.has(scene) || textObject.scene !== scene) return;
   textObject.setPosition(0, 0);
   textObject.setScale(1, 1);
   textObject.setRotation(0);
