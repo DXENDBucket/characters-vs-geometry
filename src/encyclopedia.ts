@@ -693,6 +693,7 @@ function towerLines(card: CardDefinition) {
 function towerDescription(id: CardId) {
   const zh = isZh();
   const descriptions: Record<CardId, string> = {
+    u: zh ? "连结防御塔。与上下左右接壤的塔共享生命，相邻或共用邻塔的小 u 会合并为同一网络。网络生命上限为所有成员自身生命上限之和，除以小 u 的实际数量（不计等级）。伤害按被击中塔的抗性结算后扣除共享生命，治疗补充共享池；共享生命耗尽时所有成员死亡。加入、退出与拆分保持生命比例，已有网络合并按原网络生命上限加权平均。每座塔显示相同的共享生命比例。" : "Links cardinally adjacent towers into a shared health network. Adjacent u towers or those sharing a neighbor merge networks. Shared max HP is the sum of members' own max HP divided by the number of u towers, not their levels. Hits use the struck tower's defenses; damage and healing affect the pool. All members die when it empties. Joining, leaving and splitting preserve HP ratio; merging existing networks uses their previous max-HP-weighted ratio. All members display the same HP ratio.",
     y: zh ? "提取卡。放在已有塔上，按目标基础费用乘永久等级计算总价，提取其中一部分加入共享池，并像橡皮擦一样擦除目标。临时等级不计入总价；多次提取会累加。下一次使用基础费用不超过 999 的卡时，按池内金额向下取整计算部署次数，至少一次，并支付全部部署费用；新塔直接获得相应等级，已有同类塔则增加相应等级。成功后消耗整个池，失败不消耗。" : "Extraction card. Erases a target tower and adds a fraction of its base cost times permanent level to a shared pool, excluding temporary levels. Repeated extractions accumulate. The next card costing at most 999 deploys floor(pool / base cost) times, at least once, charging the full cost. New towers start at that level; matching towers gain that many levels. Success empties the entire pool; failure preserves it.",
     A: zh ? "直线物理射手。沿本行平射，命中后有碎片粒子。" : "Straight physical shooter. Fires along its lane with hit shards.",
     a: zh ? "短程免费物理射手。机制类似 A，但只攻击自身和前方 4 格内的目标。" : "Free short-range physical shooter. Similar to A, but only attacks within itself plus 4 tiles ahead.",
@@ -746,6 +747,9 @@ function towerDescription(id: CardId) {
 
 function towerUpgradeText(id: CardId) {
   const zh = isZh();
+  if (id === "u") {
+    return zh ? "每级仅增加小 u 自身 80% 基础生命（2400），不放大其他成员的生命贡献；网络生命上限最后再除以小 u 的数量。" : "Each upgrade adds 80% of u's own base HP (2400), not other members' contributions. Network max HP is then divided by the number of u towers.";
+  }
   if (id === "y") {
     return zh ? "1 级提取总价的 50%，之后每级增加 25 个百分点：75%、100%、125%……；冷却保持 120 秒。" : "Extracts 50% at level 1, then +25 percentage points per level: 75%, 100%, 125%, etc. Cooldown stays at 120s.";
   }

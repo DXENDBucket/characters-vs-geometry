@@ -41,6 +41,7 @@ export type CardId =
   | "T"
   | "t"
   | "U"
+  | "u"
   | "V"
   | "v"
   | "P"
@@ -264,7 +265,15 @@ export interface CardState {
   displayTime: number;
 }
 
+export interface TowerHealthPool {
+  members: Tower[];
+  hp: number;
+  maxHp: number;
+  linkCount: number;
+}
+
 export interface Tower {
+  healthPool?: TowerHealthPool;
   id: string;
   type: CardId;
   lane: number;

@@ -23,7 +23,7 @@ import {
 } from "./solarBomb";
 import { addFrozenPhysicalDamage, hasStatusEffect, syncEnemyBodyPosition } from "./statusEffects";
 import { forEachBossPart, gridCellKey } from "./targeting";
-import { syncTowerHpBar } from "./towers";
+import { changeTowerHealth, syncTowerHealthNetworks } from "./towerHealth";
 import { towerFinalStats } from "./unitStats";
 
 export interface UnitLifecycleRuntime {
@@ -56,12 +56,11 @@ export function damageTower(runtime: UnitLifecycleRuntime, tower: Tower, damage:
 
   const stats = towerFinalStats(tower);
   const actualDamage = calculateDamage(damage, damageType, stats.armor, stats.magicResistance);
-  tower.hp -= actualDamage;
+  changeTowerHealth(tower, -actualDamage);
+  const defeated = tower.hp <= 0 ? [...(tower.healthPool?.members ?? [tower])] : undefined;
   runtime.onTowerDamaged(tower);
-  syncTowerHpBar(tower);
-
-  if (tower.hp <= 0) {
-    removeTower(runtime, tower);
+  if (defeated) {
+    for (const member of defeated) removeTower(runtime, member);
   }
 }
 
@@ -266,6 +265,7 @@ export function removeTower(runtime: UnitLifecycleRuntime, tower: Tower) {
   if (!tower.transient) {
     runtime.occupied.delete(gridCellKey(tower.lane, tower.column));
   }
+  syncTowerHealthNetworks(runtime.towers);
   runtime.onTowerRemoved?.(tower);
   runtime.scene.tweens.add({
     targets: tower.body,

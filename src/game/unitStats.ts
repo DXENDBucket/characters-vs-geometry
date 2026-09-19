@@ -15,6 +15,7 @@ import {
   maxHpGainForEffectiveUpgrades
 } from "./upgrades";
 import { attackIntervalMs } from "./attackSpeed";
+import { syncTowerHealthCapacity } from "./towerHealth";
 import { towerZealAttackSpeedMultiplier, type TowerAuraSources } from "./towerAuras";
 
 export function towerBaseStatsFromDefinition(definition: CardDefinition): TowerBaseStats {
@@ -40,11 +41,7 @@ export function syncTowerFinalStats(
   tower.magicResistance = tower.finalStats.magicResistance;
   tower.attackSpeed = tower.finalStats.attackSpeed;
 
-  if (options.healMaxHpIncrease && tower.maxHp > previousMaxHp) {
-    tower.hp = Math.min(tower.maxHp, tower.hp + tower.maxHp - previousMaxHp);
-  } else {
-    tower.hp = Math.min(tower.hp, tower.maxHp);
-  }
+  syncTowerHealthCapacity(tower, previousMaxHp, !!options.healMaxHpIncrease);
 }
 
 export function calculateTowerFinalStats(tower: Tower, towers?: Tower[], towerAuraSources?: TowerAuraSources) {

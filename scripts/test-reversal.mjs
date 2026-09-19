@@ -54,7 +54,10 @@ function load(name) {
   new Function("require", "exports", outputText)((specifier) => {
     if (specifier === "phaser") return { default: { Math: {
       Clamp: (v, min, max) => Math.max(min, Math.min(max, v)), DegToRad: (degrees) => degrees * Math.PI / 180
-    } } };
+    }, Utils: { Array: { Remove: (array, value) => {
+      const index = array.indexOf(value);
+      if (index >= 0) array.splice(index, 1);
+    } } } } };
     return load(path.resolve(path.dirname(filename), `${specifier}.ts`));
   }, exports);
   return exports;
@@ -122,6 +125,154 @@ function extractionFixture() {
   };
   return { state, deployment, targeted, place, removed, flush: () => { while (pending.length) pending.shift()(); } };
 }
+
+const health = load("src/game/towerHealth.ts");
+
+test("u has its requested panel and only upgrades its own HP contribution", () => {
+  const f = extractionFixture();
+  const u = f.place("u", 1, 2, 2);
+  const b = f.place("B", 1, 2, 3);
+  const card = f.state.getDefinition("u");
+  assert.equal(card.cost, 5600);
+  assert.equal(card.cooldown, 180000);
+  assert.equal(card.category, "defense");
+  assert.equal(card.attackPower, 0);
+  assert.equal(card.attackSpeed, undefined);
+  assert.equal(load("src/data/cardUnlocks.ts").cardUnlockRequirement("u"), "4-9");
+  health.syncTowerHealthNetworks(f.state.towers);
+  health.changeTowerHealth(b, -1200);
+  towers.applyTowerUpgradeStats(u, card, towers.upgradeTowerLevel(u), 0);
+  assert.equal(u.finalStats.maxHp, 5400);
+  assert.equal(b.finalStats.maxHp, 3000);
+  assert.equal(u.healthPool.maxHp, 8400);
+  assert.equal(u.healthPool.hp, 7200);
+  assert.equal(u.hpFill.width, b.hpFill.width);
+});
+
+test("u links only cardinal neighbors and divides by tower count, never u levels", () => {
+  const f = extractionFixture();
+  const left = f.place("u", 2, 2, 2);
+  const bridge = f.place("A", 1, 2, 3);
+  const right = f.place("u", 1, 2, 4);
+  const end = f.place("B", 1, 2, 5);
+  const diagonal = f.place("D", 1, 1, 1);
+  const beyond = f.place("D", 1, 2, 6);
+  const transient = f.place("b", 1, 1, 2);
+  transient.transient = true;
+  health.syncTowerHealthNetworks(f.state.towers);
+  assert.equal(left.healthPool, right.healthPool);
+  assert.equal(bridge.healthPool, end.healthPool);
+  assert.equal(left.healthPool.members.length, 4);
+  assert.equal(left.healthPool.linkCount, 2);
+  assert.equal(left.healthPool.maxHp, (5400 + 1200 + 3000 + 3000) / 2);
+  for (const unit of [diagonal, beyond, transient]) assert.equal(unit.healthPool, undefined);
+});
+
+test("pool joining and leaving preserve ratio, including changed u divisor", () => {
+  const f = extractionFixture();
+  const u = f.place("u", 1, 2, 2);
+  const a = f.place("A", 1, 2, 3);
+  health.syncTowerHealthNetworks(f.state.towers);
+  health.changeTowerHealth(a, -2100);
+  const second = f.place("u", 1, 2, 4);
+  health.syncTowerHealthNetworks(f.state.towers);
+  assert.equal(u.healthPool.maxHp, 3600);
+  assert.equal(u.healthPool.hp, 1800);
+  second.column = 9;
+  health.syncTowerHealthNetworks(f.state.towers);
+  assert.equal(u.healthPool.maxHp, 4200);
+  assert.equal(u.healthPool.hp, 2100);
+  assert.equal(second.healthPool.maxHp, 3000);
+  assert.equal(second.healthPool.hp, 1500);
+  a.column = 6;
+  health.syncTowerHealthNetworks(f.state.towers);
+  assert.equal(a.healthPool, undefined);
+  assert.equal(a.hp, 600);
+  assert.equal(u.healthPool.hp, 1500);
+  assert.equal(u.hpFill.width, 21);
+});
+
+test("merging weights previous actual pool capacities, with each old network counted once", () => {
+  const f = extractionFixture();
+  const left = f.place("u", 1, 2, 1);
+  f.place("u", 1, 2, 2);
+  f.place("B", 1, 2, 3);
+  const right = f.place("u", 1, 2, 5);
+  f.place("B", 1, 2, 6);
+  health.syncTowerHealthNetworks(f.state.towers);
+  health.changeTowerHealth(left, -3600); // 900 / 4500
+  health.changeTowerHealth(right, -1200); // 4800 / 6000
+  right.column = 4;
+  health.syncTowerHealthNetworks(f.state.towers);
+  assert.equal(left.healthPool, right.healthPool);
+  assert.equal(left.healthPool.maxHp, 4000);
+  assert.ok(Math.abs(left.healthPool.hp / 4000 - 5700 / 10500) < 1e-12);
+});
+
+test("initial formation weights individual HP and topology refresh never changes pool health", () => {
+  const f = extractionFixture();
+  const b = f.place("B", 1, 2, 3);
+  b.hp = 600;
+  const u = f.place("u", 1, 2, 2);
+  health.syncTowerHealthNetworks(f.state.towers);
+  assert.equal(u.healthPool.hp, 3600);
+  for (let i = 0; i < 10; i++) health.syncTowerHealthNetworks(f.state.towers);
+  assert.equal(u.healthPool.hp, 3600);
+  assert.equal(u.hp, 1800);
+  assert.equal(b.hp, 1800);
+});
+
+test("linked damage uses struck defenses once and healing adds actual HP to the shared pool", () => {
+  const f = extractionFixture();
+  const u = f.place("u", 1, 2, 2);
+  const a = f.place("A", 1, 2, 3);
+  health.syncTowerHealthNetworks(f.state.towers);
+  const runtime = { ...f.state, onTowerDamaged: noop };
+  lifecycle.damageTower(runtime, a, 1000, "physical");
+  assert.equal(u.healthPool.hp, 3350); // A armor 150
+  lifecycle.damageTower(runtime, u, 1000, "physical");
+  assert.equal(u.healthPool.hp, 2850); // u armor 500
+  assert.equal(health.changeTowerHealth(a, 700), 700);
+  assert.equal(u.healthPool.hp, 3550);
+  assert.equal(a.hpFill.width, u.hpFill.width);
+  assert.equal(health.changeTowerHealth(u, 9000), 650);
+  assert.equal(u.hpFill.width, 42);
+});
+
+test("removing u dismantles its network without killing neighbors; depleted pools kill all members", () => {
+  const f = extractionFixture();
+  const u = f.place("u", 1, 2, 2);
+  const a = f.place("A", 1, 2, 3);
+  health.syncTowerHealthNetworks(f.state.towers);
+  health.changeTowerHealth(a, -2100);
+  const removed = [];
+  const runtime = { ...f.state, onTowerDamaged: noop, onTowerRemoved: unit => removed.push(unit) };
+  lifecycle.removeTower(runtime, u);
+  assert.equal(a.inPlay, true);
+  assert.equal(a.healthPool, undefined);
+  assert.equal(a.hp, 600);
+  const next = f.place("u", 1, 2, 2);
+  health.syncTowerHealthNetworks(f.state.towers);
+  lifecycle.damageTower(runtime, a, 100000, "true");
+  assert.equal(a.inPlay, false);
+  assert.equal(next.inPlay, false);
+  assert.equal(f.state.towers.length, 0);
+  assert.equal(removed.length, 3);
+});
+
+test("upgrading a multi-u network scales only the HP delta by u count", () => {
+  const f = extractionFixture();
+  const u = f.place("u", 1, 2, 2);
+  f.place("u", 1, 2, 3);
+  health.syncTowerHealthNetworks(f.state.towers);
+  health.changeTowerHealth(u, -1500);
+  towers.applyTowerUpgradeStats(u, f.state.getDefinition("u"), towers.upgradeTowerLevel(u), 0);
+  assert.equal(u.healthPool.maxHp, 4200);
+  assert.equal(u.healthPool.hp, 2700);
+  health.syncTowerHealthNetworks(f.state.towers);
+  assert.equal(u.healthPool.maxHp, 4200);
+  assert.equal(u.healthPool.hp, 2700);
+});
 
 test("y has a 4-4 unlock and accumulates exact permanent-level value at additive extraction rates", () => {
   const { state } = extractionFixture();

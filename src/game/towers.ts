@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { syncHealthBar } from "./towerHealth";
 import { facingWithEffects } from "./rules/reversal";
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
 import { createUnitBorder } from "../render/unitShapes";
@@ -186,10 +187,7 @@ export function syncTowerDerivedStats(
 }
 
 export function syncTowerHpBar(tower: Tower) {
-  const width = 42 * Phaser.Math.Clamp(tower.hp / towerFinalStats(tower).maxHp, 0, 1);
-  if (tower.hpFill.width !== width) {
-    tower.hpFill.width = width;
-  }
+  syncHealthBar(tower);
 }
 
 export function effectiveTowerLevel(tower: Tower) {

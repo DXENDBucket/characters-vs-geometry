@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { changeTowerHealth } from "./towerHealth";
 import {
   CELL_WIDTH,
   CLOCK_TOWER_SKILL_DURATION,
@@ -25,7 +26,6 @@ import {
   effectiveTowerLevel,
   setTowerFlyingUntil,
   syncTowerFlyingVisual,
-  syncTowerHpBar,
   towerDamageType
 } from "./towers";
 import { towerAttackAmount, towerFinalStats } from "./unitStats";
@@ -524,12 +524,9 @@ function setTowerBorderAlpha(tower: Tower, alpha: number) {
 }
 
 function healTower(scene: Phaser.Scene, tower: Tower, amount: number) {
-  const previousHp = tower.hp;
-  tower.hp = Math.min(towerFinalStats(tower).maxHp, tower.hp + amount);
-  if (tower.hp <= previousHp) {
+  if (changeTowerHealth(tower, amount) <= 0) {
     return;
   }
 
-  syncTowerHpBar(tower);
   makeHealParticles(scene, tower.x, tower.y);
 }

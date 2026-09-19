@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { syncTowerHealthNetworks } from "../game/towerHealth";
 import { PauseMenu } from "../render/pauseMenu";
 import { TowerExtractionPool } from "../game/towerExtraction";
 import { LoadoutReselection, RESELECT_UNLOCK_LEVEL } from "../game/loadoutReselection";
@@ -969,6 +970,7 @@ export class GameScene extends Phaser.Scene {
 
     snapshotTowers.length = 0;
     snapshotValues.length = 0;
+    syncTowerHealthNetworks(this.towers);
     this.cacheLevelAuraState();
   }
 

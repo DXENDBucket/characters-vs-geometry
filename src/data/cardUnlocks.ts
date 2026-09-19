@@ -45,6 +45,7 @@ export const cardUnlockRequirements: Record<CardId, string | null> = {
   T: "2-7",
   t: "3-2",
   U: "3-6",
+  u: "4-9",
   V: "2-8",
   v: "2-9",
   P: "1-7",

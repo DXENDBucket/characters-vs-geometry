@@ -55,7 +55,8 @@ import {
   hasShiftTarget
 } from "./targeting";
 import { applyStatusEffect, hasStatusEffectName, syncEnemyBodyPosition } from "./statusEffects";
-import { effectiveTowerLevel, getProductionAmount, syncTowerHpBar, towerDamageType, towerFacingDirection } from "./towers";
+import { effectiveTowerLevel, getProductionAmount, towerDamageType, towerFacingDirection } from "./towers";
+import { changeTowerHealth } from "./towerHealth";
 import { towerAttackAmount, towerFinalStats } from "./unitStats";
 import { isPointInSlowAura } from "./slowAura";
 
@@ -196,6 +197,7 @@ export const cardBehaviorsById: Record<CardId, CardBehavior> = {
   B: idleCardBehavior,
   b: idleCardBehavior,
   y: idleCardBehavior,
+  u: idleCardBehavior,
   C: projectileCardBehavior,
   c: idleCardBehavior,
   D: idleCardBehavior,
@@ -873,13 +875,10 @@ function gainAttackProduction(definition: CardDefinition, runtime: CardBehaviorR
 }
 
 function healTower(scene: Phaser.Scene, tower: Tower, amount: number) {
-  const previousHp = tower.hp;
-  tower.hp = Math.min(towerFinalStats(tower).maxHp, tower.hp + amount);
-  if (tower.hp <= previousHp) {
+  if (changeTowerHealth(tower, amount) <= 0) {
     return;
   }
 
-  syncTowerHpBar(tower);
   makeHealParticles(scene, tower.x, tower.y);
 }
 
