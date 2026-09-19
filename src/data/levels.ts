@@ -1058,6 +1058,7 @@ for (const [index, [sourceId, bossKind]] of ([["1-10", "cube"], ["2-10", "tetrah
     unlockAfter: sourceId,
     survival: true,
     bossEndless: true,
+    waveWeightIncrementGrowth: sourceId === "1-10" ? 1 : source.waveWeightIncrementGrowth,
     unlimitedRankFamilies: [...new Set(source.enemyKinds.map(kind => parseEnemyKind(kind)!.family))],
     startingChars: source.startingChars ?? 300,
     bossKind

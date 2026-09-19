@@ -599,7 +599,7 @@ Base rule:
 
 - Boss Endless chapter; unlocks after clearing `1-10`.
 - Uses IF dynamic enemy ranks and preview titles (`1/2/3/...`), with Circle capped at IV (`1/2/3/4`); source ranks are not spawn limits.
-- Ordinary enemy pool, initial characters (`300`), weight growth (`19`, `+10`, no extra increment) and weight cap (`600`, before difficulty scaling) follow `1-10`.
+- Enemy families, initial characters (`300`) and weight cap (`600`, before difficulty scaling) follow `1-10`. Weight growth is initial `19`, increment `+10`, extra increment `+1`; story `1-10` remains unchanged.
 - Starts with Cube I. Each defeat immediately spawns the next Cube rank at its original entry position. Existing towers, minions, projectiles, waves and resources remain.
 - Cube rank N: HP `150000 + 50000 * (N - 1)`, armor `300 * N`, MR `20`, speed `0.6`. Advance summons rank N Squares. Promotion prioritizes eligible ranks up to N.
 - No final victory. Records show highest defeated Boss rank, not completed waves. Restart/defeat retains this record; exiting or reloading saves the active Boss and battlefield for continuation.

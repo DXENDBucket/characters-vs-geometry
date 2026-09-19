@@ -153,8 +153,14 @@ test("IF-BE-1 is isolated in Boss Endless and inherits 1-10 waves, cap and fundi
   assert.equal(levelNodesForChapter("IF").length, 12);
   assert.deepEqual(levelNodesForChapter("IFB").map(node => node.id), ["IF-BE-1", "IF-BE-2"]);
   const level = getLevelConfig("IF-BE-1"), source = getLevelConfig("1-10");
-  for (const key of ["enemyKinds", "firstWaveWeight", "waveWeightIncrement", "waveWeightIncrementGrowth", "waveWeightCap", "wavesPerFlag"])
+  for (const key of ["enemyKinds", "firstWaveWeight", "waveWeightIncrement", "waveWeightCap", "wavesPerFlag"])
     assert.deepEqual(level[key], source[key], key);
+  assert.equal(level.waveWeightIncrementGrowth, 1);
+  const { waveWeightLimit } = load("src/game/waves.ts");
+  assert.deepEqual([1, 2, 3, 4, 5, 10, 20].map(wave => waveWeightLimit(level, { weightMultiplier: 1 }, wave)),
+    [19, 29, 40, 52, 65, 290, 600]);
+  assert.equal(source.waveWeightIncrementGrowth, undefined);
+  assert.equal(waveWeightLimit(source, { weightMultiplier: 1 }, 10), 218);
   assert.equal(level.startingChars, source.startingChars ?? 300);
   assert.equal(level.bossKind, "cube");
   assert.equal(level.bossEndless, true);
@@ -185,8 +191,9 @@ test("all Boss Endless stages inherit source funding and weights but use IF dyna
     assert.equal(level.unlockAfter, sourceId);
     assert.equal(level.startingChars, source.startingChars ?? 300);
     assert.deepEqual(level.unlimitedRankFamilies, [...new Set(source.enemyKinds.map(registry.enemyFamily))]);
-    for (const field of ["firstWaveWeight", "waveWeightIncrement", "waveWeightIncrementGrowth", "wavesPerFlag", "waveWeightCap"])
+    for (const field of ["firstWaveWeight", "waveWeightIncrement", "wavesPerFlag", "waveWeightCap"])
       assert.equal(level[field], source[field], field);
+    assert.equal(level.waveWeightIncrementGrowth, 1);
     const kinds = buildInfiniteWaveKinds(level.unlimitedRankFamilies, 600, 20, 10, length => length - 1);
     assert.ok(kinds.some(kind => registry.enemyRank(kind) > 3 && registry.enemyFamily(kind) !== "circle"));
     assert.ok(kinds.every(kind => registry.enemyFamily(kind) !== "circle" || registry.enemyRank(kind) <= 4));
