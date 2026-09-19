@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { cubePromotionKind } from "../bosses/cubeBossRanks";
 import { recordEnemySeen } from "../progress";
 import { enemyFacingDirection } from "./rules/reversal";
 import { ANGEL_WINGS_SKILL_MAX, ATTACK_INTERVAL, CELL_WIDTH, ENEMY_SPEED, ENEMY_SPEED_VARIANCE, LANES, palette } from "../config";
@@ -170,7 +171,7 @@ export function promotedKind(kind: EnemyKind) {
   return enemyPromotionKind(kind);
 }
 
-export function findPromotionTargets(boss: CubeBoss, enemies: Enemy[], fromRank: number, count: number) {
+export function findPromotionTargets(boss: CubeBoss, enemies: Enemy[], maxRank: number, count: number) {
   if (count <= 0) {
     return [];
   }
@@ -178,7 +179,7 @@ export function findPromotionTargets(boss: CubeBoss, enemies: Enemy[], fromRank:
   const targets: Enemy[] = [];
   const distances: number[] = [];
   for (const enemy of enemies) {
-    if (enemyIsHighFlying(enemy) || enemyRank(enemy.kind) !== fromRank || !promotedKind(enemy.kind)) {
+    if (!enemy.inPlay || enemyIsHighFlying(enemy) || !cubePromotionKind(enemy.kind, maxRank)) {
       continue;
     }
 
@@ -186,7 +187,9 @@ export function findPromotionTargets(boss: CubeBoss, enemies: Enemy[], fromRank:
     const dy = enemy.y - boss.y;
     const distance = dx * dx + dy * dy;
     let insertAt = targets.length;
-    while (insertAt > 0 && distance < distances[insertAt - 1]) {
+    const rank = enemyRank(enemy.kind);
+    while (insertAt > 0 && (rank > enemyRank(targets[insertAt - 1].kind) ||
+      (rank === enemyRank(targets[insertAt - 1].kind) && distance < distances[insertAt - 1]))) {
       insertAt -= 1;
     }
 

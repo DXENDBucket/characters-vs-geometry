@@ -515,15 +515,15 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.atk"), `${damageText(CUBE_BOSS_CONTACT_DAMAGE, "physical")} / ${CUBE_BOSS_CONTACT_INTERVAL}s`]
         ]),
         zh
-          ? "晋升：90技力满后消耗30，将最近 3 个 I 小怪升为 II；不足 3 个目标时不发动。推进：120技力满后在每一行召唤一个正方形。"
-          : "Promotion: at 90 SP, spend 30 to promote the nearest 3 rank I minions to II; it will not activate with fewer than 3 targets. Advance: at 120 SP, summon one square in each lane.",
+          ? "晋升：90技力满后消耗30，将 3 个不高于自身等级的小怪各提升一级；优先高等级，同级选最近，不足 3 个目标时不发动。推进：120技力满后在每一行召唤一个与自身同等级的正方形。"
+          : "Promotion: at 90 SP, spend 30 to raise 3 minions up to its own rank by one, prioritizing higher ranks then distance; requires 3 targets. Advance: at 120 SP, summon one square of its own rank in each lane.",
         zh
-          ? "正方体 II 额外拥有晋升2：180技力满后消耗40，将最近 3 个 II 小怪升为 III；不足 3 个目标时不发动。"
-          : "Cube II also has Promotion 2: at 180 SP, spend 40 to promote the nearest 3 rank II minions to III; it will not activate with fewer than 3 targets."
+          ? "正方体 II 只有一个晋升技能，优先选择 II，再用 I 补足。无尽中每级增加 50000 生命、300 护甲，法抗和移速不变。圆最高晋升到 IV。"
+          : "Cube II has one Promotion skill: prioritize rank II, then fill with rank I. Endless ranks add 50000 HP and 300 armor each; resistance and speed stay unchanged. Circles cap at IV."
       ],
       description: zh
-        ? "Boss 不会被阻挡，也不会随血量缩小；到达底线会失败，死亡会直接胜利。"
-        : "Bosses cannot be blocked and do not shrink with HP. Reaching the base is defeat; killing one clears the stage."
+        ? "Boss 不会被阻挡，也不会随血量缩小；到达底线会失败。主线击败后胜利；Boss 无尽则生成更高一级正方体。"
+        : "Bosses cannot be blocked and do not shrink with HP. Reaching the base is defeat. Defeating it clears story stages; Boss Endless spawns the next cube rank."
     },
     {
       title: zh ? "正四面体 Boss 系列" : "Tetrahedron Boss Series",

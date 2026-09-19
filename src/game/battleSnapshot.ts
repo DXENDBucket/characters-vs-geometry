@@ -1,5 +1,6 @@
 import type Phaser from "phaser";
-import type { Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower } from "../types";
+import type { CubeBoss, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower } from "../types";
+import { createCubeBoss, updateCubeBossMotion } from "../bosses/cubeBoss";
 import { getCardDefinition } from "../registry/cards";
 import { createEnemy } from "./enemyFactory";
 import { createTower, syncTowerFacingVisual, syncTowerFlyingVisual, syncTowerHpBar, syncTowerLevelText, syncTowerTrueDamageVisual } from "./towers";
@@ -14,15 +15,19 @@ const towerVisuals = new Set<string>(["body", "border", "label", "facingIcon", "
 const enemyVisuals = new Set<string>(["body", "shape", "statusBorder", "frozenBorder", "powerIcon", "sunderIcon",
   "armorIcon", "magicResistanceIcon", "flyingHalo", "statusMultiplierCache"] satisfies (keyof Enemy)[]);
 const shotVisuals = new Set(["body"]);
+const bossVisuals = new Set<string>(["body", "frame", "labelText"] satisfies (keyof CubeBoss)[]);
 
 export function captureBattleSnapshot(state: BattleSaveState) {
   return encodeSaveGraph(state, object => {
     const value = object as Record<string, unknown>;
     if (typeof value.id === "string" && value.id.startsWith("tower:")) return { kind: "tower", omit: towerVisuals };
     if ("kind" in value && "waveNumber" in value) return { kind: "enemy", omit: enemyVisuals };
+    if ("advanceMinionKind" in value && "rank" in value) {
+      if (value.kind !== "cube" && value.kind !== "cube2") throw new Error("Unsupported boss save");
+      return { kind: "boss", omit: bossVisuals };
+    }
     if ("body" in value) {
       const kind: NodeKind = "owner" in value ? "mortar" : "sourceLane" in value ? "enemyProjectile" : "projectile";
-      if (value.targetBossPart) throw new Error("Boss saves are not supported yet");
       return { kind, omit: shotVisuals };
     }
     if (!Array.isArray(object) && Object.getPrototypeOf(object) !== Object.prototype) throw new Error("Non-data object in save");
@@ -33,10 +38,17 @@ export function captureBattleSnapshot(state: BattleSaveState) {
 export function restoreBattleSnapshot(scene: Phaser.Scene, graph: SaveGraph): BattleSaveState {
   const towers: Tower[] = [];
   const enemies: Enemy[] = [];
+  const bosses: CubeBoss[] = [];
   const bodies: Phaser.GameObjects.GameObject[] = [];
   try {
     const state = decodeSaveGraph<BattleSaveState>(graph, (node: GraphNode) => {
       // References are connected in a second pass; factories only need primitive placement fields.
+      if (node.kind === "boss") {
+        const data = node.data as unknown as CubeBoss;
+        const boss = createCubeBoss(scene, data.kind, 0, { rank: data.rank, x: data.x, y: data.y });
+        bosses.push(boss); bodies.push(boss.body);
+        return boss;
+      }
       if (node.kind === "tower") {
         const data = node.data as unknown as Tower;
         const tower = createTower(scene, getCardDefinition(data.type), data.lane, data.column, 0, data.placedOrder);
@@ -78,6 +90,10 @@ export function restoreBattleSnapshot(scene: Phaser.Scene, graph: SaveGraph): Ba
       syncTowerFacingVisual(tower); syncTowerFlyingVisual(tower, state.battleTime);
       syncTowerLevelText(tower); syncTowerHpBar(tower); syncTowerTrueDamageVisual(tower, state.battleTime);
       if (!tower.inPlay) tower.body.destroy();
+    }
+    for (const boss of bosses) {
+      if (boss !== state.boss) boss.body.destroy();
+      else updateCubeBossMotion(boss, 0, 0, state.battleTime);
     }
     const storedEnemies = new Set(state.storage.map(entry => entry.enemy));
     const retainCargo = (enemy: Enemy) => {

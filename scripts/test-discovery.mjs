@@ -92,6 +92,27 @@ test("IF-5 through IF-12 unlock only after their corresponding story stages", ()
   }
 });
 
+test("Boss Endless records highest defeated rank independently of waves and survives reload", () => {
+  const f = fixture();
+  f.progress.completeLevel("1-9");
+  assert.equal(f.progress.isLevelUnlocked("IF-BE-1"), false);
+  f.progress.completeLevel("1-10");
+  assert.equal(f.progress.isLevelUnlocked("IF-BE-1"), true);
+  assert.equal(f.progress.bestBossRankForLevel("IF-BE-1"), 0);
+  f.progress.recordDefeatedBossRank("IF-BE-1", 3);
+  const writes = f.writes();
+  for (const rank of [2, 0, -1, 3.5, NaN, Infinity]) f.progress.recordDefeatedBossRank("IF-BE-1", rank);
+  f.progress.recordCompletedWaves("IF-BE-1", 100);
+  f.progress.recordDefeatedBossRank("IF-1", 5);
+  assert.equal(f.writes(), writes);
+  assert.equal(f.progress.bestWaveForLevel("IF-BE-1"), 0);
+  const reloaded = fixture(JSON.parse(f.storage.get(storageKey)));
+  assert.equal(reloaded.progress.bestBossRankForLevel("IF-BE-1"), 3);
+  assert.equal(reloaded.progress.isLevelCompleted("IF-BE-1"), false);
+  reloaded.progress.resetProgress();
+  assert.equal(reloaded.progress.bestBossRankForLevel("IF-BE-1"), 0);
+});
+
 test("survival records persist as best completed waves, never as cleared stages", () => {
   const f = fixture();
   f.progress.completeAllLevels();

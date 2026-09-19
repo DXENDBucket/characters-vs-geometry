@@ -6,7 +6,7 @@ import { createTypeScriptLoader } from "./helpers/load-typescript.mjs";
 const load = createTypeScriptLoader({
   phaser: { default: { Math: { FloatBetween: () => 1 } } },
   "src/render/unitShapes.ts": {},
-  "src/game/statusEffects.ts": {},
+  "src/game/statusEffects.ts": { hasStatusEffectName: (unit, name) => unit.statusEffects?.some(effect => effect.name === name) ?? false },
   "src/game/unitStats.ts": {}
 });
 const registry = load("src/registry/enemies.ts");
@@ -124,6 +124,43 @@ test("infinite leaders start at rank I even when the template has rank II or dup
   const { infiniteLeaderKinds } = load("src/game/infiniteWaves.ts");
   assert.deepEqual(infiniteLeaderKinds(["heart2", "heart3", "burrowArrow2"], 10, 10), ["heart", "burrowArrow"]);
   assert.deepEqual(infiniteLeaderKinds(["heart2"], 100, 10), ["heart10"]);
+});
+
+test("cube ranks extend I/II linearly and promotion prioritizes highest eligible ranks then distance", () => {
+  const { cubeStatsAtRank, cubePromotionKind } = load("src/bosses/cubeBossRanks.ts");
+  for (const rank of [1, 2, 3, 10, 1000]) {
+    assert.deepEqual(cubeStatsAtRank(rank), { hp: 150000 + 50000 * (rank - 1), armor: 300 * rank, magicResistance: 20, speed: 0.6 });
+    assert.equal(cubePromotionKind(enemyKindAtRank("square", rank), rank), enemyKindAtRank("square", rank + 1));
+  }
+  for (const rank of [0, -1, 1.5, Infinity, NaN]) assert.throws(() => cubeStatsAtRank(rank));
+  assert.equal(cubePromotionKind("circle4", 10), undefined);
+  assert.equal(cubePromotionKind("heart", 10), undefined);
+  assert.equal(cubePromotionKind("triangle3", 2), undefined);
+  const { findPromotionTargets } = load("src/game/enemyBehaviors.ts");
+  const enemy = (kind, x, extra = {}) => ({ kind, x, y: 0, inPlay: true, statusEffects: [], ...extra });
+  const oneNear = enemy("triangle", 1), oneFar = enemy("triangle", 10);
+  const twoNear = enemy("square2", 80), twoFar = enemy("triangle2", 100);
+  const excluded = [enemy("triangle3", 0), enemy("triangle2", 0, { inPlay: false }), enemy("triangle2", 0, { highFlightUntil: 100 })];
+  assert.deepEqual(findPromotionTargets({ x: 0, y: 0 }, [oneNear, twoFar, oneFar, twoNear, ...excluded], 2, 3), [twoNear, twoFar, oneNear]);
+  assert.deepEqual(findPromotionTargets({ x: 0, y: 0 }, [twoFar, oneFar, oneNear], 1, 3), [oneNear, oneFar]);
+  assert.deepEqual(findPromotionTargets({ x: 0, y: 0 }, [oneNear, twoNear], 2, 0), []);
+});
+
+test("IF-BE-1 is isolated in Boss Endless and inherits 1-10 waves, cap and funding", () => {
+  const { getLevelConfig } = load("src/data/levels.ts");
+  const { chapterIdForLevelId, levelNodesForChapter } = load("src/data/chapters.ts");
+  assert.equal(chapterIdForLevelId("IF-BE-1"), "IFB");
+  assert.equal(levelNodesForChapter("IF").length, 12);
+  assert.deepEqual(levelNodesForChapter("IFB").map(node => node.id), ["IF-BE-1"]);
+  const level = getLevelConfig("IF-BE-1"), source = getLevelConfig("1-10");
+  for (const key of ["enemyKinds", "firstWaveWeight", "waveWeightIncrement", "waveWeightIncrementGrowth", "waveWeightCap", "wavesPerFlag"])
+    assert.deepEqual(level[key], source[key], key);
+  assert.equal(level.startingChars, source.startingChars ?? 300);
+  assert.equal(level.bossKind, "cube");
+  assert.equal(level.bossEndless, true);
+  assert.equal(level.survival, true);
+  assert.equal(level.endless, true);
+  assert.equal(level.unlockAfter, "1-10");
 });
 
 test("all 66 existing enemy panels and registrations exactly match the pre-refactor snapshot", () => {

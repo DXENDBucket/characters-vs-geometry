@@ -1,5 +1,5 @@
 import { CARD_SLOT_COUNT, CUBE_BOSS_STATS } from "./config";
-import { chapterDefinitions, levelNodesForChapter } from "./data/chapters";
+import { chapterDefinitions, chapterIdForLevelId, getChapterDefinition, levelNodesForChapter } from "./data/chapters";
 import { chapterGroups, groupForChapter } from "./data/chapterGroups";
 import { cardUnlockRequirement, cardUnlockRequirements } from "./data/cardUnlocks";
 import { CARD_SLOT_UNLOCK_CHAPTER_IDS, INITIAL_CARD_SLOT_COUNT } from "./data/cardSlotUnlocks";
@@ -18,6 +18,7 @@ interface StoredProgress {
   seenEnemyKinds: EnemyKind[];
   seenBossKinds: BossKind[];
   bestWaves: Record<string, number>;
+  bestBossRanks: Record<string, number>;
 }
 
 export interface ProgressSummary {
@@ -43,7 +44,7 @@ export function isLevelCompleted(levelId: string) {
 export function isLevelUnlocked(levelId: string) {
   const state = progress();
   if (!levelNodes.some(node => node.id === levelId)) return false;
-  const chapter = chapterDefinitions.find(chapter => levelId.startsWith(chapter.levelPrefix));
+  const chapter = getChapterDefinition(chapterIdForLevelId(levelId));
   if (chapter && !isChapterGroupUnlocked(groupForChapter(chapter.id).id)) return false;
   const level = getLevelConfig(levelId);
   if (level.unlockAfter) return state.completedLevelIds.includes(level.unlockAfter);
@@ -63,9 +64,20 @@ export function bestWaveForLevel(levelId: string) {
 
 export function recordCompletedWaves(levelId: string, count: number) {
   if (!levelNodes.some(node => node.id === levelId) || !getLevelConfig(levelId).survival ||
+      getLevelConfig(levelId).bossEndless ||
       !Number.isSafeInteger(count) || count <= bestWaveForLevel(levelId)) return;
   const state = progress();
   writeProgress({ ...state, bestWaves: { ...state.bestWaves, [levelId]: count } });
+}
+
+export function bestBossRankForLevel(levelId: string) {
+  return progress().bestBossRanks[levelId] ?? 0;
+}
+
+export function recordDefeatedBossRank(levelId: string, rank: number) {
+  if (!getLevelConfig(levelId).bossEndless || !Number.isSafeInteger(rank) || rank <= bestBossRankForLevel(levelId)) return;
+  const state = progress();
+  writeProgress({ ...state, bestBossRanks: { ...state.bestBossRanks, [levelId]: rank } });
 }
 
 export function isChapterUnlocked(chapterId: string) {
@@ -202,7 +214,7 @@ function progress() {
 }
 
 function emptyProgress(): StoredProgress {
-  return { version: SAVE_VERSION, completedLevelIds: [], allCardsUnlocked: false, seenEnemyKinds: [], seenBossKinds: [], bestWaves: {} };
+  return { version: SAVE_VERSION, completedLevelIds: [], allCardsUnlocked: false, seenEnemyKinds: [], seenBossKinds: [], bestWaves: {}, bestBossRanks: {} };
 }
 
 function readProgress(): StoredProgress {
@@ -237,6 +249,10 @@ function readProgress(): StoredProgress {
       seenBossKinds: validStoredKinds(parsed.seenBossKinds, CUBE_BOSS_STATS),
       bestWaves: Object.fromEntries(levelNodes.filter(node => getLevelConfig(node.id).survival).map(node => {
         const value = parsed.bestWaves?.[node.id];
+        return [node.id, typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : 0];
+      })),
+      bestBossRanks: Object.fromEntries(levelNodes.filter(node => getLevelConfig(node.id).bossEndless).map(node => {
+        const value = parsed.bestBossRanks?.[node.id];
         return [node.id, typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : 0];
       }))
     };

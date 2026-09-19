@@ -88,6 +88,7 @@ import {
   damageEnemy,
   damageTower,
   removeEnemy,
+  removeBoss,
   removeTower,
   settleTowerHealth,
   type UnitLifecycleRuntime
@@ -105,7 +106,7 @@ import { volleyHitsAt, volleyTimingCount } from "../game/volley";
 import { waveScheduleAction } from "../game/waves";
 import { attackIntervalMs } from "../game/attackSpeed";
 import { t } from "../i18n";
-import { completeLevel, isCardUnlocked, isLevelCompleted, recordBossSeen, recordCompletedWaves, unlockedCardSlotCount } from "../progress";
+import { completeLevel, isCardUnlocked, isLevelCompleted, recordBossSeen, recordCompletedWaves, recordDefeatedBossRank, unlockedCardSlotCount } from "../progress";
 import { makeEraseMark, makeProductionPulse, makeShellBurst, makeShockPulse } from "../render/combatEffects";
 import { createUnitBorder } from "../render/unitShapes";
 import {
@@ -423,7 +424,7 @@ export class GameScene extends Phaser.Scene {
       exit: () => this.handleOverlayAction()
     });
     this.setGameSpeed(this.gameSpeed);
-    this.spawnBossIfNeeded();
+    if (!this.resumeSave) this.spawnBossIfNeeded();
     this.createCardList();
     this.updateCards();
     this.overlay = createGameOverlay(this, () => this.handleOverlayAction());
@@ -1196,12 +1197,12 @@ export class GameScene extends Phaser.Scene {
     };
   }
 
-  private spawnBossIfNeeded() {
+  private spawnBossIfNeeded(rank?: number) {
     if (!this.levelConfig.bossKind) {
       return;
     }
 
-    this.boss = createCubeBoss(this, this.levelConfig.bossKind, this.difficultyConfig.finalDamageReduction);
+    this.boss = createCubeBoss(this, this.levelConfig.bossKind, this.difficultyConfig.finalDamageReduction, { rank });
     recordBossSeen(this.levelConfig.bossKind);
     this.bossHomePosition = { x: this.boss.x, y: this.boss.y };
     if (this.currentBossPhaseConfig()) {
@@ -1686,7 +1687,7 @@ export class GameScene extends Phaser.Scene {
 
   private updateWaveSchedule(levelElapsed: number, gameTime: number) {
     const activeLevelConfig = this.activeLevelConfig();
-    if (activeLevelConfig.survival) {
+    if (activeLevelConfig.survival && !activeLevelConfig.bossEndless) {
       let earliestWave = Math.min(this.wave + 1, this.storage.earliestWaveNumber);
       for (const enemy of this.enemies) {
         if (enemy.inPlay) earliestWave = Math.min(earliestWave, enemy.waveNumber);
@@ -1776,6 +1777,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handleBossDefeated(boss: CubeBoss) {
+    if (this.levelConfig.bossEndless) {
+      recordDefeatedBossRank(this.levelId, boss.rank);
+      removeBoss(this.unitLifecycleRuntime(), false);
+      this.spawnBossIfNeeded(boss.rank + 1);
+      this.updateHud();
+      return true;
+    }
     const phases = this.levelConfig.bossPhases;
     if (!phases || this.bossPhaseIndex + 1 >= phases.length) {
       return false;
@@ -2509,7 +2517,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private saveSurvivalBattle() {
-    if (!this.levelConfig.survival || this.gameOver || this.boss) return false;
+    if (!this.levelConfig.survival || this.gameOver) return false;
     try {
       const state: BattleSaveState = {
         levelElapsed: this.levelElapsed, battleTime: this.battleTime, cardTime: this.cardTime,
@@ -2518,7 +2526,7 @@ export class GameScene extends Phaser.Scene {
         towerOrder: this.towerOrder, gameSpeed: this.gameSpeed, selectedCardId: this.selectedCardId,
         cardDeadlines: this.cardStates.map(card => ({ id: card.definition.id, readyAt: card.readyAt })),
         autoUpgradeEnabled: this.autoUpgradeEnabled, autoUpgradeReserveChars: this.autoUpgradeReserveChars,
-        towers: this.towers, enemies: this.enemies, projectiles: this.projectiles,
+        towers: this.towers, enemies: this.enemies, boss: this.boss, projectiles: this.projectiles,
         enemyProjectiles: this.enemyProjectiles, mortarProjectiles: this.mortarProjectiles,
         actions: this.actionQueue.snapshot(), storage: this.storage.snapshot(), shifter: this.shifter.snapshot(),
         reselection: this.reselection.snapshot(), extraction: this.extraction.value,
@@ -2546,6 +2554,8 @@ export class GameScene extends Phaser.Scene {
     this.autoUpgradeReserveChars = state.autoUpgradeReserveChars;
     this.towers = state.towers;
     this.enemies = state.enemies;
+    this.boss = state.boss ?? null;
+    this.bossHomePosition = this.boss ? { x: this.boss.x, y: this.boss.y } : null;
     this.projectiles = state.projectiles;
     this.enemyProjectiles = state.enemyProjectiles;
     this.mortarProjectiles = state.mortarProjectiles;

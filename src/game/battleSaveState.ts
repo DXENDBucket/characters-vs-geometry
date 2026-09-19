@@ -1,4 +1,4 @@
-import type { CardId, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower, WaveTracker } from "../types";
+import type { CardId, CubeBoss, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower, WaveTracker } from "../types";
 import type { ScheduledBattleAction } from "./battleActions";
 import type { LoadoutReselection } from "./loadoutReselection";
 import type { TowerShifterController } from "./towerShifter";
@@ -23,6 +23,7 @@ export interface BattleSaveState {
   autoUpgradeReserveChars: number;
   towers: Tower[];
   enemies: Enemy[];
+  boss?: CubeBoss | null;
   projectiles: Projectile[];
   enemyProjectiles: EnemyProjectile[];
   mortarProjectiles: MortarProjectile[];

@@ -105,6 +105,7 @@ export function damageBoss(
   }
 
   const damagedPart = targetPart ?? boss;
+  if (damagedPart !== boss && !boss.octahedronCopies?.includes(damagedPart)) return false;
   if (damagedPart.invincibleUntil > runtime.battleTime) {
     makeBossInvincibleFlash(runtime.scene, damagedPart.x, damagedPart.y, damagedPart.hitboxWidth, damagedPart.hitboxHeight);
     return false;
@@ -240,7 +241,7 @@ export function damageEnemy(
   return true;
 }
 
-export function removeBoss(runtime: UnitLifecycleRuntime) {
+export function removeBoss(runtime: UnitLifecycleRuntime, animate = true) {
   const boss = runtime.getBoss();
   if (!boss) {
     return;
@@ -248,6 +249,10 @@ export function removeBoss(runtime: UnitLifecycleRuntime) {
 
   const bodies = [boss, ...(boss.octahedronCopies ?? [])].map((part) => part.body);
   runtime.setBoss(null);
+  if (!animate) {
+    for (const body of bodies) body.destroy();
+    return;
+  }
   runtime.scene.tweens.add({
     targets: bodies,
     alpha: 0,

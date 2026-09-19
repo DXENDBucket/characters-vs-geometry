@@ -33,7 +33,7 @@ import { getLevelConfig } from "../data/levels";
 import { toRomanNumeral } from "../format";
 import { isTutorialMechanic } from "../game/tutorial";
 import { t } from "../i18n";
-import { bestWaveForLevel, isChapterUnlocked, isLevelCompleted, isLevelUnlocked } from "../progress";
+import { bestBossRankForLevel, bestWaveForLevel, isChapterUnlocked, isLevelCompleted, isLevelUnlocked } from "../progress";
 import { EncyclopediaPanel } from "../render/encyclopediaPanel";
 import type { BossKind, LevelNode } from "../types";
 
@@ -316,10 +316,10 @@ export class LevelSelectScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: unlocked })
       .setAlpha(alpha);
     const label = this.add
-      .text(node.x, node.y - 3, node.id, {
+      .text(node.x, node.y - (node.id.length > 6 ? 14 : 3), node.id, {
         color: uiTextColors.primary,
         fontFamily: "monospace",
-        fontSize: "26px",
+        fontSize: node.id.length > 6 ? "22px" : "26px",
         fontStyle: "700"
       })
       .setOrigin(0.5)
@@ -329,7 +329,8 @@ export class LevelSelectScene extends Phaser.Scene {
     const level = getLevelConfig(node.id);
     if (level.survival) {
       this.mapContainer.add(this.add.text(node.x, node.y + LEVEL_NODE_HEIGHT / 2 + 28,
-        unlocked ? t("label.bestWave", { count: bestWaveForLevel(node.id) })
+        unlocked ? level.bossEndless ? t("label.bestBossRank", { count: bestBossRankForLevel(node.id) })
+          : t("label.bestWave", { count: bestWaveForLevel(node.id) })
           : t("label.unlockAfter", { level: level.unlockAfter ?? "" }), {
           color: uiTextColors.secondary, fontFamily: "monospace", fontSize: "17px"
         }).setOrigin(0.5));

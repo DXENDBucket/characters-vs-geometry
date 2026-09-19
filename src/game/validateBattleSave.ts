@@ -1,7 +1,7 @@
 import type { BattleSaveState } from "./battleSaveState";
 import { decodeSaveGraph, type NodeKind, type SaveGraph } from "./saveGraph";
 
-export function validateBattleSave(graph: SaveGraph, wave: number) {
+export function validateBattleSave(graph: SaveGraph, wave: number, bossEndless = false) {
   const units = new Map<NodeKind, Set<object>>();
   const state = decodeSaveGraph<BattleSaveState>(graph, node => {
     const value = {};
@@ -21,6 +21,26 @@ export function validateBattleSave(graph: SaveGraph, wave: number) {
     require(finite(state[key]) && state[key] >= 0);
   }
   require(state.wave === wave && state.baseIntegrity > 0 && state.gameSpeed > 0 && typeof state.autoUpgradeEnabled === "boolean");
+  require(bossEndless ? member("boss")(state.boss) && state.boss!.hp > 0 : !state.boss);
+  for (const object of units.get("boss") ?? []) {
+    const boss = object as Record<string, unknown>;
+    require(bossEndless && (boss.kind === "cube" || boss.kind === "cube2"));
+    require(Number.isSafeInteger(boss.rank) && (boss.rank as number) >= 1);
+    require(finite(boss.hp) && boss.hp >= 0 && finite(boss.maxHp) && boss.maxHp > 0 && boss.hp <= boss.maxHp);
+    if (!record(boss.baseStats) || !record(boss.finalStats) || !record(boss.skills)) throw new Error("Invalid boss state");
+    for (const key of ["maxHp", "armor", "magicResistance", "speed", "finalDamageReduction"]) {
+      require(finite(boss.baseStats[key]) && finite(boss.finalStats[key]));
+    }
+    for (const key of ["promotion", "advance"]) {
+      const skill = boss.skills[key];
+      require(record(skill) && [skill.sp, skill.spBuffer, skill.activeUntil, skill.maxSp, skill.cost].every(finite));
+    }
+    require(array(boss.statusEffects, effect => record(effect) && typeof effect.name === "string" && timestamp(effect.expiresAt)));
+    require(!boss.octahedronCopies || (Array.isArray(boss.octahedronCopies) && boss.octahedronCopies.length === 0));
+    require(boss.advanceMinionKind === ((boss.rank as number) === 1 ? "square" : `square${boss.rank}`));
+    for (const key of ["hitboxWidth", "hitboxHeight", "rotationX", "rotationY", "rotationZ", "velocityX", "velocityY", "velocityZ",
+      "targetVelocityX", "targetVelocityY", "targetVelocityZ", "nextTurnIn", "invincibleUntil", "contactAttackBuffer"]) require(finite(boss[key]));
+  }
   require(array(state.towers, member("tower")) && array(state.enemies, member("enemy")) &&
     array(state.projectiles, member("projectile")) && array(state.enemyProjectiles, member("enemyProjectile")) && array(state.mortarProjectiles, member("mortar")));
   for (const kind of ["tower", "enemy"] as const) {

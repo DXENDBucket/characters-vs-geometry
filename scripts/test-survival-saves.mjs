@@ -86,3 +86,42 @@ test("survival storage is durable, versioned, atomic on write failure and clears
   f.saves.clearSurvivalSaves();
   assert.equal(f.storage.size, 0);
 });
+
+test("Boss Endless saves preserve Boss references and reject missing, dead or invalid active Bosses", () => {
+  const f = fixture();
+  const stats = { maxHp: 250000, armor: 900, magicResistance: 20, speed: 0.6, finalDamageReduction: 0 };
+  const boss = {
+    kind: "cube", rank: 3, hp: 123456, maxHp: 250000, x: 1100, y: 400,
+    baseStats: stats, finalStats: { ...stats }, statusEffects: [], advanceMinionKind: "square3",
+    skills: { promotion: { sp: 37, spBuffer: 0.25, activeUntil: 0, maxSp: 90, cost: 30 },
+      advance: { sp: 20, spBuffer: 0, activeUntil: 0, maxSp: 120, cost: 120 } },
+    hitboxWidth: 230, hitboxHeight: 230, rotationX: 0.1, rotationY: 0.2, rotationZ: 0.3,
+    velocityX: 0, velocityY: 0, velocityZ: 0, targetVelocityX: 0.1, targetVelocityY: 0.1, targetVelocityZ: 0.1,
+    nextTurnIn: 1, invincibleUntil: 0, contactAttackBuffer: 0
+  };
+  const state = {
+    battleTime: 1500, levelElapsed: 1500, cardTime: 1500, nextNaturalProduceAt: 5000, chars: 300,
+    baseIntegrity: 6, wave: 5, waveTracker: null, enemiesDefeated: 0, towerOrder: 0, gameSpeed: 1,
+    autoUpgradeEnabled: true, autoUpgradeReserveChars: 0, extraction: 0, towers: [], enemies: [], boss,
+    projectiles: [], enemyProjectiles: [], mortarProjectiles: [], cardDeadlines: [], actions: [],
+    storage: [], spellMortarFlights: [], sealedCells: [], shifter: { readyAt: 0, cooldownStartedAt: 0, cooldownDuration: 15000 },
+    reselection: { readyAt: 240000, cards: [] }, target: boss
+  };
+  const makeSave = (savedState = state, levelId = "IF-BE-1") => ({
+    version: 1, levelId, savedAt: 123, wave: 5, difficulty: 3, unlimitedFirepower: false, selectedCards: ["B"],
+    graph: f.graph.encodeSaveGraph(savedState, value => value === savedState.boss ? { kind: "boss" } : classify(value))
+  });
+  const valid = makeSave();
+  assert.equal(f.saves.writeSurvivalSave(valid), true);
+  const loaded = f.saves.readSurvivalSave("IF-BE-1");
+  const decoded = f.graph.decodeSaveGraph(loaded.graph, () => ({}));
+  assert.equal(decoded.boss, decoded.target);
+  assert.equal(decoded.boss.skills.promotion.sp, 37);
+  for (const change of [{ rank: 0 }, { rank: 1.5 }, { hp: 0 }, { hp: 999999 }, { kind: "octahedron" },
+    { advanceMinionKind: "square2" }, { skills: {} }]) {
+    assert.equal(f.saves.writeSurvivalSave(makeSave({ ...state, target: undefined, boss: { ...boss, ...change } })), false);
+  }
+  assert.equal(f.saves.writeSurvivalSave(makeSave({ ...state, boss: null, target: undefined })), false);
+  assert.equal(f.saves.writeSurvivalSave(makeSave(state, "IF-1")), false);
+  assert.deepEqual(f.saves.readSurvivalSave("IF-BE-1"), valid);
+});

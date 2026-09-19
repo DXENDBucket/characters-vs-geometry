@@ -1,4 +1,4 @@
-export type NodeKind = "object" | "array" | "tower" | "enemy" | "projectile" | "enemyProjectile" | "mortar";
+export type NodeKind = "object" | "array" | "tower" | "enemy" | "boss" | "projectile" | "enemyProjectile" | "mortar";
 type Value = null | boolean | string | number | { ref: number } | { number: "Infinity" | "-Infinity" | "NaN" };
 export interface GraphNode { kind: NodeKind; data: Record<string, Value> }
 export interface SaveGraph { root: Value; nodes: GraphNode[] }
@@ -44,7 +44,7 @@ export function validateSaveGraph(value: unknown): asserts value is SaveGraph {
   };
   if (!validValue(graph.root)) throw new Error("Invalid save root");
   for (const node of graph.nodes) {
-    if (!node || !["object", "array", "tower", "enemy", "projectile", "enemyProjectile", "mortar"].includes(node.kind) ||
+    if (!node || !["object", "array", "tower", "enemy", "boss", "projectile", "enemyProjectile", "mortar"].includes(node.kind) ||
         !node.data || typeof node.data !== "object" || Array.isArray(node.data)) throw new Error("Invalid save node");
     for (const [key, child] of Object.entries(node.data)) {
       if (forbidden.has(key) || !validValue(child)) throw new Error("Invalid save field");

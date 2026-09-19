@@ -71,6 +71,7 @@ export const levelNodes: LevelNode[] = [
   { id: "IF-2", x: 820, y: 320 },
   { id: "IF-3", x: 1160, y: 430 },
   { id: "IF-4", x: 1500, y: 320 },
+  { id: "IF-BE-1", x: 500, y: 380 },
   ...Array.from({ length: 8 }, (_, index) => ({
     id: `IF-${index + 5}`, x: 1840 + index * 340, y: index % 2 === 0 ? 430 : 320
   }))
@@ -1046,6 +1047,16 @@ for (const [index, sourceId] of ["4-1", "4-4", "4-6", "4-7", "5-2", "5-4", "5-6"
     startingChars: source.startingChars
   };
 }
+
+levelConfigs["IF-BE-1"] = {
+  ...levelConfigs["1-10"],
+  id: "IF-BE-1",
+  unlockAfter: "1-10",
+  survival: true,
+  bossEndless: true,
+  startingChars: levelConfigs["1-10"].startingChars ?? 300,
+  bossKind: "cube"
+};
 
 export function getLevelConfig(levelId: string) {
   return levelConfigs[levelId] ?? levelConfigs["1-1"];

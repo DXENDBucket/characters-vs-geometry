@@ -11,8 +11,6 @@ import {
   CELL_WIDTH,
   CUBE_BOSS_ADVANCE_SKILL_COST,
   CUBE_BOSS_ADVANCE_SKILL_MAX,
-  CUBE_BOSS_PROMOTION2_SKILL_COST,
-  CUBE_BOSS_PROMOTION2_SKILL_MAX,
   CUBE_BOSS_PROMOTION_SKILL_COST,
   CUBE_BOSS_PROMOTION_SKILL_MAX,
   CUBE_BOSS_STATS,
@@ -46,6 +44,8 @@ import { gainSkillSp, isSkillReady, spendSkillSp } from "../game/skillState";
 import { bossRect } from "../game/targeting";
 import { bossBaseStatsFromValues } from "../game/unitStats";
 import type { BossKind, BossSkill, BossSkillName, CubeBoss } from "../types";
+import { cubeStatsAtRank } from "./cubeBossRanks";
+import { enemyKindAtRank } from "../game/enemyIdentity";
 
 const CUBE_DRAW_SIZE = 59;
 const DODECAHEDRON_DRAW_SIZE = 47;
@@ -67,6 +67,7 @@ const ICOSAHEDRON_ROTATION_SPEED = {
 };
 
 interface CreateCubeBossOptions {
+  rank?: number;
   x?: number;
   y?: number;
   movementAxis?: "x" | "y";
@@ -246,8 +247,9 @@ export function createCubeBoss(
   finalDamageReduction: number,
   options: CreateCubeBossOptions = {}
 ) {
-  const rank = bossRank(kind);
-  const stats = CUBE_BOSS_STATS[kind];
+  const isCube = kind === "cube" || kind === "cube2";
+  const rank = isCube ? options.rank ?? bossRank(kind) : bossRank(kind);
+  const stats = isCube ? cubeStatsAtRank(rank) : CUBE_BOSS_STATS[kind];
   const baseStats = bossBaseStatsFromValues(stats, finalDamageReduction);
   const hitboxWidth = stats.hitboxCells ? CELL_WIDTH * stats.hitboxCells : BOSS_HITBOX_WIDTH;
   const hitboxHeight = stats.hitboxCells ? CELL_HEIGHT * stats.hitboxCells : BOSS_HITBOX_HEIGHT;
@@ -283,16 +285,11 @@ export function createCubeBoss(
     movementAxis: options.movementAxis ?? "x",
     movementDirection: options.movementDirection ?? -1,
     statusEffects: [],
-    advanceMinionKind: rank >= 2 ? "square2" : "square",
+    advanceMinionKind: enemyKindAtRank("square", rank),
     hasSkills: !isSkilllessBossKind(kind),
     skills: {
       promotion: createBossSkill("promotion", CUBE_BOSS_PROMOTION_SKILL_MAX, CUBE_BOSS_PROMOTION_SKILL_COST),
       advance: createBossSkill("advance", CUBE_BOSS_ADVANCE_SKILL_MAX, CUBE_BOSS_ADVANCE_SKILL_COST),
-      ...(rank >= 2
-        ? {
-            promotion2: createBossSkill("promotion2", CUBE_BOSS_PROMOTION2_SKILL_MAX, CUBE_BOSS_PROMOTION2_SKILL_COST)
-          }
-        : {}),
       ...(isTetrahedronBossKind(kind) || isIcosahedronBossKind(kind)
         ? {
             charge: createBossSkill("charge", TETRAHEDRON_BOSS_CHARGE_SKILL_MAX, TETRAHEDRON_BOSS_CHARGE_SKILL_COST),

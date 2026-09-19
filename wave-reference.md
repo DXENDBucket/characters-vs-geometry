@@ -98,7 +98,7 @@ Leader enemies are fixed flag-wave spawns when included in a level pool. They do
 | Boss | HP | Armor | MR | Speed | Hitbox | Notes |
 | --- | ---: | ---: | ---: | ---: | --- | --- |
 | Cube I | 150000 | 300 | 20 | 0.6 | `2.95x2.95` cells | Appears at combat start. Does not shrink from damage. Killing it clears the level; reaching the base fails the level. Deals `2000◆` every `0.5s` to all touching towers at once, with a following cube-collapse effect on each target. |
-| Cube II | 200000 | 600 | 20 | 0.6 | `2.95x2.95` cells | Same baseline behavior as Cube I. Advance becomes Advance II and summons Square 2 minions. Also has Promotion II. |
+| Cube II | 200000 | 600 | 20 | 0.6 | `2.95x2.95` cells | Advance summons same-rank Squares. One Promotion skill, prioritizing rank II targets before rank I. Further endless ranks add 50000 HP and 300 armor each. |
 | Tetrahedron I | 120000 | 150 | 20 | 1.2 | `2.95x2.95` cells | Fast-attack Boss with quicker visual rotation. Same baseline behavior as Cube I, but uses tetrahedron-collapse effects. At first `50%` HP or lower, summons Inverted Triangle 1 in every cell of the two columns farthest from the base and immediately fills Charge SP. At first `10%` HP or lower, its HP is held at `10%`, gains `15s` Invincible, gains `60s` Boss Haste at `300%` speed, summons Inverted Triangle 1 in every cell of the five columns farthest from the base, and permanently doubles all skill natural SP gain. If it would die before this triggers, it instead locks at `1` HP and triggers the same effect package. |
 | Tetrahedron II | 120000 | 150 | 20 | 1.2 | `2.95x2.95` cells | Same baseline behavior as Tetrahedron I. All Inverted Triangles and Shooting Triangles summoned by its Boss mechanics are rank II. |
 | Dodecahedron I | 100000 | 200 | 90 | 0.6 | `2.95x2.95` cells | Whiteboard Boss. Same baseline behavior as Cube I, but has no SP skills. Starts with 3 orbiting Dodecahedron Companions. While any companion is alive, it gains `95%` all-damage reduction; the reduction is removed after all companions die. |
@@ -115,13 +115,11 @@ Cube skills:
 - Each skill has independent SP.
 - All skills can only activate at full SP.
 - Promotion: starts at `0/90` SP, gains `1` SP per second, max `90`.
-- At full SP, consumes `30` SP and promotes the nearest 3 ordinary 2D enemies with body label `I` into their label `II` versions. If fewer than 3 targets exist, it holds at full SP.
+- At full SP, consumes `30` SP and promotes 3 ordinary enemies by one rank. Eligible ranks are at most the Boss rank; prioritize highest rank, then nearest distance. Fewer than 3 eligible targets holds at full SP. High-flying enemies are excluded; circles cannot exceed IV.
 - Promotion creates a cube-collapse effect on the target.
-- Promotion II, Cube II only: starts at `0/180` SP, gains `1` SP per second, max `180`.
-- At full SP, consumes `40` SP and promotes the nearest 3 ordinary 2D enemies with body label `II` into their label `III` versions. If fewer than 3 targets exist, it holds at full SP.
+- Cube II has no second Promotion skill; its single Promotion can mix rank II and rank I targets.
 - Advance: starts at `0/120` SP, gains `1` SP per second, max `120`.
-- At full SP, consumes `120` SP and summons one Square 1 minion in every lane, one cell in front of its hitbox.
-- Advance II, Cube II only: same SP rules as Advance, but summons Square 2 minions.
+- At full SP, consumes `120` SP and summons one Square matching the Boss rank in every lane, one cell in front of its hitbox.
 
 Dodecahedron mechanics:
 
@@ -596,6 +594,14 @@ Base rule:
 - Enemy families follow the source stage, with unlimited ordinary ranks except Circle (IV cap).
 - Leaders spawn once per family on flag waves, outside the ordinary weight budget. Their rank is the flag number: wave 10 = I, wave 20 = II, wave 30 = III, continuing without a rank cap regardless of the source rank.
 - No wave count or weight cap; independent best-wave records and resumable battlefield saves.
+
+## Infinite Front: IF-BE-1
+
+- Boss Endless chapter; unlocks after clearing `1-10`.
+- Ordinary enemy pool, initial characters (`300`), weight growth (`19`, `+10`, no extra increment) and weight cap (`600`, before difficulty scaling) follow `1-10`.
+- Starts with Cube I. Each defeat immediately spawns the next Cube rank at its original entry position. Existing towers, minions, projectiles, waves and resources remain.
+- Cube rank N: HP `150000 + 50000 * (N - 1)`, armor `300 * N`, MR `20`, speed `0.6`. Advance summons rank N Squares. Promotion prioritizes eligible ranks up to N.
+- No final victory. Records show highest defeated Boss rank, not completed waves. Restart/defeat retains this record; exiting or reloading saves the active Boss and battlefield for continuation.
 
 ## Level 1-9 Weight Growth
 

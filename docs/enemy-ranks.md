@@ -51,8 +51,10 @@ above 3999 use decimal notation; unit labels shrink to fit the shape.
 Dynamic registrations are cached with a 512-entry limit. Rank lookup does not
 enumerate or allocate every preceding rank.
 
-Bosses, Boss companions and the unranked Solar Bomb are not extended in this
-rank abstraction. Endless battle persistence is documented in `survival-saves.md`.
+Boss companions and the unranked Solar Bomb are not extended in this abstraction.
+Cube Bosses use a separate explicit rank in `cubeBossRanks.ts`, with linear HP/armor,
+same-rank Square summons and rank-aware Promotion. Other Boss families remain fixed.
+Endless battle persistence is documented in `survival-saves.md`.
 
 ## Verification
 

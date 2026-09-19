@@ -93,7 +93,6 @@ export type BossKind =
 export type BossSkillName =
   | "promotion"
   | "advance"
-  | "promotion2"
   | "charge"
   | "impact"
   | "suppression"
@@ -457,6 +456,7 @@ export interface LevelConfig {
   id: string;
   unlockAfter?: string;
   survival?: boolean;
+  bossEndless?: boolean;
   unlimitedRankFamilies?: EnemyFamily[];
   enemyKinds: EnemyKind[];
   firstWaveWeight: number;
@@ -517,7 +517,6 @@ export interface CubeBoss {
   skills: {
     promotion: BossSkill<"promotion">;
     advance: BossSkill<"advance">;
-    promotion2?: BossSkill<"promotion2">;
     charge?: BossSkill<"charge">;
     impact?: BossSkill<"impact">;
     suppression?: BossSkill<"suppression">;

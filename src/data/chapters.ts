@@ -19,7 +19,7 @@ export const chapterDefinitions: ChapterDefinition[] = [
   { id: "4", labelKey: "chapter.4", x: 1540, y: 290, levelPrefix: "4-", parentId: "3" },
   { id: "5", labelKey: "chapter.5", x: 1880, y: 430, levelPrefix: "5-", parentId: "4" },
   { id: "IF", labelKey: "chapter.IF", x: 420, y: 350, levelPrefix: "IF-", survival: true },
-  { id: "IFB", labelKey: "chapter.IFB", x: 820, y: 350, levelPrefix: "IFB-", survival: true }
+  { id: "IFB", labelKey: "chapter.IFB", x: 820, y: 350, levelPrefix: "IF-BE-", survival: true }
 ];
 
 export function defaultChapterId() {
@@ -36,12 +36,13 @@ export function getChapterDefinition(chapterId: string) {
 
 export function chapterIdForLevelId(levelId: string) {
   return (
-    chapterDefinitions.find((chapter) => levelId.startsWith(chapter.levelPrefix))?.id ??
+    chapterDefinitions.filter((chapter) => levelId.startsWith(chapter.levelPrefix))
+      .sort((a, b) => b.levelPrefix.length - a.levelPrefix.length)[0]?.id ??
     defaultChapterId()
   );
 }
 
 export function levelNodesForChapter(chapterId: string, nodes: LevelNode[] = levelNodes) {
   const chapter = getChapterDefinition(chapterId);
-  return nodes.filter((node) => node.id.startsWith(chapter.levelPrefix));
+  return nodes.filter((node) => chapterIdForLevelId(node.id) === chapter.id);
 }

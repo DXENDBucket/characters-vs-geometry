@@ -35,7 +35,7 @@ function createRegistration(kind: EnemyKind): EnemyRegistration {
     definition, family, rank, nameKey: `enemy.${kind}`, attackMode: archetype.attackMode
   };
   if (archetype.leader) registration.leader = true;
-  // Existing Boss promotion skills retain their rank-three ceiling.
+  // Default promotion metadata stays capped; Cube skills resolve their own rank-aware limit.
   if (rank < (archetype.promotionMaxRank ?? 0)) registration.promotionKind = enemyKindAtRank(family, rank + 1);
   if (archetype.splitToPreviousRank && rank > 1) registration.splitSpawnKind = enemyKindAtRank(family, rank - 1);
   if (archetype.blockedDetonationDelay !== undefined) {

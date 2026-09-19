@@ -52,7 +52,8 @@ import { syncDodecahedronCompanionShape } from "../render/unitShapes";
 import type { BossCompanionActionPhase, BossSkill, CubeBoss, DamageType, Enemy, MortarProjectile, Tower } from "../types";
 import { createBossSkillRegistry, runRegisteredBossSkills } from "./bossSkillRegistry";
 import { enemyAttackMultiplier } from "./combatStats";
-import { applyEnemyPromotion, enemyIsHighFlying, findPromotionTargets, promotedKind } from "./enemyBehaviors";
+import { applyEnemyPromotion, enemyIsHighFlying, findPromotionTargets } from "./enemyBehaviors";
+import { cubePromotionKind } from "../bosses/cubeBossRanks";
 import { spawnEnemyAt } from "./enemyRuntime";
 import { forEachSnapshot } from "./iteration";
 import { createMortarProjectile } from "./projectiles";
@@ -174,14 +175,9 @@ export interface BossRuntime {
 const bossSkillRegistry = createBossSkillRegistry<BossRuntime>({
   cube: [
     {
-      skillKey: "promotion2",
-      canUse: (runtime, boss) => canUsePromotionSkill(runtime, boss, 2),
-      use: (runtime, boss) => usePromotionSkill(runtime, boss, 2)
-    },
-    {
       skillKey: "promotion",
-      canUse: (runtime, boss) => canUsePromotionSkill(runtime, boss, 1),
-      use: (runtime, boss) => usePromotionSkill(runtime, boss, 1)
+      canUse: (runtime, boss) => canUsePromotionSkill(runtime, boss),
+      use: (runtime, boss) => usePromotionSkill(runtime, boss)
     },
     {
       skillKey: "advance",
@@ -270,17 +266,17 @@ export function updateBossRuntime(runtime: BossRuntime, seconds: number) {
   updateBossSkills(runtime, boss, seconds);
   const removedByFunctionalTower = findBossPart(boss, (part) => {
     triggerFunctionalTowersTouchingBoss(runtime, part);
-    return !runtime.getBoss();
+    return runtime.getBoss() !== boss;
   });
-  if (removedByFunctionalTower || !runtime.getBoss()) {
+  if (removedByFunctionalTower || runtime.getBoss() !== boss) {
     return;
   }
 
   const removedByContactDamage = findBossPart(boss, (part) => {
     damageBossTouchingTowers(runtime, part, seconds);
-    return !runtime.getBoss();
+    return runtime.getBoss() !== boss;
   });
-  if (removedByContactDamage || !runtime.getBoss()) {
+  if (removedByContactDamage || runtime.getBoss() !== boss) {
     return;
   }
 
@@ -1194,15 +1190,17 @@ function updateBossHasteVisual(runtime: BossRuntime, boss: CubeBoss) {
 }
 
 function triggerFunctionalTowersTouchingBoss(runtime: BossRuntime, boss: CubeBoss) {
+  const rootBoss = runtime.getBoss();
   const bounds = bossBounds(boss);
   forEachSnapshot(runtime.towers, (tower) => {
+    if (runtime.getBoss() !== rootBoss) return false;
     if (!towerIntersectsBossBounds(tower, bounds)) {
       return;
     }
 
     if (tower.type === "G" && isTrapArmed(tower, runtime.battleTime)) {
       runtime.triggerTrapTower(tower, boss);
-      if (!runtime.getBoss()) {
+      if (runtime.getBoss() !== rootBoss) {
         return false;
       }
       return;
@@ -1215,6 +1213,7 @@ function triggerFunctionalTowersTouchingBoss(runtime: BossRuntime, boss: CubeBos
 }
 
 function damageBossTouchingTowers(runtime: BossRuntime, boss: CubeBoss, seconds: number) {
+  const rootBoss = runtime.getBoss();
   boss.contactAttackBuffer += seconds;
   if (boss.contactAttackBuffer < CUBE_BOSS_CONTACT_INTERVAL) {
     return;
@@ -1234,6 +1233,7 @@ function damageBossTouchingTowers(runtime: BossRuntime, boss: CubeBoss, seconds:
       for (const tower of targets) {
         makeBossCollapse(runtime, boss, tower.x, tower.y, tower);
         runtime.damageTower(tower, CUBE_BOSS_CONTACT_DAMAGE, "physical");
+        if (runtime.getBoss() !== rootBoss) return;
       }
     } finally {
       targets.length = 0;
@@ -1445,19 +1445,19 @@ function summonTetrahedronSuppressionMinions(runtime: BossRuntime, boss: CubeBos
   }
 }
 
-function canUsePromotionSkill(runtime: BossRuntime, boss: CubeBoss, fromRank: number) {
-  const targets = findPromotionTargets(boss, runtime.enemies, fromRank, 3);
+function canUsePromotionSkill(runtime: BossRuntime, boss: CubeBoss) {
+  const targets = findPromotionTargets(boss, runtime.enemies, boss.rank, 3);
   return targets.length >= 3;
 }
 
-function usePromotionSkill(runtime: BossRuntime, boss: CubeBoss, fromRank: number) {
-  for (const target of findPromotionTargets(boss, runtime.enemies, fromRank, 3)) {
-    promoteEnemy(runtime, target);
+function usePromotionSkill(runtime: BossRuntime, boss: CubeBoss) {
+  for (const target of findPromotionTargets(boss, runtime.enemies, boss.rank, 3)) {
+    promoteEnemy(runtime, target, boss.rank);
   }
 }
 
-function promoteEnemy(runtime: BossRuntime, enemy: Enemy) {
-  const nextKind = promotedKind(enemy.kind);
+function promoteEnemy(runtime: BossRuntime, enemy: Enemy, maxRank: number) {
+  const nextKind = cubePromotionKind(enemy.kind, maxRank);
   if (!nextKind || !enemy.inPlay) {
     return;
   }
