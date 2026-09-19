@@ -57,7 +57,7 @@ import {
   type TargetedEffectCardRuntime
 } from "../game/targetedEffectCards";
 import { TowerDeploymentController, type TowerDeploymentRuntime } from "../game/towerDeployment";
-import { MIRROR_COST_LIMIT, TowerMirrorController, type TowerMirrorRuntime, type TowerMirrorShiftMove } from "../game/towerMirrors";
+import { MIRROR_COST_LIMIT, TowerMirrorController, type TowerMirrorRuntime } from "../game/towerMirrors";
 import { TowerShifterController, type TowerShifterRuntime } from "../game/towerShifter";
 import { TowerSkillController, type TowerSkillRuntime } from "../game/towerSkills";
 import {
@@ -659,9 +659,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handleShifterPointer(pointer: Phaser.Input.Pointer, lane: number, column: number, existingTower?: Tower) {
-    const mirrorMoves = !existingTower && this.shifter.hasSelection()
-      ? this.previewMirrorShiftMoves(lane, column)
-      : null;
     const result = this.shifter.handlePointer(lane, column, existingTower, this.isCtrlPointer(pointer));
     if (result === "cooldown") {
       this.clearPlacementGhosts();
@@ -684,36 +681,12 @@ export class GameScene extends Phaser.Scene {
 
     if (result === "moved") {
       this.clearPlacementGhosts();
-      if (mirrorMoves) {
-        this.mirrors.handleTowersShifted(
-          mirrorMoves,
-          (linkedTower) => removeTower(this.unitLifecycleRuntime(), linkedTower)
-        );
-      } else {
-        this.mirrors.syncMirrors();
-      }
-      this.updateLevelAuras();
       this.updateCards();
       return;
     }
 
     this.syncPlacementGhost(pointer);
     this.updateCards();
-  }
-
-  private previewMirrorShiftMoves(lane: number, column: number): TowerMirrorShiftMove[] | null {
-    const move = this.shifter.previewMove(lane, column);
-    if (!move.valid) {
-      return null;
-    }
-
-    return move.positions.map(({ tower, lane: toLane, column: toColumn }) => ({
-      tower,
-      fromLane: tower.lane,
-      fromColumn: tower.column,
-      toLane,
-      toColumn
-    }));
   }
 
   private syncPlacementGhost(pointer?: Phaser.Input.Pointer) {
@@ -1246,7 +1219,11 @@ export class GameScene extends Phaser.Scene {
       occupied: this.occupied,
       cardTime: this.battleTime,
       battleTime: this.battleTime,
-      isCellDeployable: (lane, column) => this.cellIsDeployable(lane, column)
+      isCellDeployable: (lane, column) => this.cellIsDeployable(lane, column),
+      onMoved: (moves) => {
+        this.mirrors.handleTowersShifted(moves, (tower) => removeTower(this.unitLifecycleRuntime(), tower));
+        this.updateLevelAuras();
+      }
     };
   }
 

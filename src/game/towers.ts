@@ -85,7 +85,7 @@ export function createTower(
   }
 
   return {
-    id: `${lane}:${column}:${battleTime}`,
+    id: `tower:${placedOrder}`,
     type: definition.id,
     lane,
     column,
