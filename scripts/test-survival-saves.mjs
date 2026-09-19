@@ -142,4 +142,19 @@ test("Boss Endless saves preserve Boss references and reject missing, dead or in
   for (const change of [{ pendingCriticalSummon: undefined }, { bossHasteUntil: NaN }, { skills: boss.skills }])
     assert.equal(f.saves.writeSurvivalSave(makeSave({ ...tetraState, boss: { ...tetraBoss, ...change } }, "IF-BE-2")), false);
   assert.deepEqual(f.saves.readSurvivalSave("IF-BE-2"), tetraSave);
+  const dodecaStats = { ...stats, maxHp: 100000, armor: 200, magicResistance: 90 };
+  const dodecaBoss = { ...boss, kind: "dodecahedron", hp: 50000, maxHp: 100000,
+    baseStats: dodecaStats, finalStats: { ...dodecaStats }, companionsInitialized: true, companionDeathsHandled: 1,
+    skills: { ...boss.skills, endlessWings: { sp: 0, spBuffer: 0.3, activeUntil: 0, maxSp: 1, cost: 1 } } };
+  const dodecaState = { ...state, boss: dodecaBoss, target: undefined,
+    actions: [{ at: 2000, action: { type: "bossDeathLaser", boss: dodecaBoss, laneRadius: 1, hitCount: 5 } }] };
+  const dodecaSave = makeSave(dodecaState, "IF-BE-3");
+  assert.equal(f.saves.writeSurvivalSave(dodecaSave), true);
+  const dodecaLoaded = f.graph.decodeSaveGraph(f.saves.readSurvivalSave("IF-BE-3").graph, () => ({}));
+  assert.equal(dodecaLoaded.actions[0].action.boss, dodecaLoaded.boss);
+  assert.equal(dodecaLoaded.boss.companionDeathsHandled, 1);
+  assert.equal(dodecaLoaded.actions[0].action.hitCount, 5);
+  assert.equal(f.saves.writeSurvivalSave(makeSave(dodecaState, "IF-BE-2")), false);
+  for (const change of [{ companionDeathsHandled: 4 }, { companionsInitialized: undefined }, { skills: boss.skills }])
+    assert.equal(f.saves.writeSurvivalSave(makeSave({ ...dodecaState, actions: [], boss: { ...dodecaBoss, ...change } }, "IF-BE-3")), false);
 });

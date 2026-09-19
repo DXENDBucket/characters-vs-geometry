@@ -73,6 +73,7 @@ export const levelNodes: LevelNode[] = [
   { id: "IF-4", x: 1500, y: 320 },
   { id: "IF-BE-1", x: 500, y: 380 },
   { id: "IF-BE-2", x: 820, y: 320 },
+  { id: "IF-BE-3", x: 1160, y: 430 },
   ...Array.from({ length: 8 }, (_, index) => ({
     id: `IF-${index + 5}`, x: 1840 + index * 340, y: index % 2 === 0 ? 430 : 320
   }))
@@ -1049,9 +1050,10 @@ for (const [index, sourceId] of ["4-1", "4-4", "4-6", "4-7", "5-2", "5-4", "5-6"
   };
 }
 
-for (const [index, [sourceId, bossKind]] of ([["1-10", "cube"], ["2-10", "tetrahedron"]] as const).entries()) {
+for (const [index, [sourceId, bossKind]] of ([["1-10", "cube"], ["2-10", "tetrahedron"], ["5-5", "dodecahedron"]] as const).entries()) {
   const source = levelConfigs[sourceId];
   const id = `IF-BE-${index + 1}`;
+  const families = [...new Set(source.enemyKinds.map(kind => parseEnemyKind(kind)!.family))];
   levelConfigs[id] = {
     ...source,
     id,
@@ -1060,7 +1062,8 @@ for (const [index, [sourceId, bossKind]] of ([["1-10", "cube"], ["2-10", "tetrah
     bossEndless: true,
     waveWeightCap: undefined,
     waveWeightIncrementGrowth: sourceId === "1-10" ? 1 : source.waveWeightIncrementGrowth,
-    unlimitedRankFamilies: [...new Set(source.enemyKinds.map(kind => parseEnemyKind(kind)!.family))],
+    enemyKinds: [...families],
+    unlimitedRankFamilies: families,
     startingChars: source.startingChars ?? 300,
     bossKind
   };

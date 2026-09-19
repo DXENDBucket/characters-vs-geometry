@@ -77,8 +77,8 @@ export type EnemyFamily =
   | "trapezoid"
   | "solarBomb"
   | "square";
-export type RankedEnemyFamily = Exclude<EnemyFamily, "solarBomb" | "dodecahedronCompanion">;
-export type EnemyKind = EnemyFamily | `${RankedEnemyFamily}${number}` | "dodecahedronCompanion2";
+export type RankedEnemyFamily = Exclude<EnemyFamily, "solarBomb">;
+export type EnemyKind = EnemyFamily | `${RankedEnemyFamily}${number}`;
 export type BossKind =
   | "cube"
   | "cube2"

@@ -1,4 +1,5 @@
 import type { CubeBoss, Enemy, Tower } from "../types";
+import { enemyFamily } from "../registry/enemies";
 import {
   enemySupportBonuses,
   type EnemySupportBonuses,
@@ -172,7 +173,7 @@ function bossCompanionDamageReduction(rootBoss: CubeBoss, enemies: Enemy[]) {
 }
 
 function enemyIsDodecahedronCompanion(enemy: Enemy) {
-  return enemy.kind === "dodecahedronCompanion" || enemy.kind === "dodecahedronCompanion2";
+  return enemyFamily(enemy.kind) === "dodecahedronCompanion";
 }
 
 function octahedronBodyDamageReduction(rootBoss: CubeBoss) {

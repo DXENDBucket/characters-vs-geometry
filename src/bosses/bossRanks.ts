@@ -6,6 +6,7 @@ import type { BossKind, EnemyKind } from "../types";
 export function rankedBossFamily(kind: unknown) {
   if (kind === "cube" || kind === "cube2") return "cube";
   if (kind === "tetrahedron" || kind === "tetrahedron2") return "tetrahedron";
+  if (kind === "dodecahedron" || kind === "dodecahedron2") return "dodecahedron";
   return undefined;
 }
 
@@ -26,6 +27,12 @@ export function bossStatsAtRank(kind: BossKind, rank: number) {
 export function tetrahedronChargeSpeedAtRank(rank: number) {
   if (!Number.isSafeInteger(rank) || rank < 1) throw new RangeError("Invalid tetrahedron rank");
   return 2 + 0.5 * (rank - 1);
+}
+
+export function dodecahedronAttacksAtRank(rank: number) {
+  if (!Number.isSafeInteger(rank) || rank < 1) throw new RangeError("Invalid dodecahedron rank");
+  return { companionLaserHits: 4 * rank, companionMortarHits: 2 * rank,
+    deathLaserHits: 7 * rank, deathMortarTargets: 2 * rank + 2 };
 }
 
 export function cubePromotionKind(kind: EnemyKind, bossRank: number): EnemyKind | undefined {

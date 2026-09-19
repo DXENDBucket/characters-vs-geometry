@@ -1,6 +1,12 @@
-import type { DamageType, Enemy, Tower } from "../types";
+import type { CubeBoss, DamageType, Enemy, Tower } from "../types";
+
+export type BossAttackAction =
+  | { type: "companionLaser" | "companionMortar"; boss: CubeBoss; companion: Enemy; hitCount: number }
+  | { type: "bossDeathLaser"; boss: CubeBoss; laneRadius: number; hitCount: number }
+  | { type: "bossDeathMortar"; boss: CubeBoss; target: Tower };
 
 export type BattleAction =
+  | BossAttackAction
   | { type: "enemyShot" | "enemyLaser" | "enemyMortar"; enemy: Enemy; time: number; hitCount: number }
   | { type: "volley"; tower: Tower; hitCount: number }
   | { type: "targetedEffect"; tower: Tower }

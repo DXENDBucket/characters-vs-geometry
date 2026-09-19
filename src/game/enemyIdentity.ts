@@ -8,7 +8,7 @@ export interface EnemyIdentity {
 
 export function enemyKindAtRank(family: EnemyFamily, rank: number = 1): EnemyKind {
   if (!Object.hasOwn(enemyArchetypes, family) || !Number.isSafeInteger(rank) || rank < 1 ||
-    (family === "solarBomb" && rank !== 1) || (family === "dodecahedronCompanion" && rank > 2)) {
+    (family === "solarBomb" && rank !== 1)) {
     throw new RangeError(`Invalid enemy identity: ${family} rank ${rank}`);
   }
   return rank === 1 ? family : `${family}${rank}` as EnemyKind;
@@ -21,7 +21,6 @@ export function parseEnemyKind(kind: unknown): EnemyIdentity | undefined {
   if (!match || !Object.hasOwn(enemyArchetypes, match[1]) || match[1] === "solarBomb") return undefined;
   const rank = Number(match[2]);
   // Rank one keeps the historical bare family id; reject aliases and unsafe save values.
-  if (match[1] === "dodecahedronCompanion" && rank !== 2) return undefined;
   return Number.isSafeInteger(rank) && rank >= 2 ? { family: match[1] as EnemyFamily, rank } : undefined;
 }
 

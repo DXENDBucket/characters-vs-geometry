@@ -2,6 +2,7 @@ import type { BattleSaveState } from "./battleSaveState";
 import { decodeSaveGraph, type NodeKind, type SaveGraph } from "./saveGraph";
 import { rankedBossFamily } from "../bosses/bossRanks";
 import type { BossKind } from "../types";
+import { parseEnemyKind } from "./enemyIdentity";
 
 export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossKind?: BossKind) {
   const units = new Map<NodeKind, Set<object>>();
@@ -34,7 +35,8 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
     for (const key of ["maxHp", "armor", "magicResistance", "speed", "finalDamageReduction"]) {
       require(finite(boss.baseStats[key]) && finite(boss.finalStats[key]));
     }
-    const skillKeys = family === "tetrahedron" ? ["promotion", "advance", "charge", "impact", "suppression", "desperation"] : ["promotion", "advance"];
+    const skillKeys = ["promotion", "advance", ...(family === "tetrahedron"
+      ? ["charge", "impact", "suppression", "desperation"] : family === "dodecahedron" ? ["endlessWings"] : [])];
     for (const key of skillKeys) {
       const skill = boss.skills[key];
       require(record(skill) && [skill.sp, skill.spBuffer, skill.activeUntil, skill.maxSp, skill.cost].every(finite));
@@ -48,6 +50,11 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
       for (const key of ["halfHpTriggered", "criticalHpTriggered", "pendingCriticalSummon"]) require(typeof boss[key] === "boolean");
       for (const key of ["chargeExpiresAt", "bossHasteUntil", "nextBossHasteTrailAt"]) require(finite(boss[key]));
     }
+    if (family === "dodecahedron") {
+      require(typeof boss.companionsInitialized === "boolean");
+      require(Number.isInteger(boss.companionDeathsHandled) && (boss.companionDeathsHandled as number) >= 0 &&
+        (boss.companionDeathsHandled as number) <= 3);
+    }
   }
   require(array(state.towers, member("tower")) && array(state.enemies, member("enemy")) &&
     array(state.projectiles, member("projectile")) && array(state.enemyProjectiles, member("enemyProjectile")) && array(state.mortarProjectiles, member("mortar")));
@@ -58,6 +65,10 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
       require(record(value.baseStats) && record(value.finalStats) && record(value.skills));
       require(array(value.statusEffects, effect => record(effect) && typeof effect.name === "string" && timestamp(effect.expiresAt)));
       require(Number.isInteger(value.lane) && (value.lane as number) >= 0 && (value.lane as number) < 7);
+      if (kind === "enemy" && parseEnemyKind(value.kind)?.family === "dodecahedronCompanion") {
+        for (const key of ["bossOrbitAngle", "bossOrbitRadius", "bossCompanionIndex", "bossCompanionNextActionAt"]) require(finite(value[key]));
+        require(["laser", "mortar", "wings"].includes(value.bossCompanionActionPhase as string));
+      }
       if (kind === "tower") {
         require(typeof value.id === "string" && value.id.startsWith("tower:") && Number.isInteger(value.placedOrder));
         require(Number.isInteger(value.column) && (value.column as number) >= 0 && (value.column as number) < 13);
@@ -72,7 +83,12 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
   require(array(state.cardDeadlines, entry => record(entry) && typeof entry.id === "string" && timestamp(entry.readyAt)));
   require(array(state.actions, entry => record(entry) && finite(entry.at) && record(entry.action) &&
     ((["volley", "shock", "targetedEffect", "spellMortar"].includes(entry.action.type as string) && member("tower")(entry.action.tower)) ||
-     (["enemyShot", "enemyLaser", "enemyMortar"].includes(entry.action.type as string) && member("enemy")(entry.action.enemy)))));
+     (["enemyShot", "enemyLaser", "enemyMortar"].includes(entry.action.type as string) && member("enemy")(entry.action.enemy)) ||
+     (["companionLaser", "companionMortar"].includes(entry.action.type as string) && member("boss")(entry.action.boss) &&
+       member("enemy")(entry.action.companion) && finite(entry.action.hitCount) && entry.action.hitCount > 0) ||
+     (entry.action.type === "bossDeathLaser" && member("boss")(entry.action.boss) &&
+       finite(entry.action.hitCount) && entry.action.hitCount > 0 && finite(entry.action.laneRadius) && entry.action.laneRadius >= 0) ||
+     (entry.action.type === "bossDeathMortar" && member("boss")(entry.action.boss) && member("tower")(entry.action.target)))));
   require(array(state.storage, entry => record(entry) && member("enemy")(entry.enemy) && member("tower")(entry.carrier) && finite(entry.releaseAt)));
   require(array(state.spellMortarFlights, entry => record(entry) && member("tower")(entry.source) && finite(entry.progress) && entry.progress >= 0 && entry.progress <= 1));
   require(array(state.sealedCells, cell => typeof cell === "string"));

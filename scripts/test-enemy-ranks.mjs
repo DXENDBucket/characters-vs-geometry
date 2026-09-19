@@ -151,9 +151,9 @@ test("IF-BE-1 is isolated in Boss Endless and inherits 1-10 enemies and funding 
   const { chapterIdForLevelId, levelNodesForChapter } = load("src/data/chapters.ts");
   assert.equal(chapterIdForLevelId("IF-BE-1"), "IFB");
   assert.equal(levelNodesForChapter("IF").length, 12);
-  assert.deepEqual(levelNodesForChapter("IFB").map(node => node.id), ["IF-BE-1", "IF-BE-2"]);
+  assert.deepEqual(levelNodesForChapter("IFB").map(node => node.id), ["IF-BE-1", "IF-BE-2", "IF-BE-3"]);
   const level = getLevelConfig("IF-BE-1"), source = getLevelConfig("1-10");
-  for (const key of ["enemyKinds", "firstWaveWeight", "waveWeightIncrement", "wavesPerFlag"])
+  for (const key of ["firstWaveWeight", "waveWeightIncrement", "wavesPerFlag"])
     assert.deepEqual(level[key], source[key], key);
   assert.equal(level.waveWeightIncrementGrowth, 1);
   const { waveWeightLimit } = load("src/game/waves.ts");
@@ -185,19 +185,20 @@ test("all Boss Endless stages inherit source funding and weights but use IF dyna
   const { getLevelConfig } = load("src/data/levels.ts");
   const { chapterIdForLevelId } = load("src/data/chapters.ts");
   const { buildInfiniteWaveKinds } = load("src/game/infiniteWaves.ts");
-  for (const [index, sourceId] of ["1-10", "2-10"].entries()) {
+  for (const [index, sourceId] of ["1-10", "2-10", "5-5"].entries()) {
     const id = `IF-BE-${index + 1}`, level = getLevelConfig(id), source = getLevelConfig(sourceId);
     assert.equal(chapterIdForLevelId(id), "IFB");
     assert.equal(level.unlockAfter, sourceId);
     assert.equal(level.startingChars, source.startingChars ?? 300);
     assert.deepEqual(level.unlimitedRankFamilies, [...new Set(source.enemyKinds.map(registry.enemyFamily))]);
+    assert.deepEqual(level.enemyKinds, level.unlimitedRankFamilies);
     for (const field of ["firstWaveWeight", "waveWeightIncrement", "wavesPerFlag"])
       assert.equal(level[field], source[field], field);
-    assert.equal(level.waveWeightIncrementGrowth, 1);
-    const kinds = buildInfiniteWaveKinds(level.unlimitedRankFamilies, 600, 20, 10, length => length - 1);
+    assert.equal(level.waveWeightIncrementGrowth, sourceId === "1-10" ? 1 : source.waveWeightIncrementGrowth);
+    const kinds = buildInfiniteWaveKinds(level.unlimitedRankFamilies, 6000, 20, 10, length => length - 1);
     assert.ok(kinds.some(kind => registry.enemyRank(kind) > 3 && registry.enemyFamily(kind) !== "circle"));
     assert.ok(kinds.every(kind => registry.enemyFamily(kind) !== "circle" || registry.enemyRank(kind) <= 4));
-    assert.ok(kinds.reduce((sum, kind) => sum + registry.getEnemyDefinition(kind).weight, 0) <= 600);
+    assert.ok(kinds.reduce((sum, kind) => sum + registry.getEnemyDefinition(kind).weight, 0) <= 6000);
   }
 });
 
@@ -246,7 +247,7 @@ test("rank ids preserve old spellings and reject invalid or noncanonical save va
   assert.equal(enemyKindAtRank("triangle", 1), "triangle");
   assert.equal(enemyKindAtRank("triangle", 2), "triangle2");
   for (const value of ["triangle0", "triangle1", "triangle01", "triangle1.5", "triangle-2", "triangle1e3",
-    "triangle9007199254740992", "missing100", "__proto__", "constructor", null, 100, "solarBomb2", "dodecahedronCompanion3", "cube10"]) {
+    "triangle9007199254740992", "missing100", "__proto__", "constructor", null, 100, "solarBomb2", "dodecahedronCompanion1", "cube10"]) {
     assert.equal(isEnemyKind(value), false, String(value));
   }
   for (const rank of [0, -1, 1.1, Infinity, NaN, Number.MAX_SAFE_INTEGER + 1]) {
@@ -255,7 +256,29 @@ test("rank ids preserve old spellings and reject invalid or noncanonical save va
   assert.throws(() => registry.getEnemyDefinition("constructor"), RangeError);
   assert.throws(() => enemyKindAtRank("missing", 2), RangeError);
   assert.throws(() => enemyKindAtRank("solarBomb", 2), RangeError);
-  assert.throws(() => enemyKindAtRank("dodecahedronCompanion", 3), RangeError);
+  assert.equal(enemyKindAtRank("dodecahedronCompanion", 3), "dodecahedronCompanion3");
+});
+
+test("dodecahedron ranks extend companion health and attacks without changing the boss panel", () => {
+  const { bossStatsAtRank, dodecahedronAttacksAtRank } = load("src/bosses/bossRanks.ts");
+  for (const rank of [1, 2, 3, 10, 100]) {
+    assert.deepEqual(bossStatsAtRank("dodecahedron", rank), { hp: 100000, armor: 200, magicResistance: 90, speed: 0.6 });
+    const kind = enemyKindAtRank("dodecahedronCompanion", rank);
+    const stats = registry.getEnemyDefinition(kind);
+    assert.equal(stats.hp, 32000 + 8000 * (rank - 1));
+    assert.equal(stats.armor, 2000);
+    assert.equal(stats.magicResistance, 40);
+    assert.equal(registry.enemyIsBossCompanion(kind), true);
+    assert.deepEqual(dodecahedronAttacksAtRank(rank), { companionLaserHits: 4 * rank,
+      companionMortarHits: 2 * rank, deathLaserHits: 7 * rank, deathMortarTargets: 2 * rank + 2 });
+  }
+  const level = load("src/data/levels.ts").getLevelConfig("IF-BE-3");
+  assert.equal(level.bossKind, "dodecahedron");
+  assert.equal(level.startingChars, 10000);
+  assert.equal(level.firstWaveWeight, 50);
+  assert.equal(level.waveWeightIncrement, 50);
+  assert.equal(level.waveWeightIncrementGrowth, 7);
+  assert.equal(level.waveWeightCap, undefined);
 });
 
 test("high-rank lookup stays cached without growing the finite catalog forever", () => {

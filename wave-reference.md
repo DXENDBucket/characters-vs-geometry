@@ -2926,6 +2926,17 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 - Chapter 5 finale 5-10 starting characters: `50000`.
 - Natural income: `25` every `5s`.
 
+## Infinite Front: IF-BE-3
+
+- Boss Endless based on `5-5`, unlocked by clearing `5-5`; initial characters `10000`.
+- Initial weight `50`, increment `+50`, extra increment `+7`, with no weight cap.
+- Enemy families follow `5-5`, using the shared IF dynamic ranks and flag-based leader ranks. Circle spawns remain capped at IV.
+- Dodecahedron starts at I; each defeat immediately spawns the next rank at the fixed starting position. Records track the highest defeated Boss rank.
+- Boss stats stay at HP `100000`, armor `200`, MR `90`, speed `0.6`. Three same-rank companions each have `32000 + 8000 * (rank - 1)` HP, armor `2000`, MR `40`.
+- Companion laser/mortar volleys have `4 * rank` / `2 * rank` hits; first companion death fires `7 * rank` laser hits; second targets the latest `2 * rank + 2` towers, limited by available towers.
+- Volleys use at most five firing times with separate stacked hits. Companion count, 95% Boss damage reduction while companions live, 10-second survivor invincibility and Endless Wings stay unchanged.
+- Leaving saves companion state and pending attacks; old companions are removed on Boss replacement and old Boss attack actions cannot affect the new round.
+
 ## Recent Enemy Additions
 
 - Shooting Triangle 2: weight `100`, HP `2000`, armor `70`, attack `400` physical, average speed `4`, body label `II`.
