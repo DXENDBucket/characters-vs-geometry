@@ -17,9 +17,10 @@ import {
   type EncyclopediaTab
 } from "../encyclopedia";
 import { DAMAGE_SYMBOLS, getLanguage, t } from "../i18n";
+import { bossEncyclopediaIcon, visibleEncyclopediaEntries } from "../encyclopediaVisibility";
 import { cardLetterCase, type CardLetterCase } from "../registry/cards";
-import { getEnemyDefinition } from "../registry/enemies";
-import type { BossKind, DamageType } from "../types";
+import { enemyFamily, getEnemyDefinition } from "../registry/enemies";
+import type { BossKind, DamageType, EnemyKind } from "../types";
 import {
   createCubeIcon,
   createDodecahedronIcon,
@@ -118,7 +119,7 @@ export class EncyclopediaPanel {
   private tiles: EncyclopediaTile[] = [];
   private selectedEntryId = "";
 
-  constructor(private readonly scene: Phaser.Scene) {
+  constructor(private readonly scene: Phaser.Scene, private readonly onClose?: () => void) {
     this.createOverlay();
   }
 
@@ -127,9 +128,28 @@ export class EncyclopediaPanel {
   }
 
   open(tab: EncyclopediaTab) {
+    this.dragMoved = false;
+    this.suppressClickUntil = 0;
     this.openState = true;
     this.overlay.setVisible(true);
     this.setTab(tab);
+  }
+
+  openEnemy(kind: EnemyKind) {
+    this.openMatchingEnemy((entry) => !!entry.enemyKind && enemyFamily(entry.enemyKind) === enemyFamily(kind));
+  }
+
+  openBoss(kind: BossKind) {
+    this.openMatchingEnemy((entry) => entry.icon === bossEncyclopediaIcon(kind));
+  }
+
+  private openMatchingEnemy(matches: (entry: EncyclopediaEntry) => boolean) {
+    this.open("enemies");
+    const entries = this.currentEntries();
+    const index = entries.findIndex(matches);
+    if (index < 0) return;
+    this.selectEntry(entries[index]);
+    this.setGridScroll(Math.floor(index / GRID_COLUMNS) * (TILE_SIZE + TILE_GAP));
   }
 
   close() {
@@ -137,6 +157,7 @@ export class EncyclopediaPanel {
     this.dragPointer = null;
     this.dragArea = null;
     this.overlay.setVisible(false);
+    this.onClose?.();
   }
 
   private createOverlay() {
@@ -223,9 +244,10 @@ export class EncyclopediaPanel {
           return;
         }
 
-        if (this.gridViewport.contains(pointer.x, pointer.y)) {
+        const position = this.pointerPosition(pointer);
+        if (this.gridViewport.contains(position.x, position.y)) {
           this.setGridScroll(this.gridScrollY + deltaY);
-        } else if (this.detailViewport.contains(pointer.x, pointer.y)) {
+        } else if (this.detailViewport.contains(position.x, position.y)) {
           this.setDetailScroll(this.detailScrollY + deltaY);
         }
       }
@@ -439,7 +461,8 @@ export class EncyclopediaPanel {
     container.add(title);
 
     const openEntry = (pointer: Phaser.Input.Pointer) => {
-      if (this.dragMoved || this.timeIsSuppressingClick() || !this.gridViewport.contains(pointer.x, pointer.y)) {
+      const position = this.pointerPosition(pointer);
+      if (this.dragMoved || this.timeIsSuppressingClick() || !this.gridViewport.contains(position.x, position.y)) {
         return;
       }
 
@@ -796,14 +819,15 @@ export class EncyclopediaPanel {
 
   private currentEntries() {
     if (this.tab === "enemies") {
-      return enemyEncyclopediaEntries();
+      return visibleEncyclopediaEntries(enemyEncyclopediaEntries());
     }
 
     if (this.tab === "mechanics") {
       return mechanicEncyclopediaEntries();
     }
 
-    return towerEncyclopediaEntries().filter((entry) => entry.card && cardLetterCase(entry.card.id) === this.cardCase);
+    return visibleEncyclopediaEntries(towerEncyclopediaEntries())
+      .filter((entry) => entry.card && cardLetterCase(entry.card.id) === this.cardCase);
   }
 
   private entryId(entry: EncyclopediaEntry) {
@@ -851,9 +875,10 @@ export class EncyclopediaPanel {
       return;
     }
 
-    const area = this.gridViewport.contains(pointer.x, pointer.y)
+    const position = this.pointerPosition(pointer);
+    const area = this.gridViewport.contains(position.x, position.y)
       ? "grid"
-      : this.detailViewport.contains(pointer.x, pointer.y)
+      : this.detailViewport.contains(position.x, position.y)
         ? "detail"
         : null;
     if (!area) {
@@ -862,7 +887,7 @@ export class EncyclopediaPanel {
 
     this.dragPointer = pointer;
     this.dragArea = area;
-    this.dragStartY = pointer.y;
+    this.dragStartY = position.y;
     this.dragStartScrollY = area === "grid" ? this.gridScrollY : this.detailScrollY;
     this.dragMoved = false;
   }
@@ -872,7 +897,7 @@ export class EncyclopediaPanel {
       return;
     }
 
-    const delta = pointer.y - this.dragStartY;
+    const delta = this.pointerPosition(pointer).y - this.dragStartY;
     if (Math.abs(delta) > 5) {
       this.dragMoved = true;
     }
@@ -898,6 +923,10 @@ export class EncyclopediaPanel {
 
   private timeIsSuppressingClick() {
     return this.scene.time.now < this.suppressClickUntil;
+  }
+
+  private pointerPosition(pointer: Phaser.Input.Pointer) {
+    return this.scene.cameras.main.getWorldPoint(pointer.x, pointer.y);
   }
 
   private setGridScroll(scrollY: number) {

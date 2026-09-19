@@ -1,4 +1,5 @@
 import type Phaser from "phaser";
+import { recordEnemySeen } from "../progress";
 import { BOARD_Y, CELL_HEIGHT, palette } from "../config";
 import { enemyFamily, enemyIsMace, getEnemyDefinition } from "../registry/enemies";
 import { createEnemyShape } from "../render/unitShapes";
@@ -24,6 +25,7 @@ interface CreateEnemyOptions {
 }
 
 export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): Enemy {
+  recordEnemySeen(options.kind);
   const definition = getEnemyDefinition(options.kind);
   const y = BOARD_Y + options.lane * CELL_HEIGHT + CELL_HEIGHT / 2;
   const attackSpeed = enemyAttackSpeed(options.kind);

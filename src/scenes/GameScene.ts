@@ -98,7 +98,7 @@ import { volleyHitsAt, volleyTimingCount } from "../game/volley";
 import { waveScheduleAction } from "../game/waves";
 import { attackIntervalMs } from "../game/attackSpeed";
 import { t } from "../i18n";
-import { completeLevel, isCardUnlocked, isLevelCompleted, unlockedCardSlotCount } from "../progress";
+import { completeLevel, isCardUnlocked, isLevelCompleted, recordBossSeen, unlockedCardSlotCount } from "../progress";
 import { makeEraseMark, makeProductionPulse, makeShellBurst, makeShockPulse } from "../render/combatEffects";
 import { createUnitBorder } from "../render/unitShapes";
 import {
@@ -1140,6 +1140,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.boss = createCubeBoss(this, this.levelConfig.bossKind, this.difficultyConfig.finalDamageReduction);
+    recordBossSeen(this.levelConfig.bossKind);
     this.bossHomePosition = { x: this.boss.x, y: this.boss.y };
     if (this.currentBossPhaseConfig()) {
       this.applyBossPhaseStats(this.boss);

@@ -1,9 +1,10 @@
-import { CARD_SLOT_COUNT } from "./config";
+import { CARD_SLOT_COUNT, CUBE_BOSS_STATS } from "./config";
 import { chapterDefinitions, levelNodesForChapter } from "./data/chapters";
 import { cardUnlockRequirement, cardUnlockRequirements } from "./data/cardUnlocks";
 import { CARD_SLOT_UNLOCK_CHAPTER_IDS, INITIAL_CARD_SLOT_COUNT } from "./data/cardSlotUnlocks";
-import { levelNodes } from "./data/levels";
-import type { CardId } from "./types";
+import { getLevelConfig, levelNodes } from "./data/levels";
+import { allEnemyDefinitions } from "./registry/enemies";
+import type { BossKind, CardId, EnemyKind } from "./types";
 
 const STORAGE_KEY = "characters-vs-geometry-progress-v1";
 const SAVE_VERSION = 1;
@@ -12,6 +13,8 @@ interface StoredProgress {
   version: typeof SAVE_VERSION;
   completedLevelIds: string[];
   allCardsUnlocked: boolean;
+  seenEnemyKinds: EnemyKind[];
+  seenBossKinds: BossKind[];
 }
 
 export interface ProgressSummary {
@@ -111,6 +114,37 @@ export function unlockAllCards() {
   writeProgress({ ...state, allCardsUnlocked: true });
 }
 
+export function recordEnemySeen(kind: EnemyKind) {
+  const state = progress();
+  if (!state.seenEnemyKinds.includes(kind)) {
+    writeProgress({ ...state, seenEnemyKinds: [...state.seenEnemyKinds, kind] });
+  }
+}
+
+export function recordBossSeen(kind: BossKind) {
+  const state = progress();
+  if (!state.seenBossKinds.includes(kind)) {
+    writeProgress({ ...state, seenBossKinds: [...state.seenBossKinds, kind] });
+  }
+}
+
+export function discoveredEnemies() {
+  const state = progress();
+  const enemies = new Set(state.seenEnemyKinds);
+  const bosses = new Set(state.seenBossKinds);
+  // Include unlocked operations immediately, and infer discoveries for older saves.
+  for (const node of levelNodes) {
+    if (!isLevelUnlocked(node.id) && !isLevelCompleted(node.id)) continue;
+    const level = getLevelConfig(node.id);
+    for (const kind of level.enemyKinds) enemies.add(kind);
+    for (const phase of level.bossPhases ?? []) {
+      for (const kind of phase.enemyKinds) enemies.add(kind);
+    }
+    if (level.bossKind) bosses.add(level.bossKind);
+  }
+  return { enemies, bosses };
+}
+
 export function resetProgress() {
   cachedProgress = emptyProgress();
   try {
@@ -140,7 +174,7 @@ function progress() {
 }
 
 function emptyProgress(): StoredProgress {
-  return { version: SAVE_VERSION, completedLevelIds: [], allCardsUnlocked: false };
+  return { version: SAVE_VERSION, completedLevelIds: [], allCardsUnlocked: false, seenEnemyKinds: [], seenBossKinds: [] };
 }
 
 function readProgress(): StoredProgress {
@@ -170,11 +204,20 @@ function readProgress(): StoredProgress {
     return {
       version: SAVE_VERSION,
       completedLevelIds: levelNodes.map((node) => node.id).filter((id) => completed.has(id)),
-      allCardsUnlocked: parsed.allCardsUnlocked === true
+      allCardsUnlocked: parsed.allCardsUnlocked === true,
+      seenEnemyKinds: validStoredKinds(parsed.seenEnemyKinds, allEnemyDefinitions),
+      seenBossKinds: validStoredKinds(parsed.seenBossKinds, CUBE_BOSS_STATS)
     };
   } catch {
     return emptyProgress();
   }
+}
+
+function validStoredKinds<T extends string>(value: unknown, definitions: Record<T, unknown>): T[] {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.filter((kind): kind is T =>
+    typeof kind === "string" && Object.hasOwn(definitions, kind)
+  ))];
 }
 
 function chapterCompletedInState(state: StoredProgress, chapterId: string) {

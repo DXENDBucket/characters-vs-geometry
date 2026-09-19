@@ -16,7 +16,6 @@ import {
   isSmallStellatedDodecahedronBossKind,
   isTetrahedronBossKind
 } from "../bosses/cubeBoss";
-import { cardUnlockRequirement } from "../data/cardUnlocks";
 import { cardSlotUnlockChapter } from "../data/cardSlotUnlocks";
 import { chapterIdForLevelId } from "../data/chapters";
 import { getLevelConfig } from "../data/levels";
@@ -24,6 +23,7 @@ import { toRomanNumeral } from "../format";
 import { DAMAGE_SYMBOLS, t } from "../i18n";
 import { isCardUnlocked, unlockedCardSlotCount } from "../progress";
 import { createEnemyShape, createUnitBorder } from "../render/unitShapes";
+import { EncyclopediaPanel } from "../render/encyclopediaPanel";
 import { allCardDefinitions, cardLetterCase, hasCardDefinition, type CardLetterCase } from "../registry/cards";
 import { enemyFamily, enemyRank, getEnemyDefinition, getEnemyDisplayName, type EnemyFamily } from "../registry/enemies";
 import type { BossKind, CardId, EnemyKind } from "../types";
@@ -40,6 +40,13 @@ interface EnemyPreviewGroup {
   family: EnemyFamily;
   primaryKind: EnemyKind;
   kinds: EnemyKind[];
+}
+
+interface EnemyPreviewLink {
+  top: number;
+  bottom: number;
+  enemyKind?: EnemyKind;
+  bossKind?: BossKind;
 }
 
 interface CardSelectSceneData {
@@ -70,6 +77,12 @@ export class CardSelectScene extends Phaser.Scene {
   private enemyPreviewDragPointer: Phaser.Input.Pointer | null = null;
   private enemyPreviewDragStartY = 0;
   private enemyPreviewDragStartScrollY = 0;
+  private enemyPreviewDragStartX = 0;
+  private enemyPreviewDragMoved = false;
+  private enemyPreviewPressedLink?: EnemyPreviewLink;
+  private enemyPreviewLinks: EnemyPreviewLink[] = [];
+  private previewHint!: Phaser.GameObjects.Text;
+  private encyclopedia!: EncyclopediaPanel;
   private cardPoolList!: Phaser.GameObjects.Container;
   private cardPoolViewport!: Phaser.Geom.Rectangle;
   private cardPoolContentHeight = 0;
@@ -109,6 +122,9 @@ export class CardSelectScene extends Phaser.Scene {
     this.cardFrames = new Map();
     this.enemyPreviewScrollY = 0;
     this.enemyPreviewDragPointer = null;
+    this.enemyPreviewLinks = [];
+    this.enemyPreviewDragMoved = false;
+    this.enemyPreviewPressedLink = undefined;
     this.cardPoolScrollY = 0;
     this.cardPoolDragPointer = null;
     this.cardPoolDragMoved = false;
@@ -123,14 +139,6 @@ export class CardSelectScene extends Phaser.Scene {
       this.cameras.main.setBackgroundColor("rgba(0,0,0,0)").setZoom(0.88);
       this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH - 20, GAME_HEIGHT - 20, palette.black, 0.97)
         .setStrokeStyle(2, palette.mid, 1).setInteractive();
-      const onKey = (event: KeyboardEvent) => {
-        if (event.key === "Escape" && !event.repeat) {
-          event.preventDefault();
-          this.backToLevelSelect();
-        }
-      };
-      this.input.keyboard?.on("keydown", onKey);
-      this.events.once("shutdown", () => this.input.keyboard?.off("keydown", onKey));
     } else {
       this.cameras.main.setBackgroundColor(palette.black).setZoom(1);
     }
@@ -140,6 +148,15 @@ export class CardSelectScene extends Phaser.Scene {
     this.createCardPool();
     this.createStartButton();
     this.updateCardSelection();
+    this.encyclopedia = new EncyclopediaPanel(this);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.repeat) return;
+      event.preventDefault();
+      if (this.encyclopedia.isOpen()) this.encyclopedia.close();
+      else if (this.reselect) this.backToLevelSelect();
+    };
+    this.input.keyboard?.on("keydown", onKey);
+    this.events.once("shutdown", () => this.input.keyboard?.off("keydown", onKey));
   }
 
   private drawBackdrop() {
@@ -205,14 +222,21 @@ export class CardSelectScene extends Phaser.Scene {
         })
         .setOrigin(0, 0);
       this.enemyPreviewList.add(bossText);
+      this.enemyPreviewLinks.push({ top: contentY - 8, bottom: contentY + 20, bossKind: levelConfig.bossKind });
       contentY += 50;
     }
 
     const enemyGroups = this.enemyPreviewGroups(levelConfig.enemyKinds);
     enemyGroups.forEach((group, index) => {
-      this.drawEnemyPreviewRow(group, this.enemyPreviewList, contentY + index * rowSpacing);
+      const y = contentY + index * rowSpacing;
+      this.drawEnemyPreviewRow(group, this.enemyPreviewList, y);
+      this.enemyPreviewLinks.push({ top: y - 28, bottom: y + 46, enemyKind: group.primaryKind });
     });
     this.enemyPreviewContentHeight = contentY + enemyGroups.length * rowSpacing + 20;
+    this.previewHint = this.add.text(0, 0, t("encyclopedia.previewHint"), {
+      fontFamily: "monospace", fontSize: "15px", color: "#48ff88",
+      backgroundColor: "#191919", padding: { x: 10, y: 7 }
+    }).setDepth(250).setVisible(false);
     this.createEnemyPreviewScrollControls();
     this.setEnemyPreviewScroll(0);
   }
@@ -246,20 +270,48 @@ export class CardSelectScene extends Phaser.Scene {
 
   private createEnemyPreviewScrollControls() {
     const viewport = this.enemyPreviewViewport;
-    const zone = this.add.zone(viewport.x, viewport.y, viewport.width, viewport.height).setOrigin(0, 0).setInteractive();
+    const zone = this.add.zone(viewport.x, viewport.y, viewport.width, viewport.height).setOrigin(0, 0)
+      .setInteractive({ useHandCursor: true });
 
     zone.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      if (this.encyclopedia.isOpen()) return;
       this.enemyPreviewDragPointer = pointer;
       this.enemyPreviewDragStartY = this.pointerPosition(pointer).y;
+      this.enemyPreviewDragStartX = this.pointerPosition(pointer).x;
       this.enemyPreviewDragStartScrollY = this.enemyPreviewScrollY;
+      this.enemyPreviewDragMoved = false;
+      this.enemyPreviewPressedLink = this.previewLinkAt(pointer);
+      this.previewHint.setVisible(false);
     });
 
+    zone.on("pointerup", (pointer: Phaser.Input.Pointer) => {
+      const link = this.previewLinkAt(pointer);
+      if (this.encyclopedia.isOpen() || this.enemyPreviewDragPointer !== pointer ||
+          this.enemyPreviewDragMoved || !link || link !== this.enemyPreviewPressedLink) return;
+      this.previewHint.setVisible(false);
+      this.cardPoolDragPointer = null;
+      if (link.enemyKind) this.encyclopedia.openEnemy(link.enemyKind);
+      else if (link.bossKind) this.encyclopedia.openBoss(link.bossKind);
+    });
+    zone.on("pointerout", () => this.previewHint.setVisible(false));
+
     this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
+      const position = this.pointerPosition(pointer);
+      const hovering = !this.encyclopedia.isOpen() && !pointer.isDown && !!this.previewLinkAt(pointer);
+      this.previewHint.setVisible(hovering);
+      if (hovering) {
+        this.previewHint.setPosition(
+          Math.min(position.x + 12, GAME_WIDTH - this.previewHint.width - 12),
+          Math.min(position.y + 22, GAME_HEIGHT - this.previewHint.height - 12)
+        );
+      }
       if (this.enemyPreviewDragPointer !== pointer || !pointer.isDown) {
         return;
       }
 
-      this.setEnemyPreviewScroll(this.enemyPreviewDragStartScrollY - (this.pointerPosition(pointer).y - this.enemyPreviewDragStartY));
+      if (Math.abs(position.y - this.enemyPreviewDragStartY) > 5 ||
+          Math.abs(position.x - this.enemyPreviewDragStartX) > 5) this.enemyPreviewDragMoved = true;
+      this.setEnemyPreviewScroll(this.enemyPreviewDragStartScrollY - (position.y - this.enemyPreviewDragStartY));
     });
     this.input.on("pointerup", (pointer: Phaser.Input.Pointer) => this.stopEnemyPreviewDrag(pointer));
     this.input.on("pointerupoutside", (pointer: Phaser.Input.Pointer) => this.stopEnemyPreviewDrag(pointer));
@@ -267,7 +319,7 @@ export class CardSelectScene extends Phaser.Scene {
       "wheel",
       (pointer: Phaser.Input.Pointer, _gameObjects: Phaser.GameObjects.GameObject[], _deltaX: number, deltaY: number) => {
         const position = this.pointerPosition(pointer);
-        if (!this.enemyPreviewViewport.contains(position.x, position.y)) {
+        if (this.encyclopedia.isOpen() || !this.enemyPreviewViewport.contains(position.x, position.y)) {
           return;
         }
 
@@ -279,10 +331,19 @@ export class CardSelectScene extends Phaser.Scene {
   private stopEnemyPreviewDrag(pointer: Phaser.Input.Pointer) {
     if (this.enemyPreviewDragPointer === pointer) {
       this.enemyPreviewDragPointer = null;
+      this.enemyPreviewPressedLink = undefined;
     }
   }
 
+  private previewLinkAt(pointer: Phaser.Input.Pointer) {
+    const position = this.pointerPosition(pointer);
+    if (!this.enemyPreviewViewport.contains(position.x, position.y)) return undefined;
+    const y = position.y - this.enemyPreviewList.y;
+    return this.enemyPreviewLinks.find((link) => y >= link.top && y < link.bottom);
+  }
+
   private setEnemyPreviewScroll(scrollY: number) {
+    this.previewHint.setVisible(false);
     const maxScroll = Math.max(0, this.enemyPreviewContentHeight - this.enemyPreviewViewport.height);
     this.enemyPreviewScrollY = Math.round(Phaser.Math.Clamp(scrollY, 0, maxScroll));
     this.enemyPreviewList.y = this.enemyPreviewViewport.y - this.enemyPreviewScrollY;
@@ -421,17 +482,16 @@ export class CardSelectScene extends Phaser.Scene {
   private populateCardPool(columns: number, columnGap: number, rowGap: number) {
     this.cardPoolList.removeAll(true);
     this.cardFrames.clear();
-    const definitions = allCardDefinitions.filter((definition) => cardLetterCase(definition.id) === this.cardPoolCase);
+    const definitions = allCardDefinitions.filter((definition) =>
+      isCardUnlocked(definition.id) && cardLetterCase(definition.id) === this.cardPoolCase
+    );
     definitions.forEach((definition, index) => {
       const x = 89 + (index % columns) * columnGap;
       const y = 48 + Math.floor(index / columns) * rowGap;
-      const unlocked = isCardUnlocked(definition.id);
       const frame = this.add
         .rectangle(x, y, 178, 92, palette.black, 1)
-        .setStrokeStyle(2, palette.dim, unlocked ? 1 : 0.45);
-      if (unlocked) {
-        frame.setInteractive({ useHandCursor: true });
-      }
+        .setStrokeStyle(2, palette.dim, 1)
+        .setInteractive({ useHandCursor: true });
       const border = createUnitBorder(this, definition.category, 22, 2).setPosition(x - 55, y - 6);
       const label = this.add
         .text(x - 55, y - 9, definition.id, {
@@ -457,35 +517,16 @@ export class CardSelectScene extends Phaser.Scene {
         .setOrigin(0, 0);
 
       const cardObjects: Phaser.GameObjects.GameObject[] = [frame, border, label, costText, statsText];
-      if (!unlocked) {
-        const requiredLevelId = cardUnlockRequirement(definition.id);
-        const unlockText = this.add
-          .text(x - 10, y + 28, t("card.unlockAfter", { level: requiredLevelId ?? "" }), {
-            color: "#8c8c8c",
-            fontFamily: "monospace",
-            fontSize: "11px",
-            fontStyle: "700"
-          })
-          .setOrigin(0, 0);
-        cardObjects.push(unlockText);
-        border.setAlpha(0.24);
-        label.setAlpha(0.3);
-        costText.setAlpha(0.24);
-        statsText.setAlpha(0.2);
-      }
-
       this.cardPoolList.add(cardObjects);
 
       frame.on("pointerup", (pointer: Phaser.Input.Pointer) => this.handleCardPointerUp(definition.id, pointer));
-      if (unlocked) {
-        border.setInteractive(new Phaser.Geom.Rectangle(-28, -28, 56, 56), Phaser.Geom.Rectangle.Contains).on(
-          "pointerup",
-          (pointer: Phaser.Input.Pointer) => this.handleCardPointerUp(definition.id, pointer)
-        );
-        label.setInteractive({ useHandCursor: true }).on("pointerup", (pointer: Phaser.Input.Pointer) =>
-          this.handleCardPointerUp(definition.id, pointer)
-        );
-      }
+      border.setInteractive(new Phaser.Geom.Rectangle(-28, -28, 56, 56), Phaser.Geom.Rectangle.Contains).on(
+        "pointerup",
+        (pointer: Phaser.Input.Pointer) => this.handleCardPointerUp(definition.id, pointer)
+      );
+      label.setInteractive({ useHandCursor: true }).on("pointerup", (pointer: Phaser.Input.Pointer) =>
+        this.handleCardPointerUp(definition.id, pointer)
+      );
       this.cardFrames.set(definition.id, frame);
     });
 
@@ -549,7 +590,7 @@ export class CardSelectScene extends Phaser.Scene {
   private createCardPoolScrollControls() {
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       const position = this.pointerPosition(pointer);
-      if (!this.cardPoolViewport.contains(position.x, position.y)) {
+      if (this.encyclopedia.isOpen() || !this.cardPoolViewport.contains(position.x, position.y)) {
         return;
       }
 
@@ -576,7 +617,7 @@ export class CardSelectScene extends Phaser.Scene {
       "wheel",
       (pointer: Phaser.Input.Pointer, _gameObjects: Phaser.GameObjects.GameObject[], _deltaX: number, deltaY: number) => {
         const position = this.pointerPosition(pointer);
-        if (!this.cardPoolViewport.contains(position.x, position.y)) {
+        if (this.encyclopedia.isOpen() || !this.cardPoolViewport.contains(position.x, position.y)) {
           return;
         }
 
@@ -605,6 +646,7 @@ export class CardSelectScene extends Phaser.Scene {
   private handleCardPointerUp(id: CardId, pointer: Phaser.Input.Pointer) {
     const position = this.pointerPosition(pointer);
     if (
+      this.encyclopedia.isOpen() ||
       !isCardUnlocked(id) ||
       this.cardPoolDragMoved ||
       this.time.now < this.suppressCardClickUntil ||

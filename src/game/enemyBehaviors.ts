@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { recordEnemySeen } from "../progress";
 import { enemyFacingDirection } from "./rules/reversal";
 import { ATTACK_INTERVAL, CELL_WIDTH, ENEMY_SPEED, ENEMY_SPEED_VARIANCE, LANES, palette } from "../config";
 import {
@@ -204,6 +205,7 @@ export function findPromotionTargets(boss: CubeBoss, enemies: Enemy[], fromRank:
 }
 
 export function applyEnemyPromotion(scene: Phaser.Scene, enemy: Enemy, kind: EnemyKind, battleTime: number) {
+  recordEnemySeen(kind);
   const hpRatio = Phaser.Math.Clamp(enemy.hp / enemy.baseStats.maxHp, 0, 1);
   const definition = getEnemyDefinition(kind);
   const baseStats = enemyBaseStatsFromDefinition(definition, {

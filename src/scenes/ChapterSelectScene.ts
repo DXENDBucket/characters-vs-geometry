@@ -53,6 +53,9 @@ export class ChapterSelectScene extends Phaser.Scene {
     this.encyclopediaPanel = new EncyclopediaPanel(this);
     this.createEncyclopediaButton();
     this.createSettingsButton();
+    this.createMainMenuButton();
+    this.input.keyboard?.on("keydown-ESC", this.goToMainMenu, this);
+    this.events.once("shutdown", () => this.input.keyboard?.off("keydown-ESC", this.goToMainMenu, this));
   }
 
   private drawBackdrop() {
@@ -259,6 +262,24 @@ export class ChapterSelectScene extends Phaser.Scene {
 
     this.settingsButton.on("pointerdown", () => this.openSettings());
     this.settingsText.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.openSettings());
+  }
+
+  private createMainMenuButton() {
+    const button = this.add.rectangle(GAME_WIDTH - 358, 52, 140, 34, palette.black, 1)
+      .setStrokeStyle(2, palette.mid, 0.85)
+      .setInteractive({ useHandCursor: true });
+    this.add.text(GAME_WIDTH - 358, 50, t("menu.return"), {
+      color: "#f5f5f5", fontFamily: "monospace", fontSize: "15px", fontStyle: "700"
+    }).setOrigin(0.5);
+    button.on("pointerdown", this.goToMainMenu, this);
+  }
+
+  private goToMainMenu() {
+    if (this.encyclopediaPanel.isOpen()) {
+      this.encyclopediaPanel.close();
+      return;
+    }
+    this.scene.start("MainMenuScene");
   }
 
   private createEncyclopediaButton() {

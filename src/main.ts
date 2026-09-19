@@ -6,6 +6,8 @@ import { ChapterSelectScene } from "./scenes/ChapterSelectScene";
 import { GameScene } from "./scenes/GameScene";
 import { LevelSelectScene } from "./scenes/LevelSelectScene";
 import { SettingsScene } from "./scenes/SettingsScene";
+import { MainMenuScene } from "./scenes/MainMenuScene";
+import { EncyclopediaScene } from "./scenes/EncyclopediaScene";
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -13,7 +15,7 @@ const game = new Phaser.Game({
   width: GAME_WIDTH,
   height: GAME_HEIGHT,
   pixelArt: true,
-  scene: [ChapterSelectScene, LevelSelectScene, SettingsScene, CardSelectScene, GameScene],
+  scene: [MainMenuScene, ChapterSelectScene, LevelSelectScene, SettingsScene, EncyclopediaScene, CardSelectScene, GameScene],
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
