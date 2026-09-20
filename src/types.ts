@@ -452,7 +452,6 @@ export interface EdgeTower {
 }
 
 export interface StoredTowerShot extends ProjectileIntegrity {
-  pipelinePreviousTowerId?: string;
   pipelineMovedAt?: number;
   type: Exclude<ProjectileKind, "chevron">;
   sourceTower?: Tower;

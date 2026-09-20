@@ -116,14 +116,14 @@ export class ProjectileCircuitController {
     const start = source.projectileRouteIndex ?? 0;
     for (let offset = 0; offset < links.length; offset++) {
       const index = (start + offset) % links.length, { edge, target, forward } = links[index];
-      if (!target.inPlay || target.id === shot.pipelinePreviousTowerId || !edgeAllows(edge, forward) ||
+      if (!target.inPlay || !edgeAllows(edge, forward) ||
         this.occupancy(target) >= this.capacity(target)) continue;
       refreshEdgeFlow(edge, runtime.battleTime);
       if (edge.flowCredit! < 1) continue;
       const queue = towerFormType(target) === "0" ? target.projectileBank?.shots : target.projectileNode?.input;
       if (!queue) continue;
       edge.flowCredit! -= 1;
-      shot.pipelinePreviousTowerId = source.id; shot.pipelineMovedAt = runtime.battleTime;
+      shot.pipelineMovedAt = runtime.battleTime;
       queue.push(shot); source.projectileRouteIndex = (index + 1) % links.length;
       runtime.changed(target);
       return true;

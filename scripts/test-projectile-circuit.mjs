@@ -69,8 +69,9 @@ test("source can directly feed a numeric outlet; output waits for the exact full
   assert.deepEqual(f.state.output.map(e => e.shot.hitCount), [1, 1, 2]);
 });
 
-test("zero automatically forwards exactly once per tick without recapture or instant reverse transfer", () => {
+test("directional pipes forward once per tick without recapturing emitted shots", () => {
   const f = fixture(["A", "0", "0", "1"]);
+  f.state.edges.forEach(edge => { edge.mode = ">"; });
   f.controller.capture(f.shot({ hitCount: 3 })); f.controller.update();
   assert.equal(f.bank.projectileBank.shots.length, 1);
   f.tick(); assert.equal(f.state.output.length, 0);
@@ -79,6 +80,40 @@ test("zero automatically forwards exactly once per tick without recapture or ins
   assert.equal(f.state.output[0].shot.hitCount, 3); assert.equal(f.state.output[0].shot.remainingRange, 300);
   f.tick(); assert.equal(f.state.output.length, 1);
   assert.equal(f.controller.capture(f.shot({ circuitChecked: true })), false);
+});
+
+test("bidirectional pipes include the incoming route in round-robin distribution", () => {
+  const f = fixture(["A", "0", "0", "1"]);
+  f.outlet.level = 2;
+  for (let i = 0; i < 4; i++) f.controller.capture(f.shot());
+  f.tick(); assert.equal(f.state.towers[2].projectileBank.shots.length, 4);
+  // Legacy save metadata must not suppress this route either.
+  f.state.towers[2].projectileBank.shots[0].pipelinePreviousTowerId = f.bank.id;
+  f.tick();
+  assert.equal(f.bank.projectileBank.shots.length, 2);
+  assert.equal(f.state.output.length, 2);
+  assert.equal(f.state.towers[2].projectileBank.shots.length, 0);
+  for (let i = 0; i < 12; i++) f.tick();
+  assert.equal(f.state.output.length, 4);
+});
+
+test("closed bidirectional loops preserve ammo and move at most once per tick", () => {
+  for (const reverseOrder of [false, true]) {
+    const f = fixture(["A", "0", "0"]), other = f.outlet;
+    if (reverseOrder) { f.bank.placedOrder = 3; f.controller.sync(); }
+    f.controller.capture(f.shot({ hitCount: 3 }));
+    const original = f.bank.projectileBank.shots[0];
+    for (let i = 0; i < 300; i++) {
+      f.tick();
+      const expected = i % 2 === 0 ? other : f.bank;
+      assert.equal(expected.projectileBank.shots[0], original);
+      f.controller.update();
+      assert.equal(expected.projectileBank.shots[0], original);
+      assert.equal(f.bank.projectileBank.shots.length + other.projectileBank.shots.length, 1);
+      assert.equal(projectileDamageBudget(original), 1200);
+    }
+    assert.equal(f.state.output.length, 0);
+  }
 });
 
 test("connection flow has a bounded burst and refills at 25 shots per level per second", () => {
@@ -137,6 +172,7 @@ test("processor waits for five compatible shots, preserves armor judgments, and 
 
 test("processed projectiles can be bundled again; blocked results stay in the processor", () => {
   const f = fixture(["A", "+", "+", "1"]);
+  f.state.edges.forEach(edge => { edge.mode = ">"; });
   for (let i = 0; i < 25; i++) f.controller.capture(f.shot());
   for (let i = 0; i < 40; i++) f.tick();
   assert.equal(f.state.output.length, 1); assert.equal(f.state.output[0].shot.hitCount, 25);
@@ -144,6 +180,16 @@ test("processed projectiles can be bundled again; blocked results stay in the pr
   for (let i = 0; i < 5; i++) g.controller.capture(g.shot());
   g.tick(); g.tick(200); assert.equal(g.state.output.length, 0); assert.equal(g.bank.projectileNode.output.length, 1);
   g.state.edges[1].mode = ">"; g.tick(); assert.equal(g.state.output.length, 1);
+});
+
+test("processed ammunition can flow back to its upstream buffer", () => {
+  const f = fixture(["A", "0", "+"]);
+  for (let i = 0; i < 5; i++) f.controller.capture(f.shot());
+  f.tick(); f.tick(200);
+  assert.equal(f.bank.projectileBank.shots.length, 1);
+  assert.equal(f.bank.projectileBank.shots[0].hitCount, 5);
+  assert.equal(nodeOccupancy(f.outlet), 0);
+  assert.equal(f.state.output.length, 0);
 });
 
 test("processor separates incompatible payloads, preserves queue on upgrade, and scales processing time", () => {

@@ -38,8 +38,7 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
     (shot.sourceBehaviorType === undefined || cardDefinitions.some(card => card.id === shot.sourceBehaviorType)) &&
     (shot.debuff === undefined || typeof shot.debuff === "string") &&
     (shot.debuffDuration === undefined || finite(shot.debuffDuration) && shot.debuffDuration >= 0) &&
-    (shot.pipelineMovedAt === undefined || finite(shot.pipelineMovedAt) && shot.pipelineMovedAt >= 0) &&
-    (shot.pipelinePreviousTowerId === undefined || typeof shot.pipelinePreviousTowerId === "string");
+    (shot.pipelineMovedAt === undefined || finite(shot.pipelineMovedAt) && shot.pipelineMovedAt >= 0);
   const learnable = (type: unknown) => cardDefinitions.some(card => card.id === type && card.cost <= 999 && card.id !== "1" && card.id !== "0");
   const behavior = (value: unknown) => record(value) && learnable(value.type) && Number.isSafeInteger(value.level) && (value.level as number) >= 1;
   const nativeTowerEvent = (value: unknown) => record(value) && (

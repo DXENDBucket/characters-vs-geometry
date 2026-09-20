@@ -50,7 +50,7 @@ try {
     };
     start();
     const source = place("A", 1), bank = place("0", 2), plus = place("+", 3), outlet = place("1", 4, 3, 2);
-    const edge = link(1); link(2); link(3);
+    const edge = link(1); link(2).mode = ">"; link(3);
     check(scene.towers.length === 4 && scene.occupied.size === 4 && edge.level === 1, "Connector occupies a regular cell");
     const money = scene.effectiveChars(); link(1);
     check(edge.level === 2 && Math.abs(scene.effectiveChars() - money + 1000) < 1e-6, "Stacking = failed to upgrade");
