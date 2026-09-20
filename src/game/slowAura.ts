@@ -1,5 +1,6 @@
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, COLUMNS, LANES } from "../config";
 import type { Tower } from "../types";
+import { towerBehaviorType } from "./towerIdentity";
 
 const SLOW_AURA_MULTIPLIER = 1 / 6;
 const SLOW_AURA_RADIUS_CELLS = 2;
@@ -48,7 +49,7 @@ export function slowAuraSources(towers: Tower[]): SlowAuraSources {
 function activeSlowAuraTowers(towers: Tower[]) {
   activeSlowAuraTowersBuffer.length = 0;
   for (const tower of towers) {
-    if (tower.type === "T" && tower.inPlay) {
+    if (towerBehaviorType(tower) === "T" && tower.inPlay) {
       activeSlowAuraTowersBuffer.push(tower);
     }
   }
@@ -101,7 +102,7 @@ export function movementSpeedMultiplier(towers: Tower[], x: number, y: number, s
   }
 
   for (const tower of towers) {
-    if (tower.type === "T" && tower.inPlay && isCellInSlowAura(tower, column, lane)) {
+    if (towerBehaviorType(tower) === "T" && tower.inPlay && isCellInSlowAura(tower, column, lane)) {
       return SLOW_AURA_MULTIPLIER;
     }
   }

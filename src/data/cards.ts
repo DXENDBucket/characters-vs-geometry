@@ -5,6 +5,17 @@ import type { CardDefinition, CardId } from "../types";
 
 export const cardDefinitions: CardDefinition[] = [
   {
+    id: "@",
+    category: "function",
+    cost: 1_000,
+    cooldown: 60_000,
+    maxHp: 1_200,
+    armor: 150,
+    magicResistance: 0,
+    attackPower: 0,
+    stats: "COPY FRONT <=999"
+  },
+  {
     id: "A",
     category: "attack",
     cost: 50,

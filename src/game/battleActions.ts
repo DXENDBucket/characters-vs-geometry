@@ -9,7 +9,7 @@ export type BossAttackAction =
 export type BattleAction =
   | BossAttackAction
   | { type: "enemyShot" | "enemyLaser" | "enemyMortar"; enemy: Enemy; time: number; hitCount: number }
-  | { type: "volley"; tower: Tower; hitCount: number }
+  | { type: "volley"; tower: Tower; hitCount: number; copyRevision?: number }
   | { type: "targetedEffect"; tower: Tower }
   | { type: "shock"; tower: Tower; x: number; y: number; rangeX: number; rangeY: number; damage: number; damageType: DamageType }
   | { type: "spellMortar"; tower: Tower; targetX: number; targetY: number; damage: number; damageType: DamageType };

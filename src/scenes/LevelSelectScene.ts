@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { bindButtonHover } from "../render/buttonHover";
 import { createPageHeading, createHeaderNavigation } from "../render/pageHeader";
 import { readSurvivalSave } from "../survivalSaves";
 import {
@@ -307,7 +308,7 @@ export class LevelSelectScene extends Phaser.Scene {
     const alpha = unlocked ? 1 : 0.28;
     const frame = this.add
       .rectangle(node.x, node.y, LEVEL_NODE_WIDTH, LEVEL_NODE_HEIGHT, palette.black, 1)
-      .setStrokeStyle(2, completed ? palette.green : unlocked ? palette.mid : palette.dim, 1)
+      .setStrokeStyle(2, completed ? palette.completed : unlocked ? palette.mid : palette.dim, 1)
       .setInteractive({ useHandCursor: unlocked })
       .setAlpha(alpha);
     const label = this.add
@@ -333,7 +334,7 @@ export class LevelSelectScene extends Phaser.Scene {
     if (completed) {
       const completedMark = this.add
         .text(node.x + LEVEL_NODE_WIDTH / 2 - 12, node.y - LEVEL_NODE_HEIGHT / 2 + 10, "✓", {
-          color: "#48ff88",
+          color: uiTextColors.completed,
           fontFamily: "monospace",
           fontSize: "17px",
           fontStyle: "700"
@@ -349,6 +350,8 @@ export class LevelSelectScene extends Phaser.Scene {
     label.setInteractive({ useHandCursor: unlocked }).on("pointerup", (pointer: Phaser.Input.Pointer) => {
       this.selectLevelNode(node, pointer);
     });
+    bindButtonHover(frame, [label], () => unlocked && !this.mapDragging &&
+      !this.encyclopediaPanel.isOpen() && this.mapViewport.contains(this.input.activePointer.x, this.input.activePointer.y));
   }
 
   private selectLevelNode(node: LevelNode, pointer: Phaser.Input.Pointer) {
@@ -589,6 +592,7 @@ export class LevelSelectScene extends Phaser.Scene {
 
     this.startButton.on("pointerdown", () => this.startSelectedLevel());
     this.startText.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.startSelectedLevel());
+    bindButtonHover(this.startButton, [this.startText], () => !!this.selectedLevelId && isLevelUnlocked(this.selectedLevelId));
     this.newRunButton = this.add.rectangle(x - 180, y, 160, 46, palette.black)
       .setStrokeStyle(1, palette.mid).setInteractive({ useHandCursor: true }).setVisible(false);
     this.newRunText = this.add.text(x - 180, y - 2, t("button.restart"), {
@@ -597,6 +601,7 @@ export class LevelSelectScene extends Phaser.Scene {
     this.newRunButton.on("pointerdown", () => {
       if (window.confirm(t("save.replace"))) this.startSelectedLevel(true);
     });
+    bindButtonHover(this.newRunButton, [this.newRunText]);
   }
 
   private openSettings() {
@@ -646,6 +651,7 @@ export class LevelSelectScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
 
     this.input.setDraggable(this.difficultyKnob);
+    bindButtonHover(this.difficultyKnob, [hitArea]);
     hitArea.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       this.setDifficultyFromX(pointer.x, trackX, trackWidth);
     });
@@ -681,6 +687,7 @@ export class LevelSelectScene extends Phaser.Scene {
 
     this.unlimitedFirepowerBox.on("pointerdown", () => this.toggleUnlimitedFirepower());
     this.unlimitedFirepowerText.on("pointerdown", () => this.toggleUnlimitedFirepower());
+    bindButtonHover(this.unlimitedFirepowerBox, [this.unlimitedFirepowerText]);
     this.updateUnlimitedFirepowerToggle();
   }
 

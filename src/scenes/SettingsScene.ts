@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { bindButtonHover } from "../render/buttonHover";
 import { createPageHeading, createHeaderNavigation } from "../render/pageHeader";
 import { GAME_HEIGHT, GAME_WIDTH, palette, uiTextColors } from "../config";
 import { getLanguage, setLanguage, t, type Language } from "../i18n";
@@ -132,6 +133,7 @@ export class SettingsScene extends Phaser.Scene {
     frame.on("pointerdown", apply);
     label.setInteractive({ useHandCursor: true }).on("pointerdown", apply);
     this.languageButtons.push({ language, frame, label });
+    bindButtonHover(frame, [label]);
   }
 
   private createDebugModeControl() {
@@ -167,6 +169,7 @@ export class SettingsScene extends Phaser.Scene {
     box.on("pointerdown", toggle);
     fill.setInteractive({ useHandCursor: true }).on("pointerdown", toggle);
     label.on("pointerdown", toggle);
+    bindButtonHover(box, [fill, label]);
   }
 
   private createControlRows() {
@@ -254,6 +257,7 @@ export class SettingsScene extends Phaser.Scene {
     keyText.setInteractive({ useHandCursor: true }).on("pointerdown", begin);
     parent?.add([labelText, button, keyText]);
     this.rows.push({ actionId, button, keyText });
+    bindButtonHover(button, [keyText]);
   }
 
   private createCardCaseButtons(x: number, y: number) {
@@ -283,6 +287,7 @@ export class SettingsScene extends Phaser.Scene {
     const select = () => this.setCardCase(letterCase);
     frame.on("pointerdown", select);
     label.setInteractive({ useHandCursor: true }).on("pointerdown", select);
+    bindButtonHover(frame, [label]);
     return { letterCase, frame, label };
   }
 
@@ -330,6 +335,7 @@ export class SettingsScene extends Phaser.Scene {
     };
     button.on("pointerdown", reset);
     label.setInteractive({ useHandCursor: true }).on("pointerdown", reset);
+    bindButtonHover(button, [label]);
   }
 
   private createProgressControls() {
@@ -387,6 +393,7 @@ export class SettingsScene extends Phaser.Scene {
 
     button.on("pointerdown", action);
     label.setInteractive({ useHandCursor: true }).on("pointerdown", action);
+    bindButtonHover(button, [label]);
     return { button, label };
   }
 

@@ -15,6 +15,7 @@ import {
   maxHpGainForEffectiveUpgrades
 } from "./upgrades";
 import { attackIntervalMs } from "./attackSpeed";
+import { towerBehaviorType } from "./towerIdentity";
 import { syncTowerHealthCapacity } from "./towerHealth";
 import { towerZealAttackSpeedMultiplier, type TowerAuraSources } from "./towerAuras";
 
@@ -48,7 +49,7 @@ export function calculateTowerFinalStats(tower: Tower, towers?: Tower[], towerAu
   const baseStats = tower.baseStats;
   const finalStats = tower.finalStats;
   const effectiveUpgrades = effectiveUpgradeCountForLevel(effectiveTowerStatLevel(tower));
-  const maxHp = isMaxHpUpgradeable(tower.type)
+  const maxHp = isMaxHpUpgradeable(towerBehaviorType(tower))
     ? baseStats.maxHp + maxHpGainForEffectiveUpgrades(baseStats.maxHp, effectiveUpgrades)
     : baseStats.maxHp;
   const attackSpeed = baseStats.attackSpeed === undefined
@@ -59,7 +60,7 @@ export function calculateTowerFinalStats(tower: Tower, towers?: Tower[], towerAu
   finalStats.armor = baseStats.armor;
   finalStats.magicResistance = baseStats.magicResistance;
   finalStats.attackSpeed = attackSpeed;
-  finalStats.attackPower = upgradedAttackPower(tower.type, baseStats.attackPower, effectiveTowerStatLevel(tower));
+  finalStats.attackPower = upgradedAttackPower(towerBehaviorType(tower), baseStats.attackPower, effectiveTowerStatLevel(tower));
   finalStats.damageType = baseStats.damageType;
   return finalStats;
 }

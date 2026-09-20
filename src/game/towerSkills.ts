@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { towerBehaviorType } from "./towerIdentity";
 import type { BattleAction, ScheduleBattleAction } from "./battleActions";
 import { changeTowerHealth } from "./towerHealth";
 import { activateOrientation, orientationIsReady } from "./orientation";
@@ -101,14 +102,14 @@ export class TowerSkillController {
     let activeClockLevelSum = 0;
     for (const tower of this.runtime().towers) {
       if (tower.moveVisual) syncTowerFlyingVisual(tower, time);
-      const definition = this.skillDefinitions[tower.type];
+      const definition = this.skillDefinitions[towerBehaviorType(tower)];
       if (!definition) {
         continue;
       }
 
       const state = getTowerSkillState(tower, definition.stateKey);
       definition.update(tower, state, seconds, time, undefined);
-      if (tower.type === "c" && time < state.activeUntil) {
+      if (towerBehaviorType(tower) === "c" && time < state.activeUntil) {
         activeClockLevelSum += effectiveTowerLevel(tower);
       }
     }
@@ -126,7 +127,7 @@ export class TowerSkillController {
   isClockTowerReady(tower: Tower) {
     const runtime = this.runtime();
     const state = getTowerSkillState(tower, "clock");
-    return tower.type === "c" && runtime.battleTime >= state.activeUntil && state.sp >= CLOCK_TOWER_SKILL_MAX;
+    return towerBehaviorType(tower) === "c" && runtime.battleTime >= state.activeUntil && state.sp >= CLOCK_TOWER_SKILL_MAX;
   }
 
   activateReadyClockTowers() {
@@ -147,7 +148,7 @@ export class TowerSkillController {
   isAirPatrolReady(tower: Tower) {
     const runtime = this.runtime();
     const state = getTowerSkillState(tower, "airPatrol");
-    return tower.type === "w" && runtime.battleTime >= state.activeUntil && state.sp >= AIR_PATROL_SKILL_MAX;
+    return towerBehaviorType(tower) === "w" && runtime.battleTime >= state.activeUntil && state.sp >= AIR_PATROL_SKILL_MAX;
   }
 
   isOrientationReady(tower: Tower) {
@@ -184,7 +185,7 @@ export class TowerSkillController {
   isSpellMortarReady(tower: Tower) {
     const runtime = this.runtime();
     const state = getTowerSkillState(tower, "spellMortar");
-    return tower.type === "S" && runtime.battleTime >= state.activeUntil && state.sp >= SPELL_MORTAR_SKILL_MAX;
+    return towerBehaviorType(tower) === "S" && runtime.battleTime >= state.activeUntil && state.sp >= SPELL_MORTAR_SKILL_MAX;
   }
 
   activateReadySpellMortars(x: number, y: number) {
@@ -236,7 +237,7 @@ export class TowerSkillController {
   }
 
   resetTowerSkill(tower: Tower) {
-    const definition = this.skillDefinitions[tower.type];
+    const definition = this.skillDefinitions[towerBehaviorType(tower)];
     if (!definition?.reset) {
       return;
     }
@@ -407,7 +408,7 @@ export class TowerSkillController {
 
   private fireSpellMortar(tower: Tower, targetX: number, targetY: number) {
     const runtime = this.runtime();
-    const definition = runtime.getDefinition(tower.type);
+    const definition = runtime.getDefinition(towerBehaviorType(tower));
     const damage = towerAttackAmount(tower, definition);
     const damageType = towerDamageType(tower, definition.damageType ?? "magic", runtime.battleTime);
     const state = getTowerSkillState(tower, "spellMortar");

@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { towerBehaviorType } from "./towerIdentity";
 import {
   CELL_HEIGHT,
   CELL_WIDTH,
@@ -53,7 +54,7 @@ const settlingHealth = new WeakSet<Tower[]>();
 
 export function settleTowerHealth(runtime: UnitLifecycleRuntime) {
   if (settlingHealth.has(runtime.towers) || !runtime.towers.some(tower =>
-    tower.type === "g" || (tower.unyieldingRatio ?? 0) > 0 || tower.hp <= 0
+    towerBehaviorType(tower) === "g" || (tower.unyieldingRatio ?? 0) > 0 || tower.hp <= 0
   )) return false;
   settlingHealth.add(runtime.towers);
   let removed = false;
@@ -290,7 +291,7 @@ export function removeTower(runtime: UnitLifecycleRuntime, tower: Tower) {
     return;
   }
 
-  if (tower.type === "T") {
+  if (towerBehaviorType(tower) === "T") {
     detonateSlowAuraTower(runtime, tower);
   }
 

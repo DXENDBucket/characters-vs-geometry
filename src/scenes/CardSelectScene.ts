@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { bindButtonHover } from "../render/buttonHover";
 import { createPageHeading } from "../render/pageHeader";
 import { enemyArchetypes } from "../data/enemyArchetypes";
 import {
@@ -521,6 +522,10 @@ export class CardSelectScene extends Phaser.Scene {
         this.handleCardPointerUp(definition.id, pointer)
       );
       this.cardFrames.set(definition.id, frame);
+      bindButtonHover(frame, [border, label], () => {
+        const position = this.pointerPosition(this.input.activePointer);
+        return !this.encyclopedia.isOpen() && this.cardPoolViewport.contains(position.x, position.y);
+      });
     });
 
     const rowCount = Math.ceil(definitions.length / columns);
@@ -558,6 +563,7 @@ export class CardSelectScene extends Phaser.Scene {
 
     frame.on("pointerdown", () => this.setCardPoolCase(letterCase));
     label.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.setCardPoolCase(letterCase));
+    bindButtonHover(frame, [label]);
     return { letterCase, frame, label };
   }
 
@@ -703,6 +709,9 @@ export class CardSelectScene extends Phaser.Scene {
     this.backText.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.backToLevelSelect());
     this.startButton.on("pointerdown", () => this.startLevel());
     this.startText.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.startLevel());
+    bindButtonHover(this.backButton, [this.backText]);
+    bindButtonHover(this.startButton, [this.startText], () => this.selectedCards.length > 0);
+    bindButtonHover(this.clearButton, [this.clearText], () => this.selectedCards.length > 0);
   }
 
   private toggleCard(id: CardId) {

@@ -3,6 +3,8 @@ import type { CubeBoss, Enemy, EnemyProjectile, MortarProjectile, Projectile, To
 import { createCubeBoss, updateCubeBossMotion } from "../bosses/cubeBoss";
 import { rankedBossFamily } from "../bosses/bossRanks";
 import { getCardDefinition } from "../registry/cards";
+import { towerBehaviorType } from "./towerIdentity";
+import { syncTowerFormVisual } from "./towers";
 import { createEnemy } from "./enemyFactory";
 import { createTower, syncTowerFacingVisual, syncTowerFlyingVisual, syncTowerHpBar, syncTowerLevelText, syncTowerTrueDamageVisual } from "./towers";
 import { createMortarProjectile, createTowerProjectile, restoreEnemyProjectile } from "./projectiles";
@@ -87,6 +89,7 @@ export function restoreBattleSnapshot(scene: Phaser.Scene, graph: SaveGraph): Ba
       throw new Error("Invalid battle state");
     }
     for (const tower of towers) {
+      if (tower.type === "@") syncTowerFormVisual(scene, tower, getCardDefinition(towerBehaviorType(tower)), state.battleTime);
       tower.body.setVisible(tower.inPlay);
       syncTowerFacingVisual(tower); syncTowerFlyingVisual(tower, state.battleTime);
       syncTowerLevelText(tower); syncTowerHpBar(tower); syncTowerTrueDamageVisual(tower, state.battleTime);

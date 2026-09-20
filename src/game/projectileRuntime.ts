@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { towerBehaviorType } from "./towerIdentity";
 import { updateProjectileTrail } from "../render/projectileTrail";
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, COLUMNS, LANES, palette } from "../config";
 import { getCardDefinition } from "../registry/cards";
@@ -200,7 +201,7 @@ export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: numb
     const hit = findEnemyProjectileHitTower(runtime.occupied, projectile, transientTargets);
 
     if (hit) {
-      if (hit.type === "N") {
+      if (towerBehaviorType(hit) === "N") {
         const previousX = projectile.x;
         shiftEnemyProjectile(projectile, hit);
         makeShiftEffect(runtime.scene, previousX, projectile.y, projectile.x, projectile.y);
@@ -261,7 +262,7 @@ function shiftEnemyProjectile(projectile: EnemyProjectile, tower: Tower) {
 }
 
 function projectileShiftDistance(tower: Tower) {
-  const definition = getCardDefinition(tower.type);
+  const definition = getCardDefinition(towerBehaviorType(tower));
   return (definition.shiftCells ?? 4) * CELL_WIDTH;
 }
 
@@ -283,7 +284,7 @@ function enemyProjectileHitRadius(enemy: Enemy) {
 }
 
 function directImpactDamage(projectile: Projectile, target: Enemy | CubeBoss) {
-  const groundPenalty = projectile.sourceTower?.type === "x" && !target.statusEffects.some(effect => effect.name === "flying");
+  const groundPenalty = (projectile.sourceBehaviorType ?? projectile.sourceTower?.type) === "x" && !target.statusEffects.some(effect => effect.name === "flying");
   return projectile.damage * (groundPenalty ? 0.65 : 1);
 }
 
@@ -578,7 +579,7 @@ function syncMortarTarget(runtime: ProjectileRuntime, projectile: MortarProjecti
 
   if (projectile.targetTower?.inPlay) {
     const targetTower = projectile.targetTower;
-    if (projectile.owner === "enemy" && targetTower.type === "N") {
+    if (projectile.owner === "enemy" && towerBehaviorType(targetTower) === "N") {
       if (!projectile.shiftSelfDamageApplied) {
         projectile.shiftSelfDamageApplied = true;
         repeatHits(projectile.hitCount, () => damageShiftTowerSelf(runtime, targetTower));
@@ -594,7 +595,7 @@ function syncMortarTarget(runtime: ProjectileRuntime, projectile: MortarProjecti
 }
 
 function damageShiftTowerSelf(runtime: ProjectileRuntime, tower: Tower) {
-  const definition = getCardDefinition(tower.type);
+  const definition = getCardDefinition(towerBehaviorType(tower));
   const damage = definition.selfDamage ?? 0;
   if (damage <= 0) {
     return;

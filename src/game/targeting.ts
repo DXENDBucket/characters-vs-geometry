@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { towerBehaviorType } from "./towerIdentity";
 import {
   BOARD_X,
   BOARD_Y,
@@ -314,7 +315,7 @@ function visitHealTargetCells(tower: Tower, definition: CardDefinition, visit: (
   const direction = towerFacingDirection(tower);
 
   for (let lane = minLane; lane <= maxLane; lane += 1) {
-    if (tower.type === "H" || tower.type === "p") {
+    if (towerBehaviorType(tower) === "H" || towerBehaviorType(tower) === "p") {
       for (let column = tower.column - 1; column <= tower.column + 1; column += 1) {
         if (column >= 0 && column < COLUMNS && visit(lane, column) === false) {
           return false;
@@ -323,7 +324,7 @@ function visitHealTargetCells(tower: Tower, definition: CardDefinition, visit: (
       continue;
     }
 
-    if (tower.type === "P") {
+    if (towerBehaviorType(tower) === "P") {
       for (let offset = 3; offset >= 1; offset -= 1) {
         const column = tower.column - offset * direction;
         if (column >= 0 && column < COLUMNS && visit(lane, column) === false) {
@@ -668,7 +669,7 @@ export function attackRangeLimitX(tower: Tower, definition: CardDefinition) {
 }
 
 function attackTargetQuery(tower: Tower, definition: CardDefinition): AttackTargetQuery {
-  const area = getCardAttackArea(tower.type);
+  const area = getCardAttackArea(towerBehaviorType(tower));
   const direction = towerFacingDirection(tower);
   return {
     area,
@@ -679,7 +680,7 @@ function attackTargetQuery(tower: Tower, definition: CardDefinition): AttackTarg
 }
 
 function attackRangeBounds(tower: Tower, definition: CardDefinition) {
-  const area = getCardAttackArea(tower.type);
+  const area = getCardAttackArea(towerBehaviorType(tower));
   const direction = towerFacingDirection(tower);
   return attackRangeBoundsForArea(tower, definition, area, direction);
 }
@@ -741,7 +742,7 @@ export function canAttackBossPart(tower: Tower, definition: CardDefinition, boss
   const right = boss.x + halfWidth;
   const top = boss.y - halfHeight;
   const bottom = boss.y + halfHeight;
-  const area = getCardAttackArea(tower.type);
+  const area = getCardAttackArea(towerBehaviorType(tower));
   const direction = towerFacingDirection(tower);
   if (area.kind === "verticalFan") {
     const verticalDirection = area.direction === "down" ? 1 : -1;

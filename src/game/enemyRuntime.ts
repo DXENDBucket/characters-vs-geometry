@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { towerBehaviorType } from "./towerIdentity";
 import { battleRandom } from "./battleSimulation";
 import type { BattleAction } from "./battleActions";
 import { enemyFacingDirection, enemyMovementDirection } from "./rules/reversal";
@@ -389,7 +390,7 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
     }
 
     if (blocker) {
-      if (blocker.type === "G" && isTrapArmed(blocker, time)) {
+      if (towerBehaviorType(blocker) === "G" && isTrapArmed(blocker, time)) {
         runtime.triggerTrapTower(blocker, enemy);
         return;
       }
@@ -414,7 +415,7 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
       if (canEnemyMelee(enemy) && time >= enemy.attackAt) {
         const target = redirectOrientedTarget(runtime.towers, blocker, time)!;
         runtime.damageTower(target, enemyAttackDamage(enemy, time), enemy.damageType);
-        const blockerDefinition = getCardDefinition(target.type);
+        const blockerDefinition = getCardDefinition(towerBehaviorType(target));
         if (blockerDefinition.reflectAttackMultiplier) {
           runtime.damageEnemy(
             enemy,

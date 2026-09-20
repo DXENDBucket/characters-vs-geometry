@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { towerBehaviorType } from "./towerIdentity";
 import { syncHealthBar } from "./towerHealth";
 import { facingWithEffects } from "./rules/reversal";
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
@@ -164,6 +165,21 @@ export function syncTowerFacingVisual(tower: Tower) {
   setVisibleIfChanged(tower.facingIcon, reversed);
 }
 
+export function syncTowerFormVisual(scene: Phaser.Scene, tower: Tower, definition: CardDefinition, time: number) {
+  const borderIndex = tower.body.getIndex(tower.border);
+  tower.border.destroy();
+  tower.border = createUnitBorder(scene, definition.category, 24, definition.category === "defense" ? 3 : 2);
+  tower.body.addAt(tower.border, borderIndex);
+  tower.rangeBorder?.destroy();
+  tower.rangeBorder = createRangeBorder(scene, definition) ?? undefined;
+  if (tower.rangeBorder) tower.body.addAt(tower.rangeBorder, 0);
+  tower.border.setVisible(definition.id !== "S" && definition.id !== "c" &&
+    (definition.id !== "G" || time >= tower.armedAt));
+  syncTowerFacingVisual(tower);
+  syncTowerFlyingVisual(tower, time);
+  syncTowerHpBar(tower);
+}
+
 export function upgradeTowerLevel(tower: Tower, levels = 1) {
   const previousLevel = tower.level;
   tower.level += Math.max(0, Math.floor(levels));
@@ -180,7 +196,7 @@ export function applyTowerUpgradeStats(
 ) {
   syncTowerDerivedStats(tower, gainedEffectiveUpgrades > 0);
 
-  if (tower.type === "G") {
+  if (towerBehaviorType(tower) === "G") {
     resetTrapArming(tower, definition, battleTime);
   }
 }
@@ -226,7 +242,7 @@ export function getHitProductionAmount(tower: Tower, definition: CardDefinition)
 }
 
 export function getShockCount(tower: Tower, definition: CardDefinition) {
-  if (tower.type === "l") {
+  if (towerBehaviorType(tower) === "l") {
     return 1;
   }
 
@@ -241,7 +257,7 @@ export function getTriggerDebuffDuration(tower: Tower, definition: CardDefinitio
 }
 
 export function isTrapArmed(tower: Tower, time: number) {
-  return tower.type === "G" && time >= tower.armedAt;
+  return towerBehaviorType(tower) === "G" && time >= tower.armedAt;
 }
 
 export function setTowerAutoUpgradeState(tower: Tower, enabled: boolean, active = true) {

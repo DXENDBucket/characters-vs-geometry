@@ -1,4 +1,5 @@
 import { CELL_HEIGHT, CELL_WIDTH } from "../config";
+import { towerBehaviorType } from "./towerIdentity";
 import { getCardDefinition } from "../registry/cards";
 import { makeShiftEffect } from "../render/combatEffects";
 import type { Projectile, SkillState, Tower } from "../types";
@@ -10,12 +11,12 @@ export const GATHERING_DURATION = 10_000;
 export const GATHERING_TRANSFER_INTERVAL = 100;
 
 export function gatheringIsActive(tower: Tower, time: number) {
-  return tower.inPlay && !tower.transient && tower.type === "j" && time < (tower.skills.gathering?.activeUntil ?? 0);
+  return tower.inPlay && !tower.transient && towerBehaviorType(tower) === "j" && time < (tower.skills.gathering?.activeUntil ?? 0);
 }
 
 export function gatheringIsReady(tower: Tower, time: number) {
   const state = getTowerSkillState(tower, "gathering");
-  return tower.inPlay && tower.type === "j" && time >= state.activeUntil && state.sp >= GATHERING_MAX_SP;
+  return tower.inPlay && towerBehaviorType(tower) === "j" && time >= state.activeUntil && state.sp >= GATHERING_MAX_SP;
 }
 
 export function activateGathering(tower: Tower, time: number) {
@@ -78,7 +79,7 @@ export function gatherProjectile(
   projectile.lane = source.lane;
   projectile.body.setPosition(projectile.x, projectile.y);
   makeShiftEffect(runtime.scene, projectile.x, fromY, projectile.x, projectile.y);
-  const definition = getCardDefinition(source.type);
+  const definition = getCardDefinition(towerBehaviorType(source));
   runtime.damageTower(source, definition.selfDamage ?? 0, definition.selfDamageType ?? "true");
   return true;
 }

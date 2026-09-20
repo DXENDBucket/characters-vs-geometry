@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { bindButtonHover } from "../render/buttonHover";
 import { createPageHeading, createHeaderNavigation } from "../render/pageHeader";
 import { GAME_HEIGHT, GAME_WIDTH, palette, uiTextColors } from "../config";
 import { levelNodesForChapter, type ChapterDefinition } from "../data/chapters";
@@ -212,7 +213,7 @@ export class ChapterSelectScene extends Phaser.Scene {
         .rectangle(chapter.x, chapter.y, CHAPTER_CARD_WIDTH, CHAPTER_CARD_HEIGHT, palette.black, 1)
         .setStrokeStyle(
           2,
-          completed ? palette.green : unlocked ? palette.mid : palette.dim,
+          completed ? palette.completed : unlocked ? palette.mid : palette.dim,
           unlocked ? 0.95 : 0.45
         )
         .setInteractive({ useHandCursor: unlocked });
@@ -232,7 +233,7 @@ export class ChapterSelectScene extends Phaser.Scene {
             ? t("label.chapterProgress", { completed: completedCount, count: levelCount })
             : t("label.levelCount", { count: levelCount }),
           {
-            color: completed ? "#48ff88" : uiTextColors.secondary,
+            color: completed ? uiTextColors.completed : uiTextColors.secondary,
             fontFamily: "monospace",
             fontSize: "14px"
           }
@@ -253,6 +254,8 @@ export class ChapterSelectScene extends Phaser.Scene {
         .setInteractive({ useHandCursor: unlocked })
         .on("pointerup", (pointer: Phaser.Input.Pointer) => this.openChapter(chapter, pointer));
       this.chapterCards.push({ definition: chapter, frame, label, meta });
+      bindButtonHover(frame, [label, meta], () => unlocked && !this.mapDragging &&
+        !this.encyclopediaPanel.isOpen() && this.mapViewport.contains(this.input.activePointer.x, this.input.activePointer.y));
     }
   }
 

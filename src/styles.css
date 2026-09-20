@@ -86,9 +86,9 @@ canvas {
   cursor: pointer;
 }
 
-.pause-menu button:hover,
-.pause-menu button:focus-visible {
-  outline: 2px solid #f5f5f5;
+.pause-menu button:not(:disabled):hover,
+.pause-menu button:not(:disabled):focus-visible {
+  outline: 2px solid #48ff88;
   outline-offset: 2px;
   background: #252525;
 }

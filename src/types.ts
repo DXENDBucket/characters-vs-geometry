@@ -1,6 +1,7 @@
 import type Phaser from "phaser";
 
 export type CardId =
+  | "@"
   | "#"
   | "A"
   | "a"
@@ -238,6 +239,8 @@ export interface TowerHealthPool {
 }
 
 export interface Tower {
+  copiedType?: CardId;
+  copyRevision?: number;
   healthPool?: TowerHealthPool;
   unyieldingRatio?: number;
   id: string;
@@ -365,6 +368,7 @@ export interface Enemy {
 }
 
 export interface Projectile {
+  sourceBehaviorType?: CardId;
   lastGatheredAt?: number;
   hitCount?: number;
   type: ProjectileKind;

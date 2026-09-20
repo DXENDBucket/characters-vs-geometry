@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { bindButtonHover } from "../render/buttonHover";
 import { createPageHeading } from "../render/pageHeader";
 import { GAME_HEIGHT, GAME_WIDTH, palette, uiTextColors } from "../config";
 import { chapterGroups, type ChapterGroupDefinition } from "../data/chapterGroups";
@@ -148,7 +149,7 @@ export class ChapterGroupSelectScene extends Phaser.Scene {
     const meta = unlocked ? t(group.survival ? "label.levelCount" : "label.chapterProgress", { completed, count })
       : t("label.unlockAfter", { level: group.unlockAfter ?? "" });
     card.add(this.add.text(0, 190, meta, {
-      fontFamily: "monospace", fontSize: "17px", color: !group.survival && completed === count ? "#48ff88" : uiTextColors.secondary
+      fontFamily: "monospace", fontSize: "17px", color: !group.survival && completed === count ? uiTextColors.completed : uiTextColors.secondary
     }).setOrigin(0.5));
     this.strip.add(card);
   }
@@ -159,8 +160,7 @@ export class ChapterGroupSelectScene extends Phaser.Scene {
     const text = this.add.text(x, y, label, {
       fontFamily: "monospace", fontSize: "18px", color: uiTextColors.primary
     }).setOrigin(0.5);
-    button.on("pointerover", () => button.setStrokeStyle(1, palette.green));
-    button.on("pointerout", () => button.setStrokeStyle(1, palette.mid));
+    bindButtonHover(button, [text]);
     button.on("pointerup", action);
     this.root.add([button, text]);
   }

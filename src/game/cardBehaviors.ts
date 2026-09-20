@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { towerBehaviorType } from "./towerIdentity";
 import { bossMovementDirection, enemyMovementDirection } from "./rules/reversal";
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, COLUMNS, LANES } from "../config";
 import {
@@ -195,6 +196,7 @@ export const smallSummonerCardBehavior: CardBehavior = {
 };
 
 export const cardBehaviorsById: Record<CardId, CardBehavior> = {
+  "@": idleCardBehavior,
   "#": idleCardBehavior,
   A: projectileCardBehavior,
   a: projectileCardBehavior,
@@ -526,7 +528,7 @@ function hasAreaHealTarget(tower: Tower, towers: Tower[]) {
 }
 
 function isAreaHealTarget(tower: Tower, target: Tower) {
-  const inRange = tower.type === "g" ? isInCentered3x3Aura(tower, target) : isPointInSlowAura(tower, target.x, target.y);
+  const inRange = towerBehaviorType(tower) === "g" ? isInCentered3x3Aura(tower, target) : isPointInSlowAura(tower, target.x, target.y);
   return target.inPlay && !target.transient && inRange && target.hp < towerFinalStats(target).maxHp;
 }
 
@@ -902,7 +904,7 @@ function healTower(scene: Phaser.Scene, tower: Tower, amount: number) {
 }
 
 function fireTowerProjectiles(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime, hitCount = 1) {
-  const pattern = getProjectilePattern(tower.type);
+  const pattern = getProjectilePattern(towerBehaviorType(tower));
   if (!pattern) {
     return;
   }
@@ -952,7 +954,7 @@ function shouldMirrorProjectilePattern(tower: Tower, pattern: ProjectilePatternC
     return false;
   }
 
-  const area = pattern.maxTravelArea ?? getCardAttackArea(tower.type);
+  const area = pattern.maxTravelArea ?? getCardAttackArea(towerBehaviorType(tower));
   if (area.kind === "verticalFan") {
     return false;
   }

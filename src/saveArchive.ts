@@ -46,7 +46,7 @@ function validateEntry(key: string, raw: string) {
   } else if (key === PREFERENCES_KEY) {
     if (Object.keys(value).some(key => key !== "debugMode") || (value.debugMode !== undefined && typeof value.debugMode !== "boolean")) throw new Error("Invalid preferences");
   } else if (key === BINDINGS_KEY) {
-    if (Object.entries(value).some(([action, code]) => !/^(tool:[a-zA-Z]+|slot:(10|[1-9])|card:[A-Za-z#])$/.test(action) ||
+    if (Object.entries(value).some(([action, code]) => !/^(tool:[a-zA-Z]+|slot:(10|[1-9])|card:[A-Za-z#@])$/.test(action) ||
       typeof code !== "string" || code.length > 64)) throw new Error("Invalid controls");
   } else {
     validateSurvivalSave(value as unknown as Parameters<typeof validateSurvivalSave>[0]);

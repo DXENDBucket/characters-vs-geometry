@@ -28,6 +28,10 @@ export function validateSurvivalSave(save: SurvivalSave) {
   for (const node of save.graph.nodes) {
     const data = node.data;
     if (node.kind === "tower" && !cards.has(data.type as string)) throw new Error("Unknown saved tower");
+    if (node.kind === "tower" && data.copiedType !== undefined &&
+        (data.type !== "@" || !cards.has(data.copiedType as string))) throw new Error("Unknown copied tower");
+    if (node.kind === "tower" && data.copyRevision !== undefined &&
+        (!Number.isSafeInteger(data.copyRevision) || (data.copyRevision as number) < 0)) throw new Error("Invalid copy revision");
     if (node.kind === "enemy" && !isEnemyKind(data.kind)) throw new Error("Unknown saved enemy");
     if (node.kind !== "object" && node.kind !== "array") {
       for (const field of ["x", "y"]) if (typeof data[field] !== "number" || !Number.isFinite(data[field])) throw new Error("Invalid unit position");

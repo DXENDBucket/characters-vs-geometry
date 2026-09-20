@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { bindButtonHover } from "./buttonHover";
 import {
   CARD_BAR_WIDTH,
   CARD_HEIGHT,
@@ -174,6 +175,7 @@ export function createGameHud(
   speedKnob.on("pointerdown", setSpeedFromPointer);
   speedKnob.on("drag", (pointer: Phaser.Input.Pointer) => setSpeedFromPointer(pointer));
   scene.input.setDraggable(speedKnob);
+  bindButtonHover(speedKnob, [speedHit]);
 
   const progressText = scene.add
     .text(GAME_WIDTH - 28, GAME_HEIGHT - 50, "", {
@@ -269,6 +271,8 @@ export function createGameHud(
 
   bindPointerAction(debugDamageButton, actions.onDebugDamage);
   debugDamageText.setInteractive({ useHandCursor: true });
+  bindButtonHover(autoUpgradeEnabledBox, [autoUpgradeEnabledLabel]);
+  bindButtonHover(autoUpgradeReserveInput, [autoUpgradeReserveText], () => autoUpgradeEnabledFill.visible);
   bindPointerAction(debugDamageText, actions.onDebugDamage);
   bindPointerAction(superDebugDamageButton, actions.onSuperDebugDamage);
   superDebugDamageText.setInteractive({ useHandCursor: true });
@@ -411,6 +415,8 @@ export function createCardStates(scene: Phaser.Scene, selectedCardIds: CardId[])
       .rectangle(x + 17, y + 58, CARD_BAR_WIDTH, 4, palette.white, 1)
       .setOrigin(0, 0.5);
 
+    bindButtonHover(frame);
+
     return {
       definition,
       frame,
@@ -435,6 +441,7 @@ export function destroyCardStates(cards: CardState[]) {
 
 export function updateReselectButtonState(ui: GameHudElements, unlocked: boolean, readyRatio: number, visible: boolean) {
   const ready = unlocked && readyRatio >= 1;
+  ui.reselectButton.setData("hoverEnabled", ready);
   setVisibleIfChanged(ui.reselectButton, visible && unlocked);
   setVisibleIfChanged(ui.reselectText, visible && unlocked);
   setStrokeStyleIfChanged(ui.reselectButton, 2, ready ? palette.mid : palette.dim, 1);
@@ -488,6 +495,7 @@ export function createGameOverlay(scene: Phaser.Scene, onAction: () => void): Ga
     .setOrigin(0.5);
 
   menuButton.on("pointerdown", onAction);
+  bindButtonHover(menuButton, [buttonText]);
 
   const details = scene.add.container(0, 0);
   const container = scene.add.container(0, 0, [plate, title, subtitle, details, menuButton, buttonText]);
@@ -570,6 +578,7 @@ export function updateToolButtonStates(
   setAlphaIfChanged(ui.superDebugDamageText, superDebugDamageMode ? 1 : 0.78);
 
   const shifterReady = shifterReadyRatio >= 1;
+  ui.shifterButton.setData("hoverEnabled", shifterReady);
   setStrokeStyleIfChanged(ui.shifterButton, shifterMode ? 4 : 2, shifterMode ? palette.magic : shifterReady ? palette.mid : palette.dim, 1);
   setFillStyleIfChanged(ui.shifterButton, shifterMode ? palette.panel : palette.black, shifterMode ? 1 : shifterReady ? 0.82 : 0.44);
   setAlphaIfChanged(ui.shifterButton, shifterMode ? 1 : shifterReady ? 0.78 : 0.42);
@@ -835,6 +844,7 @@ function createToolButton(scene: Phaser.Scene, x: number, y: number, width: numb
     .setOrigin(0.5)
     .setDepth(31);
 
+  bindButtonHover(button, [text], () => button.getData("hoverEnabled") !== false);
   return { button, text };
 }
 

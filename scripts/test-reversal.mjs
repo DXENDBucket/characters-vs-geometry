@@ -166,6 +166,112 @@ function extractionFixture() {
   return { state, deployment, targeted, place, removed, flush: () => { while (pending.length) pending.shift()(); } };
 }
 
+function copyFixture() {
+  const f = extractionFixture();
+  const copy = load("src/game/towerCopy.ts");
+  return { ...f, ...copy, sync: () => copy.syncTowerCopies({ ...f.state, onChanged: noop }) };
+}
+
+test("AE-2 uses the chapter-four template, adds both hexagons and unlocks @", () => {
+  const { getLevelConfig } = load("src/data/levels.ts");
+  const first = getLevelConfig("AE-1"), level = getLevelConfig("AE-2");
+  assert.equal(level.totalWaves, 20);
+  assert.equal(level.unlockAfter, "AE-1");
+  for (const key of ["startingChars", "firstWaveWeight", "waveWeightIncrement", "waveWeightIncrementGrowth", "wavesPerFlag"])
+    assert.equal(level[key], first[key], key);
+  assert.deepEqual(level.enemyKinds, ["circle", "tilde", "tilde2", "tilde3", "angelPentagon", "angelPentagon2",
+    "angelPentagonRam", "archangelHeptagon", "slopeTriangle", "hexagon", "hexSpellBulwark"]);
+  assert.equal(load("src/data/cardUnlocks.ts").cardUnlockRequirement("@"), "AE-2");
+  const card = cardDefinitions.find(card => card.id === "@");
+  assert.equal(card.cost, 1000);
+  assert.equal(card.cooldown, 60000);
+});
+
+test("@ copies every eligible regular panel using its own level, not target upgrades", () => {
+  const { towerBehaviorType } = load("src/game/towerIdentity.ts");
+  for (const definition of cardDefinitions) {
+    const f = copyFixture();
+    const caster = f.place("@", 3, 3, 3);
+    f.place(definition.id, 20, 3, 4);
+    f.sync();
+    const eligible = /^[A-Za-z]$/.test(definition.id) && definition.cost <= 999 && !["b", "t", "y"].includes(definition.id);
+    assert.equal(f.isCopyableDefinition(definition), eligible, definition.id);
+    assert.equal(caster.type, "@");
+    assert.equal(caster.level, 3);
+    assert.equal(towerBehaviorType(caster), eligible ? definition.id : "@", definition.id);
+    if (eligible) {
+      assert.equal(caster.finalStats.maxHp, towerForCard(definition, 3).finalStats.maxHp, definition.id);
+      assert.equal(caster.finalStats.attackPower, towerForCard(definition, 3).finalStats.attackPower, definition.id);
+      assert.equal(caster.finalStats.armor, definition.armor ?? 0, definition.id);
+    }
+  }
+});
+
+test("@ tracks effective facing and target removal, preserves HP ratio and never inherits target SP or buffs", () => {
+  const f = copyFixture();
+  const caster = f.place("@", 2, 3, 3);
+  caster.hp = 600; caster.trueDamageUntil = 9000; caster.autoUpgrade = true;
+  const right = f.place("w", 10, 3, 4);
+  right.skills.airPatrol.sp = 10; right.trueDamageUntil = 60000;
+  f.place("X", 8, 3, 2);
+  f.state.battleTime = 500;
+  assert.equal(f.sync(), true);
+  assert.equal(caster.hp / caster.maxHp, 0.5);
+  assert.equal(caster.maxHp, towerForCard(f.state.getDefinition("w"), 2).finalStats.maxHp);
+  assert.equal(caster.skills.airPatrol.sp, 8);
+  assert.equal(caster.trueDamageUntil, 9000);
+  caster.skills.airPatrol.sp = 9;
+  assert.equal(f.sync(), false);
+  assert.equal(caster.skills.airPatrol.sp, 9);
+  rules.applyReversalEffect(caster, 1000, 500);
+  f.sync();
+  assert.equal(caster.copiedType, "X");
+  assert.equal(caster.hp, 600);
+  assert.equal(caster.lastFire, 500);
+  assert.deepEqual(caster.skills, {});
+  f.state.occupied.delete("3:2");
+  f.sync();
+  assert.equal(caster.copiedType, undefined);
+  assert.equal(caster.finalStats.attackPower, 0);
+  assert.equal(caster.attackSpeed, undefined);
+  assert.equal(caster.autoUpgrade, true);
+  assert.equal(caster.hp, 600);
+  assert.equal(caster.copyRevision, 3);
+});
+
+test("@ upgrades only with @ and retains its price for extraction and auto-upgrade selection", () => {
+  const f = copyFixture();
+  const caster = f.place("@", 2, 3, 3);
+  f.place("B", 1, 3, 4);
+  f.sync(); caster.autoUpgrade = true;
+  assert.equal(towers.findAutoUpgradeTarget([caster], "B"), undefined);
+  assert.equal(towers.findAutoUpgradeTarget([caster], "@"), caster);
+  assert.equal(f.deployment.useCard(f.state.getDefinition("B"), 3, 3), "occupied");
+  assert.equal(f.deployment.useCard(f.state.getDefinition("@"), 3, 3), "deployed");
+  assert.equal(caster.level, 3);
+  assert.equal(caster.maxHp, 7800);
+  assert.equal(f.state.chars, 9000);
+  f.state.extraction.extract(caster, f.state.getDefinition(caster.type).cost, 1);
+  assert.equal(f.state.extraction.value, 1500);
+});
+
+test("@ retains shared health percentage when its copied contribution changes", () => {
+  const f = copyFixture();
+  const caster = f.place("@", 1, 3, 3);
+  const target = f.place("B", 1, 3, 4);
+  f.place("u", 1, 2, 3);
+  f.sync();
+  const health = load("src/game/towerHealth.ts");
+  health.syncTowerHealthNetworks(f.state.towers);
+  const pool = caster.healthPool;
+  pool.hp = pool.maxHp / 2;
+  health.changeTowerHealth(caster, 0);
+  f.state.removeTower(target);
+  f.sync();
+  assert.equal(pool.hp / pool.maxHp, 0.5);
+  assert.equal(caster.hp / caster.maxHp, 0.5);
+});
+
 const health = load("src/game/towerHealth.ts");
 
 function unyieldingFixture() {

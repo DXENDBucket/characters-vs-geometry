@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { bindButtonHover } from "./buttonHover";
 import {
   CUBE_BOSS_CONTACT_DAMAGE,
   CUBE_BOSS_STATS,
@@ -240,6 +241,7 @@ export class EncyclopediaPanel {
 
     closeButton.on("pointerdown", () => this.close());
     closeText.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.close());
+    bindButtonHover(closeButton, [closeText]);
     this.scene.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => this.startDrag(pointer));
     this.scene.input.on("pointermove", (pointer: Phaser.Input.Pointer) => this.updateDrag(pointer));
     this.scene.input.on("pointerup", (pointer: Phaser.Input.Pointer) => this.stopDrag(pointer));
@@ -311,6 +313,7 @@ export class EncyclopediaPanel {
 
     frame.on("pointerdown", () => this.setTab(tab));
     label.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.setTab(tab));
+    bindButtonHover(frame, [label]);
     const button = { tab, frame, label };
     this.tabs.push(button);
     return button;
@@ -333,6 +336,7 @@ export class EncyclopediaPanel {
 
     frame.on("pointerdown", () => this.setCardCase(letterCase));
     label.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.setCardCase(letterCase));
+    bindButtonHover(frame, [label]);
     const button = { letterCase, frame, label };
     this.cardCaseButtons.push(button);
     return button;
@@ -355,6 +359,7 @@ export class EncyclopediaPanel {
 
     frame.on("pointerdown", () => this.setStatMode(mode));
     label.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.setStatMode(mode));
+    bindButtonHover(frame, [label]);
     const button = { mode, frame, label };
     this.statModeButtons.push(button);
     return button;
@@ -404,6 +409,7 @@ export class EncyclopediaPanel {
         this.rebuildGrid();
       });
       this.enemyGroupControls.add([frame, label]);
+      bindButtonHover(frame, [label]);
     });
   }
 
@@ -507,6 +513,10 @@ export class EncyclopediaPanel {
     };
     frame.on("pointerup", openEntry);
     title.setInteractive({ useHandCursor: true }).on("pointerup", openEntry);
+    bindButtonHover(frame, [title], () => {
+      const position = this.pointerPosition(this.scene.input.activePointer);
+      return !this.dragMoved && this.gridViewport.contains(position.x, position.y);
+    });
 
     this.grid.add(container);
     this.tiles.push({ id, frame });
@@ -675,6 +685,8 @@ export class EncyclopediaPanel {
       underline.lineStyle(1, palette.white, 0.92);
       underline.lineBetween(x, rowY + link.height + 1, x + link.width, rowY + link.height + 1);
       link.on("pointerdown", () => this.openMechanic(mechanicId));
+      link.on("pointerover", () => link.setColor("#48ff88"));
+      link.on("pointerout", () => link.setColor(uiTextColors.primary));
       this.detail.add([link, underline]);
       x += link.width + 18;
       if (x > this.detailViewport.width - 88) {

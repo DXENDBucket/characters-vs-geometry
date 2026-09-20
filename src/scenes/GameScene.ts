@@ -1,4 +1,7 @@
 import Phaser from "phaser";
+import { towerBehaviorType } from "../game/towerIdentity";
+import { syncTowerCopies } from "../game/towerCopy";
+import { syncTowerFormVisual } from "../game/towers";
 import { BattleClock, BattleRandom, BATTLE_STEP_MS, BATTLE_RULES_VERSION, setBattleRandom, setBattlePlayback } from "../game/battleSimulation";
 import { validateReplay, type BattleCommand, type BattlePointer, type BattleReplay, type RecordedBattleCommand } from "../game/battleCommands";
 import { BattleActionQueue, type BattleAction, type ScheduleBattleAction } from "../game/battleActions";
@@ -574,6 +577,7 @@ export class GameScene extends Phaser.Scene {
     const seconds = scaledDelta / 1000;
     this.levelElapsed += scaledDelta;
     this.battleTime += scaledDelta;
+    this.syncCopiedTowers();
     this.actionQueue.update(this.battleTime, action => this.executeBattleAction(action));
     this.towerSkills.update(seconds, this.battleTime);
     this.towerPush.update(this.battleTime);
@@ -747,7 +751,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    if (existingTower?.type === "c" && this.towerSkills.isClockTowerReady(existingTower)) {
+    if (existingTower && towerBehaviorType(existingTower) === "c" && this.towerSkills.isClockTowerReady(existingTower)) {
       if (this.isShiftPointer(pointer)) {
         this.towerSkills.activateReadyClockTowers();
       } else {
@@ -757,7 +761,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    if (existingTower?.type === "S" && this.towerSkills.isSpellMortarReady(existingTower)) {
+    if (existingTower && towerBehaviorType(existingTower) === "S" && this.towerSkills.isSpellMortarReady(existingTower)) {
       if (this.isShiftPointer(pointer)) {
         this.activateReadySpellMortars(pointer.x, pointer.y);
       } else {
@@ -767,13 +771,13 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    if (existingTower?.type === "w" && this.towerSkills.isAirPatrolReady(existingTower)) {
+    if (existingTower && towerBehaviorType(existingTower) === "w" && this.towerSkills.isAirPatrolReady(existingTower)) {
       this.towerSkills.activateAirPatrolTower(existingTower);
       this.updateCards();
       return;
     }
 
-    if (existingTower?.type === "o" && this.towerSkills.isOrientationReady(existingTower)) {
+    if (existingTower && towerBehaviorType(existingTower) === "o" && this.towerSkills.isOrientationReady(existingTower)) {
       this.towerSkills.activateOrientationTower(existingTower);
       this.updateCards();
       return;
@@ -786,7 +790,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    if (existingTower?.type === "j" && this.towerSkills.isGatheringReady(existingTower)) {
+    if (existingTower && towerBehaviorType(existingTower) === "j" && this.towerSkills.isGatheringReady(existingTower)) {
       this.towerSkills.activateGatheringTower(existingTower);
       this.updateCards();
       return;
@@ -996,7 +1000,7 @@ export class GameScene extends Phaser.Scene {
         continue;
       }
 
-      const definition = this.getDefinition(tower.type);
+      const definition = this.getDefinition(towerBehaviorType(tower));
       if (!definition.produceEvery || !definition.produceAmount) {
         continue;
       }
@@ -1026,12 +1030,12 @@ export class GameScene extends Phaser.Scene {
         syncTowerTrueDamageVisual(tower, time);
       }
 
-      if (tower.type === "G") {
+      if (towerBehaviorType(tower) === "G") {
         this.setTowerBorderVisible(tower, time >= tower.armedAt);
         continue;
       }
 
-      if (isShockTower(tower) && tower.type !== "i") {
+      if (isShockTower(tower) && towerBehaviorType(tower) !== "i") {
         this.setTowerBorderVisible(tower, true);
         tower.border.setAlpha(0.55 + Math.sin(time / 95) * 0.27);
       }
@@ -1054,7 +1058,14 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  private syncCopiedTowers() {
+    syncTowerCopies({ towers: this.towers, occupied: this.occupied, battleTime: this.battleTime,
+      getDefinition: id => this.getDefinition(id),
+      onChanged: (tower, definition) => syncTowerFormVisual(this, tower, definition, this.battleTime) });
+  }
+
   private updateLevelAuras() {
+    this.syncCopiedTowers();
     const snapshotTowers = this.levelBonusSnapshotTowers;
     const snapshotValues = this.levelBonusSnapshotValues;
     snapshotTowers.length = this.towers.length;
@@ -1129,7 +1140,7 @@ export class GameScene extends Phaser.Scene {
   private levelAuraTowerStateMatches(tower: Tower, cached: LevelAuraTowerSignature) {
     return (
       cached.id === tower.id &&
-      cached.type === tower.type &&
+      cached.type === towerBehaviorType(tower) &&
       cached.lane === tower.lane &&
       cached.column === tower.column &&
       cached.level === tower.level &&
@@ -1145,7 +1156,7 @@ export class GameScene extends Phaser.Scene {
       const tower = this.towers[index];
       const cached = this.levelAuraCachedStates[index] ?? this.createLevelAuraTowerState(tower);
       cached.id = tower.id;
-      cached.type = tower.type;
+      cached.type = towerBehaviorType(tower);
       cached.lane = tower.lane;
       cached.column = tower.column;
       cached.level = tower.level;
@@ -1159,7 +1170,7 @@ export class GameScene extends Phaser.Scene {
   private createLevelAuraTowerState(tower: Tower): LevelAuraTowerSignature {
     return {
       id: tower.id,
-      type: tower.type,
+      type: towerBehaviorType(tower),
       lane: tower.lane,
       column: tower.column,
       level: tower.level,
@@ -1198,7 +1209,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handleTowerDamaged(tower: Tower) {
-    const definition = this.getDefinition(tower.type);
+    const definition = this.getDefinition(towerBehaviorType(tower));
     if (!definition.hitProduceAmount) {
       return;
     }
@@ -1696,7 +1707,7 @@ export class GameScene extends Phaser.Scene {
   private updateTowers(time: number) {
     const runtime = this.combatRuntime();
     for (const tower of this.towers) {
-      const behavior = getCardBehavior(tower.type);
+      const behavior = getCardBehavior(towerBehaviorType(tower));
       if (behavior === idleCardBehavior) {
         continue;
       }
@@ -1706,7 +1717,7 @@ export class GameScene extends Phaser.Scene {
         continue;
       }
 
-      const definition = this.getDefinition(tower.type);
+      const definition = this.getDefinition(towerBehaviorType(tower));
       if (!behavior.canUse(tower, definition, time, runtime, true)) {
         continue;
       }
@@ -1728,13 +1739,13 @@ export class GameScene extends Phaser.Scene {
     time: number,
     attackInterval: number
   ) {
-    const totalHits = volleyShotCount(tower.type, effectiveTowerLevel(tower));
+    const totalHits = volleyShotCount(towerBehaviorType(tower), effectiveTowerLevel(tower));
     const shots = volleyTimingCount(totalHits);
     const interval = volleyInterval(attackInterval, shots);
 
     for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
       const hitCount = volleyHitsAt(totalHits, shotIndex);
-      this.scheduleBattleAction(shotIndex * interval, { type: "volley", tower, hitCount });
+      this.scheduleBattleAction(shotIndex * interval, { type: "volley", tower, hitCount, copyRevision: tower.copyRevision });
     }
 
     tower.lastFire = time + (shots - 1) * interval;
@@ -2595,8 +2606,10 @@ export class GameScene extends Phaser.Scene {
         executeBossAttack(this.bossRuntime(), action); break;
       case "enemyShot": case "enemyLaser": case "enemyMortar": executeEnemyAttack(this.combatRuntime(), action); break;
       case "volley":
-        if (action.tower.inPlay) getCardBehavior(action.tower.type).execute(action.tower,
-          this.getDefinition(action.tower.type), this.combatRuntime(), action.hitCount);
+        if (action.tower.inPlay && action.copyRevision === action.tower.copyRevision) {
+          const type = towerBehaviorType(action.tower);
+          getCardBehavior(type).execute(action.tower, this.getDefinition(type), this.combatRuntime(), action.hitCount);
+        }
         break;
       case "targetedEffect": this.targetedEffects.resolvePendingEffectCard(action.tower); break;
       case "shock": executeShockPulse(this.triggerTowerRuntime(), action); break;

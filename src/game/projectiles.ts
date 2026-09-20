@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { towerBehaviorType } from "./towerIdentity";
 import { attachProjectileTrail } from "../render/projectileTrail";
 import { enemyMovementDirection } from "./rules/reversal";
 import { BOARD_HEIGHT, BOARD_WIDTH, BOARD_X, BOARD_Y, palette } from "../config";
@@ -86,6 +87,7 @@ export function createTowerProjectile(scene: Phaser.Scene, spec: TowerProjectile
     maxX: spec.maxX,
     limitDirection: spec.limitDirection ?? (Math.cos(angle) < 0 ? -1 : 1),
     sourceTower: spec.sourceTower,
+    sourceBehaviorType: spec.sourceTower?.type === "@" ? towerBehaviorType(spec.sourceTower) : undefined,
     body
   };
 }

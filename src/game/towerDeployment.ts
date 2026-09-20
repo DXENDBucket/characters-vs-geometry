@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { towerBehaviorType } from "./towerIdentity";
 import { LANES } from "../config";
 import { makeAutoUpgradePulse } from "../render/combatEffects";
 import type { CardDefinition, CardId, CardState, Tower } from "../types";
@@ -195,7 +196,7 @@ export class TowerDeploymentController {
     }
 
     for (const target of targets) {
-      const definition = runtime.getDefinition(target.type);
+      const definition = runtime.getDefinition(towerBehaviorType(target));
       const gainedEffectiveUpgrades = upgradeTowerLevel(target, levels);
       applyTowerUpgradeStats(target, definition, gainedEffectiveUpgrades, runtime.battleTime);
       runtime.resetTowerSkill(target);

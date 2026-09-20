@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { palette, uiTextColors } from "../config";
+import { bindButtonHover } from "./buttonHover";
 
 export function createPageHeading(scene: Phaser.Scene, title: string, subtitle: string) {
   const heading = scene.add.text(48, 40, title, {
@@ -28,8 +29,7 @@ export function createHeaderNavigation(scene: Phaser.Scene, actions: readonly He
     const label = scene.add.text(x, 58, action.label, {
       color: uiTextColors.primary, fontFamily: "monospace", fontSize: "15px", fontStyle: "700"
     }).setOrigin(0.5);
-    frame.on("pointerover", () => frame.setStrokeStyle(2, palette.green, 1));
-    frame.on("pointerout", () => frame.setStrokeStyle(2, palette.mid, 0.85));
+    bindButtonHover(frame, [label]);
     frame.on("pointerdown", action.run);
     return { frame, label };
   });

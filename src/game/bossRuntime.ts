@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { towerBehaviorType } from "./towerIdentity";
 import { bossMovementDirection } from "./rules/reversal";
 import { isShockTower } from "./triggerTowers";
 import { redirectOrientedTarget } from "./orientation";
@@ -1179,7 +1180,7 @@ function triggerFunctionalTowersTouchingBoss(runtime: BossRuntime, boss: CubeBos
       return;
     }
 
-    if (tower.type === "G" && isTrapArmed(tower, runtime.battleTime)) {
+    if (towerBehaviorType(tower) === "G" && isTrapArmed(tower, runtime.battleTime)) {
       runtime.triggerTrapTower(tower, boss);
       if (runtime.getBoss() !== rootBoss) {
         return false;

@@ -108,7 +108,8 @@ export const CUBE_BOSS_CONTACT_INTERVAL = 0.5;
 export const uiTextColors = {
   primary: "#ffffff",
   body: "#e8e8e8",
-  secondary: "#bcbcbc"
+  secondary: "#bcbcbc",
+  completed: "#9fdcff"
 };
 
 export const palette = {
@@ -120,6 +121,7 @@ export const palette = {
   mid: 0x8c8c8c,
   dim: 0x454545,
   magic: 0x9fdcff,
+  completed: 0x9fdcff,
   green: 0x48ff88,
   gold: 0xffd75a,
   heart: 0xff7eb6,
