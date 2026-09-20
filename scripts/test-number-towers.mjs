@@ -61,6 +61,64 @@ test("A=number=E keeps separate per-type counters and preserves memories after d
   f.controller.record(e, { kind: "attack" }); assert.equal(f.events[1].behavior.level, 3);
 });
 
+test("all numbers learn remote sources across ordinary towers in A=E=1=B=2", () => {
+  const f = fixture(), a = f.place("A", 0);
+  f.place("=", 1); const e = f.place("E", 2);
+  f.place("=", 3); const one = f.place("1", 4);
+  f.place("=", 5); const b = f.place("B", 6);
+  f.place("=", 7); const two = f.place("1", 8, 3, 2);
+  const unrelated = f.place("A", 4, 2);
+  f.controller.sync();
+  for (const number of [one, two]) {
+    assert.equal(number.numberMemory.length, 3);
+    for (const source of [a, e, b]) {
+      assert.deepEqual(number.numberMemory.find(entry => entry.type === source.type).sourceIds, [source.id]);
+    }
+  }
+  f.controller.record(unrelated, { kind: "attack" }); assert.equal(f.events.length, 0);
+  f.controller.record(a, { kind: "attack" });
+  assert.deepEqual(f.events.map(event => event.tower), [one]);
+  assert.equal(two.numberMemory.find(entry => entry.type === "A").count, 1);
+  f.controller.record(e, { kind: "attack" });
+  assert.equal(two.numberMemory.find(entry => entry.type === "A").count, 1);
+  f.controller.record(a, { kind: "attack" });
+  assert.equal(f.events.at(-1).tower, two);
+  assert.deepEqual(f.events.at(-1).behavior, { type: "A", level: 2 });
+});
+
+test("branched cyclic equations traverse ordinary towers once, including expensive non-learnable bridges", () => {
+  const f = fixture(), number = f.place("1", 2, 2, 2), e = f.place("E", 4, 2);
+  const b = f.place("B", 2, 4), a = f.place("A", 4, 4);
+  for (const [column, lane] of [[3, 2], [2, 3], [4, 3], [3, 4], [5, 4], [7, 4]]) f.place("=", column, lane);
+  f.place("@", 6, 4); const x = f.place("X", 8, 4);
+  f.controller.sync(); f.controller.sync();
+  assert.equal(number.numberMemory.length, 4);
+  for (const source of [a, e, b, x]) {
+    assert.deepEqual(number.numberMemory.find(entry => entry.type === source.type).sourceIds, [source.id]);
+    f.controller.record(source, { kind: "attack" });
+  }
+  assert.equal(f.events.length, 0);
+  assert.ok(number.numberMemory.every(entry => entry.count === 1));
+  f.controller.record(a, { kind: "attack" });
+  assert.equal(f.events.length, 1);
+});
+
+test("a broken remote equation retains old memories but never learns newly disconnected sources", () => {
+  const f = fixture(), a = f.place("A", 0);
+  const connector = f.place("=", 1); f.place("E", 2);
+  f.place("=", 3); const number = f.place("1", 4, 3, 2);
+  f.controller.sync(); f.controller.record(a, { kind: "attack" });
+  connector.inPlay = false; f.controller.sync();
+  const replacement = f.place("A", 0); f.controller.sync();
+  f.controller.record(replacement, { kind: "attack" }); assert.equal(f.events.length, 0);
+  f.controller.record(a, { kind: "attack" }); assert.equal(f.events.length, 1);
+  f.place("=", 5); const newcomer = f.place("1", 6);
+  f.controller.sync();
+  assert.deepEqual(newcomer.numberMemory.find(entry => entry.type === "A").sourceIds, [a.id]);
+  assert.equal(newcomer.numberMemory.find(entry => entry.type === "A").count, 0);
+  assert.equal(number.numberMemory.find(entry => entry.type === "A").count, 0);
+});
+
 test("vertical connections exclude expensive sources, allow transient effect cards and never copy counters", () => {
   const f = fixture(), number = f.place("1", 2, 2, 2);
   f.place("=", 2, 3); const expensive = f.place("@", 2, 4);

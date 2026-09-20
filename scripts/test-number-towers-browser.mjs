@@ -157,8 +157,13 @@ try {
     check(scene.chars > funds && pair.number.inPlay, "Numeric production failed");
 
     start({ levelId: "IF-1" });
-    const savedSource = place("A", 1); place("=", 2); place("1", 3);
+    const savedSource = place("A", 1); place("=", 2); place("E", 3); place("=", 4);
+    const savedNumber = place("1", 5);
+    check(savedNumber.numberMemory.some(entry => entry.type === "A" && entry.sourceIds.includes(savedSource.id)),
+      "A=E=1 did not learn the remote A");
     attack(savedSource); // Save pending original and imitation actions.
+    check(scene.actionQueue.snapshot().some(entry => entry.action.type === "imitation" && entry.action.tower === savedNumber),
+      "Remote source did not trigger its number tower");
     const snapshot = JSON.parse(JSON.stringify(captureBattleSnapshot(scene.battleState())));
     validateSurvivalSave({ version: 1, levelId: "IF-1", wave: scene.wave, savedAt: 1, difficulty: scene.difficulty,
       unlimitedFirepower: false, selectedCards: ["=", "1", "A"], graph: snapshot });

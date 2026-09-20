@@ -23,7 +23,14 @@ export class NumberTowerController {
       const occupants = cells.get(key) ?? [];
       occupants.push(tower); cells.set(key, occupants);
     }
-    const neighbors = new Map(numbers.map(tower => [tower, new Set<Tower>()]));
+    const numberSet = new Set(numbers);
+    const neighbors = new Map<Tower, Set<Tower>>();
+    const connect = (a: Tower, b: Tower) => {
+      if (!neighbors.has(a)) neighbors.set(a, new Set());
+      if (!neighbors.has(b)) neighbors.set(b, new Set());
+      neighbors.get(a)!.add(b);
+      neighbors.get(b)!.add(a);
+    };
     const learn = (number: Tower, type: CardId, ids: string[]) => {
       const memories = number.numberMemory ??= [];
       let entry = memories.find(entry => entry.type === type);
@@ -38,18 +45,11 @@ export class NumberTowerController {
       for (const [dl, dc] of [[1, 0], [0, 1]]) {
         const a = cells.get(`${connector.lane + dl}:${connector.column + dc}`) ?? [];
         const b = cells.get(`${connector.lane - dl}:${connector.column - dc}`) ?? [];
-        for (const [recipients, sources] of [[a, b], [b, a]]) {
-          for (const number of recipients) {
-            if (!neighbors.has(number)) continue;
-            for (const source of sources) {
-              if (neighbors.has(source)) neighbors.get(number)!.add(source);
-              else if (getDefinition(source.type).cost <= 999) learn(number, towerFormType(source), [source.id]);
-            }
-          }
-        }
+        for (const left of a) for (const right of b) connect(left, right);
       }
     }
-    // Propagate the complete memory union through each numeric component once.
+    // Ordinary towers also bridge equations, e.g. A=E=1. Traverse each entire
+    // component once, sharing source memories but never action counters.
     const seen = new Set<Tower>();
     for (const number of numbers) {
       if (seen.has(number)) continue;
@@ -57,15 +57,24 @@ export class NumberTowerController {
       seen.add(number);
       while (pending.length) {
         const member = pending.pop()!; group.push(member);
-        for (const next of neighbors.get(member)!) if (!seen.has(next)) { seen.add(next); pending.push(next); }
+        for (const next of neighbors.get(member) ?? []) if (!seen.has(next)) { seen.add(next); pending.push(next); }
       }
       const memories = new Map<CardId, Set<string>>();
-      for (const member of group) for (const entry of member.numberMemory ?? []) {
-        const ids = memories.get(entry.type) ?? new Set<string>();
-        for (const id of entry.sourceIds) ids.add(id);
-        memories.set(entry.type, ids);
+      const remember = (type: CardId, sourceIds: string[]) => {
+        const ids = memories.get(type) ?? new Set<string>();
+        for (const id of sourceIds) ids.add(id);
+        memories.set(type, ids);
+      };
+      for (const member of group) {
+        if (numberSet.has(member)) {
+          for (const entry of member.numberMemory ?? []) remember(entry.type, entry.sourceIds);
+        } else if (getDefinition(member.type).cost <= 999) {
+          remember(towerFormType(member), [member.id]);
+        }
       }
-      for (const member of group) for (const [type, ids] of memories) learn(member, type, [...ids]);
+      for (const member of group) if (numberSet.has(member)) {
+        for (const [type, ids] of memories) learn(member, type, [...ids]);
+      }
     }
   }
 
