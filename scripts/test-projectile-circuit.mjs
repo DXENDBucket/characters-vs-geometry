@@ -36,10 +36,10 @@ function fixture(types = ["A", "0", "1"]) {
 const hostile = (tower, damage = 900, hitCount = 1) => ({ x: tower.x, y: tower.y, damage, hitCount,
   body: { setScale(value) { this.scale = value; } } });
 
-test("pipeline components cost 100 with four-second cooldown except the 500-cost ten-second interceptor", () => {
+test("pipeline components cost 50 with three-second cooldown except the 500-cost ten-second interceptor", () => {
   for (const id of ["=", "0", "1", "+", "-"]) {
     const card = cardDefinitions.find(card => card.id === id);
-    assert.deepEqual([card.cost, card.cooldown], id === "-" ? [500, 10000] : [100, 4000], id);
+    assert.deepEqual([card.cost, card.cooldown], id === "-" ? [500, 10000] : [50, 3000], id);
   }
 });
 
@@ -252,11 +252,11 @@ test("edge controls cycle four modes, upgrade without inventory and respect auto
   const edge = state.edges[0]; assert.equal(edge.mode, "=");
   for (const mode of [">", "<", "!=", "="]) { controls.cycle(edge); assert.equal(edge.mode, mode); }
   assert.equal(controls.use(position), "cooldown");
-  state.cardTime = 4000; controls.use(position); assert.equal(edge.level, 2);
-  controls.toggleAuto(edge); state.cardTime = 8000; state.reserve = state.chars;
+  state.cardTime = 3000; controls.use(position); assert.equal(edge.level, 2);
+  controls.toggleAuto(edge); state.cardTime = 6000; state.reserve = state.chars;
   controls.attemptAutoUpgrade(); assert.equal(edge.level, 2);
   state.reserve = 0; controls.attemptAutoUpgrade(); assert.equal(edge.level, 3);
-  assert.equal(state.chars, 9700); assert.equal("shots" in edge, false);
+  assert.equal(state.chars, 9850); assert.equal("shots" in edge, false);
 });
 
 test("logical topology determines neighbors while disconnected inventory remains local", () => {

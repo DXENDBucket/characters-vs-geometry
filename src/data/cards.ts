@@ -9,7 +9,7 @@ export const cardDefinitions: CardDefinition[] = [
     maxHp: 1_200, armor: 150, magicResistance: 0, attackPower: 0, stats: "AUTO FIRE"
   },
   {
-    id: "0", category: "function", cost: 100, cooldown: 4_000,
+    id: "0", category: "function", cost: 50, cooldown: 3_000,
     maxHp: 1_200, armor: 150, magicResistance: 0, attackPower: 0, stats: "STORE 128"
   },
   {
@@ -17,7 +17,7 @@ export const cardDefinitions: CardDefinition[] = [
     maxHp: 1_200, armor: 150, magicResistance: 0, attackPower: 0, stats: "INTERCEPT R2.6"
   },
   {
-    id: "+", category: "function", cost: 100, cooldown: 4_000,
+    id: "+", category: "function", cost: 50, cooldown: 3_000,
     maxHp: 1_200, armor: 150, magicResistance: 0, attackPower: 0, stats: "BUNDLE 5"
   },
   {
@@ -27,8 +27,8 @@ export const cardDefinitions: CardDefinition[] = [
   {
     id: "=",
     category: "special",
-    cost: 100,
-    cooldown: 4_000,
+    cost: 50,
+    cooldown: 3_000,
     maxHp: 0,
     armor: 0,
     magicResistance: 0,
@@ -38,8 +38,8 @@ export const cardDefinitions: CardDefinition[] = [
   {
     id: "1",
     category: "function",
-    cost: 100,
-    cooldown: 4_000,
+    cost: 50,
+    cooldown: 3_000,
     maxHp: 1_200,
     armor: 150,
     magicResistance: 0,

@@ -33,7 +33,7 @@ test("AE-4 panel, wave pool and rewards", () => {
   assert.equal(level.totalWaves, 20); assert.equal(level.unlockAfter, "AE-3");
   assert.deepEqual(level.enemyKinds, ["circle", "triangle", "triangle2", "triangle3", "equals", "equals2", "equals3", "mortarTriangle", "pentagon"]);
   assert.deepEqual([level.firstWaveWeight, level.waveWeightIncrement, level.waveWeightIncrementGrowth, level.startingChars], [25, 18, 3, 500]);
-  for (const [id, cost, cd] of [["+", 100, 4000], ["&", 4200, 120000]]) {
+  for (const [id, cost, cd] of [["+", 50, 3000], ["&", 4200, 120000]]) {
     const card = fixture().getDefinition(id);
     assert.deepEqual([card.cost, card.cooldown, card.category, card.attackPower], [cost, cd, "function", 0]);
     assert.equal(load("src/data/cardUnlocks.ts").cardUnlockRequirement(id), "AE-4");
