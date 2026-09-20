@@ -59,7 +59,6 @@ export class LevelSelectScene extends Phaser.Scene {
   private difficulty = DEFAULT_DIFFICULTY;
   private unlimitedFirepower = false;
   private mapContainer!: Phaser.GameObjects.Container;
-  private readonly levelFrames = new Map<string, Phaser.GameObjects.Rectangle>();
   private mapBounds!: Phaser.Geom.Rectangle;
   private readonly mapViewport = new Phaser.Geom.Rectangle(38, 156, GAME_WIDTH - 76, GAME_HEIGHT - 246);
   private readonly footerY = 715;
@@ -108,7 +107,6 @@ export class LevelSelectScene extends Phaser.Scene {
 
   create() {
     this.bossNodePreviews = [];
-    this.levelFrames.clear();
     this.cameras.main.setBackgroundColor(palette.black);
     this.drawBackdrop();
     this.createMapContainer();
@@ -324,7 +322,6 @@ export class LevelSelectScene extends Phaser.Scene {
       .setAlpha(alpha);
 
     this.mapContainer.add([frame, label]);
-    this.levelFrames.set(node.id, frame);
     const level = getLevelConfig(node.id);
     if (level.survival) {
       this.mapContainer.add(this.add.text(node.x, node.y + LEVEL_NODE_HEIGHT / 2 + 28,
@@ -723,9 +720,6 @@ export class LevelSelectScene extends Phaser.Scene {
   private updateSelection() {
     const nodes = this.chapterNodes();
     const selected = nodes.find((node) => node.id === this.selectedLevelId) ?? nodes[0];
-    for (const [id, frame] of this.levelFrames) {
-      frame.setStrokeStyle(id === this.selectedLevelId ? 4 : 2, frame.strokeColor, frame.strokeAlpha);
-    }
     const saved = selected && isLevelUnlocked(selected.id) ? readSurvivalSave(selected.id) : undefined;
     this.startText.setText(t(saved ? "button.resume" : "button.start"));
     this.newRunButton.setVisible(Boolean(saved));

@@ -69,12 +69,19 @@ try {
     scene = start("LevelSelectScene", { chapterId: "1" });
     const completed = scene.mapContainer.list.filter(item => item.type === "Rectangle" && item.width === 150);
     check(completed.length > 0 && completed.every(item => item.strokeColor === palette.completed), "Level completion color");
-    const first = scene.selectedLevelId;
-    check(scene.levelFrames.get(first).lineWidth === 4, "Selected level border is not thicker");
+    check(completed.every(frame => frame.lineWidth === 2), "Selected level retained a thick idle border");
+    const frame = completed[0];
+    const bounds = frame.getBounds();
+    scene.input.activePointer.x = bounds.centerX;
+    scene.input.activePointer.y = bounds.centerY;
+    frame.emit("pointerover");
+    const hover = scene.mapContainer.list.find(item => item.name === "button-hover" && item.visible);
+    check(hover?.lineWidth === 3 && hover.strokeColor === palette.green, "Level hover color and width must activate together");
     scene.selectedLevelId = "1-2";
     scene.updateSelection();
-    check(scene.levelFrames.get(first).lineWidth === 2 && scene.levelFrames.get("1-2").lineWidth === 4 &&
-      scene.levelFrames.get("1-2").strokeColor === palette.completed, "Selection width or completed color lost");
+    frame.emit("pointerout");
+    check(!hover.visible && completed.every(frame => frame.lineWidth === 2 && frame.strokeColor === palette.completed),
+      "Moving away must remove both green and bold borders, preserving completion color");
     exercise(scene, scene.startButton, scene.startText);
     scene = start("CardSelectScene", { levelId: "AE-2", chapterId: "AE" });
     scene.clearLoadout();
