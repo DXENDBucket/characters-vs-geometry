@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { inFriendlyRange } from "./towerTopology";
-import { isNumberTower, towerBehaviorType } from "./towerIdentity";
+import { isNumberTower, numberTowerValue, towerBehaviorType } from "./towerIdentity";
 import type { TowerActionEvent, TowerActionListener } from "./towerActions";
 import type { BattleAction, ScheduleBattleAction } from "./battleActions";
 import { changeTowerHealth } from "./towerHealth";
@@ -120,14 +120,15 @@ export class TowerSkillController {
     let activeClockLevelSum = 0;
     for (const tower of this.runtime().towers) {
       if (tower.moveVisual) syncTowerFlyingVisual(tower, time);
-      if (isNumberTower(tower)) {
+      // Finish already activated imitations even if a numeric + loses its operands.
+      if (isNumberTower(tower) || tower.imitatedSkills?.length) {
         syncNumberSkillRange(this.scene, tower, time);
         for (const type of tower.imitatedSkills ?? []) {
           const skill = this.skillDefinitions[type];
           if (!skill) continue;
           const state = getTowerSkillState(tower, skill.stateKey);
           if (state.activeUntil <= 0) continue;
-          withTowerBehavior(tower, this.runtime().getDefinition(type), tower.level,
+          withTowerBehavior(tower, this.runtime().getDefinition(type), numberTowerValue(tower),
             () => skill.update(tower, state, 0, time, undefined), this.runtime().towers);
           if (state.activeUntil <= time) { state.activeUntil = 0; tower.border.setVisible(true).setAlpha(1); }
         }

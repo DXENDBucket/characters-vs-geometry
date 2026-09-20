@@ -112,6 +112,7 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
         require(["laser", "mortar", "wings"].includes(value.bossCompanionActionPhase as string));
       }
       if (kind === "tower") {
+        if (value.numberValue !== undefined) require(Number.isSafeInteger(value.numberValue) && (value.numberValue as number) >= 1);
         if (value.topologyTarget !== undefined) {
           const cell = value.topologyTarget;
           require(value.type === "&" && record(cell) && Number.isInteger(cell.lane) && (cell.lane as number) >= 0 && (cell.lane as number) < 7 &&

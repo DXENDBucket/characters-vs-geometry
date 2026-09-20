@@ -410,7 +410,7 @@ export class GameScene extends Phaser.Scene {
     this.autoUpgradeReserveInputFocused = false;
     this.tutorial = null;
     this.targetedEffects = new TargetedEffectCardController(() => this.targetedEffectCardRuntime());
-    this.numbers = new NumberTowerController(() => ({ towers: this.towers, getDefinition: id => this.getDefinition(id),
+    this.numbers = new NumberTowerController(() => ({ towers: this.towers, getDefinition: id => this.getDefinition(id), onNumberChanged: syncTowerLevelText,
       imitate: (tower, behavior, event) => this.scheduleBattleAction(0, { type: "imitation", tower, behavior, event }) }));
     this.topology = new TowerTopologyController(this, () => ({ towers: this.towers, battleTime: this.battleTime,
       onChanged: () => { this.updateLevelAuras(); this.mirrors.syncMirrors(); this.clearPlacementGhosts(); } }));

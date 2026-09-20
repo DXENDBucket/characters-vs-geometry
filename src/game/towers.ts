@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { topologyKey } from "./towerTopology";
 import { drawLogicalTowerRange } from "../render/towerLogicalRange";
-import { towerBehaviorType, towerActionContext, towerFormType } from "./towerIdentity";
+import { towerBehaviorType, towerActionContext, towerFormType, numberTowerValue } from "./towerIdentity";
 import { syncHealthBar } from "./towerHealth";
 import { facingWithEffects } from "./rules/reversal";
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
@@ -230,6 +230,17 @@ export function syncTowerLevelText(tower: Tower) {
     tower.label.setText(text).setFontSize(Math.min(34, 48 / Math.max(1, text.length)));
     tower.levelText.setVisible(false);
     return;
+  }
+  tower.levelText.setVisible(true);
+  if (towerFormType(tower) === "+") {
+    const computed = tower.numberValue !== undefined;
+    tower.label.setY(computed ? -7 : -3);
+    tower.levelText.setY(computed ? 12 : 17);
+    if (computed) {
+      const text = `=${numberTowerValue(tower)}`;
+      tower.levelText.setText(text).setFontSize(Math.min(10, 40 / text.length)).setColor("#9fdcff");
+      return;
+    }
   }
   const bonus = tower.levelBonus + tower.mirrorLevelBonus;
   if (bonus > 0) {

@@ -29,10 +29,16 @@ export function towerFormType(tower: Pick<Tower, "type" | "copiedType">) {
   return tower.type === "@" ? tower.copiedType ?? "@" : tower.type;
 }
 
-export function isNumberTower(tower: Pick<Tower, "type" | "copiedType">) {
-  return towerFormType(tower) === "1";
+export function isNumberTower(tower: Pick<Tower, "type" | "copiedType" | "numberValue">) {
+  const type = towerFormType(tower);
+  return type === "1" || (type === "+" && tower.numberValue !== undefined);
+}
+
+export function numberTowerValue(tower: Pick<Tower, "level" | "numberValue">) {
+  return Math.max(1, Math.floor(tower.numberValue ?? tower.level));
 }
 
 export function towerHasSkillBehavior(tower: Tower, type: CardId) {
-  return towerBehaviorType(tower) === type || (isNumberTower(tower) && tower.imitatedSkills?.includes(type) === true);
+  return towerBehaviorType(tower) === type ||
+    ((isNumberTower(tower) || towerFormType(tower) === "+") && tower.imitatedSkills?.includes(type) === true);
 }

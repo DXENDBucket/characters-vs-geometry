@@ -4,7 +4,7 @@ import { createTypeScriptLoader } from "./helpers/load-typescript.mjs";
 
 const load = createTypeScriptLoader();
 const { NumberTowerController } = load("src/game/numberTowers.ts");
-const { withTowerActionContext } = load("src/game/towerIdentity.ts");
+const { withTowerActionContext, isNumberTower, numberTowerValue } = load("src/game/towerIdentity.ts");
 const { cardDefinitions } = load("src/data/cards.ts");
 const topology = load("src/game/towerTopology.ts");
 function fixture() {
@@ -216,6 +216,68 @@ test("adjacent operators and expensive operands cannot bridge equations", () => 
   copiedNumber.copiedType = "1"; f.place("=", 1); const source = f.place("A", 2);
   f.controller.sync(); f.controller.record(source, { kind: "attack" });
   assert.equal(copiedNumber.numberMemory?.length ?? 0, 0); assert.equal(f.events.length, 0);
+});
+
+test("3+5 preserves both numbers and lets the plus imitate as 8 through the full equation", () => {
+  const f = fixture(), a = f.place("A", 0);
+  f.place("=", 1); const three = f.place("1", 2, 3, 3), plus = f.place("+", 3), five = f.place("1", 4, 3, 5);
+  f.place("=", 5); const e = f.place("E", 6);
+  f.controller.sync(); f.controller.sync();
+  assert.deepEqual([three, plus, five].map(numberTowerValue), [3, 8, 5]);
+  assert.equal(plus.type, "+"); assert.equal(plus.level, 1); assert.ok(isNumberTower(plus));
+  for (const tower of [three, plus, five]) {
+    assert.equal(tower.numberMemory.length, 2);
+    for (const source of [a, e]) assert.deepEqual(tower.numberMemory.find(entry => entry.type === source.type).sourceIds, [source.id]);
+  }
+  for (let i = 0; i < 8; i++) f.controller.record(a, { kind: "attack" });
+  assert.deepEqual(f.events.map(event => [event.tower.id, event.behavior.level]), [[three.id, 3], [five.id, 5], [three.id, 3], [plus.id, 8]]);
+  assert.ok([three, plus, five].every(tower => tower.numberMemory.find(entry => entry.type === "E").count === 0));
+  f.controller.record(plus, { kind: "attack" }); assert.equal(f.events.length, 4);
+});
+
+test("all plus operators in 3+5+2 use 10, while equality neighbors are excluded from the sum", () => {
+  const f = fixture(), a = f.place("A", 0);
+  f.place("=", 1); const three = f.place("1", 2, 3, 3), p = f.place("+", 3), five = f.place("1", 4, 3, 5);
+  const q = f.place("+", 5), two = f.place("1", 6, 3, 2);
+  f.place("=", 7); const other = f.place("1", 8, 3, 20);
+  f.controller.sync();
+  assert.deepEqual([three, p, five, q, two, other].map(numberTowerValue), [3, 10, 5, 10, 2, 20]);
+  for (let i = 0; i < 10; i++) f.controller.record(a, { kind: "attack" });
+  for (const plus of [p, q]) assert.deepEqual(f.events.filter(event => event.tower === plus).map(event => event.behavior), [{ type: "A", level: 10 }]);
+  three.level = 4; p.level = 50; five.levelBonus = 100; f.controller.sync();
+  assert.deepEqual([three, p, five, q, two, other].map(numberTowerValue), [4, 11, 5, 11, 2, 20]);
+  q.inPlay = false; f.controller.sync();
+  assert.equal(p.numberValue, 9); assert.equal(q.numberValue, undefined);
+  assert.deepEqual(two.numberMemory[0].sourceIds, [a.id]);
+});
+
+test("numeric plus groups do not accept ordinary towers or bridge adjacent operators", () => {
+  for (const reversed of [false, true]) {
+    const f = fixture(), n = f.place("1", reversed ? 2 : 0, 3, 3);
+    const p = f.place("+", 1), a = f.place("A", reversed ? 0 : 2);
+    f.controller.sync(); f.controller.record(a, { kind: "attack" });
+    assert.equal(n.numberMemory, undefined); assert.equal(p.numberValue, undefined); assert.equal(f.events.length, 0);
+  }
+  const f = fixture(); f.place("1", 1, 3, 3); const p = f.place("+", 2); f.place("1", 3, 3, 5);
+  f.place("=", 2, 2); const a = f.place("A", 2, 1);
+  f.controller.sync(); f.controller.record(a, { kind: "attack" });
+  assert.equal(p.numberValue, 8); assert.equal(p.numberMemory, undefined);
+});
+
+test("numeric plus cycles sum distinct operands once and stop imitating when broken", () => {
+  const f = fixture(), a = f.place("A", 0, 1); f.place("=", 1, 1);
+  const numbers = [[2, 1, 3], [4, 1, 5], [2, 3, 2], [4, 3, 1]].map(([c, l, n]) => f.place("1", c, l, n));
+  const pluses = [[3, 1], [2, 2], [4, 2], [3, 3]].map(([c, l]) => f.place("+", c, l));
+  f.controller.sync(); f.controller.sync();
+  assert.ok(pluses.every(p => p.numberValue === 11));
+  for (let i = 0; i < 11; i++) f.controller.record(a, { kind: "attack" });
+  assert.equal(f.events.filter(event => pluses.includes(event.tower)).length, 4);
+  numbers[1].inPlay = false; numbers[2].inPlay = false; f.controller.sync(); f.events.length = 0;
+  assert.ok(pluses.every(p => !isNumberTower(p) && p.numberValue === undefined));
+  for (let i = 0; i < 20; i++) f.controller.record(a, { kind: "attack" });
+  assert.ok(f.events.every(event => !pluses.includes(event.tower)));
+  numbers[1].inPlay = true; f.controller.sync();
+  assert.equal(pluses[0].numberValue, 9); assert.equal(pluses[2].numberValue, 9);
 });
 
 test("topology swaps compose in activation order and removal recomputes the remaining permutation", () => {

@@ -5,7 +5,7 @@ import type { TriggerTowerRuntime } from "./triggerTowers";
 import { isShockTower, triggerShockTower, triggerTrapTower } from "./triggerTowers";
 import { isTargetedEffectCardId } from "./targetedEffectCards";
 import { towerFacingDirection } from "./towers";
-import { isNumberTower } from "./towerIdentity";
+import { isNumberTower, towerFormType } from "./towerIdentity";
 import { towerAttackAmount, withTowerBehavior } from "./unitStats";
 import { getHitProductionAmount, getProductionAmount, towerDamageType } from "./towers";
 
@@ -21,7 +21,9 @@ export interface TowerImitationRuntime {
 }
 
 export function executeTowerImitation(tower: Tower, behavior: ImitationBehavior, event: TowerActionEvent, runtime: TowerImitationRuntime) {
-  if (!tower.inPlay || !isNumberTower(tower) || runtime.getDefinition(tower.type).cost > 999 || !tower.numberMemory?.some(entry => entry.type === behavior.type)) return;
+  if (!tower.inPlay || !isNumberTower(tower) ||
+    (towerFormType(tower) !== "+" && runtime.getDefinition(tower.type).cost > 999) ||
+    !tower.numberMemory?.some(entry => entry.type === behavior.type)) return;
   const definition = runtime.getDefinition(behavior.type);
   const { combat } = runtime;
   withTowerBehavior(tower, definition, behavior.level, () => {

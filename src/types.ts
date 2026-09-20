@@ -247,6 +247,7 @@ export interface Tower {
   topologyTarget?: { lane: number; column: number };
   topologyOrder?: number;
   numberMemory?: Array<{ type: CardId; sourceIds: string[]; count: number }>;
+  numberValue?: number;
   imitatedSkills?: CardId[];
   copiedType?: CardId;
   copyRevision?: number;

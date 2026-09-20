@@ -1,12 +1,13 @@
 import type { CardDefinition, CardId, Tower } from "../types";
 import type { TowerActionEvent, ImitationBehavior } from "./towerActions";
-import { isNumberTower, towerActionContext, towerFormType } from "./towerIdentity";
+import { isNumberTower, numberTowerValue, towerActionContext, towerFormType } from "./towerIdentity";
 import { towerCell } from "./towerTopology";
 
 export interface NumberTowerRuntime {
   towers: Tower[];
   getDefinition: (id: CardId) => CardDefinition;
   imitate: (tower: Tower, behavior: ImitationBehavior, event: TowerActionEvent) => void;
+  onNumberChanged?: (tower: Tower) => void;
 }
 
 export class NumberTowerController {
@@ -14,10 +15,11 @@ export class NumberTowerController {
   constructor(private readonly runtime: () => NumberTowerRuntime) {}
 
   sync() {
-    const { towers, getDefinition } = this.runtime();
+    const { towers, getDefinition, onNumberChanged } = this.runtime();
     this.plusPartners.clear();
+    const previousValues = new Map(towers.filter(tower => tower.numberValue !== undefined).map(tower => [tower, tower.numberValue]));
+    for (const tower of previousValues.keys()) delete tower.numberValue;
     const numbers = towers.filter(tower => tower.inPlay && !tower.transient && isNumberTower(tower) && getDefinition(tower.type).cost <= 999);
-    if (!numbers.length) return;
     const liveIds = new Set(towers.filter(tower => tower.inPlay).map(tower => tower.id));
     const cells = new Map<string, Tower[]>();
     for (const tower of towers) {
@@ -31,11 +33,11 @@ export class NumberTowerController {
     const neighbors = new Map<Tower, Set<Tower>>();
     const plusNeighbors = new Map<Tower, Set<Tower>>();
     const operand = (tower: Tower) => getDefinition(tower.type).cost <= 999 && !["=", "+"].includes(towerFormType(tower));
-    const connect = (a: Tower, b: Tower) => {
-      if (!neighbors.has(a)) neighbors.set(a, new Set());
-      if (!neighbors.has(b)) neighbors.set(b, new Set());
-      neighbors.get(a)!.add(b);
-      neighbors.get(b)!.add(a);
+    const connect = (a: Tower, b: Tower, graph = neighbors) => {
+      if (!graph.has(a)) graph.set(a, new Set());
+      if (!graph.has(b)) graph.set(b, new Set());
+      graph.get(a)!.add(b);
+      graph.get(b)!.add(a);
     };
     const learn = (number: Tower, type: CardId, ids: string[]) => {
       const memories = number.numberMemory ??= [];
@@ -43,9 +45,6 @@ export class NumberTowerController {
       if (!entry) { entry = { type, sourceIds: [], count: 0 }; memories.push(entry); }
       for (const id of ids) if (liveIds.has(id) && !entry.sourceIds.includes(id)) entry.sourceIds.push(id);
     };
-    for (const number of numbers) {
-      for (const entry of number.numberMemory ?? []) entry.sourceIds = entry.sourceIds.filter(id => liveIds.has(id));
-    }
     for (const connector of towers) {
       const operator = towerFormType(connector);
       if (!connector.inPlay || connector.transient || (operator !== "=" && operator !== "+")) continue;
@@ -55,11 +54,14 @@ export class NumberTowerController {
         const b = cells.get(`${cell.lane - dl}:${cell.column - dc}`) ?? [];
         for (const left of a) for (const right of b) {
           if (!operand(left) || !operand(right)) continue;
+          if (operator === "+" && numberSet.has(left) !== numberSet.has(right)) continue;
           connect(left, right);
           if (operator === "+") {
-            if (!plusNeighbors.has(left)) plusNeighbors.set(left, new Set());
-            if (!plusNeighbors.has(right)) plusNeighbors.set(right, new Set());
-            plusNeighbors.get(left)!.add(right); plusNeighbors.get(right)!.add(left);
+            connect(left, right, plusNeighbors);
+            if (numberSet.has(left)) {
+              connect(connector, left, plusNeighbors);
+              connect(connector, left);
+            }
           }
         }
       }
@@ -72,7 +74,19 @@ export class NumberTowerController {
         const member = pending.pop()!; group.push(member);
         for (const next of plusNeighbors.get(member) ?? []) if (!plusSeen.has(next)) { plusSeen.add(next); pending.push(next); }
       }
-      for (const member of group) this.plusPartners.set(member, group);
+      if (group.some(member => numberSet.has(member))) {
+        // Only literal numbers contribute. Every + in the term acts as its sum.
+        const sum = group.reduce((total, member) => total + (numberSet.has(member) ? numberTowerValue(member) : 0), 0);
+        for (const member of group) if (towerFormType(member) === "+") {
+          member.numberValue = sum;
+          numbers.push(member); numberSet.add(member);
+        }
+      } else {
+        for (const member of group) this.plusPartners.set(member, group);
+      }
+    }
+    for (const number of numbers) {
+      for (const entry of number.numberMemory ?? []) entry.sourceIds = entry.sourceIds.filter(id => liveIds.has(id));
     }
     // Ordinary towers also bridge equations, e.g. A=E=1. Traverse each entire
     // component once, sharing source memories but never action counters.
@@ -102,6 +116,9 @@ export class NumberTowerController {
         for (const [type, ids] of memories) learn(member, type, [...ids]);
       }
     }
+    for (const tower of new Set([...previousValues.keys(), ...numbers])) {
+      if (tower.inPlay && tower.numberValue !== previousValues.get(tower)) onNumberChanged?.(tower);
+    }
   }
 
   record(source: Tower, event: TowerActionEvent) {
@@ -110,14 +127,15 @@ export class NumberTowerController {
     const type = towerFormType(source);
     if (runtime.getDefinition(source.type).cost > 999) return;
     for (const tower of runtime.towers) {
-      if (!tower.inPlay || tower.transient || !isNumberTower(tower) || runtime.getDefinition(tower.type).cost > 999) continue;
+      if (!tower.inPlay || tower.transient || !isNumberTower(tower) ||
+        (towerFormType(tower) !== "+" && runtime.getDefinition(tower.type).cost > 999)) continue;
       for (const entry of tower.numberMemory ?? []) {
         const native = entry.type === type && entry.sourceIds.includes(source.id);
         const shared = this.plusPartners.get(source)?.some(partner => !isNumberTower(partner) &&
           entry.type === towerFormType(partner) && entry.sourceIds.includes(partner.id));
         if (!native && !shared) continue;
         entry.count += 1;
-        const n = Math.max(1, Math.floor(tower.level));
+        const n = numberTowerValue(tower);
         if (entry.count < n) continue;
         entry.count = 0;
         runtime.imitate(tower, { type: entry.type, level: n }, native || event.kind === "combined" ? event : { kind: "combined", original: event });
