@@ -61,6 +61,7 @@ export type CardId =
   | "Z";
 export type EnemyFamily =
   | "equals"
+  | "parentheses"
   | "tilde"
   | "circle"
   | "triangle"
@@ -338,6 +339,9 @@ export interface Enemy {
   burrowed?: boolean;
   burrowUnloaded?: boolean;
   burrowCargo?: Enemy[];
+  parenthesisCargo?: Enemy[];
+  parenthesisCarrier?: Enemy;
+  parenthesisHpBonus?: number;
   slopeFacingDirection?: -1 | 1;
   highFlightStartedAt?: number;
   highFlightUntil?: number;

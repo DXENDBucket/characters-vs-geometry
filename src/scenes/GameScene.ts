@@ -13,6 +13,7 @@ import { captureBattleSnapshot, restoreBattleSnapshot } from "../game/battleSnap
 import { deleteSurvivalSave, readSurvivalSave, writeSurvivalSave, type SurvivalSave } from "../survivalSaves";
 import { syncTowerHealthNetworks } from "../game/towerHealth";
 import { detachEnemyHealth } from "../game/enemyHealth";
+import { destroyContainedEnemies, enemiesWithPassengers, enemyIsActive } from "../game/enemyContainers";
 import { NumberTowerController } from "../game/numberTowers";
 import { executeTowerImitation } from "../game/towerImitation";
 import { reflectEnemyAttack } from "../game/projectileRuntime";
@@ -1782,8 +1783,8 @@ export class GameScene extends Phaser.Scene {
     const activeLevelConfig = this.activeLevelConfig();
     if (activeLevelConfig.survival && !activeLevelConfig.bossEndless) {
       let earliestWave = Math.min(this.wave + 1, this.storage.earliestWaveNumber);
-      for (const enemy of this.enemies) {
-        if (enemy.inPlay) earliestWave = Math.min(earliestWave, enemy.waveNumber);
+      for (const enemy of enemiesWithPassengers(this.enemies)) {
+        if (enemyIsActive(enemy)) earliestWave = Math.min(earliestWave, enemy.waveNumber);
       }
       if (!this.playback) recordCompletedWaves(this.levelId, Math.max(0, earliestWave - 1));
     }
@@ -1911,11 +1912,7 @@ export class GameScene extends Phaser.Scene {
       detachEnemyHealth(enemy);
       enemy.inPlay = false;
       bodies.push(enemy.body);
-      for (const cargo of enemy.burrowCargo ?? []) {
-        cargo.inPlay = false;
-        bodies.push(cargo.body);
-      }
-      enemy.burrowCargo = [];
+      destroyContainedEnemies(enemy);
     });
 
     this.enemies.length = 0;

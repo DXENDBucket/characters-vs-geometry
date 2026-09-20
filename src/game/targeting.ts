@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { enemyMaximumHp, parenthesisHalfSpan } from "./enemyContainers";
 import { towerAtCell, towerCell } from "./towerTopology";
 import { towerBehaviorType } from "./towerIdentity";
 import {
@@ -482,8 +483,9 @@ export function getBlockingTowerFromOccupied(occupied: Map<string, Tower>, enemy
 
   const enemyFlying = hasStatusEffectName(enemy, "flying");
   const centerColumn = Math.round((enemy.x - BOARD_X - CELL_WIDTH / 2) / CELL_WIDTH);
+  const columnRadius = 1 + Math.ceil(parenthesisHalfSpan(enemy) / CELL_WIDTH);
   let blockingTower: Tower | undefined;
-  for (let column = centerColumn + 1; column >= centerColumn - 1; column -= 1) {
+  for (let column = centerColumn + columnRadius; column >= centerColumn - columnRadius; column -= 1) {
     if (column < 0 || column >= COLUMNS) {
       continue;
     }
@@ -506,15 +508,16 @@ export function getSweptBlockingTowerFromOccupied(occupied: Map<string, Tower>, 
   const direction = nextX < enemy.x ? -1 : 1;
   const left = Math.min(enemy.x, nextX);
   const right = Math.max(enemy.x, nextX);
-  const firstColumn = Math.max(0, Math.ceil((left - TOWER_BLOCK_RADIUS - BOARD_X - CELL_WIDTH / 2) / CELL_WIDTH));
-  const lastColumn = Math.min(COLUMNS - 1, Math.floor((right + TOWER_BLOCK_RADIUS - BOARD_X - CELL_WIDTH / 2) / CELL_WIDTH));
+  const blockRadius = TOWER_BLOCK_RADIUS + parenthesisHalfSpan(enemy);
+  const firstColumn = Math.max(0, Math.ceil((left - blockRadius - BOARD_X - CELL_WIDTH / 2) / CELL_WIDTH));
+  const lastColumn = Math.min(COLUMNS - 1, Math.floor((right + blockRadius - BOARD_X - CELL_WIDTH / 2) / CELL_WIDTH));
   const enemyFlying = hasStatusEffectName(enemy, "flying");
   // Scan in travel order, bounded by the board width rather than the enemy's speed.
   for (let column = direction < 0 ? lastColumn : firstColumn;
     direction < 0 ? column >= firstColumn : column <= lastColumn; column += direction) {
     const tower = occupied.get(gridCellKey(enemy.lane, column));
     if (!tower || !towerCanBlockEnemy(tower, enemy, enemyFlying, false)) continue;
-    const entryX = tower.x - direction * TOWER_BLOCK_RADIUS;
+    const entryX = tower.x - direction * blockRadius;
     const x = direction < 0 ? Math.min(enemy.x, entryX) : Math.max(enemy.x, entryX);
     if (x >= left && x <= right) return { tower, x, y: enemy.y, fraction: (x - enemy.x) / (nextX - enemy.x) };
   }
@@ -522,7 +525,7 @@ export function getSweptBlockingTowerFromOccupied(occupied: Map<string, Tower>, 
 }
 
 function enemyCanBeBlocked(enemy: Enemy) {
-  return !(enemyIsBossCompanion(enemy.kind) || enemyIsBurrowed(enemy) || enemyIsHighFlying(enemy) || enemyIsSolarBomb(enemy));
+  return !enemy.parenthesisCarrier && !(enemyIsBossCompanion(enemy.kind) || enemyIsBurrowed(enemy) || enemyIsHighFlying(enemy) || enemyIsSolarBomb(enemy));
 }
 
 function sweptOscillatingBlocker(occupied: Map<string, Tower>, enemy: Enemy, nextX: number, nextY: number) {
@@ -550,7 +553,7 @@ function towerCanBlockEnemy(tower: Tower, enemy: Enemy, enemyFlying: boolean, ch
     tower.inPlay &&
     !tower.transient &&
     (enemy.oscillationCenterY !== undefined ? Math.abs(tower.y - enemy.y) <= CELL_HEIGHT / 2 : tower.lane === enemy.lane) &&
-    (!checkPosition || Math.abs(enemy.x - tower.x) <= TOWER_BLOCK_RADIUS) &&
+    (!checkPosition || Math.abs(enemy.x - tower.x) <= TOWER_BLOCK_RADIUS + parenthesisHalfSpan(enemy)) &&
     !(enemyFlying ? !towerIsFlying(tower) : towerIsFlying(tower))
   );
 }
@@ -650,7 +653,7 @@ export function getLowestMaxHpAttackTarget(tower: Tower, definition: CardDefinit
       continue;
     }
 
-    const maxHp = enemy.baseStats.maxHp;
+    const maxHp = enemyMaximumHp(enemy);
     const priority = attackTargetPriority(query, enemy);
     if (maxHp < targetMaxHp || (maxHp === targetMaxHp && priority < targetPriority)) {
       target = enemy;

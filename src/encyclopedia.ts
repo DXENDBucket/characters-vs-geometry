@@ -100,8 +100,21 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
   const trapezoid3 = getEnemyDefinition("trapezoid3");
   const square = getEnemyDefinition("square");
   const equals = getEnemyDefinition("equals");
+  const parentheses = getEnemyDefinition("parentheses");
 
   return [
+    {
+      title: zh ? "括号系列" : "Parentheses Series",
+      enemyKind: "parentheses",
+      chapterGroupId: "ascii",
+      lines: [statLine([
+        [t("label.hp"), parentheses.hp], [t("label.armor"), parentheses.armor],
+        [t("label.mr"), parentheses.magicResistance], [t("label.atk"), damageText(parentheses.damage, parentheses.damageType)]]),
+        zh ? "权重 I/II/III：80 / 200 / 320；移速 15；每秒攻击一次；可装载 2 / 3 / 4 个敌怪。"
+          : "Weight I/II/III: 80 / 200 / 320; speed 15; attacks once per second; carries 2 / 3 / 4 enemies."],
+      description: zh ? "接触合格敌怪时装入括号，先装入者靠后。获得乘客总生命上限及攻击力的 35%，生命上限变化时保留血量比例；移速取自身与乘客的最高值。乘客不可被攻击，但仍可使用技能和远程攻击，飞行效果作用于整体；被阻挡时仅括号近战。摧毁后在各乘客显示位置释放。不装载领袖、Boss、等号、括号、已连接或已装载的敌怪。括号自身不能被任何装载或收纳机制带走。"
+        : "Collects eligible enemies on contact, oldest at the rear. Gains 35% of passengers' total maximum HP and attack, preserving HP ratio on capacity changes. Uses the fastest member's speed. Passengers are protected but retain skills and ranged attacks; flight affects the whole group. Only the carrier deals blocked melee damage. Destruction releases passengers at their seats. Excludes leaders, bosses, Equals, Parentheses, linked and carried units. Parentheses cannot be loaded or stored."
+    },
     {
       title: zh ? "等号系列" : "Equals Series",
       enemyKind: "equals",
@@ -111,8 +124,8 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
         [t("label.mr"), equals.magicResistance], [t("label.atk"), damageText(equals.damage, equals.damageType)]]),
         zh ? "权重 I/II/III：80 / 200 / 320；移速 15；每秒攻击一次，各等级攻击数值不变。"
           : "Weight I/II/III: 80 / 200 / 320; speed 15; attacks once per second with the same damage at every rank."],
-      description: zh ? "首个旗帜波起出现。出场时仅连接一次，选取最近的最多 1/2/3 个合格敌怪，共享生命池及血量比例；不连接领袖、Boss、其他等号或已经连接的敌怪。不换目标、不补连接；成员离场时断开。伤害按被命中者抗性计算后扣除共享生命，生命耗尽时全组死亡。"
-        : "Appears from the first flag wave. On spawn, links once to up to 1/2/3 nearest eligible enemies, sharing a health pool and HP ratio. Excludes leaders, bosses, other Equals and linked enemies. Never retargets or refills; leaving the field disconnects a member. Damage uses the struck member's defenses; an empty pool defeats the whole group."
+      description: zh ? "首个旗帜波起出现。出场时仅连接一次，选取最近的最多 1/2/3 个合格敌怪，共享生命池及血量比例；不连接领袖、Boss、其他等号、括号、已装载或已经连接的敌怪。不换目标、不补连接；成员离场时断开。伤害按被命中者抗性计算后扣除共享生命，生命耗尽时全组死亡。"
+        : "Appears from the first flag wave. On spawn, links once to up to 1/2/3 nearest eligible enemies, sharing a health pool and HP ratio. Excludes leaders, bosses, Equals, Parentheses, carried and linked enemies. Never retargets or refills; leaving the field disconnects a member. Damage uses the struck member's defenses; an empty pool defeats the whole group."
     },
     {
       title: zh ? "波浪号系列" : "Tilde Series",

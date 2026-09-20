@@ -1,4 +1,6 @@
 import Phaser from "phaser";
+import { collectParenthesisPassengers, passengerMovementStatus } from "./parenthesisEnemies";
+import { destroyContainedEnemies, enemyCanBeLoaded, enemyIsActive, syncPassengerPositions } from "./enemyContainers";
 import { towerBehaviorType } from "./towerIdentity";
 import { battleRandom } from "./battleSimulation";
 import type { BattleAction } from "./battleActions";
@@ -78,6 +80,7 @@ import { slowAuraSources, type SlowAuraSources } from "./slowAura";
 import {
   applyStatusEffect,
   hasStatusEffectName,
+  hasUnexpiredStatusEffect,
   statusMultipliers,
   type StatusMultipliers,
   syncEnemyBodyPosition
@@ -298,6 +301,10 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
     return;
   }
 
+  forEachSnapshot(runtime.enemies, enemy => collectParenthesisPassengers(enemy, runtime.enemies, time));
+  const passengerPositions = runtime.enemies.some(enemy => enemyFamily(enemy.kind) === "parentheses" &&
+    (enemy.parenthesisCargo?.length ?? 0) < enemyRank(enemy.kind) + 1)
+    ? new Map(runtime.enemies.map(enemy => [enemy, { x: enemy.x, y: enemy.y }])) : undefined;
   updateEnemySkills(runtime, seconds, time);
   const supportSources = enemySupportSources(runtime.enemies);
   syncHexArmorAuras(runtime.enemies, time, supportSources);
@@ -327,11 +334,21 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
       includeMovement: true,
       sources: supportSources
     });
-    const movementSpeed = enemyMovementSpeed(
+    let movementSpeed = enemyMovementSpeed(
       enemy,
       { enemies: runtime.enemies, towers: runtime.towers, time, support, status, supportSources, slowAuraSources: slowSources },
       baseMovementSpeed
     );
+    for (const passenger of enemy.parenthesisCargo ?? []) {
+      const inherited = passengerMovementStatus(passenger, enemy, time);
+      const speed = enemyIsMace(passenger.kind)
+        ? Math.abs(hexMaceMovementTargetX(runtime, passenger, seconds, time, inherited, supportSources, slowSources) - passenger.x) / Math.max(seconds, 1e-9)
+        : enemyMovementSpeed(passenger, { enemies: runtime.enemies, towers: runtime.towers, time,
+          status: inherited, supportSources, slowAuraSources: slowSources }, siegeRamSpeed(passenger));
+      movementSpeed = Math.max(movementSpeed, speed);
+      if (!enemyIsHighFlying(passenger) && !hasStatusEffectName(passenger, "frozen")) updateEnemyRangedAttack(runtime, passenger, time);
+    }
+    enemy.finalStats.speed = movementSpeed;
     if ((hasStatusEffectName(enemy, "haste") || support.speedMultiplier > 1) && time >= enemy.nextHasteTrailAt) {
       makeHasteTrail(runtime.scene, enemy.x, enemy.y);
       enemy.nextHasteTrailAt = time + 120;
@@ -348,19 +365,7 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
       return;
     }
 
-    if (shouldEnemyShoot(enemy, time)) {
-      const shots = volleyTimingCount(enemyVolleyShotCount(enemy));
-      const interval = volleyInterval(enemy.finalStats.attackInterval, shots);
-      if (enemyIsMortar(enemy.kind)) {
-        enemy.attackAt = fireEnemyMortarVolley(runtime, enemy, time) ? time + enemy.finalStats.attackInterval + (shots - 1) * interval : time + 1_000;
-      } else if (enemyIsLaser(enemy.kind)) {
-        fireEnemyLaserVolley(runtime, enemy, time);
-        enemy.attackAt = time + enemy.finalStats.attackInterval + (shots - 1) * interval;
-      } else {
-        fireEnemyVolley(runtime, enemy, time);
-        enemy.attackAt = time + enemy.finalStats.attackInterval + (shots - 1) * interval;
-      }
-    }
+    updateEnemyRangedAttack(runtime, enemy, time);
 
     if (enemyFamily(enemy.kind) === "heart" && time >= enemy.attackAt) {
       fireLeaderAreaAttack(runtime, enemy, time);
@@ -394,6 +399,15 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
     }
 
     if (blocker) {
+      const wingedPassenger = enemy.parenthesisCargo?.find(passenger => enemyFamily(passenger.kind) === "angelPentagonRam" &&
+        !passenger.angelRamWingsTriggered && !hasUnexpiredStatusEffect(passenger, "frozen", time));
+      if (wingedPassenger) {
+        wingedPassenger.angelRamWingsTriggered = true;
+        applyStatusEffect(enemy, "flying", 2_000, time, 1, true);
+        makeWingPulse(runtime.scene, enemy.x, enemy.y);
+        syncEnemyBodyPosition(enemy);
+        return;
+      }
       if (towerBehaviorType(blocker) === "G" && isTrapArmed(blocker, time)) {
         runtime.triggerTrapTower(blocker, enemy);
         return;
@@ -468,6 +482,23 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
       else exit();
     }
   });
+  if (passengerPositions) {
+    forEachSnapshot(runtime.enemies, enemy => collectParenthesisPassengers(enemy, runtime.enemies, time, passengerPositions));
+  }
+  for (const enemy of runtime.enemies) syncPassengerPositions(enemy);
+}
+
+function updateEnemyRangedAttack(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number) {
+  if (!shouldEnemyShoot(enemy, time)) return;
+  const shots = volleyTimingCount(enemyVolleyShotCount(enemy));
+  const interval = volleyInterval(enemy.finalStats.attackInterval, shots);
+  if (enemyIsMortar(enemy.kind)) {
+    enemy.attackAt = fireEnemyMortarVolley(runtime, enemy, time) ? time + enemy.finalStats.attackInterval + (shots - 1) * interval : time + 1_000;
+  } else {
+    if (enemyIsLaser(enemy.kind)) fireEnemyLaserVolley(runtime, enemy, time);
+    else fireEnemyVolley(runtime, enemy, time);
+    enemy.attackAt = time + enemy.finalStats.attackInterval + (shots - 1) * interval;
+  }
 }
 
 type SolarBombCollision =
@@ -789,6 +820,7 @@ function loadTouchingBurrowCargo(runtime: EnemyAdvanceRuntime, carrier: Enemy) {
 
 function canLoadBurrowCargo(enemy: Enemy) {
   return (
+    enemyCanBeLoaded(enemy) &&
     !enemyIgnoresLeaderRestrictedMechanics(enemy) &&
     !enemyIsBossCompanion(enemy.kind) &&
     !enemyIsBurrowed(enemy) &&
@@ -986,6 +1018,7 @@ function removeEscapedReverseEnemy(runtime: EnemyAdvanceRuntime, enemy: Enemy) {
   detachEnemyHealth(enemy);
   enemy.inPlay = false;
   Phaser.Utils.Array.Remove(runtime.enemies, enemy);
+  destroyContainedEnemies(enemy);
   enemy.body.destroy();
 }
 
@@ -1169,7 +1202,7 @@ function fireEnemyVolley(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: numbe
 }
 
 function fireEnemyShot(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number, hitCount: number) {
-  if (!enemy.inPlay) {
+  if (!enemyIsActive(enemy)) {
     return;
   }
 
@@ -1193,7 +1226,7 @@ function fireEnemyLaserVolley(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: 
 }
 
 function fireEnemyLaser(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number, hitCount: number) {
-  if (!enemy.inPlay) {
+  if (!enemyIsActive(enemy)) {
     return;
   }
 
@@ -1214,7 +1247,7 @@ function fireEnemyLaser(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number
 }
 
 function fireEnemyMortarVolley(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number) {
-  if (!enemy.inPlay) {
+  if (!enemyIsActive(enemy)) {
     return false;
   }
 
@@ -1246,7 +1279,7 @@ export function executeEnemyAttack(runtime: EnemyAdvanceRuntime, action: Extract
 }
 
 function fireEnemyMortarShot(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number, hitCount: number) {
-  if (!enemy.inPlay) {
+  if (!enemyIsActive(enemy)) {
     return;
   }
 
@@ -1293,7 +1326,7 @@ function findLockedAttackTarget(towers: Tower[], enemies: Enemy[], occupied: Map
     return undefined;
   }
 
-  const blocker = getBlockingTowerFromOccupied(occupied, attacker);
+  const blocker = getBlockingTowerFromOccupied(occupied, attacker.parenthesisCarrier ?? attacker);
   if (blocker) {
     return blocker;
   }

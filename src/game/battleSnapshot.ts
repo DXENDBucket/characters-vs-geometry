@@ -12,6 +12,7 @@ import { syncEnemyFacingVisual, syncEnemyVisualScale } from "./enemyBehaviors";
 import { statusMultipliers, syncEnemyBodyPosition } from "./statusEffects";
 import { decodeSaveGraph, encodeSaveGraph, type GraphNode, type NodeKind, type SaveGraph } from "./saveGraph";
 import type { BattleSaveState } from "./battleSaveState";
+import { containedEnemies, syncPassengerPositions } from "./enemyContainers";
 
 const towerVisuals = new Set<string>(["body", "border", "label", "facingIcon", "autoUpgradeBorder", "trueDamageBorder",
   "flyingHalo", "hpFill", "negativeHpBack", "negativeHpFill", "rangeBorder", "levelText"] satisfies (keyof Tower)[]);
@@ -104,7 +105,7 @@ export function restoreBattleSnapshot(scene: Phaser.Scene, graph: SaveGraph): Ba
     }
     const storedEnemies = new Set(state.storage.map(entry => entry.enemy));
     const retainCargo = (enemy: Enemy) => {
-      for (const cargo of enemy.burrowCargo ?? []) {
+      for (const cargo of containedEnemies(enemy)) {
         if (!storedEnemies.has(cargo)) { storedEnemies.add(cargo); retainCargo(cargo); }
       }
     };
@@ -115,6 +116,7 @@ export function restoreBattleSnapshot(scene: Phaser.Scene, graph: SaveGraph): Ba
       enemy.body.setVisible(enemy.inPlay);
       if (!enemy.inPlay && !storedEnemies.has(enemy)) enemy.body.destroy();
     }
+    for (const enemy of state.enemies) syncPassengerPositions(enemy);
     for (const projectile of [...state.projectiles, ...state.enemyProjectiles, ...state.mortarProjectiles]) {
       projectile.body.setPosition(projectile.x, projectile.y);
     }

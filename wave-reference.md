@@ -2992,6 +2992,15 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 - Numeric addition: in `A=3+5`, the `+` counts as 8; in `3+5+2`, both pluses count as 10. Each plus's imitation level is `sum * (E + own permanent level - 1)`. With level-2 equals and level-3 plus, `3+5` gives that plus level 32 every 8 actions; the original 3 and 5 still act at levels 6 and 10 every 3/5 actions. Equals shares memories but never merges sums. Number/ordinary-tower addition is invalid. Numeric upgrades recalculate the sum; operator upgrades change only imitation level, not the count interval. Numbers show boosted action levels, and pluses show their sum and multiplier below the glyph.
 - `&` changes logical tower-to-tower cells only. Friendly healing/aura outlines use the mapped cells, leaving holes and outlining remote cells. Enemy movement/blocking, offensive targeting and all projectile motion remain physical. Removing an & recomputes the remaining swaps in activation order. Both target cells and ordering persist in battle saves.
 
+## ASCII Expansion: AE-5
+
+- 30 waves, unlocked after AE-4. Chapter-four template: 500 starting characters, first weight 25, increment +18, extra increment +3.
+- Pool: Circle I; Tilde I/II/III; Equals I/II/III; Triangle Ram I/II/III; Hex Mace I/II; Parentheses I/II/III; Slope Triangle III.
+- Parentheses: 5000 HP, 100 armor, 40 MR, speed 15, 600 physical attack every second, unchanged at higher ranks. Weight 80/200/320; capacity rank + 1.
+- Collects eligible enemies on contact and displays them between paired parentheses, oldest at the rear, rank above the group. Gains 35% of passenger total maximum HP and attack; added capacity preserves HP ratio. Uses the fastest member's movement, including movement buffs and ram acceleration.
+- Passengers cannot be hit until the host is destroyed. Skills and ranged attacks continue; wing effects lift the entire group. Only the host deals blocked melee damage. Destruction releases passengers at their displayed seats.
+- Same group exclusions as Equals: no leaders, Boss companions, solar bombs, Equals, existing health-linked or carried units. Parentheses never loads Parentheses, cannot join Equals links, and cannot be loaded or stored by any mechanism, including Burrow Arrow and q.
+
 ## Recent Enemy Additions
 
 - Shooting Triangle 2: weight `100`, HP `2000`, armor `70`, attack `400` physical, average speed `4`, body label `II`.

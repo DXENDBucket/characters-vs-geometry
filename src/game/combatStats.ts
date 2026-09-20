@@ -1,4 +1,5 @@
 import type { CubeBoss, Enemy, Tower } from "../types";
+import { enemyMaximumHp, PASSENGER_STAT_RATIO } from "./enemyContainers";
 import { enemyFamily } from "../registry/enemies";
 import {
   enemySupportBonuses,
@@ -73,9 +74,11 @@ export function syncEnemyFinalStats(enemy: Enemy, context: EnemyFinalStatsContex
   const speed = includeMovement
     ? (context.baseSpeed ?? baseStats.speed) * statusSpeed * supportSpeed * terrainSpeed
     : finalStats.speed;
-  const damage = includeAttack ? baseStats.damage * attackMultiplier : finalStats.damage;
+  const passengerAttack = includeAttack ? (enemy.parenthesisCargo ?? []).reduce((sum, passenger) =>
+    sum + enemyAttackDamage(passenger, context.time ?? 0), 0) * PASSENGER_STAT_RATIO : 0;
+  const damage = includeAttack ? (baseStats.damage + passengerAttack) * attackMultiplier : finalStats.damage;
 
-  finalStats.maxHp = baseStats.maxHp;
+  finalStats.maxHp = enemyMaximumHp(enemy);
   finalStats.armor = armor;
   finalStats.magicResistance = magicResistance;
   finalStats.speed = speed;

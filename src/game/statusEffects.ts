@@ -1,6 +1,7 @@
 import { CELL_HEIGHT, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
+import { syncPassengerPositions } from "./enemyContainers";
 import { enemyFamily } from "../registry/enemies";
-import type { CubeBoss, Enemy, StatusEffectName, Tower } from "../types";
+import type { CubeBoss, Enemy, StatusEffect, StatusEffectName, Tower } from "../types";
 import { syncEnemyFacingVisual } from "./enemyBehaviors";
 import { applyReversalEffect } from "./rules/reversal";
 import { syncTowerFacingVisual } from "./towers";
@@ -87,6 +88,10 @@ export function statusSpeedMultiplier(enemy: Enemy, time: number) {
   return statusMultipliers(enemy, time).speed;
 }
 
+export function effectSpeedMultiplier(effect: StatusEffect) {
+  return effect.speedMultiplier ?? STATUS_SPEED_MULTIPLIERS[effect.name];
+}
+
 export function statusAttackMultiplier(enemy: Enemy, time: number) {
   return statusMultipliers(enemy, time).attack;
 }
@@ -113,7 +118,7 @@ export function statusMultipliers(enemy: Enemy, time: number): StatusMultipliers
   let attack = 1;
   let armor = 1;
   for (const effect of enemy.statusEffects) {
-    speed *= effect.speedMultiplier ?? STATUS_SPEED_MULTIPLIERS[effect.name];
+    speed *= effectSpeedMultiplier(effect);
     attack *= STATUS_ATTACK_MULTIPLIERS[effect.name] ?? 1;
     armor *= STATUS_ARMOR_MULTIPLIERS[effect.name] ?? 1;
   }
@@ -186,6 +191,7 @@ export function isEnemyFlying(enemy: Enemy, time: number) {
 
 export function syncEnemyBodyPosition(enemy: Enemy) {
   setPositionIfChanged(enemy.body, enemy.x, enemy.y + enemyDisplayOffsetY(enemy));
+  syncPassengerPositions(enemy);
   invalidateStatusVisuals(enemy);
 }
 
@@ -290,6 +296,7 @@ function syncStatusVisuals(enemy: Enemy, time: number) {
     enemy.flyingHalo.setScale(1 + Math.sin(time / 150) * 0.05, 1);
   }
   setPositionIfChanged(enemy.body, enemy.x, enemy.y + enemyDisplayOffsetY(enemy, airborneActive, time));
+  syncPassengerPositions(enemy);
   cache.visualSyncedAt = time;
   cache.visualSyncedX = enemy.x;
   cache.visualSyncedY = enemy.y;
@@ -304,6 +311,7 @@ function enemyDisplayOffsetY(
   airborneActive = hasAirborneStatusName(enemy),
   time = 0
 ) {
+  if (enemy.parenthesisCarrier) return enemy.parenthesisCarrier.body.y - enemy.y;
   const flyingOffset = airborneActive ? FLYING_DISPLAY_OFFSET_Y + Math.sin(time / 130) * 2 : 0;
   const burrowOffset = enemy.burrowed ? BURROW_DISPLAY_OFFSET_Y : 0;
   return flyingOffset + burrowOffset;

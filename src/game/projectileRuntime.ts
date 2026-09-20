@@ -45,7 +45,7 @@ import {
   pointInTowerBounds
 } from "./targeting";
 import { towerDamageType, towerFacingDirection } from "./towers";
-import { segmentCircleHitTime, type ProjectileMotionFrame } from "./projectileMotion";
+import { segmentEnemyHitTime, type ProjectileMotionFrame } from "./projectileMotion";
 
 export interface ProjectileRuntime {
   onTowerAction?: TowerActionListener;
@@ -464,7 +464,7 @@ function projectileEnemyHitTime(
 ) {
   const radius = enemyProjectileHitRadius(enemy);
   return motion ? motion.hitTime(enemy, projectile, x, y, radius) :
-    segmentCircleHitTime(x - enemy.x, y - enemy.y, projectile.x - enemy.x, projectile.y - enemy.y, radius);
+    segmentEnemyHitTime(enemy, x - enemy.x, y - enemy.y, projectile.x - enemy.x, projectile.y - enemy.y, radius);
 }
 
 function buildEnemyProjectileTransientTargets(towers: Tower[]): EnemyProjectileTransientTargets {

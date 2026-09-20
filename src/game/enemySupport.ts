@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { changeEnemyHealth } from "./enemyHealth";
+import { enemiesWithPassengers, enemyIsActive, enemyMaximumHp } from "./enemyContainers";
 import { ANGEL_WINGS_SKILL_MAX, BOARD_X, CELL_HEIGHT, CELL_WIDTH, LANES } from "../config";
 import { makeHealParticles, makeShiftEffect } from "../render/combatEffects";
 import type { CubeBoss, Enemy, SkillState } from "../types";
@@ -140,7 +141,7 @@ export function enemySupportBonuses(
   let hasChargingHexBuff = false;
   let hasLeaderBuff = false;
 
-  for (const enemy of enemies) {
+  for (const enemy of enemiesWithPassengers(enemies)) {
     if (enemyIsHighFlying(enemy)) {
       continue;
     }
@@ -257,7 +258,7 @@ function hasActiveSupportBehind(supportSources: Enemy[] | undefined, target: Ene
 }
 
 function supportSourceIsActive(enemy: Enemy) {
-  return enemy.inPlay && !enemyIsHighFlying(enemy);
+  return enemyIsActive(enemy) && !enemyIsHighFlying(enemy);
 }
 
 export function hexBossArmorBonus(enemies: Enemy[], boss: CubeBoss | null) {
@@ -266,7 +267,7 @@ export function hexBossArmorBonus(enemies: Enemy[], boss: CubeBoss | null) {
   }
 
   let bonus = 0;
-  for (const enemy of enemies) {
+  for (const enemy of enemiesWithPassengers(enemies)) {
     if (!enemyIsHighFlying(enemy) && isHexagon(enemy) && bossBodyInRadius(boss, enemy.x, enemy.y, HEX_ARMOR_RADIUS_SQ)) {
       bonus += hexArmorAuraBonus(enemy);
     }
@@ -294,7 +295,7 @@ export function syncHexArmorAuras(enemies: Enemy[], time: number, sources = enem
 
   const iconY = -38 + Math.sin(time / 110) * 2;
   let anyIconVisible = false;
-  for (const enemy of enemies) {
+  for (const enemy of enemiesWithPassengers(enemies)) {
     const auraFlags = hexAuraFlags(sources, enemy);
     const hasArmorBonus = (auraFlags & HEX_AURA_ARMOR_FLAG) !== 0;
     const hasMagicResistanceBonus = (auraFlags & HEX_AURA_MAGIC_RESISTANCE_FLAG) !== 0;
@@ -315,7 +316,7 @@ export function syncHexArmorAuras(enemies: Enemy[], time: number, sources = enem
 export function chargingHexSpeedMultiplier(enemies: Enemy[], target: Enemy) {
   let hasChargingHexBuff = false;
   let hasLeaderBuff = false;
-  for (const enemy of enemies) {
+  for (const enemy of enemiesWithPassengers(enemies)) {
     if (enemyIsHighFlying(enemy) || enemy.lane !== target.lane || enemy.x >= target.x) {
       continue;
     }
@@ -338,6 +339,8 @@ export function chargingHexSpeedMultiplier(enemies: Enemy[], target: Enemy) {
 }
 
 export function updateEnemySkills(runtime: EnemySkillRuntime, seconds: number, time: number) {
+  const all = enemiesWithPassengers(runtime.enemies);
+  if (all !== runtime.enemies) runtime = { ...runtime, enemies: all };
   const activeHeartEnemies = activeEnemyBuffer;
   activeHeartEnemies.length = 0;
 
@@ -353,7 +356,8 @@ export function updateEnemySkills(runtime: EnemySkillRuntime, seconds: number, t
         continue;
       }
 
-      if (hasUnexpiredStatusEffect(enemy, "frozen", time)) {
+      if (hasUnexpiredStatusEffect(enemy, "frozen", time) ||
+        (enemy.parenthesisCarrier && hasUnexpiredStatusEffect(enemy.parenthesisCarrier, "frozen", time))) {
         continue;
       }
 
@@ -403,7 +407,7 @@ export function enemySupportSources(enemies: Enemy[]): EnemySupportSources {
   let magicResistanceLaneMask = 0;
   let chargingHexLaneMask = 0;
   let leaderLaneMask = 0;
-  for (const enemy of enemies) {
+  for (const enemy of enemiesWithPassengers(enemies)) {
     if (enemyIsHighFlying(enemy)) {
       continue;
     }
@@ -612,13 +616,13 @@ function tryUseHexHeal(scene: Phaser.Scene, enemies: Enemy[], healer: Enemy, ski
   for (const enemy of enemies) {
     if (
       enemyIsHighFlying(enemy) ||
-      enemy.hp >= enemy.baseStats.maxHp ||
+      enemy.hp >= enemyMaximumHp(enemy) ||
       distanceSq(enemy.x, enemy.y, healer.x, healer.y) > HEX_ARMOR_RADIUS_SQ
     ) {
       continue;
     }
 
-    const hpRatio = enemy.hp / enemy.baseStats.maxHp;
+    const hpRatio = enemy.hp / enemyMaximumHp(enemy);
     if (hpRatio < targetHpRatio) {
       target = enemy;
       targetHpRatio = hpRatio;
@@ -629,7 +633,7 @@ function tryUseHexHeal(scene: Phaser.Scene, enemies: Enemy[], healer: Enemy, ski
   }
 
   spendSkillSp(skill, HEX_HEAL_SKILL_COST);
-  if (changeEnemyHealth(target, healer.baseStats.maxHp * HEX_HEAL_RATIO) <= 0) {
+  if (changeEnemyHealth(target, enemyMaximumHp(healer) * HEX_HEAL_RATIO) <= 0) {
     return;
   }
 
@@ -754,7 +758,7 @@ function createEnemyPositionBuffer(index: number) {
 }
 
 function isOrdinaryLeadTarget(enemy: Enemy) {
-  return !enemyIgnoresLeaderRestrictedMechanics(enemy) && !enemyIsBossCompanion(enemy.kind) && !enemyIsHighFlying(enemy);
+  return !enemy.parenthesisCarrier && !enemyIgnoresLeaderRestrictedMechanics(enemy) && !enemyIsBossCompanion(enemy.kind) && !enemyIsHighFlying(enemy);
 }
 
 function skillRegenMultiplier(state: SkillState) {
@@ -803,6 +807,7 @@ function triggerWingsEffect(
 ) {
   spendSkillSp(skill, options.cost);
   skill.activeUntil = time + options.duration;
+  const affected = new Set<Enemy>();
   for (const target of enemies) {
     if (enemyIsHighFlying(target)) {
       continue;
@@ -812,8 +817,11 @@ function triggerWingsEffect(
       continue;
     }
 
-    applyStatusEffect(target, "flying", options.duration, time, ANGEL_WINGS_SPEED_MULTIPLIER, true);
-    makeWingPulse(scene, target.x, target.y);
+    const recipient = target.parenthesisCarrier ?? target;
+    if (affected.has(recipient)) continue;
+    affected.add(recipient);
+    applyStatusEffect(recipient, "flying", options.duration, time, ANGEL_WINGS_SPEED_MULTIPLIER, true);
+    makeWingPulse(scene, recipient.x, recipient.y);
   }
 }
 

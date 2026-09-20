@@ -14,6 +14,8 @@ import type { CubeBoss, DamageType, Enemy, EnemyProjectile, MortarProjectile, Pr
 import { bossFinalStats, enemyDefenseStats } from "./combatStats";
 import { calculateDamage } from "./damage";
 import { changeEnemyHealth, detachEnemyHealth } from "./enemyHealth";
+import { destroyContainedEnemies } from "./enemyContainers";
+import { releaseParenthesisPassengers } from "./parenthesisEnemies";
 import { enemyIsHighFlying, syncEnemyVisualScale } from "./enemyBehaviors";
 import { releaseBurrowCargo, spawnSplitEnemies } from "./enemyRuntime";
 import { isPointInSlowAura } from "./slowAura";
@@ -242,6 +244,7 @@ export function damageEnemy(
         waveTracker.defeatedWeight += member.weight;
       }
       runtime.onEnemyDefeated();
+      releaseParenthesisPassengers(member, runtime.enemies, runtime.battleTime);
       releaseBurrowCargo(runtime, member);
       spawnSplitEnemies(runtime, member, runtime.battleTime, runtime.finalDamageReduction);
       removeEnemy(runtime, member, true);
@@ -276,12 +279,7 @@ export function removeEnemy(runtime: UnitLifecycleRuntime, enemy: Enemy, animate
   detachEnemyHealth(enemy);
   enemy.inPlay = false;
   Phaser.Utils.Array.Remove(runtime.enemies, enemy);
-  for (const cargo of enemy.burrowCargo ?? []) {
-    if (!cargo.inPlay) {
-      cargo.body.destroy();
-    }
-  }
-  enemy.burrowCargo = [];
+  destroyContainedEnemies(enemy);
   if (animate) {
     runtime.scene.tweens.add({
       targets: enemy.body,

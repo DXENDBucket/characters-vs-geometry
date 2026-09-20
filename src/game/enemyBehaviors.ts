@@ -1,4 +1,6 @@
 import Phaser from "phaser";
+import { enemyMaximumHp } from "./enemyContainers";
+import { syncParenthesisVisual } from "../render/parenthesisEnemy";
 import { battleRandom, isBattlePlayback } from "./battleSimulation";
 import { cubePromotionKind } from "../bosses/bossRanks";
 import { recordEnemySeen } from "../progress";
@@ -113,10 +115,15 @@ export function enemyScaleFromHp(hpRatio: number) {
 }
 
 export function enemyVisualScale(enemy: Enemy) {
-  return enemyScaleFromHp(enemy.hp / enemy.baseStats.maxHp);
+  return enemyScaleFromHp(enemy.hp / enemyMaximumHp(enemy));
 }
 
 export function syncEnemyVisualScale(enemy: Enemy) {
+  if (enemyFamily(enemy.kind) === "parentheses") {
+    setScaleIfChanged(enemy.shape, 1, 1);
+    syncParenthesisVisual(enemy);
+    return;
+  }
   if (enemyIsSolarBomb(enemy)) {
     setScaleIfChanged(enemy.shape, 1, 1);
     return;
@@ -165,6 +172,7 @@ export function enemyIsBurrowed(enemy: Enemy) {
 }
 
 export function enemyIsHighFlying(enemy: Enemy) {
+  if (enemy.parenthesisCarrier) return enemyIsHighFlying(enemy.parenthesisCarrier);
   return enemy.highFlightUntil !== undefined || hasStatusEffectName(enemy, "highFlying");
 }
 
@@ -210,7 +218,7 @@ export function findPromotionTargets(boss: CubeBoss, enemies: Enemy[], maxRank: 
 
 export function applyEnemyPromotion(scene: Phaser.Scene, enemy: Enemy, kind: EnemyKind, battleTime: number) {
   if (!isBattlePlayback(scene)) recordEnemySeen(kind);
-  const hpRatio = Phaser.Math.Clamp(enemy.hp / enemy.baseStats.maxHp, 0, 1);
+  const hpRatio = Phaser.Math.Clamp(enemy.hp / enemyMaximumHp(enemy), 0, 1);
   const definition = getEnemyDefinition(kind);
   const baseStats = enemyBaseStatsFromDefinition(definition, {
     speed: randomizedEnemySpeed(kind, () => battleRandom(scene).next()),

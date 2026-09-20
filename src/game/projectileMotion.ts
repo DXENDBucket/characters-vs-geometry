@@ -1,4 +1,14 @@
 import type { Enemy, Projectile } from "../types";
+import { parenthesisHalfSpan } from "./enemyContainers";
+import { segmentBoxHitTime } from "./oscillatingMovement";
+
+export function segmentEnemyHitTime(enemy: Enemy, x: number, y: number, endX: number, endY: number, radius: number) {
+  const span = parenthesisHalfSpan(enemy);
+  if (span <= 0) return segmentCircleHitTime(x, y, endX, endY, radius);
+  return Math.min(segmentBoxHitTime(x, y, endX - x, endY - y, span, radius),
+    segmentCircleHitTime(x - span, y, endX - span, endY, radius),
+    segmentCircleHitTime(x + span, y, endX + span, endY, radius));
+}
 
 // Relative movement reduces two moving points to a segment against a circle.
 export function segmentCircleHitTime(x: number, y: number, endX: number, endY: number, radius: number) {
@@ -57,7 +67,7 @@ export class ProjectileMotionFrame {
     // Newly fired shots cannot hit the enemy's past; teleports invalidate its recorded path.
     const swept = this.active && this.projectiles.get(projectile) === this.frame &&
       movement?.frame === this.frame && enemy.x === movement.endX && enemy.y === movement.endY;
-    return segmentCircleHitTime(
+    return segmentEnemyHitTime(enemy,
       x - (swept ? movement.x : enemy.x), y - (swept ? movement.y : enemy.y),
       projectile.x - enemy.x, projectile.y - enemy.y, radius
     );

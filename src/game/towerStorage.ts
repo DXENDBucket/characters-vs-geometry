@@ -7,6 +7,7 @@ import { statusMultipliers, syncEnemyBodyPosition } from "./statusEffects";
 import { getBlockedEnemies } from "./targeting";
 import { towerFacingDirection } from "./towers";
 import { detachEnemyHealth } from "./enemyHealth";
+import { destroyContainedEnemies, enemyCanBeLoaded } from "./enemyContainers";
 
 export const ENEMY_STORAGE_DURATION = 5_000;
 
@@ -43,7 +44,7 @@ export class TowerStorageController {
     let captured = 0;
     for (const enemy of targets) {
       const index = runtime.enemies.indexOf(enemy);
-      if (!enemy.inPlay || index < 0) {
+      if (!enemy.inPlay || index < 0 || !enemyCanBeLoaded(enemy)) {
         continue;
       }
       detachEnemyHealth(enemy);
@@ -100,10 +101,7 @@ export class TowerStorageController {
 }
 
 function destroyStoredEnemy(enemy: Enemy) {
-  for (const cargo of enemy.burrowCargo ?? []) {
-    destroyStoredEnemy(cargo);
-  }
-  enemy.burrowCargo = [];
+  destroyContainedEnemies(enemy);
   enemy.inPlay = false;
   enemy.body.destroy();
 }

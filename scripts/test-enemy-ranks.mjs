@@ -217,7 +217,7 @@ test("every Infinite Front stage has uncapped wave weights while story bosses ke
 });
 
 test("all 66 existing enemy panels and registrations exactly match the pre-refactor snapshot", () => {
-  assert.deepEqual(Object.keys(registry.allEnemyDefinitions).filter(kind => !["tilde", "equals"].includes(registry.enemyFamily(kind))), Object.keys(legacy));
+  assert.deepEqual(Object.keys(registry.allEnemyDefinitions).filter(kind => !["tilde", "equals", "parentheses"].includes(registry.enemyFamily(kind))), Object.keys(legacy));
   for (const [kind, expected] of Object.entries(legacy)) {
     assert.deepEqual(registry.getEnemyRegistration(kind), expected, kind);
   }
@@ -225,7 +225,7 @@ test("all 66 existing enemy panels and registrations exactly match the pre-refac
 
 test("every minion and leader supports unregistered ranks through the same family growth rules", () => {
   for (const [family, archetype] of Object.entries(enemyArchetypes)) {
-    if (["solarBomb", "dodecahedronCompanion", "tilde", "equals"].includes(family)) continue;
+    if (["solarBomb", "dodecahedronCompanion", "tilde", "equals", "parentheses"].includes(family)) continue;
     for (const rank of [4, 10, 100, 10000]) {
       const kind = enemyKindAtRank(family, rank);
       assert.equal(registry.enemyFamily(kind), family);

@@ -1,5 +1,6 @@
 import type { Enemy, EnemyHealthPool } from "../types";
-import { enemyIsBossCompanion, enemyIsLeader, getEnemyDefinition } from "../registry/enemies";
+import { getEnemyDefinition } from "../registry/enemies";
+import { canJoinEnemyGroup, enemyMaximumHp } from "./enemyContainers";
 
 function syncPool(pool: EnemyHealthPool) {
   const ratio = pool.maxHp > 0 ? Math.max(0, Math.min(1, pool.hp / pool.maxHp)) : 0;
@@ -10,7 +11,7 @@ export function changeEnemyHealth(enemy: Enemy, amount: number) {
   const pool = enemy.healthPool;
   if (!pool) {
     const before = enemy.hp;
-    enemy.hp = Math.min(enemy.baseStats.maxHp, enemy.hp + amount);
+    enemy.hp = Math.min(enemyMaximumHp(enemy), enemy.hp + amount);
     return enemy.hp - before;
   }
   const before = pool.hp;
@@ -34,9 +35,7 @@ export function initializeEnemyHealthLinks(owner: Enemy, enemies: readonly Enemy
   if (capacity <= 0 || owner.healthLinksInitialized) return;
   owner.healthLinksInitialized = true;
   const distance = (enemy: Enemy) => (enemy.x - owner.x) ** 2 + (enemy.y - owner.y) ** 2;
-  const targets = enemies.filter(enemy => enemy !== owner && enemy.inPlay && enemy.hp > 0 &&
-    !enemy.healthPool && !getEnemyDefinition(enemy.kind).healthLinkCapacity &&
-    !enemyIsLeader(enemy.kind) && !enemyIsBossCompanion(enemy.kind) && enemy.kind !== "solarBomb")
+  const targets = enemies.filter(enemy => enemy !== owner && canJoinEnemyGroup(enemy))
     .sort((a, b) => distance(a) - distance(b))
     .slice(0, capacity);
   if (!targets.length) return;

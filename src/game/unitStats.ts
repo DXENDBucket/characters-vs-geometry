@@ -8,6 +8,7 @@ import type {
   Tower,
   TowerBaseStats
 } from "../types";
+import { enemyMaximumHp } from "./enemyContainers";
 import {
   effectiveUpgradeCountForLevel,
   isMaxHpUpgradeable,
@@ -118,7 +119,8 @@ export function applyEnemyBaseStats(
 ) {
   enemy.baseStats = { ...baseStats };
   enemy.finalStats = { ...baseStats };
-  enemy.maxHp = baseStats.maxHp;
+  enemy.maxHp = enemyMaximumHp(enemy);
+  enemy.finalStats.maxHp = enemy.maxHp;
   enemy.armor = baseStats.armor;
   enemy.magicResistance = baseStats.magicResistance;
   enemy.speed = baseStats.speed;
@@ -129,9 +131,9 @@ export function applyEnemyBaseStats(
   enemy.attackInterval = baseStats.attackInterval;
 
   if (options.hpRatio !== undefined) {
-    enemy.hp = Math.max(1, baseStats.maxHp * clamp(options.hpRatio, 0, 1));
+    enemy.hp = Math.max(1, enemy.maxHp * clamp(options.hpRatio, 0, 1));
   } else {
-    enemy.hp = Math.min(enemy.hp, baseStats.maxHp);
+    enemy.hp = Math.min(enemy.hp, enemy.maxHp);
   }
   syncEnemyHealthCapacity(enemy);
 }

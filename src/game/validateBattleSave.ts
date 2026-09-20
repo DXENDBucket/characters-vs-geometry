@@ -95,6 +95,21 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
       require(array(value.statusEffects, effect => record(effect) && typeof effect.name === "string" && timestamp(effect.expiresAt)));
       require(Number.isInteger(value.lane) && (value.lane as number) >= 0 && (value.lane as number) < 7);
       if (kind === "enemy") {
+        if (value.parenthesisCargo !== undefined) {
+          const identity = parseEnemyKind(value.kind);
+          require(Array.isArray(value.parenthesisCargo));
+          const cargo = value.parenthesisCargo as Enemy[];
+          require(!cargo.length || (identity?.family === "parentheses" && cargo.length <= identity.rank + 1));
+          require(new Set(cargo).size === cargo.length && cargo.every(passenger => member("enemy")(passenger) &&
+            passenger !== object && passenger.inPlay === false && passenger.parenthesisCarrier === object &&
+            parseEnemyKind(passenger.kind)?.family !== "parentheses" && !passenger.healthPool));
+        }
+        if (value.parenthesisCarrier !== undefined) {
+          const carrier = value.parenthesisCarrier as Enemy;
+          require(member("enemy")(carrier) && parseEnemyKind(carrier.kind)?.family === "parentheses" &&
+            carrier.parenthesisCargo?.includes(object as Enemy) && value.inPlay === false && !state.enemies.includes(object as Enemy));
+        }
+        if (value.parenthesisHpBonus !== undefined) require(finite(value.parenthesisHpBonus) && value.parenthesisHpBonus >= 0);
         require(value.healthLinksInitialized === undefined || typeof value.healthLinksInitialized === "boolean");
         if (value.healthPool) {
           const pool = value.healthPool;

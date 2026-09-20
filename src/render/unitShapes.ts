@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { drawParentheses } from "./parenthesisEnemy";
 import {
   DODECAHEDRON_EDGES,
   DODECAHEDRON_UNIT_VERTICES,
@@ -81,6 +82,16 @@ export function createUnitBorder(
 
 export function createEnemyShape(scene: Phaser.Scene, kind: EnemyKind, options: EnemyShapeOptions = {}) {
   const family = enemyFamily(kind);
+  if (family === "parentheses") {
+    const shape = scene.add.container(0, 0);
+    const frame = scene.add.graphics();
+    drawParentheses(frame, 28);
+    shape.setData("parenthesisFrame", frame);
+    const label = createEnemyLabel(scene, 0, -42, kind);
+    shape.setData("parenthesisLabel", label);
+    shape.add([frame, label]);
+    return shape;
+  }
   if (family === "equals") {
     const shape = scene.add.container(0, 0);
     const bars = scene.add.graphics().lineStyle(4, palette.white, 1);
