@@ -43,10 +43,14 @@ try {
 
     start();
     const number = place("1", 0, 3, 2); place("=", 1); const a = place("A", 2); place("+", 3); const e = place("E", 4);
+    place("+", 5); const cannon = place("C", 6);
     attack(a); flush(); check(!scene.projectiles.some(p => p.sourceTower === number), "Plus acted before n actions");
-    attack(e); flush();
-    check(scene.projectiles.filter(p => p.sourceTower === number).length === 8, "Plus must copy both level-2 A and E volleys");
-    check(scene.projectiles.filter(p => p.sourceTower === a).length === 1 && scene.projectiles.filter(p => p.sourceTower === e).length === 3,
+    check(number.numberMemory.length === 3 && number.numberMemory.every(entry => entry.count === 1),
+      "A must advance all A/C/E counters exactly once through the full plus chain");
+    attack(e); flush(); flush();
+    check(scene.projectiles.filter(p => p.sourceTower === number).length === 10, "Plus must copy all level-2 A/C/E volleys");
+    check(scene.projectiles.filter(p => p.sourceTower === a).length === 1 && scene.projectiles.filter(p => p.sourceTower === e).length === 3 &&
+      !scene.projectiles.some(p => p.sourceTower === cannon),
       "Plus caused physical source towers to act again");
 
     start();

@@ -207,6 +207,30 @@ test("plus shares counters only within plus terms of a mixed equation", () => {
   f.controller.record(i, { kind: "attack" }); assert.equal(f.events.length, 4);
 });
 
+test("A+C+E advances every learned kind once per source action, without recursive propagation", () => {
+  const f = fixture(), a = f.place("A", 0); f.place("+", 1);
+  const c = f.place("C", 2); f.place("+", 3); const e = f.place("E", 4);
+  f.place("=", 5); const number = f.place("1", 6, 3, 3);
+  const unrelated = f.place("C", 8);
+  f.controller.sync();
+  f.controller.record(unrelated, { kind: "attack" });
+  assert.ok(number.numberMemory.every(entry => entry.count === 0));
+  for (const [index, source] of [a, c, e].entries()) {
+    f.controller.record(source, { kind: "attack" });
+    assert.equal(number.numberMemory.length, 3);
+    assert.ok(number.numberMemory.every(entry => entry.count === (index + 1) % 3));
+    assert.equal(f.events.length, index === 2 ? 3 : 0);
+  }
+  assert.deepEqual(new Set(f.events.map(event => event.behavior.type)), new Set(["A", "C", "E"]));
+  for (const event of f.events) {
+    assert.equal(event.behavior.level, 3);
+    assert.equal(event.event.kind, event.behavior.type === "E" ? "attack" : "combined");
+    withTowerActionContext(number, { ...event.behavior, stats: {} }, () => f.controller.record(number, { kind: "attack" }));
+  }
+  assert.equal(f.events.length, 3);
+  assert.ok(number.numberMemory.every(entry => entry.count === 0));
+});
+
 test("adjacent operators and expensive operands cannot bridge equations", () => {
   for (const expression of [["1", "=", "+", "A"], ["1", "+", "=", "A"], ["1", "=", "@", "=", "A"]]) {
     const f = fixture(); expression.forEach((type, column) => f.place(type, column));
