@@ -53,7 +53,7 @@ try {
     const edge = link(1); link(2).mode = ">"; link(3);
     check(scene.towers.length === 4 && scene.occupied.size === 4 && edge.level === 1, "Connector occupies a regular cell");
     const money = scene.effectiveChars(); link(1);
-    check(edge.level === 2 && Math.abs(scene.effectiveChars() - money + 1000) < 1e-6, "Stacking = failed to upgrade");
+    check(edge.level === 2 && Math.abs(scene.effectiveChars() - money + 100) < 1e-6, "Stacking = failed to upgrade");
     select("A"); const p = edgePosition(edge);
     for (const mode of [">", "<", "!="]) { pointer(p.x, p.y); check(edge.mode === mode, "Connector mode cycle failed"); }
     check(!capture(source) && !bank.projectileBank.shots.length, "Closed connector swallowed source shot");
