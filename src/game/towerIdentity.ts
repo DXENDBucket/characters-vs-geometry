@@ -1,4 +1,4 @@
-import type { CardId, Tower, TowerFinalStats } from "../types";
+import type { CardId, NumberTowerState, Tower, TowerFinalStats } from "../types";
 
 export interface TowerBehaviorContext {
   type: CardId;
@@ -31,23 +31,36 @@ export function towerFormType(tower: Pick<Tower, "type" | "copiedType">) {
 
 export function isNumberTower(tower: Pick<Tower, "type" | "copiedType" | "numberValue">) {
   const type = towerFormType(tower);
-  return type === "1" || (type === "+" && tower.numberValue !== undefined);
+  return isLiteralNumberType(type) || (isNumericOperatorType(type) && tower.numberValue !== undefined);
 }
 
-export function numberTowerValue(tower: Pick<Tower, "level" | "numberValue">) {
-  return Math.max(1, Math.floor(tower.numberValue ?? tower.level));
+export function isLiteralNumberType(type: CardId) { return type === "0" || type === "1"; }
+
+export function isNumericOperatorType(type: CardId) { return type === "+" || type === "-"; }
+
+export function numberTowerValue(tower: Pick<Tower, "type" | "copiedType" | "level" | "numberValue">, state: NumberTowerState = tower) {
+  return Math.max(0, Math.floor(state.numberValue ?? tower.level - (towerFormType(tower) === "0" ? 1 : 0)));
 }
 
-export function numberTowerMultiplier(tower: Pick<Tower, "type" | "copiedType" | "level" | "equationLevel">) {
-  const plusBonus = towerFormType(tower) === "+" ? tower.level - 1 : 0;
-  return Math.max(1, Math.floor((tower.equationLevel ?? 1) + plusBonus));
+export function numberTowerStoredCount(state: NumberTowerState) {
+  return (state.numberMemory ?? []).reduce((total, entry) => total + entry.count, 0);
 }
 
-export function numberTowerActionLevel(tower: Pick<Tower, "type" | "copiedType" | "level" | "numberValue" | "equationLevel">) {
-  return numberTowerValue(tower) * numberTowerMultiplier(tower);
+export function numberTowerStates(tower: Pick<Tower, "numberChannels" | "numberValue" | "numberMemory" | "equationLevel">): NumberTowerState[] {
+  return tower.numberChannels ? [tower.numberChannels.horizontal, tower.numberChannels.vertical]
+    .filter((state): state is NumberTowerState => state?.numberValue !== undefined) : [tower];
+}
+
+export function numberTowerMultiplier(tower: Pick<Tower, "type" | "copiedType" | "level" | "equationLevel">, state: NumberTowerState = tower) {
+  const plusBonus = isNumericOperatorType(towerFormType(tower)) ? tower.level - 1 : 0;
+  return Math.max(1, Math.floor((state.equationLevel ?? 1) + plusBonus));
+}
+
+export function numberTowerActionLevel(tower: Pick<Tower, "type" | "copiedType" | "level" | "numberValue" | "equationLevel">, state: NumberTowerState = tower) {
+  return numberTowerValue(tower, state) * numberTowerMultiplier(tower, state);
 }
 
 export function towerHasSkillBehavior(tower: Tower, type: CardId) {
   return towerBehaviorType(tower) === type ||
-    ((isNumberTower(tower) || towerFormType(tower) === "+") && tower.imitatedSkills?.includes(type) === true);
+    ((isNumberTower(tower) || isNumericOperatorType(towerFormType(tower))) && tower.imitatedSkills?.includes(type) === true);
 }

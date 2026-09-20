@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { inFriendlyRange } from "./towerTopology";
-import { isNumberTower, numberTowerActionLevel, towerBehaviorType } from "./towerIdentity";
+import { isNumberTower, numberTowerActionLevel, numberTowerValue, towerBehaviorType } from "./towerIdentity";
 import type { TowerActionEvent, TowerActionListener } from "./towerActions";
 import type { BattleAction, ScheduleBattleAction } from "./battleActions";
 import { changeTowerHealth } from "./towerHealth";
@@ -120,7 +120,7 @@ export class TowerSkillController {
     let activeClockLevelSum = 0;
     for (const tower of this.runtime().towers) {
       if (tower.moveVisual) syncTowerFlyingVisual(tower, time);
-      // Finish already activated imitations even if a numeric + loses its operands.
+      // Finish active imitations even if a numeric operator loses its operands.
       if (isNumberTower(tower) || tower.imitatedSkills?.length) {
         syncNumberSkillRange(this.scene, tower, time);
         for (const type of tower.imitatedSkills ?? []) {
@@ -128,7 +128,7 @@ export class TowerSkillController {
           if (!skill) continue;
           const state = getTowerSkillState(tower, skill.stateKey);
           if (state.activeUntil <= 0) continue;
-          withTowerBehavior(tower, this.runtime().getDefinition(type), numberTowerActionLevel(tower),
+          withTowerBehavior(tower, this.runtime().getDefinition(type), tower.imitatedSkillLevels?.[type] ?? Math.max(1, numberTowerActionLevel(tower)),
             () => skill.update(tower, state, 0, time, undefined), this.runtime().towers);
           if (state.activeUntil <= time) { state.activeUntil = 0; tower.border.setVisible(true).setAlpha(1); }
         }
@@ -156,6 +156,8 @@ export class TowerSkillController {
     const type = towerBehaviorType(tower);
     const definition = this.skillDefinitions[type];
     if (!definition) return false;
+    if (tower.numberChannels || numberTowerValue(tower) === 0) (tower.imitatedSkillLevels ??= {})[type] = effectiveTowerLevel(tower);
+    else if (tower.imitatedSkillLevels) delete tower.imitatedSkillLevels[type];
     tower.imitatedSkills ??= [];
     if (!tower.imitatedSkills.includes(type)) tower.imitatedSkills.push(type);
     if (definition.imitate) { definition.imitate(tower, event); return true; }

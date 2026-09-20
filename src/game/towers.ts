@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { topologyKey } from "./towerTopology";
 import { drawLogicalTowerRange } from "../render/towerLogicalRange";
-import { towerBehaviorType, towerActionContext, towerFormType, numberTowerValue, numberTowerMultiplier, numberTowerActionLevel } from "./towerIdentity";
+import { towerBehaviorType, towerActionContext, towerFormType, isLiteralNumberType, isNumberTower, isNumericOperatorType, numberTowerStoredCount, numberTowerValue, numberTowerMultiplier, numberTowerActionLevel } from "./towerIdentity";
 import { syncHealthBar } from "./towerHealth";
 import { facingWithEffects } from "./rules/reversal";
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
@@ -67,7 +67,7 @@ export function createTower(
       fontStyle: "700"
     })
     .setOrigin(0.5);
-  if (definition.id === "1") levelText.setVisible(false);
+  if (isLiteralNumberType(definition.id)) levelText.setVisible(false);
 
   body.add([
     ...(rangeBorder ? [rangeBorder] : []),
@@ -225,8 +225,30 @@ export function effectiveTowerLevel(tower: Tower) {
 }
 
 export function syncTowerLevelText(tower: Tower) {
-  if (tower.type === "1") {
-    const text = String(tower.level);
+  const channels = Object.entries(tower.numberChannels ?? {}).filter(([, state]) => state.numberValue !== undefined);
+  if (channels.length > 1) {
+    tower.label.setY(-11).setFontSize(26);
+    const lines = channels.map(([axis, state]) => {
+      const n = state.numberValue!;
+      const value = n === 0 ? `0:${numberTowerStoredCount(state)}` : `${n}x${numberTowerMultiplier(tower, state)}`;
+      return `${axis === "horizontal" ? "H" : "V"} ${value}`;
+    });
+    const size = Math.min(9, 40 / Math.max(...lines.map(line => line.length)));
+    tower.levelText.setVisible(true).setY(11).setText(lines.join("\n")).setFontSize(size).setColor("#9fdcff");
+    return;
+  }
+  if (isNumericOperatorType(towerFormType(tower))) tower.label.setFontSize(34);
+  if (isNumberTower(tower) && numberTowerValue(tower) === 0) {
+    if (isLiteralNumberType(tower.type)) tower.label.setText("0").setFontSize(34);
+    tower.label.setY(-7);
+    const count = numberTowerStoredCount(tower);
+    const text = isNumericOperatorType(towerFormType(tower)) ? `0:${count}` : `S${count}`;
+    tower.levelText.setVisible(true).setY(12).setText(text).setFontSize(Math.min(10, 40 / text.length))
+      .setColor(count > 0 ? "#9fdcff" : "#8c8c8c");
+    return;
+  }
+  if (isLiteralNumberType(tower.type)) {
+    const text = String(numberTowerValue(tower));
     tower.label.setText(text).setFontSize(Math.min(34, 48 / Math.max(1, text.length)));
     const boosted = numberTowerMultiplier(tower) > 1;
     tower.label.setY(boosted ? -7 : -3);
@@ -238,7 +260,7 @@ export function syncTowerLevelText(tower: Tower) {
     return;
   }
   tower.levelText.setVisible(true);
-  if (towerFormType(tower) === "+") {
+  if (isNumericOperatorType(towerFormType(tower))) {
     const computed = tower.numberValue !== undefined;
     tower.label.setY(computed ? -7 : -3);
     tower.levelText.setY(computed ? 12 : 17);

@@ -784,6 +784,11 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    if (existingTower && this.numbers.release(existingTower)) {
+      this.updateCards();
+      return;
+    }
+
     if (existingTower && this.towerSkills.tryActivateManualSkill(existingTower, {
       x, y, allReady: this.isShiftPointer(pointer)
     })) {

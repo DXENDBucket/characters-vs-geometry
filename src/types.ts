@@ -1,10 +1,13 @@
 import type Phaser from "phaser";
+import type { TowerActionEvent } from "./game/towerActions";
 
 export type CardId =
   | "+"
+  | "-"
   | "&"
   | "="
   | "1"
+  | "0"
   | "@"
   | "#"
   | "A"
@@ -244,12 +247,19 @@ export interface TowerHealthPool {
   linkCount: number;
 }
 
-export interface Tower {
-  topologyTarget?: { lane: number; column: number };
-  topologyOrder?: number;
-  numberMemory?: Array<{ type: CardId; sourceIds: string[]; count: number }>;
+export type EquationAxis = "horizontal" | "vertical";
+
+export interface NumberTowerState {
+  numberMemory?: Array<{ type: CardId; sourceIds: string[]; count: number; storedEvent?: TowerActionEvent }>;
   numberValue?: number;
   equationLevel?: number;
+}
+
+export interface Tower extends NumberTowerState {
+  topologyTarget?: { lane: number; column: number };
+  topologyOrder?: number;
+  numberChannels?: Partial<Record<EquationAxis, NumberTowerState>>;
+  imitatedSkillLevels?: Partial<Record<CardId, number>>;
   imitatedSkills?: CardId[];
   copiedType?: CardId;
   copyRevision?: number;

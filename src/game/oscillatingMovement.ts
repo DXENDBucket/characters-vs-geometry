@@ -4,6 +4,16 @@ import type { Enemy } from "../types";
 export const OSCILLATION_PERIOD = 4;
 export const OSCILLATION_AMPLITUDE = CELL_HEIGHT * 0.6;
 
+export function relocateEnemyToLane(enemy: Enemy, lane: number, y: number) {
+  enemy.lane = lane;
+  enemy.y = y;
+  if (enemy.oscillationCenterY !== undefined) {
+    enemy.oscillationCenterY = y;
+    enemy.oscillationLastY = y;
+    enemy.oscillationPhase = 0;
+  }
+}
+
 export function oscillationTarget(enemy: Enemy, seconds: number) {
   if (enemy.oscillationCenterY === undefined) return { y: enemy.y, phase: 0 };
   // Teleports move the path's center instead of snapping the unit back on its next tick.

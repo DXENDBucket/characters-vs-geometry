@@ -21,7 +21,7 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
   const timestamp = (value: unknown) => typeof value === "number" && !Number.isNaN(value);
   const array = (value: unknown, check: (item: unknown) => boolean): boolean => Array.isArray(value) && value.every(check);
   const member = (kind: NodeKind) => (value: unknown) => Boolean(value && typeof value === "object" && units.get(kind)?.has(value));
-  const learnable = (type: unknown) => cardDefinitions.some(card => card.id === type && card.cost <= 999 && card.id !== "1");
+  const learnable = (type: unknown) => cardDefinitions.some(card => card.id === type && card.cost <= 999 && card.id !== "1" && card.id !== "0");
   const behavior = (value: unknown) => record(value) && learnable(value.type) && Number.isSafeInteger(value.level) && (value.level as number) >= 1;
   const nativeTowerEvent = (value: unknown) => record(value) && (
     ["attack", "production", "hitProduction", "shock", "detonation", "targeted"].includes(value.kind as string) ||
@@ -32,6 +32,10 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
   );
   const towerEvent = (value: unknown) => nativeTowerEvent(value) ||
     (record(value) && value.kind === "combined" && nativeTowerEvent(value.original));
+  const numberMemory = (value: unknown) => array(value, entry => record(entry) && learnable(entry.type) &&
+    Number.isSafeInteger(entry.count) && (entry.count as number) >= 0 &&
+    (entry.storedEvent === undefined || towerEvent(entry.storedEvent)) &&
+    array(entry.sourceIds, id => typeof id === "string" && /^tower:\d+$/.test(id)));
   require(record(state));
   if (state.simulation !== undefined) {
     const simulation = state.simulation;
@@ -127,7 +131,7 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
         require(["laser", "mortar", "wings"].includes(value.bossCompanionActionPhase as string));
       }
       if (kind === "tower") {
-        if (value.numberValue !== undefined) require(Number.isSafeInteger(value.numberValue) && (value.numberValue as number) >= 1);
+        if (value.numberValue !== undefined) require(Number.isSafeInteger(value.numberValue) && (value.numberValue as number) >= 0);
         if (value.equationLevel !== undefined) require(Number.isSafeInteger(value.equationLevel) && (value.equationLevel as number) >= 1);
         if (value.topologyTarget !== undefined) {
           const cell = value.topologyTarget;
@@ -135,11 +139,17 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
             Number.isInteger(cell.column) && (cell.column as number) >= 0 && (cell.column as number) < 13 && finite(value.topologyOrder) && value.topologyOrder >= 0);
         }
         if (value.numberMemory !== undefined) {
-          require(array(value.numberMemory, entry => record(entry) && learnable(entry.type) &&
-            Number.isSafeInteger(entry.count) && (entry.count as number) >= 0 &&
-            array(entry.sourceIds, id => typeof id === "string" && /^tower:\d+$/.test(id))));
+          require(numberMemory(value.numberMemory));
         }
+        if (value.numberChannels !== undefined) require(record(value.numberChannels) &&
+          (value.type === "+" || value.type === "-") && Object.entries(value.numberChannels).every(([axis, state]) =>
+            ["horizontal", "vertical"].includes(axis) && record(state) &&
+            (state.numberValue === undefined || Number.isSafeInteger(state.numberValue) && (state.numberValue as number) >= 0) &&
+            (state.equationLevel === undefined || Number.isSafeInteger(state.equationLevel) && (state.equationLevel as number) >= 1) &&
+            (state.numberMemory === undefined || numberMemory(state.numberMemory))));
         if (value.imitatedSkills !== undefined) require(array(value.imitatedSkills, learnable));
+        if (value.imitatedSkillLevels !== undefined) require(record(value.imitatedSkillLevels) &&
+          Object.entries(value.imitatedSkillLevels).every(([type, level]) => learnable(type) && Number.isSafeInteger(level) && (level as number) >= 1));
         if (value.moveVisual) {
           require(record(value.moveVisual) && [value.moveVisual.fromX, value.moveVisual.fromY,
             value.moveVisual.startedAt].every(finite) && finite(value.moveVisual.duration) && value.moveVisual.duration > 0);

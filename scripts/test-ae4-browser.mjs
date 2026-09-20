@@ -70,7 +70,7 @@ try {
     check(scene.projectiles.filter(p => p.sourceTower === three).length === 6 && scene.projectiles.filter(p => p.sourceTower === five).length === 5,
       "Original numbers no longer act independently");
     place("+", 5); place("1", 6, 3, 2);
-    check(numericPlus.numberValue === 10 && scene.occupied.get("3:5").numberValue === 10, "Numeric plus chain did not sum to 10");
+    check(numericPlus.numberValue === 8 && scene.occupied.get("3:5").numberValue === 7, "Numeric plus chain did not use adjacent pairs");
 
     start();
     const scaledSource = place("A", 0), upgradedEquals = place("=", 1), nine = place("1", 2, 3, 9);
@@ -180,10 +180,10 @@ try {
     const run = step => {
       start("IF-1"); scene.applyBattleSave(restoreBattleSnapshot(scene, snapshot));
       check(towerCell(scene.occupied.get("6:10")).column === 3, "Restored topology missing while paused");
-      check(scene.occupied.get("1:3").numberValue === 10 && scene.occupied.get("1:5").numberMemory[0].count === 9,
+      check(scene.occupied.get("1:3").numberValue === 8 && scene.occupied.get("1:5").numberMemory[0].count === 2,
         "Saved numeric plus sum or action count was lost");
-      check(scene.occupied.get("1:2").equationLevel === 2 && scene.occupied.get("1:3").levelText.text === "10x4" &&
-        scene.occupied.get("1:5").levelText.text === "10x5", "Saved equation multipliers were not restored");
+      check(scene.occupied.get("1:2").equationLevel === 2 && scene.occupied.get("1:3").levelText.text === "8x4" &&
+        scene.occupied.get("1:5").levelText.text === "7x5", "Saved equation multipliers were not restored");
       scene.battlePaused = false;
       while (scene.simulation.tick < 120) scene.update(0, step);
       return scene.battleChecksum();

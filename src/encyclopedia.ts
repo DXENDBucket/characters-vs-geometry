@@ -733,8 +733,12 @@ function towerLines(card: CardDefinition) {
 function towerDescription(id: CardId) {
   const zh = isZh();
   const descriptions: Record<CardId, string> = {
-    "+": zh ? "等式加法连接器。A+C+E 中，任一源塔行动都为三种记忆各计数一次，不让实体源塔额外行动。数字相加时，各加号按整组数字之和计数：3+5+2 的两个 + 都每 10 次模仿一次，原数字仍独立生效。加号的模仿有效等级为数字和乘以（体系最高等号等级 + 自身等级 - 1）。数字不能与普通塔直接相加。等号共享整个体系的记忆但不合并求和；操作数须基础费用不超过 999，相邻运算符中断连接。"
-      : "Equation addition connector. In A+C+E, any source action advances all three learned counters once without extra source actions. Each numeric + counts at its entire group's sum: both pluses in 3+5+2 imitate every 10 actions; original numbers act independently. Imitation level is the sum times (highest equals level in the equation + this plus's level - 1). Numbers cannot be added to ordinary towers. Equals shares memories, not sums. Operands must cost at most 999; adjacent operators break connections.",
+    "0": zh ? "可单独携带的数字塔。数字为 0 时按种类分别蓄存已记录源塔的行动，不自动模仿；点击后各模仿一次，分别以该种类的蓄存次数乘等式倍率作为有效等级，并清空计数。升级使数字加 1，之后按普通数字规则行动。与数字 1 共用等式连接、记忆及费用限制。选中自身卡牌时点击优先升级。"
+      : "Separately selectable number tower. At zero, stores actions per learned kind without automatic imitation. Click to imitate each stored kind once at its own stored count times the equation multiplier, then clear counts. Upgrades increase the number and enable normal periodic imitation. Uses the same equation, memory and cost rules as 1. Selecting its own card gives upgrading priority.",
+    "-": zh ? "数字减法连接器。连接两侧数字并以绝对差作为自己的数字，原数字正常生效。3-3 得到 0，分别蓄存每种源塔的行动，点击释放。有效等级倍率为体系最高等号等级 + 自身等级 - 1。横纵分别计算相邻数字，独立保存记忆、计数和倍率，交叉本身不合并体系。不连接普通塔或相邻运算符。"
+      : "Numeric subtraction connector. Acts as the absolute difference of its opposite numbers; operands keep working. 3-3 stores actions per kind until clicked. Multiplier = highest equals level + own level - 1. Horizontal and vertical pairs have independent memories, counters and multipliers; crossing alone does not merge systems. Excludes ordinary towers and adjacent operators.",
+    "+": zh ? "等式加法连接器。A+C+E 中，任一源塔行动都为三种记忆各计数一次，不让实体源塔额外行动。连接数字时只取相邻两侧之和：3+5+2 的两个 + 分别为 8 和 7，原数字独立生效。结果为 0 时蓄存行动并点击释放。有效等级倍率为体系最高等号等级 + 自身等级 - 1。横纵分别生效，独立保存记忆、计数和倍率，交叉本身不合并体系。数字不能与普通塔相加；操作数须基础费用不超过 999，相邻运算符中断连接。"
+      : "In A+C+E, each source action advances all three learned counters without extra source actions. Numeric + uses its adjacent pair: 3+5+2 produces 8 and 7; operands remain independent. Zero stores actions until clicked. Multiplier = highest equals level + own level - 1. Horizontal and vertical channels have independent memories, counters and multipliers; crossing alone does not merge systems. Numbers cannot add to ordinary towers. Operands cost at most 999; adjacent operators break chains.",
     "&": zh ? "格子拓扑交换。部署后选择另一个格子，可为空格或有塔的格子。交换自身所在格与选中格在塔之间计算中的逻辑位置，影响治疗、光环、连接、镜像、复制和生成塔。实际位置、敌人阻挡、对敌索敌及弹幕不变。多个交换按建立顺序叠加；本塔消失后移除其交换。范围边框同步显示远端格和缺口。右键可取消选格，之后点击本塔继续。"
       : "Cell topology swap. After deployment select a different empty or occupied cell. Exchanges its cell and the selected cell for tower-to-tower healing, auras, networks, mirrors, copying and summons. Physical positions, enemy blocking, offensive targeting and projectiles are unchanged. Swaps compose in activation order and are removed when their & disappears. Range outlines show remote cells and holes. Right-click cancels selection; click the unconfigured & to resume.",
     "=": zh ? "记忆连接器。分别连接左右、上下相邻塔。数字塔记录整个等式网络内基础费用不超过 999 的源塔，例如 A=E=1 会记录 A 和 E。体系内最高等号等级决定模仿基础倍率：2 级等号让数字 9 按 18 有效等级行动，仍每 9 次行动模仿一次。没有有效等号时倍率为 1。可与加号混用，高价塔和相邻运算符中断连接。共享记忆，各自计数；断开后保留记忆但按当前体系重新计算倍率。"
@@ -800,11 +804,11 @@ function towerDescription(id: CardId) {
 }
 
 function towerUpgradeText(id: CardId) {
-  if (id === "1") return isZh() ? "数字 +1；每 n 次源塔行动模仿一次，有效等级为 n × 体系最高等号等级，不受临时等级影响。"
+  if (id === "0" || id === "1") return isZh() ? "数字 +1；0 升级后变为 1。非零时每 n 次源塔行动模仿一次，有效等级为 n × 体系最高等号等级，不受临时等级影响。"
     : "Number +1. Imitates every n actions at level n times the highest equals level, ignoring temporary levels.";
   if (id === "=") return isZh() ? "等级 +1；体系内最高等号等级作为数字模仿的基础倍率，不叠加多个等号。"
     : "Level +1. The highest equals level sets the equation's base imitation multiplier; equals levels do not stack.";
-  if (id === "+") return isZh() ? "等级 +1；连接数字时，自身模仿倍率为体系最高等号等级 + 自身等级 - 1，不改变行动计数间隔。"
+  if (id === "+" || id === "-") return isZh() ? "等级 +1；连接数字时，自身模仿倍率为体系最高等号等级 + 自身等级 - 1，不改变行动计数间隔。"
     : "Level +1. Numeric imitation multiplier = highest equals level + own level - 1; action-count interval is unchanged.";
   if (id === "@") {
     return isZh() ? "复制对象的升级规则按 @ 自身有效等级计算，不继承对方等级；升级仍使用 @ 卡牌和费用。" : "Uses the copied tower's upgrade rules at @'s own effective level, not the target's level. Upgrades still use the @ card and price.";

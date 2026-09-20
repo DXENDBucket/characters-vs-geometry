@@ -43,6 +43,7 @@ export function restoreBattleSnapshot(scene: Phaser.Scene, graph: SaveGraph): Ba
   const towers: Tower[] = [];
   const enemies: Enemy[] = [];
   const bosses: CubeBoss[] = [];
+  const shots: Array<Projectile | EnemyProjectile | MortarProjectile> = [];
   const bodies: Phaser.GameObjects.GameObject[] = [];
   try {
     const state = decodeSaveGraph<BattleSaveState>(graph, (node: GraphNode) => {
@@ -71,19 +72,19 @@ export function restoreBattleSnapshot(scene: Phaser.Scene, graph: SaveGraph): Ba
         const projectile = createMortarProjectile(scene, { owner: data.owner, fromX: data.fromX, fromY: data.fromY,
           targetX: data.targetX, targetY: data.targetY, damage: data.damage, damageType: data.damageType,
           rangeX: data.rangeX, rangeY: data.rangeY, marker: data.marker, markerText: data.markerText, markerTextColor: data.markerTextColor });
-        bodies.push(projectile.body);
+        bodies.push(projectile.body); shots.push(projectile);
         return projectile;
       }
       const data = node.data as unknown as Projectile;
       if (node.kind === "enemyProjectile") {
         const projectile = restoreEnemyProjectile(scene, node.data as unknown as Omit<EnemyProjectile, "body">);
-        bodies.push(projectile.body);
+        bodies.push(projectile.body); shots.push(projectile);
         return projectile;
       }
       const projectile = createTowerProjectile(scene, { type: data.type,
         x: data.x, y: data.y, lane: data.lane, speed: 0, damage: data.damage, damageType: data.damageType,
         splashRadius: 0, angleDegrees: Math.atan2(data.vy ?? 0, data.vx) * 180 / Math.PI, maxX: Infinity });
-      bodies.push(projectile.body);
+      bodies.push(projectile.body); shots.push(projectile);
       return projectile;
     });
     if (!Array.isArray(state.towers) || !Array.isArray(state.enemies) || !Number.isFinite(state.battleTime) || state.baseIntegrity <= 0) {
@@ -117,7 +118,10 @@ export function restoreBattleSnapshot(scene: Phaser.Scene, graph: SaveGraph): Ba
       if (!enemy.inPlay && !storedEnemies.has(enemy)) enemy.body.destroy();
     }
     for (const enemy of state.enemies) syncPassengerPositions(enemy);
-    for (const projectile of [...state.projectiles, ...state.enemyProjectiles, ...state.mortarProjectiles]) {
+    const activeShots = new Set<Projectile | EnemyProjectile | MortarProjectile>([...state.projectiles, ...state.enemyProjectiles, ...state.mortarProjectiles]);
+    // Stored reflection events retain projectile data, not a projectile on the field.
+    for (const projectile of shots) if (!activeShots.has(projectile)) projectile.body.destroy();
+    for (const projectile of activeShots) {
       projectile.body.setPosition(projectile.x, projectile.y);
     }
     for (const projectile of state.mortarProjectiles) {

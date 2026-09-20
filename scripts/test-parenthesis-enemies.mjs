@@ -9,6 +9,23 @@ const { enemyAttackSpeed } = load("src/game/enemyBehaviors.ts");
 const { segmentEnemyHitTime } = load("src/game/projectileMotion.ts");
 const enemy = kind => ({ kind, inPlay: true, hp: 5000, baseStats: { maxHp: 5000 }, statusEffects: [] });
 
+test("parentheses shrink individually while the distance between their centers stays fixed", () => {
+  const { drawParentheses } = load("src/render/parenthesisEnemy.ts");
+  const draw = scale => {
+    const points = [], graphics = { clear() { return this; }, lineStyle() { return this; }, beginPath() {}, strokePath() {},
+      moveTo(x, y) { points.push([x, y]); }, lineTo(x, y) { points.push([x, y]); } };
+    drawParentheses(graphics, 120, scale); return points;
+  };
+  for (const scale of [1, .7, .4]) {
+    const points = draw(scale);
+    for (const [index, side] of [[0, -1], [21, 1]]) {
+      const xs = points.slice(index, index + 21).map(p => p[0]);
+      assert.equal((Math.min(...xs) + Math.max(...xs)) / 2, side * 114);
+      assert.equal(points[index][1], -28 * scale);
+    }
+  }
+});
+
 test("AE-5 has 30 waves and the exact requested chapter-four pool", () => {
   const { getLevelConfig } = load("src/data/levels.ts");
   const level = getLevelConfig("AE-5"), base = getLevelConfig("AE-1");

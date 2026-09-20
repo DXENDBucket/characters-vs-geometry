@@ -19,6 +19,136 @@ function fixture() {
   return { towers, events, getDefinition, controller, place };
 }
 
+test("0 and minus are selectable cards with matching panels and unlocks", () => {
+  const f = fixture(), unlock = load("src/data/cardUnlocks.ts").cardUnlockRequirement;
+  assert.equal(unlock("0"), "AE-3"); assert.equal(unlock("-"), "AE-4");
+  for (const [a, b] of [["0", "1"], ["-", "+"]]) {
+    for (const field of ["category", "cost", "cooldown", "maxHp", "armor", "magicResistance", "attackPower"])
+      assert.equal(f.getDefinition(a)[field], f.getDefinition(b)[field]);
+  }
+});
+
+test("zero stores each kind independently, releases once at its own count times the equation multiplier", () => {
+  const f = fixture(), a = f.place("A", 0); f.place("=", 1, 3, 2);
+  const zero = f.place("0", 2); const eq = f.place("=", 3); const e = f.place("E", 4);
+  f.controller.sync();
+  for (let i = 0; i < 6; i++) f.controller.record(a, { kind: "attack" });
+  for (let i = 0; i < 3; i++) f.controller.record(e, { kind: "attack" });
+  assert.equal(f.events.length, 0); assert.equal(numberTowerValue(zero), 0);
+  eq.inPlay = false; f.controller.sync();
+  assert.equal(f.controller.release(zero), true);
+  assert.deepEqual(f.events.map(event => event.behavior).sort((a, b) => a.type.localeCompare(b.type)), [{ type: "A", level: 12 }, { type: "E", level: 6 }]);
+  assert.ok(zero.numberMemory.every(entry => entry.count === 0 && !entry.storedEvent));
+  f.controller.release(zero); assert.equal(f.events.length, 2);
+  f.controller.record(e, { kind: "attack" }); f.controller.release(zero);
+  assert.deepEqual(f.events.at(-1).behavior, { type: "E", level: 2 });
+  zero.level++; f.controller.sync(); assert.equal(numberTowerValue(zero), 1);
+  assert.equal(f.controller.release(zero), false);
+  f.controller.record(a, { kind: "attack" }); assert.deepEqual(f.events.at(-1).behavior, { type: "A", level: 2 });
+});
+
+test("zero retains skill payload and explosion memory across source removal, never counts imitations", () => {
+  const f = fixture(), source = f.place("i", 0); f.place("=", 1); const zero = f.place("0", 2);
+  f.controller.sync(); f.controller.record(source, { kind: "shock" });
+  source.inPlay = false; f.controller.sync();
+  f.controller.release(zero); assert.equal(f.events[0].event.kind, "shock"); assert.equal(zero.inPlay, true);
+  withTowerActionContext(zero, { type: "i", level: 3, stats: {} }, () => f.controller.record(zero, { kind: "shock" }));
+  assert.equal(zero.numberMemory[0].count, 0);
+  const pusher = f.place("#", 0); f.controller.sync();
+  const event = { kind: "skill", laneOffset: 1, columnOffset: 0 };
+  f.controller.record(pusher, event); f.controller.record(pusher, event); f.controller.release(zero);
+  assert.deepEqual(f.events.at(-1).event, event); assert.equal(f.events.at(-1).behavior.level, 2);
+});
+
+test("minus uses absolute difference, keeps operands working and shares zero behavior with plus", () => {
+  const f = fixture(), a = f.place("A", 0); f.place("=", 1, 3, 2);
+  const three = f.place("1", 2, 3, 3), minus = f.place("-", 3, 3, 3), five = f.place("1", 4, 3, 5);
+  f.controller.sync(); assert.equal(numberTowerValue(minus), 2); assert.equal(numberTowerActionLevel(minus), 8);
+  f.controller.record(a, { kind: "attack" }); f.controller.record(a, { kind: "attack" });
+  assert.deepEqual(f.events.map(event => event.behavior.level), [8]);
+  three.level = 5; f.controller.sync(); assert.equal(numberTowerValue(minus), 0);
+  for (let i = 0; i < 3; i++) f.controller.record(a, { kind: "attack" });
+  assert.ok(f.events.some(event => event.tower === three) && f.events.some(event => event.tower === five));
+  f.controller.release(minus); assert.equal(f.events.at(-1).behavior.level, 12);
+  const z = fixture(), source = z.place("A", 0); z.place("=", 1);
+  z.place("0", 2); const plus = z.place("+", 3); z.place("0", 4); z.controller.sync();
+  z.controller.record(source, { kind: "attack" }); assert.equal(z.events.length, 0);
+  assert.equal(numberTowerValue(plus), 0); z.controller.release(plus); assert.equal(z.events[0].behavior.level, 1);
+});
+
+test("minus rejects ordinary operands and neighboring operators; crossing sums are independent", () => {
+  for (const expression of [["0", "-", "A"], ["0", "=", "-", "A"], ["0", "-", "+", "A"]]) {
+    const f = fixture(); expression.forEach((type, column) => f.place(type, column)); f.controller.sync();
+    assert.equal(f.towers[0].numberMemory, undefined);
+  }
+  const f = fixture(), p = f.place("+", 2, 2);
+  f.place("1", 1, 2, 3); f.place("1", 3, 2, 5);
+  f.place("1", 2, 1, 8); f.place("1", 2, 3, 9); f.controller.sync();
+  assert.equal(p.numberValue, 8);
+  assert.equal(p.numberChannels.vertical.numberValue, 17);
+});
+
+test("crossing minus has separate memories, counters, multipliers and releases only zero-valued axes", () => {
+  const f = fixture(), a = f.place("A", 1); f.place("=", 2, 3, 2); f.place("1", 3, 3, 3);
+  const minus = f.place("-", 4, 3, 2); f.place("1", 5, 3, 5);
+  const e = f.place("E", 4, 0); f.place("=", 4, 1, 3); f.place("1", 4, 2, 4); f.place("1", 4, 4, 4);
+  f.controller.sync(); f.controller.sync();
+  const h = minus.numberChannels.horizontal, v = minus.numberChannels.vertical;
+  assert.deepEqual([h.numberValue, h.equationLevel, v.numberValue, v.equationLevel], [2, 2, 0, 3]);
+  assert.deepEqual(h.numberMemory.map(entry => entry.type), ["A"]);
+  assert.deepEqual(v.numberMemory.map(entry => entry.type), ["E"]);
+  for (let i = 0; i < 3; i++) f.controller.record(a, { kind: "attack" });
+  for (let i = 0; i < 3; i++) f.controller.record(e, { kind: "attack" });
+  assert.deepEqual(f.events.filter(event => event.tower === minus).map(event => event.behavior), [{ type: "A", level: 6 }]);
+  assert.equal(h.numberMemory[0].count, 1); assert.equal(v.numberMemory[0].count, 3);
+  f.controller.release(minus);
+  assert.deepEqual(f.events.at(-1).behavior, { type: "E", level: 12 });
+  assert.equal(h.numberMemory[0].count, 1); assert.equal(v.numberMemory[0].count, 0);
+  f.controller.record(a, { kind: "attack" }); assert.deepEqual(f.events.at(-1).behavior, { type: "A", level: 6 });
+  f.controller.record(e, { kind: "attack" });
+  f.towers.find(t => t.column === 4 && t.lane === 4).inPlay = false; f.controller.sync();
+  assert.equal(minus.numberChannels.vertical.numberValue, undefined);
+  assert.equal(f.controller.release(minus), false);
+  f.place("1", 4, 4, 4); f.controller.sync();
+  assert.equal(minus.numberChannels.vertical.numberMemory[0].count, 1, "reconnection lost stored vertical count");
+});
+
+test("crossing ordinary plus and equals never leak source memories or shared increments", () => {
+  for (const operator of ["+", "="]) {
+    const f = fixture(), n = f.place("0", 1); f.place("=", 2);
+    const a = f.place("A", 3); f.place(operator, 4); f.place("E", 5);
+    const v = f.place("0", 4, 0); f.place("=", 4, 1); const c = f.place("C", 4, 2); f.place("M", 4, 4);
+    f.controller.sync();
+    assert.deepEqual(new Set(n.numberMemory.map(entry => entry.type)), new Set(["A", "E"]));
+    assert.deepEqual(new Set(v.numberMemory.map(entry => entry.type)), new Set(["C", "M"]));
+    f.controller.record(a, { kind: "attack" });
+    assert.ok(v.numberMemory.every(entry => entry.count === 0));
+    f.controller.record(c, { kind: "attack" });
+    assert.equal(n.numberMemory.find(entry => entry.type === "A").count, 1);
+  }
+});
+
+test("horizontal and vertical equations merge through a shared operand, not a crossing connector", () => {
+  const f = fixture(), n = f.place("0", 4, 3), a = f.place("A", 2, 3), e = f.place("E", 4, 1);
+  f.place("=", 3, 3, 2); f.place("=", 4, 2, 5);
+  f.controller.sync();
+  assert.equal(n.equationLevel, 5);
+  f.controller.record(a, { kind: "attack" }); f.controller.record(e, { kind: "attack" }); f.controller.release(n);
+  assert.deepEqual(new Set(f.events.map(event => event.behavior.type)), new Set(["A", "E"]));
+  assert.ok(f.events.every(event => event.behavior.level === 5));
+});
+
+test("legacy operator counts migrate once without copying them to a newly added axis", () => {
+  const f = fixture(), a = f.place("A", 0); f.place("=", 1); f.place("1", 2, 3, 3);
+  const p = f.place("+", 3); f.place("1", 4, 3, 5);
+  p.numberValue = 8; p.numberMemory = [{ type: "A", sourceIds: [a.id], count: 7 }];
+  f.controller.sync(); assert.equal(p.numberChannels.horizontal.numberMemory[0].count, 7);
+  f.place("1", 3, 2, 3); f.place("1", 3, 4, 5); f.controller.sync();
+  assert.equal(p.numberChannels.vertical.numberMemory, undefined);
+  f.controller.record(a, { kind: "attack" });
+  assert.equal(f.events.filter(event => event.tower === p).length, 1);
+});
+
 test("= and 1 use standard functional panels and unlock together after AE-3", () => {
   const f = fixture();
   for (const [id, cost, cooldown] of [["=", 1000, 30000], ["1", 100, 2000]]) {
@@ -247,7 +377,7 @@ test("3+5 preserves both numbers and lets the plus imitate as 8 through the full
   f.place("=", 1); const three = f.place("1", 2, 3, 3), plus = f.place("+", 3), five = f.place("1", 4, 3, 5);
   f.place("=", 5); const e = f.place("E", 6);
   f.controller.sync(); f.controller.sync();
-  assert.deepEqual([three, plus, five].map(numberTowerValue), [3, 8, 5]);
+  assert.deepEqual([three, plus, five].map(tower => numberTowerValue(tower)), [3, 8, 5]);
   assert.equal(plus.type, "+"); assert.equal(plus.level, 1); assert.ok(isNumberTower(plus));
   for (const tower of [three, plus, five]) {
     assert.equal(tower.numberMemory.length, 2);
@@ -259,17 +389,17 @@ test("3+5 preserves both numbers and lets the plus imitate as 8 through the full
   f.controller.record(plus, { kind: "attack" }); assert.equal(f.events.length, 4);
 });
 
-test("all plus operators in 3+5+2 use 10, while equality neighbors are excluded from the sum", () => {
+test("3+5+2 computes local pairs 8 and 7, excluding equality neighbors", () => {
   const f = fixture(), a = f.place("A", 0);
   f.place("=", 1); const three = f.place("1", 2, 3, 3), p = f.place("+", 3), five = f.place("1", 4, 3, 5);
   const q = f.place("+", 5), two = f.place("1", 6, 3, 2);
   f.place("=", 7); const other = f.place("1", 8, 3, 20);
   f.controller.sync();
-  assert.deepEqual([three, p, five, q, two, other].map(numberTowerValue), [3, 10, 5, 10, 2, 20]);
+  assert.deepEqual([three, p, five, q, two, other].map(tower => numberTowerValue(tower)), [3, 8, 5, 7, 2, 20]);
   for (let i = 0; i < 10; i++) f.controller.record(a, { kind: "attack" });
-  for (const plus of [p, q]) assert.deepEqual(f.events.filter(event => event.tower === plus).map(event => event.behavior), [{ type: "A", level: 10 }]);
+  for (const [plus, level] of [[p, 8], [q, 7]]) assert.deepEqual(f.events.filter(event => event.tower === plus).map(event => event.behavior), [{ type: "A", level }]);
   three.level = 4; p.level = 50; five.levelBonus = 100; f.controller.sync();
-  assert.deepEqual([three, p, five, q, two, other].map(numberTowerValue), [4, 11, 5, 11, 2, 20]);
+  assert.deepEqual([three, p, five, q, two, other].map(tower => numberTowerValue(tower)), [4, 9, 5, 7, 2, 20]);
   q.inPlay = false; f.controller.sync();
   assert.equal(p.numberValue, 9); assert.equal(q.numberValue, undefined);
   assert.deepEqual(two.numberMemory[0].sourceIds, [a.id]);
@@ -322,31 +452,31 @@ test("numeric plus uses equals level plus its own level minus one without changi
   const q = f.place("+", 5, 3, 4), two = f.place("1", 6, 3, 2);
   p.levelBonus = 10; q.mirrorLevelBonus = 20;
   f.controller.sync();
-  assert.deepEqual([three, p, five, q, two].map(numberTowerActionLevel), [6, 40, 10, 50, 4]);
-  assert.deepEqual([three, p, five, q, two].map(numberTowerValue), [3, 10, 5, 10, 2]);
+  assert.deepEqual([three, p, five, q, two].map(tower => numberTowerActionLevel(tower)), [6, 32, 10, 35, 4]);
+  assert.deepEqual([three, p, five, q, two].map(tower => numberTowerValue(tower)), [3, 8, 5, 7, 2]);
   for (let i = 0; i < 10; i++) f.controller.record(a, { kind: "attack" });
-  assert.deepEqual(f.events.filter(event => event.tower === p).map(event => event.behavior.level), [40]);
-  assert.deepEqual(f.events.filter(event => event.tower === q).map(event => event.behavior.level), [50]);
+  assert.deepEqual(f.events.filter(event => event.tower === p).map(event => event.behavior.level), [32]);
+  assert.deepEqual(f.events.filter(event => event.tower === q).map(event => event.behavior.level), [35]);
   eq.inPlay = false; f.controller.sync();
-  assert.deepEqual([three, p, five, q, two].map(numberTowerActionLevel), [3, 30, 5, 40, 2]);
+  assert.deepEqual([three, p, five, q, two].map(tower => numberTowerActionLevel(tower)), [3, 24, 5, 28, 2]);
   p.level++; f.controller.sync();
-  assert.equal(numberTowerActionLevel(p), 40); assert.equal(numberTowerActionLevel(q), 40);
+  assert.equal(numberTowerActionLevel(p), 32); assert.equal(numberTowerActionLevel(q), 28);
 });
 
-test("numeric plus cycles sum distinct operands once and stop imitating when broken", () => {
+test("numeric plus cycles compute each adjacent pair and stop imitating when broken", () => {
   const f = fixture(), a = f.place("A", 0, 1); f.place("=", 1, 1);
   const numbers = [[2, 1, 3], [4, 1, 5], [2, 3, 2], [4, 3, 1]].map(([c, l, n]) => f.place("1", c, l, n));
   const pluses = [[3, 1], [2, 2], [4, 2], [3, 3]].map(([c, l]) => f.place("+", c, l));
   f.controller.sync(); f.controller.sync();
-  assert.ok(pluses.every(p => p.numberValue === 11));
+  assert.deepEqual(pluses.map(tower => numberTowerValue(tower)), [8, 5, 6, 3]);
   for (let i = 0; i < 11; i++) f.controller.record(a, { kind: "attack" });
-  assert.equal(f.events.filter(event => pluses.includes(event.tower)).length, 4);
+  assert.equal(f.events.filter(event => pluses.includes(event.tower)).length, 7);
   numbers[1].inPlay = false; numbers[2].inPlay = false; f.controller.sync(); f.events.length = 0;
   assert.ok(pluses.every(p => !isNumberTower(p) && p.numberValue === undefined));
   for (let i = 0; i < 20; i++) f.controller.record(a, { kind: "attack" });
   assert.ok(f.events.every(event => !pluses.includes(event.tower)));
   numbers[1].inPlay = true; f.controller.sync();
-  assert.equal(pluses[0].numberValue, 9); assert.equal(pluses[2].numberValue, 9);
+  assert.equal(pluses[0].numberValue, 8); assert.equal(pluses[2].numberValue, 6);
 });
 
 test("topology swaps compose in activation order and removal recomputes the remaining permutation", () => {

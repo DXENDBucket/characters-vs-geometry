@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { changeEnemyHealth } from "./enemyHealth";
+import { relocateEnemyToLane } from "./oscillatingMovement";
 import { enemiesWithPassengers, enemyIsActive, enemyMaximumHp } from "./enemyContainers";
 import { ANGEL_WINGS_SKILL_MAX, BOARD_X, CELL_HEIGHT, CELL_WIDTH, LANES } from "../config";
 import { makeHealParticles, makeShiftEffect } from "../render/combatEffects";
@@ -589,8 +590,7 @@ function updateHeartLeads(scene: Phaser.Scene, enemies: Enemy[], activeHeartEnem
       spendSkillSp(plan.skill, HEART_LEAD_SKILL_COST);
       for (const target of plan.targets) {
         const previousY = target.y;
-        target.lane = plan.caster.lane;
-        target.y = plan.caster.y;
+        relocateEnemyToLane(target, plan.caster.lane, plan.caster.y);
         syncEnemyBodyPosition(target);
         makeShiftEffect(scene, target.x, previousY, target.x, target.y);
       }
@@ -685,8 +685,7 @@ function tryUseHeartLead(scene: Phaser.Scene, enemies: Enemy[], caster: Enemy, s
     spendSkillSp(skill, HEART_LEAD_SKILL_COST);
     for (const target of targets) {
       const previousY = target.y;
-      target.lane = caster.lane;
-      target.y = caster.y;
+      relocateEnemyToLane(target, caster.lane, caster.y);
       syncEnemyBodyPosition(target);
       makeShiftEffect(scene, target.x, previousY, target.x, target.y);
     }
@@ -736,8 +735,8 @@ function heartLeadTargets(
       isOrdinaryLeadTarget(enemy) &&
       position.x >= left &&
       position.x < right &&
-      Math.abs(position.lane - casterPosition.lane) <= HEART_LEAD_LANE_RADIUS &&
-      position.lane !== casterPosition.lane
+      Math.abs(position.y - casterPosition.y) <= (HEART_LEAD_LANE_RADIUS + 0.5) * CELL_HEIGHT &&
+      Math.abs(position.y - casterPosition.y) > 0.001
     ) {
       targets.push(enemy);
     }

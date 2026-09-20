@@ -121,7 +121,7 @@ export function enemyVisualScale(enemy: Enemy) {
 export function syncEnemyVisualScale(enemy: Enemy) {
   if (enemyFamily(enemy.kind) === "parentheses") {
     setScaleIfChanged(enemy.shape, 1, 1);
-    syncParenthesisVisual(enemy);
+    syncParenthesisVisual(enemy, enemyVisualScale(enemy));
     return;
   }
   if (enemyIsSolarBomb(enemy)) {

@@ -25,6 +25,16 @@ const tower = (column, extras = {}) => ({
 const occupied = (...towers) => new Map(towers.map(t => [`${t.lane}:${t.column}`, t]));
 const enemy = (x, extras = {}) => ({ kind: "triangle10000", lane: 0, x, ...extras });
 
+test("heart lane relocation resets a tilde's oscillation center and phase rather than shifting an old path", () => {
+  const { relocateEnemyToLane, oscillationTarget, OSCILLATION_AMPLITUDE } = load("src/game/oscillatingMovement.ts");
+  const e = enemy(400, { y: 500, oscillationCenterY: 475, oscillationLastY: 500, oscillationPhase: 2 });
+  const y = BOARD_Y + CELL_HEIGHT * 3.5;
+  relocateEnemyToLane(e, 3, y);
+  assert.deepEqual([e.y, e.lane, e.oscillationCenterY, e.oscillationLastY, e.oscillationPhase], [y, 3, y, y, 0]);
+  assert.equal(oscillationTarget(e, 0).y, y);
+  assert.equal(oscillationTarget(e, 1).y, y + OSCILLATION_AMPLITUDE);
+});
+
 test("fast enemies stop at the first crossed tower in either direction", () => {
   const left = tower(2), right = tower(8), cells = occupied(left, right);
   const forward = sweep(cells, enemy(1e9), -1e9);
