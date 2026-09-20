@@ -36,10 +36,10 @@ function fixture(types = ["A", "0", "1"]) {
 const hostile = (tower, damage = 900, hitCount = 1) => ({ x: tower.x, y: tower.y, damage, hitCount,
   body: { setScale(value) { this.scale = value; } } });
 
-test("all five pipeline components cost 100 and have a four-second card cooldown", () => {
+test("pipeline components cost 100 with four-second cooldown except the 500-cost ten-second interceptor", () => {
   for (const id of ["=", "0", "1", "+", "-"]) {
     const card = cardDefinitions.find(card => card.id === id);
-    assert.deepEqual([card.cost, card.cooldown], [100, 4000], id);
+    assert.deepEqual([card.cost, card.cooldown], id === "-" ? [500, 10000] : [100, 4000], id);
   }
 });
 
