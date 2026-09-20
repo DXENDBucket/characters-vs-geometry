@@ -263,3 +263,89 @@ test("logical topology determines neighbors while disconnected inventory remains
   f.state.edges.length = 0; f.controller.sync(); f.tick(10000);
   assert.equal(f.bank.projectileBank.shots.length, 1);
 });
+
+test("empty and unrelated occupied cells are transparent without changing projectile ownership", () => {
+  const f = fixture(["A"]), blocker = f.place("B", 2), expensive = f.place("U", 3), bank = f.place("0", 5);
+  for (let col = 0; col < 5; col++) f.edge(col, 3, "horizontal", ">");
+  f.controller.sync();
+  assert.ok(f.state.edges.every(edge => f.controller.isEdgeActive(edge)));
+  assert.equal(f.controller.capture(f.shot({ hitCount: 3 })), true);
+  const stored = bank.projectileBank.shots[0];
+  assert.equal(stored.sourceTower, f.source); assert.equal(stored.hitCount, 3);
+  assert.equal(stored.remainingRange, 300);
+  assert.equal(blocker.projectileNode, undefined); assert.equal(expensive.projectileNode, undefined);
+  assert.equal(f.controller.capture(f.shot({ sourceTower: expensive })), false);
+  assert.equal(bank.projectileBank.shots.length, 1);
+});
+
+test("five distinct receivers share equally regardless of branch depth, route count or edge order", () => {
+  for (const reverseEdges of [false, true]) {
+    const f = fixture(["A"]);
+    const banks = [f.place("0", 1, 2), ...[3, 5, 7, 9].map(col => f.place("0", col, 4))];
+    for (let col = 0; col < 9; col++) f.edge(col);
+    f.edge(1, 2, "vertical");
+    for (const col of [3, 5, 7, 9]) f.edge(col, 3, "vertical");
+    // An alternate route and a loop must not give the far receivers extra shares.
+    for (let col = 2; col < 8; col++) f.edge(col, 2);
+    f.edge(2, 2, "vertical"); f.edge(8, 2, "vertical");
+    f.state.edges.forEach(edge => { edge.level = 10; });
+    if (reverseEdges) f.state.edges.reverse();
+    f.controller.sync();
+    for (let i = 0; i < 50; i++) assert.equal(f.controller.capture(f.shot()), true);
+    assert.deepEqual(banks.map(bank => bank.projectileBank.shots.length), [10, 10, 10, 10, 10]);
+    assert.equal(new Set(banks.flatMap(bank => bank.projectileBank.shots)).size, 50);
+  }
+});
+
+test("transparent routes charge every edge atomically and honor closed or reversed bottlenecks", () => {
+  const f = fixture(["A"]), bank = f.place("0", 4);
+  for (let col = 0; col < 4; col++) f.edge(col, 3, "horizontal", ">");
+  const last = f.state.edges.at(-1); last.flowCredit = 0; last.flowUpdatedAt = 0;
+  f.controller.sync();
+  assert.equal(f.controller.capture(f.shot()), false);
+  assert.ok(f.state.edges.slice(0, -1).every(edge => edge.flowCredit === 25));
+  f.state.battleTime = 40;
+  assert.equal(f.controller.capture(f.shot()), true);
+  assert.ok(f.state.edges.slice(0, -1).every(edge => edge.flowCredit === 24));
+  assert.equal(last.flowCredit, 0);
+  for (const mode of ["!=", "<"]) {
+    last.mode = mode; f.controller.sync();
+    assert.equal(f.controller.capture(f.shot()), false);
+  }
+  assert.equal(bank.projectileBank.shots.length, 1);
+});
+
+test("saturated paths reroute through alternate transparent links within the same tick", () => {
+  const f = fixture(["A"]), bank = f.place("0", 2);
+  f.edge(0); const narrow = f.edge(1); narrow.flowCredit = 1; narrow.flowUpdatedAt = 0;
+  f.edge(0, 2, "vertical"); f.edge(0, 2); f.edge(1, 2); f.edge(2, 2, "vertical");
+  f.controller.sync();
+  assert.equal(f.controller.capture(f.shot()), true);
+  assert.equal(narrow.flowCredit, 0);
+  assert.equal(f.controller.capture(f.shot()), true);
+  assert.equal(bank.projectileBank.shots.length, 2);
+  assert.ok(f.state.edges.slice(2).every(edge => edge.flowCredit === 24));
+});
+
+test("real nodes cannot be bypassed when full, but their removal opens transparent transit", () => {
+  for (const type of ["0", "1", "+", "-"]) {
+    const f = fixture(["A"]), middle = f.place(type, 2), end = f.place("0", 4);
+    for (let col = 0; col < 4; col++) f.edge(col, 3, "horizontal", ">").level = 100;
+    f.controller.sync();
+    const capacity = type === "1" ? 1 : type === "+" ? 25 : 128;
+    for (let i = 0; i < capacity; i++) assert.equal(f.controller.capture(f.shot()), true);
+    assert.equal(f.controller.capture(f.shot()), false);
+    assert.equal(end.projectileBank.shots.length, 0);
+    middle.inPlay = false; f.controller.sync();
+    assert.equal(f.controller.capture(f.shot()), true);
+    assert.equal(end.projectileBank.shots.length, 1);
+  }
+});
+
+test("transparent loops without a receiver cannot swallow or duplicate a source shot", () => {
+  const f = fixture(["A"]);
+  f.edge(0); f.edge(1, 2, "vertical"); f.edge(0, 2); f.edge(0, 2, "vertical");
+  f.controller.sync();
+  for (let i = 0; i < 100; i++) assert.equal(f.controller.capture(f.shot()), false);
+  assert.ok(f.state.edges.every(edge => !f.controller.isEdgeActive(edge) && edge.flowCredit === 25));
+});

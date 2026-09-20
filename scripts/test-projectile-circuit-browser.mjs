@@ -126,6 +126,33 @@ try {
     const hash = run(1000 / 60); check(run(1000 / 144) === hash, "Pipeline is frame-rate dependent");
 
     start();
+    const routedSource = place("A", 1), unrelated = place("B", 3);
+    const receivers = [[2, 1], [4, 2], [6, 2], [8, 4], [10, 5]].map(([col, lane]) => place("0", col, lane));
+    for (let col = 1; col < 10; col++) link(col).mode = ">";
+    for (const [col, lane, mode] of [[2, 1, "<"], [2, 2, "<"], [4, 2, "<"], [6, 2, "<"], [8, 3, ">"], [10, 3, ">"], [10, 4, ">"]])
+      link(col, lane, "vertical").mode = mode;
+    scene.numbers.sync();
+    for (let i = 0; i < 25; i++) check(capture(routedSource, 2), "Transparent route rejected a shot");
+    check(receivers.every(t => t.projectileBank.shots.length === 5), "Uneven distribution across five receivers");
+    check(!unrelated.projectileNode && receivers.every(t => t.projectileBank.shots.every(s => s.sourceTower === routedSource && s.hitCount === 2)),
+      "Transparent tower changed ownership or multi-hit data");
+    check(scene.edgeTowers.every(e => scene.numbers.isEdgeActive(e)), "Transparent links did not show connectivity");
+    const routedSnapshot = JSON.parse(JSON.stringify(captureBattleSnapshot(scene.battleState())));
+    validateSurvivalSave({ ...save, wave: scene.wave, graph: routedSnapshot });
+    const runRouted = delta => {
+      start(); scene.applyBattleSave(restoreBattleSnapshot(scene, routedSnapshot));
+      scene.battleTime += 200;
+      const source = scene.towers.find(t => t.type === "A");
+      for (let i = 0; i < 5; i++) check(capture(source, 2), "Restored route failed to refill");
+      check(scene.towers.filter(t => t.type === "0").every(t => t.projectileBank.shots.length === 6), "Restored routes lost fair distribution");
+      scene.battlePaused = false;
+      while (scene.simulation.tick < 120) scene.update(0, delta);
+      return scene.battleChecksum();
+    };
+    const routeHash = runRouted(1000 / 60);
+    check(runRouted(1000 / 144) === routeHash, "Transparent routing is frame-rate dependent after restore");
+
+    start();
     const visualSource = place("E", 1), visualBank = place("0", 2); place("+", 3); place("1", 4, 3, 3);
     link(1).mode = ">"; link(2).mode = "="; const autoEdge = link(3); autoEdge.mode = ">"; autoEdge.level = 3; autoEdge.autoUpgrade = true;
     place("-", 2, 4); link(2, 3, "vertical").mode = "<";
@@ -133,7 +160,7 @@ try {
     for (let i = 0; i < 8; i++) capture(visualSource);
     scene.numbers.sync(); select("A"); scene.battlePaused = true;
     scene.syncPlacementGhost(); scene.updateHud(); scene.updateCards();
-    game.loop.start(game.step.bind(game)); return { hash, stored: visualBank.projectileBank.shots.length };
+    game.loop.start(game.step.bind(game)); return { hash, routeHash, stored: visualBank.projectileBank.shots.length };
   });
   await page.waitForTimeout(150); await page.screenshot({ path: "logs/projectile-circuit-desktop.png" });
   await page.setViewportSize({ width: 800, height: 600 }); await page.waitForTimeout(150);

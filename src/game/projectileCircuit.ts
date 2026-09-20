@@ -1,23 +1,18 @@
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, COLUMNS, LANES } from "../config";
 import type { CardDefinition, CardId, EdgeTower, EnemyProjectile, MortarProjectile, Projectile, StoredTowerShot, Tower } from "../types";
 import { consumeProjectileDamage, projectileDamageBudget, projectileVisualScale, segmentInInterceptionRange } from "./projectileIntegrity";
-import { towerCell } from "./towerTopology";
 import { isLiteralNumberType, numberTowerValue, towerFormType } from "./towerIdentity";
 import { projectileBankCapacity } from "./projectileBank";
-import { BUNDLE_SHOTS, edgeAllows, refreshEdgeFlow, nodeOccupancy, processorCapacity, processorRate } from "./pipelineRules";
+import { BUNDLE_SHOTS, nodeOccupancy, processorCapacity, processorRate } from "./pipelineRules";
+import { PipelineRouting } from "./pipelineRouting";
 
 export { PROJECTILE_BANK_CAPACITY } from "./projectileBank";
 export const INTERCEPTION_RADIUS = 2.6;
 export const INTERCEPTION_INTERVAL = 100;
 export const INTERCEPTION_DAMAGE_COST = 5;
-export { BUNDLE_SHOTS } from "./pipelineRules";
+export { BUNDLE_SHOTS, edgeCells } from "./pipelineRules";
 
 export function edgeKey(edge: EdgeTower) { return `${edge.axis}:${edge.lane}:${edge.column}`; }
-
-export function edgeCells(edge: EdgeTower) {
-  return [{ lane: edge.lane, column: edge.column },
-    { lane: edge.lane + (edge.axis === "vertical" ? 1 : 0), column: edge.column + (edge.axis === "horizontal" ? 1 : 0) }];
-}
 
 export function edgePosition(edge: EdgeTower) {
   return { x: BOARD_X + (edge.column + (edge.axis === "horizontal" ? 1 : .5)) * CELL_WIDTH,
@@ -45,8 +40,6 @@ interface CircuitRuntime {
   intercepted?: (tower: Tower, target: EnemyProjectile | MortarProjectile) => void;
 }
 
-interface PipeLink { edge: EdgeTower; target: Tower; forward: boolean }
-
 function bundleKey(shot: StoredTowerShot) {
   if (shot.partialHitDamage !== undefined) return undefined;
   return JSON.stringify([shot.type, shot.sourceTower?.id, shot.sourceBehaviorType, shot.damage, shot.damageType,
@@ -54,23 +47,22 @@ function bundleKey(shot: StoredTowerShot) {
 }
 
 export class ProjectileCircuitController {
-  private links = new Map<Tower, PipeLink[]>();
-  private activeEdges = new Set<string>();
+  private routing = new PipelineRouting();
   private nodes: Tower[] = [];
   private interceptors: Tower[] = [];
   constructor(private readonly runtime: () => CircuitRuntime) {}
 
-  isEdgeActive(edge: EdgeTower) { return edge.mode !== "!=" && this.activeEdges.has(edgeKey(edge)); }
+  isEdgeActive(edge: EdgeTower) { return this.routing.isActive(edge); }
 
   sync() {
     const runtime = this.runtime();
-    this.links.clear(); this.activeEdges.clear(); this.nodes = []; this.interceptors = [];
-    const cells = new Map<string, Tower>();
+    this.nodes = []; this.interceptors = [];
+    const sources: Tower[] = [];
     for (const tower of runtime.towers) {
       if (!tower.inPlay || tower.transient) continue;
       const type = towerFormType(tower);
       if (type === "=" || (type !== "+" && type !== "-" && runtime.getDefinition(tower.type).cost > 999)) continue;
-      const cell = towerCell(tower); cells.set(`${cell.lane}:${cell.column}`, tower);
+      if (type !== "1" && type !== "-") sources.push(tower);
       if (type === "0") {
         tower.projectileBank ??= { shots: [], remaining: 0, nextAt: 0, outletIndex: 0 };
         tower.projectileBank.remaining = 0;
@@ -81,20 +73,9 @@ export class ProjectileCircuitController {
         if (type === "-") this.interceptors.push(tower);
       }
     }
-    for (const edge of runtime.edges) {
-      const [left, right] = edgeCells(edge);
-      const a = cells.get(`${left.lane}:${left.column}`), b = cells.get(`${right.lane}:${right.column}`);
-      if (!a || !b) continue;
-      const add = (source: Tower, target: Tower, forward: boolean) => {
-        if (["1", "-"].includes(towerFormType(source))) return;
-        const links = this.links.get(source) ?? [];
-        links.push({ edge, target, forward }); this.links.set(source, links);
-        if (edgeAllows(edge, forward) && this.capacity(target) > 0) this.activeEdges.add(edgeKey(edge));
-      };
-      add(a, b, true); add(b, a, false);
-    }
     this.nodes.sort((a, b) => a.placedOrder - b.placedOrder);
     this.interceptors.sort((a, b) => a.placedOrder - b.placedOrder);
+    this.routing.rebuild(runtime.edges, sources, this.nodes);
   }
 
   private capacity(tower: Tower) {
@@ -112,19 +93,16 @@ export class ProjectileCircuitController {
   }
 
   private transfer(source: Tower, shot: StoredTowerShot) {
-    const runtime = this.runtime(), links = this.links.get(source) ?? [];
+    const runtime = this.runtime(), paths = this.routing.pathsFrom(source, runtime.battleTime);
     const start = source.projectileRouteIndex ?? 0;
-    for (let offset = 0; offset < links.length; offset++) {
-      const index = (start + offset) % links.length, { edge, target, forward } = links[index];
-      if (!target.inPlay || !edgeAllows(edge, forward) ||
-        this.occupancy(target) >= this.capacity(target)) continue;
-      refreshEdgeFlow(edge, runtime.battleTime);
-      if (edge.flowCredit! < 1) continue;
+    for (let offset = 0; offset < this.nodes.length; offset++) {
+      const index = (start + offset) % this.nodes.length, target = this.nodes[index], path = paths.get(target);
+      if (!path || !target.inPlay || this.occupancy(target) >= this.capacity(target)) continue;
       const queue = towerFormType(target) === "0" ? target.projectileBank?.shots : target.projectileNode?.input;
       if (!queue) continue;
-      edge.flowCredit! -= 1;
+      this.routing.consume(path);
       shot.pipelineMovedAt = runtime.battleTime;
-      queue.push(shot); source.projectileRouteIndex = (index + 1) % links.length;
+      queue.push(shot); source.projectileRouteIndex = (index + 1) % this.nodes.length;
       runtime.changed(target);
       return true;
     }
@@ -175,7 +153,7 @@ export class ProjectileCircuitController {
   private forwardQueue(tower: Tower, shots: StoredTowerShot[]) {
     let changed = false;
     for (let i = 0; i < shots.length;) {
-      // At most one connection per simulation tick, independent of tower placement order.
+      // Transparent routes take no storage time; actual nodes forward at most once per tick.
       if ((shots[i].pipelineMovedAt ?? -Infinity) >= this.runtime().battleTime || !this.transfer(tower, shots[i])) { i++; continue; }
       shots.splice(i, 1); changed = true;
     }

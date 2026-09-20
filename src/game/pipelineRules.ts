@@ -4,6 +4,11 @@ export const PIPELINE_RATE = 25;
 export const PROCESSOR_CAPACITY = 25;
 export const BUNDLE_SHOTS = 5;
 
+export function edgeCells(edge: EdgeTower) {
+  return [{ lane: edge.lane, column: edge.column },
+    { lane: edge.lane + (edge.axis === "vertical" ? 1 : 0), column: edge.column + (edge.axis === "horizontal" ? 1 : 0) }];
+}
+
 export function pipelineLevel(tower: Pick<Tower, "level"> & Partial<Pick<Tower, "levelBonus" | "mirrorLevelBonus">>) {
   return Math.max(1, Math.floor(tower.level + (tower.levelBonus ?? 0) + (tower.mirrorLevelBonus ?? 0)));
 }
