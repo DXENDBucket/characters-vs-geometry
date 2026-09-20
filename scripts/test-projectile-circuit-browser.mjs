@@ -16,8 +16,10 @@ try {
     const progress = await import("/src/progress.ts"), c = await import("/src/config.ts");
     const { captureBattleSnapshot, restoreBattleSnapshot } = await import("/src/game/battleSnapshot.ts");
     const { validateSurvivalSave } = await import("/src/survivalSaves.ts");
-    const { updateTowerProjectiles } = await import("/src/game/projectileRuntime.ts");
-    const { createTowerProjectile } = await import("/src/game/projectiles.ts");
+    const { updateTowerProjectiles, updateMortarProjectiles, updateEnemyProjectiles } = await import("/src/game/projectileRuntime.ts");
+    const { createTowerProjectile, createMortarProjectile, restoreEnemyProjectile, createReflectedProjectile } = await import("/src/game/projectiles.ts");
+    const { projectileDamageBudget, consumeProjectileDamage, projectileVisualScale } = await import("/src/game/projectileIntegrity.ts");
+    const { createEnemy } = await import("/src/game/enemyFactory.ts");
     const { removeTower } = await import("/src/game/unitLifecycle.ts");
     const { edgePosition } = await import("/src/game/projectileCircuit.ts");
     const { findAutoUpgradeTarget, setTowerAutoUpgradeState, setTowerFacing } = await import("/src/game/towers.ts");
@@ -113,14 +115,83 @@ try {
     check(scene.edgeTowers.length === 2, "Destroying ordinary tower removed special connectors");
 
     start();
+    const bundleSource = place("A", 1), bundleBank = place("0", 2), bundler = place("+", 3);
+    link(1); link(2);
+    const stock = (source, hits = 1) => scene.numbers.capture(createTowerProjectile(scene, {
+      type: "bolt", x: source.x + 26, y: source.y, lane: source.lane, speed: 500,
+      damage: 400, damageType: "physical", hitCount: hits, splashRadius: 0, angleDegrees: 0,
+      maxX: Infinity, sourceTower: source }));
+    for (let i = 0; i < 5; i++) stock(bundleSource, i === 0 ? 2 : 1);
+    scene.numbers.release(bundleBank); scene.numbers.update();
+    check(scene.projectiles.length === 1 && scene.projectiles[0].hitCount === 6, "Bundler lost multi-hit judgments");
+    const bundled = scene.projectiles[0]; check(bundled.body.scaleX > 1, "Bundle has no size feedback");
+    const enemy = createEnemy(scene, { kind: "circle", lane: 3, x: bundled.x, time: 0, waveNumber: 1, waveWeight: 10, finalDamageReduction: 0 });
+    scene.enemies.push(enemy);
+    const judgments = [];
+    updateTowerProjectiles({ ...scene.projectileRuntime(), damageEnemy: (target, damage) => judgments.push(damage) }, 0);
+    check(judgments.length === 6 && judgments.every(d => d === 400), "Bundle became one high-armor-breaking hit");
+
+    start();
+    const ammoSource = place("A", 1), ammoBank = place("0", 2), subtractor = place("-", 3), victim = place("B", 4);
+    link(1); link(2); stock(ammoSource); stock(ammoSource); stock(ammoSource);
+    const mortar = createMortarProjectile(scene, { owner: "enemy", fromX: victim.x, fromY: victim.y,
+      targetX: victim.x, targetY: victim.y, damage: 900, damageType: "magic", rangeX: c.CELL_WIDTH, rangeY: c.CELL_HEIGHT });
+    mortar.progress = .999; scene.mortarProjectiles.push(mortar);
+    updateMortarProjectiles(scene.projectileRuntime(), 0);
+    check(projectileDamageBudget(mortar) === 500 && mortar.body.scaleX < projectileVisualScale({ damage: 900 }),
+      "Weak ammo did not partially cancel and shrink mortar");
+    const impacts = [];
+    updateMortarProjectiles({ ...scene.projectileRuntime(), damageTower: (tower, damage) => { if (tower === victim) impacts.push(damage); } }, .1);
+    check(impacts.length === 1 && impacts[0] === 500 && !scene.mortarProjectiles.length, "Weakened mortar used original damage on impact");
+    scene.battleTime += 100;
+    const intercepted = createMortarProjectile(scene, { owner: "enemy", fromX: victim.x, fromY: victim.y,
+      targetX: victim.x, targetY: victim.y, damage: 300, damageType: "magic", rangeX: c.CELL_WIDTH, rangeY: c.CELL_HEIGHT });
+    intercepted.progress = .999; scene.mortarProjectiles.push(intercepted);
+    updateMortarProjectiles({ ...scene.projectileRuntime(), damageTower: () => { throw Error("Fully intercepted mortar exploded"); } }, .1);
+    check(!scene.mortarProjectiles.length && projectileDamageBudget(ammoBank.projectileBank.shots[0]) === 100,
+      "Successful intercept failed to preserve leftover ammo");
+    scene.battleTime += 100;
+    const bullet = restoreEnemyProjectile(scene, { x: subtractor.x, y: subtractor.y, vx: 0, sourceLane: 3,
+      damage: 400, hitCount: 2, damageType: "physical" });
+    scene.enemyProjectiles.push(bullet);
+    const bulletHits = [];
+    updateEnemyProjectiles({ ...scene.projectileRuntime(), damageTower: (tower, damage) => bulletHits.push(damage) }, 0);
+    check(bulletHits.join(",") === "300,400", "Partial multi-hit bullet lost its individual judgments");
+    const reflected = createReflectedProjectile(scene, bullet);
+    check(reflected.hitCount === 2 && reflected.partialHitDamage === 300, "Reflection restored canceled damage");
+    reflected.body.destroy();
+
+    const savedMortar = createMortarProjectile(scene, { owner: "enemy", fromX: victim.x, fromY: victim.y,
+      targetX: victim.x, targetY: victim.y, damage: 900, hitCount: 2, damageType: "magic", rangeX: 40, rangeY: 40 });
+    consumeProjectileDamage(savedMortar, 1000); savedMortar.progress = .95;
+    scene.mortarProjectiles.push(savedMortar);
+    consumeProjectileDamage(ammoBank.projectileBank.shots[0], 50);
+    const damagedSnapshot = JSON.parse(JSON.stringify(captureBattleSnapshot(scene.battleState())));
+    validateSurvivalSave({ version: 1, levelId: "IF-1", wave: scene.wave, savedAt: 1, difficulty: scene.difficulty,
+      unlimitedFirepower: false, selectedCards: ["A", "0", "1", "="], graph: damagedSnapshot });
+    const runDamaged = delta => {
+      start(); scene.applyBattleSave(restoreBattleSnapshot(scene, damagedSnapshot));
+      check(projectileDamageBudget(scene.mortarProjectiles[0]) === 800, "Save restored canceled mortar damage");
+      check(scene.towers.find(t => t.type === "-").nextInterceptionAt === 300, "Save lost interception cooldown");
+      check(projectileDamageBudget(scene.towers.find(t => t.type === "0").projectileBank.shots[0]) === 350,
+        "Save lost leftover ammunition");
+      scene.battlePaused = false;
+      while (scene.simulation.tick < 90) scene.update(0, delta);
+      return scene.battleChecksum();
+    };
+    const interceptHash = runDamaged(1000 / 60);
+    check(runDamaged(1000 / 144) === interceptHash, "Interception replay depends on frame rate");
+
+    start();
     const e = place("E", 1, 2, 3); const visualBank = place("0", 2, 2); place("1", 3, 2);
     link(1, 2); link(2, 2); place("1", 2, 3, 3); link(2, 2, "vertical");
     scene.startTowerVolley(e, scene.battleTime, scene.towerAttackInterval(e)); drain(); updateTowerProjectiles(scene.projectileRuntime(), 0);
     place("B", 6, 2); place("B", 6, 3);
+    place("+", 2, 1); link(2, 1, "vertical"); place("-", 3, 3); link(2, 3);
     check(visualBank.projectileBank.shots.length === 9, "Spread volley not stored independently");
     scene.submitBattleCommand({ type: "selectCard", id: "A" });
     scene.syncPlacementGhost(); scene.battlePaused = true; scene.updateHud(); scene.updateCards();
-    game.loop.start(game.step.bind(game)); return { hash, stored: visualBank.projectileBank.shots.length };
+    game.loop.start(game.step.bind(game)); return { hash, interceptHash, stored: visualBank.projectileBank.shots.length };
   });
   await page.waitForTimeout(150); await page.screenshot({ path: "logs/projectile-circuit-desktop.png" });
   await page.setViewportSize({ width: 800, height: 600 }); await page.waitForTimeout(150);

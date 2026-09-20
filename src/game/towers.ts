@@ -457,6 +457,12 @@ function drawGatheringRange(border: Phaser.GameObjects.Graphics) {
 }
 
 function createRangeBorder(scene: Phaser.Scene, definition: CardDefinition) {
+  if (definition.id === "-") {
+    const border = scene.add.graphics();
+    border.lineStyle(1, 0x8ce4ba, .24);
+    border.strokeEllipse(0, 0, CELL_WIDTH * 5.2, CELL_HEIGHT * 5.2);
+    return border;
+  }
   if (definition.id === "j") {
     const border = scene.add.graphics();
     drawGatheringRange(border);

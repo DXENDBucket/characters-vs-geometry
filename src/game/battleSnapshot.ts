@@ -13,6 +13,7 @@ import { statusMultipliers, syncEnemyBodyPosition } from "./statusEffects";
 import { decodeSaveGraph, encodeSaveGraph, type GraphNode, type NodeKind, type SaveGraph } from "./saveGraph";
 import type { BattleSaveState } from "./battleSaveState";
 import { containedEnemies, syncPassengerPositions } from "./enemyContainers";
+import { projectileVisualScale } from "./projectileIntegrity";
 
 const towerVisuals = new Set<string>(["body", "border", "label", "facingIcon", "autoUpgradeBorder", "trueDamageBorder",
   "flyingHalo", "hpFill", "negativeHpBack", "negativeHpFill", "rangeBorder", "levelText"] satisfies (keyof Tower)[]);
@@ -123,10 +124,11 @@ export function restoreBattleSnapshot(scene: Phaser.Scene, graph: SaveGraph): Ba
     for (const projectile of shots) if (!activeShots.has(projectile)) projectile.body.destroy();
     for (const projectile of activeShots) {
       projectile.body.setPosition(projectile.x, projectile.y);
+      projectile.body.setScale(projectileVisualScale(projectile));
     }
     for (const projectile of state.mortarProjectiles) {
       projectile.body.rotation = projectile.progress * Math.PI * 1.4;
-      projectile.body.setScale(1 + Math.sin(projectile.progress * Math.PI) * 0.26);
+      projectile.body.setScale(projectileVisualScale(projectile) * (1 + Math.sin(projectile.progress * Math.PI) * 0.26));
     }
     return state;
   } catch (error) {

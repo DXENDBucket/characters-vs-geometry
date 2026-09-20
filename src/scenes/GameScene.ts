@@ -414,6 +414,12 @@ export class GameScene extends Phaser.Scene {
     this.numbers = new ProjectileCircuitController(() => ({ towers: this.towers, edges: this.edgeTowers,
       battleTime: this.battleTime, getDefinition: id => this.getDefinition(id),
       changed: tower => { syncTowerLevelText(tower); syncTowerAutoUpgradeVisual(tower, this.autoUpgradeEnabled); },
+      intercepted: (tower, target) => {
+        const flash = this.add.graphics().setDepth(121);
+        flash.lineStyle(2, 0x8ce4ba, .85).lineBetween(tower.x, tower.y, target.x, target.y);
+        flash.strokeCircle(target.x, target.y, 10);
+        this.tweens.add({ targets: flash, alpha: 0, duration: 160, onComplete: () => flash.destroy() });
+      },
       emit: (shot, outlet) => {
         const direction = towerFacingDirection(outlet), x = outlet.x + direction * 26;
         const projectile = createTowerProjectile(this, { ...shot, x, y: outlet.y, lane: outlet.lane,
@@ -1635,6 +1641,7 @@ export class GameScene extends Phaser.Scene {
   private createProjectileRuntime(): ProjectileRuntime {
     return {
       routeProjectile: projectile => this.numbers.capture(projectile),
+      interceptProjectile: (projectile, from) => this.numbers.intercept(projectile, from),
       projectileMotion: this.projectileMotion,
       scene: this,
       projectiles: this.projectiles,

@@ -1,5 +1,6 @@
 import type Phaser from "phaser";
 import type { TowerActionEvent } from "./game/towerActions";
+import type { ProjectileIntegrity } from "./game/projectileIntegrity";
 
 export type CardId =
   | "+"
@@ -257,6 +258,7 @@ export interface NumberTowerState {
 
 export interface Tower extends NumberTowerState {
   projectileBank?: { shots: StoredTowerShot[]; remaining: number; nextAt: number; outletIndex: number };
+  nextInterceptionAt?: number;
   topologyTarget?: { lane: number; column: number };
   topologyOrder?: number;
   numberChannels?: Partial<Record<EquationAxis, NumberTowerState>>;
@@ -402,7 +404,7 @@ export interface Enemy {
   bossCompanionActionPhase?: BossCompanionActionPhase;
 }
 
-export interface Projectile {
+export interface Projectile extends ProjectileIntegrity {
   circuitChecked?: boolean;
   sourceBehaviorType?: CardId;
   lastGatheredAt?: number;
@@ -436,7 +438,7 @@ export interface EdgeTower {
   column: number;
 }
 
-export interface StoredTowerShot {
+export interface StoredTowerShot extends ProjectileIntegrity {
   type: Exclude<ProjectileKind, "chevron">;
   sourceTower?: Tower;
   sourceBehaviorType?: CardId;
@@ -451,7 +453,7 @@ export interface StoredTowerShot {
   remainingRange: number;
 }
 
-export interface EnemyProjectile {
+export interface EnemyProjectile extends ProjectileIntegrity {
   appearance?: "bolt" | "star";
   hitCount?: number;
   x: number;
@@ -463,7 +465,7 @@ export interface EnemyProjectile {
   body: Phaser.GameObjects.Shape | Phaser.GameObjects.Text;
 }
 
-export interface MortarProjectile {
+export interface MortarProjectile extends ProjectileIntegrity {
   hitCount?: number;
   owner: "enemy" | "tower";
   x: number;

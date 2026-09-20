@@ -19,6 +19,12 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
   const record = (value: unknown): value is Record<string, unknown> => Boolean(value && typeof value === "object" && !Array.isArray(value));
   const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
   const timestamp = (value: unknown) => typeof value === "number" && !Number.isNaN(value);
+  const integrity = (value: Record<string, unknown>) =>
+    (value.partialHitDamage === undefined || finite(value.partialHitDamage) && value.partialHitDamage > 0 &&
+      finite(value.damage) && value.partialHitDamage <= value.damage) &&
+    (value.initialDamageBudget === undefined || finite(value.initialDamageBudget) && value.initialDamageBudget > 0 &&
+      finite(value.damage) && value.initialDamageBudget >= value.damage * ((value.hitCount as number ?? 1) - 1) +
+        ((value.partialHitDamage ?? value.damage) as number));
   const array = (value: unknown, check: (item: unknown) => boolean): boolean => Array.isArray(value) && value.every(check);
   const member = (kind: NodeKind) => (value: unknown) => Boolean(value && typeof value === "object" && units.get(kind)?.has(value));
   const learnable = (type: unknown) => cardDefinitions.some(card => card.id === type && card.cost <= 999 && card.id !== "1" && card.id !== "0");
@@ -103,6 +109,9 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
   }
   require(array(state.towers, member("tower")) && array(state.enemies, member("enemy")) &&
     array(state.projectiles, member("projectile")) && array(state.enemyProjectiles, member("enemyProjectile")) && array(state.mortarProjectiles, member("mortar")));
+  for (const shot of [...state.projectiles, ...state.enemyProjectiles, ...state.mortarProjectiles]) {
+    require(integrity(shot as unknown as Record<string, unknown>));
+  }
   for (const kind of ["tower", "enemy"] as const) {
     for (const object of units.get(kind) ?? []) {
       const value = object as Record<string, unknown>;
@@ -143,12 +152,13 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
         require(["laser", "mortar", "wings"].includes(value.bossCompanionActionPhase as string));
       }
       if (kind === "tower") {
+        if (value.nextInterceptionAt !== undefined) require(finite(value.nextInterceptionAt) && value.nextInterceptionAt >= 0);
         if (value.projectileBank !== undefined) {
           const bank = value.projectileBank;
           require(record(bank) && Array.isArray(bank.shots) && bank.shots.length <= 128 &&
             Number.isSafeInteger(bank.remaining) && (bank.remaining as number) >= 0 && (bank.remaining as number) <= bank.shots.length &&
             finite(bank.nextAt) && Number.isSafeInteger(bank.outletIndex) && (bank.outletIndex as number) >= 0 &&
-            array(bank.shots, shot => record(shot) && ["bolt", "star", "shell", "hash", "dollar"].includes(shot.type as string) &&
+            array(bank.shots, shot => record(shot) && integrity(shot) && ["bolt", "star", "shell", "hash", "dollar"].includes(shot.type as string) &&
               ["physical", "magic", "true"].includes(shot.damageType as string) &&
               ["vx", "vy", "damage", "splashRadius"].every(key => finite(shot[key])) &&
               (shot.vx as number) > 0 && (shot.damage as number) >= 0 && (shot.splashRadius as number) >= 0 &&

@@ -17,8 +17,9 @@ import type {
   Tower
 } from "../types";
 import { enemyAttackDamage } from "./combatStats";
+import { projectileVisualScale, type ProjectileIntegrity } from "./projectileIntegrity";
 
-export interface TowerProjectileSpec {
+export interface TowerProjectileSpec extends ProjectileIntegrity {
   hitCount?: number;
   type: ProjectileKind;
   x: number;
@@ -69,11 +70,14 @@ export function createTowerProjectile(scene: Phaser.Scene, spec: TowerProjectile
     body = scene.add.circle(spec.x, spec.y, 7, palette.black, 1).setStrokeStyle(2, projectileColor, 1);
   }
   body.setDepth(90);
+  body.setScale(projectileVisualScale(spec));
   body.rotation = angle;
 
   return {
     type: spec.type,
     hitCount: spec.hitCount ?? 1,
+    partialHitDamage: spec.partialHitDamage,
+    initialDamageBudget: spec.initialDamageBudget,
     lane: spec.lane,
     x: spec.x,
     y: spec.y,
@@ -141,13 +145,14 @@ export function restoreEnemyProjectile(scene: Phaser.Scene, state: Omit<EnemyPro
         .setDepth(91)
     : scene.add.rectangle(state.x, state.y, 18, 4, palette.enemyShot, 1).setDepth(91);
   body.rotation = isDiamondShot ? 0 : state.vx < 0 ? Math.PI : 0;
+  body.setScale(projectileVisualScale(state));
   return {
     ...state,
     body
   };
 }
 
-export interface MortarProjectileSpec {
+export interface MortarProjectileSpec extends ProjectileIntegrity {
   hitCount?: number;
   owner: "enemy" | "tower";
   fromX: number;
@@ -192,10 +197,13 @@ export function createMortarProjectile(scene: Phaser.Scene, spec: MortarProjecti
     ? Phaser.Display.Color.HexStringToColor(spec.markerTextColor ?? damageEffectTextColor(spec.damageType)).color
     : projectileColor;
   attachProjectileTrail(scene, body, trailColor, 119);
+  body.setScale(projectileVisualScale(spec));
 
   return {
     owner: spec.owner,
     hitCount: spec.hitCount ?? 1,
+    partialHitDamage: spec.partialHitDamage,
+    initialDamageBudget: spec.initialDamageBudget,
     x: spec.fromX,
     y: spec.fromY,
     fromX: spec.fromX,
@@ -234,6 +242,8 @@ export function createReflectedProjectile(
   return createTowerProjectile(scene, {
     type: "bolt",
     hitCount: projectile.hitCount,
+    partialHitDamage: projectile.partialHitDamage,
+    initialDamageBudget: projectile.initialDamageBudget,
     x: projectile.x,
     y: projectile.y,
     lane: projectile.sourceLane,

@@ -26,6 +26,7 @@ import {
 import { enemyIsBurrowed, enemyIsHighFlying } from "./enemyBehaviors";
 import { forEachInitial, forEachSnapshot } from "./iteration";
 import { repeatHits } from "./volley";
+import { forEachProjectileHit, projectileVisualScale } from "./projectileIntegrity";
 import { movementSpeedMultiplier, slowAuraSources, type SlowAuraSources } from "./slowAura";
 import { enemyIsSolarBomb } from "./solarBomb";
 import { redirectOrientedTarget } from "./orientation";
@@ -49,6 +50,7 @@ import { segmentEnemyHitTime, type ProjectileMotionFrame } from "./projectileMot
 
 export interface ProjectileRuntime {
   routeProjectile?: (projectile: Projectile) => boolean;
+  interceptProjectile?: (projectile: EnemyProjectile | MortarProjectile, from: { x: number; y: number }) => boolean;
   onTowerAction?: TowerActionListener;
   projectileMotion?: ProjectileMotionFrame;
   scene: Phaser.Scene;
@@ -142,16 +144,16 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
       if (hit) {
         makeHitShards(runtime.scene, hit.x, hit.y, projectile.damageType);
         const previousEnemyCount = runtime.enemies.length;
-        repeatHits(projectile.hitCount, () => {
+        forEachProjectileHit(projectile, damage => {
           if (!hit.inPlay) return;
-          runtime.damageEnemy(hit, directImpactDamage(projectile, hit), projectile.damageType, projectile.sourceTower);
+          runtime.damageEnemy(hit, directImpactDamage(projectile, hit, damage), projectile.damageType, projectile.sourceTower);
           if (hit.inPlay) applyProjectileDebuff(runtime.scene, projectile, hit, runtime.battleTime);
         });
         invalidateDirectTargetsIfNeeded(hit, previousEnemyCount);
       } else {
         makeHitShards(runtime.scene, projectile.x, projectile.y, projectile.damageType);
-        repeatHits(projectile.hitCount, () => {
-          if (hitBoss && hitBoss.hp > 0) runtime.damageBoss(directImpactDamage(projectile, hitBoss), projectile.damageType, hitBoss);
+        forEachProjectileHit(projectile, damage => {
+          if (hitBoss && hitBoss.hp > 0) runtime.damageBoss(directImpactDamage(projectile, hitBoss, damage), projectile.damageType, hitBoss);
         });
       }
     } else {
@@ -171,9 +173,9 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
         }
 
         const previousEnemyCount = runtime.enemies.length;
-        repeatHits(projectile.hitCount, () => {
+        forEachProjectileHit(projectile, damage => {
           if (!enemy.inPlay) return;
-          runtime.damageEnemy(enemy, projectile.damage * falloff, projectile.damageType, projectile.sourceTower);
+          runtime.damageEnemy(enemy, damage * falloff, projectile.damageType, projectile.sourceTower);
           if (enemy.inPlay) applyProjectileDebuff(runtime.scene, projectile, enemy, runtime.battleTime);
         });
         invalidateDirectTargetsIfNeeded(enemy, previousEnemyCount);
@@ -181,8 +183,8 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
       const bossFalloff = bossRadiusFalloff(runtime.getBoss(), burstX, burstY, projectile.splashRadius);
       if (bossFalloff.falloff > 0) {
         const { part, falloff } = bossFalloff;
-        repeatHits(projectile.hitCount, () => {
-          if (part && part.hp > 0) runtime.damageBoss(projectile.damage * falloff, projectile.damageType, part);
+        forEachProjectileHit(projectile, damage => {
+          if (part && part.hp > 0) runtime.damageBoss(damage * falloff, projectile.damageType, part);
         });
       }
     }
@@ -202,9 +204,14 @@ export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: numb
       ? emptyEnemyProjectileTransientTargets
       : buildEnemyProjectileTransientTargets(runtime.towers);
   forEachInitial(runtime.enemyProjectiles, (projectile) => {
+    const from = { x: projectile.x, y: projectile.y };
     projectile.x += projectile.vx * seconds * movementSpeedMultiplier(runtime.towers, projectile.x, projectile.y, slowSources);
     projectile.body.setPosition(projectile.x, projectile.y);
 
+    if (runtime.interceptProjectile?.(projectile, from)) {
+      removeEnemyProjectile(runtime.enemyProjectiles, projectile);
+      return;
+    }
     const hit = findEnemyProjectileHitTower(runtime.occupied, projectile, transientTargets);
 
     if (hit) {
@@ -223,7 +230,7 @@ export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: numb
       makeEnemyHitShards(runtime.scene, projectile.x, projectile.y);
       const reflectsProjectile = hit.reflectProjectiles;
       if (reflectsProjectile) runtime.onTowerAction?.(hit, { kind: "reflection", projectile });
-      repeatHits(projectile.hitCount, () => runtime.damageTower(hit, projectile.damage, projectile.damageType));
+      forEachProjectileHit(projectile, damage => runtime.damageTower(hit, damage, projectile.damageType));
       if (reflectsProjectile) {
         reflectEnemyAttack(runtime, hit, projectile);
       }
@@ -244,10 +251,15 @@ export function updateMortarProjectiles(runtime: ProjectileRuntime, seconds: num
 
   const slowSources = projectileSlowAuraSources(runtime);
   forEachInitial(runtime.mortarProjectiles, (projectile) => {
+    const from = { x: projectile.x, y: projectile.y };
     syncMortarTarget(runtime, projectile);
     const speedMultiplier = movementSpeedMultiplier(runtime.towers, projectile.x, projectile.y, slowSources);
     projectile.progress = Math.min(1, projectile.progress + (seconds * 1000 * speedMultiplier) / projectile.duration);
     positionMortarProjectile(projectile);
+    if (projectile.owner === "enemy" && runtime.interceptProjectile?.(projectile, from)) {
+      removeMortarProjectile(runtime.mortarProjectiles, projectile);
+      return;
+    }
 
     if (projectile.progress < 1) {
       return;
@@ -288,9 +300,9 @@ function enemyProjectileHitRadius(enemy: Enemy) {
   return enemyIsBossCompanion(enemy.kind) ? CELL_WIDTH * 0.475 : DIRECT_ENEMY_HIT_RADIUS;
 }
 
-function directImpactDamage(projectile: Projectile, target: Enemy | CubeBoss) {
+function directImpactDamage(projectile: Projectile, target: Enemy | CubeBoss, damage: number) {
   const groundPenalty = (projectile.sourceBehaviorType ?? projectile.sourceTower?.type) === "x" && !target.statusEffects.some(effect => effect.name === "flying");
-  return projectile.damage * (groundPenalty ? 0.65 : 1);
+  return damage * (groundPenalty ? 0.65 : 1);
 }
 
 function canEnemyBeDirectlyHit(enemy: Enemy) {
@@ -622,7 +634,7 @@ function positionMortarProjectile(projectile: MortarProjectile) {
     inverse * inverse * projectile.fromY + 2 * inverse * progress * controlY + progress * progress * projectile.targetY;
   projectile.body.setPosition(projectile.x, projectile.y);
   projectile.body.rotation = progress * Math.PI * 1.4;
-  projectile.body.setScale(1 + Math.sin(progress * Math.PI) * 0.26);
+  projectile.body.setScale(projectileVisualScale(projectile) * (1 + Math.sin(progress * Math.PI) * 0.26));
   updateProjectileTrail(projectile.body, projectile.x, projectile.y, progress * projectile.duration);
 }
 
@@ -657,7 +669,7 @@ function detonateEnemyMortar(runtime: ProjectileRuntime, projectile: MortarProje
       for (const tower of reflectors) runtime.onTowerAction?.(tower, { kind: "reflection", projectile });
     }
     for (const tower of hitTowers) {
-      repeatHits(projectile.hitCount, () => runtime.damageTower(tower, projectile.damage, projectile.damageType));
+      forEachProjectileHit(projectile, damage => runtime.damageTower(tower, damage, projectile.damageType));
     }
 
     const sourceEnemy = projectile.sourceEnemy;
@@ -686,6 +698,7 @@ export function reflectEnemyAttack(runtime: ProjectileRuntime, tower: Tower, pro
   if (!sourceEnemy?.inPlay) return;
   runtime.mortarProjectiles.push(createMortarProjectile(runtime.scene, {
     owner: "tower", hitCount: projectile.hitCount,
+    partialHitDamage: projectile.partialHitDamage, initialDamageBudget: projectile.initialDamageBudget,
     fromX: tower.x, fromY: tower.y, targetX: sourceEnemy.x, targetY: sourceEnemy.y,
     damage: projectile.damage, damageType, sourceTower: tower,
     rangeX: projectile.rangeX, rangeY: projectile.rangeY,
@@ -726,9 +739,9 @@ function detonateTowerMortar(runtime: ProjectileRuntime, projectile: MortarProje
       return;
     }
 
-    repeatHits(projectile.hitCount, () => {
+    forEachProjectileHit(projectile, damage => {
       if (!enemy.inPlay) return;
-      runtime.damageEnemy(enemy, projectile.damage, projectile.damageType, projectile.sourceTower);
+      runtime.damageEnemy(enemy, damage, projectile.damageType, projectile.sourceTower);
       if (enemy.inPlay) applyMortarDebuff(runtime.scene, projectile, enemy, runtime.battleTime);
     });
   });
@@ -740,8 +753,8 @@ function detonateTowerMortar(runtime: ProjectileRuntime, projectile: MortarProje
     projectile.rangeY * 2
   );
   if (bossPart) {
-    repeatHits(projectile.hitCount, () => {
-      if (bossPart.hp > 0) runtime.damageBoss(projectile.damage, projectile.damageType, bossPart);
+    forEachProjectileHit(projectile, damage => {
+      if (bossPart.hp > 0) runtime.damageBoss(damage, projectile.damageType, bossPart);
     });
   }
 }
@@ -762,9 +775,9 @@ function detonateRadialFalloffTowerMortar(runtime: ProjectileRuntime, projectile
       return;
     }
 
-    repeatHits(projectile.hitCount, () => {
+    forEachProjectileHit(projectile, damage => {
       if (!enemy.inPlay) return;
-      runtime.damageEnemy(enemy, projectile.damage * falloff, projectile.damageType, projectile.sourceTower);
+      runtime.damageEnemy(enemy, damage * falloff, projectile.damageType, projectile.sourceTower);
       if (enemy.inPlay) applyMortarDebuff(runtime.scene, projectile, enemy, runtime.battleTime);
     });
   });
@@ -772,8 +785,8 @@ function detonateRadialFalloffTowerMortar(runtime: ProjectileRuntime, projectile
   const bossFalloff = bossRadiusFalloff(runtime.getBoss(), projectile.targetX, projectile.targetY, radius);
   if (bossFalloff.falloff > 0) {
     const { part, falloff } = bossFalloff;
-    repeatHits(projectile.hitCount, () => {
-      if (part && part.hp > 0) runtime.damageBoss(projectile.damage * falloff, projectile.damageType, part);
+    forEachProjectileHit(projectile, damage => {
+      if (part && part.hp > 0) runtime.damageBoss(damage * falloff, projectile.damageType, part);
     });
   }
 }
@@ -800,9 +813,9 @@ function detonateSingleTargetTowerMortar(runtime: ProjectileRuntime, projectile:
   }
 
   if (target) {
-    repeatHits(projectile.hitCount, () => {
+    forEachProjectileHit(projectile, damage => {
       if (!target.inPlay) return;
-      runtime.damageEnemy(target, projectile.damage, projectile.damageType, projectile.sourceTower);
+      runtime.damageEnemy(target, damage, projectile.damageType, projectile.sourceTower);
       if (target.inPlay) applyMortarDebuff(runtime.scene, projectile, target, runtime.battleTime);
     });
     return;
@@ -810,8 +823,8 @@ function detonateSingleTargetTowerMortar(runtime: ProjectileRuntime, projectile:
 
   const bossPart = bossPartInRadius(runtime.getBoss(), projectile.targetX, projectile.targetY, hitRadius);
   if (bossPart) {
-    repeatHits(projectile.hitCount, () => {
-      if (bossPart.hp > 0) runtime.damageBoss(projectile.damage, projectile.damageType, bossPart);
+    forEachProjectileHit(projectile, damage => {
+      if (bossPart.hp > 0) runtime.damageBoss(damage, projectile.damageType, bossPart);
     });
   }
 }
