@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { towerBehaviorType } from "./towerIdentity";
+import { towerBehaviorType, towerActionContext } from "./towerIdentity";
 import { syncHealthBar } from "./towerHealth";
 import { facingWithEffects } from "./rules/reversal";
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
@@ -65,6 +65,7 @@ export function createTower(
       fontStyle: "700"
     })
     .setOrigin(0.5);
+  if (definition.id === "1") levelText.setVisible(false);
 
   body.add([
     ...(rangeBorder ? [rangeBorder] : []),
@@ -216,10 +217,16 @@ export function syncTowerHpBar(tower: Tower) {
 }
 
 export function effectiveTowerLevel(tower: Tower) {
-  return Math.max(1, tower.level + tower.levelBonus + tower.mirrorLevelBonus);
+  return towerActionContext(tower)?.level ?? Math.max(1, tower.level + tower.levelBonus + tower.mirrorLevelBonus);
 }
 
 export function syncTowerLevelText(tower: Tower) {
+  if (tower.type === "1") {
+    const text = String(tower.level);
+    tower.label.setText(text).setFontSize(Math.min(34, 48 / Math.max(1, text.length)));
+    tower.levelText.setVisible(false);
+    return;
+  }
   const bonus = tower.levelBonus + tower.mirrorLevelBonus;
   if (bonus > 0) {
     tower.levelText.setText(`${tower.level}+${bonus}`);
@@ -363,13 +370,32 @@ function createTowerFlyingHalo(scene: Phaser.Scene) {
   return halo;
 }
 
+export function syncNumberSkillRange(scene: Phaser.Scene, tower: Tower, time: number) {
+  const orientation = time < (tower.skills.orientation?.activeUntil ?? 0);
+  const gathering = time < (tower.skills.gathering?.activeUntil ?? 0);
+  const key = `${orientation}:${gathering}`;
+  if (tower.body.getData("numberSkillRange") === key) return;
+  tower.body.setData("numberSkillRange", key);
+  tower.rangeBorder?.destroy();
+  tower.rangeBorder = undefined;
+  if (!orientation && !gathering) return;
+  const border = orientation ? createNoCornerRangeBorder(scene, 0xa2efb0, 0.9) : scene.add.graphics();
+  if (gathering) drawGatheringRange(border);
+  tower.rangeBorder = border;
+  tower.body.addAt(border, 0);
+}
+
+function drawGatheringRange(border: Phaser.GameObjects.Graphics) {
+  border.lineStyle(2, 0xa2efb0, 1);
+  for (const direction of [-1, 1]) {
+    border.strokeRect(-CELL_WIDTH / 2, (direction - 0.5) * CELL_HEIGHT, CELL_WIDTH, CELL_HEIGHT);
+  }
+}
+
 function createRangeBorder(scene: Phaser.Scene, definition: CardDefinition) {
   if (definition.id === "j") {
     const border = scene.add.graphics();
-    border.lineStyle(2, 0xa2efb0, 1);
-    for (const direction of [-1, 1]) {
-      border.strokeRect(-CELL_WIDTH / 2, (direction - 0.5) * CELL_HEIGHT, CELL_WIDTH, CELL_HEIGHT);
-    }
+    drawGatheringRange(border);
     return border.setAlpha(0.22);
   }
 

@@ -1,4 +1,6 @@
 import type { CardId, Tower } from "../types";
+import type { TowerActionEvent } from "./towerActions";
+import { CLOCK_TOWER_SKILL_MAX } from "../config";
 import type { RegisteredSkillDefinition } from "./skillRegistry";
 import { activateOrientation, orientationIsReady, resetOrientation, updateOrientation } from "./orientation";
 import { activateGathering, gatheringIsReady, resetGathering, updateGathering } from "./gathering";
@@ -18,10 +20,16 @@ export interface ManualTowerSkill {
 }
 
 export interface TowerSkillDefinition extends RegisteredSkillDefinition<Tower, void> {
+  maxSp?: number;
+  imitate?: (tower: Tower, event: Extract<TowerActionEvent, { kind: "skill" }>) => void;
   manual?: ManualTowerSkill;
 }
 
 export interface TowerSkillActions {
+  onAction?: (tower: Tower) => void;
+  imitatePush: NonNullable<TowerSkillDefinition["imitate"]>;
+  imitateSpellMortar: NonNullable<TowerSkillDefinition["imitate"]>;
+  imitateGuardian: NonNullable<TowerSkillDefinition["imitate"]>;
   updateClockTower: TowerSkillDefinition["update"];
   resetClockTower: NonNullable<TowerSkillDefinition["reset"]>;
   updateGuardianTower: TowerSkillDefinition["update"];
@@ -41,6 +49,7 @@ export interface TowerSkillActions {
 export function createTowerSkillRegistry(actions: TowerSkillActions): Partial<Record<CardId, TowerSkillDefinition>> {
   return {
     "#": {
+      imitate: actions.imitatePush,
       stateKey: "push", update: updatePushSkill, reset: resetPushSkill,
       manual: {
         isReady: tower => pushIsReady(tower) && !tower.moveVisual,
@@ -49,24 +58,27 @@ export function createTowerSkillRegistry(actions: TowerSkillActions): Partial<Re
       }
     },
     j: {
+      maxSp: 10,
       stateKey: "gathering",
       update: updateGathering,
       reset: resetGathering,
       manual: {
         isReady: gatheringIsReady,
-        activate: ([tower], _input, time) => { activateGathering(tower, time); }
+        activate: ([tower], _input, time) => { if (activateGathering(tower, time)) actions.onAction?.(tower); }
       }
     },
     o: {
+      maxSp: 10,
       stateKey: "orientation",
       update: updateOrientation,
       reset: resetOrientation,
       manual: {
         isReady: orientationIsReady,
-        activate: ([tower], _input, time) => { activateOrientation(tower, time); }
+        activate: ([tower], _input, time) => { if (activateOrientation(tower, time)) actions.onAction?.(tower); }
       }
     },
     c: {
+      maxSp: CLOCK_TOWER_SKILL_MAX,
       stateKey: "clock",
       update: actions.updateClockTower,
       reset: actions.resetClockTower,
@@ -77,10 +89,12 @@ export function createTowerSkillRegistry(actions: TowerSkillActions): Partial<Re
       }
     },
     h: {
+      imitate: actions.imitateGuardian,
       stateKey: "guardian",
       update: actions.updateGuardianTower
     },
     S: {
+      imitate: actions.imitateSpellMortar,
       stateKey: "spellMortar",
       update: actions.updateSpellMortarTower,
       reset: actions.resetSpellMortarTower,
@@ -92,6 +106,7 @@ export function createTowerSkillRegistry(actions: TowerSkillActions): Partial<Re
       }
     },
     w: {
+      maxSp: 10,
       stateKey: "airPatrol",
       update: actions.updateAirPatrolTower,
       reset: actions.resetAirPatrolTower,

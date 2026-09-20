@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { towerBehaviorType } from "./towerIdentity";
+import type { TowerActionListener } from "./towerActions";
 import { updateProjectileTrail } from "../render/projectileTrail";
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, COLUMNS, LANES, palette } from "../config";
 import { getCardDefinition } from "../registry/cards";
@@ -47,6 +48,7 @@ import { towerDamageType, towerFacingDirection } from "./towers";
 import { segmentCircleHitTime, type ProjectileMotionFrame } from "./projectileMotion";
 
 export interface ProjectileRuntime {
+  onTowerAction?: TowerActionListener;
   projectileMotion?: ProjectileMotionFrame;
   scene: Phaser.Scene;
   projectiles: Projectile[];
@@ -215,12 +217,10 @@ export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: numb
 
       makeEnemyHitShards(runtime.scene, projectile.x, projectile.y);
       const reflectsProjectile = hit.reflectProjectiles;
+      if (reflectsProjectile) runtime.onTowerAction?.(hit, { kind: "reflection", projectile });
       repeatHits(projectile.hitCount, () => runtime.damageTower(hit, projectile.damage, projectile.damageType));
       if (reflectsProjectile) {
-        runtime.projectiles.push(
-          createReflectedProjectile(runtime.scene, projectile, towerDamageType(hit, projectile.damageType, runtime.battleTime), hit)
-        );
-        makeReflectFlash(runtime.scene, projectile.x, projectile.y);
+        reflectEnemyAttack(runtime, hit, projectile);
       }
       removeEnemyProjectile(runtime.enemyProjectiles, projectile);
       return;
@@ -648,6 +648,9 @@ function detonateEnemyMortar(runtime: ProjectileRuntime, projectile: MortarProje
       }
     }
 
+    if (projectile.sourceEnemy?.inPlay) {
+      for (const tower of reflectors) runtime.onTowerAction?.(tower, { kind: "reflection", projectile });
+    }
     for (const tower of hitTowers) {
       repeatHits(projectile.hitCount, () => runtime.damageTower(tower, projectile.damage, projectile.damageType));
     }
@@ -658,32 +661,34 @@ function detonateEnemyMortar(runtime: ProjectileRuntime, projectile: MortarProje
     }
 
     for (const tower of reflectors) {
-      const reflectedDamageType = towerDamageType(tower, projectile.damageType, runtime.battleTime);
-      runtime.mortarProjectiles.push(
-        createMortarProjectile(runtime.scene, {
-          owner: "tower",
-          hitCount: projectile.hitCount,
-          fromX: tower.x,
-          fromY: tower.y,
-          targetX: sourceEnemy.x,
-          targetY: sourceEnemy.y,
-          damage: projectile.damage,
-          damageType: reflectedDamageType,
-          sourceTower: tower,
-          rangeX: projectile.rangeX,
-          rangeY: projectile.rangeY,
-          marker: projectile.marker,
-          markerText: projectile.markerText,
-          markerTextColor: projectile.marker === "text" ? damageEffectTextColor(reflectedDamageType) : undefined,
-          targetEnemy: sourceEnemy
-        })
-      );
-      makeReflectFlash(runtime.scene, tower.x, tower.y);
+      reflectEnemyAttack(runtime, tower, projectile);
     }
   } finally {
     hitTowers.length = 0;
     reflectors.length = 0;
   }
+}
+
+export function reflectEnemyAttack(runtime: ProjectileRuntime, tower: Tower, projectile: EnemyProjectile | MortarProjectile, atTower = false) {
+  const damageType = towerDamageType(tower, projectile.damageType, runtime.battleTime);
+  if (!("owner" in projectile)) {
+    const incoming = atTower ? { ...projectile, x: tower.x, y: tower.y, sourceLane: tower.lane } : projectile;
+    runtime.projectiles.push(createReflectedProjectile(runtime.scene, incoming, damageType, tower));
+    makeReflectFlash(runtime.scene, incoming.x, incoming.y);
+    return;
+  }
+  const sourceEnemy = projectile.sourceEnemy;
+  if (!sourceEnemy?.inPlay) return;
+  runtime.mortarProjectiles.push(createMortarProjectile(runtime.scene, {
+    owner: "tower", hitCount: projectile.hitCount,
+    fromX: tower.x, fromY: tower.y, targetX: sourceEnemy.x, targetY: sourceEnemy.y,
+    damage: projectile.damage, damageType, sourceTower: tower,
+    rangeX: projectile.rangeX, rangeY: projectile.rangeY,
+    marker: projectile.marker, markerText: projectile.markerText,
+    markerTextColor: projectile.marker === "text" ? damageEffectTextColor(damageType) : undefined,
+    targetEnemy: sourceEnemy
+  }));
+  makeReflectFlash(runtime.scene, tower.x, tower.y);
 }
 
 function detonateTowerMortar(runtime: ProjectileRuntime, projectile: MortarProjectile) {

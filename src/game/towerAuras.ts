@@ -1,5 +1,5 @@
 import { COLUMNS, LANES } from "../config";
-import { towerBehaviorType } from "./towerIdentity";
+import { towerFormType } from "./towerIdentity";
 import type { Tower } from "../types";
 import { isPointInSlowAura } from "./slowAura";
 
@@ -18,7 +18,7 @@ export function isInCentered3x3Aura(source: Tower, target: Tower) {
 export function syncUnyieldingAuras(towers: Tower[]) {
   unyieldingCells.fill(0);
   for (const tower of towers) {
-    if (!tower.inPlay || tower.transient || towerBehaviorType(tower) !== "g") continue;
+    if (!tower.inPlay || tower.transient || towerFormType(tower) !== "g") continue;
     const strength = Math.max(1, tower.level + tower.levelBonus + tower.mirrorLevelBonus) * UNYIELDING_PERCENT_PER_LEVEL / 100;
     for (let dl = -1; dl <= 1; dl++) {
       for (let dc = -1; dc <= 1; dc++) {
@@ -87,7 +87,7 @@ export function towerHasZeal(towers: Tower[] | undefined, target: Tower, sources
 }
 
 function isZealSource(tower: Tower) {
-  return towerBehaviorType(tower) === "e" && !tower.transient && tower.inPlay;
+  return towerFormType(tower) === "e" && !tower.transient && tower.inPlay;
 }
 
 function markZealCells(zealCells: Uint8Array, tower: Tower) {

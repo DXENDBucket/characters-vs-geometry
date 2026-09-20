@@ -1,6 +1,38 @@
-import type { Tower } from "../types";
+import type { CardId, Tower, TowerFinalStats } from "../types";
+
+export interface TowerBehaviorContext {
+  type: CardId;
+  level: number;
+  stats: TowerFinalStats;
+}
+
+const actionContexts = new WeakMap<object, TowerBehaviorContext>();
+
+export function towerActionContext(tower: object) { return actionContexts.get(tower); }
+
+export function withTowerActionContext<T>(tower: Tower, context: TowerBehaviorContext, run: () => T): T {
+  const previous = actionContexts.get(tower);
+  actionContexts.set(tower, context);
+  try { return run(); }
+  finally {
+    if (previous) actionContexts.set(tower, previous);
+    else actionContexts.delete(tower);
+  }
+}
 
 // Card identity governs price, upgrades and unlocks; only behavior can be copied.
 export function towerBehaviorType(tower: Pick<Tower, "type" | "copiedType">) {
+  return actionContexts.get(tower)?.type ?? towerFormType(tower);
+}
+
+export function towerFormType(tower: Pick<Tower, "type" | "copiedType">) {
   return tower.type === "@" ? tower.copiedType ?? "@" : tower.type;
+}
+
+export function isNumberTower(tower: Pick<Tower, "type" | "copiedType">) {
+  return towerFormType(tower) === "1";
+}
+
+export function towerHasSkillBehavior(tower: Tower, type: CardId) {
+  return towerBehaviorType(tower) === type || (isNumberTower(tower) && tower.imitatedSkills?.includes(type) === true);
 }

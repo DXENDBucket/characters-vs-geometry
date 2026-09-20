@@ -196,6 +196,8 @@ export const smallSummonerCardBehavior: CardBehavior = {
 };
 
 export const cardBehaviorsById: Record<CardId, CardBehavior> = {
+  "=": idleCardBehavior,
+  "1": idleCardBehavior,
   "@": idleCardBehavior,
   "#": idleCardBehavior,
   A: projectileCardBehavior,

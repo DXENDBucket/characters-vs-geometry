@@ -13,7 +13,7 @@ function enemy(kind, x = 0, y = 0, ratio = 1) {
     baseStats: { maxHp: definition.hp }, waveNumber: 1 };
 }
 
-test("AE-3 uses the chapter-four template and exact enemy pool without a tower unlock", () => {
+test("AE-3 uses the chapter-four template and exact enemy pool, unlocking = and 1 but not +", () => {
   const { getLevelConfig } = load("src/data/levels.ts");
   const level = getLevelConfig("AE-3"), template = getLevelConfig("AE-1");
   assert.equal(level.totalWaves, 20);
@@ -22,6 +22,7 @@ test("AE-3 uses the chapter-four template and exact enemy pool without a tower u
     assert.equal(level[field], template[field], field);
   assert.deepEqual(level.enemyKinds, ["circle", "tilde", "tilde2", "tilde3", "equals", "equals2", "equals3", "pentagon", "mortarTriangle", "diamond", "heart"]);
   assert.ok(!load("src/data/cards.ts").cardDefinitions.some(card => card.id === "+"));
+  for (const id of ["=", "1"]) assert.equal(load("src/data/cardUnlocks.ts").cardUnlockRequirement(id), "AE-3");
 });
 
 test("equals ranks only grow weight and link capacity; attack matches Square I even at high ranks", () => {

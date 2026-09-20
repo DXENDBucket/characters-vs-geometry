@@ -1434,7 +1434,7 @@ test("enemy projectiles and mortar impacts apply armor per judgment and reflecti
     const target = f.place("R");
     target.finalStats.armor = 300;
     const before = target.hp;
-    const shot = { owner: "enemy", x: target.x, y: target.y, fromX: target.x, fromY: target.y, vx: 0, sourceLane: target.lane, targetX: target.x, targetY: target.y, progress: 1, duration: 1000, rangeX: 80, rangeY: 80, damage: 400, damageType: "physical", hitCount: 2, body: visual(), sourceEnemy: enemy() };
+    const shot = { ...(mortar ? { owner: "enemy" } : {}), x: target.x, y: target.y, fromX: target.x, fromY: target.y, vx: 0, sourceLane: target.lane, targetX: target.x, targetY: target.y, progress: 1, duration: 1000, rangeX: 80, rangeY: 80, damage: 400, damageType: "physical", hitCount: 2, body: visual(), sourceEnemy: enemy() };
     const state = { ...f.state, getBoss: () => null, projectiles: [], enemyProjectiles: mortar ? [] : [shot], mortarProjectiles: mortar ? [shot] : [], onTowerDamaged: noop };
     state.damageTower = (tower, amount, type) => lifecycle.damageTower(state, tower, amount, type);
     if (mortar) updateMortarProjectiles(state, 0);

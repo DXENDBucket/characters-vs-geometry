@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import type { TowerActionListener } from "./towerActions";
 import { towerBehaviorType } from "./towerIdentity";
 import {
   CELL_HEIGHT,
@@ -30,6 +31,7 @@ import { syncUnyieldingAuras } from "./towerAuras";
 import { towerFinalStats } from "./unitStats";
 
 export interface UnitLifecycleRuntime {
+  onTowerAction?: TowerActionListener;
   scene: Phaser.Scene;
   enemies: Enemy[];
   towers: Tower[];
@@ -298,6 +300,7 @@ export function removeTower(runtime: UnitLifecycleRuntime, tower: Tower) {
   }
 
   if (towerBehaviorType(tower) === "T") {
+    runtime.onTowerAction?.(tower, { kind: "detonation" });
     detonateSlowAuraTower(runtime, tower);
   }
 
@@ -318,7 +321,7 @@ export function removeTower(runtime: UnitLifecycleRuntime, tower: Tower) {
   });
 }
 
-function detonateSlowAuraTower(runtime: UnitLifecycleRuntime, tower: Tower) {
+export function detonateSlowAuraTower(runtime: UnitLifecycleRuntime, tower: Tower) {
   makeShockPulse(runtime.scene, tower.x, tower.y, CELL_WIDTH * 2.5, CELL_HEIGHT * 2.5);
   clearProjectilesInSlowAura(runtime.projectiles, tower);
   clearProjectilesInSlowAura(runtime.enemyProjectiles, tower);

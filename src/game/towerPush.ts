@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import type { TowerActionListener } from "./towerActions";
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, COLUMNS, LANES, palette } from "../config";
 import type { Tower } from "../types";
 import { gridCellKey } from "./targeting";
@@ -9,6 +10,7 @@ import type { TowerShifterRuntime } from "./towerShifter";
 import { syncTowerFlyingVisual } from "./towers";
 
 interface PushRuntime extends TowerShifterRuntime {
+  onTowerAction?: TowerActionListener;
   eraseTower: (tower: Tower) => void;
 }
 
@@ -61,6 +63,13 @@ export class TowerPushController {
   choose(lane: number, column: number) {
     const source = this.source;
     if (!source || !pushIsReady(source) || source.moveVisual) { this.cancel(); return false; }
+    const result = this.push(source, lane, column);
+    if (result) this.cancel();
+    return result;
+  }
+
+  push(source: Tower, lane: number, column: number, free = false) {
+    if (!source.inPlay || source.moveVisual || (!free && !pushIsReady(source))) return false;
     const runtime = this.runtime();
     const byId = new Map(runtime.towers.map(tower => [tower.id, tower]));
     const plan = planTowerPush(source, { lane, column }, {
@@ -71,9 +80,9 @@ export class TowerPushController {
     });
     if (!plan || plan.some(move => byId.get(move.towerId)?.moveVisual)) return false;
     const moves = plan.map(move => ({ ...move, tower: byId.get(move.towerId)! }));
-    spendSkillSp(getTowerSkillState(source, "push"), PUSH_MAX_SP);
+    if (!free) spendSkillSp(getTowerSkillState(source, "push"), PUSH_MAX_SP);
+    runtime.onTowerAction?.(source, { kind: "skill", laneOffset: lane - source.lane, columnOffset: column - source.column });
     source.border.setAlpha(1);
-    this.cancel();
     // Commit all cells before any removal callback can rebuild mirror/health networks.
     for (const move of moves) runtime.occupied.delete(gridCellKey(move.fromLane, move.fromColumn));
     for (const move of moves) {

@@ -1,6 +1,8 @@
 import type Phaser from "phaser";
 
 export type CardId =
+  | "="
+  | "1"
   | "@"
   | "#"
   | "A"
@@ -240,6 +242,8 @@ export interface TowerHealthPool {
 }
 
 export interface Tower {
+  numberMemory?: Array<{ type: CardId; sourceIds: string[]; count: number }>;
+  imitatedSkills?: CardId[];
   copiedType?: CardId;
   copyRevision?: number;
   healthPool?: TowerHealthPool;

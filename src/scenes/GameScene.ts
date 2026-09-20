@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { towerBehaviorType } from "../game/towerIdentity";
+import { towerBehaviorType, towerFormType } from "../game/towerIdentity";
 import { syncTowerCopies } from "../game/towerCopy";
 import { syncTowerFormVisual } from "../game/towers";
 import { BattleClock, BattleRandom, BATTLE_STEP_MS, BATTLE_RULES_VERSION, setBattleRandom, setBattlePlayback } from "../game/battleSimulation";
@@ -10,6 +10,12 @@ import { captureBattleSnapshot, restoreBattleSnapshot } from "../game/battleSnap
 import { deleteSurvivalSave, readSurvivalSave, writeSurvivalSave, type SurvivalSave } from "../survivalSaves";
 import { syncTowerHealthNetworks } from "../game/towerHealth";
 import { detachEnemyHealth } from "../game/enemyHealth";
+import { NumberTowerController } from "../game/numberTowers";
+import { executeTowerImitation } from "../game/towerImitation";
+import { reflectEnemyAttack } from "../game/projectileRuntime";
+import type { ImitationBehavior, TowerActionListener } from "../game/towerActions";
+import { withTowerBehavior } from "../game/unitStats";
+import { detonateSlowAuraTower } from "../game/unitLifecycle";
 import { drawEnemyHealthLinks } from "../render/enemyHealthLinks";
 import { PauseMenu } from "../render/pauseMenu";
 import { BattleCardList } from "../render/battleCardList";
@@ -200,6 +206,8 @@ function combineDamageReduction(baseReduction: number, extraReduction: number) {
 }
 
 export class GameScene extends Phaser.Scene {
+  private numbers!: NumberTowerController;
+  private readonly onTowerAction: TowerActionListener = (source, event) => this.numbers.record(source, event);
   private enemyHealthLinks!: Phaser.GameObjects.Graphics;
   private simulation = new BattleClock();
   private random = new BattleRandom(0);
@@ -398,10 +406,13 @@ export class GameScene extends Phaser.Scene {
     this.autoUpgradeReserveInputFocused = false;
     this.tutorial = null;
     this.targetedEffects = new TargetedEffectCardController(() => this.targetedEffectCardRuntime());
+    this.numbers = new NumberTowerController(() => ({ towers: this.towers, getDefinition: id => this.getDefinition(id),
+      imitate: (tower, behavior, event) => this.scheduleBattleAction(0, { type: "imitation", tower, behavior, event }) }));
     this.towerSkills = new TowerSkillController(this, () => this.towerSkillRuntime());
     this.shifter = new TowerShifterController(() => this.towerShifterRuntime());
     this.towerPush = new TowerPushController(this, () => ({
       ...this.towerShifterRuntime(),
+      onTowerAction: this.onTowerAction,
       eraseTower: tower => removeTower(this.unitLifecycleRuntime(), tower)
     }));
     this.mirrors = new TowerMirrorController(() => this.towerMirrorRuntime());
@@ -975,6 +986,7 @@ export class GameScene extends Phaser.Scene {
         const amount = getProductionAmount(tower, definition);
         tower.nextProduceAt += definition.produceEvery;
         this.gainChars(amount, tower.x, tower.y - 28);
+        this.onTowerAction(tower, { kind: "production" });
       }
     }
   }
@@ -1086,6 +1098,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     this.cacheLevelAuraState();
+    this.numbers.sync();
   }
 
   private levelAuraStateChanged() {
@@ -1106,7 +1119,7 @@ export class GameScene extends Phaser.Scene {
   private levelAuraTowerStateMatches(tower: Tower, cached: LevelAuraTowerSignature) {
     return (
       cached.id === tower.id &&
-      cached.type === towerBehaviorType(tower) &&
+      cached.type === towerFormType(tower) &&
       cached.lane === tower.lane &&
       cached.column === tower.column &&
       cached.level === tower.level &&
@@ -1122,7 +1135,7 @@ export class GameScene extends Phaser.Scene {
       const tower = this.towers[index];
       const cached = this.levelAuraCachedStates[index] ?? this.createLevelAuraTowerState(tower);
       cached.id = tower.id;
-      cached.type = towerBehaviorType(tower);
+      cached.type = towerFormType(tower);
       cached.lane = tower.lane;
       cached.column = tower.column;
       cached.level = tower.level;
@@ -1136,7 +1149,7 @@ export class GameScene extends Phaser.Scene {
   private createLevelAuraTowerState(tower: Tower): LevelAuraTowerSignature {
     return {
       id: tower.id,
-      type: towerBehaviorType(tower),
+      type: towerFormType(tower),
       lane: tower.lane,
       column: tower.column,
       level: tower.level,
@@ -1183,6 +1196,7 @@ export class GameScene extends Phaser.Scene {
     const amount = getHitProductionAmount(tower, definition);
     if (amount > 0) {
       this.gainChars(amount, tower.x, tower.y - 28);
+      this.onTowerAction(tower, { kind: "hitProduction" });
     }
   }
 
@@ -1328,6 +1342,8 @@ export class GameScene extends Phaser.Scene {
 
   private createTowerSkillRuntime(): TowerSkillRuntime {
     return {
+      onTowerAction: this.onTowerAction,
+      imitateTowerPush: (tower, dl, dc) => { this.towerPush.push(tower, tower.lane + dl, tower.column + dc, true); },
       prepareSkillTargeting: () => this.prepareSkillTargeting(),
       beginTowerPush: tower => { this.towerPush.begin(tower); },
       scheduleBattleAction: this.scheduleBattleAction,
@@ -1356,6 +1372,7 @@ export class GameScene extends Phaser.Scene {
 
   private createTargetedEffectCardRuntime(): TargetedEffectCardRuntime {
     return {
+      onTowerAction: this.onTowerAction,
       scheduleBattleAction: this.scheduleBattleAction,
       extraction: this.extraction,
       scene: this,
@@ -1474,6 +1491,7 @@ export class GameScene extends Phaser.Scene {
 
   private createCombatRuntime(): CombatRuntime {
     return {
+      onTowerAction: this.onTowerAction,
       scheduleBattleAction: this.scheduleBattleAction,
       scene: this,
       enemies: this.enemies,
@@ -1547,6 +1565,7 @@ export class GameScene extends Phaser.Scene {
 
   private createProjectileRuntime(): ProjectileRuntime {
     return {
+      onTowerAction: this.onTowerAction,
       projectileMotion: this.projectileMotion,
       scene: this,
       projectiles: this.projectiles,
@@ -1581,6 +1600,7 @@ export class GameScene extends Phaser.Scene {
 
   private createUnitLifecycleRuntime(): UnitLifecycleRuntime {
     return {
+      onTowerAction: this.onTowerAction,
       scene: this,
       enemies: this.enemies,
       towers: this.towers,
@@ -1618,6 +1638,7 @@ export class GameScene extends Phaser.Scene {
 
   private createTriggerTowerRuntime(): TriggerTowerRuntime {
     return {
+      onTowerAction: this.onTowerAction,
       scheduleBattleAction: this.scheduleBattleAction,
       scene: this,
       enemies: this.enemies,
@@ -1695,7 +1716,8 @@ export class GameScene extends Phaser.Scene {
   private startTowerVolley(
     tower: Tower,
     time: number,
-    attackInterval: number
+    attackInterval: number,
+    imitation?: ImitationBehavior
   ) {
     const totalHits = volleyShotCount(towerBehaviorType(tower), effectiveTowerLevel(tower));
     const shots = volleyTimingCount(totalHits);
@@ -1703,10 +1725,12 @@ export class GameScene extends Phaser.Scene {
 
     for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
       const hitCount = volleyHitsAt(totalHits, shotIndex);
-      this.scheduleBattleAction(shotIndex * interval, { type: "volley", tower, hitCount, copyRevision: tower.copyRevision });
+      this.scheduleBattleAction(shotIndex * interval, { type: "volley", tower, hitCount, copyRevision: tower.copyRevision,
+        ...(imitation ? { behavior: imitation } : {}) });
     }
 
     tower.lastFire = time + (shots - 1) * interval;
+    this.onTowerAction(tower, { kind: "attack" });
   }
 
   private updateEnemies(time: number, seconds: number) {
@@ -2561,13 +2585,27 @@ export class GameScene extends Phaser.Scene {
   private executeBattleAction(action: BattleAction) {
     if (this.gameOver) return;
     switch (action.type) {
+      case "imitation":
+        executeTowerImitation(action.tower, action.behavior, action.event, {
+          combat: this.combatRuntime(), trigger: this.triggerTowerRuntime(), getDefinition: id => this.getDefinition(id),
+          startVolley: (tower, behavior) => this.startTowerVolley(tower, this.battleTime, this.towerAttackInterval(tower), behavior),
+          skill: (tower, event) => this.towerSkills.imitateSkill(tower, event),
+          targeted: (type, tower, level) => this.targetedEffects.imitate(type, tower, level),
+          detonate: tower => detonateSlowAuraTower(this.unitLifecycleRuntime(), tower),
+          reflect: (tower, event) => reflectEnemyAttack(this.projectileRuntime(), tower, event.projectile, true)
+        });
+        break;
       case "companionLaser": case "companionMortar": case "bossDeathLaser": case "bossDeathMortar": case "bossReinforcements":
         executeBossAttack(this.bossRuntime(), action); break;
       case "enemyShot": case "enemyLaser": case "enemyMortar": executeEnemyAttack(this.combatRuntime(), action); break;
       case "volley":
         if (action.tower.inPlay && action.copyRevision === action.tower.copyRevision) {
-          const type = towerBehaviorType(action.tower);
-          getCardBehavior(type).execute(action.tower, this.getDefinition(type), this.combatRuntime(), action.hitCount);
+          const execute = () => {
+            const type = towerBehaviorType(action.tower);
+            getCardBehavior(type).execute(action.tower, this.getDefinition(type), this.combatRuntime(), action.hitCount);
+          };
+          if (action.behavior) withTowerBehavior(action.tower, this.getDefinition(action.behavior.type), action.behavior.level, execute, this.towers);
+          else execute();
         }
         break;
       case "targetedEffect": this.targetedEffects.resolvePendingEffectCard(action.tower); break;

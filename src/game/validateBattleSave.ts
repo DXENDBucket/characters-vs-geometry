@@ -2,6 +2,7 @@ import type { BattleSaveState } from "./battleSaveState";
 import { decodeSaveGraph, type NodeKind, type SaveGraph } from "./saveGraph";
 import { rankedBossFamily } from "../bosses/bossRanks";
 import type { BossKind, Enemy } from "../types";
+import { cardDefinitions } from "../data/cards";
 import { parseEnemyKind } from "./enemyIdentity";
 import { getEnemyDefinition } from "../registry/enemies";
 import { BATTLE_RULES_VERSION, validBattleClock } from "./battleSimulation";
@@ -20,6 +21,15 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
   const timestamp = (value: unknown) => typeof value === "number" && !Number.isNaN(value);
   const array = (value: unknown, check: (item: unknown) => boolean): boolean => Array.isArray(value) && value.every(check);
   const member = (kind: NodeKind) => (value: unknown) => Boolean(value && typeof value === "object" && units.get(kind)?.has(value));
+  const learnable = (type: unknown) => cardDefinitions.some(card => card.id === type && card.cost <= 999 && card.id !== "1");
+  const behavior = (value: unknown) => record(value) && learnable(value.type) && Number.isSafeInteger(value.level) && (value.level as number) >= 1;
+  const towerEvent = (value: unknown) => record(value) && (
+    ["attack", "production", "hitProduction", "shock", "detonation", "targeted"].includes(value.kind as string) ||
+    (value.kind === "trap" && (value.target === "boss" || member("enemy")(value.target) || member("boss")(value.target))) ||
+    (value.kind === "retaliation" && member("enemy")(value.target)) ||
+    (value.kind === "reflection" && (member("enemyProjectile")(value.projectile) || member("mortar")(value.projectile))) ||
+    (value.kind === "skill" && ["x", "y", "laneOffset", "columnOffset"].every(key => value[key] === undefined || finite(value[key])))
+  );
   require(record(state));
   if (state.simulation !== undefined) {
     const simulation = state.simulation;
@@ -100,6 +110,12 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
         require(["laser", "mortar", "wings"].includes(value.bossCompanionActionPhase as string));
       }
       if (kind === "tower") {
+        if (value.numberMemory !== undefined) {
+          require(array(value.numberMemory, entry => record(entry) && learnable(entry.type) &&
+            Number.isSafeInteger(entry.count) && (entry.count as number) >= 0 &&
+            array(entry.sourceIds, id => typeof id === "string" && /^tower:\d+$/.test(id))));
+        }
+        if (value.imitatedSkills !== undefined) require(array(value.imitatedSkills, learnable));
         if (value.moveVisual) {
           require(record(value.moveVisual) && [value.moveVisual.fromX, value.moveVisual.fromY,
             value.moveVisual.startedAt].every(finite) && finite(value.moveVisual.duration) && value.moveVisual.duration > 0);
@@ -116,7 +132,9 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
   }
   require(array(state.cardDeadlines, entry => record(entry) && typeof entry.id === "string" && timestamp(entry.readyAt)));
   require(array(state.actions, entry => record(entry) && finite(entry.at) && record(entry.action) &&
-    ((["volley", "shock", "targetedEffect", "spellMortar"].includes(entry.action.type as string) && member("tower")(entry.action.tower)) ||
+    ((["volley", "shock", "targetedEffect", "spellMortar"].includes(entry.action.type as string) && member("tower")(entry.action.tower) &&
+       (entry.action.behavior === undefined || behavior(entry.action.behavior))) ||
+     (entry.action.type === "imitation" && member("tower")(entry.action.tower) && behavior(entry.action.behavior) && towerEvent(entry.action.event)) ||
      (["enemyShot", "enemyLaser", "enemyMortar"].includes(entry.action.type as string) && member("enemy")(entry.action.enemy)) ||
      (["companionLaser", "companionMortar"].includes(entry.action.type as string) && member("boss")(entry.action.boss) &&
        member("enemy")(entry.action.companion) && finite(entry.action.hitCount) && entry.action.hitCount > 0) ||

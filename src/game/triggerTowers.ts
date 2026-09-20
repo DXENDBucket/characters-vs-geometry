@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import type { TowerActionListener } from "./towerActions";
 import { towerBehaviorType } from "./towerIdentity";
 import type { BattleAction, ScheduleBattleAction } from "./battleActions";
 import { BOARD_HEIGHT, BOARD_WIDTH, BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH } from "../config";
@@ -12,6 +13,7 @@ import { getShockCount, getTriggerDebuffDuration, towerDamageType } from "./towe
 import { towerAttackAmount } from "./unitStats";
 
 export interface TriggerTowerRuntime {
+  onTowerAction?: TowerActionListener;
   scheduleBattleAction?: ScheduleBattleAction;
   scene: Phaser.Scene;
   enemies: Enemy[];
@@ -32,6 +34,8 @@ export function isShockTower(tower: Tower | undefined): tower is Tower {
 }
 
 export function triggerShockTower(runtime: TriggerTowerRuntime, tower: Tower) {
+  if (!tower.inPlay) return;
+  runtime.onTowerAction?.(tower, { kind: "shock" });
   const definition = runtime.getDefinition(towerBehaviorType(tower));
   const interval = definition.triggerInterval ?? 50;
   const damage = towerAttackAmount(tower, definition);
@@ -107,6 +111,8 @@ export function executeShockPulse(runtime: TriggerTowerRuntime, action: Extract<
 }
 
 export function triggerTrapTower(runtime: TriggerTowerRuntime, tower: Tower, target: Enemy | CubeBoss | "boss") {
+  if (!tower.inPlay) return;
+  runtime.onTowerAction?.(tower, { kind: "trap", target });
   const definition = runtime.getDefinition(towerBehaviorType(tower));
   const damage = towerAttackAmount(tower, definition);
   const damageType = towerDamageType(tower, definition.damageType ?? "magic", runtime.battleTime);

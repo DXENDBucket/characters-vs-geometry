@@ -1,4 +1,5 @@
 import type Phaser from "phaser";
+import type { TowerActionListener } from "./towerActions";
 import type { ScheduleBattleAction } from "./battleActions";
 import { palette } from "../config";
 import type { CardDefinition, CardId, CardState, Tower } from "../types";
@@ -18,6 +19,7 @@ import {
 export type TargetedEffectCardResult = "handled" | "cooldown" | "empty" | "noChars";
 
 export interface TargetedEffectCardRuntime {
+  onTowerAction?: TowerActionListener;
   scheduleBattleAction?: ScheduleBattleAction;
   scene: Phaser.Scene;
   towers: Tower[];
@@ -75,6 +77,10 @@ export class TargetedEffectCardController {
 
   canHandle(id: CardId) {
     return Boolean(targetedEffectDefinitions[id]);
+  }
+
+  imitate(id: CardId, target: Tower, level: number) {
+    targetedEffectDefinitions[id]?.apply(this.runtime(), target, level);
   }
 
   use(definition: CardDefinition, lane: number, column: number, target?: Tower): TargetedEffectCardResult {
@@ -206,6 +212,7 @@ export class TargetedEffectCardController {
     const level = effectiveTowerLevel(effectCard);
     const target = runtime.towers.find((tower) => tower.id === effectCard.turnTargetId);
     if (target?.inPlay) {
+      runtime.onTowerAction?.(effectCard, { kind: "targeted" });
       targetedEffectDefinitions[effectCard.type]?.apply(runtime, target, level);
     }
 

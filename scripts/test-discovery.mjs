@@ -60,6 +60,8 @@ test("AE-3 reveals Equals after AE-2 without unlocking the withdrawn + card", ()
   assert.equal(progress.isCardUnlocked("+"), false);
   progress.completeLevel("AE-3");
   assert.equal(progress.isCardUnlocked("+"), false);
+  assert.equal(progress.isCardUnlocked("="), true);
+  assert.equal(progress.isCardUnlocked("1"), true);
 });
 
 test("enemy encyclopedia groups preserve origins and hide undiscovered groups", () => {

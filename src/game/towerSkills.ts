@@ -1,5 +1,6 @@
 import Phaser from "phaser";
-import { towerBehaviorType } from "./towerIdentity";
+import { isNumberTower, towerBehaviorType } from "./towerIdentity";
+import type { TowerActionEvent, TowerActionListener } from "./towerActions";
 import type { BattleAction, ScheduleBattleAction } from "./battleActions";
 import { changeTowerHealth } from "./towerHealth";
 import { activateOrientation, orientationIsReady } from "./orientation";
@@ -30,15 +31,18 @@ import {
   effectiveTowerLevel,
   setTowerFlyingUntil,
   syncTowerFlyingVisual,
+  syncNumberSkillRange,
   towerDamageType
 } from "./towers";
-import { towerAttackAmount, towerFinalStats } from "./unitStats";
+import { towerAttackAmount, towerFinalStats, withTowerBehavior } from "./unitStats";
 
 const AIR_PATROL_SKILL_MAX = 10;
 const AIR_PATROL_SKILL_COST = 10;
 const AIR_PATROL_SKILL_DURATION = 6_000;
 
 export interface TowerSkillRuntime {
+  onTowerAction?: TowerActionListener;
+  imitateTowerPush?: (tower: Tower, laneOffset: number, columnOffset: number) => void;
   scheduleBattleAction?: ScheduleBattleAction;
   towers: Tower[];
   enemies: Enemy[];
@@ -80,6 +84,10 @@ export class TowerSkillController {
     private readonly runtime: () => TowerSkillRuntime
   ) {
     this.skillDefinitions = createTowerSkillRegistry({
+      onAction: tower => this.runtime().onTowerAction?.(tower, { kind: "skill" }),
+      imitatePush: (tower, event) => this.runtime().imitateTowerPush?.(tower, event.laneOffset ?? 0, event.columnOffset ?? 0),
+      imitateSpellMortar: (tower, event) => { if (event.x !== undefined && event.y !== undefined) this.fireSpellMortar(tower, event.x, event.y); },
+      imitateGuardian: tower => this.triggerGuardianSkill(tower, getTowerSkillState(tower, "guardian"), this.guardianHealTargets(tower)),
       updateClockTower: (tower, state, seconds, time) => this.updateClockTower(tower, state, seconds, time),
       resetClockTower: (tower, state) => this.resetClockTower(tower, state),
       updateGuardianTower: (tower, state, seconds, time) => this.updateGuardianTower(tower, state, seconds, time),
@@ -111,6 +119,19 @@ export class TowerSkillController {
     let activeClockLevelSum = 0;
     for (const tower of this.runtime().towers) {
       if (tower.moveVisual) syncTowerFlyingVisual(tower, time);
+      if (isNumberTower(tower)) {
+        syncNumberSkillRange(this.scene, tower, time);
+        for (const type of tower.imitatedSkills ?? []) {
+          const skill = this.skillDefinitions[type];
+          if (!skill) continue;
+          const state = getTowerSkillState(tower, skill.stateKey);
+          if (state.activeUntil <= 0) continue;
+          withTowerBehavior(tower, this.runtime().getDefinition(type), tower.level,
+            () => skill.update(tower, state, 0, time, undefined), this.runtime().towers);
+          if (state.activeUntil <= time) { state.activeUntil = 0; tower.border.setVisible(true).setAlpha(1); }
+        }
+        continue;
+      }
       const definition = this.skillDefinitions[towerBehaviorType(tower)];
       if (!definition) {
         continue;
@@ -127,6 +148,19 @@ export class TowerSkillController {
 
   hasSpellMortarTargeting() {
     return this.spellMortarTargetingTowers.length > 0;
+  }
+
+  imitateSkill(tower: Tower, event: Extract<TowerActionEvent, { kind: "skill" }>) {
+    const type = towerBehaviorType(tower);
+    const definition = this.skillDefinitions[type];
+    if (!definition) return;
+    tower.imitatedSkills ??= [];
+    if (!tower.imitatedSkills.includes(type)) tower.imitatedSkills.push(type);
+    if (definition.imitate) { definition.imitate(tower, event); return; }
+    if (!definition.manual || definition.maxSp === undefined) return;
+    const state = getTowerSkillState(tower, definition.stateKey);
+    state.sp = definition.maxSp; state.spBuffer = 0; state.activeUntil = 0;
+    definition.manual.activate([tower], { x: tower.x, y: tower.y, allReady: false }, this.runtime().battleTime);
   }
 
   cardCooldownMultiplier() {
@@ -156,6 +190,7 @@ export class TowerSkillController {
   }
 
   activateClockTower(tower: Tower) {
+    this.runtime().onTowerAction?.(tower, { kind: "skill" });
     const state = getTowerSkillState(tower, "clock");
     resetSkillCharge(state);
     state.activeUntil = this.runtime().battleTime + CLOCK_TOWER_SKILL_DURATION;
@@ -177,17 +212,18 @@ export class TowerSkillController {
   }
 
   activateGatheringTower(tower: Tower) {
-    activateGathering(tower, this.runtime().battleTime);
+    if (activateGathering(tower, this.runtime().battleTime)) this.runtime().onTowerAction?.(tower, { kind: "skill" });
   }
 
   activateOrientationTower(tower: Tower) {
-    activateOrientation(tower, this.runtime().battleTime);
+    if (activateOrientation(tower, this.runtime().battleTime)) this.runtime().onTowerAction?.(tower, { kind: "skill" });
   }
 
   activateAirPatrolTower(tower: Tower) {
     if (!this.isAirPatrolReady(tower)) {
       return;
     }
+    this.runtime().onTowerAction?.(tower, { kind: "skill" });
 
     const runtime = this.runtime();
     const state = getTowerSkillState(tower, "airPatrol");
@@ -367,6 +403,7 @@ export class TowerSkillController {
   }
 
   private triggerGuardianSkill(tower: Tower, state: SkillState, targets: Tower[]) {
+    this.runtime().onTowerAction?.(tower, { kind: "skill" });
     state.sp = Math.max(0, state.sp - GUARDIAN_TOWER_SKILL_COST);
     state.spBuffer = 0;
     setTowerBorderAlpha(tower, 1);
@@ -421,6 +458,7 @@ export class TowerSkillController {
 
   private fireSpellMortar(tower: Tower, targetX: number, targetY: number) {
     const runtime = this.runtime();
+    runtime.onTowerAction?.(tower, { kind: "skill", x: targetX, y: targetY });
     const definition = runtime.getDefinition(towerBehaviorType(tower));
     const damage = towerAttackAmount(tower, definition);
     const damageType = towerDamageType(tower, definition.damageType ?? "magic", runtime.battleTime);
