@@ -2633,6 +2633,11 @@ export class GameScene extends Phaser.Scene {
     } catch { return false; }
   }
 
+  prepareDesktopClose() {
+    if (!this.levelConfig.survival || this.gameOver || this.playback) return true;
+    return this.saveSurvivalBattle();
+  }
+
   private applyBattleSave(state: BattleSaveState) {
     if (state.simulation) {
       if (state.simulation.version !== BATTLE_RULES_VERSION) throw new Error("Incompatible battle rules");

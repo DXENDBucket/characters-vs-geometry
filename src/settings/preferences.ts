@@ -6,6 +6,8 @@ interface StoredPreferences {
 
 let cachedPreferences: StoredPreferences | null = null;
 
+export function reloadPreferences() { cachedPreferences = null; }
+
 export function isDebugModeEnabled() {
   return preferences().debugMode === true;
 }

@@ -18,7 +18,7 @@ export interface SurvivalSave {
   graph: SaveGraph;
 }
 
-function validate(save: SurvivalSave) {
+export function validateSurvivalSave(save: SurvivalSave) {
   if (!save || save.version !== 1 || !Object.hasOwn(levelConfigs, save.levelId) || !levelConfigs[save.levelId].survival ||
       !Number.isSafeInteger(save.wave) || save.wave < 0 || !Number.isFinite(save.savedAt) ||
       !Number.isInteger(save.difficulty) || save.difficulty < 0 || save.difficulty > 8 ||
@@ -43,7 +43,7 @@ export function readSurvivalSave(levelId: string): SurvivalSave | undefined {
     const raw = window.localStorage.getItem(PREFIX + levelId);
     if (!raw) return;
     const save = JSON.parse(raw) as SurvivalSave;
-    validate(save);
+    validateSurvivalSave(save);
     if (save.levelId === levelId) return save;
   } catch {
     // Leave unrecognized saves intact until an explicit new run or progress reset.
@@ -52,7 +52,7 @@ export function readSurvivalSave(levelId: string): SurvivalSave | undefined {
 
 export function writeSurvivalSave(save: SurvivalSave): boolean {
   try {
-    validate(save);
+    validateSurvivalSave(save);
     window.localStorage.setItem(PREFIX + save.levelId, JSON.stringify(save));
     return true;
   } catch { return false; }

@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { GAME_HEIGHT, GAME_WIDTH, palette, uiTextColors } from "../config";
 import { t } from "../i18n";
 import { createTowerWord } from "../render/towerWord";
+import { SaveMenu } from "../render/saveMenu";
 import type { CardId } from "../types";
 
 interface MenuItem {
@@ -20,12 +21,14 @@ export class MainMenuScene extends Phaser.Scene {
   private selectedIndex = -1;
   private exited = false;
   private resizeFrame = 0;
+  private saveMenu?: SaveMenu;
 
   constructor() {
     super("MainMenuScene");
   }
 
   create() {
+    this.input.enabled = true;
     this.exited = false;
     this.selectedIndex = -1;
     this.cameras.main.setBackgroundColor(palette.black);
@@ -34,6 +37,7 @@ export class MainMenuScene extends Phaser.Scene {
     window.addEventListener("resize", this.handleResize);
     this.input.keyboard?.on("keydown", this.handleKey, this);
     this.events.once("shutdown", () => {
+      this.saveMenu?.destroy(); this.saveMenu = undefined;
       window.removeEventListener("resize", this.handleResize);
       cancelAnimationFrame(this.resizeFrame);
       this.input.keyboard?.off("keydown", this.handleKey, this);
@@ -68,7 +72,7 @@ export class MainMenuScene extends Phaser.Scene {
     }
 
     const centerX = width / 2;
-    const titleY = Math.round(height * 0.25);
+    const titleY = Math.round(height * (height < 700 ? 0.20 : 0.23));
     const titleScale = Math.min(1, (width - 64) / 920);
     this.drawTitle(centerX, titleY, titleScale);
     const subtitleY = titleY + 76 * titleScale + 24;
@@ -77,15 +81,16 @@ export class MainMenuScene extends Phaser.Scene {
     }).setOrigin(0.5));
 
     const portrait = height > width;
-    const spacing = portrait ? 72 : 56;
-    const startY = Math.max(subtitleY + 70, height * 0.49);
+    const spacing = portrait ? 72 : height < 700 ? 52 : 56;
+    const startY = Math.min(Math.max(subtitleY + 65, height * 0.46), height - spacing * 5 - 38);
     this.addMenuItem(centerX, startY, t("menu.singlePlayer"), () => this.scene.start("ChapterGroupSelectScene"));
     this.addMenuItem(centerX, startY + spacing, t("menu.multiplayer"), () => {}, false);
     this.addMenuItem(centerX, startY + spacing * 2, t("button.encyclopedia"), () => this.scene.start("EncyclopediaScene"));
     this.addMenuItem(centerX, startY + spacing * 3, t("button.settings"), () => {
       this.scene.start("SettingsScene", { returnScene: "MainMenuScene" });
     });
-    this.addMenuItem(centerX, startY + spacing * 4, t("menu.quit"), () => this.quit());
+    this.addMenuItem(centerX, startY + spacing * 4, t("menu.saves"), () => this.openSaves());
+    this.addMenuItem(centerX, startY + spacing * 5, t("menu.quit"), () => this.quit());
   }
 
   private drawTitle(centerX: number, y: number, scale: number) {
@@ -140,6 +145,7 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   private handleKey(event: KeyboardEvent) {
+    if (this.saveMenu) return;
     if (event.code === "Escape") {
       if (this.exited) this.resumeMenu();
       else this.select(-1);
@@ -163,9 +169,20 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   private quit() {
+    if (window.charsetDesktop) { window.close(); return; }
     this.exited = true;
     window.close();
     if (!window.closed) this.layout();
+  }
+
+  private openSaves() {
+    if (this.saveMenu) return;
+    this.input.enabled = false;
+    this.saveMenu = new SaveMenu(() => {
+      this.saveMenu?.destroy(); this.saveMenu = undefined;
+      this.input.enabled = true;
+      this.layout();
+    });
   }
 
   private drawExitState(width: number, height: number) {

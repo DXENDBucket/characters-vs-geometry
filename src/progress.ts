@@ -37,6 +37,8 @@ const knownLevelIds = new Set(completableNodes.map((node) => node.id));
 const allCardIds = Object.keys(cardUnlockRequirements) as CardId[];
 let cachedProgress: StoredProgress | null = null;
 
+export function reloadProgress() { cachedProgress = null; }
+
 export function isLevelCompleted(levelId: string) {
   return progress().completedLevelIds.includes(levelId);
 }

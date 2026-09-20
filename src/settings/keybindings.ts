@@ -55,6 +55,8 @@ const defaultKeybindings: Partial<Record<ControlActionId, string>> = {
 
 let cachedKeybindings: Partial<Record<ControlActionId, string>> | null = null;
 
+export function reloadKeybindings() { cachedKeybindings = null; }
+
 const keyLabels: Record<string, string> = {
   Backquote: "`",
   Minus: "-",

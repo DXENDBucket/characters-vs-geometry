@@ -3,10 +3,19 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "main": "electron/main.cjs",
+  "description": "Charset - a character tower defense game",
+  "license": "UNLICENSED",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
+    "desktop:dev": "node scripts/desktop-dev.mjs",
+    "desktop:start": "node scripts/desktop-start.mjs",
+    "predesktop:pack": "node -e \"require('electron')\"",
+    "predesktop:dist": "node -e \"require('electron')\"",
+    "desktop:pack": "npm run build && electron-builder --config electron-builder.json --win --x64 --dir",
+    "desktop:dist": "npm run build && electron-builder --config electron-builder.json --win --x64 --publish never",
     "validate": "node scripts/validate-data.mjs",
-    "test:rules": "node --test scripts/test-game-rules.mjs scripts/test-reversal.mjs scripts/test-effect-pools.mjs scripts/test-discovery.mjs scripts/test-enemy-ranks.mjs scripts/test-survival-saves.mjs scripts/test-enemy-movement.mjs scripts/test-projectile-motion.mjs scripts/test-battle-determinism.mjs",
+    "test:rules": "node --test scripts/test-game-rules.mjs scripts/test-reversal.mjs scripts/test-effect-pools.mjs scripts/test-discovery.mjs scripts/test-enemy-ranks.mjs scripts/test-survival-saves.mjs scripts/test-enemy-movement.mjs scripts/test-projectile-motion.mjs scripts/test-battle-determinism.mjs scripts/test-save-archive.mjs scripts/test-electron-policy.mjs",
     "build": "tsc && vite build",
     "preview": "vite preview --host 127.0.0.1"
   },
@@ -14,6 +23,8 @@
     "phaser": "3.90.0"
   },
   "devDependencies": {
+    "electron": "44.4.3",
+    "electron-builder": "26.15.3",
     "typescript": "^5.9.3",
     "vite": "^7.1.12"
   }

@@ -1,0 +1,20 @@
+{
+  "appId": "com.charset.game",
+  "productName": "Charset",
+  "asar": true,
+  "electronDist": "node_modules/electron/dist",
+  "directories": { "output": "release" },
+  "files": ["dist/**/*", "electron/**/*", "package.json"],
+  "npmRebuild": false,
+  "win": {
+    "target": [{ "target": "nsis", "arch": ["x64"] }],
+    "artifactName": "Charset-${version}-Windows-${arch}-Setup.${ext}"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "deleteAppDataOnUninstall": false
+  }
+}

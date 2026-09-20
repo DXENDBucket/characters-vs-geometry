@@ -17,6 +17,17 @@ npm run build
 
 构建产物会输出到 `dist/`。项目已配置 GitHub Pages workflow，推送到 `main` 后可通过 GitHub Actions 自动部署。
 
+## 桌面版与存档
+
+```bash
+npm run desktop:dev
+npm run desktop:dist
+```
+
+使用 Electron 开发和打包 Windows x64 桌面版，安装包输出到 `release/`。主菜单的“存档”支持导入、导出进度、无尽战场与设置，网页和桌面版之间也可以迁移。
+
+运行方式、存档位置与发布前准备见 [桌面版说明](docs/desktop.md)。
+
 ## 参考资料
 
 - `wave-reference.md`：敌人权重、关卡波次、角色属性和难度规则。
