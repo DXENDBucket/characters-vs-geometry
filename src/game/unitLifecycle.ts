@@ -11,6 +11,7 @@ import { makeBossHitFlash, makeBossInvincibleFlash, makeEnemyInvincibleFlash, ma
 import type { CubeBoss, DamageType, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower, WaveTracker } from "../types";
 import { bossFinalStats, enemyDefenseStats } from "./combatStats";
 import { calculateDamage } from "./damage";
+import { changeEnemyHealth, detachEnemyHealth } from "./enemyHealth";
 import { enemyIsHighFlying, syncEnemyVisualScale } from "./enemyBehaviors";
 import { releaseBurrowCargo, spawnSplitEnemies } from "./enemyRuntime";
 import { isPointInSlowAura } from "./slowAura";
@@ -218,7 +219,7 @@ export function damageEnemy(
   ) {
     syncEnemyBodyPosition(enemy);
   }
-  enemy.hp -= actualDamage;
+  changeEnemyHealth(enemy, -actualDamage);
   if (enemyIsSolarBomb(enemy) && enemy.hp <= 0) {
     depleteSolarBomb(enemy);
     syncEnemyBodyPosition(enemy);
@@ -226,18 +227,22 @@ export function damageEnemy(
   }
 
   syncSolarBombVisual(enemy);
-  syncEnemyVisualScale(enemy);
+  const affected = enemy.healthPool?.members ?? [enemy];
+  for (const member of affected) syncEnemyVisualScale(member);
 
   if (enemy.hp <= 0) {
-    const waveTracker = runtime.getWaveTracker();
-    if (waveTracker?.number === enemy.waveNumber) {
-      waveTracker.defeatedWeight += enemy.weight;
+    // Snapshot before removals detach members and destroy the shared pool.
+    for (const member of [...affected]) {
+      if (!member.inPlay) continue;
+      const waveTracker = runtime.getWaveTracker();
+      if (waveTracker?.number === member.waveNumber) {
+        waveTracker.defeatedWeight += member.weight;
+      }
+      runtime.onEnemyDefeated();
+      releaseBurrowCargo(runtime, member);
+      spawnSplitEnemies(runtime, member, runtime.battleTime, runtime.finalDamageReduction);
+      removeEnemy(runtime, member, true);
     }
-
-    runtime.onEnemyDefeated();
-    releaseBurrowCargo(runtime, enemy);
-    spawnSplitEnemies(runtime, enemy, runtime.battleTime, runtime.finalDamageReduction);
-    removeEnemy(runtime, enemy, true);
   }
   return true;
 }
@@ -265,6 +270,7 @@ export function removeBoss(runtime: UnitLifecycleRuntime, animate = true) {
 }
 
 export function removeEnemy(runtime: UnitLifecycleRuntime, enemy: Enemy, animate: boolean) {
+  detachEnemyHealth(enemy);
   enemy.inPlay = false;
   Phaser.Utils.Array.Remove(runtime.enemies, enemy);
   for (const cargo of enemy.burrowCargo ?? []) {

@@ -47,6 +47,7 @@ import {
   syncEnemyVisualScale
 } from "./enemyBehaviors";
 import { createEnemy } from "./enemyFactory";
+import { detachEnemyHealth, initializeEnemyHealthLinks } from "./enemyHealth";
 import { createEnemyProjectile, createMortarProjectile } from "./projectiles";
 import { enemyAttackDamage, enemyAttackMultiplier, enemyMovementMultiplier, enemyMovementSpeed } from "./combatStats";
 import {
@@ -121,7 +122,10 @@ const lockedAttackBlockedCountsBuffer = new Map<string, number>();
 const enemyLaserHitTowersBuffer: Tower[] = [];
 
 export function spawnEnemyAt(runtime: EnemySpawnRuntime, options: SpawnEnemyOptions) {
-  runtime.enemies.push(createEnemy(runtime.scene, options));
+  const enemy = createEnemy(runtime.scene, options);
+  runtime.enemies.push(enemy);
+  initializeEnemyHealthLinks(enemy, runtime.enemies);
+  for (const member of enemy.healthPool?.members ?? []) syncEnemyVisualScale(member);
   return options.waveWeight;
 }
 
@@ -770,6 +774,7 @@ function loadTouchingBurrowCargo(runtime: EnemyAdvanceRuntime, carrier: Enemy) {
       continue;
     }
 
+    detachEnemyHealth(target);
     Phaser.Utils.Array.Remove(runtime.enemies, target);
     target.inPlay = false;
     carrier.burrowCargo ??= [];
@@ -977,6 +982,7 @@ function burrowCargoRank(enemy: Enemy) {
 }
 
 function removeEscapedReverseEnemy(runtime: EnemyAdvanceRuntime, enemy: Enemy) {
+  detachEnemyHealth(enemy);
   enemy.inPlay = false;
   Phaser.Utils.Array.Remove(runtime.enemies, enemy);
   enemy.body.destroy();

@@ -46,6 +46,22 @@ test("the first ASCII character unlocks only after clearing AE-1", () => {
   assert.equal(progress.isCardUnlocked("#"), true);
 });
 
+test("AE-3 reveals Equals after AE-2 and unlocks + only after its own clear", () => {
+  const { progress } = fixture();
+  assert.equal(progress.isLevelUnlocked("AE-3"), false);
+  assert.equal(progress.isCardUnlocked("+"), false);
+  assert.equal(progress.discoveredEnemies().enemies.has("equals"), false);
+  progress.completeLevel("4-10");
+  progress.completeLevel("AE-1");
+  assert.equal(progress.discoveredEnemies().enemies.has("equals"), false);
+  progress.completeLevel("AE-2");
+  assert.equal(progress.isLevelUnlocked("AE-3"), true);
+  assert.equal(progress.discoveredEnemies().enemies.has("equals"), true);
+  assert.equal(progress.isCardUnlocked("+"), false);
+  progress.completeLevel("AE-3");
+  assert.equal(progress.isCardUnlocked("+"), true);
+});
+
 test("enemy encyclopedia groups preserve origins and hide undiscovered groups", () => {
   const { progress, visibility } = fixture();
   const entries = [{ enemyKind: "circle" }, { enemyKind: "tilde", chapterGroupId: "ascii" }, { icon: "cube" }];

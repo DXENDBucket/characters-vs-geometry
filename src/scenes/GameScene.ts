@@ -9,6 +9,9 @@ import type { BattleSaveState } from "../game/battleSaveState";
 import { captureBattleSnapshot, restoreBattleSnapshot } from "../game/battleSnapshot";
 import { deleteSurvivalSave, readSurvivalSave, writeSurvivalSave, type SurvivalSave } from "../survivalSaves";
 import { syncTowerHealthNetworks } from "../game/towerHealth";
+import { syncAdjacentHealthBonuses } from "../game/towerHealthBonus";
+import { detachEnemyHealth } from "../game/enemyHealth";
+import { drawEnemyHealthLinks } from "../render/enemyHealthLinks";
 import { PauseMenu } from "../render/pauseMenu";
 import { BattleCardList } from "../render/battleCardList";
 import { TowerExtractionPool } from "../game/towerExtraction";
@@ -198,6 +201,7 @@ function combineDamageReduction(baseReduction: number, extraReduction: number) {
 }
 
 export class GameScene extends Phaser.Scene {
+  private enemyHealthLinks!: Phaser.GameObjects.Graphics;
   private simulation = new BattleClock();
   private random = new BattleRandom(0);
   private replay!: BattleReplay;
@@ -428,6 +432,7 @@ export class GameScene extends Phaser.Scene {
     this.events.once("shutdown", () => this.cleanupSceneHandlers());
     this.cameras.main.setBackgroundColor(palette.black);
     this.drawBoard();
+    this.enemyHealthLinks = this.add.graphics().setDepth(59);
     this.ui = createGameHud(this, this.levelId, this.difficulty, {
       onMenu: () => this.openPauseMenu(),
       onDebug: () => this.grantDebugChars(),
@@ -605,6 +610,7 @@ export class GameScene extends Phaser.Scene {
       this.updateWaveSchedule(this.levelElapsed, this.battleTime);
     }
     this.attemptAutoUpgrades();
+    drawEnemyHealthLinks(this.enemyHealthLinks, this.enemies, this.battleTime);
   }
 
   private drawBoard() {
@@ -1075,6 +1081,7 @@ export class GameScene extends Phaser.Scene {
 
     snapshotTowers.length = 0;
     snapshotValues.length = 0;
+    syncAdjacentHealthBonuses(this.towers, id => this.getDefinition(id));
     syncTowerHealthNetworks(this.towers);
     if (settleTowerHealth(this.unitLifecycleRuntime())) {
       this.updateLevelAuras();
@@ -1849,6 +1856,7 @@ export class GameScene extends Phaser.Scene {
     this.storage.clear();
     const bodies: Phaser.GameObjects.Container[] = [];
     forEachSnapshot(this.enemies, (enemy) => {
+      detachEnemyHealth(enemy);
       enemy.inPlay = false;
       bodies.push(enemy.body);
       for (const cargo of enemy.burrowCargo ?? []) {
@@ -2655,6 +2663,7 @@ export class GameScene extends Phaser.Scene {
     this.syncAutoUpgradeBorders();
     this.updateCards();
     this.updateHud();
+    drawEnemyHealthLinks(this.enemyHealthLinks, this.enemies, this.battleTime);
     if (!this.playback) this.replay = { ...this.replay, selectedCards: [...this.selectedCardIds],
       checkpoint: captureBattleSnapshot(this.battleState()), commands: [] };
   }

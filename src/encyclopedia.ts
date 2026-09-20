@@ -99,8 +99,21 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
   const trapezoid2 = getEnemyDefinition("trapezoid2");
   const trapezoid3 = getEnemyDefinition("trapezoid3");
   const square = getEnemyDefinition("square");
+  const equals = getEnemyDefinition("equals");
 
   return [
+    {
+      title: zh ? "等号系列" : "Equals Series",
+      enemyKind: "equals",
+      chapterGroupId: "ascii",
+      lines: [statLine([
+        [t("label.hp"), equals.hp], [t("label.armor"), equals.armor],
+        [t("label.mr"), equals.magicResistance], [t("label.atk"), damageText(equals.damage, equals.damageType)]]),
+        zh ? "权重 I/II/III：80 / 200 / 320；移速 15；每秒攻击一次，各等级攻击数值不变。"
+          : "Weight I/II/III: 80 / 200 / 320; speed 15; attacks once per second with the same damage at every rank."],
+      description: zh ? "首个旗帜波起出现。出场时仅连接一次，选取最近的最多 1/2/3 个合格敌怪，共享生命池及血量比例；不连接领袖、Boss、其他等号或已经连接的敌怪。不换目标、不补连接；成员离场时断开。伤害按被命中者抗性计算后扣除共享生命，生命耗尽时全组死亡。"
+        : "Appears from the first flag wave. On spawn, links once to up to 1/2/3 nearest eligible enemies, sharing a health pool and HP ratio. Excludes leaders, bosses, other Equals and linked enemies. Never retargets or refills; leaving the field disconnects a member. Damage uses the struck member's defenses; an empty pool defeats the whole group."
+    },
     {
       title: zh ? "波浪号系列" : "Tilde Series",
       enemyKind: "tilde",
@@ -707,6 +720,8 @@ function towerLines(card: CardDefinition) {
 function towerDescription(id: CardId) {
   const zh = isZh();
   const descriptions: Record<CardId, string> = {
+    "+": zh ? "防御塔。基础生命 3000、护甲 500、法抗 0，受到近战攻击时反击 400 物理伤害。若上下或左右相邻两格都有基础费用不超过 999 的塔，自身生命上限获得这对塔各自最终生命上限之和的加成；两组都满足时取较大值，不相加。加成变化保持当前生命比例。"
+      : "Defense tower with 3000 base HP, 500 armor, 0 MR and 400 physical retaliation. When both vertical or both horizontal neighbors cost at most 999 each, gains their combined individual final max HP. Uses the larger qualifying pair, not both. Changes preserve current HP ratio.",
     "@": zh ? "持续复制朝向前方一格的字符塔，包含 ASCII 扩展字符：基础费用须不超过 999，不能是 b、t 等快速生效卡。复制其基础面板、机制、升级规则和外框，但字符保持 @，使用自身等级和朝向，不继承目标的临时加成或当前技力。前方没有合格目标时无额外能力。切换时保留血量比例，重新开始攻击或技能准备。" : "Continuously copies the character tower one cell ahead, including ASCII Expansion characters, if its base cost is at most 999. Excludes instant effect cards such as b/t. Copies base stats, behavior, upgrade rules and border, but retains @, its own level and facing. Does not inherit target buffs or current SP. No eligible target means no extra ability. Switching preserves HP ratio and restarts attack/skill preparation.",
     "#": zh ? "推箱子。初始 0 技力，上限 30，每秒恢复 1；满技力后点击，再选择上下左右一个有塔的相邻格。消耗 30 技力，将该方向连续相接的塔整体推动一格，自身不动，移动持续约 0.5 秒。越界或被推入封禁格的塔按擦除处理。右键取消选向，无效选择不消耗技力。" : "Box Push. Starts at 0 SP, recovers 1 SP/s up to 30. Click when ready, then select a cardinally adjacent occupied cell. Spends 30 SP to push the contiguous line of towers one cell over 0.5s without moving itself. Towers pushed off the board or into sealed cells are erased. Right-click cancels targeting; invalid selections cost no SP.",
     u: zh ? "连结防御塔。与上下左右接壤的塔共享生命，相邻或共用邻塔的小 u 会合并为同一网络。网络生命上限为所有成员自身生命上限之和，除以小 u 的实际数量（不计等级）。伤害按被击中塔的抗性结算后扣除共享生命，治疗补充共享池；共享生命耗尽时所有成员死亡。加入、退出与拆分保持生命比例，已有网络合并按原网络生命上限加权平均。每座塔显示相同的共享生命比例。" : "Links cardinally adjacent towers into a shared health network. Adjacent u towers or those sharing a neighbor merge networks. Shared max HP is the sum of members' own max HP divided by the number of u towers, not their levels. Hits use the struck tower's defenses; damage and healing affect the pool. All members die when it empties. Joining, leaving and splitting preserve HP ratio; merging existing networks uses their previous max-HP-weighted ratio. All members display the same HP ratio.",
@@ -766,6 +781,10 @@ function towerDescription(id: CardId) {
 }
 
 function towerUpgradeText(id: CardId) {
+  if (id === "+") {
+    return isZh() ? "生命转换比例基础 100%，每额外有效升级增加 15 个百分点；自身基础生命不随等级增加。"
+      : "Converts 100% of the pair's HP, plus 15 percentage points per effective upgrade; own base HP stays fixed.";
+  }
   if (id === "@") {
     return isZh() ? "复制对象的升级规则按 @ 自身有效等级计算，不继承对方等级；升级仍使用 @ 卡牌和费用。" : "Uses the copied tower's upgrade rules at @'s own effective level, not the target's level. Upgrades still use the @ card and price.";
   }

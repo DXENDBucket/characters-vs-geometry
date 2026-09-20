@@ -81,6 +81,14 @@ export function createUnitBorder(
 
 export function createEnemyShape(scene: Phaser.Scene, kind: EnemyKind, options: EnemyShapeOptions = {}) {
   const family = enemyFamily(kind);
+  if (family === "equals") {
+    const shape = scene.add.container(0, 0);
+    const bars = scene.add.graphics().lineStyle(4, palette.white, 1);
+    bars.lineBetween(-24, -7, 24, -7);
+    bars.lineBetween(-24, 7, 24, 7);
+    shape.add([bars, createEnemyLabel(scene, 0, -25, kind)]);
+    return shape;
+  }
   if (family === "tilde") {
     const shape = scene.add.container(0, 0);
     const wave = scene.add.graphics().lineStyle(4, palette.white, 1);

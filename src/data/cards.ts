@@ -5,6 +5,20 @@ import type { CardDefinition, CardId } from "../types";
 
 export const cardDefinitions: CardDefinition[] = [
   {
+    id: "+",
+    category: "defense",
+    cost: 2_400,
+    cooldown: 60_000,
+    maxHp: 3_000,
+    armor: 500,
+    magicResistance: 0,
+    attackPower: 400,
+    reflectAttackMultiplier: 1,
+    damageType: "physical",
+    adjacentHealthBonus: { ratio: 1, ratioPerUpgrade: 0.15, costLimit: 999 },
+    stats: `3000 A500 R400${DAMAGE_SYMBOLS.physical}`
+  },
+  {
     id: "@",
     category: "function",
     cost: 1_000,

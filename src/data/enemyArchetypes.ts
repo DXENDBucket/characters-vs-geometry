@@ -2,7 +2,7 @@ import type { EnemyDefinition, EnemyFamily } from "../types";
 
 export type EnemyAttackMode = "melee" | "ranged" | "mortar" | "laser" | "blockedDetonator" | "siegeRam" | "mace" | "special" | "leader" | "companion";
 type EnemyPanel = Omit<EnemyDefinition, "kind" | "label">;
-type GrowthField = "hp" | "armor" | "magicResistance" | "damage" | "speedMultiplier" | "weight";
+type GrowthField = "hp" | "armor" | "magicResistance" | "damage" | "speedMultiplier" | "weight" | "healthLinkCapacity";
 
 export interface EnemyArchetype {
   base: EnemyPanel;
@@ -18,6 +18,13 @@ export interface EnemyArchetype {
 
 // Only the finite catalog is enumerated. Runtime ranks are resolved on demand.
 export const enemyArchetypes: Record<EnemyFamily, EnemyArchetype> = {
+  equals: {
+    base: { hp: 12000, armor: 100, magicResistance: 25, damage: 400, damageType: "physical", speedMultiplier: 1.5, weight: 80, minFlag: 1, healthLinkCapacity: 1 },
+    growth: { weight: 120, healthLinkCapacity: 1 },
+    catalogRanks: 3,
+    attackMode: "melee",
+    promotionMaxRank: 3
+  },
   tilde: {
     base: { hp: 5000, armor: 100, magicResistance: 0, damage: 600, damageType: "physical", speedMultiplier: 1.5, weight: 30 },
     growth: { speedMultiplier: 0.5, weight: 60 },

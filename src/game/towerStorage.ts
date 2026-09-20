@@ -6,6 +6,7 @@ import { expireReversalEffect } from "./rules/reversal";
 import { statusMultipliers, syncEnemyBodyPosition } from "./statusEffects";
 import { getBlockedEnemies } from "./targeting";
 import { towerFacingDirection } from "./towers";
+import { detachEnemyHealth } from "./enemyHealth";
 
 export const ENEMY_STORAGE_DURATION = 5_000;
 
@@ -45,6 +46,7 @@ export class TowerStorageController {
       if (!enemy.inPlay || index < 0) {
         continue;
       }
+      detachEnemyHealth(enemy);
       runtime.enemies.splice(index, 1);
       enemy.inPlay = false;
       enemy.blockedByTowerId = undefined;

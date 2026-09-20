@@ -1,6 +1,7 @@
 import type Phaser from "phaser";
 
 export type CardId =
+  | "+"
   | "@"
   | "#"
   | "A"
@@ -56,6 +57,7 @@ export type CardId =
   | "z"
   | "Z";
 export type EnemyFamily =
+  | "equals"
   | "tilde"
   | "circle"
   | "triangle"
@@ -177,6 +179,7 @@ export interface CardDefinition {
   healTargets?: number;
   splashRadius?: number;
   reflectAttackMultiplier?: number;
+  adjacentHealthBonus?: { ratio: number; ratioPerUpgrade: number; costLimit: number };
   triggerCount?: number;
   triggerInterval?: number;
   triggerRangeX?: number;
@@ -239,6 +242,7 @@ export interface TowerHealthPool {
 }
 
 export interface Tower {
+  adjacentHealthBonus?: number;
   copiedType?: CardId;
   copyRevision?: number;
   healthPool?: TowerHealthPool;
@@ -292,7 +296,16 @@ export interface Tower {
   flyingUntil: number;
 }
 
+export interface EnemyHealthPool {
+  owner: Enemy;
+  members: Enemy[];
+  hp: number;
+  maxHp: number;
+}
+
 export interface Enemy {
+  healthPool?: EnemyHealthPool;
+  healthLinksInitialized?: boolean;
   kind: EnemyKind;
   waveNumber: number;
   weight: number;
@@ -437,6 +450,7 @@ export interface MortarProjectile {
 }
 
 export interface EnemyDefinition {
+  healthLinkCapacity?: number;
   kind: EnemyKind;
   label?: string;
   hp: number;

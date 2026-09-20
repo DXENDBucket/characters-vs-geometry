@@ -172,6 +172,52 @@ function copyFixture() {
   return { ...f, ...copy, sync: () => copy.syncTowerCopies({ ...f.state, onChanged: noop }) };
 }
 
+test("+ selects the stronger eligible pair and preserves HP ratio through upgrades and neighbor removal", () => {
+  const f = extractionFixture();
+  const { syncAdjacentHealthBonuses } = load("src/game/towerHealthBonus.ts");
+  const sync = () => syncAdjacentHealthBonuses(f.state.towers, f.state.getDefinition);
+  const plus = f.place("+", 1, 3, 3);
+  const left = f.place("B", 1, 3, 2);
+  sync(); assert.equal(plus.maxHp, 3000);
+  const right = f.place("B", 1, 3, 4);
+  plus.hp = 1500; sync();
+  assert.equal(plus.maxHp, 9000); assert.equal(plus.hp, 4500);
+  f.place("A", 1, 2, 3); f.place("A", 1, 4, 3); sync();
+  assert.equal(plus.maxHp, 9000);
+  towers.applyTowerUpgradeStats(plus, f.state.getDefinition("+"), towers.upgradeTowerLevel(plus), 0);
+  sync(); assert.equal(plus.maxHp, 9900); assert.equal(plus.hp, 4950);
+  assert.equal(plus.baseStats.maxHp, 3000);
+  towers.applyTowerUpgradeStats(left, f.state.getDefinition("B"), towers.upgradeTowerLevel(left), 0);
+  sync(); assert.equal(plus.maxHp, 12660); assert.equal(plus.hp, 6330);
+  right.inPlay = false; sync();
+  assert.equal(plus.maxHp, 5760); assert.equal(plus.hp, 2880);
+  right.inPlay = true; right.column = 6; sync();
+  assert.equal(plus.maxHp, 5760);
+  f.place("@", 1, 3, 4); sync();
+  assert.equal(plus.maxHp, 5760, "1000-cost copy cannot contribute even when it copies a cheap tower");
+  plus.levelBonus = 1; sync();
+  assert.equal(plus.maxHp, 6120); assert.equal(plus.hp, 3060);
+});
+
+test("+ changes only its own contribution to a u pool and keeps the shared health ratio", () => {
+  const f = extractionFixture();
+  const { syncAdjacentHealthBonuses } = load("src/game/towerHealthBonus.ts");
+  const health = load("src/game/towerHealth.ts");
+  const plus = f.place("+", 1, 3, 3);
+  const left = f.place("B", 1, 3, 2), right = f.place("B", 1, 3, 4);
+  f.place("u", 1, 2, 3);
+  syncAdjacentHealthBonuses(f.state.towers, f.state.getDefinition);
+  health.syncTowerHealthNetworks(f.state.towers);
+  const pool = plus.healthPool;
+  health.changeTowerHealth(plus, -pool.maxHp / 2);
+  left.level = 2; towers.syncTowerDerivedStats(left);
+  syncAdjacentHealthBonuses(f.state.towers, f.state.getDefinition);
+  assert.equal(plus.maxHp, 11400);
+  assert.equal(pool.hp / pool.maxHp, 0.5);
+  assert.equal(plus.hp / plus.maxHp, 0.5);
+  assert.equal(right.healthPool, undefined);
+});
+
 test("AE-2 uses the chapter-four template, adds both hexagons and unlocks @", () => {
   const { getLevelConfig } = load("src/data/levels.ts");
   const first = getLevelConfig("AE-1"), level = getLevelConfig("AE-2");
@@ -1314,6 +1360,7 @@ function towerForCard(card, level = 1) {
 
 test("all cards preserve baseline attack and upgrade modes, including softcap and level bonuses", () => {
   const baseline = {
+    "+": 400,
     A: 400, a: 400, B: 400, C: 500, d: 400, z: 400, x: 200, E: 400, e: 90, g: 90, M: 400, W: 400,
     w: 400, F: 1400, l: 15000, r: 200, G: 15000, H: 700, I: 400, Q: 400, J: 600,
     K: 1800, k: 280, S: 5000, Z: 400, V: 1300, v: 350, P: 250, p: 250

@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { changeEnemyHealth } from "./enemyHealth";
 import { ANGEL_WINGS_SKILL_MAX, BOARD_X, CELL_HEIGHT, CELL_WIDTH, LANES } from "../config";
 import { makeHealParticles, makeShiftEffect } from "../render/combatEffects";
 import type { CubeBoss, Enemy, SkillState } from "../types";
@@ -628,13 +629,11 @@ function tryUseHexHeal(scene: Phaser.Scene, enemies: Enemy[], healer: Enemy, ski
   }
 
   spendSkillSp(skill, HEX_HEAL_SKILL_COST);
-  const previousHp = target.hp;
-  target.hp = Math.min(target.baseStats.maxHp, target.hp + healer.baseStats.maxHp * HEX_HEAL_RATIO);
-  if (target.hp <= previousHp) {
+  if (changeEnemyHealth(target, healer.baseStats.maxHp * HEX_HEAL_RATIO) <= 0) {
     return;
   }
 
-  syncEnemyVisualScale(target);
+  for (const member of target.healthPool?.members ?? [target]) syncEnemyVisualScale(member);
   makeHealParticles(scene, target.x, target.y);
 }
 

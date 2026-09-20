@@ -1,8 +1,9 @@
 import type { BattleSaveState } from "./battleSaveState";
 import { decodeSaveGraph, type NodeKind, type SaveGraph } from "./saveGraph";
 import { rankedBossFamily } from "../bosses/bossRanks";
-import type { BossKind } from "../types";
+import type { BossKind, Enemy } from "../types";
 import { parseEnemyKind } from "./enemyIdentity";
+import { getEnemyDefinition } from "../registry/enemies";
 import { BATTLE_RULES_VERSION, validBattleClock } from "./battleSimulation";
 
 export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossKind?: BossKind) {
@@ -81,11 +82,25 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
       require(record(value.baseStats) && record(value.finalStats) && record(value.skills));
       require(array(value.statusEffects, effect => record(effect) && typeof effect.name === "string" && timestamp(effect.expiresAt)));
       require(Number.isInteger(value.lane) && (value.lane as number) >= 0 && (value.lane as number) < 7);
+      if (kind === "enemy") {
+        require(value.healthLinksInitialized === undefined || typeof value.healthLinksInitialized === "boolean");
+        if (value.healthPool) {
+          const pool = value.healthPool;
+          if (!record(pool) || !Array.isArray(pool.members) || !record(pool.owner)) throw new Error("Invalid enemy health pool");
+          const owner = pool.owner as unknown as Enemy;
+          require(member("enemy")(owner) && parseEnemyKind(owner.kind) && owner.healthLinksInitialized === true);
+          require(finite(pool.hp) && finite(pool.maxHp) && pool.hp > 0 && pool.maxHp > 0 && pool.hp <= pool.maxHp);
+          require(pool.members.length >= 2 && pool.members.length <= (getEnemyDefinition(owner.kind).healthLinkCapacity ?? 0) + 1 &&
+            new Set(pool.members).size === pool.members.length && pool.members.includes(owner) && pool.members.includes(value));
+          require(pool.members.every(item => member("enemy")(item) && record(item) && item.healthPool === pool && item.inPlay === true));
+        }
+      }
       if (kind === "enemy" && parseEnemyKind(value.kind)?.family === "dodecahedronCompanion") {
         for (const key of ["bossOrbitAngle", "bossOrbitRadius", "bossCompanionIndex", "bossCompanionNextActionAt"]) require(finite(value[key]));
         require(["laser", "mortar", "wings"].includes(value.bossCompanionActionPhase as string));
       }
       if (kind === "tower") {
+        require(value.adjacentHealthBonus === undefined || (finite(value.adjacentHealthBonus) && value.adjacentHealthBonus >= 0));
         if (value.moveVisual) {
           require(record(value.moveVisual) && [value.moveVisual.fromX, value.moveVisual.fromY,
             value.moveVisual.startedAt].every(finite) && finite(value.moveVisual.duration) && value.moveVisual.duration > 0);
