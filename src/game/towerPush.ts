@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { logicalTowerCell, physicalTowerCell, towerCell } from "./towerTopology";
 import type { TowerActionListener } from "./towerActions";
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, COLUMNS, LANES, palette } from "../config";
 import type { Tower } from "../types";
@@ -72,16 +73,22 @@ export class TowerPushController {
     if (!source.inPlay || source.moveVisual || (!free && !pushIsReady(source))) return false;
     const runtime = this.runtime();
     const byId = new Map(runtime.towers.map(tower => [tower.id, tower]));
-    const plan = planTowerPush(source, { lane, column }, {
+    const origin = towerCell(source), target = logicalTowerCell(source, { lane, column });
+    const logicalTowers = new Map(runtime.towers.map(tower => [tower.id, { ...tower, ...towerCell(tower) }]));
+    const plan = planTowerPush({ ...source, ...origin }, target, {
       lanes: LANES, columns: COLUMNS,
-      getTower: id => byId.get(id),
-      occupantAt: (row, col) => runtime.occupied.get(gridCellKey(row, col))?.id,
-      isCellDeployable: (row, col) => runtime.isCellDeployable?.(row, col) ?? true
+      getTower: id => logicalTowers.get(id),
+      occupantAt: (row, col) => { const cell = physicalTowerCell(source, { lane: row, column: col }); return runtime.occupied.get(gridCellKey(cell.lane, cell.column))?.id; },
+      isCellDeployable: (row, col) => { const cell = physicalTowerCell(source, { lane: row, column: col }); return runtime.isCellDeployable?.(cell.lane, cell.column) ?? true; }
     });
     if (!plan || plan.some(move => byId.get(move.towerId)?.moveVisual)) return false;
-    const moves = plan.map(move => ({ ...move, tower: byId.get(move.towerId)! }));
+    const moves = plan.map(move => {
+      const from = physicalTowerCell(source, { lane: move.fromLane, column: move.fromColumn });
+      const to = physicalTowerCell(source, { lane: move.toLane, column: move.toColumn });
+      return { ...move, fromLane: from.lane, fromColumn: from.column, toLane: to.lane, toColumn: to.column, tower: byId.get(move.towerId)! };
+    });
     if (!free) spendSkillSp(getTowerSkillState(source, "push"), PUSH_MAX_SP);
-    runtime.onTowerAction?.(source, { kind: "skill", laneOffset: lane - source.lane, columnOffset: column - source.column });
+    runtime.onTowerAction?.(source, { kind: "skill", laneOffset: target.lane - origin.lane, columnOffset: target.column - origin.column });
     source.border.setAlpha(1);
     // Commit all cells before any removal callback can rebuild mirror/health networks.
     for (const move of moves) runtime.occupied.delete(gridCellKey(move.fromLane, move.fromColumn));
@@ -115,9 +122,9 @@ export class TowerPushController {
     if (!source || !this.marks) return;
     const runtime = this.runtime();
     this.marks.clear().lineStyle(3, palette.green, 0.95);
+    const origin = towerCell(source);
     for (const [dy, dx] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
-      const lane = source.lane + dy;
-      const column = source.column + dx;
+      const { lane, column } = physicalTowerCell(source, { lane: origin.lane + dy, column: origin.column + dx });
       if (!runtime.occupied.get(gridCellKey(lane, column))?.inPlay) continue;
       this.marks.strokeRect(BOARD_X + column * CELL_WIDTH + 4, BOARD_Y + lane * CELL_HEIGHT + 4, CELL_WIDTH - 8, CELL_HEIGHT - 8);
     }

@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { logicalTowerCell, physicalTowerCell, towerAtCell, towerCell, topologyKey } from "./towerTopology";
 import { COLUMNS, LANES } from "../config";
 import type { CardDefinition, CardId, Tower } from "../types";
 import { forEachInitial, forEachSnapshot } from "./iteration";
@@ -208,8 +209,9 @@ export class TowerMirrorController {
   }
 
   private syncMirrorAxis(runtime: TowerMirrorRuntime, anchor: Tower, laneDelta: number, columnDelta: number) {
-    const first = { lane: anchor.lane - laneDelta, column: anchor.column - columnDelta };
-    const second = { lane: anchor.lane + laneDelta, column: anchor.column + columnDelta };
+    const origin = towerCell(anchor);
+    const first = physicalTowerCell(anchor, { lane: origin.lane - laneDelta, column: origin.column - columnDelta });
+    const second = physicalTowerCell(anchor, { lane: origin.lane + laneDelta, column: origin.column + columnDelta });
     if (!this.cellIsDeployable(runtime, first.lane, first.column) || !this.cellIsDeployable(runtime, second.lane, second.column)) {
       return;
     }
@@ -374,8 +376,9 @@ export class TowerMirrorController {
     memberSet: Set<Tower>,
     edges: Map<Tower, Set<Tower>>
   ) {
-    const first = runtime.occupied.get(gridCellKey(anchor.lane - laneDelta, anchor.column - columnDelta));
-    const second = runtime.occupied.get(gridCellKey(anchor.lane + laneDelta, anchor.column + columnDelta));
+    const origin = towerCell(anchor);
+    const first = towerAtCell(runtime.occupied, anchor, origin.lane - laneDelta, origin.column - columnDelta);
+    const second = towerAtCell(runtime.occupied, anchor, origin.lane + laneDelta, origin.column + columnDelta);
     if (
       !first ||
       !second ||
@@ -484,10 +487,11 @@ export class TowerMirrorController {
   }
 
   private collectAdjacentMirrorGroupIds(runtime: TowerMirrorRuntime, anchor: Tower, groupIds: Set<number>) {
-    this.addAdjacentMirrorGroupId(runtime, groupIds, anchor.lane, anchor.column - 1);
-    this.addAdjacentMirrorGroupId(runtime, groupIds, anchor.lane, anchor.column + 1);
-    this.addAdjacentMirrorGroupId(runtime, groupIds, anchor.lane - 1, anchor.column);
-    this.addAdjacentMirrorGroupId(runtime, groupIds, anchor.lane + 1, anchor.column);
+    const origin = towerCell(anchor);
+    for (const [dl, dc] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+      const cell = physicalTowerCell(anchor, { lane: origin.lane + dl, column: origin.column + dc });
+      this.addAdjacentMirrorGroupId(runtime, groupIds, cell.lane, cell.column);
+    }
   }
 
   private addAdjacentMirrorGroupId(runtime: TowerMirrorRuntime, groupIds: Set<number>, lane: number, column: number) {
@@ -508,10 +512,13 @@ export class TowerMirrorController {
   private adjacentMirrorTowersAt(lane: number, column: number) {
     const runtime = this.runtime();
     const towers: Tower[] = [];
-    this.addAdjacentMirrorTower(runtime, towers, lane, column - 1);
-    this.addAdjacentMirrorTower(runtime, towers, lane, column + 1);
-    this.addAdjacentMirrorTower(runtime, towers, lane - 1, column);
-    this.addAdjacentMirrorTower(runtime, towers, lane + 1, column);
+    const anchor = runtime.towers[0];
+    const origin = anchor ? logicalTowerCell(anchor, { lane, column }) : { lane, column };
+    for (const [dl, dc] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+      const logical = { lane: origin.lane + dl, column: origin.column + dc };
+      const cell = anchor ? physicalTowerCell(anchor, logical) : logical;
+      this.addAdjacentMirrorTower(runtime, towers, cell.lane, cell.column);
+    }
     return towers;
   }
 
@@ -540,6 +547,7 @@ export class TowerMirrorController {
     const parts = this.mirrorSyncSignatureParts;
     parts.length = 0;
     parts.push(`${runtime.towers.length}`);
+    if (runtime.towers[0]) parts.push(topologyKey(runtime.towers[0]));
     for (const tower of runtime.towers) {
       parts.push(
         tower.id,

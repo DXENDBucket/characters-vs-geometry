@@ -1,7 +1,7 @@
 import type { SkillState, Tower } from "../types";
 import { towerBehaviorType, towerHasSkillBehavior } from "./towerIdentity";
 import { gainSkillSp, getTowerSkillState, resetSkillCharge, spendSkillSp } from "./skillState";
-import { isCellInSlowAura } from "./slowAura";
+import { inFriendlyRange } from "./towerTopology";
 
 export const ORIENTATION_MAX_SP = 10;
 export const ORIENTATION_DURATION = 6_000;
@@ -13,7 +13,7 @@ export function redirectOrientedTarget(towers: Tower[], target: Tower | undefine
     if (!tower.inPlay || tower.transient || !towerHasSkillBehavior(tower, "o") || time >= (tower.skills.orientation?.activeUntil ?? 0)) continue;
     // Already redirected attacks stay locked instead of bouncing between overlapping o towers.
     if (tower === target) return target;
-    if (!isCellInSlowAura(tower, target.column, target.lane)) continue;
+    if (!inFriendlyRange(tower, target, 2, true)) continue;
     if (!redirect || tower.skills.orientation.activeUntil > redirect.skills.orientation.activeUntil ||
       (tower.skills.orientation.activeUntil === redirect.skills.orientation.activeUntil && tower.placedOrder > redirect.placedOrder)) {
       redirect = tower;

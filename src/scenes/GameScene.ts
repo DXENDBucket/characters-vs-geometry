@@ -1,5 +1,8 @@
 import Phaser from "phaser";
 import { towerBehaviorType, towerFormType } from "../game/towerIdentity";
+import { syncTowerTopology, inFriendlyRange, towerCell, physicalTowerCell } from "../game/towerTopology";
+import { TowerTopologyController } from "../game/towerTopologyController";
+import { syncFriendlyRangeVisual } from "../game/towers";
 import { syncTowerCopies } from "../game/towerCopy";
 import { syncTowerFormVisual } from "../game/towers";
 import { BattleClock, BattleRandom, BATTLE_STEP_MS, BATTLE_RULES_VERSION, setBattleRandom, setBattlePlayback } from "../game/battleSimulation";
@@ -206,6 +209,7 @@ function combineDamageReduction(baseReduction: number, extraReduction: number) {
 }
 
 export class GameScene extends Phaser.Scene {
+  private topology!: TowerTopologyController;
   private numbers!: NumberTowerController;
   private readonly onTowerAction: TowerActionListener = (source, event) => this.numbers.record(source, event);
   private enemyHealthLinks!: Phaser.GameObjects.Graphics;
@@ -408,6 +412,8 @@ export class GameScene extends Phaser.Scene {
     this.targetedEffects = new TargetedEffectCardController(() => this.targetedEffectCardRuntime());
     this.numbers = new NumberTowerController(() => ({ towers: this.towers, getDefinition: id => this.getDefinition(id),
       imitate: (tower, behavior, event) => this.scheduleBattleAction(0, { type: "imitation", tower, behavior, event }) }));
+    this.topology = new TowerTopologyController(this, () => ({ towers: this.towers, battleTime: this.battleTime,
+      onChanged: () => { this.updateLevelAuras(); this.mirrors.syncMirrors(); this.clearPlacementGhosts(); } }));
     this.towerSkills = new TowerSkillController(this, () => this.towerSkillRuntime());
     this.shifter = new TowerShifterController(() => this.towerShifterRuntime());
     this.towerPush = new TowerPushController(this, () => ({
@@ -540,6 +546,7 @@ export class GameScene extends Phaser.Scene {
     this.tutorial = null;
     this.shifter?.clearSelection();
     this.towerPush?.destroy();
+    this.topology?.destroy();
     this.towerSkills?.cancelSpellMortarTargeting();
     this.storage?.clear();
   }
@@ -595,6 +602,7 @@ export class GameScene extends Phaser.Scene {
     this.actionQueue.update(this.battleTime, action => this.executeBattleAction(action));
     this.towerSkills.update(seconds, this.battleTime);
     this.towerPush.update(this.battleTime);
+    this.topology.update();
     this.mirrors.syncMirrors();
     this.updateLevelAurasIfNeeded();
     this.cardTime += scaledDelta * this.cardCooldownMultiplier();
@@ -657,6 +665,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.isRightPointer(pointer)) {
+      this.topology.cancel();
       this.towerPush.cancel();
       this.towerSkills.cancelSpellMortarTargeting();
       if (this.shifter.isActive()) {
@@ -667,6 +676,11 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    if (this.topology.isTargeting()) {
+      if (this.isInsideBoard(x, y)) this.topology.choose(Math.floor((y - BOARD_Y) / CELL_HEIGHT), Math.floor((x - BOARD_X) / CELL_WIDTH));
+      else this.topology.cancel();
+      return;
+    }
     if (this.towerPush.isTargeting()) {
       if (this.isInsideBoard(x, y)) {
         this.towerPush.choose(Math.floor((y - BOARD_Y) / CELL_HEIGHT), Math.floor((x - BOARD_X) / CELL_WIDTH));
@@ -751,6 +765,9 @@ export class GameScene extends Phaser.Scene {
     const definition = this.getSelectedDefinition();
     const cardState = this.cardStatesById.get(definition.id);
     const effectiveChars = this.effectiveChars();
+    if (existingTower?.type === "&" && !existingTower.topologyTarget) {
+      this.prepareSkillTargeting(); this.topology.begin(existingTower); return;
+    }
     if (this.canUpgradeSelectedTower(existingTower, definition, cardState, effectiveChars)) {
       this.deploySelectedCard(definition, lane, column, pointer);
       return;
@@ -818,6 +835,10 @@ export class GameScene extends Phaser.Scene {
 
     this.mirrors.syncMirrors();
     this.updateLevelAuras();
+    if (definition.id === "&") {
+      const tower = this.occupied.get(gridCellKey(lane, column));
+      if (tower && !tower.topologyTarget) { this.prepareSkillTargeting(); this.topology.begin(tower); }
+    }
     this.syncPlacementGhost(pointer);
   }
 
@@ -853,7 +874,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private syncPlacementGhost(pointer?: Phaser.Input.Pointer) {
-    if (this.towerPush.isTargeting()) { this.clearPlacementGhosts(); return; }
+    if (this.towerPush.isTargeting() || this.topology.isTargeting()) { this.clearPlacementGhosts(); return; }
     const ghosts = this.placementGhostSpecs(pointer);
     const nextKey = placementGhostKey(ghosts);
     if (nextKey === this.placementGhostKey) {
@@ -1031,7 +1052,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateLevelAurasIfNeeded() {
-    if (this.levelAuraStateChanged()) {
+    if (syncTowerTopology(this.towers) || this.levelAuraStateChanged()) {
       this.updateLevelAuras();
     }
   }
@@ -1043,6 +1064,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateLevelAuras() {
+    syncTowerTopology(this.towers);
     this.syncCopiedTowers();
     const snapshotTowers = this.levelBonusSnapshotTowers;
     const snapshotValues = this.levelBonusSnapshotValues;
@@ -1064,8 +1086,7 @@ export class GameScene extends Phaser.Scene {
       for (const target of this.towers) {
         if (
           target === auraTower ||
-          Math.abs(target.lane - auraTower.lane) > 1 ||
-          Math.abs(target.column - auraTower.column) > 1
+          !inFriendlyRange(auraTower, target, 1)
         ) {
           continue;
         }
@@ -1088,6 +1109,7 @@ export class GameScene extends Phaser.Scene {
       }
 
       syncTowerDerivedStats(tower, false, this.towers, auraSources);
+      syncFriendlyRangeVisual(tower);
     }
 
     snapshotTowers.length = 0;
@@ -1201,6 +1223,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private prepareSkillTargeting() {
+    this.topology.cancel();
     this.eraserMode = false;
     this.shifter.deactivate();
     this.clearPlacementGhosts();
@@ -1210,6 +1233,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private cancelSpellMortarTargeting() {
+    this.topology.cancel();
     this.towerPush.cancel();
     this.towerSkills.cancelSpellMortarTargeting();
   }
@@ -1343,7 +1367,10 @@ export class GameScene extends Phaser.Scene {
   private createTowerSkillRuntime(): TowerSkillRuntime {
     return {
       onTowerAction: this.onTowerAction,
-      imitateTowerPush: (tower, dl, dc) => { this.towerPush.push(tower, tower.lane + dl, tower.column + dc, true); },
+      imitateTowerPush: (tower, dl, dc) => {
+        const origin = towerCell(tower), target = physicalTowerCell(tower, { lane: origin.lane + dl, column: origin.column + dc });
+        this.towerPush.push(tower, target.lane, target.column, true);
+      },
       prepareSkillTargeting: () => this.prepareSkillTargeting(),
       beginTowerPush: tower => { this.towerPush.begin(tower); },
       scheduleBattleAction: this.scheduleBattleAction,
@@ -1410,6 +1437,7 @@ export class GameScene extends Phaser.Scene {
       battleTime: this.battleTime,
       isCellDeployable: (lane, column) => this.cellIsDeployable(lane, column),
       onMoved: (moves) => {
+        syncTowerTopology(this.towers);
         this.mirrors.handleTowersShifted(moves, (tower) => removeTower(this.unitLifecycleRuntime(), tower));
         this.updateLevelAuras();
       }
@@ -1620,8 +1648,10 @@ export class GameScene extends Phaser.Scene {
         this.enemiesDefeated += 1;
       },
       onTowerDamaged: (tower) => this.handleTowerDamaged(tower),
-      onTowerRemoved: (tower) =>
-        this.mirrors.handleTowerRemoved(tower, (linkedTower) => removeTower(this.unitLifecycleRuntime(), linkedTower)),
+      onTowerRemoved: (tower) => {
+        syncTowerTopology(this.towers);
+        this.mirrors.handleTowerRemoved(tower, (linkedTower) => removeTower(this.unitLifecycleRuntime(), linkedTower));
+      },
       onBossDefeated: (boss) => this.handleBossDefeated(boss),
       endLevel: () => this.endLevel()
     };
@@ -2689,6 +2719,10 @@ export class GameScene extends Phaser.Scene {
     this.extraction.restore(state.extraction);
     this.actionQueue.restore(state.actions);
     this.mirrors.restoreGroups(state.simulation?.mirrorNextGroupId);
+    syncTowerTopology(this.towers);
+    this.numbers.sync();
+    for (const tower of this.towers) syncFriendlyRangeVisual(tower);
+    this.topology.update();
     for (const deadline of state.cardDeadlines) {
       const card = this.cardStatesById.get(deadline.id);
       if (card) card.readyAt = deadline.readyAt;

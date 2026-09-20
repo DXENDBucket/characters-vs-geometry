@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { inFriendlyRange, physicalTowerCell, towerCell } from "./towerTopology";
 import { towerBehaviorType } from "./towerIdentity";
 import { bossMovementDirection, enemyMovementDirection } from "./rules/reversal";
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, COLUMNS, LANES } from "../config";
@@ -60,7 +61,6 @@ import { effectiveTowerLevel, getProductionAmount, towerDamageType, towerFacingD
 import { changeTowerHealth } from "./towerHealth";
 import { repeatHits } from "./volley";
 import { towerAttackAmount, towerFinalStats } from "./unitStats";
-import { isPointInSlowAura } from "./slowAura";
 import { isInCentered3x3Aura } from "./towerAuras";
 import { drainSkillSp } from "./skillState";
 
@@ -196,6 +196,8 @@ export const smallSummonerCardBehavior: CardBehavior = {
 };
 
 export const cardBehaviorsById: Record<CardId, CardBehavior> = {
+  "+": idleCardBehavior,
+  "&": idleCardBehavior,
   "=": idleCardBehavior,
   "1": idleCardBehavior,
   "@": idleCardBehavior,
@@ -530,7 +532,7 @@ function hasAreaHealTarget(tower: Tower, towers: Tower[]) {
 }
 
 function isAreaHealTarget(tower: Tower, target: Tower) {
-  const inRange = towerBehaviorType(tower) === "g" ? isInCentered3x3Aura(tower, target) : isPointInSlowAura(tower, target.x, target.y);
+  const inRange = towerBehaviorType(tower) === "g" ? isInCentered3x3Aura(tower, target) : inFriendlyRange(tower, target, 2, true);
   return target.inPlay && !target.transient && inRange && target.hp < towerFinalStats(target).maxHp;
 }
 
@@ -798,9 +800,11 @@ function getSmallSummonCell(
   isCellDeployable: ((lane: number, column: number) => boolean) | undefined
 ) {
   const direction = towerFacingDirection(tower);
-  for (let column = tower.column + direction; column >= 0 && column < COLUMNS; column += direction) {
-    if (!occupied.has(gridCellKey(tower.lane, column)) && (isCellDeployable?.(tower.lane, column) ?? true)) {
-      return { lane: tower.lane, column };
+  const origin = towerCell(tower);
+  for (let column = origin.column + direction; column >= 0 && column < COLUMNS; column += direction) {
+    const cell = physicalTowerCell(tower, { lane: origin.lane, column });
+    if (!occupied.has(gridCellKey(cell.lane, cell.column)) && (isCellDeployable?.(cell.lane, cell.column) ?? true)) {
+      return cell;
     }
   }
 

@@ -1,5 +1,7 @@
 import Phaser from "phaser";
-import { towerBehaviorType, towerActionContext } from "./towerIdentity";
+import { topologyKey } from "./towerTopology";
+import { drawLogicalTowerRange } from "../render/towerLogicalRange";
+import { towerBehaviorType, towerActionContext, towerFormType } from "./towerIdentity";
 import { syncHealthBar } from "./towerHealth";
 import { facingWithEffects } from "./rules/reversal";
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
@@ -173,6 +175,8 @@ export function syncTowerFormVisual(scene: Phaser.Scene, tower: Tower, definitio
   tower.body.addAt(tower.border, borderIndex);
   tower.rangeBorder?.destroy();
   tower.rangeBorder = createRangeBorder(scene, definition) ?? undefined;
+  tower.body.setData("friendlyRange", undefined);
+  tower.body.setData("numberSkillRange", undefined);
   if (tower.rangeBorder) tower.body.addAt(tower.rangeBorder, 0);
   tower.border.setVisible(definition.id !== "S" && definition.id !== "c" &&
     (definition.id !== "G" || time >= tower.armedAt));
@@ -373,16 +377,28 @@ function createTowerFlyingHalo(scene: Phaser.Scene) {
 export function syncNumberSkillRange(scene: Phaser.Scene, tower: Tower, time: number) {
   const orientation = time < (tower.skills.orientation?.activeUntil ?? 0);
   const gathering = time < (tower.skills.gathering?.activeUntil ?? 0);
-  const key = `${orientation}:${gathering}`;
+  const key = `${orientation}:${gathering}:${topologyKey(tower)}:${tower.lane}:${tower.column}`;
   if (tower.body.getData("numberSkillRange") === key) return;
   tower.body.setData("numberSkillRange", key);
   tower.rangeBorder?.destroy();
   tower.rangeBorder = undefined;
   if (!orientation && !gathering) return;
-  const border = orientation ? createNoCornerRangeBorder(scene, 0xa2efb0, 0.9) : scene.add.graphics();
+  const border = scene.add.graphics();
+  if (orientation) drawLogicalTowerRange(border, tower, 2, true, 0xa2efb0, 0.9);
   if (gathering) drawGatheringRange(border);
   tower.rangeBorder = border;
   tower.body.addAt(border, 0);
+}
+
+export function syncFriendlyRangeVisual(tower: Tower) {
+  const type = towerFormType(tower);
+  if (!["e", "g", "o"].includes(type) || !tower.rangeBorder) return;
+  const key = `${type}:${topologyKey(tower)}:${tower.lane}:${tower.column}`;
+  if (tower.body.getData("friendlyRange") === key) return;
+  tower.body.setData("friendlyRange", key);
+  tower.rangeBorder.clear();
+  drawLogicalTowerRange(tower.rangeBorder, tower, type === "g" ? 1 : 2, type !== "g",
+    type === "o" ? 0xa2efb0 : palette.enemyShot, type === "o" ? 1 : 0.86);
 }
 
 function drawGatheringRange(border: Phaser.GameObjects.Graphics) {

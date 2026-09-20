@@ -720,8 +720,12 @@ function towerLines(card: CardDefinition) {
 function towerDescription(id: CardId) {
   const zh = isZh();
   const descriptions: Record<CardId, string> = {
-    "=": zh ? "记忆连接器。分别连接左右、上下两侧的相邻塔，普通塔也能作为连等的中间节点。数字塔会记录整个等式连通网络内所有基础费用不超过 999 的源塔，例如 A=E=1 会同时记录 A 和 E。高价塔可以传递连接，但不会被学习。网络内数字塔共享已学种类和来源，各自独立计数。断开后保留记忆，不会监听无关的同种塔。"
-      : "Memory connector. Links opposite horizontal or vertical neighbors; ordinary towers also bridge equations. Numbers learn every source costing at most 999 in the entire connected equation: A=E=1 teaches both A and E. Expensive towers can bridge connections but cannot be learned. Number towers share learned types and sources, not counters. Memory survives disconnection; unrelated same-type towers do not count.",
+    "+": zh ? "等式加法连接器。两端及连续加号相连的合格源塔共享行动计数：A+E 中，A 的行动也为数字塔记忆中的 E 增加一次，反之亦然。不会让实体源塔额外行动。可以混用等号，如 1=A+E+M+W=I；等号传递记忆，加号组共享次数。只连接基础费用不超过 999 的塔，连续运算符或高价塔会中断连接。"
+      : "Equation addition connector. Sources joined by + share action counts in number-tower memory; A+E lets either source advance both counters, without extra actions by real towers. Supports mixed equations such as 1=A+E+M+W=I. Equals shares memory, plus groups share counts. Only operands costing at most 999 connect; adjacent operators and expensive towers break the chain.",
+    "&": zh ? "格子拓扑交换。部署后选择另一个格子，可为空格或有塔的格子。交换自身所在格与选中格在塔之间计算中的逻辑位置，影响治疗、光环、连接、镜像、复制和生成塔。实际位置、敌人阻挡、对敌索敌及弹幕不变。多个交换按建立顺序叠加；本塔消失后移除其交换。范围边框同步显示远端格和缺口。右键可取消选格，之后点击本塔继续。"
+      : "Cell topology swap. After deployment select a different empty or occupied cell. Exchanges its cell and the selected cell for tower-to-tower healing, auras, networks, mirrors, copying and summons. Physical positions, enemy blocking, offensive targeting and projectiles are unchanged. Swaps compose in activation order and are removed when their & disappears. Range outlines show remote cells and holes. Right-click cancels selection; click the unconfigured & to resume.",
+    "=": zh ? "记忆连接器。分别连接左右、上下两侧的相邻塔。数字塔记录整个等式网络内基础费用不超过 999 的源塔，例如 A=E=1 会同时记录 A 和 E。可与加号混用；高价塔和相邻运算符会中断连接。网络内数字塔共享已学种类和来源，各自独立计数。断开后保留记忆，不会监听无关的同种塔。"
+      : "Memory connector. Links opposite horizontal or vertical neighbors. Numbers learn all sources costing at most 999 in the equation: A=E=1 teaches both A and E. Supports +; expensive operands and adjacent operators break connections. Numbers share memories, not counters. Memory survives disconnection; unrelated same-type towers do not count.",
     "1": zh ? "数字塔。初始数字为 1，升级只增加数字，不提升自身面板。经等号学习后，每种塔分别计数：已记录源塔每完成 n 次行动，从自身位置模仿一次，使用 n 级效果。计入整轮攻击、技能、生产和一次性效果；模仿不会再次触发计数。模仿自爆不消失，其他自损代价照常结算；不继承常驻被动光环。定点技能沿用原目标，推箱子沿用原方向。"
       : "Starts at number 1; upgrades increase the number without raising its own panel. Each learned type counts actions from recorded sources separately. Every n actions, imitates once from its own position at level n. Counts full attack cycles, skills, production and one-shot effects. Imitation never triggers another imitation. Copied explosions do not consume it, but other self-damage costs apply. Does not inherit permanent passive auras. Targeted skills reuse the original target; pushes reuse the original direction.",
     "@": zh ? "持续复制朝向前方一格的字符塔，包含 ASCII 扩展字符：基础费用须不超过 999，不能是 b、t 等快速生效卡。复制其基础面板、机制、升级规则和外框，但字符保持 @，使用自身等级和朝向，不继承目标的临时加成或当前技力。前方没有合格目标时无额外能力。切换时保留血量比例，重新开始攻击或技能准备。" : "Continuously copies the character tower one cell ahead, including ASCII Expansion characters, if its base cost is at most 999. Excludes instant effect cards such as b/t. Copies base stats, behavior, upgrade rules and border, but retains @, its own level and facing. Does not inherit target buffs or current SP. No eligible target means no extra ability. Switching preserves HP ratio and restarts attack/skill preparation.",
@@ -785,7 +789,7 @@ function towerDescription(id: CardId) {
 function towerUpgradeText(id: CardId) {
   if (id === "1") return isZh() ? "数字 +1；每 n 次源塔行动模仿一次，模仿效果按 n 级计算，不受临时等级影响。"
     : "Number +1. Imitates every n source actions at level n, ignoring temporary levels.";
-  if (id === "=") return "/";
+  if (id === "=" || id === "+") return "/";
   if (id === "@") {
     return isZh() ? "复制对象的升级规则按 @ 自身有效等级计算，不继承对方等级；升级仍使用 @ 卡牌和费用。" : "Uses the copied tower's upgrade rules at @'s own effective level, not the target's level. Upgrades still use the @ card and price.";
   }

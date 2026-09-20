@@ -46,7 +46,7 @@ test("the first ASCII character unlocks only after clearing AE-1", () => {
   assert.equal(progress.isCardUnlocked("#"), true);
 });
 
-test("AE-3 reveals Equals after AE-2 without unlocking the withdrawn + card", () => {
+test("AE-3 reveals Equals and unlocks number towers; AE-4 unlocks + and &", () => {
   const { progress } = fixture();
   assert.equal(progress.isLevelUnlocked("AE-3"), false);
   assert.equal(progress.isCardUnlocked("+"), false);
@@ -62,6 +62,11 @@ test("AE-3 reveals Equals after AE-2 without unlocking the withdrawn + card", ()
   assert.equal(progress.isCardUnlocked("+"), false);
   assert.equal(progress.isCardUnlocked("="), true);
   assert.equal(progress.isCardUnlocked("1"), true);
+  assert.equal(progress.isLevelUnlocked("AE-4"), true);
+  assert.equal(progress.isCardUnlocked("&"), false);
+  progress.completeLevel("AE-4");
+  assert.equal(progress.isCardUnlocked("+"), true);
+  assert.equal(progress.isCardUnlocked("&"), true);
 });
 
 test("enemy encyclopedia groups preserve origins and hide undiscovered groups", () => {

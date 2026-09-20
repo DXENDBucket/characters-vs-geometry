@@ -78,12 +78,22 @@ export const levelNodes: LevelNode[] = [
   { id: "AE-1", x: 500, y: 380 },
   { id: "AE-2", x: 820, y: 320 },
   { id: "AE-3", x: 1140, y: 380 },
+  { id: "AE-4", x: 1460, y: 380 },
   ...Array.from({ length: 8 }, (_, index) => ({
     id: `IF-${index + 5}`, x: 1840 + index * 340, y: index % 2 === 0 ? 430 : 320
   }))
 ];
 
 export const levelConfigs: Record<string, LevelConfig> = {
+  "AE-4": {
+    id: "AE-4", unlockAfter: "AE-3",
+    enemyKinds: ["circle", "triangle", "triangle2", "triangle3", "equals", "equals2", "equals3", "mortarTriangle", "pentagon"],
+    firstWaveWeight: CHAPTER_FOUR_FIRST_WAVE_WEIGHT,
+    waveWeightIncrement: CHAPTER_FOUR_WAVE_WEIGHT_INCREMENT,
+    waveWeightIncrementGrowth: CHAPTER_FOUR_WAVE_WEIGHT_INCREMENT_GROWTH,
+    startingChars: CHAPTER_FOUR_STARTING_CHARS,
+    totalWaves: 20, wavesPerFlag: WAVES_PER_FLAG
+  },
   "AE-3": {
     id: "AE-3", unlockAfter: "AE-2",
     enemyKinds: ["circle", "tilde", "tilde2", "tilde3", "equals", "equals2", "equals3", "shootingPentagon", "shootingTriangle", "diamond", "heart"],

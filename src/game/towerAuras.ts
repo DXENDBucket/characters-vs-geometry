@@ -1,7 +1,7 @@
 import { COLUMNS, LANES } from "../config";
 import { towerFormType } from "./towerIdentity";
 import type { Tower } from "../types";
-import { isPointInSlowAura } from "./slowAura";
+import { inFriendlyRange, towerCell } from "./towerTopology";
 
 const ZEAL_ATTACK_SPEED_MULTIPLIER = 1.35;
 const ZEAL_RADIUS_CELLS = 2;
@@ -10,9 +10,7 @@ const UNYIELDING_PERCENT_PER_LEVEL = 15;
 const unyieldingCells = new Float64Array(BOARD_CELL_COUNT);
 
 export function isInCentered3x3Aura(source: Tower, target: Tower) {
-  const dc = Math.abs(source.column - target.column);
-  const dl = Math.abs(source.lane - target.lane);
-  return dc <= 1 && dl <= 1;
+  return inFriendlyRange(source, target, 1);
 }
 
 export function syncUnyieldingAuras(towers: Tower[]) {
@@ -20,10 +18,11 @@ export function syncUnyieldingAuras(towers: Tower[]) {
   for (const tower of towers) {
     if (!tower.inPlay || tower.transient || towerFormType(tower) !== "g") continue;
     const strength = Math.max(1, tower.level + tower.levelBonus + tower.mirrorLevelBonus) * UNYIELDING_PERCENT_PER_LEVEL / 100;
+    const origin = towerCell(tower);
     for (let dl = -1; dl <= 1; dl++) {
       for (let dc = -1; dc <= 1; dc++) {
-        const lane = tower.lane + dl;
-        const column = tower.column + dc;
+        const lane = origin.lane + dl;
+        const column = origin.column + dc;
         if (lane < 0 || lane >= LANES || column < 0 || column >= COLUMNS) continue;
         const index = cellIndex(column, lane);
         unyieldingCells[index] = Math.max(unyieldingCells[index], strength);
@@ -32,7 +31,7 @@ export function syncUnyieldingAuras(towers: Tower[]) {
   }
   for (const tower of towers) {
     tower.unyieldingRatio = tower.inPlay && !tower.transient
-      ? unyieldingCells[cellIndex(tower.column, tower.lane)] ?? 0
+      ? unyieldingCells[cellIndex(towerCell(tower).column, towerCell(tower).lane)] ?? 0
       : 0;
   }
 }
@@ -71,7 +70,7 @@ export function towerHasZeal(towers: Tower[] | undefined, target: Tower, sources
       return false;
     }
 
-    return sources.zealCells[cellIndex(target.column, target.lane)] !== 0;
+    return sources.zealCells[cellIndex(towerCell(target).column, towerCell(target).lane)] !== 0;
   }
 
   if (!towers) {
@@ -79,7 +78,7 @@ export function towerHasZeal(towers: Tower[] | undefined, target: Tower, sources
   }
 
   for (const tower of towers) {
-    if (isZealSource(tower) && isPointInSlowAura(tower, target.x, target.y)) {
+    if (isZealSource(tower) && inFriendlyRange(tower, target, 2, true)) {
       return true;
     }
   }
@@ -91,10 +90,11 @@ function isZealSource(tower: Tower) {
 }
 
 function markZealCells(zealCells: Uint8Array, tower: Tower) {
-  const minColumn = Math.max(0, tower.column - ZEAL_RADIUS_CELLS);
-  const maxColumn = Math.min(COLUMNS - 1, tower.column + ZEAL_RADIUS_CELLS);
-  const minLane = Math.max(0, tower.lane - ZEAL_RADIUS_CELLS);
-  const maxLane = Math.min(LANES - 1, tower.lane + ZEAL_RADIUS_CELLS);
+  const origin = towerCell(tower);
+  const minColumn = Math.max(0, origin.column - ZEAL_RADIUS_CELLS);
+  const maxColumn = Math.min(COLUMNS - 1, origin.column + ZEAL_RADIUS_CELLS);
+  const minLane = Math.max(0, origin.lane - ZEAL_RADIUS_CELLS);
+  const maxLane = Math.min(LANES - 1, origin.lane + ZEAL_RADIUS_CELLS);
 
   for (let lane = minLane; lane <= maxLane; lane += 1) {
     for (let column = minColumn; column <= maxColumn; column += 1) {
@@ -106,8 +106,9 @@ function markZealCells(zealCells: Uint8Array, tower: Tower) {
 }
 
 function cellIsInZealAura(tower: Tower, column: number, lane: number) {
-  const columnDelta = Math.abs(column - tower.column);
-  const laneDelta = Math.abs(lane - tower.lane);
+  const origin = towerCell(tower);
+  const columnDelta = Math.abs(column - origin.column);
+  const laneDelta = Math.abs(lane - origin.lane);
   const inFiveByFive = columnDelta <= ZEAL_RADIUS_CELLS && laneDelta <= ZEAL_RADIUS_CELLS;
   const isCorner = columnDelta === ZEAL_RADIUS_CELLS && laneDelta === ZEAL_RADIUS_CELLS;
   return inFiveByFive && !isCorner;

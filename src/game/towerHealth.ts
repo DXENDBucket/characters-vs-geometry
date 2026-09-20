@@ -1,4 +1,5 @@
 import type { Tower, TowerHealthPool } from "../types";
+import { towerCell } from "./towerTopology";
 
 function ratio(hp: number, maxHp: number) {
   return maxHp > 0 ? Math.min(1, hp / maxHp) : 0;
@@ -78,7 +79,7 @@ export function syncTowerHealthCapacity(tower: Tower, previousMaxHp: number, hea
 export function syncTowerHealthNetworks(towers: Tower[]) {
   if (!towers.some(tower => tower.healthPool || (tower.inPlay && tower.type === "u"))) return;
   const active = towers.filter(tower => tower.inPlay && !tower.transient);
-  const cells = new Map(active.map(tower => [`${tower.lane}:${tower.column}`, tower]));
+  const cells = new Map(active.map(tower => { const cell = towerCell(tower); return [`${cell.lane}:${cell.column}`, tower]; }));
   const edges = new Map<Tower, Tower[]>();
   const add = (a: Tower, b: Tower) => {
     const neighbors = edges.get(a) ?? [];
@@ -88,8 +89,9 @@ export function syncTowerHealthNetworks(towers: Tower[]) {
   for (const tower of active) {
     if (tower.type !== "u") continue;
     if (!edges.has(tower)) edges.set(tower, []);
+    const cell = towerCell(tower);
     for (const [dl, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
-      const neighbor = cells.get(`${tower.lane + dl}:${tower.column + dc}`);
+      const neighbor = cells.get(`${cell.lane + dl}:${cell.column + dc}`);
       if (neighbor) {
         add(tower, neighbor);
         add(neighbor, tower);

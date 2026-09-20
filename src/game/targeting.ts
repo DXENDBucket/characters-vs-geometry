@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { towerAtCell, towerCell } from "./towerTopology";
 import { towerBehaviorType } from "./towerIdentity";
 import {
   BOARD_X,
@@ -272,7 +273,7 @@ export function getHealTargets(
   }
 
   visitHealTargetCells(tower, definition, (lane, column) => {
-    const target = occupied.get(gridCellKey(lane, column));
+    const target = towerAtCell(occupied, tower, lane, column);
     if (!target || target.hp >= towerFinalStats(target).maxHp) {
       return;
     }
@@ -295,7 +296,7 @@ export function hasHealTarget(
 
   let found = false;
   visitHealTargetCells(tower, definition, (lane, column) => {
-    const target = occupied.get(gridCellKey(lane, column));
+    const target = towerAtCell(occupied, tower, lane, column);
     if (target && target.hp < towerFinalStats(target).maxHp) {
       found = true;
       return false;
@@ -309,14 +310,15 @@ export function getHealTarget(tower: Tower, definition: CardDefinition, occupied
 }
 
 function visitHealTargetCells(tower: Tower, definition: CardDefinition, visit: (lane: number, column: number) => false | void) {
-  const minLane = Math.max(0, tower.lane - 1);
-  const maxLane = Math.min(LANES - 1, tower.lane + 1);
+  const origin = towerCell(tower);
+  const minLane = Math.max(0, origin.lane - 1);
+  const maxLane = Math.min(LANES - 1, origin.lane + 1);
   const rangeCells = Math.max(0, Math.trunc(definition.rangeCells ?? 2));
   const direction = towerFacingDirection(tower);
 
   for (let lane = minLane; lane <= maxLane; lane += 1) {
     if (towerBehaviorType(tower) === "H" || towerBehaviorType(tower) === "p") {
-      for (let column = tower.column - 1; column <= tower.column + 1; column += 1) {
+      for (let column = origin.column - 1; column <= origin.column + 1; column += 1) {
         if (column >= 0 && column < COLUMNS && visit(lane, column) === false) {
           return false;
         }
@@ -326,7 +328,7 @@ function visitHealTargetCells(tower: Tower, definition: CardDefinition, visit: (
 
     if (towerBehaviorType(tower) === "P") {
       for (let offset = 3; offset >= 1; offset -= 1) {
-        const column = tower.column - offset * direction;
+        const column = origin.column - offset * direction;
         if (column >= 0 && column < COLUMNS && visit(lane, column) === false) {
           return false;
         }
@@ -334,7 +336,7 @@ function visitHealTargetCells(tower: Tower, definition: CardDefinition, visit: (
     }
 
     for (let offset = 0; offset < rangeCells; offset += 1) {
-      const column = tower.column + offset * direction;
+      const column = origin.column + offset * direction;
       if (column >= 0 && column < COLUMNS && visit(lane, column) === false) {
         return false;
       }

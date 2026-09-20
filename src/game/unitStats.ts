@@ -15,6 +15,7 @@ import {
   maxHpGainForEffectiveUpgrades
 } from "./upgrades";
 import { attackIntervalMs } from "./attackSpeed";
+import { inheritTowerTopology } from "./towerTopology";
 import { towerFormType, towerActionContext, withTowerActionContext } from "./towerIdentity";
 import { syncTowerHealthCapacity } from "./towerHealth";
 import { syncEnemyHealthCapacity } from "./enemyHealth";
@@ -76,6 +77,7 @@ export function withTowerBehavior<T>(tower: Tower, definition: CardDefinition, l
   const baseStats = towerBaseStatsFromDefinition(definition);
   const view: Tower = { ...tower, type: definition.id, copiedType: undefined, baseStats, finalStats: { ...baseStats },
     level, levelBonus: 0, mirrorLevelBonus: 0 };
+  inheritTowerTopology(tower, view);
   const stats = calculateTowerFinalStats(view, towers);
   return withTowerActionContext(tower, { type: definition.id, level, stats }, run);
 }

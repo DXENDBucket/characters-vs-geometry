@@ -23,13 +23,15 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
   const member = (kind: NodeKind) => (value: unknown) => Boolean(value && typeof value === "object" && units.get(kind)?.has(value));
   const learnable = (type: unknown) => cardDefinitions.some(card => card.id === type && card.cost <= 999 && card.id !== "1");
   const behavior = (value: unknown) => record(value) && learnable(value.type) && Number.isSafeInteger(value.level) && (value.level as number) >= 1;
-  const towerEvent = (value: unknown) => record(value) && (
+  const nativeTowerEvent = (value: unknown) => record(value) && (
     ["attack", "production", "hitProduction", "shock", "detonation", "targeted"].includes(value.kind as string) ||
     (value.kind === "trap" && (value.target === "boss" || member("enemy")(value.target) || member("boss")(value.target))) ||
     (value.kind === "retaliation" && member("enemy")(value.target)) ||
     (value.kind === "reflection" && (member("enemyProjectile")(value.projectile) || member("mortar")(value.projectile))) ||
     (value.kind === "skill" && ["x", "y", "laneOffset", "columnOffset"].every(key => value[key] === undefined || finite(value[key])))
   );
+  const towerEvent = (value: unknown) => nativeTowerEvent(value) ||
+    (record(value) && value.kind === "combined" && nativeTowerEvent(value.original));
   require(record(state));
   if (state.simulation !== undefined) {
     const simulation = state.simulation;
@@ -110,6 +112,11 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
         require(["laser", "mortar", "wings"].includes(value.bossCompanionActionPhase as string));
       }
       if (kind === "tower") {
+        if (value.topologyTarget !== undefined) {
+          const cell = value.topologyTarget;
+          require(value.type === "&" && record(cell) && Number.isInteger(cell.lane) && (cell.lane as number) >= 0 && (cell.lane as number) < 7 &&
+            Number.isInteger(cell.column) && (cell.column as number) >= 0 && (cell.column as number) < 13 && finite(value.topologyOrder) && value.topologyOrder >= 0);
+        }
         if (value.numberMemory !== undefined) {
           require(array(value.numberMemory, entry => record(entry) && learnable(entry.type) &&
             Number.isSafeInteger(entry.count) && (entry.count as number) >= 0 &&

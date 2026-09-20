@@ -5,10 +5,18 @@ import type { CardDefinition, CardId } from "../types";
 
 export const cardDefinitions: CardDefinition[] = [
   {
+    id: "+", category: "function", cost: 1_000, cooldown: 30_000,
+    maxHp: 1_200, armor: 150, magicResistance: 0, attackPower: 0, stats: "SHARED COUNTS"
+  },
+  {
+    id: "&", category: "function", cost: 4_200, cooldown: 120_000,
+    maxHp: 1_200, armor: 150, magicResistance: 0, attackPower: 0, stats: "SWAP TOPOLOGY"
+  },
+  {
     id: "=",
     category: "function",
     cost: 1_000,
-    cooldown: 60_000,
+    cooldown: 30_000,
     maxHp: 1_200,
     armor: 150,
     magicResistance: 0,

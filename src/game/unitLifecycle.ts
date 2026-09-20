@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { syncTowerTopology } from "./towerTopology";
 import type { TowerActionListener } from "./towerActions";
 import { towerBehaviorType } from "./towerIdentity";
 import {
@@ -309,6 +310,7 @@ export function removeTower(runtime: UnitLifecycleRuntime, tower: Tower) {
   if (!tower.transient && runtime.occupied.get(gridCellKey(tower.lane, tower.column)) === tower) {
     runtime.occupied.delete(gridCellKey(tower.lane, tower.column));
   }
+  if (tower.type === "&") syncTowerTopology(runtime.towers);
   syncTowerHealthNetworks(runtime.towers);
   runtime.onTowerRemoved?.(tower);
   settleTowerHealth(runtime);

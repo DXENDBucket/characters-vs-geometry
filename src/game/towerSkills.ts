@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { inFriendlyRange } from "./towerTopology";
 import { isNumberTower, towerBehaviorType } from "./towerIdentity";
 import type { TowerActionEvent, TowerActionListener } from "./towerActions";
 import type { BattleAction, ScheduleBattleAction } from "./battleActions";
@@ -153,14 +154,15 @@ export class TowerSkillController {
   imitateSkill(tower: Tower, event: Extract<TowerActionEvent, { kind: "skill" }>) {
     const type = towerBehaviorType(tower);
     const definition = this.skillDefinitions[type];
-    if (!definition) return;
+    if (!definition) return false;
     tower.imitatedSkills ??= [];
     if (!tower.imitatedSkills.includes(type)) tower.imitatedSkills.push(type);
-    if (definition.imitate) { definition.imitate(tower, event); return; }
-    if (!definition.manual || definition.maxSp === undefined) return;
+    if (definition.imitate) { definition.imitate(tower, event); return true; }
+    if (!definition.manual || definition.maxSp === undefined) return false;
     const state = getTowerSkillState(tower, definition.stateKey);
     state.sp = definition.maxSp; state.spBuffer = 0; state.activeUntil = 0;
     definition.manual.activate([tower], { x: tower.x, y: tower.y, allReady: false }, this.runtime().battleTime);
+    return true;
   }
 
   cardCooldownMultiplier() {
@@ -380,7 +382,7 @@ export class TowerSkillController {
     let ally: Tower | undefined;
     let allyHpRatio = Number.POSITIVE_INFINITY;
     for (const candidate of this.runtime().towers) {
-      if (candidate === tower || Math.abs(candidate.lane - tower.lane) > 1 || Math.abs(candidate.column - tower.column) > 1) {
+      if (candidate === tower || !inFriendlyRange(tower, candidate, 1)) {
         continue;
       }
 

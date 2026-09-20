@@ -6,6 +6,7 @@ const load = createTypeScriptLoader();
 const { NumberTowerController } = load("src/game/numberTowers.ts");
 const { withTowerActionContext } = load("src/game/towerIdentity.ts");
 const { cardDefinitions } = load("src/data/cards.ts");
+const topology = load("src/game/towerTopology.ts");
 function fixture() {
   const towers = [], events = [];
   const getDefinition = id => cardDefinitions.find(card => card.id === id);
@@ -20,7 +21,7 @@ function fixture() {
 
 test("= and 1 use standard functional panels and unlock together after AE-3", () => {
   const f = fixture();
-  for (const [id, cost, cooldown] of [["=", 1000, 60000], ["1", 100, 2000]]) {
+  for (const [id, cost, cooldown] of [["=", 1000, 30000], ["1", 100, 2000]]) {
     const card = f.getDefinition(id);
     assert.deepEqual([card.cost, card.cooldown, card.category, card.maxHp, card.armor, card.magicResistance, card.attackPower],
       [cost, cooldown, "function", 1200, 150, 0, 0]);
@@ -86,14 +87,15 @@ test("all numbers learn remote sources across ordinary towers in A=E=1=B=2", () 
   assert.deepEqual(f.events.at(-1).behavior, { type: "A", level: 2 });
 });
 
-test("branched cyclic equations traverse ordinary towers once, including expensive non-learnable bridges", () => {
+test("branched cyclic equations traverse ordinary towers once and stop at expensive operands", () => {
   const f = fixture(), number = f.place("1", 2, 2, 2), e = f.place("E", 4, 2);
   const b = f.place("B", 2, 4), a = f.place("A", 4, 4);
   for (const [column, lane] of [[3, 2], [2, 3], [4, 3], [3, 4], [5, 4], [7, 4]]) f.place("=", column, lane);
   f.place("@", 6, 4); const x = f.place("X", 8, 4);
   f.controller.sync(); f.controller.sync();
-  assert.equal(number.numberMemory.length, 4);
-  for (const source of [a, e, b, x]) {
+  assert.equal(number.numberMemory.length, 3);
+  f.controller.record(x, { kind: "attack" }); assert.equal(f.events.length, 0);
+  for (const source of [a, e, b]) {
     assert.deepEqual(number.numberMemory.find(entry => entry.type === source.type).sourceIds, [source.id]);
     f.controller.record(source, { kind: "attack" });
   }
@@ -172,4 +174,84 @@ test("borrowed action contexts never grant persistent zeal, unyielding or slow a
       assert.equal(slowAuraSources(f.towers).hasAura, false);
     });
   }
+});
+
+test("AE-4 panel, wave pool and rewards", () => {
+  const level = load("src/data/levels.ts").getLevelConfig("AE-4");
+  assert.equal(level.totalWaves, 20); assert.equal(level.unlockAfter, "AE-3");
+  assert.deepEqual(level.enemyKinds, ["circle", "triangle", "triangle2", "triangle3", "equals", "equals2", "equals3", "mortarTriangle", "pentagon"]);
+  assert.deepEqual([level.firstWaveWeight, level.waveWeightIncrement, level.waveWeightIncrementGrowth, level.startingChars], [25, 18, 3, 500]);
+  for (const [id, cost, cd] of [["+", 1000, 30000], ["&", 4200, 120000]]) {
+    const card = fixture().getDefinition(id);
+    assert.deepEqual([card.cost, card.cooldown, card.category, card.attackPower], [cost, cd, "function", 0]);
+    assert.equal(load("src/data/cardUnlocks.ts").cardUnlockRequirement(id), "AE-4");
+  }
+  assert.equal(load("src/game/upgrades.ts").isMaxHpUpgradeable("&"), true);
+});
+
+test("plus shares counters only within plus terms of a mixed equation", () => {
+  const f = fixture(), number = f.place("1", 0, 3, 2);
+  f.place("=", 1); const a = f.place("A", 2);
+  f.place("+", 3); const e = f.place("E", 4);
+  f.place("+", 5); const m = f.place("M", 6);
+  f.place("+", 7); const w = f.place("W", 8);
+  f.place("=", 9); const i = f.place("I", 10);
+  f.controller.sync();
+  assert.equal(number.numberMemory.length, 5);
+  f.controller.record(a, { kind: "attack" });
+  for (const source of [a, e, m, w]) assert.equal(number.numberMemory.find(entry => entry.type === source.type).count, 1);
+  assert.equal(number.numberMemory.find(entry => entry.type === "I").count, 0);
+  f.controller.record(e, { kind: "attack" });
+  assert.deepEqual(new Set(f.events.map(entry => entry.behavior.type)), new Set(["A", "E", "M", "W"]));
+  assert.ok(f.events.every(entry => entry.tower === number && entry.behavior.level === 2));
+  f.controller.record(i, { kind: "attack" }); assert.equal(f.events.length, 4);
+});
+
+test("adjacent operators and expensive operands cannot bridge equations", () => {
+  for (const expression of [["1", "=", "+", "A"], ["1", "+", "=", "A"], ["1", "=", "@", "=", "A"]]) {
+    const f = fixture(); expression.forEach((type, column) => f.place(type, column));
+    f.controller.sync(); assert.equal(f.towers[0].numberMemory?.length ?? 0, 0);
+  }
+  const f = fixture(), copiedNumber = f.place("@", 0);
+  copiedNumber.copiedType = "1"; f.place("=", 1); const source = f.place("A", 2);
+  f.controller.sync(); f.controller.record(source, { kind: "attack" });
+  assert.equal(copiedNumber.numberMemory?.length ?? 0, 0); assert.equal(f.events.length, 0);
+});
+
+test("topology swaps compose in activation order and removal recomputes the remaining permutation", () => {
+  const f = fixture(), first = f.place("&", 1), second = f.place("&", 5), target = f.place("A", 9);
+  first.placedOrder = 1; second.placedOrder = 2;
+  first.topologyTarget = { lane: 3, column: 5 }; first.topologyOrder = 10;
+  second.topologyTarget = { lane: 3, column: 9 }; second.topologyOrder = 20;
+  topology.syncTowerTopology(f.towers);
+  assert.deepEqual(topology.towerCell(first), { lane: 3, column: 9 });
+  assert.deepEqual(topology.towerCell(second), { lane: 3, column: 1 });
+  assert.deepEqual(topology.towerCell(target), { lane: 3, column: 5 });
+  assert.equal(first.column, 1); assert.equal(target.column, 9);
+  first.inPlay = false; topology.syncTowerTopology(f.towers);
+  assert.deepEqual(topology.towerCell(second), { lane: 3, column: 9 });
+  assert.deepEqual(topology.towerCell(target), { lane: 3, column: 5 });
+  second.inPlay = false; topology.syncTowerTopology(f.towers);
+  assert.equal(topology.towerCell(target).column, 9);
+});
+
+test("logical auras, equations and range outlines include remote cells and leave holes", () => {
+  const f = fixture(), e = f.place("e", 2), swap = f.place("&", 3), remote = f.place("A", 10, 6);
+  for (const tower of f.towers) {
+    tower.x = load("src/config.ts").BOARD_X + (tower.column + .5) * load("src/config.ts").CELL_WIDTH;
+    tower.y = load("src/config.ts").BOARD_Y + (tower.lane + .5) * load("src/config.ts").CELL_HEIGHT;
+  }
+  swap.topologyTarget = { lane: remote.lane, column: remote.column }; swap.topologyOrder = 0;
+  topology.syncTowerTopology(f.towers);
+  assert.equal(topology.inFriendlyRange(e, remote, 2, true), true);
+  assert.equal(topology.inFriendlyRange(e, swap, 2, true), false);
+  const lines = [], graphics = { lineStyle() { return this; }, lineBetween(...args) { lines.push(args); return this; } };
+  load("src/render/towerLogicalRange.ts").drawLogicalTowerRange(graphics, e, 2, true, 0xffffff);
+  const { CELL_WIDTH, CELL_HEIGHT } = load("src/config.ts");
+  const edge = tower => [tower.x - e.x - CELL_WIDTH / 2, tower.y - e.y - CELL_HEIGHT / 2,
+    tower.x - e.x + CELL_WIDTH / 2, tower.y - e.y - CELL_HEIGHT / 2];
+  assert.ok(lines.some(line => JSON.stringify(line) === JSON.stringify(edge(remote))));
+  assert.ok(lines.some(line => JSON.stringify(line) === JSON.stringify(edge(swap))));
+  f.place("=", 4); const number = f.place("1", 5); topology.syncTowerTopology(f.towers); f.controller.sync();
+  assert.deepEqual(number.numberMemory.find(entry => entry.type === "A").sourceIds, [remote.id]);
 });

@@ -1,4 +1,5 @@
 import type { CardDefinition, CardId, Tower } from "../types";
+import { towerAtCell, towerCell } from "./towerTopology";
 import { facingWithEffects } from "./rules/reversal";
 import { isTargetedEffectCardId } from "./targetedEffectCards";
 import { calculateTowerFinalStats, towerBaseStatsFromDefinition } from "./unitStats";
@@ -20,7 +21,8 @@ export function syncTowerCopies(runtime: TowerCopyRuntime) {
   for (const tower of runtime.towers) {
     if (tower.type !== "@" || !tower.inPlay || tower.transient) continue;
     const direction = facingWithEffects(tower, tower.facingDirection ?? 1);
-    const target = runtime.occupied.get(`${tower.lane}:${tower.column + direction}`);
+    const cell = towerCell(tower);
+    const target = towerAtCell(runtime.occupied, tower, cell.lane, cell.column + direction);
     const candidate = target?.inPlay && !target.transient ? runtime.getDefinition(target.type) : undefined;
     const copiedType = candidate && isCopyableDefinition(candidate) ? candidate.id : undefined;
     if (tower.copiedType === copiedType) continue;
