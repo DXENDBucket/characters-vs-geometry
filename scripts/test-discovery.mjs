@@ -46,6 +46,15 @@ test("the first ASCII character unlocks only after clearing AE-1", () => {
   assert.equal(progress.isCardUnlocked("#"), true);
 });
 
+test("continuous-fire attachment unlocks only after clearing AE-5", () => {
+  const { progress } = fixture();
+  assert.equal(progress.isCardUnlocked("!"), false);
+  progress.completeLevel("AE-4");
+  assert.equal(progress.isCardUnlocked("!"), false);
+  progress.completeLevel("AE-5");
+  assert.equal(progress.isCardUnlocked("!"), true);
+});
+
 test("AE-3 reveals Equals and unlocks number towers; AE-4 unlocks + and &", () => {
   const { progress } = fixture();
   assert.equal(progress.isLevelUnlocked("AE-3"), false);

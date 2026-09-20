@@ -733,6 +733,8 @@ function towerLines(card: CardDefinition) {
 function towerDescription(id: CardId) {
   const zh = isZh();
   const descriptions: Record<CardId, string> = {
+    "!": zh ? "持续攻击附着卡。放在已有塔上，永久允许该塔按原攻速和连射规则执行无需锁定目标的常规攻击，即使本行或射程内没有敌怪。适用于平射弹幕、激光、范围波；不自动释放技能，不绕过小 x、追踪迫击炮、斩击等必须有目标的条件。附着后显示金色 !，重复使用不叠加，升级和移动保留效果。生效后本卡冷却缩短为 30 秒 / 自身有效等级。"
+      : "Continuous-fire attachment. Apply to an existing tower to permanently allow free-aim regular attacks at their normal cadence and volley count, even with no enemies in the lane or range. Supports ordinary projectiles, lasers and area waves. Does not activate skills or bypass target requirements for homing shots, predictive mortars or targeted slashes. Shows a gold ! marker, does not stack, and persists through upgrades and movement. After resolving, this card's cooldown becomes 30s / its effective level.",
     "0": zh ? "弹幕蓄存器。经网格边上的 = 与源塔和数字出口、合束出口或消去器连通后，截存源塔实际发出的普通弹幕，上限为 128 × 有效等级，满后弹幕正常飞出。点击释放点击时已存的弹幕，多个出口轮流分配，不复制。断线保留库存并暂停释放，摧毁后库存消失。不处理追踪弹、激光、迫击炮、技能或生产。原伤害、属性、多判次数和剩余射程不变。叠放 0 可升级并保留库存，不会变成 1；支持自动升级及提取池多级部署。临时等级消失时不删除超额库存，但满仓期间不再收弹。"
       : "Projectile bank. Connect to sources and numeric outlets, bundlers or subtractors using edge = links. Stores up to 128 real ordinary shots per effective level; overflow flies normally. Click to discharge the current stock, rotating between outlets without duplication. Disconnecting pauses discharge and retains stock; destruction loses it. Excludes homing shots, lasers, mortars, skills and production. Keeps damage, hit counts and remaining range. Stack 0 cards to upgrade capacity without losing stock or becoming 1. Supports auto-upgrades and extraction batches. Losing temporary levels retains excess stock but pauses capture until space is available.",
     "-": zh ? "消去。通过 = 连接蓄存器 0 后自动工作，不需要数字出口或点击释放。每 0.1 秒最多消耗一颗库存弹幕，抵消半径 2.6 格内敌方平射弹或迫击炮弹的伤害量；按飞行中的实际位置判定。双方剩余伤害保留，敌弹未完全消去仍会命中或爆炸，多判逐次扣除。多个减号可共同拦截，激光和非弹体技能不受影响。弹体随伤害量改变大小，受损后缩小。"
@@ -804,6 +806,8 @@ function towerDescription(id: CardId) {
 }
 
 function towerUpgradeText(id: CardId) {
+  if (id === "!") return isZh() ? "只影响本卡冷却返还：生效后剩余冷却为 30 秒 / 自身有效等级。不会增加目标的攻速、伤害或连射。"
+    : "Only improves this card's cooldown refund: 30s / effective level after resolving. Does not increase the target's attack speed, damage or volley count.";
   if (id === "0") return isZh() ? "每级增加 128 颗存储上限：1 级 128，2 级 256，以此类推；按有效等级计算。升级保留库存和字符 0，支持自动升级。"
     : "Each effective level adds 128 capacity: level 1 holds 128, level 2 holds 256. Upgrades retain stock and the 0 identity. Supports auto-upgrades.";
   if (id === "1") return isZh() ? "手动升级数字 +1，每批弹幕数量上限 +1，不改变弹幕总数或伤害；不参与自动升级。"

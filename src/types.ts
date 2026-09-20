@@ -3,6 +3,7 @@ import type { TowerActionEvent } from "./game/towerActions";
 import type { ProjectileIntegrity } from "./game/projectileIntegrity";
 
 export type CardId =
+  | "!"
   | "+"
   | "-"
   | "&"
@@ -259,6 +260,7 @@ export interface NumberTowerState {
 export interface Tower extends NumberTowerState {
   projectileBank?: { shots: StoredTowerShot[]; remaining: number; nextAt: number; outletIndex: number };
   nextInterceptionAt?: number;
+  continuousAttack?: boolean;
   topologyTarget?: { lane: number; column: number };
   topologyOrder?: number;
   numberChannels?: Partial<Record<EquationAxis, NumberTowerState>>;

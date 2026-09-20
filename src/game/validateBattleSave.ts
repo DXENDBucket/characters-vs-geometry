@@ -152,6 +152,7 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
         require(["laser", "mortar", "wings"].includes(value.bossCompanionActionPhase as string));
       }
       if (kind === "tower") {
+        require(value.continuousAttack === undefined || typeof value.continuousAttack === "boolean");
         if (value.nextInterceptionAt !== undefined) require(finite(value.nextInterceptionAt) && value.nextInterceptionAt >= 0);
         if (value.projectileBank !== undefined) {
           const bank = value.projectileBank;

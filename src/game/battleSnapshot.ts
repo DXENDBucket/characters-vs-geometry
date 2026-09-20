@@ -14,6 +14,7 @@ import { decodeSaveGraph, encodeSaveGraph, type GraphNode, type NodeKind, type S
 import type { BattleSaveState } from "./battleSaveState";
 import { containedEnemies, syncPassengerPositions } from "./enemyContainers";
 import { projectileVisualScale } from "./projectileIntegrity";
+import { syncTowerAttachmentVisual } from "../render/towerAttachments";
 
 const towerVisuals = new Set<string>(["body", "border", "label", "facingIcon", "autoUpgradeBorder", "trueDamageBorder",
   "flyingHalo", "hpFill", "negativeHpBack", "negativeHpFill", "rangeBorder", "levelText"] satisfies (keyof Tower)[]);
@@ -96,6 +97,7 @@ export function restoreBattleSnapshot(scene: Phaser.Scene, graph: SaveGraph): Ba
       tower.body.setVisible(tower.inPlay);
       syncTowerFacingVisual(tower); syncTowerFlyingVisual(tower, state.battleTime);
       syncTowerLevelText(tower); syncTowerHpBar(tower); syncTowerTrueDamageVisual(tower, state.battleTime);
+      syncTowerAttachmentVisual(scene, tower);
       if (!tower.inPlay) tower.body.destroy();
     }
     for (const boss of bosses) {

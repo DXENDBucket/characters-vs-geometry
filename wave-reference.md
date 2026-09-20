@@ -214,6 +214,7 @@ Towers have separate base and final `attackPower`. Attack damage and healing use
 | # | Function | Triangle | 475 | 30s | 1200 | 150 | 0 | ASCII Expansion (@); unlocked after AE-1. ATK 0. Box Push: starts at 0/30 SP, recovers 1 SP/s. Select a cardinally adjacent tower to spend 30 SP and push the contiguous chain one cell over 0.5s. Does not move itself. Towers entering sealed cells or leaving the board are erased. Invalid selections cost no SP. | +0.5 SP/s per extra effective level; upgrading resets SP |
 | @ | Function | Copied / Triangle | 1000 | 60s | 1200 | 150 | 0 | Unlocked after AE-2. Continuously copies the tower one cell ahead with base cost <=999, including ASCII characters; excludes instant targeted effect cards. Copies base stats, mechanics and border, retaining its own label, facing, card identity and HP ratio. No valid target means no additional ability. | Uses copied upgrade rules at its own effective level |
 | = | Special | Edge | 1000 | 30s | 0 | 0 | 0 | Unlocked after AE-3. Internal-edge connector linking the adjacent logical cells, without occupying a tile. No HP, blocking, targeting or healing; panel displays /. Erase on the edge. | / |
+| ! | Function | Triangle | 200 | 30s | 1200 | 150 | 0 | Unlocked after AE-5. Permanently enables free-aim regular attacks without enemies in range. No auto skills or target-required attacks; does not stack. | Remaining card cooldown becomes 30s / effective level after applying |
 | + | Function | Triangle | 1000 | 30s | 1200 | 150 | 0 | Bundling outlet: releases up to five stored shots per batch, merging matching payloads while preserving separate armor judgments. | / |
 | - | Function | Triangle | 1000 | 30s | 1200 | 150 | 0 | Cancellation: consumes connected bank ammo against enemy bullets and mortars within radius 2.6; one shot per 0.1s. Cancels equal damage budgets and retains leftovers. | / |
 | 0 | Function | Triangle | 600 | 10s | 1200 | 150 | 0 | Unlocked after AE-3. Banks 128 real ordinary projectiles per effective level; click to discharge current stock through connected outlets. Overflow passes normally. | Stack 0 cards to add 128 capacity per level, retaining stock and identity; supports auto-upgrades and extraction batches |
@@ -2997,6 +2998,7 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 ## ASCII Expansion: AE-5
 
 - 30 waves, unlocked after AE-4. Chapter-four template: 500 starting characters, first weight 25, increment +18, extra increment +3.
+- Clear reward: `!`, a permanent continuous-fire attachment (200 characters, 30s cooldown). Level affects cooldown refund only; skills and attacks requiring a target are excluded.
 - Pool: Circle I; Tilde I/II/III; Equals I/II/III; Triangle Ram I/II/III; Hex Mace I/II; Parentheses I/II/III; Slope Triangle III.
 - Parentheses: 5000 HP, 100 armor, 40 MR, speed 15, 600 physical attack every second, unchanged at higher ranks. Weight 80/200/320; capacity rank + 1.
 - Each parenthesis shrinks independently with the host's HP ratio using the normal enemy scale curve. Their centers stay the same distance apart; damage never compresses seats or scales passengers.

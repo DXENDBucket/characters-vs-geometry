@@ -2,6 +2,7 @@ import type Phaser from "phaser";
 import type { TowerActionListener } from "./towerActions";
 import type { ScheduleBattleAction } from "./battleActions";
 import { palette } from "../config";
+import { syncTowerAttachmentVisual } from "../render/towerAttachments";
 import type { CardDefinition, CardId, CardState, Tower } from "../types";
 import type { TowerExtractionPool } from "./towerExtraction";
 import {
@@ -44,6 +45,14 @@ interface TargetedEffectDefinition {
 }
 
 const targetedEffectDefinitions: Partial<Record<CardId, TargetedEffectDefinition>> = {
+  "!": {
+    refundCooldownByLevel: true,
+    apply: (runtime, target) => {
+      target.continuousAttack = true;
+      syncTowerAttachmentVisual(runtime.scene, target);
+      makeTargetedEffectPulse(runtime.scene, target);
+    }
+  },
   b: {
     refundCooldownByLevel: true,
     apply: (runtime, target) => {

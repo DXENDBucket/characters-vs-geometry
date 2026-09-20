@@ -82,7 +82,8 @@ export const idleCardBehavior: CardBehavior = {
 
 export const projectileCardBehavior: CardBehavior = {
   canUse: (tower, definition, time, runtime, cooldownAlreadyReady) => {
-    return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(towerAttackAmount(tower, definition) > 0 && hasAttackTarget(tower, definition, runtime.enemies, runtime.boss));
+    return freeAimAttackReady(tower, definition, time, cooldownAlreadyReady,
+      () => hasAttackTarget(tower, definition, runtime.enemies, runtime.boss));
   },
   execute: (tower, definition, runtime, hitCount) => {
     fireTowerProjectiles(tower, definition, runtime, hitCount);
@@ -101,7 +102,7 @@ export const homingCardBehavior: CardBehavior = {
 
 export const magicLaserCardBehavior: CardBehavior = {
   canUse: (tower, definition, time, runtime, cooldownAlreadyReady) => {
-    return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(towerAttackAmount(tower, definition) > 0 && hasMagicLaserTarget(tower, runtime));
+    return freeAimAttackReady(tower, definition, time, cooldownAlreadyReady, () => hasMagicLaserTarget(tower, runtime));
   },
   execute: fireMagicLaser
 };
@@ -176,7 +177,8 @@ export const slashCardBehavior: CardBehavior = {
 
 export const arcWaveCardBehavior: CardBehavior = {
   canUse: (tower, definition, time, runtime, cooldownAlreadyReady) => {
-    return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(towerAttackAmount(tower, definition) > 0 && hasArcWaveTarget(tower, runtime.enemies, runtime.boss));
+    return freeAimAttackReady(tower, definition, time, cooldownAlreadyReady,
+      () => hasArcWaveTarget(tower, runtime.enemies, runtime.boss));
   },
   execute: fireArcWave
 };
@@ -196,6 +198,7 @@ export const smallSummonerCardBehavior: CardBehavior = {
 };
 
 export const cardBehaviorsById: Record<CardId, CardBehavior> = {
+  "!": idleCardBehavior,
   "0": idleCardBehavior,
   "-": idleCardBehavior,
   "+": idleCardBehavior,
@@ -282,6 +285,12 @@ function cooldownReady(tower: Tower, time: number, cooldownAlreadyReady = false)
     return true;
   }
   return time >= tower.lastFire + attackIntervalMs(towerFinalStats(tower).attackSpeed);
+}
+
+function freeAimAttackReady(tower: Tower, definition: CardDefinition, time: number,
+  cooldownAlreadyReady: boolean | undefined, hasTarget: () => boolean) {
+  return cooldownReady(tower, time, cooldownAlreadyReady) && towerAttackAmount(tower, definition) > 0 &&
+    (tower.continuousAttack === true || hasTarget());
 }
 
 function fireHomingVolley(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {
