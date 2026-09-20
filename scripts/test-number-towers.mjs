@@ -4,7 +4,7 @@ import { createTypeScriptLoader } from "./helpers/load-typescript.mjs";
 
 const load = createTypeScriptLoader();
 const { NumberTowerController } = load("src/game/numberTowers.ts");
-const { withTowerActionContext, isNumberTower, numberTowerValue } = load("src/game/towerIdentity.ts");
+const { withTowerActionContext, isNumberTower, numberTowerValue, numberTowerActionLevel } = load("src/game/towerIdentity.ts");
 const { cardDefinitions } = load("src/data/cards.ts");
 const topology = load("src/game/towerTopology.ts");
 function fixture() {
@@ -286,6 +286,51 @@ test("numeric plus groups do not accept ordinary towers or bridge adjacent opera
   f.place("=", 2, 2); const a = f.place("A", 2, 1);
   f.controller.sync(); f.controller.record(a, { kind: "attack" });
   assert.equal(p.numberValue, 8); assert.equal(p.numberMemory, undefined);
+});
+
+test("a level-2 equals makes number 9 imitate at level 18 after exactly nine actions", () => {
+  const f = fixture(), a = f.place("A", 0); const eq = f.place("=", 1, 3, 2), nine = f.place("1", 2, 3, 9);
+  eq.levelBonus = 100; nine.levelBonus = 100; nine.mirrorLevelBonus = 50;
+  f.controller.sync();
+  assert.equal(nine.equationLevel, 2); assert.equal(numberTowerValue(nine), 9); assert.equal(numberTowerActionLevel(nine), 18);
+  for (let i = 0; i < 8; i++) f.controller.record(a, { kind: "attack" });
+  assert.equal(f.events.length, 0);
+  f.controller.record(a, { kind: "attack" });
+  assert.deepEqual(f.events[0].behavior, { type: "A", level: 18 });
+  assert.equal(nine.numberMemory[0].count, 0);
+});
+
+test("equation level is the maximum valid equals level across the entire current component", () => {
+  const f = fixture(), a = f.place("A", 0); f.place("=", 1, 3, 2); f.place("E", 2);
+  const high = f.place("=", 3, 3, 4), n = f.place("1", 4, 3, 3);
+  const broken = f.place("=", 5, 3, 20); f.place("@", 6);
+  f.place("=", 4, 2, 30);
+  f.controller.sync();
+  assert.equal(numberTowerActionLevel(n), 12);
+  for (let i = 0; i < 2; i++) f.controller.record(a, { kind: "attack" });
+  high.level = 1; f.controller.sync();
+  assert.equal(numberTowerActionLevel(n), 6); assert.equal(n.numberMemory.find(entry => entry.type === "A").count, 2);
+  f.controller.record(a, { kind: "attack" }); assert.equal(f.events.at(-1).behavior.level, 6);
+  high.inPlay = false; broken.inPlay = false; f.controller.sync();
+  assert.equal(n.equationLevel, undefined); assert.equal(numberTowerActionLevel(n), 3);
+  assert.deepEqual(n.numberMemory.find(entry => entry.type === "A").sourceIds, [a.id]);
+});
+
+test("numeric plus uses equals level plus its own level minus one without changing its operands or interval", () => {
+  const f = fixture(), a = f.place("A", 0); const eq = f.place("=", 1, 3, 2);
+  const three = f.place("1", 2, 3, 3), p = f.place("+", 3, 3, 3), five = f.place("1", 4, 3, 5);
+  const q = f.place("+", 5, 3, 4), two = f.place("1", 6, 3, 2);
+  p.levelBonus = 10; q.mirrorLevelBonus = 20;
+  f.controller.sync();
+  assert.deepEqual([three, p, five, q, two].map(numberTowerActionLevel), [6, 40, 10, 50, 4]);
+  assert.deepEqual([three, p, five, q, two].map(numberTowerValue), [3, 10, 5, 10, 2]);
+  for (let i = 0; i < 10; i++) f.controller.record(a, { kind: "attack" });
+  assert.deepEqual(f.events.filter(event => event.tower === p).map(event => event.behavior.level), [40]);
+  assert.deepEqual(f.events.filter(event => event.tower === q).map(event => event.behavior.level), [50]);
+  eq.inPlay = false; f.controller.sync();
+  assert.deepEqual([three, p, five, q, two].map(numberTowerActionLevel), [3, 30, 5, 40, 2]);
+  p.level++; f.controller.sync();
+  assert.equal(numberTowerActionLevel(p), 40); assert.equal(numberTowerActionLevel(q), 40);
 });
 
 test("numeric plus cycles sum distinct operands once and stop imitating when broken", () => {

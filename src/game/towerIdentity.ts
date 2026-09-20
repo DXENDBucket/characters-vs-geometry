@@ -38,6 +38,15 @@ export function numberTowerValue(tower: Pick<Tower, "level" | "numberValue">) {
   return Math.max(1, Math.floor(tower.numberValue ?? tower.level));
 }
 
+export function numberTowerMultiplier(tower: Pick<Tower, "type" | "copiedType" | "level" | "equationLevel">) {
+  const plusBonus = towerFormType(tower) === "+" ? tower.level - 1 : 0;
+  return Math.max(1, Math.floor((tower.equationLevel ?? 1) + plusBonus));
+}
+
+export function numberTowerActionLevel(tower: Pick<Tower, "type" | "copiedType" | "level" | "numberValue" | "equationLevel">) {
+  return numberTowerValue(tower) * numberTowerMultiplier(tower);
+}
+
 export function towerHasSkillBehavior(tower: Tower, type: CardId) {
   return towerBehaviorType(tower) === type ||
     ((isNumberTower(tower) || towerFormType(tower) === "+") && tower.imitatedSkills?.includes(type) === true);

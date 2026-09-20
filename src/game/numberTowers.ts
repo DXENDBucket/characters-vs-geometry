@@ -1,6 +1,6 @@
 import type { CardDefinition, CardId, Tower } from "../types";
 import type { TowerActionEvent, ImitationBehavior } from "./towerActions";
-import { isNumberTower, numberTowerValue, towerActionContext, towerFormType } from "./towerIdentity";
+import { isNumberTower, numberTowerActionLevel, numberTowerValue, towerActionContext, towerFormType } from "./towerIdentity";
 import { towerCell } from "./towerTopology";
 
 export interface NumberTowerRuntime {
@@ -17,8 +17,9 @@ export class NumberTowerController {
   sync() {
     const { towers, getDefinition, onNumberChanged } = this.runtime();
     this.plusPartners.clear();
-    const previousValues = new Map(towers.filter(tower => tower.numberValue !== undefined).map(tower => [tower, tower.numberValue]));
-    for (const tower of previousValues.keys()) delete tower.numberValue;
+    const previousValues = new Map(towers.filter(tower => tower.numberValue !== undefined || tower.equationLevel !== undefined)
+      .map(tower => [tower, { value: tower.numberValue, equationLevel: tower.equationLevel }]));
+    for (const tower of previousValues.keys()) { delete tower.numberValue; delete tower.equationLevel; }
     const numbers = towers.filter(tower => tower.inPlay && !tower.transient && isNumberTower(tower) && getDefinition(tower.type).cost <= 999);
     const liveIds = new Set(towers.filter(tower => tower.inPlay).map(tower => tower.id));
     const cells = new Map<string, Tower[]>();
@@ -32,6 +33,7 @@ export class NumberTowerController {
     const numberSet = new Set(numbers);
     const neighbors = new Map<Tower, Set<Tower>>();
     const plusNeighbors = new Map<Tower, Set<Tower>>();
+    const equationLevels = new Map<Tower, number>();
     const operand = (tower: Tower) => getDefinition(tower.type).cost <= 999 && !["=", "+"].includes(towerFormType(tower));
     const connect = (a: Tower, b: Tower, graph = neighbors) => {
       if (!graph.has(a)) graph.set(a, new Set());
@@ -56,6 +58,10 @@ export class NumberTowerController {
           if (!operand(left) || !operand(right)) continue;
           if (operator === "+" && numberSet.has(left) !== numberSet.has(right)) continue;
           connect(left, right);
+          if (operator === "=") {
+            const level = Math.max(1, Math.floor(connector.level));
+            for (const member of [left, right]) equationLevels.set(member, Math.max(level, equationLevels.get(member) ?? 1));
+          }
           if (operator === "+") {
             connect(left, right, plusNeighbors);
             if (numberSet.has(left)) {
@@ -100,12 +106,14 @@ export class NumberTowerController {
         for (const next of neighbors.get(member) ?? []) if (!seen.has(next)) { seen.add(next); pending.push(next); }
       }
       const memories = new Map<CardId, Set<string>>();
+      let equationLevel = 1;
       const remember = (type: CardId, sourceIds: string[]) => {
         const ids = memories.get(type) ?? new Set<string>();
         for (const id of sourceIds) ids.add(id);
         memories.set(type, ids);
       };
       for (const member of group) {
+        equationLevel = Math.max(equationLevel, equationLevels.get(member) ?? 1);
         if (numberSet.has(member)) {
           for (const entry of member.numberMemory ?? []) remember(entry.type, entry.sourceIds);
         } else if (getDefinition(member.type).cost <= 999) {
@@ -113,11 +121,13 @@ export class NumberTowerController {
         }
       }
       for (const member of group) if (numberSet.has(member)) {
+        if (equationLevel > 1) member.equationLevel = equationLevel;
         for (const [type, ids] of memories) learn(member, type, [...ids]);
       }
     }
     for (const tower of new Set([...previousValues.keys(), ...numbers])) {
-      if (tower.inPlay && tower.numberValue !== previousValues.get(tower)) onNumberChanged?.(tower);
+      const previous = previousValues.get(tower);
+      if (tower.inPlay && (tower.numberValue !== previous?.value || tower.equationLevel !== previous?.equationLevel)) onNumberChanged?.(tower);
     }
   }
 
@@ -138,7 +148,8 @@ export class NumberTowerController {
         const n = numberTowerValue(tower);
         if (entry.count < n) continue;
         entry.count = 0;
-        runtime.imitate(tower, { type: entry.type, level: n }, native || event.kind === "combined" ? event : { kind: "combined", original: event });
+        runtime.imitate(tower, { type: entry.type, level: numberTowerActionLevel(tower) },
+          native || event.kind === "combined" ? event : { kind: "combined", original: event });
       }
     }
   }

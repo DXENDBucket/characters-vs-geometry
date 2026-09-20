@@ -23,6 +23,7 @@ try {
     const { getHealTargets, getBlockingTowerFromOccupied } = await import("/src/game/targeting.ts");
     const { createEnemy } = await import("/src/game/enemyFactory.ts");
     const { towerFinalStats } = await import("/src/game/unitStats.ts");
+    const { volleyShotCount } = await import("/src/game/upgrades.ts");
     const { removeTower } = await import("/src/game/unitLifecycle.ts");
     const { captureBattleSnapshot, restoreBattleSnapshot } = await import("/src/game/battleSnapshot.ts");
     const { validateSurvivalSave } = await import("/src/survivalSaves.ts");
@@ -70,6 +71,31 @@ try {
       "Original numbers no longer act independently");
     place("+", 5); place("1", 6, 3, 2);
     check(numericPlus.numberValue === 10 && scene.occupied.get("3:5").numberValue === 10, "Numeric plus chain did not sum to 10");
+
+    start();
+    const scaledSource = place("A", 0), upgradedEquals = place("=", 1), nine = place("1", 2, 3, 9);
+    const beforeUpgrade = scene.effectiveChars();
+    scene.submitBattleCommand({ type: "selectCard", id: "=" }); click(1);
+    check(upgradedEquals.level === 2 && Math.abs(scene.effectiveChars() - beforeUpgrade + 1000) < 1e-6 && nine.equationLevel === 2,
+      "Manual equals upgrade did not update the equation multiplier");
+    check(nine.label.text === "9" && nine.levelText.visible && nine.levelText.text === "L18", "Number action level is not displayed");
+    for (let i = 0; i < 8; i++) { attack(scaledSource); flush(); }
+    check(!scene.projectiles.some(p => p.sourceTower === nine), "Equals multiplier changed the action interval");
+    attack(scaledSource); flush(); flush();
+    check(scene.projectiles.filter(p => p.sourceTower === nine).reduce((sum, p) => sum + (p.hitCount ?? 1), 0) === 18,
+      "Level-2 equals and number 9 did not produce 18 attack judgments");
+    const upgradedPlus = place("+", 3); place("1", 4);
+    scene.submitBattleCommand({ type: "selectCard", id: "+" }); click(3);
+    check(upgradedPlus.level === 2 && upgradedPlus.numberValue === 10 && upgradedPlus.levelText.text === "10x3",
+      "Plus upgrade must add its level minus one to the equals multiplier");
+    for (let i = 0; i < 9; i++) { attack(scaledSource); flush(); }
+    check(!scene.projectiles.some(p => p.sourceTower === upgradedPlus), "Plus upgrade changed the count interval");
+    attack(scaledSource); flush(); flush();
+    check(scene.projectiles.filter(p => p.sourceTower === upgradedPlus).reduce((sum, p) => sum + (p.hitCount ?? 1), 0) === volleyShotCount("A", 30),
+      "Upgraded numeric plus did not use level 30 for its attack");
+    removeTower(scene.unitLifecycleRuntime(), upgradedEquals); scene.updateLevelAuras();
+    check(nine.equationLevel === undefined && !nine.levelText.visible && upgradedPlus.levelText.text === "10x2",
+      "Removing equals failed to refresh numbers and plus multipliers");
 
     start();
     const skillSource = place("w", 0); place("=", 1); const left = place("1", 2);
@@ -144,8 +170,8 @@ try {
     start("IF-1");
     const savedSwap = place("&", 3); place("e", 2); place("A", 10, 6); link(savedSwap, 10, 6);
     place("1", 0, 0); place("=", 1, 0); const savedA = place("A", 2, 0); place("+", 3, 0); place("E", 4, 0);
-    const savedNumericA = place("A", 0, 1); place("=", 1, 1); place("1", 2, 1, 3);
-    place("+", 3, 1); place("1", 4, 1, 5); place("+", 5, 1); place("1", 6, 1, 2);
+    const savedNumericA = place("A", 0, 1); place("=", 1, 1, 2); place("1", 2, 1, 3);
+    place("+", 3, 1, 3); place("1", 4, 1, 5); place("+", 5, 1, 4); place("1", 6, 1, 2);
     for (let i = 0; i < 9; i++) attack(savedNumericA);
     attack(savedA);
     const snapshot = JSON.parse(JSON.stringify(captureBattleSnapshot(scene.battleState())));
@@ -156,6 +182,8 @@ try {
       check(towerCell(scene.occupied.get("6:10")).column === 3, "Restored topology missing while paused");
       check(scene.occupied.get("1:3").numberValue === 10 && scene.occupied.get("1:5").numberMemory[0].count === 9,
         "Saved numeric plus sum or action count was lost");
+      check(scene.occupied.get("1:2").equationLevel === 2 && scene.occupied.get("1:3").levelText.text === "10x4" &&
+        scene.occupied.get("1:5").levelText.text === "10x5", "Saved equation multipliers were not restored");
       scene.battlePaused = false;
       while (scene.simulation.tick < 120) scene.update(0, step);
       return scene.battleChecksum();
@@ -165,8 +193,8 @@ try {
     start();
     place("e", 3); const finalSwap = place("&", 4); place("A", 10, 5); link(finalSwap, 10, 5);
     place("g", 9, 5); place("1", 0, 0); place("=", 1, 0); place("A", 2, 0); place("+", 3, 0); place("E", 4, 0);
-    place("A", 0, 1); place("=", 1, 1); place("1", 2, 1, 3); place("+", 3, 1);
-    place("1", 4, 1, 5); place("+", 5, 1); place("1", 6, 1, 2);
+    place("A", 0, 1); place("=", 1, 1, 2); place("1", 2, 1, 3); place("+", 3, 1, 3);
+    place("1", 4, 1, 5); place("+", 5, 1, 4); place("1", 6, 1, 2);
     scene.battlePaused = true; scene.updateHud(); scene.updateCards(); game.loop.start(game.step.bind(game));
     return { hash };
   });

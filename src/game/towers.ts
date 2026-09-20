@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { topologyKey } from "./towerTopology";
 import { drawLogicalTowerRange } from "../render/towerLogicalRange";
-import { towerBehaviorType, towerActionContext, towerFormType, numberTowerValue } from "./towerIdentity";
+import { towerBehaviorType, towerActionContext, towerFormType, numberTowerValue, numberTowerMultiplier, numberTowerActionLevel } from "./towerIdentity";
 import { syncHealthBar } from "./towerHealth";
 import { facingWithEffects } from "./rules/reversal";
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
@@ -228,7 +228,13 @@ export function syncTowerLevelText(tower: Tower) {
   if (tower.type === "1") {
     const text = String(tower.level);
     tower.label.setText(text).setFontSize(Math.min(34, 48 / Math.max(1, text.length)));
-    tower.levelText.setVisible(false);
+    const boosted = numberTowerMultiplier(tower) > 1;
+    tower.label.setY(boosted ? -7 : -3);
+    tower.levelText.setVisible(boosted);
+    if (boosted) {
+      const level = `L${numberTowerActionLevel(tower)}`;
+      tower.levelText.setY(12).setText(level).setFontSize(Math.min(10, 40 / level.length)).setColor("#9fdcff");
+    }
     return;
   }
   tower.levelText.setVisible(true);
@@ -237,7 +243,8 @@ export function syncTowerLevelText(tower: Tower) {
     tower.label.setY(computed ? -7 : -3);
     tower.levelText.setY(computed ? 12 : 17);
     if (computed) {
-      const text = `=${numberTowerValue(tower)}`;
+      const multiplier = numberTowerMultiplier(tower);
+      const text = multiplier > 1 ? `${numberTowerValue(tower)}x${multiplier}` : `=${numberTowerValue(tower)}`;
       tower.levelText.setText(text).setFontSize(Math.min(10, 40 / text.length)).setColor("#9fdcff");
       return;
     }

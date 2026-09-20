@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { inFriendlyRange } from "./towerTopology";
-import { isNumberTower, numberTowerValue, towerBehaviorType } from "./towerIdentity";
+import { isNumberTower, numberTowerActionLevel, towerBehaviorType } from "./towerIdentity";
 import type { TowerActionEvent, TowerActionListener } from "./towerActions";
 import type { BattleAction, ScheduleBattleAction } from "./battleActions";
 import { changeTowerHealth } from "./towerHealth";
@@ -128,7 +128,7 @@ export class TowerSkillController {
           if (!skill) continue;
           const state = getTowerSkillState(tower, skill.stateKey);
           if (state.activeUntil <= 0) continue;
-          withTowerBehavior(tower, this.runtime().getDefinition(type), numberTowerValue(tower),
+          withTowerBehavior(tower, this.runtime().getDefinition(type), numberTowerActionLevel(tower),
             () => skill.update(tower, state, 0, time, undefined), this.runtime().towers);
           if (state.activeUntil <= time) { state.activeUntil = 0; tower.border.setVisible(true).setAlpha(1); }
         }

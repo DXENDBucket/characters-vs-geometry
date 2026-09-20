@@ -248,6 +248,7 @@ export interface Tower {
   topologyOrder?: number;
   numberMemory?: Array<{ type: CardId; sourceIds: string[]; count: number }>;
   numberValue?: number;
+  equationLevel?: number;
   imitatedSkills?: CardId[];
   copiedType?: CardId;
   copyRevision?: number;
