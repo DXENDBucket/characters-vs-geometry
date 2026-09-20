@@ -16,6 +16,7 @@ import { detachEnemyHealth } from "../game/enemyHealth";
 import { destroyContainedEnemies, enemiesWithPassengers, enemyIsActive } from "../game/enemyContainers";
 import { ProjectileCircuitController, edgeAtPoint, edgeKey, edgePosition } from "../game/projectileCircuit";
 import { drawCircuitEdges } from "../render/circuitEdges";
+import { EdgeTowerControls } from "../game/edgeTowerControls";
 import { createTowerProjectile } from "../game/projectiles";
 import { drawEnemyHealthLinks } from "../render/enemyHealthLinks";
 import { PauseMenu } from "../render/pauseMenu";
@@ -211,6 +212,7 @@ export class GameScene extends Phaser.Scene {
   private topology!: TowerTopologyController;
   private numbers!: ProjectileCircuitController;
   private edgeTowers: EdgeTower[] = [];
+  private edgeControls!: EdgeTowerControls;
   private circuitEdges!: Phaser.GameObjects.Graphics;
   private enemyHealthLinks!: Phaser.GameObjects.Graphics;
   private simulation = new BattleClock();
@@ -411,6 +413,10 @@ export class GameScene extends Phaser.Scene {
     this.tutorial = null;
     this.targetedEffects = new TargetedEffectCardController(() => this.targetedEffectCardRuntime());
     this.edgeTowers = [];
+    this.edgeControls = new EdgeTowerControls(() => ({ edges: this.edgeTowers, card: this.cardStatesById.get("="),
+      time: this.battleTime, cardTime: this.cardTimeFor("="), chars: this.effectiveChars(),
+      autoEnabled: this.autoUpgradeEnabled, reserve: this.autoUpgradeReserveChars, reserveFocused: this.autoUpgradeReserveInputFocused,
+      spend: cost => this.spendChars(cost), changed: () => { this.numbers.sync(); this.updateCards(); } }));
     this.numbers = new ProjectileCircuitController(() => ({ towers: this.towers, edges: this.edgeTowers,
       battleTime: this.battleTime, getDefinition: id => this.getDefinition(id),
       changed: tower => { syncTowerLevelText(tower); syncTowerAutoUpgradeVisual(tower, this.autoUpgradeEnabled); },
@@ -762,6 +768,16 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    const pointedEdge = edgeAtPoint(x, y);
+    const existingEdge = pointedEdge && this.edgeTowers.find(edge => edgeKey(edge) === edgeKey(pointedEdge));
+    if (existingEdge && !this.shifter.isActive()) {
+      if (this.autoUpgradeMode) {
+        this.edgeControls.toggleAuto(existingEdge, this.isShiftPointer(pointer)); this.attemptAutoUpgrades();
+      } else if (this.selectedCardId === "=") this.handleTargetedEffectCardResult(this.edgeControls.use(existingEdge));
+      else this.edgeControls.cycle(existingEdge);
+      this.syncPlacementGhost(pointer); return;
+    }
+
     if (this.autoUpgradeMode) {
       if (!existingTower) {
         this.showToast(t("toast.empty"));
@@ -792,13 +808,8 @@ export class GameScene extends Phaser.Scene {
     const definition = this.getSelectedDefinition();
     if (definition.category === "special") {
       const edge = edgeAtPoint(x, y);
-      if (!edge || this.edgeTowers.some(item => edgeKey(item) === edgeKey(edge))) return;
-      const card = this.cardStatesById.get(definition.id);
-      if (!card || this.cardTimeFor(definition.id) < card.readyAt) { this.showToast(t("toast.cooldown")); return; }
-      if (this.effectiveChars() < definition.cost) { this.showToast(t("toast.noChars")); return; }
-      this.spendChars(definition.cost);
-      card.readyAt = this.cardTimeFor(definition.id) + definition.cooldown;
-      this.edgeTowers.push(edge); this.numbers.sync(); this.updateCards(); this.syncPlacementGhost(pointer); return;
+      if (!edge) return;
+      this.handleTargetedEffectCardResult(this.edgeControls.use(edge)); this.syncPlacementGhost(pointer); return;
     }
     const cardState = this.cardStatesById.get(definition.id);
     const effectiveChars = this.effectiveChars();
@@ -922,8 +933,8 @@ export class GameScene extends Phaser.Scene {
         this.selectedCardId === "=" ? edgeAtPoint(pointer.x, pointer.y) : undefined;
       const card = this.cardStatesById.get("=");
       const canPlace = !!card && this.cardTimeFor("=") >= card.readyAt && this.effectiveChars() >= card.definition.cost &&
-        !!preview && !this.edgeTowers.some(item => edgeKey(item) === edgeKey(preview));
-      drawCircuitEdges(this.circuitEdges, this.edgeTowers, edge => this.numbers.isEdgeActive(edge), preview, canPlace);
+        !!preview;
+      drawCircuitEdges(this.circuitEdges, this.edgeTowers, edge => this.numbers.isEdgeActive(edge), preview, canPlace, this.autoUpgradeEnabled);
     }
     if (this.towerPush.isTargeting() || this.topology.isTargeting()) { this.clearPlacementGhosts(); return; }
     const ghosts = this.placementGhostSpecs(pointer);
@@ -2282,6 +2293,7 @@ export class GameScene extends Phaser.Scene {
 
   private attemptAutoUpgrades() {
     this.deployment.attemptAutoUpgrades();
+    this.edgeControls.attemptAutoUpgrade();
   }
 
   private toggleDebugDamageMode() {

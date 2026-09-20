@@ -16,201 +16,127 @@ try {
     const progress = await import("/src/progress.ts"), c = await import("/src/config.ts");
     const { captureBattleSnapshot, restoreBattleSnapshot } = await import("/src/game/battleSnapshot.ts");
     const { validateSurvivalSave } = await import("/src/survivalSaves.ts");
-    const { updateTowerProjectiles, updateMortarProjectiles, updateEnemyProjectiles } = await import("/src/game/projectileRuntime.ts");
-    const { createTowerProjectile, createMortarProjectile, restoreEnemyProjectile, createReflectedProjectile } = await import("/src/game/projectiles.ts");
-    const { projectileDamageBudget, consumeProjectileDamage, projectileVisualScale } = await import("/src/game/projectileIntegrity.ts");
-    const { createEnemy } = await import("/src/game/enemyFactory.ts");
-    const { removeTower } = await import("/src/game/unitLifecycle.ts");
+    const { createTowerProjectile, createMortarProjectile } = await import("/src/game/projectiles.ts");
+    const { updateMortarProjectiles, updateTowerProjectiles } = await import("/src/game/projectileRuntime.ts");
+    const { projectileDamageBudget } = await import("/src/game/projectileIntegrity.ts");
     const { edgePosition } = await import("/src/game/projectileCircuit.ts");
-    const { findAutoUpgradeTarget, setTowerAutoUpgradeState, setTowerFacing } = await import("/src/game/towers.ts");
+    const { setTowerFacing } = await import("/src/game/towers.ts");
+    const { createEnemy } = await import("/src/game/enemyFactory.ts");
     const game = window.__testGame; game.loop.stop(); progress.unlockAllCards(); progress.completeAllLevels();
     const check = (ok, text) => { if (!ok) throw Error(text); };
+    const selectedCards = ["A", "E", "0", "1", "=", "+", "-", "!", "B", "S"];
     let scene;
     const start = () => {
       for (const active of game.scene.getScenes(true)) game.scene.stop(active.sys.settings.key);
-      game.scene.start("GameScene", { levelId: "IF-1", seed: 417, selectedCards: ["A", "E", "0", "1", "=", "F", "S", "x", "B"] });
+      game.scene.start("GameScene", { levelId: "IF-1", seed: 417, selectedCards });
       scene = game.scene.getScene("GameScene"); scene.chars = 50000;
     };
     const place = (type, col, lane = 3, level = 1) => scene.spawnGeneratedTower(type, lane, col, level);
     const pointer = (x, y) => scene.submitBattleCommand({ type: "pointer", pointer: { x, y, ctrl: false, shift: false, right: false } });
-    const click = (col, lane = 3) => pointer(c.BOARD_X + (col + .5) * c.CELL_WIDTH, c.BOARD_Y + (lane + .5) * c.CELL_HEIGHT);
+    const select = id => scene.submitBattleCommand({ type: "selectCard", id });
     const link = (column, lane = 3, axis = "horizontal") => {
-      scene.submitBattleCommand({ type: "selectCard", id: "=" });
-      scene.cardStatesById.get("=").readyAt = 0;
+      select("="); scene.cardStatesById.get("=").readyAt = 0;
       const p = edgePosition({ type: "=", column, lane, axis }); pointer(p.x, p.y);
+      return scene.edgeTowers.find(e => e.column === column && e.lane === lane && e.axis === axis);
     };
-    const drain = () => { for (let i = 0; i < 12; i++) { scene.battleTime += 100;
-      scene.actionQueue.update(scene.battleTime, action => scene.executeBattleAction(action)); } };
-    start();
-    const source = place("A", 1, 3, 3), bank = place("0", 2), outlet = place("1", 3);
-    link(1); link(2);
-    check(scene.edgeTowers.length === 2 && scene.towers.length === 3 && scene.occupied.size === 3, "Equals occupied a cell or became attackable");
-    const money = scene.chars; link(2); check(scene.chars === money && scene.edgeTowers.length === 2, "Duplicate edge charged money");
-    check(scene.spawnGeneratedTower("=", 1, 1, 1) === null, "Special connector was generated as a regular tower");
-    scene.submitBattleCommand({ type: "selectCard", id: "=" }); click(5);
-    check(scene.edgeTowers.length === 2, "Equals deployed in a cell center");
-    scene.startTowerVolley(source, scene.battleTime, scene.towerAttackInterval(source)); drain();
-    check(scene.projectiles.length === 3, "Source attack failed");
-    updateTowerProjectiles(scene.projectileRuntime(), 0);
-    check(scene.projectiles.length === 0 && bank.projectileBank.shots.length === 3 && bank.levelText.text === "3/128", "Real volley not captured/displayed");
-    scene.submitBattleCommand({ type: "selectCard", id: "A" }); click(2);
-    for (let i = 0; i < 3; i++) { scene.numbers.update(); scene.battleTime += 40; }
-    check(scene.projectiles.length === 3 && bank.projectileBank.shots.length === 0, "Release duplicated or lost shots");
-    check(scene.projectiles.every(p => p.x === outlet.x + 26 && p.sourceTower === source && p.circuitChecked), "Output location or attribution wrong");
-    check(scene.projectiles.reduce((sum, p) => sum + p.damage * p.hitCount, 0) === 1200, "Circuit changed damage or armor judgments");
-    updateTowerProjectiles(scene.projectileRuntime(), 0); check(bank.projectileBank.shots.length === 0, "Released shots re-entered the bank");
-    bank.autoUpgrade = true; outlet.autoUpgrade = true;
-    check(findAutoUpgradeTarget(scene.towers, "0") === bank && findAutoUpgradeTarget(scene.towers, "1") === undefined, "Bank auto-upgrade or outlet exclusion is wrong");
-    setTowerAutoUpgradeState(bank, true); check(bank.autoUpgrade && bank.autoUpgradeBorder.visible, "Bank auto-upgrade unavailable");
-    setTowerAutoUpgradeState(bank, false);
-
-    const edgePoint = edgePosition(scene.edgeTowers[1]); scene.eraserMode = true; pointer(edgePoint.x, edgePoint.y);
-    check(scene.edgeTowers.length === 1 && outlet.inPlay && bank.inPlay, "Erasing an edge removed an adjacent tower");
-    const raw = createTowerProjectile(scene, { type: "bolt", x: source.x + 26, y: source.y, lane: source.lane,
-      speed: 500, damage: 400, damageType: "physical", splashRadius: 0, angleDegrees: 0, maxX: source.x + 226, sourceTower: source });
-    scene.projectiles.push(raw); updateTowerProjectiles(scene.projectileRuntime(), 0);
-    check(scene.projectiles.includes(raw), "Broken circuit swallowed a projectile");
-    link(2); raw.circuitChecked = false; updateTowerProjectiles(scene.projectileRuntime(), 0);
-    check(bank.projectileBank.shots.length === 1, "Reconnected circuit failed");
-    setTowerFacing(outlet, -1); scene.numbers.release(bank); scene.numbers.update();
-    const redirected = scene.projectiles.at(-1);
-    check(redirected.vx < 0 && redirected.maxX === redirected.x - 200, "Output facing or finite remaining range changed");
-
-    const pool = scene.extraction; pool.restore(6000);
-    const preserved = bank.id; scene.cardStatesById.get("1").readyAt = 0;
-    scene.submitBattleCommand({ type: "selectCard", id: "1" }); click(2);
-    check(bank.id === preserved && bank.type === "0" && bank.level === 1 && pool.value === 6000, "A 1 card converted the bank");
-    scene.numbers.capture(createTowerProjectile(scene, {
-      type: "bolt", x: source.x + 26, y: source.y, lane: 3, speed: 500, damage: 400, hitCount: 3,
-      damageType: "physical", splashRadius: 0, angleDegrees: 0, maxX: Infinity, sourceTower: source }));
-    const inventory = bank.projectileBank;
-    scene.submitBattleCommand({ type: "selectCard", id: "0" }); click(2);
-    check(bank.type === "0" && bank.level === 11 && pool.value === 0 && bank.projectileBank === inventory &&
-      inventory.shots.length === 1 && !inventory.remaining && bank.label.text === "0" && bank.levelText.text === "1/1408",
-      "Upgrading zero failed to retain inventory, expand capacity or consume extraction");
-    check(scene.cardStatesById.get("0").readyAt === scene.cardTimeFor("0") + 10000, "Bank upgrade cooldown is not 10 seconds");
-    setTowerAutoUpgradeState(bank, true); scene.cardStatesById.get("0").readyAt = 0;
-    scene.autoUpgradeEnabled = true; scene.autoUpgradeReserveChars = 0; scene.attemptAutoUpgrades();
-    check(bank.level === 12 && bank.levelText.text === "1/1536" && bank.type === "0", "Auto-upgrade changed zero's identity or lost capacity");
-
-    start();
-    const spell = place("S", 1), spellBank = place("0", 2); place("1", 3); link(1); link(2);
-    spell.skills.spellMortar = { sp: 30, spBuffer: 0, activeUntil: 0 };
-    scene.towerSkills.activateSpellMortarTargeting([spell], 950, 300);
-    scene.towerSkills.fireSelectedSpellMortars(950, 300); drain();
-    check(spellBank.projectileBank.shots.length === 0 && scene.actionQueue.snapshot().every(e => e.action.type !== "imitation"),
-      "S skill still creates stored or copied actions");
-    check(scene.towerSkills.snapshotFlights().every(f => f.source === spell), "S created a free skill at another tower");
-
-    start();
-    const ice = place("i", 1), iceBank = place("0", 2); place("1", 3); link(1); link(2);
-    scene.triggerShockTower(ice); drain();
-    check(!ice.inPlay && iceBank.inPlay && iceBank.projectileBank.shots.length === 0,
-      "A self-consuming skill still gets learned by zero");
-
-    start();
-    const a = place("A", 1), zero = place("0", 2, 3, 2), exit = place("1", 3); link(1); link(2);
-    scene.startTowerVolley(a, scene.battleTime, scene.towerAttackInterval(a)); drain(); updateTowerProjectiles(scene.projectileRuntime(), 0);
-    for (let i = 0; i < 128; i++) scene.numbers.capture(createTowerProjectile(scene, {
-      type: "bolt", x: a.x + 26, y: a.y, lane: 3, speed: 500, damage: 400, damageType: "physical",
-      splashRadius: 0, angleDegrees: 0, maxX: Infinity, sourceTower: a }));
-    const snapshot = JSON.parse(JSON.stringify(captureBattleSnapshot(scene.battleState())));
-    validateSurvivalSave({ version: 1, levelId: "IF-1", wave: scene.wave, savedAt: 1, difficulty: scene.difficulty,
-      unlimitedFirepower: false, selectedCards: ["A", "0", "1", "="], graph: snapshot });
-    const run = delta => {
-      start(); scene.applyBattleSave(restoreBattleSnapshot(scene, snapshot));
-      const stored = scene.towers.find(t => t.type === "0");
-      check(scene.edgeTowers.length === 2 && stored.level === 2 && stored.projectileBank.shots.length === 129 &&
-        stored.label.text === "0" && stored.levelText.text === "129/256", "Save lost upgraded bank identity, capacity or stock above 128");
-      scene.battlePaused = false; scene.submitBattleCommand({ type: "selectCard", id: "A" }); click(2);
-      while (scene.simulation.tick < 90) scene.update(0, delta);
-      return scene.battleChecksum();
+    const tick = (dt = 40) => { scene.battleTime += dt; scene.numbers.update(); };
+    const capture = (source, hits = 1) => {
+      const shot = createTowerProjectile(scene, { type: "bolt", x: source.x + 26, y: source.y, lane: source.lane,
+        speed: 500, damage: 400, hitCount: hits, damageType: "physical", splashRadius: 0, angleDegrees: 0,
+        maxX: source.x + 326, sourceTower: source });
+      const result = scene.numbers.capture(shot);
+      if (!result) shot.body.destroy();
+      return result;
     };
-    const hash = run(1000 / 60); check(run(1000 / 144) === hash, "Circuit release is frame-rate dependent");
-    const stale = scene.towers.find(t => t.type === "0"); removeTower(scene.unitLifecycleRuntime(), stale);
-    check(scene.edgeTowers.length === 2, "Destroying ordinary tower removed special connectors");
-
     start();
-    const bundleSource = place("A", 1), bundleBank = place("0", 2), bundler = place("+", 3);
-    link(1); link(2);
-    const stock = (source, hits = 1) => scene.numbers.capture(createTowerProjectile(scene, {
-      type: "bolt", x: source.x + 26, y: source.y, lane: source.lane, speed: 500,
-      damage: 400, damageType: "physical", hitCount: hits, splashRadius: 0, angleDegrees: 0,
-      maxX: Infinity, sourceTower: source }));
-    for (let i = 0; i < 5; i++) stock(bundleSource, i === 0 ? 2 : 1);
-    scene.numbers.release(bundleBank); scene.numbers.update();
-    check(scene.projectiles.length === 1 && scene.projectiles[0].hitCount === 6, "Bundler lost multi-hit judgments");
-    const bundled = scene.projectiles[0]; check(bundled.body.scaleX > 1, "Bundle has no size feedback");
+    const source = place("A", 1), bank = place("0", 2), plus = place("+", 3), outlet = place("1", 4, 3, 2);
+    const edge = link(1); link(2); link(3);
+    check(scene.towers.length === 4 && scene.occupied.size === 4 && edge.level === 1, "Connector occupies a regular cell");
+    const money = scene.effectiveChars(); link(1);
+    check(edge.level === 2 && Math.abs(scene.effectiveChars() - money + 1000) < 1e-6, "Stacking = failed to upgrade");
+    select("A"); const p = edgePosition(edge);
+    for (const mode of [">", "<", "!="]) { pointer(p.x, p.y); check(edge.mode === mode, "Connector mode cycle failed"); }
+    check(!capture(source) && !bank.projectileBank.shots.length, "Closed connector swallowed source shot");
+    pointer(p.x, p.y); check(edge.mode === "=", "Connector did not return to bidirectional");
+    scene.autoUpgradeMode = true; pointer(p.x, p.y);
+    check(edge.autoUpgrade, "Cannot mark connector for automatic upgrades");
+    scene.autoUpgradeMode = false; scene.cardStatesById.get("=").readyAt = 0; scene.attemptAutoUpgrades();
+    check(edge.level === 3 && edge.mode === "=", "Automatic connector upgrade reset mode or failed");
+    edge.autoUpgrade = false;
+    for (let i = 0; i < 5; i++) check(capture(source, i === 0 ? 2 : 1), "Source capture failed");
+    check(bank.projectileBank.shots.length === 5 && !scene.projectiles.length, "Source skipped local buffer");
+    tick(); check(!bank.projectileBank.shots.length && plus.projectileNode.processing?.count === 5, "Zero did not automatically forward");
+    tick(199); check(!outlet.projectileNode.input.length, "Processor completed too early");
+    tick(1); check(outlet.projectileNode.input.length === 1 && !scene.projectiles.length, "Outlet fired an incomplete batch");
+    for (let i = 0; i < 5; i++) capture(source);
+    tick(); tick(200);
+    check(scene.projectiles.length === 2 && scene.projectiles[0].hitCount === 6 && scene.projectiles[1].hitCount === 5,
+      "Full batch lost multi-hit payload or did not fire together");
+    check(scene.projectiles.every(shot => shot.x === outlet.x + 26 && shot.circuitChecked), "Wrong outlet position or recapture flag");
+    const bundled = scene.projectiles.shift(); scene.projectiles[0].body.destroy(); scene.projectiles = [bundled];
     const enemy = createEnemy(scene, { kind: "circle", lane: 3, x: bundled.x, time: 0, waveNumber: 1, waveWeight: 10, finalDamageReduction: 0 });
-    scene.enemies.push(enemy);
-    const judgments = [];
-    updateTowerProjectiles({ ...scene.projectileRuntime(), damageEnemy: (target, damage) => judgments.push(damage) }, 0);
-    check(judgments.length === 6 && judgments.every(d => d === 400), "Bundle became one high-armor-breaking hit");
+    scene.enemies.push(enemy); const hits = [];
+    updateTowerProjectiles({ ...scene.projectileRuntime(), damageEnemy: (_, damage) => hits.push(damage) }, 0);
+    check(hits.length === 6 && hits.every(d => d === 400), "Bundling changed the armor threshold");
+    const levelBefore = plus.level, stocked = plus.projectileNode;
+    select("+"); scene.cardStatesById.get("+").readyAt = 0; pointer(plus.x, plus.y);
+    check(plus.level === levelBefore + 1 && plus.projectileNode === stocked && plus.levelText.text.endsWith("/50"),
+      "Processor upgrade reset queues or failed to expand storage");
+    const erased = edgePosition(scene.edgeTowers[2]); scene.eraserMode = true; pointer(erased.x, erased.y);
+    check(scene.edgeTowers.length === 2 && outlet.inPlay, "Edge erasure removed adjacent tower");
 
     start();
-    const ammoSource = place("A", 1), ammoBank = place("0", 2), subtractor = place("-", 3), victim = place("B", 4);
-    link(1); link(2); stock(ammoSource); stock(ammoSource); stock(ammoSource);
-    const mortar = createMortarProjectile(scene, { owner: "enemy", fromX: victim.x, fromY: victim.y,
-      targetX: victim.x, targetY: victim.y, damage: 900, damageType: "magic", rangeX: c.CELL_WIDTH, rangeY: c.CELL_HEIGHT });
+    const ammoSource = place("A", 1), minus = place("-", 2), victim = place("B", 3); link(1);
+    for (let i = 0; i < 3; i++) capture(ammoSource);
+    check(minus.projectileNode.input.length === 3, "Subtractor did not receive local ammo");
+    const mortar = createMortarProjectile(scene, { owner: "enemy", fromX: victim.x, fromY: victim.y, targetX: victim.x, targetY: victim.y,
+      damage: 900, damageType: "magic", rangeX: c.CELL_WIDTH, rangeY: c.CELL_HEIGHT });
     mortar.progress = .999; scene.mortarProjectiles.push(mortar);
     updateMortarProjectiles(scene.projectileRuntime(), 0);
-    check(projectileDamageBudget(mortar) === 500 && mortar.body.scaleX < projectileVisualScale({ damage: 900 }),
-      "Weak ammo did not partially cancel and shrink mortar");
+    check(projectileDamageBudget(mortar) === 820, "Local interception did not consume five times the canceled damage");
     const impacts = [];
-    updateMortarProjectiles({ ...scene.projectileRuntime(), damageTower: (tower, damage) => { if (tower === victim) impacts.push(damage); } }, .1);
-    check(impacts.length === 1 && impacts[0] === 500 && !scene.mortarProjectiles.length, "Weakened mortar used original damage on impact");
-    scene.battleTime += 100;
-    const intercepted = createMortarProjectile(scene, { owner: "enemy", fromX: victim.x, fromY: victim.y,
-      targetX: victim.x, targetY: victim.y, damage: 300, damageType: "magic", rangeX: c.CELL_WIDTH, rangeY: c.CELL_HEIGHT });
-    intercepted.progress = .999; scene.mortarProjectiles.push(intercepted);
-    updateMortarProjectiles({ ...scene.projectileRuntime(), damageTower: () => { throw Error("Fully intercepted mortar exploded"); } }, .1);
-    check(!scene.mortarProjectiles.length && projectileDamageBudget(ammoBank.projectileBank.shots[0]) === 100,
-      "Successful intercept failed to preserve leftover ammo");
-    scene.battleTime += 100;
-    const bullet = restoreEnemyProjectile(scene, { x: subtractor.x, y: subtractor.y, vx: 0, sourceLane: 3,
-      damage: 400, hitCount: 2, damageType: "physical" });
-    scene.enemyProjectiles.push(bullet);
-    const bulletHits = [];
-    updateEnemyProjectiles({ ...scene.projectileRuntime(), damageTower: (tower, damage) => bulletHits.push(damage) }, 0);
-    check(bulletHits.join(",") === "300,400", "Partial multi-hit bullet lost its individual judgments");
-    const reflected = createReflectedProjectile(scene, bullet);
-    check(reflected.hitCount === 2 && reflected.partialHitDamage === 300, "Reflection restored canceled damage");
-    reflected.body.destroy();
+    updateMortarProjectiles({ ...scene.projectileRuntime(), damageTower: (t, d) => { if (t === victim) impacts.push(d); } }, .1);
+    check(impacts.length === 1 && impacts[0] === 820, "Partially intercepted mortar used original damage");
 
-    const savedMortar = createMortarProjectile(scene, { owner: "enemy", fromX: victim.x, fromY: victim.y,
-      targetX: victim.x, targetY: victim.y, damage: 900, hitCount: 2, damageType: "magic", rangeX: 40, rangeY: 40 });
-    consumeProjectileDamage(savedMortar, 1000); savedMortar.progress = .95;
-    scene.mortarProjectiles.push(savedMortar);
-    consumeProjectileDamage(ammoBank.projectileBank.shots[0], 50);
-    const damagedSnapshot = JSON.parse(JSON.stringify(captureBattleSnapshot(scene.battleState())));
-    validateSurvivalSave({ version: 1, levelId: "IF-1", wave: scene.wave, savedAt: 1, difficulty: scene.difficulty,
-      unlimitedFirepower: false, selectedCards: ["A", "0", "1", "="], graph: damagedSnapshot });
-    const runDamaged = delta => {
-      start(); scene.applyBattleSave(restoreBattleSnapshot(scene, damagedSnapshot));
-      check(projectileDamageBudget(scene.mortarProjectiles[0]) === 800, "Save restored canceled mortar damage");
-      check(scene.towers.find(t => t.type === "-").nextInterceptionAt === 300, "Save lost interception cooldown");
-      check(projectileDamageBudget(scene.towers.find(t => t.type === "0").projectileBank.shots[0]) === 350,
-        "Save lost leftover ammunition");
+    const secondSource = place("A", 1, 1), processor = place("+", 2, 1); place("1", 3, 1, 3);
+    const sourceEdge = link(1, 1), outputEdge = link(2, 1); sourceEdge.mode = ">"; outputEdge.mode = ">"; outputEdge.autoUpgrade = true;
+    for (let i = 0; i < 5; i++) capture(secondSource, 3);
+    tick(); check(processor.projectileNode.processing?.count === 5, "Missing in-progress recipe");
+    const snapshot = JSON.parse(JSON.stringify(captureBattleSnapshot(scene.battleState())));
+    const save = { version: 1, levelId: "IF-1", wave: scene.wave, savedAt: 1, difficulty: scene.difficulty,
+      unlimitedFirepower: false, selectedCards, graph: snapshot };
+    validateSurvivalSave(save);
+    const bad = JSON.parse(JSON.stringify(snapshot));
+    const edgeNode = bad.nodes.find(n => n.data.type === "=" && n.data.mode === ">");
+    edgeNode.data.level = -2;
+    let rejected = false; try { validateSurvivalSave({ ...save, graph: bad }); } catch { rejected = true; }
+    check(rejected, "Invalid connector save accepted");
+    const run = delta => {
+      start(); scene.applyBattleSave(restoreBattleSnapshot(scene, snapshot));
+      const savedProcessor = scene.towers.find(t => t.type === "+");
+      check(savedProcessor.projectileNode.processing.count === 5 && savedProcessor.projectileNode.processing.shots[0].hitCount === 15,
+        "Save lost processing progress or judgments");
+      check(scene.edgeTowers.some(e => e.mode === ">" && e.autoUpgrade) && scene.edgeTowers.some(e => e.flowCredit === 20),
+        "Save lost direction, auto flag or consumed throughput");
+      check(scene.towers.find(t => t.type === "-").projectileNode.input.length === 2, "Save lost local interceptor ammo");
       scene.battlePaused = false;
-      while (scene.simulation.tick < 90) scene.update(0, delta);
+      while (scene.simulation.tick < 120) scene.update(0, delta);
       return scene.battleChecksum();
     };
-    const interceptHash = runDamaged(1000 / 60);
-    check(runDamaged(1000 / 144) === interceptHash, "Interception replay depends on frame rate");
+    const hash = run(1000 / 60); check(run(1000 / 144) === hash, "Pipeline is frame-rate dependent");
 
     start();
-    const e = place("E", 1, 2, 3); const visualBank = place("0", 2, 2); place("1", 3, 2);
-    link(1, 2); link(2, 2); place("1", 2, 3, 3); link(2, 2, "vertical");
-    scene.startTowerVolley(e, scene.battleTime, scene.towerAttackInterval(e)); drain(); updateTowerProjectiles(scene.projectileRuntime(), 0);
-    place("B", 6, 2); place("B", 6, 3);
-    place("+", 2, 1); link(2, 1, "vertical"); place("-", 3, 3); link(2, 3);
-    check(visualBank.projectileBank.shots.length === 9, "Spread volley not stored independently");
-    scene.submitBattleCommand({ type: "selectCard", id: "A" });
-    scene.syncPlacementGhost(); scene.battlePaused = true; scene.updateHud(); scene.updateCards();
-    game.loop.start(game.step.bind(game)); return { hash, interceptHash, stored: visualBank.projectileBank.shots.length };
+    const visualSource = place("E", 1), visualBank = place("0", 2); place("+", 3); place("1", 4, 3, 3);
+    link(1).mode = ">"; link(2).mode = "="; const autoEdge = link(3); autoEdge.mode = ">"; autoEdge.level = 3; autoEdge.autoUpgrade = true;
+    place("-", 2, 4); link(2, 3, "vertical").mode = "<";
+    place("0", 1, 2); link(1, 2, "vertical").mode = "!=";
+    for (let i = 0; i < 8; i++) capture(visualSource);
+    scene.numbers.sync(); select("A"); scene.battlePaused = true;
+    scene.syncPlacementGhost(); scene.updateHud(); scene.updateCards();
+    game.loop.start(game.step.bind(game)); return { hash, stored: visualBank.projectileBank.shots.length };
   });
   await page.waitForTimeout(150); await page.screenshot({ path: "logs/projectile-circuit-desktop.png" });
   await page.setViewportSize({ width: 800, height: 600 }); await page.waitForTimeout(150);
   await page.screenshot({ path: "logs/projectile-circuit-small.png" });
-  assert.deepEqual(errors, []); console.log("Projectile circuit browser checks passed", result);
+  assert.deepEqual(errors, []); console.log("Pipeline browser checks passed", result);
 } finally { await browser.close(); }

@@ -33,7 +33,7 @@ export const cardDefinitions: CardDefinition[] = [
     armor: 0,
     magicResistance: 0,
     attackPower: 0,
-    stats: "EDGE LINK"
+    stats: "FLOW 25/L"
   },
   {
     id: "1",

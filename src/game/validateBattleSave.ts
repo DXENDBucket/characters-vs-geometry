@@ -6,6 +6,7 @@ import { cardDefinitions } from "../data/cards";
 import { parseEnemyKind } from "./enemyIdentity";
 import { getEnemyDefinition } from "../registry/enemies";
 import { BATTLE_RULES_VERSION, validBattleClock } from "./battleSimulation";
+import { BUNDLE_SHOTS, PIPELINE_RATE } from "./pipelineRules";
 
 export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossKind?: BossKind) {
   const units = new Map<NodeKind, Set<object>>();
@@ -27,6 +28,18 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
         ((value.partialHitDamage ?? value.damage) as number));
   const array = (value: unknown, check: (item: unknown) => boolean): boolean => Array.isArray(value) && value.every(check);
   const member = (kind: NodeKind) => (value: unknown) => Boolean(value && typeof value === "object" && units.get(kind)?.has(value));
+  const storedShot = (shot: unknown) => record(shot) && integrity(shot) && ["bolt", "star", "shell", "hash", "dollar"].includes(shot.type as string) &&
+    ["physical", "magic", "true"].includes(shot.damageType as string) &&
+    ["vx", "vy", "damage", "splashRadius"].every(key => finite(shot[key])) &&
+    (shot.vx as number) > 0 && (shot.damage as number) >= 0 && (shot.splashRadius as number) >= 0 &&
+    Number.isSafeInteger(shot.hitCount) && (shot.hitCount as number) >= 1 &&
+    timestamp(shot.remainingRange) && (shot.remainingRange as number) >= 0 &&
+    (shot.sourceTower === undefined || member("tower")(shot.sourceTower)) &&
+    (shot.sourceBehaviorType === undefined || cardDefinitions.some(card => card.id === shot.sourceBehaviorType)) &&
+    (shot.debuff === undefined || typeof shot.debuff === "string") &&
+    (shot.debuffDuration === undefined || finite(shot.debuffDuration) && shot.debuffDuration >= 0) &&
+    (shot.pipelineMovedAt === undefined || finite(shot.pipelineMovedAt) && shot.pipelineMovedAt >= 0) &&
+    (shot.pipelinePreviousTowerId === undefined || typeof shot.pipelinePreviousTowerId === "string");
   const learnable = (type: unknown) => cardDefinitions.some(card => card.id === type && card.cost <= 999 && card.id !== "1" && card.id !== "0");
   const behavior = (value: unknown) => record(value) && learnable(value.type) && Number.isSafeInteger(value.level) && (value.level as number) >= 1;
   const nativeTowerEvent = (value: unknown) => record(value) && (
@@ -48,6 +61,11 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
     require(array(state.edgeTowers, edge => {
       if (!record(edge) || edge.type !== "=" || !["horizontal", "vertical"].includes(edge.axis as string) ||
         !Number.isInteger(edge.lane) || !Number.isInteger(edge.column)) return false;
+      if (edge.mode !== undefined && !["=", ">", "<", "!="].includes(edge.mode as string)) return false;
+      if (edge.level !== undefined && (!Number.isSafeInteger(edge.level) || (edge.level as number) < 1)) return false;
+      if (edge.autoUpgrade !== undefined && typeof edge.autoUpgrade !== "boolean") return false;
+      if (edge.flowCredit !== undefined && (!finite(edge.flowCredit) || edge.flowCredit < 0 || edge.flowCredit > PIPELINE_RATE * ((edge.level as number) ?? 1))) return false;
+      if (edge.flowUpdatedAt !== undefined && (!finite(edge.flowUpdatedAt) || edge.flowUpdatedAt < 0)) return false;
       const lane = edge.lane as number, column = edge.column as number;
       const key = `${edge.axis}:${lane}:${column}`;
       if (edgeKeys.has(key)) return false;
@@ -160,16 +178,17 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
           require(record(bank) && Array.isArray(bank.shots) &&
             Number.isSafeInteger(bank.remaining) && (bank.remaining as number) >= 0 && (bank.remaining as number) <= bank.shots.length &&
             finite(bank.nextAt) && Number.isSafeInteger(bank.outletIndex) && (bank.outletIndex as number) >= 0 &&
-            array(bank.shots, shot => record(shot) && integrity(shot) && ["bolt", "star", "shell", "hash", "dollar"].includes(shot.type as string) &&
-              ["physical", "magic", "true"].includes(shot.damageType as string) &&
-              ["vx", "vy", "damage", "splashRadius"].every(key => finite(shot[key])) &&
-              (shot.vx as number) > 0 && (shot.damage as number) >= 0 && (shot.splashRadius as number) >= 0 &&
-              Number.isSafeInteger(shot.hitCount) && (shot.hitCount as number) >= 1 &&
-              timestamp(shot.remainingRange) && (shot.remainingRange as number) >= 0 &&
-              (shot.sourceTower === undefined || member("tower")(shot.sourceTower)) &&
-              (shot.sourceBehaviorType === undefined || cardDefinitions.some(card => card.id === shot.sourceBehaviorType)) &&
-              (shot.debuff === undefined || typeof shot.debuff === "string") &&
-              (shot.debuffDuration === undefined || finite(shot.debuffDuration) && shot.debuffDuration >= 0)));
+            array(bank.shots, storedShot));
+        }
+        if (value.projectileRouteIndex !== undefined) require(Number.isSafeInteger(value.projectileRouteIndex) && (value.projectileRouteIndex as number) >= 0);
+        if (value.projectileNode !== undefined) {
+          const node = value.projectileNode;
+          require(record(node) && array(node.input, storedShot) && array(node.output, storedShot));
+          if (record(node) && node.processing !== undefined) {
+            const job = node.processing;
+            require(record(job) && array(job.shots, storedShot) && (job.shots as unknown[]).length === 1 &&
+              job.count === BUNDLE_SHOTS && finite(job.completeAt) && job.completeAt >= 0);
+          }
         }
         if (value.numberValue !== undefined) require(Number.isSafeInteger(value.numberValue) && (value.numberValue as number) >= 0);
         if (value.equationLevel !== undefined) require(Number.isSafeInteger(value.equationLevel) && (value.equationLevel as number) >= 1);

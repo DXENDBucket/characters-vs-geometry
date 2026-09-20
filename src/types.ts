@@ -259,7 +259,13 @@ export interface NumberTowerState {
 
 export interface Tower extends NumberTowerState {
   projectileBank?: { shots: StoredTowerShot[]; remaining: number; nextAt: number; outletIndex: number };
+  projectileNode?: {
+    input: StoredTowerShot[];
+    output: StoredTowerShot[];
+    processing?: { shots: StoredTowerShot[]; count: number; completeAt: number };
+  };
   nextInterceptionAt?: number;
+  projectileRouteIndex?: number;
   continuousAttack?: boolean;
   topologyTarget?: { lane: number; column: number };
   topologyOrder?: number;
@@ -435,12 +441,19 @@ export interface Projectile extends ProjectileIntegrity {
 
 export interface EdgeTower {
   type: "=";
+  mode?: "=" | ">" | "<" | "!=";
+  level?: number;
+  autoUpgrade?: boolean;
+  flowCredit?: number;
+  flowUpdatedAt?: number;
   axis: "horizontal" | "vertical";
   lane: number;
   column: number;
 }
 
 export interface StoredTowerShot extends ProjectileIntegrity {
+  pipelinePreviousTowerId?: string;
+  pipelineMovedAt?: number;
   type: Exclude<ProjectileKind, "chevron">;
   sourceTower?: Tower;
   sourceBehaviorType?: CardId;

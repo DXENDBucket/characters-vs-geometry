@@ -2,209 +2,218 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createTypeScriptLoader } from "./helpers/load-typescript.mjs";
 const load = createTypeScriptLoader();
-const { ProjectileCircuitController, edgeAtPoint, edgePosition, PROJECTILE_BANK_CAPACITY } = load("src/game/projectileCircuit.ts");
+const { ProjectileCircuitController, edgeAtPoint, edgePosition } = load("src/game/projectileCircuit.ts");
+const { EdgeTowerControls } = load("src/game/edgeTowerControls.ts");
+const { projectileBankCapacity } = load("src/game/projectileBank.ts");
+const { nodeOccupancy, processorCapacity } = load("src/game/pipelineRules.ts");
+const { syncTowerTopology } = load("src/game/towerTopology.ts");
 const { BOARD_X, BOARD_Y, CELL_WIDTH, CELL_HEIGHT } = load("src/config.ts");
 const { cardDefinitions } = load("src/data/cards.ts");
 const { canUpgradeTowerWithCard, supportsTowerAutoUpgrade } = load("src/game/towerIdentity.ts");
-const { projectileBankCapacity } = load("src/game/projectileBank.ts");
-const { TowerExtractionPool } = load("src/game/towerExtraction.ts");
 const { projectileDamageBudget, consumeProjectileDamage, forEachProjectileHit, projectileVisualScale } = load("src/game/projectileIntegrity.ts");
-const { encodeSaveGraph, decodeSaveGraph } = load("src/game/saveGraph.ts");
 
-function fixture() {
-  const state = { towers: [], edges: [], battleTime: 0, getDefinition: id => cardDefinitions.find(c => c.id === id),
-    emit: (shot, outlet) => state.output.push({ shot, outlet }), changed() {}, output: [] };
+function fixture(types = ["A", "0", "1"]) {
+  const state = { towers: [], edges: [], battleTime: 0, output: [],
+    getDefinition: id => cardDefinitions.find(c => c.id === id),
+    emit: (shot, outlet) => state.output.push({ shot, outlet, at: state.battleTime }), changed() {} };
   const controller = new ProjectileCircuitController(() => state);
   const place = (type, column, lane = 3, level = 1) => {
     const tower = { id: `tower:${state.towers.length}`, type, column, lane, level, placedOrder: state.towers.length, inPlay: true,
       x: BOARD_X + (column + .5) * CELL_WIDTH, y: BOARD_Y + (lane + .5) * CELL_HEIGHT };
     state.towers.push(tower); return tower;
   };
-  const edge = (column, lane = 3, axis = "horizontal") => state.edges.push({ type: "=", axis, column, lane });
-  const source = place("A", 0), bank = place("0", 1), outlet = place("1", 2);
-  edge(0); edge(1); controller.sync();
-  const shot = overrides => ({ type: "bolt", sourceTower: source, x: 10, y: 20, vx: 400, vy: 30, maxX: 310,
-    limitDirection: 1, damage: 400, damageType: "physical", hitCount: 3, splashRadius: 0,
-    body: { destroy() { this.destroyed = true; } }, ...overrides });
-  return { state, controller, source, bank, outlet, edge, place, shot };
+  const edge = (column, lane = 3, axis = "horizontal", mode = "=") => {
+    const item = { type: "=", axis, column, lane, mode, level: 1 }; state.edges.push(item); return item;
+  };
+  types.forEach((type, col) => { place(type, col); if (col) edge(col - 1); }); controller.sync();
+  const source = state.towers[0], bank = state.towers[1], outlet = state.towers.at(-1);
+  const shot = (overrides = {}) => ({ type: "bolt", sourceTower: source, x: source.x + 26, y: source.y,
+    vx: 400, vy: 0, maxX: source.x + 326, limitDirection: 1, damage: 400, damageType: "physical", hitCount: 1,
+    splashRadius: 0, body: { destroy() { this.destroyed = true; } }, ...overrides });
+  const tick = (dt = 40) => { state.battleTime += dt; controller.update(); };
+  return { state, controller, source, bank, outlet, place, edge, shot, tick };
 }
+const hostile = (tower, damage = 900, hitCount = 1) => ({ x: tower.x, y: tower.y, damage, hitCount,
+  body: { setScale(value) { this.scale = value; } } });
 
-function hostile(tower, damage = 900, hitCount = 1) {
-  return { x: tower.x, y: tower.y, damage, hitCount, body: { setScale(value) { this.scale = value; } } };
-}
-
-test("damage budgets cancel judgments in order instead of changing the armor threshold of intact hits", () => {
-  const shot = { damage: 400, hitCount: 3 };
-  assert.equal(consumeProjectileDamage(shot, 500), 500);
-  const hits = []; forEachProjectileHit(shot, damage => hits.push(damage));
-  assert.deepEqual(hits, [300, 400]); assert.equal(projectileDamageBudget(shot), 700);
-  assert.ok(projectileVisualScale(shot) < projectileVisualScale({ damage: 400, hitCount: 3 }));
-  assert.equal(consumeProjectileDamage(shot, 999), 700); assert.equal(shot.hitCount, 0);
-  assert.equal(consumeProjectileDamage({ damage: 0 }, 400), 0);
-});
-
-test("bundling preserves independent judgments and does not merge incompatible source effects or spread angles", () => {
-  const f = fixture(); f.outlet.type = "+"; f.controller.sync();
-  for (let i = 0; i < 5; i++) f.controller.capture(f.shot());
-  f.controller.release(f.bank); f.controller.update();
-  assert.equal(f.state.output.length, 1); assert.equal(f.state.output[0].shot.hitCount, 15);
-  const hits = []; forEachProjectileHit(f.state.output[0].shot, d => hits.push(Math.max(0, d - 300)));
-  assert.equal(hits.reduce((a, b) => a + b, 0), 1500);
-  f.state.output = [];
-  f.controller.capture(f.shot()); f.controller.capture(f.shot({ vy: -30 }));
-  f.controller.capture(f.shot({ damageType: "magic" }));
-  f.controller.capture(f.shot({ partialHitDamage: 200 }));
-  f.controller.release(f.bank); f.controller.update();
-  assert.equal(f.state.output.length, 4);
-});
-
-test("subtractor alone completes a circuit and weak ammo needs multiple interception ticks to stop a mortar", () => {
-  const f = fixture(); f.outlet.type = "-"; f.controller.sync();
-  for (let i = 0; i < 3; i++) assert.equal(f.controller.capture(f.shot({ hitCount: 1 })), true);
-  const target = { ...hostile(f.outlet), owner: "enemy", progress: .8 };
-  assert.equal(f.controller.intercept(target, target), false);
-  assert.equal(projectileDamageBudget(target), 500); assert.equal(f.bank.projectileBank.shots.length, 2);
-  f.controller.intercept(target, target); assert.equal(projectileDamageBudget(target), 500);
-  f.state.battleTime = 100; f.controller.intercept(target, target); assert.equal(projectileDamageBudget(target), 100);
-  f.state.battleTime = 200; assert.equal(f.controller.intercept(target, target), true);
-  assert.equal(f.bank.projectileBank.shots.length, 1);
-  assert.equal(projectileDamageBudget(f.bank.projectileBank.shots[0]), 300);
-});
-
-test("swept interception catches fast shots, ignores friendly mortars, respects disconnection and updates release stock", () => {
-  const f = fixture(); const minus = f.place("-", 2, 4); f.edge(2, 3, "vertical"); f.controller.sync();
-  f.controller.capture(f.shot({ damage: 400, hitCount: 1 })); f.controller.release(f.bank);
-  const friend = { ...hostile(minus), owner: "tower" }; assert.equal(f.controller.intercept(friend, friend), false);
-  const target = hostile(minus, 500); target.x += CELL_WIDTH * 5;
-  assert.equal(f.controller.intercept(target, { x: minus.x - CELL_WIDTH * 5, y: minus.y }), false);
-  assert.equal(projectileDamageBudget(target), 100); assert.equal(f.bank.projectileBank.remaining, 0);
-  f.controller.capture(f.shot()); f.state.edges.pop(); f.controller.sync(); f.state.battleTime = 200;
-  const next = hostile(minus); assert.equal(f.controller.intercept(next, next), false);
-  assert.equal(projectileDamageBudget(next), 900);
-});
-
-test("multiple subtractors spend shared ammunition once and partial budgets survive serialization", () => {
-  const f = fixture(); f.outlet.type = "-";
-  const second = f.place("-", 2, 4); f.edge(2, 3, "vertical"); f.controller.sync();
-  f.controller.capture(f.shot({ damage: 400, hitCount: 1 })); f.controller.capture(f.shot({ damage: 400, hitCount: 1 }));
-  const target = hostile(second, 900); f.controller.intercept(target, target);
-  assert.equal(projectileDamageBudget(target), 100); assert.equal(f.bank.projectileBank.shots.length, 0);
-  const snapshot = JSON.parse(JSON.stringify(encodeSaveGraph({ target, next: second.nextInterceptionAt },
-    object => ({ kind: "object", omit: new Set(["body"]) }))));
-  const restored = decodeSaveGraph(snapshot, () => ({}));
-  assert.equal(restored.next, 100); assert.equal(projectileDamageBudget(restored.target), 100);
-  assert.equal(projectileVisualScale(restored.target), projectileVisualScale(target));
-});
-
-test("special equals occupies only internal grid edges; numeric prices and cooldowns are updated", () => {
+test("edge placement is internal-only; zero upgrades normally, numeric outlet does not auto-upgrade", () => {
   const edge = { type: "=", axis: "horizontal", lane: 2, column: 3 };
   const p = edgePosition(edge); assert.deepEqual(edgeAtPoint(p.x, p.y), edge);
-  const vertical = { type: "=", axis: "vertical", lane: 2, column: 3 }, v = edgePosition(vertical);
-  assert.deepEqual(edgeAtPoint(v.x, v.y), vertical);
+  const v = { ...edge, axis: "vertical" }, q = edgePosition(v); assert.deepEqual(edgeAtPoint(q.x, q.y), v);
   assert.equal(edgeAtPoint(BOARD_X, BOARD_Y + CELL_HEIGHT / 2), undefined);
-  assert.equal(edgeAtPoint(BOARD_X + CELL_WIDTH / 2, BOARD_Y + CELL_HEIGHT / 2), undefined);
-  for (const id of ["0", "1"]) {
-    const card = cardDefinitions.find(c => c.id === id); assert.equal(card.cost, 600); assert.equal(card.cooldown, 10000);
-  }
-  assert.equal(cardDefinitions.find(c => c.id === "=").category, "special");
   assert.equal(canUpgradeTowerWithCard({ type: "0" }, "0"), true);
   assert.equal(canUpgradeTowerWithCard({ type: "0" }, "1"), false);
   assert.equal(supportsTowerAutoUpgrade({ type: "0" }), true);
   assert.equal(supportsTowerAutoUpgrade({ type: "1" }), false);
-  const pool = new TowerExtractionPool(); pool.restore(6000);
-  assert.deepEqual(pool.plan(cardDefinitions.find(c => c.id === "0")), { levels: 10, cost: 6000, usesPool: true });
 });
 
-test("bank upgrades expand capacity without replacing stock; lost temporary levels retain over-capacity ammo", () => {
-  const f = fixture();
-  for (let i = 0; i < 128; i++) assert.equal(f.controller.capture(f.shot()), true);
-  const first = f.bank.projectileBank.shots[0];
-  assert.equal(f.controller.capture(f.shot()), false);
-  f.bank.level = 2; f.controller.sync();
-  assert.equal(projectileBankCapacity(f.bank), 256);
-  for (let i = 0; i < 128; i++) assert.equal(f.controller.capture(f.shot()), true);
-  assert.equal(f.bank.projectileBank.shots[0], first);
-  assert.equal(f.controller.capture(f.shot()), false);
-  f.bank.levelBonus = 1;
-  assert.equal(projectileBankCapacity(f.bank), 384);
-  assert.equal(f.controller.capture(f.shot()), true);
-  f.bank.levelBonus = 0; f.controller.sync();
-  assert.equal(f.bank.projectileBank.shots.length, 257);
-  assert.equal(f.controller.capture(f.shot()), false);
-  f.controller.release(f.bank); f.controller.update();
-  f.state.battleTime += 40; f.controller.update();
-  assert.equal(f.controller.capture(f.shot()), true);
+test("source captures only across allowed directions; closed-only and reverse-only connections fire normally", () => {
+  for (const mode of ["=", ">", "<", "!="]) {
+    const f = fixture(["A", "0"]); f.state.edges[0].mode = mode;
+    const shot = f.shot(); assert.equal(f.controller.capture(shot), mode === "=" || mode === ">");
+    assert.equal(f.bank.projectileBank.shots.length, mode === "=" || mode === ">" ? 1 : 0);
+    assert.equal("shots" in f.state.edges[0], false);
+  }
+  const f = fixture(["0", "A"]); f.state.edges[0].mode = "<";
+  assert.equal(f.controller.capture(f.shot({ sourceTower: f.bank })), true);
+  assert.equal(f.source.projectileBank.shots.length, 1);
 });
 
-test("captures real shots once, retains individual judgments and remaining range, releases without extra damage", () => {
-  const f = fixture(), shot = f.shot();
-  assert.equal(f.controller.capture(shot), true); assert.equal(shot.body.destroyed, true);
-  assert.equal(f.controller.capture(shot), false); assert.equal(f.bank.projectileBank.shots.length, 1);
-  const stored = f.bank.projectileBank.shots[0];
-  assert.equal(stored.remainingRange, 300); assert.equal(stored.hitCount, 3); assert.equal(stored.damage, 400);
-  f.controller.release(f.bank); f.controller.update();
-  assert.equal(f.state.output.length, 1); assert.equal(f.state.output[0].outlet, f.outlet);
-  assert.equal(f.state.output[0].shot, stored); assert.equal(f.bank.projectileBank.shots.length, 0);
-  f.controller.release(f.bank); f.controller.update(); assert.equal(f.state.output.length, 1);
+test("source can directly feed a numeric outlet; output waits for the exact full batch", () => {
+  const f = fixture(["A", "1"]); f.outlet.level = 3;
+  for (let i = 0; i < 2; i++) assert.equal(f.controller.capture(f.shot()), true);
+  f.tick(); assert.equal(f.state.output.length, 0);
+  assert.equal(f.controller.capture(f.shot({ hitCount: 2 })), true);
+  f.tick(); assert.equal(f.state.output.length, 3);
+  assert.deepEqual(f.state.output.map(e => e.at), [80, 80, 80]);
+  assert.deepEqual(f.state.output.map(e => e.shot.hitCount), [1, 1, 2]);
 });
 
-test("disconnected or incomplete networks do not swallow shots; release pauses on disconnection", () => {
-  const f = fixture(); f.controller.capture(f.shot()); f.controller.capture(f.shot());
-  f.controller.release(f.bank); f.controller.update(); assert.equal(f.state.output.length, 1);
-  f.state.edges.pop(); f.controller.sync();
-  assert.equal(f.controller.capture(f.shot()), false);
-  f.state.battleTime = 500; f.controller.update(); assert.equal(f.state.output.length, 1);
-  f.edge(1); f.controller.sync(); f.controller.update(); assert.equal(f.state.output.length, 2);
-  f.outlet.inPlay = false; assert.equal(f.controller.capture(f.shot()), false);
-});
-
-test("a full bank passes overflow through, and shots received during discharge await the next click", () => {
-  const f = fixture();
-  for (let i = 0; i < PROJECTILE_BANK_CAPACITY; i++) assert.equal(f.controller.capture(f.shot()), true);
-  const overflow = f.shot(); assert.equal(f.controller.capture(overflow), false); assert.equal(overflow.body.destroyed, undefined);
-  f.controller.release(f.bank); f.controller.update();
-  assert.equal(f.controller.capture(f.shot({ damage: 700 })), true);
-  f.controller.release(f.bank); // Repeated clicks cannot extend an active discharge.
-  f.state.battleTime = 10000; f.controller.update();
-  assert.equal(f.state.output.length, PROJECTILE_BANK_CAPACITY);
+test("zero automatically forwards exactly once per tick without recapture or instant reverse transfer", () => {
+  const f = fixture(["A", "0", "0", "1"]);
+  f.controller.capture(f.shot({ hitCount: 3 })); f.controller.update();
   assert.equal(f.bank.projectileBank.shots.length, 1);
-  f.controller.release(f.bank); f.controller.update(); assert.equal(f.state.output.at(-1).shot.damage, 700);
-});
-
-test("homing, unrelated towers and prior routed shots bypass storage", () => {
-  const f = fixture();
-  assert.equal(f.controller.capture(f.shot({ type: "chevron" })), false);
-  assert.equal(f.controller.capture(f.shot({ sourceTower: f.place("A", 5) })), false);
+  f.tick(); assert.equal(f.state.output.length, 0);
+  assert.equal(f.state.towers[2].projectileBank.shots.length, 1);
+  f.tick(); assert.equal(f.state.output.length, 1);
+  assert.equal(f.state.output[0].shot.hitCount, 3); assert.equal(f.state.output[0].shot.remainingRange, 300);
+  f.tick(); assert.equal(f.state.output.length, 1);
   assert.equal(f.controller.capture(f.shot({ circuitChecked: true })), false);
-  assert.equal(f.controller.capture(f.shot({ vx: 0 })), false);
-  assert.equal(f.bank.projectileBank.shots.length, 0);
 });
 
-test("branches distribute a fixed set of shots and higher outlet numbers change grouping, not damage", () => {
-  const f = fixture(), outlet2 = f.place("1", 1, 4, 2); f.edge(1, 3, "vertical"); f.controller.sync();
-  for (let i = 0; i < 9; i++) f.controller.capture(f.shot());
-  f.controller.release(f.bank); f.controller.update(); f.state.battleTime = 1000; f.controller.update();
-  assert.equal(f.state.output.length, 9);
-  assert.equal(f.state.output.filter(e => e.outlet === f.outlet).length, 3);
-  assert.equal(f.state.output.filter(e => e.outlet === outlet2).length, 6);
-  assert.equal(f.state.output.reduce((n, e) => n + e.shot.damage * e.shot.hitCount, 0), 10800);
-});
-
-test("two banks never duplicate one shot and a destroyed bank cannot capture", () => {
-  const f = fixture(), bank2 = f.place("0", 1, 4); f.edge(1, 3, "vertical"); f.controller.sync();
-  f.controller.capture(f.shot());
-  assert.equal(f.bank.projectileBank.shots.length + bank2.projectileBank.shots.length, 1);
-  f.bank.inPlay = false; f.controller.capture(f.shot()); assert.equal(bank2.projectileBank.shots.length, 1);
-});
-
-test("edge circuits use logical tower positions without changing physical positions", () => {
-  const f = fixture(), topology = load("src/game/towerTopology.ts");
-  f.source.column = 9; f.source.lane = 6;
-  const swap = f.place("&", 0);
-  swap.topologyTarget = { column: 9, lane: 6 }; swap.topologyOrder = 0;
-  topology.syncTowerTopology(f.state.towers); f.controller.sync();
-  assert.equal(f.controller.capture(f.shot()), true);
-  assert.equal(f.source.column, 9); assert.equal(f.source.lane, 6);
-  swap.inPlay = false; topology.syncTowerTopology(f.state.towers); f.controller.sync();
+test("connection flow has a bounded burst and refills at 25 shots per level per second", () => {
+  const f = fixture(["A", "0"]);
+  for (let i = 0; i < 25; i++) assert.equal(f.controller.capture(f.shot()), true);
   assert.equal(f.controller.capture(f.shot()), false);
+  f.state.battleTime = 20; assert.equal(f.controller.capture(f.shot()), false);
+  f.state.battleTime = 40; assert.equal(f.controller.capture(f.shot()), true);
+  f.state.edges[0].level = 2; f.state.battleTime += 20; assert.equal(f.controller.capture(f.shot()), true);
+});
+
+test("buffer capacity scales with level and retains over-capacity ammo when temporary levels expire", () => {
+  for (const type of ["0", "-"]) {
+    const f = fixture(["A", type]); f.state.edges[0].level = 100;
+    for (let i = 0; i < 128; i++) assert.equal(f.controller.capture(f.shot()), true);
+    assert.equal(f.controller.capture(f.shot()), false);
+    f.bank.level = 2; assert.equal(projectileBankCapacity(f.bank), 256);
+    for (let i = 0; i < 128; i++) assert.equal(f.controller.capture(f.shot()), true);
+    f.bank.levelBonus = 1; assert.equal(f.controller.capture(f.shot()), true);
+    f.bank.levelBonus = 0; f.controller.sync();
+    assert.equal((f.bank.projectileBank?.shots ?? f.bank.projectileNode.input).length, 257);
+    assert.equal(f.controller.capture(f.shot()), false);
+  }
+});
+
+test("interceptors and numeric outlets are input-only even with outward or bidirectional pipes", () => {
+  for (const type of ["-", "1"]) {
+    const f = fixture(["A", type, "0"]); f.bank.level = 2;
+    for (const mode of ["=", ">", "<", "!="]) {
+      f.state.edges[1].mode = mode; f.controller.sync();
+      assert.equal(f.controller.isEdgeActive(f.state.edges[1]), mode === "=" || mode === "<");
+    }
+    f.state.edges[1].mode = "="; f.controller.sync();
+    f.controller.capture(f.shot()); f.tick(1000);
+    assert.equal(f.bank.projectileNode.input.length, 1);
+    assert.equal(f.outlet.projectileBank.shots.length, 0);
+    f.controller.capture(f.shot()); f.tick(1000);
+    assert.equal(f.outlet.projectileBank.shots.length, 0);
+    assert.equal(f.state.output.length, type === "1" ? 2 : 0);
+    assert.equal(f.bank.projectileNode.input.length, type === "1" ? 0 : 2);
+  }
+});
+
+test("processor waits for five compatible shots, preserves armor judgments, and only forwards to a real outlet", () => {
+  const f = fixture(["A", "+", "1"]);
+  for (let i = 0; i < 4; i++) f.controller.capture(f.shot());
+  f.tick(1000); assert.equal(f.bank.projectileNode.processing, undefined); assert.equal(f.state.output.length, 0);
+  f.controller.capture(f.shot({ hitCount: 2 }));
+  f.tick(1); assert.equal(f.bank.projectileNode.processing.count, 5);
+  f.tick(199); assert.equal(f.state.output.length, 0);
+  f.tick(1); assert.equal(f.state.output.length, 1);
+  assert.equal(f.state.output[0].shot.hitCount, 6);
+  const hits = []; forEachProjectileHit(f.state.output[0].shot, d => hits.push(d));
+  assert.deepEqual(hits, [400, 400, 400, 400, 400, 400]);
+});
+
+test("processed projectiles can be bundled again; blocked results stay in the processor", () => {
+  const f = fixture(["A", "+", "+", "1"]);
+  for (let i = 0; i < 25; i++) f.controller.capture(f.shot());
+  for (let i = 0; i < 40; i++) f.tick();
+  assert.equal(f.state.output.length, 1); assert.equal(f.state.output[0].shot.hitCount, 25);
+  const g = fixture(["A", "+", "1"]); g.state.edges[1].mode = "!=";
+  for (let i = 0; i < 5; i++) g.controller.capture(g.shot());
+  g.tick(); g.tick(200); assert.equal(g.state.output.length, 0); assert.equal(g.bank.projectileNode.output.length, 1);
+  g.state.edges[1].mode = ">"; g.tick(); assert.equal(g.state.output.length, 1);
+});
+
+test("processor separates incompatible payloads, preserves queue on upgrade, and scales processing time", () => {
+  const f = fixture(["A", "+", "1"]);
+  for (let i = 0; i < 4; i++) f.controller.capture(f.shot());
+  f.controller.capture(f.shot({ damageType: "magic" })); f.tick();
+  assert.equal(f.bank.projectileNode.processing, undefined);
+  const stock = f.bank.projectileNode.input[0];
+  f.bank.level = 2; f.controller.sync(); assert.equal(processorCapacity(f.bank), 50);
+  assert.equal(f.bank.projectileNode.input[0], stock);
+  f.controller.capture(f.shot()); f.tick(1);
+  assert.equal(f.bank.projectileNode.processing.completeAt - f.state.battleTime, 100);
+});
+
+test("local interceptor requires delivered ammo, never steals across closed pipes, and keeps partial leftovers", () => {
+  const f = fixture(["A", "0", "-"]); f.controller.capture(f.shot()); f.controller.capture(f.shot()); f.controller.capture(f.shot());
+  const target = { ...hostile(f.outlet, 180), owner: "enemy", progress: .8 };
+  assert.equal(f.controller.intercept(target, target), false); assert.equal(projectileDamageBudget(target), 180);
+  f.state.edges[1].mode = "!="; f.tick(); f.controller.intercept(target, target);
+  assert.equal(projectileDamageBudget(target), 180);
+  f.state.edges[1].mode = ">"; f.tick();
+  f.controller.intercept(target, target); assert.equal(projectileDamageBudget(target), 100);
+  f.tick(100); f.controller.intercept(target, target); assert.equal(projectileDamageBudget(target), 20);
+  f.tick(100); assert.equal(f.controller.intercept(target, target), true);
+  assert.equal(projectileDamageBudget(f.outlet.projectileNode.input[0]), 300);
+});
+
+test("interception respects friendly mortars and sweeps high speed shots without changing intact judgments", () => {
+  const f = fixture(["A", "-"]); f.controller.capture(f.shot());
+  const friendly = { ...hostile(f.outlet), owner: "tower" }; assert.equal(f.controller.intercept(friendly, friendly), false);
+  const target = hostile(f.outlet, 400, 3); target.x += CELL_WIDTH * 5;
+  f.controller.intercept(target, { x: f.outlet.x - CELL_WIDTH * 5, y: f.outlet.y });
+  assert.equal(projectileDamageBudget(target), 1120); assert.equal(target.hitCount, 3);
+  consumeProjectileDamage(target, 100);
+  const hits = []; forEachProjectileHit(target, d => hits.push(d)); assert.deepEqual(hits, [220, 400, 400]);
+  assert.ok(projectileVisualScale(target) < projectileVisualScale({ damage: 400, hitCount: 3 }));
+});
+
+test("homing projectiles and skills bypass pipes; branches distribute without duplication", () => {
+  const f = fixture(["0", "A", "0"]), a = f.bank;
+  assert.equal(f.controller.capture(f.shot({ type: "chevron", sourceTower: a })), false);
+  assert.equal(f.controller.capture(f.shot({ sourceTower: a, targetEnemy: {} })), false);
+  for (let i = 0; i < 10; i++) f.controller.capture(f.shot({ sourceTower: a }));
+  assert.equal(f.source.projectileBank.shots.length, 5); assert.equal(f.outlet.projectileBank.shots.length, 5);
+});
+
+test("edge controls cycle four modes, upgrade without inventory and respect automatic upgrade reserves", () => {
+  const state = { edges: [], card: { definition: cardDefinitions.find(c => c.id === "="), readyAt: 0 },
+    time: 0, cardTime: 0, chars: 10000, autoEnabled: true, reserve: 0, reserveFocused: false,
+    spend: cost => { state.chars -= cost; }, changed() {} };
+  const controls = new EdgeTowerControls(() => state), position = { type: "=", axis: "horizontal", column: 1, lane: 2 };
+  assert.equal(controls.use(position), "handled");
+  const edge = state.edges[0]; assert.equal(edge.mode, "=");
+  for (const mode of [">", "<", "!=", "="]) { controls.cycle(edge); assert.equal(edge.mode, mode); }
+  assert.equal(controls.use(position), "cooldown");
+  state.cardTime = 30000; controls.use(position); assert.equal(edge.level, 2);
+  controls.toggleAuto(edge); state.cardTime = 60000; state.reserve = state.chars;
+  controls.attemptAutoUpgrade(); assert.equal(edge.level, 2);
+  state.reserve = 0; controls.attemptAutoUpgrade(); assert.equal(edge.level, 3);
+  assert.equal(state.chars, 7000); assert.equal("shots" in edge, false);
+});
+
+test("logical topology determines neighbors while disconnected inventory remains local", () => {
+  const f = fixture(["A", "0"]);
+  f.bank.column = 5;
+  syncTowerTopology(f.state.towers); f.controller.sync();
+  assert.equal(f.controller.capture(f.shot()), false);
+  const swap = f.place("&", 1); swap.topologyTarget = { lane: 3, column: 5 };
+  syncTowerTopology(f.state.towers); f.controller.sync();
+  assert.equal(f.controller.capture(f.shot()), true);
+  f.state.edges.length = 0; f.controller.sync(); f.tick(10000);
+  assert.equal(f.bank.projectileBank.shots.length, 1);
 });

@@ -3,6 +3,7 @@ import { topologyKey } from "./towerTopology";
 import { drawLogicalTowerRange } from "../render/towerLogicalRange";
 import { towerBehaviorType, towerActionContext, towerFormType, isLiteralNumberType, isNumberTower, isNumericOperatorType, numberTowerStoredCount, numberTowerValue, numberTowerMultiplier, numberTowerActionLevel, supportsTowerAutoUpgrade } from "./towerIdentity";
 import { projectileBankCapacity } from "./projectileBank";
+import { nodeOccupancy, processorCapacity } from "./pipelineRules";
 import { syncHealthBar } from "./towerHealth";
 import { facingWithEffects } from "./rules/reversal";
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
@@ -232,7 +233,17 @@ export function syncTowerLevelText(tower: Tower) {
     tower.label.setY(-7).setFontSize(34);
     const text = `${count}/${projectileBankCapacity(tower)}`;
     tower.levelText.setVisible(true).setY(12).setText(text).setFontSize(Math.min(9, 60 / text.length))
-      .setColor(tower.projectileBank?.remaining ? "#8ce4ba" : count ? "#9fdcff" : "#8c8c8c");
+      .setColor(count ? "#9fdcff" : "#8c8c8c");
+    return;
+  }
+  const pipeType = towerFormType(tower);
+  if (tower.projectileNode && ["1", "+", "-"].includes(pipeType)) {
+    const capacity = pipeType === "+" ? processorCapacity(tower) : pipeType === "-" ? projectileBankCapacity(tower) : Math.max(1, numberTowerValue(tower));
+    if (tower.type === "1") tower.label.setText(String(numberTowerValue(tower)));
+    tower.label.setY(-7).setFontSize(Math.min(34, 48 / Math.max(1, tower.label.text.length)));
+    const text = `${nodeOccupancy(tower)}/${capacity}`;
+    tower.levelText.setVisible(true).setY(12).setText(text).setFontSize(Math.min(9, 60 / text.length))
+      .setColor(tower.projectileNode.processing ? "#ffd75a" : "#9fdcff");
     return;
   }
   const channels = Object.entries(tower.numberChannels ?? {}).filter(([, state]) => state.numberValue !== undefined);

@@ -1,0 +1,56 @@
+import type { CardState, EdgeTower } from "../types";
+import { edgeKey } from "./projectileCircuit";
+import { refreshEdgeFlow } from "./pipelineRules";
+
+interface EdgeControlRuntime {
+  edges: EdgeTower[];
+  card?: CardState;
+  time: number;
+  cardTime: number;
+  chars: number;
+  autoEnabled: boolean;
+  reserve: number;
+  reserveFocused: boolean;
+  spend: (cost: number) => void;
+  changed: () => void;
+}
+
+export class EdgeTowerControls {
+  constructor(private readonly runtime: () => EdgeControlRuntime) {}
+
+  cycle(edge: EdgeTower) {
+    const modes = ["=", ">", "<", "!="] as const;
+    edge.mode = modes[(modes.indexOf(edge.mode ?? "=") + 1) % modes.length];
+    this.runtime().changed();
+  }
+
+  toggleAuto(edge: EdgeTower, all = false) {
+    const enabled = !edge.autoUpgrade;
+    for (const target of all ? this.runtime().edges : [edge]) target.autoUpgrade = enabled;
+    this.runtime().changed();
+  }
+
+  use(position: EdgeTower): "handled" | "cooldown" | "noChars" {
+    const runtime = this.runtime(), card = runtime.card;
+    if (!card || runtime.cardTime < card.readyAt) return "cooldown";
+    if (runtime.chars < card.definition.cost) return "noChars";
+    const existing = runtime.edges.find(edge => edgeKey(edge) === edgeKey(position));
+    if (existing) {
+      refreshEdgeFlow(existing, runtime.time);
+      existing.level = (existing.level ?? 1) + 1;
+    } else runtime.edges.push({ ...position, mode: "=", level: 1, autoUpgrade: false });
+    runtime.spend(card.definition.cost);
+    card.readyAt = runtime.cardTime + card.definition.cooldown;
+    runtime.changed();
+    return "handled";
+  }
+
+  attemptAutoUpgrade() {
+    const runtime = this.runtime();
+    if (!runtime.autoEnabled || runtime.reserveFocused || !runtime.card ||
+      runtime.chars - runtime.card.definition.cost < runtime.reserve) return;
+    let target: EdgeTower | undefined;
+    for (const edge of runtime.edges) if (edge.autoUpgrade && (!target || (edge.level ?? 1) < (target.level ?? 1))) target = edge;
+    if (target) this.use(target);
+  }
+}
