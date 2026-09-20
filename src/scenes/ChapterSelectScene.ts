@@ -255,7 +255,7 @@ export class ChapterSelectScene extends Phaser.Scene {
         .on("pointerup", (pointer: Phaser.Input.Pointer) => this.openChapter(chapter, pointer));
       this.chapterCards.push({ definition: chapter, frame, label, meta });
       bindButtonHover(frame, [label, meta], () => unlocked && !this.mapDragging &&
-        !this.encyclopediaPanel.isOpen() && this.mapViewport.contains(this.input.activePointer.x, this.input.activePointer.y));
+        !this.encyclopediaPanel.isOpen() && this.mapViewport.contains(this.input.activePointer.x, this.input.activePointer.y), 3);
     }
   }
 

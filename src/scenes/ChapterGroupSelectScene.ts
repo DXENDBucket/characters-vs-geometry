@@ -185,8 +185,10 @@ export class ChapterGroupSelectScene extends Phaser.Scene {
   }
 
   private highlight(index: number) {
-    this.frames.forEach((frame, i) => frame.setStrokeStyle(2,
-      i === index && isChapterGroupUnlocked(chapterGroups[i].id) ? palette.green : palette.mid));
+    this.frames.forEach((frame, i) => {
+      const highlighted = i === index && isChapterGroupUnlocked(chapterGroups[i].id);
+      frame.setStrokeStyle(highlighted ? 3 : 2, highlighted ? palette.green : palette.mid);
+    });
   }
 
   private readonly onDown = (pointer: Phaser.Input.Pointer) => {

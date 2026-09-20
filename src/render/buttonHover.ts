@@ -5,7 +5,8 @@ import { palette } from "../config";
 export function bindButtonHover(
   frame: Phaser.GameObjects.Rectangle,
   labels: Phaser.GameObjects.GameObject[] = [],
-  enabled: () => boolean = () => true
+  enabled: () => boolean = () => true,
+  lineWidth = 2
 ) {
   const scene = frame.scene;
   const targets = [frame, ...labels];
@@ -35,7 +36,7 @@ export function bindButtonHover(
     }
     if (!outline) {
       outline = scene.add.rectangle(0, 0, frame.width, frame.height)
-        .setName("button-hover").setStrokeStyle(2, palette.green);
+        .setName("button-hover").setStrokeStyle(lineWidth, palette.green);
       frame.parentContainer?.add(outline);
     }
     if (outline.width !== frame.width || outline.height !== frame.height) outline.setSize(frame.width, frame.height);
