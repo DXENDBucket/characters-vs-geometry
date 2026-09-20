@@ -733,8 +733,8 @@ function towerLines(card: CardDefinition) {
 function towerDescription(id: CardId) {
   const zh = isZh();
   const descriptions: Record<CardId, string> = {
-    "0": zh ? "弹幕蓄存器。经网格边上的 = 与源塔和数字出口、合束出口或消去器连通后，截存源塔实际发出的普通弹幕，上限 128 颗，满后弹幕正常飞出。点击释放点击时已存的弹幕，多个出口轮流分配，不复制。断线保留库存并暂停释放，摧毁后库存消失。不处理追踪弹、激光、迫击炮、技能或生产。原伤害、属性、多判次数和剩余射程不变。只能用 1 卡变为出口 1，转换清空库存。数字塔不自动升级；部署 0 和转换不使用提取池。"
-      : "Projectile bank. Connect to sources and numeric outlets, bundlers or subtractors using edge = links. Stores up to 128 real ordinary shots; overflow flies normally. Click to discharge the current stock, rotating between outlets without duplication. Disconnecting pauses discharge and retains stock; destruction loses it. Excludes homing shots, lasers, mortars, skills and production. Keeps damage, hit counts and remaining range. Only a 1 card converts it into outlet 1, clearing stock. No auto-upgrades; zero placement/conversion ignores extraction.",
+    "0": zh ? "弹幕蓄存器。经网格边上的 = 与源塔和数字出口、合束出口或消去器连通后，截存源塔实际发出的普通弹幕，上限为 128 × 有效等级，满后弹幕正常飞出。点击释放点击时已存的弹幕，多个出口轮流分配，不复制。断线保留库存并暂停释放，摧毁后库存消失。不处理追踪弹、激光、迫击炮、技能或生产。原伤害、属性、多判次数和剩余射程不变。叠放 0 可升级并保留库存，不会变成 1；支持自动升级及提取池多级部署。临时等级消失时不删除超额库存，但满仓期间不再收弹。"
+      : "Projectile bank. Connect to sources and numeric outlets, bundlers or subtractors using edge = links. Stores up to 128 real ordinary shots per effective level; overflow flies normally. Click to discharge the current stock, rotating between outlets without duplication. Disconnecting pauses discharge and retains stock; destruction loses it. Excludes homing shots, lasers, mortars, skills and production. Keeps damage, hit counts and remaining range. Stack 0 cards to upgrade capacity without losing stock or becoming 1. Supports auto-upgrades and extraction batches. Losing temporary levels retains excess stock but pauses capture until space is available.",
     "-": zh ? "消去。通过 = 连接蓄存器 0 后自动工作，不需要数字出口或点击释放。每 0.1 秒最多消耗一颗库存弹幕，抵消半径 2.6 格内敌方平射弹或迫击炮弹的伤害量；按飞行中的实际位置判定。双方剩余伤害保留，敌弹未完全消去仍会命中或爆炸，多判逐次扣除。多个减号可共同拦截，激光和非弹体技能不受影响。弹体随伤害量改变大小，受损后缩小。"
       : "Cancellation. Connect to a zero bank with =; works automatically without an outlet or a release click. Every 0.1s uses at most one stored shot against enemy bullets or airborne mortars within 2.6 cells of its physical position. Cancels equal amounts of damage from each side, retaining any remainder and individual judgments. Surviving enemy shots still hit or explode. Multiple subtractors can cooperate. Excludes lasers and non-projectile skills. Projectile size reflects damage and shrinks after cancellation.",
     "+": zh ? "合束出口。通过 = 连接蓄存器 0，点击 0 后每批接收最多 5 颗弹幕。同来源、同种类、伤害与附带效果、速度方向和剩余射程一致的弹幕合为一颗，其余分别射出。保留每一次独立伤害判定，不合并单次伤害，不提高破甲能力。按自身朝向发射，合束弹体更大，不额外生成伤害。"
@@ -804,8 +804,8 @@ function towerDescription(id: CardId) {
 }
 
 function towerUpgradeText(id: CardId) {
-  if (id === "0") return isZh() ? "使用数字 1 卡变为出口 1，清空库存；不能叠放 0 或自动升级。"
-    : "A 1 card converts zero into outlet 1 and clears stock. No stacking 0 or auto-upgrades.";
+  if (id === "0") return isZh() ? "每级增加 128 颗存储上限：1 级 128，2 级 256，以此类推；按有效等级计算。升级保留库存和字符 0，支持自动升级。"
+    : "Each effective level adds 128 capacity: level 1 holds 128, level 2 holds 256. Upgrades retain stock and the 0 identity. Supports auto-upgrades.";
   if (id === "1") return isZh() ? "手动升级数字 +1，每批弹幕数量上限 +1，不改变弹幕总数或伤害；不参与自动升级。"
     : "Manual number +1, allowing one more shot per batch without changing total shots or damage. No auto-upgrades.";
   if (id === "=" || id === "+" || id === "-") return "/";

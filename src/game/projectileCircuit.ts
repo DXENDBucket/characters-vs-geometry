@@ -3,8 +3,9 @@ import type { CardDefinition, CardId, EdgeTower, EnemyProjectile, MortarProjecti
 import { consumeProjectileDamage, projectileDamageBudget, projectileVisualScale, segmentInInterceptionRange } from "./projectileIntegrity";
 import { towerCell } from "./towerTopology";
 import { isLiteralNumberType, numberTowerValue, towerFormType } from "./towerIdentity";
+import { projectileBankCapacity } from "./projectileBank";
 
-export const PROJECTILE_BANK_CAPACITY = 128;
+export { PROJECTILE_BANK_CAPACITY } from "./projectileBank";
 export const CIRCUIT_RELEASE_INTERVAL = 40;
 export const INTERCEPTION_RADIUS = 2.6;
 export const INTERCEPTION_INTERVAL = 100;
@@ -113,7 +114,7 @@ export class ProjectileCircuitController {
       isLiteralNumberType(towerFormType(source)) || ["+", "-"].includes(towerFormType(source)) || Math.abs(projectile.vx) < .001) return false;
     const circuit = this.circuits.get(source);
     if (!circuit || (!circuit.outlets.some(t => t.inPlay) && !circuit.interceptors.some(t => t.inPlay))) return false;
-    const bank = circuit.banks.find(tower => tower.inPlay && tower.projectileBank!.shots.length < PROJECTILE_BANK_CAPACITY);
+    const bank = circuit.banks.find(tower => tower.inPlay && tower.projectileBank!.shots.length < projectileBankCapacity(tower));
     if (!bank) return false;
     bank.projectileBank!.shots.push({ type: projectile.type, sourceTower: source,
       sourceBehaviorType: projectile.sourceBehaviorType, hitCount: projectile.hitCount ?? 1,

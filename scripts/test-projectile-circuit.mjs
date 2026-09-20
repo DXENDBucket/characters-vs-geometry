@@ -5,7 +5,8 @@ const load = createTypeScriptLoader();
 const { ProjectileCircuitController, edgeAtPoint, edgePosition, PROJECTILE_BANK_CAPACITY } = load("src/game/projectileCircuit.ts");
 const { BOARD_X, BOARD_Y, CELL_WIDTH, CELL_HEIGHT } = load("src/config.ts");
 const { cardDefinitions } = load("src/data/cards.ts");
-const { canUpgradeTowerWithCard } = load("src/game/towerIdentity.ts");
+const { canUpgradeTowerWithCard, supportsTowerAutoUpgrade } = load("src/game/towerIdentity.ts");
+const { projectileBankCapacity } = load("src/game/projectileBank.ts");
 const { TowerExtractionPool } = load("src/game/towerExtraction.ts");
 const { projectileDamageBudget, consumeProjectileDamage, forEachProjectileHit, projectileVisualScale } = load("src/game/projectileIntegrity.ts");
 const { encodeSaveGraph, decodeSaveGraph } = load("src/game/saveGraph.ts");
@@ -106,10 +107,33 @@ test("special equals occupies only internal grid edges; numeric prices and coold
     const card = cardDefinitions.find(c => c.id === id); assert.equal(card.cost, 600); assert.equal(card.cooldown, 10000);
   }
   assert.equal(cardDefinitions.find(c => c.id === "=").category, "special");
-  assert.equal(canUpgradeTowerWithCard({ type: "0" }, "0"), false);
-  assert.equal(canUpgradeTowerWithCard({ type: "0" }, "1"), true);
+  assert.equal(canUpgradeTowerWithCard({ type: "0" }, "0"), true);
+  assert.equal(canUpgradeTowerWithCard({ type: "0" }, "1"), false);
+  assert.equal(supportsTowerAutoUpgrade({ type: "0" }), true);
+  assert.equal(supportsTowerAutoUpgrade({ type: "1" }), false);
   const pool = new TowerExtractionPool(); pool.restore(6000);
-  assert.deepEqual(pool.plan(cardDefinitions.find(c => c.id === "0")), { levels: 1, cost: 600, usesPool: false });
+  assert.deepEqual(pool.plan(cardDefinitions.find(c => c.id === "0")), { levels: 10, cost: 6000, usesPool: true });
+});
+
+test("bank upgrades expand capacity without replacing stock; lost temporary levels retain over-capacity ammo", () => {
+  const f = fixture();
+  for (let i = 0; i < 128; i++) assert.equal(f.controller.capture(f.shot()), true);
+  const first = f.bank.projectileBank.shots[0];
+  assert.equal(f.controller.capture(f.shot()), false);
+  f.bank.level = 2; f.controller.sync();
+  assert.equal(projectileBankCapacity(f.bank), 256);
+  for (let i = 0; i < 128; i++) assert.equal(f.controller.capture(f.shot()), true);
+  assert.equal(f.bank.projectileBank.shots[0], first);
+  assert.equal(f.controller.capture(f.shot()), false);
+  f.bank.levelBonus = 1;
+  assert.equal(projectileBankCapacity(f.bank), 384);
+  assert.equal(f.controller.capture(f.shot()), true);
+  f.bank.levelBonus = 0; f.controller.sync();
+  assert.equal(f.bank.projectileBank.shots.length, 257);
+  assert.equal(f.controller.capture(f.shot()), false);
+  f.controller.release(f.bank); f.controller.update();
+  f.state.battleTime += 40; f.controller.update();
+  assert.equal(f.controller.capture(f.shot()), true);
 });
 
 test("captures real shots once, retains individual judgments and remaining range, releases without extra damage", () => {

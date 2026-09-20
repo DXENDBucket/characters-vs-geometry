@@ -39,8 +39,11 @@ export function isLiteralNumberType(type: CardId) { return type === "0" || type 
 export function isNumericOperatorType(type: CardId) { return type === "+" || type === "-"; }
 
 export function canUpgradeTowerWithCard(tower: Pick<Tower, "type">, cardId: CardId) {
-  if (tower.type === "0") return cardId === "1";
   return tower.type === cardId;
+}
+
+export function supportsTowerAutoUpgrade(tower: Pick<Tower, "type" | "copiedType" | "numberValue">) {
+  return towerFormType(tower) === "0" || !isNumberTower(tower);
 }
 
 export function numberTowerValue(tower: Pick<Tower, "type" | "copiedType" | "level" | "numberValue">, state: NumberTowerState = tower) {

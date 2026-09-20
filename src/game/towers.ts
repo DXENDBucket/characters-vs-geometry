@@ -1,7 +1,8 @@
 import Phaser from "phaser";
 import { topologyKey } from "./towerTopology";
 import { drawLogicalTowerRange } from "../render/towerLogicalRange";
-import { towerBehaviorType, towerActionContext, towerFormType, isLiteralNumberType, isNumberTower, isNumericOperatorType, numberTowerStoredCount, numberTowerValue, numberTowerMultiplier, numberTowerActionLevel } from "./towerIdentity";
+import { towerBehaviorType, towerActionContext, towerFormType, isLiteralNumberType, isNumberTower, isNumericOperatorType, numberTowerStoredCount, numberTowerValue, numberTowerMultiplier, numberTowerActionLevel, supportsTowerAutoUpgrade } from "./towerIdentity";
+import { projectileBankCapacity } from "./projectileBank";
 import { syncHealthBar } from "./towerHealth";
 import { facingWithEffects } from "./rules/reversal";
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
@@ -225,12 +226,13 @@ export function effectiveTowerLevel(tower: Tower) {
 }
 
 export function syncTowerLevelText(tower: Tower) {
-  if (towerFormType(tower) === "0" && tower.projectileBank) {
-    const count = tower.projectileBank.shots.length;
+  if (towerFormType(tower) === "0") {
+    const count = tower.projectileBank?.shots.length ?? 0;
+    if (tower.type === "0") tower.label.setText("0");
     tower.label.setY(-7).setFontSize(34);
-    const text = `${count}/128`;
-    tower.levelText.setVisible(true).setY(12).setText(text).setFontSize(9)
-      .setColor(tower.projectileBank.remaining ? "#8ce4ba" : count ? "#9fdcff" : "#8c8c8c");
+    const text = `${count}/${projectileBankCapacity(tower)}`;
+    tower.levelText.setVisible(true).setY(12).setText(text).setFontSize(Math.min(9, 60 / text.length))
+      .setColor(tower.projectileBank?.remaining ? "#8ce4ba" : count ? "#9fdcff" : "#8c8c8c");
     return;
   }
   const channels = Object.entries(tower.numberChannels ?? {}).filter(([, state]) => state.numberValue !== undefined);
@@ -320,19 +322,19 @@ export function isTrapArmed(tower: Tower, time: number) {
 }
 
 export function setTowerAutoUpgradeState(tower: Tower, enabled: boolean, active = true) {
-  tower.autoUpgrade = enabled && !isNumberTower(tower);
+  tower.autoUpgrade = enabled && supportsTowerAutoUpgrade(tower);
   syncTowerAutoUpgradeVisual(tower, active);
 }
 
 export function syncTowerAutoUpgradeVisual(tower: Tower, active: boolean) {
-  setVisibleIfChanged(tower.autoUpgradeBorder, tower.autoUpgrade && !isNumberTower(tower));
+  setVisibleIfChanged(tower.autoUpgradeBorder, tower.autoUpgrade && supportsTowerAutoUpgrade(tower));
   setAlphaIfChanged(tower.autoUpgradeBorder, active ? 0.95 : 0.28);
 }
 
 export function findAutoUpgradeTarget(towers: Tower[], cardId: CardId) {
   let target: Tower | undefined;
   for (const tower of towers) {
-    if (!tower.inPlay || !tower.autoUpgrade || tower.type !== cardId || isNumberTower(tower)) {
+    if (!tower.inPlay || !tower.autoUpgrade || tower.type !== cardId || !supportsTowerAutoUpgrade(tower)) {
       continue;
     }
 

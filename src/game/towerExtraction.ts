@@ -23,7 +23,7 @@ export class TowerExtractionPool {
   }
 
   plan(definition: Pick<CardDefinition, "cost"> & Partial<Pick<CardDefinition, "id">>): DeploymentBatch {
-    const usesPool = definition.id !== "0" && this.amount > 0 && definition.cost > 0 && definition.cost <= 999;
+    const usesPool = this.amount > 0 && definition.cost > 0 && definition.cost <= 999;
     const levels = usesPool ? Math.max(1, Math.floor(this.amount / definition.cost)) : 1;
     return { levels, cost: definition.cost * levels, usesPool };
   }

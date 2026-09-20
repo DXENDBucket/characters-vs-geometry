@@ -60,8 +60,9 @@ try {
     check(scene.projectiles.reduce((sum, p) => sum + p.damage * p.hitCount, 0) === 1200, "Circuit changed damage or armor judgments");
     updateTowerProjectiles(scene.projectileRuntime(), 0); check(bank.projectileBank.shots.length === 0, "Released shots re-entered the bank");
     bank.autoUpgrade = true; outlet.autoUpgrade = true;
-    check(findAutoUpgradeTarget(scene.towers, "0") === undefined && findAutoUpgradeTarget(scene.towers, "1") === undefined, "Saved auto-upgrade flags still upgrade numbers");
-    setTowerAutoUpgradeState(bank, true); check(!bank.autoUpgrade && !bank.autoUpgradeBorder.visible, "Numeric auto-upgrade enabled");
+    check(findAutoUpgradeTarget(scene.towers, "0") === bank && findAutoUpgradeTarget(scene.towers, "1") === undefined, "Bank auto-upgrade or outlet exclusion is wrong");
+    setTowerAutoUpgradeState(bank, true); check(bank.autoUpgrade && bank.autoUpgradeBorder.visible, "Bank auto-upgrade unavailable");
+    setTowerAutoUpgradeState(bank, false);
 
     const edgePoint = edgePosition(scene.edgeTowers[1]); scene.eraserMode = true; pointer(edgePoint.x, edgePoint.y);
     check(scene.edgeTowers.length === 1 && outlet.inPlay && bank.inPlay, "Erasing an edge removed an adjacent tower");
@@ -78,8 +79,19 @@ try {
     const pool = scene.extraction; pool.restore(6000);
     const preserved = bank.id; scene.cardStatesById.get("1").readyAt = 0;
     scene.submitBattleCommand({ type: "selectCard", id: "1" }); click(2);
-    check(bank.id === preserved && bank.type === "1" && bank.level === 1 && pool.value === 6000, "Zero-to-one conversion skipped 1 or consumed extraction pool");
-    check(scene.cardStatesById.get("1").readyAt === scene.cardTimeFor("1") + 10000, "Numeric cooldown is not 10 seconds");
+    check(bank.id === preserved && bank.type === "0" && bank.level === 1 && pool.value === 6000, "A 1 card converted the bank");
+    scene.numbers.capture(createTowerProjectile(scene, {
+      type: "bolt", x: source.x + 26, y: source.y, lane: 3, speed: 500, damage: 400, hitCount: 3,
+      damageType: "physical", splashRadius: 0, angleDegrees: 0, maxX: Infinity, sourceTower: source }));
+    const inventory = bank.projectileBank;
+    scene.submitBattleCommand({ type: "selectCard", id: "0" }); click(2);
+    check(bank.type === "0" && bank.level === 11 && pool.value === 0 && bank.projectileBank === inventory &&
+      inventory.shots.length === 1 && !inventory.remaining && bank.label.text === "0" && bank.levelText.text === "1/1408",
+      "Upgrading zero failed to retain inventory, expand capacity or consume extraction");
+    check(scene.cardStatesById.get("0").readyAt === scene.cardTimeFor("0") + 10000, "Bank upgrade cooldown is not 10 seconds");
+    setTowerAutoUpgradeState(bank, true); scene.cardStatesById.get("0").readyAt = 0;
+    scene.autoUpgradeEnabled = true; scene.autoUpgradeReserveChars = 0; scene.attemptAutoUpgrades();
+    check(bank.level === 12 && bank.levelText.text === "1/1536" && bank.type === "0", "Auto-upgrade changed zero's identity or lost capacity");
 
     start();
     const spell = place("S", 1), spellBank = place("0", 2); place("1", 3); link(1); link(2);
@@ -97,15 +109,19 @@ try {
       "A self-consuming skill still gets learned by zero");
 
     start();
-    const a = place("A", 1), zero = place("0", 2), exit = place("1", 3); link(1); link(2);
+    const a = place("A", 1), zero = place("0", 2, 3, 2), exit = place("1", 3); link(1); link(2);
     scene.startTowerVolley(a, scene.battleTime, scene.towerAttackInterval(a)); drain(); updateTowerProjectiles(scene.projectileRuntime(), 0);
+    for (let i = 0; i < 128; i++) scene.numbers.capture(createTowerProjectile(scene, {
+      type: "bolt", x: a.x + 26, y: a.y, lane: 3, speed: 500, damage: 400, damageType: "physical",
+      splashRadius: 0, angleDegrees: 0, maxX: Infinity, sourceTower: a }));
     const snapshot = JSON.parse(JSON.stringify(captureBattleSnapshot(scene.battleState())));
     validateSurvivalSave({ version: 1, levelId: "IF-1", wave: scene.wave, savedAt: 1, difficulty: scene.difficulty,
       unlimitedFirepower: false, selectedCards: ["A", "0", "1", "="], graph: snapshot });
     const run = delta => {
       start(); scene.applyBattleSave(restoreBattleSnapshot(scene, snapshot));
       const stored = scene.towers.find(t => t.type === "0");
-      check(scene.edgeTowers.length === 2 && stored.projectileBank.shots.length === 1, "Save lost edges or bank");
+      check(scene.edgeTowers.length === 2 && stored.level === 2 && stored.projectileBank.shots.length === 129 &&
+        stored.label.text === "0" && stored.levelText.text === "129/256", "Save lost upgraded bank identity, capacity or stock above 128");
       scene.battlePaused = false; scene.submitBattleCommand({ type: "selectCard", id: "A" }); click(2);
       while (scene.simulation.tick < 90) scene.update(0, delta);
       return scene.battleChecksum();

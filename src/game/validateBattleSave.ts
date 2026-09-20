@@ -155,7 +155,8 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
         if (value.nextInterceptionAt !== undefined) require(finite(value.nextInterceptionAt) && value.nextInterceptionAt >= 0);
         if (value.projectileBank !== undefined) {
           const bank = value.projectileBank;
-          require(record(bank) && Array.isArray(bank.shots) && bank.shots.length <= 128 &&
+          // Temporary levels can expire while a full bank retains its existing ammunition.
+          require(record(bank) && Array.isArray(bank.shots) &&
             Number.isSafeInteger(bank.remaining) && (bank.remaining as number) >= 0 && (bank.remaining as number) <= bank.shots.length &&
             finite(bank.nextAt) && Number.isSafeInteger(bank.outletIndex) && (bank.outletIndex as number) >= 0 &&
             array(bank.shots, shot => record(shot) && integrity(shot) && ["bolt", "star", "shell", "hash", "dollar"].includes(shot.type as string) &&

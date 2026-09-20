@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { canUpgradeTowerWithCard, isNumberTower, towerBehaviorType, towerFormType } from "../game/towerIdentity";
+import { canUpgradeTowerWithCard, supportsTowerAutoUpgrade, towerBehaviorType, towerFormType } from "../game/towerIdentity";
 import { syncTowerTopology, inFriendlyRange, towerCell, physicalTowerCell } from "../game/towerTopology";
 import { TowerTopologyController } from "../game/towerTopologyController";
 import { syncFriendlyRangeVisual, syncTowerAutoUpgradeVisual, towerFacingDirection } from "../game/towers";
@@ -768,7 +768,7 @@ export class GameScene extends Phaser.Scene {
         return;
       }
 
-      if (isNumberTower(existingTower)) return;
+      if (!supportsTowerAutoUpgrade(existingTower)) return;
       const nextState = !existingTower.autoUpgrade;
       if (this.isShiftPointer(pointer)) {
         for (const tower of this.towers) {
@@ -859,7 +859,7 @@ export class GameScene extends Phaser.Scene {
     return (
       Boolean(tower && canUpgradeTowerWithCard(tower, definition.id)) &&
       Boolean(cardState && this.cardTimeFor(definition.id) >= cardState.readyAt) &&
-      Boolean(tower && effectiveChars >= this.deployment.plan(definition, tower.lane, tower.column).cost)
+      Boolean(tower && effectiveChars >= this.deployment.plan(definition).cost)
     );
   }
 
@@ -2747,7 +2747,6 @@ export class GameScene extends Phaser.Scene {
       tower.inPlay = false; tower.body.destroy(); return false;
     });
     for (const tower of this.towers) {
-      if (tower.type === "0" && tower.level > 1) { tower.type = "1"; tower.level -= 1; }
       delete tower.numberMemory; delete tower.numberChannels; delete tower.numberValue; delete tower.equationLevel;
       if (tower.imitatedSkills?.length) { tower.skills = {}; tower.flyingUntil = 0; }
       delete tower.imitatedSkills; delete tower.imitatedSkillLevels;
