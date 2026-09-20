@@ -38,6 +38,11 @@ export function isLiteralNumberType(type: CardId) { return type === "0" || type 
 
 export function isNumericOperatorType(type: CardId) { return type === "+" || type === "-"; }
 
+export function canUpgradeTowerWithCard(tower: Pick<Tower, "type">, cardId: CardId) {
+  if (tower.type === "0") return cardId === "1";
+  return tower.type === cardId;
+}
+
 export function numberTowerValue(tower: Pick<Tower, "type" | "copiedType" | "level" | "numberValue">, state: NumberTowerState = tower) {
   return Math.max(0, Math.floor(state.numberValue ?? tower.level - (towerFormType(tower) === "0" ? 1 : 0)));
 }

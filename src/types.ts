@@ -115,7 +115,7 @@ export type BossSkillName =
   | "heartbeatBeta"
   | "leap";
 export type ProjectileKind = "bolt" | "shell" | "star" | "hash" | "dollar" | "chevron";
-export type UnitCategory = "production" | "attack" | "defense" | "function" | "healing";
+export type UnitCategory = "production" | "attack" | "defense" | "function" | "healing" | "special";
 export type DamageType = "physical" | "magic" | "true";
 export type StatusEffectName =
   | "stasis"
@@ -256,6 +256,7 @@ export interface NumberTowerState {
 }
 
 export interface Tower extends NumberTowerState {
+  projectileBank?: { shots: StoredTowerShot[]; remaining: number; nextAt: number; outletIndex: number };
   topologyTarget?: { lane: number; column: number };
   topologyOrder?: number;
   numberChannels?: Partial<Record<EquationAxis, NumberTowerState>>;
@@ -402,6 +403,7 @@ export interface Enemy {
 }
 
 export interface Projectile {
+  circuitChecked?: boolean;
   sourceBehaviorType?: CardId;
   lastGatheredAt?: number;
   hitCount?: number;
@@ -425,6 +427,28 @@ export interface Projectile {
   acceleration?: number;
   maxSpeed?: number;
   body: Phaser.GameObjects.Shape | Phaser.GameObjects.Text;
+}
+
+export interface EdgeTower {
+  type: "=";
+  axis: "horizontal" | "vertical";
+  lane: number;
+  column: number;
+}
+
+export interface StoredTowerShot {
+  type: Exclude<ProjectileKind, "chevron">;
+  sourceTower?: Tower;
+  sourceBehaviorType?: CardId;
+  hitCount: number;
+  vx: number;
+  vy: number;
+  damage: number;
+  damageType: DamageType;
+  splashRadius: number;
+  debuff?: StatusEffectName;
+  debuffDuration?: number;
+  remainingRange: number;
 }
 
 export interface EnemyProjectile {

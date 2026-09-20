@@ -1,4 +1,4 @@
-import type { CardId, CubeBoss, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower, WaveTracker } from "../types";
+import type { CardId, CubeBoss, EdgeTower, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower, WaveTracker } from "../types";
 import type { ScheduledBattleAction } from "./battleActions";
 import type { LoadoutReselection } from "./loadoutReselection";
 import type { TowerShifterController } from "./towerShifter";
@@ -7,6 +7,7 @@ import type { SpellMortarFlight } from "./towerSkills";
 import type { BattleClockState } from "./battleSimulation";
 
 export interface BattleSaveState {
+  edgeTowers?: EdgeTower[];
   simulation?: { version: number; clock: BattleClockState; randomState: number; mirrorNextGroupId: number };
   bossPhaseIndex?: number;
   bossPhaseStartedAt?: number;

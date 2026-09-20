@@ -48,6 +48,7 @@ import { towerDamageType, towerFacingDirection } from "./towers";
 import { segmentEnemyHitTime, type ProjectileMotionFrame } from "./projectileMotion";
 
 export interface ProjectileRuntime {
+  routeProjectile?: (projectile: Projectile) => boolean;
   onTowerAction?: TowerActionListener;
   projectileMotion?: ProjectileMotionFrame;
   scene: Phaser.Scene;
@@ -94,6 +95,10 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
   };
 
   forEachInitial(runtime.projectiles, (projectile) => {
+    if (runtime.routeProjectile?.(projectile)) {
+      Phaser.Utils.Array.Remove(runtime.projectiles, projectile);
+      return;
+    }
     if (projectile.type === "chevron") {
       updateHomingProjectile(runtime, projectile, seconds);
     }

@@ -5,16 +5,16 @@ import type { CardDefinition, CardId } from "../types";
 
 export const cardDefinitions: CardDefinition[] = [
   {
-    id: "0", category: "function", cost: 100, cooldown: 2_000,
-    maxHp: 1_200, armor: 150, magicResistance: 0, attackPower: 0, stats: "STORE / RELEASE"
+    id: "0", category: "function", cost: 600, cooldown: 10_000,
+    maxHp: 1_200, armor: 150, magicResistance: 0, attackPower: 0, stats: "STORE 128"
   },
   {
     id: "-", category: "function", cost: 1_000, cooldown: 30_000,
-    maxHp: 1_200, armor: 150, magicResistance: 0, attackPower: 0, stats: "ABS DIFFERENCE"
+    maxHp: 1_200, armor: 150, magicResistance: 0, attackPower: 0, stats: "/"
   },
   {
     id: "+", category: "function", cost: 1_000, cooldown: 30_000,
-    maxHp: 1_200, armor: 150, magicResistance: 0, attackPower: 0, stats: "SHARED COUNTS"
+    maxHp: 1_200, armor: 150, magicResistance: 0, attackPower: 0, stats: "/"
   },
   {
     id: "&", category: "function", cost: 4_200, cooldown: 120_000,
@@ -22,25 +22,25 @@ export const cardDefinitions: CardDefinition[] = [
   },
   {
     id: "=",
-    category: "function",
+    category: "special",
     cost: 1_000,
     cooldown: 30_000,
-    maxHp: 1_200,
-    armor: 150,
+    maxHp: 0,
+    armor: 0,
     magicResistance: 0,
     attackPower: 0,
-    stats: "LINK MEMORY"
+    stats: "EDGE LINK"
   },
   {
     id: "1",
     category: "function",
-    cost: 100,
-    cooldown: 2_000,
+    cost: 600,
+    cooldown: 10_000,
     maxHp: 1_200,
     armor: 150,
     magicResistance: 0,
     attackPower: 0,
-    stats: "IMITATE / n"
+    stats: "OUTLET"
   },
   {
     id: "@",

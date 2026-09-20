@@ -33,6 +33,12 @@ export function createUnitBorder(
   border.fillStyle(palette.black, 1);
   border.lineStyle(lineWidth, palette.white, 1);
 
+  if (category === "special") {
+    border.lineBetween(-radius, -radius, -radius, radius);
+    border.lineBetween(radius, -radius, radius, radius);
+    return border;
+  }
+
   if (category === "production") {
     border.fillCircle(0, 0, radius);
     border.strokeCircle(0, 0, radius);

@@ -43,74 +43,6 @@ try {
     const attack = tower => scene.startTowerVolley(tower, scene.battleTime, scene.towerAttackInterval(tower));
 
     start();
-    const number = place("1", 0, 3, 2); place("=", 1); const a = place("A", 2); place("+", 3); const e = place("E", 4);
-    place("+", 5); const cannon = place("C", 6);
-    attack(a); flush(); check(!scene.projectiles.some(p => p.sourceTower === number), "Plus acted before n actions");
-    check(number.numberMemory.length === 3 && number.numberMemory.every(entry => entry.count === 1),
-      "A must advance all A/C/E counters exactly once through the full plus chain");
-    attack(e); flush(); flush();
-    check(scene.projectiles.filter(p => p.sourceTower === number).length === 10, "Plus must copy all level-2 A/C/E volleys");
-    check(scene.projectiles.filter(p => p.sourceTower === a).length === 1 && scene.projectiles.filter(p => p.sourceTower === e).length === 3 &&
-      !scene.projectiles.some(p => p.sourceTower === cannon),
-      "Plus caused physical source towers to act again");
-
-    start();
-    const numericSource = place("A", 0); place("=", 1);
-    const three = place("1", 2, 3, 3), numericPlus = place("+", 3), five = place("1", 4, 3, 5);
-    check(numericPlus.numberValue === 8 && numericPlus.label.text === "+" && numericPlus.levelText.text === "=8",
-      "Numeric plus result was not displayed");
-    check(three.label.text === "3" && five.label.text === "5" && !three.levelText.visible && !five.levelText.visible,
-      "Numeric addition changed operand labels");
-    for (let i = 0; i < 7; i++) { attack(numericSource); flush(); }
-    check(!scene.projectiles.some(p => p.sourceTower === numericPlus), "Numeric plus imitated before 8 source actions");
-    attack(numericSource); flush(); flush();
-    const plusShots = scene.projectiles.filter(p => p.sourceTower === numericPlus);
-    check(plusShots.length === 5 && plusShots.reduce((sum, p) => sum + (p.hitCount ?? 1), 0) === 8,
-      "Numeric plus did not execute a level-8 A volley");
-    check(scene.projectiles.filter(p => p.sourceTower === three).length === 6 && scene.projectiles.filter(p => p.sourceTower === five).length === 5,
-      "Original numbers no longer act independently");
-    place("+", 5); place("1", 6, 3, 2);
-    check(numericPlus.numberValue === 8 && scene.occupied.get("3:5").numberValue === 7, "Numeric plus chain did not use adjacent pairs");
-
-    start();
-    const scaledSource = place("A", 0), upgradedEquals = place("=", 1), nine = place("1", 2, 3, 9);
-    const beforeUpgrade = scene.effectiveChars();
-    scene.submitBattleCommand({ type: "selectCard", id: "=" }); click(1);
-    check(upgradedEquals.level === 2 && Math.abs(scene.effectiveChars() - beforeUpgrade + 1000) < 1e-6 && nine.equationLevel === 2,
-      "Manual equals upgrade did not update the equation multiplier");
-    check(nine.label.text === "9" && nine.levelText.visible && nine.levelText.text === "L18", "Number action level is not displayed");
-    for (let i = 0; i < 8; i++) { attack(scaledSource); flush(); }
-    check(!scene.projectiles.some(p => p.sourceTower === nine), "Equals multiplier changed the action interval");
-    attack(scaledSource); flush(); flush();
-    check(scene.projectiles.filter(p => p.sourceTower === nine).reduce((sum, p) => sum + (p.hitCount ?? 1), 0) === 18,
-      "Level-2 equals and number 9 did not produce 18 attack judgments");
-    const upgradedPlus = place("+", 3); place("1", 4);
-    scene.submitBattleCommand({ type: "selectCard", id: "+" }); click(3);
-    check(upgradedPlus.level === 2 && upgradedPlus.numberValue === 10 && upgradedPlus.levelText.text === "10x3",
-      "Plus upgrade must add its level minus one to the equals multiplier");
-    for (let i = 0; i < 9; i++) { attack(scaledSource); flush(); }
-    check(!scene.projectiles.some(p => p.sourceTower === upgradedPlus), "Plus upgrade changed the count interval");
-    attack(scaledSource); flush(); flush();
-    check(scene.projectiles.filter(p => p.sourceTower === upgradedPlus).reduce((sum, p) => sum + (p.hitCount ?? 1), 0) === volleyShotCount("A", 30),
-      "Upgraded numeric plus did not use level 30 for its attack");
-    removeTower(scene.unitLifecycleRuntime(), upgradedEquals); scene.updateLevelAuras();
-    check(nine.equationLevel === undefined && !nine.levelText.visible && upgradedPlus.levelText.text === "10x2",
-      "Removing equals failed to refresh numbers and plus multipliers");
-
-    start();
-    const skillSource = place("w", 0); place("=", 1); const left = place("1", 2);
-    const skillPlus = place("+", 3); place("1", 4);
-    for (let i = 0; i < 2; i++) {
-      skillSource.skills.airPatrol = { sp: 10, spBuffer: 0, activeUntil: 0 };
-      scene.towerSkills.activateAirPatrolTower(skillSource); flush();
-    }
-    check(skillPlus.skills.airPatrol?.activeUntil > scene.battleTime, "Numeric plus failed to imitate an active skill");
-    removeTower(scene.unitLifecycleRuntime(), left); scene.updateLevelAuras();
-    check(skillPlus.numberValue === undefined && skillPlus.levelText.text === "1", "Broken numeric plus kept its computed value");
-    scene.battleTime += 7000; scene.towerSkills.update(7, scene.battleTime);
-    check(skillPlus.skills.airPatrol.activeUntil === 0, "Broken numeric plus left an imitated skill running forever");
-
-    start();
     const healer = place("e", 2), remote = place("A", 10, 6);
     scene.submitBattleCommand({ type: "selectCard", id: "&" }); click(3);
     const swap = scene.occupied.get("3:3");
@@ -160,41 +92,24 @@ try {
     scene.towerPush.begin(pusher); click(10, 6);
     check(box.column === 4 && box.lane === 3 && pushSwap.column === 3, "# did not push through logical neighboring cells");
 
-    start();
-    const exploding = place("i", 2); place("+", 3); const ordinary = place("A", 4); place("=", 5); const n = place("1", 6);
-    attack(ordinary); flush();
-    check(n.inPlay && exploding.inPlay && n.numberMemory.some(entry => entry.type === "i"), "Plus consumed the copied explosion's source or number");
-    scene.triggerShockTower(exploding); flush();
-    check(scene.projectiles.filter(p => p.sourceTower === n).length === 2, "A was not copied when i acted through +");
-
     start("IF-1");
     const savedSwap = place("&", 3); place("e", 2); place("A", 10, 6); link(savedSwap, 10, 6);
-    place("1", 0, 0); place("=", 1, 0); const savedA = place("A", 2, 0); place("+", 3, 0); place("E", 4, 0);
-    const savedNumericA = place("A", 0, 1); place("=", 1, 1, 2); place("1", 2, 1, 3);
-    place("+", 3, 1, 3); place("1", 4, 1, 5); place("+", 5, 1, 4); place("1", 6, 1, 2);
-    for (let i = 0; i < 9; i++) attack(savedNumericA);
-    attack(savedA);
+    const savedA = place("A", 0, 0); attack(savedA);
     const snapshot = JSON.parse(JSON.stringify(captureBattleSnapshot(scene.battleState())));
     validateSurvivalSave({ version: 1, levelId: "IF-1", wave: scene.wave, savedAt: 1, difficulty: scene.difficulty,
       unlimitedFirepower: false, selectedCards: ["&", "+", "=", "1", "A", "e", "E"], graph: snapshot });
     const run = step => {
       start("IF-1"); scene.applyBattleSave(restoreBattleSnapshot(scene, snapshot));
       check(towerCell(scene.occupied.get("6:10")).column === 3, "Restored topology missing while paused");
-      check(scene.occupied.get("1:3").numberValue === 8 && scene.occupied.get("1:5").numberMemory[0].count === 2,
-        "Saved numeric plus sum or action count was lost");
-      check(scene.occupied.get("1:2").equationLevel === 2 && scene.occupied.get("1:3").levelText.text === "8x4" &&
-        scene.occupied.get("1:5").levelText.text === "7x5", "Saved equation multipliers were not restored");
       scene.battlePaused = false;
       while (scene.simulation.tick < 120) scene.update(0, step);
       return scene.battleChecksum();
     };
-    const hash = run(1000 / 60); check(run(1000 / 144) === hash, "Topology/plus save determinism mismatch");
+    const hash = run(1000 / 60); check(run(1000 / 144) === hash, "Topology save determinism mismatch");
 
     start();
     place("e", 3); const finalSwap = place("&", 4); place("A", 10, 5); link(finalSwap, 10, 5);
-    place("g", 9, 5); place("1", 0, 0); place("=", 1, 0); place("A", 2, 0); place("+", 3, 0); place("E", 4, 0);
-    place("A", 0, 1); place("=", 1, 1, 2); place("1", 2, 1, 3); place("+", 3, 1, 3);
-    place("1", 4, 1, 5); place("+", 5, 1, 4); place("1", 6, 1, 2);
+    place("g", 9, 5);
     scene.battlePaused = true; scene.updateHud(); scene.updateCards(); game.loop.start(game.step.bind(game));
     return { hash };
   });

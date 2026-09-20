@@ -709,9 +709,9 @@ function towerLines(card: CardDefinition) {
   const firstLine = statLine([
     [t("label.cost"), card.cost],
     [t("label.cd"), seconds(card.cooldown)],
-    [t("label.hp"), card.maxHp],
-    [t("label.armor"), card.armor ?? 0],
-    [t("label.mr"), card.magicResistance ?? 0]
+    [t("label.hp"), card.category === "special" ? "/" : card.maxHp],
+    [t("label.armor"), card.category === "special" ? "/" : card.armor ?? 0],
+    [t("label.mr"), card.category === "special" ? "/" : card.magicResistance ?? 0]
   ]);
   const effectParts = [card.stats];
   if (card.attackSpeed !== undefined) {
@@ -733,18 +733,18 @@ function towerLines(card: CardDefinition) {
 function towerDescription(id: CardId) {
   const zh = isZh();
   const descriptions: Record<CardId, string> = {
-    "0": zh ? "可单独携带的数字塔。数字为 0 时按种类分别蓄存已记录源塔的行动，不自动模仿；点击后各模仿一次，分别以该种类的蓄存次数乘等式倍率作为有效等级，并清空计数。升级使数字加 1，之后按普通数字规则行动。与数字 1 共用等式连接、记忆及费用限制。选中自身卡牌时点击优先升级。"
-      : "Separately selectable number tower. At zero, stores actions per learned kind without automatic imitation. Click to imitate each stored kind once at its own stored count times the equation multiplier, then clear counts. Upgrades increase the number and enable normal periodic imitation. Uses the same equation, memory and cost rules as 1. Selecting its own card gives upgrading priority.",
-    "-": zh ? "数字减法连接器。连接两侧数字并以绝对差作为自己的数字，原数字正常生效。3-3 得到 0，分别蓄存每种源塔的行动，点击释放。有效等级倍率为体系最高等号等级 + 自身等级 - 1。横纵分别计算相邻数字，独立保存记忆、计数和倍率，交叉本身不合并体系。不连接普通塔或相邻运算符。"
-      : "Numeric subtraction connector. Acts as the absolute difference of its opposite numbers; operands keep working. 3-3 stores actions per kind until clicked. Multiplier = highest equals level + own level - 1. Horizontal and vertical pairs have independent memories, counters and multipliers; crossing alone does not merge systems. Excludes ordinary towers and adjacent operators.",
-    "+": zh ? "等式加法连接器。A+C+E 中，任一源塔行动都为三种记忆各计数一次，不让实体源塔额外行动。连接数字时只取相邻两侧之和：3+5+2 的两个 + 分别为 8 和 7，原数字独立生效。结果为 0 时蓄存行动并点击释放。有效等级倍率为体系最高等号等级 + 自身等级 - 1。横纵分别生效，独立保存记忆、计数和倍率，交叉本身不合并体系。数字不能与普通塔相加；操作数须基础费用不超过 999，相邻运算符中断连接。"
-      : "In A+C+E, each source action advances all three learned counters without extra source actions. Numeric + uses its adjacent pair: 3+5+2 produces 8 and 7; operands remain independent. Zero stores actions until clicked. Multiplier = highest equals level + own level - 1. Horizontal and vertical channels have independent memories, counters and multipliers; crossing alone does not merge systems. Numbers cannot add to ordinary towers. Operands cost at most 999; adjacent operators break chains.",
+    "0": zh ? "弹幕蓄存器。经网格边上的 = 与源塔和数字出口连通后，截存源塔实际发出的普通弹幕，上限 128 颗，满后弹幕正常飞出。点击释放点击时已存的弹幕，多个出口轮流分配，不复制。断线保留库存并暂停释放，摧毁后库存消失。不处理追踪弹、激光、迫击炮、技能或生产。原伤害、属性、多判次数和剩余射程不变。只能用 1 卡变为出口 1，转换清空库存。数字塔不自动升级；部署 0 和转换不使用提取池。"
+      : "Projectile bank. Connect to sources and numeric outlets using edge = links. Stores up to 128 real ordinary shots; overflow flies normally. Click to discharge the current stock, rotating between outlets without duplication. Disconnecting pauses discharge and retains stock; destruction loses it. Excludes homing shots, lasers, mortars, skills and production. Keeps damage, hit counts and remaining range. Only a 1 card converts it into outlet 1, clearing stock. No auto-upgrades; zero placement/conversion ignores extraction.",
+    "-": zh ? "暂不参与弹幕加工原型。旧的数字相减与行动模仿已停用，等待后续重做。"
+      : "Inactive in the projectile-circuit prototype. Previous subtraction and action imitation are retired pending redesign.",
+    "+": zh ? "暂不参与弹幕加工原型。旧的行动计数共享与数字相加已停用，等待后续重做。"
+      : "Inactive in the projectile-circuit prototype. Previous shared action counts and numeric addition are retired pending redesign.",
     "&": zh ? "格子拓扑交换。部署后选择另一个格子，可为空格或有塔的格子。交换自身所在格与选中格在塔之间计算中的逻辑位置，影响治疗、光环、连接、镜像、复制和生成塔。实际位置、敌人阻挡、对敌索敌及弹幕不变。多个交换按建立顺序叠加；本塔消失后移除其交换。范围边框同步显示远端格和缺口。右键可取消选格，之后点击本塔继续。"
       : "Cell topology swap. After deployment select a different empty or occupied cell. Exchanges its cell and the selected cell for tower-to-tower healing, auras, networks, mirrors, copying and summons. Physical positions, enemy blocking, offensive targeting and projectiles are unchanged. Swaps compose in activation order and are removed when their & disappears. Range outlines show remote cells and holes. Right-click cancels selection; click the unconfigured & to resume.",
-    "=": zh ? "记忆连接器。分别连接左右、上下相邻塔。数字塔记录整个等式网络内基础费用不超过 999 的源塔，例如 A=E=1 会记录 A 和 E。体系内最高等号等级决定模仿基础倍率：2 级等号让数字 9 按 18 有效等级行动，仍每 9 次行动模仿一次。没有有效等号时倍率为 1。可与加号混用，高价塔和相邻运算符中断连接。共享记忆，各自计数；断开后保留记忆但按当前体系重新计算倍率。"
-      : "Links opposite horizontal/vertical neighbors. Numbers learn all sources costing at most 999 across the equation, e.g. A=E=1 learns A and E. The highest equals level sets the base multiplier: level-2 equals lets number 9 imitate at level 18, still every 9 actions. Defaults to 1 without a valid equals. Supports +; expensive operands and adjacent operators break connections. Memories persist after disconnection, but the multiplier follows the current network.",
-    "1": zh ? "数字塔。升级只增加数字，不提升自身面板。每种已记录源塔分别计数，每 n 次行动模仿一次，有效等级为 n 乘以当前体系的最高等号等级（无则为 1）。数字、等号和加号倍率使用永久等级。计入整轮攻击、技能、生产和一次性效果；模仿不再次触发计数。模仿自爆不消失，其他自损照常；不继承常驻光环。定点技能沿用原目标，推箱子沿用原方向。"
-      : "Upgrades increase its number, not its panel. Each learned kind counts recorded sources separately. Every n actions it imitates at level n times the current equation's highest equals level (default 1). Numbers and operator multipliers use permanent levels. Counts full attack cycles, skills, production and one-shot effects without recursive counting. Copied explosions retain the tower; other self-damage applies. No passive auras. Targeted skills reuse the target and pushes reuse the direction.",
+    "=": zh ? "特殊型边连接件。部署在内部网格线上，只连接该边两侧格子的塔，不占普通格子；没有生命、阻挡或受击，不参与治疗、镜像、升级和移位器移动。橡皮擦点击该边移除。连接基础费用不超过 999 的塔，网络需有蓄存器 0 和数字出口才会截存弹幕。浅绿色表示网络完整。不再学习或模仿任何塔的行动。"
+      : "Special edge connector. Place on an internal grid edge to link its two adjacent cells without occupying either cell. No HP, blocking, damage, healing, mirroring, upgrades or shifter movement. Erase by clicking the edge. Connects towers costing at most 999; interception needs both a zero bank and a numeric outlet. Mint links indicate a complete circuit. No learned actions or imitation.",
+    "1": zh ? "弹幕出口。接收同一网络蓄存器 0 的释放，将原弹幕从自身位置按自身朝向射出，保留散射角度、伤害、属性、多判次数和剩余射程。每 0.04 秒一批，每批最多射出与数字相同数量的弹幕；只改变分批，不增加弹幕或伤害。多个出口轮流接收。升级只增加数字，不提升自身面板；不参与自动升级。"
+      : "Projectile outlet. Discharges connected zero banks from its position and facing, retaining spread, damage, hit counts and remaining range. Each 0.04-second batch emits up to its number of shots; grouping never creates shots or damage. Multiple outlets take turns. Manual upgrades increase the number, not the panel. No auto-upgrades.",
     "@": zh ? "持续复制朝向前方一格的字符塔，包含 ASCII 扩展字符：基础费用须不超过 999，不能是 b、t 等快速生效卡。复制其基础面板、机制、升级规则和外框，但字符保持 @，使用自身等级和朝向，不继承目标的临时加成或当前技力。前方没有合格目标时无额外能力。切换时保留血量比例，重新开始攻击或技能准备。" : "Continuously copies the character tower one cell ahead, including ASCII Expansion characters, if its base cost is at most 999. Excludes instant effect cards such as b/t. Copies base stats, behavior, upgrade rules and border, but retains @, its own level and facing. Does not inherit target buffs or current SP. No eligible target means no extra ability. Switching preserves HP ratio and restarts attack/skill preparation.",
     "#": zh ? "推箱子。初始 0 技力，上限 30，每秒恢复 1；满技力后点击，再选择上下左右一个有塔的相邻格。消耗 30 技力，将该方向连续相接的塔整体推动一格，自身不动，移动持续约 0.5 秒。越界或被推入封禁格的塔按擦除处理。右键取消选向，无效选择不消耗技力。" : "Box Push. Starts at 0 SP, recovers 1 SP/s up to 30. Click when ready, then select a cardinally adjacent occupied cell. Spends 30 SP to push the contiguous line of towers one cell over 0.5s without moving itself. Towers pushed off the board or into sealed cells are erased. Right-click cancels targeting; invalid selections cost no SP.",
     u: zh ? "连结防御塔。与上下左右接壤的塔共享生命，相邻或共用邻塔的小 u 会合并为同一网络。网络生命上限为所有成员自身生命上限之和，除以小 u 的实际数量（不计等级）。伤害按被击中塔的抗性结算后扣除共享生命，治疗补充共享池；共享生命耗尽时所有成员死亡。加入、退出与拆分保持生命比例，已有网络合并按原网络生命上限加权平均。每座塔显示相同的共享生命比例。" : "Links cardinally adjacent towers into a shared health network. Adjacent u towers or those sharing a neighbor merge networks. Shared max HP is the sum of members' own max HP divided by the number of u towers, not their levels. Hits use the struck tower's defenses; damage and healing affect the pool. All members die when it empties. Joining, leaving and splitting preserve HP ratio; merging existing networks uses their previous max-HP-weighted ratio. All members display the same HP ratio.",
@@ -804,12 +804,11 @@ function towerDescription(id: CardId) {
 }
 
 function towerUpgradeText(id: CardId) {
-  if (id === "0" || id === "1") return isZh() ? "数字 +1；0 升级后变为 1。非零时每 n 次源塔行动模仿一次，有效等级为 n × 体系最高等号等级，不受临时等级影响。"
-    : "Number +1. Imitates every n actions at level n times the highest equals level, ignoring temporary levels.";
-  if (id === "=") return isZh() ? "等级 +1；体系内最高等号等级作为数字模仿的基础倍率，不叠加多个等号。"
-    : "Level +1. The highest equals level sets the equation's base imitation multiplier; equals levels do not stack.";
-  if (id === "+" || id === "-") return isZh() ? "等级 +1；连接数字时，自身模仿倍率为体系最高等号等级 + 自身等级 - 1，不改变行动计数间隔。"
-    : "Level +1. Numeric imitation multiplier = highest equals level + own level - 1; action-count interval is unchanged.";
+  if (id === "0") return isZh() ? "使用数字 1 卡变为出口 1，清空库存；不能叠放 0 或自动升级。"
+    : "A 1 card converts zero into outlet 1 and clears stock. No stacking 0 or auto-upgrades.";
+  if (id === "1") return isZh() ? "手动升级数字 +1，每批弹幕数量上限 +1，不改变弹幕总数或伤害；不参与自动升级。"
+    : "Manual number +1, allowing one more shot per batch without changing total shots or damage. No auto-upgrades.";
+  if (id === "=" || id === "+" || id === "-") return "/";
   if (id === "@") {
     return isZh() ? "复制对象的升级规则按 @ 自身有效等级计算，不继承对方等级；升级仍使用 @ 卡牌和费用。" : "Uses the copied tower's upgrade rules at @'s own effective level, not the target's level. Upgrades still use the @ card and price.";
   }
@@ -902,7 +901,8 @@ function categoryName(category: UnitCategory) {
     attack: zh ? "攻击" : "Attack",
     defense: zh ? "防御" : "Defense",
     function: zh ? "功能" : "Function",
-    healing: zh ? "治疗" : "Healing"
+    healing: zh ? "治疗" : "Healing",
+    special: zh ? "特殊" : "Special"
   };
   return names[category];
 }

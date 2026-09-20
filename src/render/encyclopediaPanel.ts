@@ -773,10 +773,10 @@ export class EncyclopediaPanel {
     if (entry.card) {
       const card = entry.card;
       return [
-        row(t("label.hp"), this.statValue(card.maxHp, "hp")),
-        row(t("label.armor"), this.statValue(card.armor ?? 0, "armor")),
-        row(t("label.mr"), this.statValue(card.magicResistance ?? 0, "mr")),
-        row(t("label.atk"), this.damageValue(card.attackPower, card.damageType)),
+        row(t("label.hp"), card.category === "special" ? EMPTY_TABLE_VALUE : this.statValue(card.maxHp, "hp")),
+        row(t("label.armor"), card.category === "special" ? EMPTY_TABLE_VALUE : this.statValue(card.armor ?? 0, "armor")),
+        row(t("label.mr"), card.category === "special" ? EMPTY_TABLE_VALUE : this.statValue(card.magicResistance ?? 0, "mr")),
+        row(t("label.atk"), card.category === "special" ? EMPTY_TABLE_VALUE : this.damageValue(card.attackPower, card.damageType)),
         row(isZhLabel("攻速", "AS"), this.statValue(card.attackSpeed, "attackSpeed")),
         row(t("label.speed"), EMPTY_TABLE_VALUE),
         row(isZhLabel("范围", "RANGE"), this.statValue(card.rangeCells, "range")),

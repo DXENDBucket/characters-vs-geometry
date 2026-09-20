@@ -37,6 +37,18 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
     (entry.storedEvent === undefined || towerEvent(entry.storedEvent)) &&
     array(entry.sourceIds, id => typeof id === "string" && /^tower:\d+$/.test(id)));
   require(record(state));
+  if (state.edgeTowers !== undefined) {
+    const edgeKeys = new Set<string>();
+    require(array(state.edgeTowers, edge => {
+      if (!record(edge) || edge.type !== "=" || !["horizontal", "vertical"].includes(edge.axis as string) ||
+        !Number.isInteger(edge.lane) || !Number.isInteger(edge.column)) return false;
+      const lane = edge.lane as number, column = edge.column as number;
+      const key = `${edge.axis}:${lane}:${column}`;
+      if (edgeKeys.has(key)) return false;
+      edgeKeys.add(key);
+      return lane >= 0 && lane < (edge.axis === "vertical" ? 6 : 7) && column >= 0 && column < (edge.axis === "horizontal" ? 12 : 13);
+    }));
+  }
   if (state.simulation !== undefined) {
     const simulation = state.simulation;
     require(record(simulation) && simulation.version === BATTLE_RULES_VERSION && validBattleClock(simulation.clock) &&
@@ -131,6 +143,22 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
         require(["laser", "mortar", "wings"].includes(value.bossCompanionActionPhase as string));
       }
       if (kind === "tower") {
+        if (value.projectileBank !== undefined) {
+          const bank = value.projectileBank;
+          require(record(bank) && Array.isArray(bank.shots) && bank.shots.length <= 128 &&
+            Number.isSafeInteger(bank.remaining) && (bank.remaining as number) >= 0 && (bank.remaining as number) <= bank.shots.length &&
+            finite(bank.nextAt) && Number.isSafeInteger(bank.outletIndex) && (bank.outletIndex as number) >= 0 &&
+            array(bank.shots, shot => record(shot) && ["bolt", "star", "shell", "hash", "dollar"].includes(shot.type as string) &&
+              ["physical", "magic", "true"].includes(shot.damageType as string) &&
+              ["vx", "vy", "damage", "splashRadius"].every(key => finite(shot[key])) &&
+              (shot.vx as number) > 0 && (shot.damage as number) >= 0 && (shot.splashRadius as number) >= 0 &&
+              Number.isSafeInteger(shot.hitCount) && (shot.hitCount as number) >= 1 &&
+              timestamp(shot.remainingRange) && (shot.remainingRange as number) >= 0 &&
+              (shot.sourceTower === undefined || member("tower")(shot.sourceTower)) &&
+              (shot.sourceBehaviorType === undefined || cardDefinitions.some(card => card.id === shot.sourceBehaviorType)) &&
+              (shot.debuff === undefined || typeof shot.debuff === "string") &&
+              (shot.debuffDuration === undefined || finite(shot.debuffDuration) && shot.debuffDuration >= 0)));
+        }
         if (value.numberValue !== undefined) require(Number.isSafeInteger(value.numberValue) && (value.numberValue as number) >= 0);
         if (value.equationLevel !== undefined) require(Number.isSafeInteger(value.equationLevel) && (value.equationLevel as number) >= 1);
         if (value.topologyTarget !== undefined) {

@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { towerBehaviorType } from "./towerIdentity";
+import { canUpgradeTowerWithCard, numberTowerValue, towerBehaviorType } from "./towerIdentity";
 import { LANES } from "../config";
 import { makeAutoUpgradePulse } from "../render/combatEffects";
 import type { CardDefinition, CardId, CardState, Tower } from "../types";
@@ -43,10 +43,11 @@ export class TowerDeploymentController {
   constructor(private readonly runtime: () => TowerDeploymentRuntime) {}
 
   useCard(definition: CardDefinition, lane: number, column: number): "deployed" | "occupied" | "cooldown" | "noChars" {
+    if (definition.category === "special") return "occupied";
     const runtime = this.runtime();
     const card = runtime.cardStates.find((state) => state.definition.id === definition.id);
     if (!card || runtime.cardTimeFor(definition.id) < card.readyAt) return "cooldown";
-    const batch = runtime.extraction.plan(definition);
+    const batch = this.plan(definition, lane, column);
     if (runtime.getChars() < batch.cost) return "noChars";
     if (!this.deploy(definition, lane, column, batch.levels)) return "occupied";
     runtime.spendChars(batch.cost);
@@ -60,6 +61,14 @@ export class TowerDeploymentController {
     return this.runtime().unlimitedFirepower
       ? this.deployColumn(definition, column, levels)
       : this.deploySingle(definition, lane, column, levels);
+  }
+
+  plan(definition: CardDefinition, lane: number, column: number) {
+    const runtime = this.runtime();
+    const convertsZero = definition.id === "1" && runtime.towers.some(tower => tower.inPlay &&
+      tower.type === "0" && tower.column === column && (runtime.unlimitedFirepower || tower.lane === lane));
+    // Zero-to-one is one deliberate step; keep the extraction pool for another deployment.
+    return convertsZero ? { levels: 1, cost: definition.cost, usesPool: false } : runtime.extraction.plan(definition);
   }
 
   attemptAutoUpgrades() {
@@ -110,7 +119,7 @@ export class TowerDeploymentController {
     const key = gridCellKey(lane, column);
     const existingTower = runtime.occupied.get(key);
     if (existingTower) {
-      if (existingTower.type !== definition.id) {
+      if (!canUpgradeTowerWithCard(existingTower, definition.id)) {
         return false;
       }
 
@@ -135,7 +144,7 @@ export class TowerDeploymentController {
       for (let lane = 0; lane < LANES; lane += 1) {
         const existingTower = runtime.occupied.get(gridCellKey(lane, column));
         if (existingTower) {
-          if (existingTower.type === definition.id) {
+          if (canUpgradeTowerWithCard(existingTower, definition.id)) {
             const groupKey = this.upgradeGroupKey(existingTower);
             if (!upgradedGroups.has(groupKey)) {
               upgradedGroups.add(groupKey);
@@ -196,6 +205,12 @@ export class TowerDeploymentController {
     }
 
     for (const target of targets) {
+      if (target.type === "0") {
+        delete target.projectileBank;
+        target.level = numberTowerValue(target);
+        target.type = "1";
+        target.autoUpgrade = false;
+      }
       const definition = runtime.getDefinition(towerBehaviorType(target));
       const gainedEffectiveUpgrades = upgradeTowerLevel(target, levels);
       applyTowerUpgradeStats(target, definition, gainedEffectiveUpgrades, runtime.battleTime);

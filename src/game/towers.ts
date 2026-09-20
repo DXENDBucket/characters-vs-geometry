@@ -225,6 +225,14 @@ export function effectiveTowerLevel(tower: Tower) {
 }
 
 export function syncTowerLevelText(tower: Tower) {
+  if (towerFormType(tower) === "0" && tower.projectileBank) {
+    const count = tower.projectileBank.shots.length;
+    tower.label.setY(-7).setFontSize(34);
+    const text = `${count}/128`;
+    tower.levelText.setVisible(true).setY(12).setText(text).setFontSize(9)
+      .setColor(tower.projectileBank.remaining ? "#8ce4ba" : count ? "#9fdcff" : "#8c8c8c");
+    return;
+  }
   const channels = Object.entries(tower.numberChannels ?? {}).filter(([, state]) => state.numberValue !== undefined);
   if (channels.length > 1) {
     tower.label.setY(-11).setFontSize(26);
@@ -312,19 +320,19 @@ export function isTrapArmed(tower: Tower, time: number) {
 }
 
 export function setTowerAutoUpgradeState(tower: Tower, enabled: boolean, active = true) {
-  tower.autoUpgrade = enabled;
+  tower.autoUpgrade = enabled && !isNumberTower(tower);
   syncTowerAutoUpgradeVisual(tower, active);
 }
 
 export function syncTowerAutoUpgradeVisual(tower: Tower, active: boolean) {
-  setVisibleIfChanged(tower.autoUpgradeBorder, tower.autoUpgrade);
+  setVisibleIfChanged(tower.autoUpgradeBorder, tower.autoUpgrade && !isNumberTower(tower));
   setAlphaIfChanged(tower.autoUpgradeBorder, active ? 0.95 : 0.28);
 }
 
 export function findAutoUpgradeTarget(towers: Tower[], cardId: CardId) {
   let target: Tower | undefined;
   for (const tower of towers) {
-    if (!tower.autoUpgrade || tower.type !== cardId) {
+    if (!tower.inPlay || !tower.autoUpgrade || tower.type !== cardId || isNumberTower(tower)) {
       continue;
     }
 
