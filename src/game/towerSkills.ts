@@ -24,7 +24,7 @@ import type { CardDefinition, CardId, CubeBoss, DamageType, Enemy, SkillState, T
 import { enemyIsHighFlying } from "./enemyBehaviors";
 import { forEachSnapshot } from "./iteration";
 import { gainSkillSp, getTowerSkillState, resetSkillCharge, spendSkillSp } from "./skillState";
-import { createTowerSkillRegistry, type TowerSkillDefinition } from "./towerSkillRegistry";
+import { createTowerSkillRegistry, type TowerSkillActivation, type TowerSkillDefinition } from "./towerSkillRegistry";
 import { bossPartInRect } from "./targeting";
 import {
   effectiveTowerLevel,
@@ -51,6 +51,8 @@ export interface TowerSkillRuntime {
   damageBoss: (damage: number, damageType: DamageType, targetPart?: CubeBoss) => void;
   runWhenBattleActive: (action: () => void) => void;
   onTargetingChanged: () => void;
+  prepareSkillTargeting: () => void;
+  beginTowerPush: (tower: Tower) => void;
 }
 
 export interface SpellMortarFlight {
@@ -84,7 +86,14 @@ export class TowerSkillController {
       updateSpellMortarTower: (tower, state, seconds, time) => this.updateSpellMortarTower(tower, state, seconds, time),
       resetSpellMortarTower: (tower, state) => this.resetSpellMortarTower(tower, state),
       updateAirPatrolTower: (tower, state, seconds, time) => this.updateAirPatrolTower(tower, state, seconds, time),
-      resetAirPatrolTower: (tower, state) => this.resetAirPatrolTower(tower, state)
+      resetAirPatrolTower: (tower, state) => this.resetAirPatrolTower(tower, state),
+      isClockTowerReady: tower => this.isClockTowerReady(tower),
+      activateClockTower: tower => this.activateClockTower(tower),
+      isSpellMortarReady: tower => this.isSpellMortarReady(tower),
+      activateSpellMortars: (towers, x, y) => this.activateSpellMortarTargeting(towers, x, y),
+      isAirPatrolReady: tower => this.isAirPatrolReady(tower),
+      activateAirPatrolTower: tower => this.activateAirPatrolTower(tower),
+      beginPush: tower => this.runtime().beginTowerPush(tower)
     });
   }
 
@@ -130,12 +139,20 @@ export class TowerSkillController {
     return towerBehaviorType(tower) === "c" && runtime.battleTime >= state.activeUntil && state.sp >= CLOCK_TOWER_SKILL_MAX;
   }
 
-  activateReadyClockTowers() {
-    for (const tower of this.runtime().towers) {
-      if (this.isClockTowerReady(tower)) {
-        this.activateClockTower(tower);
-      }
-    }
+  tryActivateManualSkill(tower: Tower, input: TowerSkillActivation) {
+    const runtime = this.runtime();
+    const definition = this.skillDefinitions[towerBehaviorType(tower)];
+    const manual = definition?.manual;
+    if (!tower.inPlay || tower.transient || !manual?.isReady(tower, runtime.battleTime)) return false;
+
+    // Original and copied towers resolve to the same definition, including group activation.
+    const targets = input.allReady && manual.supportsGroup
+      ? runtime.towers.filter(candidate => candidate.inPlay && !candidate.transient &&
+        this.skillDefinitions[towerBehaviorType(candidate)] === definition && manual.isReady(candidate, runtime.battleTime))
+      : [tower];
+    if (manual.requiresTarget) runtime.prepareSkillTargeting();
+    manual.activate(targets, input, runtime.battleTime);
+    return true;
   }
 
   activateClockTower(tower: Tower) {
@@ -186,10 +203,6 @@ export class TowerSkillController {
     const runtime = this.runtime();
     const state = getTowerSkillState(tower, "spellMortar");
     return towerBehaviorType(tower) === "S" && runtime.battleTime >= state.activeUntil && state.sp >= SPELL_MORTAR_SKILL_MAX;
-  }
-
-  activateReadySpellMortars(x: number, y: number) {
-    this.activateSpellMortarTargeting(this.runtime().towers, x, y);
   }
 
   activateSpellMortarTargeting(towers: Tower[], x: number, y: number) {

@@ -1,12 +1,13 @@
 import type { SkillState, Tower } from "../types";
 import { gainSkillSp, getTowerSkillState, resetSkillCharge } from "./skillState";
 import { effectiveTowerLevel } from "./towers";
+import { towerBehaviorType } from "./towerIdentity";
 
 export const PUSH_MAX_SP = 30;
 export const PUSH_DURATION = 500;
 
 export function pushIsReady(tower: Tower) {
-  return tower.inPlay && !tower.transient && tower.type === "#" && getTowerSkillState(tower, "push").sp >= PUSH_MAX_SP;
+  return tower.inPlay && !tower.transient && towerBehaviorType(tower) === "#" && getTowerSkillState(tower, "push").sp >= PUSH_MAX_SP;
 }
 
 export function updatePushSkill(tower: Tower, state: SkillState, seconds: number, time: number) {

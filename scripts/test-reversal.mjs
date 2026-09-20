@@ -187,14 +187,14 @@ test("AE-2 uses the chapter-four template, adds both hexagons and unlocks @", ()
   assert.equal(card.cooldown, 60000);
 });
 
-test("@ copies every eligible regular panel using its own level, not target upgrades", () => {
+test("@ copies every eligible panel including ASCII using its own level, not target upgrades", () => {
   const { towerBehaviorType } = load("src/game/towerIdentity.ts");
   for (const definition of cardDefinitions) {
     const f = copyFixture();
     const caster = f.place("@", 3, 3, 3);
     f.place(definition.id, 20, 3, 4);
     f.sync();
-    const eligible = /^[A-Za-z]$/.test(definition.id) && definition.cost <= 999 && !["b", "t", "y"].includes(definition.id);
+    const eligible = definition.cost <= 999 && !["b", "t", "y"].includes(definition.id);
     assert.equal(f.isCopyableDefinition(definition), eligible, definition.id);
     assert.equal(caster.type, "@");
     assert.equal(caster.level, 3);
@@ -204,6 +204,63 @@ test("@ copies every eligible regular panel using its own level, not target upgr
       assert.equal(caster.finalStats.attackPower, towerForCard(definition, 3).finalStats.attackPower, definition.id);
       assert.equal(caster.finalStats.armor, definition.armor ?? 0, definition.id);
     }
+  }
+});
+
+test("manual skill dispatch is shared by original and copied towers without sharing charge", () => {
+  const { TowerSkillController } = load("src/game/towerSkills.ts");
+  for (const [id, skill] of [["#", "push"], ["j", "gathering"], ["o", "orientation"],
+    ["c", "clock"], ["S", "spellMortar"], ["w", "airPatrol"]]) {
+    const f = copyFixture();
+    const source = f.place(id, 1, 3, 4);
+    const caster = f.place(f.isCopyableDefinition(f.state.getDefinition(id)) ? "@" : id, 2, 3, 3);
+    f.sync();
+    let prepared = 0, pushSource;
+    f.state.prepareSkillTargeting = () => prepared++;
+    f.state.beginTowerPush = tower => { pushSource = tower; };
+    f.state.onTargetingChanged = noop;
+    const controller = new TowerSkillController(f.state.scene, () => f.state);
+    const input = { x: 400, y: 300, allReady: false };
+    assert.equal(controller.tryActivateManualSkill(caster, input), false, id);
+    assert.equal(prepared, 0);
+    caster.skills[skill] = { sp: 100, spBuffer: 0, activeUntil: 0 };
+    source.skills[skill] = { sp: 100, spBuffer: 0, activeUntil: 0 };
+    assert.equal(controller.tryActivateManualSkill(caster, input), true, id);
+    assert.equal(source.skills[skill].sp, 100, id);
+    assert.equal(source.skills[skill].activeUntil, 0, id);
+    assert.equal(prepared, id === "#" || id === "S" ? 1 : 0, id);
+    if (id === "#") assert.equal(pushSource, caster);
+    else if (id === "S") assert.deepEqual(controller.spellMortarTargetingTowers, [caster]);
+    else assert.ok(caster.skills[skill].activeUntil > 0, id);
+    controller.resetTowerSkill(caster);
+    assert.equal(controller.tryActivateManualSkill(caster, input), false, id);
+    assert.equal(caster.skills[skill].sp, 0, id);
+    f.state.removeTower(source); f.sync();
+    assert.equal(controller.tryActivateManualSkill(caster, input), false, `empty @ after ${id}`);
+  }
+});
+
+test("group skill dispatch includes ready originals and copies but not unrelated or removed towers", () => {
+  const { TowerSkillController } = load("src/game/towerSkills.ts");
+  for (const [id, skill] of [["c", "clock"], ["S", "spellMortar"]]) {
+    const f = copyFixture();
+    const source = f.place(id, 1, 3, 4);
+    const caster = f.place(f.isCopyableDefinition(f.state.getDefinition(id)) ? "@" : id, 1, 3, 3);
+    const empty = f.place("@", 1, 0, 0);
+    const removed = f.place(id, 1, 1, 1);
+    removed.inPlay = false;
+    f.sync();
+    for (const tower of [source, caster, empty, removed]) tower.skills[skill] = { sp: 100, spBuffer: 0, activeUntil: 0 };
+    f.state.prepareSkillTargeting = noop;
+    const controller = new TowerSkillController(f.state.scene, () => f.state);
+    assert.equal(controller.tryActivateManualSkill(caster, { x: 400, y: 300, allReady: true }), true);
+    if (id === "S") assert.deepEqual(controller.spellMortarTargetingTowers, [source, caster]);
+    else {
+      assert.ok(source.skills.clock.activeUntil > 0);
+      assert.equal(caster.skills.clock.activeUntil, source.skills.clock.activeUntil);
+    }
+    assert.equal(empty.skills[skill].activeUntil, 0);
+    assert.equal(removed.skills[skill].activeUntil, 0);
   }
 });
 
@@ -1125,6 +1182,17 @@ function runtime(enemies = [], boss = null) {
   };
   return state;
 }
+
+test("stasis reduces movement by 30%, refreshes without stacking and expires", () => {
+  const target = enemy();
+  statuses.applyStatusEffect(target, "stasis", 1000, 0);
+  assert.equal(statuses.statusSpeedMultiplier(target, 100), 0.7);
+  assert.equal(statuses.statusAttackMultiplier(target, 100), 1);
+  statuses.applyStatusEffect(target, "stasis", 1000, 500);
+  assert.equal(target.statusEffects.length, 1);
+  assert.equal(statuses.statusSpeedMultiplier(target, 1000), 0.7);
+  assert.equal(statuses.statusSpeedMultiplier(target, 1500), 1);
+});
 
 test("d sunder halves armor, refreshes for ten seconds and does not stack", () => {
   const target = enemy();

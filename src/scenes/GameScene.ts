@@ -79,7 +79,6 @@ import { TowerDeploymentController, type TowerDeploymentRuntime } from "../game/
 import { MIRROR_COST_LIMIT, TowerMirrorController, type TowerMirrorRuntime } from "../game/towerMirrors";
 import { TowerShifterController, type TowerShifterRuntime } from "../game/towerShifter";
 import { TowerPushController } from "../game/towerPush";
-import { pushIsReady } from "../game/pushSkill";
 import { TowerSkillController, type TowerSkillRuntime } from "../game/towerSkills";
 import {
   isTutorialMechanic,
@@ -751,47 +750,9 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    if (existingTower && towerBehaviorType(existingTower) === "c" && this.towerSkills.isClockTowerReady(existingTower)) {
-      if (this.isShiftPointer(pointer)) {
-        this.towerSkills.activateReadyClockTowers();
-      } else {
-        this.towerSkills.activateClockTower(existingTower);
-      }
-      this.updateCards();
-      return;
-    }
-
-    if (existingTower && towerBehaviorType(existingTower) === "S" && this.towerSkills.isSpellMortarReady(existingTower)) {
-      if (this.isShiftPointer(pointer)) {
-        this.activateReadySpellMortars(pointer.x, pointer.y);
-      } else {
-        this.activateSpellMortarTargeting([existingTower], pointer.x, pointer.y);
-      }
-      this.updateCards();
-      return;
-    }
-
-    if (existingTower && towerBehaviorType(existingTower) === "w" && this.towerSkills.isAirPatrolReady(existingTower)) {
-      this.towerSkills.activateAirPatrolTower(existingTower);
-      this.updateCards();
-      return;
-    }
-
-    if (existingTower && towerBehaviorType(existingTower) === "o" && this.towerSkills.isOrientationReady(existingTower)) {
-      this.towerSkills.activateOrientationTower(existingTower);
-      this.updateCards();
-      return;
-    }
-
-    if (existingTower?.type === "#" && pushIsReady(existingTower)) {
-      this.prepareSpellMortarTargeting();
-      this.towerPush.begin(existingTower);
-      this.updateCards();
-      return;
-    }
-
-    if (existingTower && towerBehaviorType(existingTower) === "j" && this.towerSkills.isGatheringReady(existingTower)) {
-      this.towerSkills.activateGatheringTower(existingTower);
+    if (existingTower && this.towerSkills.tryActivateManualSkill(existingTower, {
+      x, y, allReady: this.isShiftPointer(pointer)
+    })) {
       this.updateCards();
       return;
     }
@@ -1220,17 +1181,7 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private activateReadySpellMortars(x: number, y: number) {
-    this.prepareSpellMortarTargeting();
-    this.towerSkills.activateReadySpellMortars(x, y);
-  }
-
-  private activateSpellMortarTargeting(towers: Tower[], x: number, y: number) {
-    this.prepareSpellMortarTargeting();
-    this.towerSkills.activateSpellMortarTargeting(towers, x, y);
-  }
-
-  private prepareSpellMortarTargeting() {
+  private prepareSkillTargeting() {
     this.eraserMode = false;
     this.shifter.deactivate();
     this.clearPlacementGhosts();
@@ -1372,6 +1323,8 @@ export class GameScene extends Phaser.Scene {
 
   private createTowerSkillRuntime(): TowerSkillRuntime {
     return {
+      prepareSkillTargeting: () => this.prepareSkillTargeting(),
+      beginTowerPush: tower => { this.towerPush.begin(tower); },
       scheduleBattleAction: this.scheduleBattleAction,
       towers: this.towers,
       enemies: this.enemies,

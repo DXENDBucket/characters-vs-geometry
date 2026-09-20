@@ -707,7 +707,7 @@ function towerLines(card: CardDefinition) {
 function towerDescription(id: CardId) {
   const zh = isZh();
   const descriptions: Record<CardId, string> = {
-    "@": zh ? "持续复制朝向前方一格的常规字符塔：基础费用须不超过 999，不能是 b、t 等快速生效卡，也不能是 ASCII 扩展字符。复制其基础面板、机制、升级规则和外框，但字符保持 @，使用自身等级和朝向，不继承目标的临时加成或当前技力。前方没有合格目标时无额外能力。切换时保留血量比例，重新开始攻击或技能准备。" : "Continuously copies the regular character tower one cell ahead, if its base cost is at most 999. Excludes instant effect cards such as b/t and ASCII Expansion characters. Copies base stats, behavior, upgrade rules and border, but retains @, its own level and facing. Does not inherit target buffs or current SP. No eligible target means no extra ability. Switching preserves HP ratio and restarts attack/skill preparation.",
+    "@": zh ? "持续复制朝向前方一格的字符塔，包含 ASCII 扩展字符：基础费用须不超过 999，不能是 b、t 等快速生效卡。复制其基础面板、机制、升级规则和外框，但字符保持 @，使用自身等级和朝向，不继承目标的临时加成或当前技力。前方没有合格目标时无额外能力。切换时保留血量比例，重新开始攻击或技能准备。" : "Continuously copies the character tower one cell ahead, including ASCII Expansion characters, if its base cost is at most 999. Excludes instant effect cards such as b/t. Copies base stats, behavior, upgrade rules and border, but retains @, its own level and facing. Does not inherit target buffs or current SP. No eligible target means no extra ability. Switching preserves HP ratio and restarts attack/skill preparation.",
     "#": zh ? "推箱子。初始 0 技力，上限 30，每秒恢复 1；满技力后点击，再选择上下左右一个有塔的相邻格。消耗 30 技力，将该方向连续相接的塔整体推动一格，自身不动，移动持续约 0.5 秒。越界或被推入封禁格的塔按擦除处理。右键取消选向，无效选择不消耗技力。" : "Box Push. Starts at 0 SP, recovers 1 SP/s up to 30. Click when ready, then select a cardinally adjacent occupied cell. Spends 30 SP to push the contiguous line of towers one cell over 0.5s without moving itself. Towers pushed off the board or into sealed cells are erased. Right-click cancels targeting; invalid selections cost no SP.",
     u: zh ? "连结防御塔。与上下左右接壤的塔共享生命，相邻或共用邻塔的小 u 会合并为同一网络。网络生命上限为所有成员自身生命上限之和，除以小 u 的实际数量（不计等级）。伤害按被击中塔的抗性结算后扣除共享生命，治疗补充共享池；共享生命耗尽时所有成员死亡。加入、退出与拆分保持生命比例，已有网络合并按原网络生命上限加权平均。每座塔显示相同的共享生命比例。" : "Links cardinally adjacent towers into a shared health network. Adjacent u towers or those sharing a neighbor merge networks. Shared max HP is the sum of members' own max HP divided by the number of u towers, not their levels. Hits use the struck tower's defenses; damage and healing affect the pool. All members die when it empties. Joining, leaving and splitting preserve HP ratio; merging existing networks uses their previous max-HP-weighted ratio. All members display the same HP ratio.",
     y: zh ? "提取卡。放在已有塔上，按目标基础费用乘永久等级计算总价，提取其中一部分加入共享池，并像橡皮擦一样擦除目标。临时等级不计入总价；多次提取会累加。下一次使用基础费用不超过 999 的卡时，按池内金额向下取整计算部署次数，至少一次，并支付全部部署费用；新塔直接获得相应等级，已有同类塔则增加相应等级。成功后消耗整个池，失败不消耗。" : "Extraction card. Erases a target tower and adds a fraction of its base cost times permanent level to a shared pool, excluding temporary levels. Repeated extractions accumulate. The next card costing at most 999 deploys floor(pool / base cost) times, at least once, charging the full cost. New towers start at that level; matching towers gain that many levels. Success empties the entire pool; failure preserves it.",
@@ -747,7 +747,7 @@ function towerDescription(id: CardId) {
     P: zh ? "广域治疗塔。治疗身后三列、自身列和前方四列、以自己为中心三行内生命百分比最低的一座塔。" : "Wide healer. Heals the lowest-HP-percent tower in a 3-lane area covering three rear columns, its column, and four forward columns.",
     p: zh ? "群体治疗塔。范围和 H 一致，治疗自身 3x3 范围内生命百分比最低的三座缺血塔；目标不足时治疗所有可治疗目标。" : "Group healer. Same range as H: heals the three lowest-HP-percent damaged towers in its centered 3x3 area, or all available targets if fewer than three are damaged.",
     I: zh ? "短程法术射手。只攻击自身和前方 5 格内的目标。" : "Short-range magic shooter. Attacks only within itself plus five tiles ahead.",
-    Q: zh ? "整行控制射手。沿本行发射 $ 法术弹幕；命中普通敌怪后施加 1 秒凝滞，使其移动速度变为二分之一。Boss 不会受到凝滞影响。" : "Full-lane control shooter. Fires $ magic projectiles along its lane; hits apply 1s Stasis to ordinary enemies, reducing movement speed to one half. Bosses ignore Stasis.",
+    Q: zh ? "整行控制射手。沿本行发射 $ 法术弹幕；命中普通敌怪后施加 1 秒凝滞，使其移动速度降低 30%。Boss 不会受到凝滞影响。" : "Full-lane control shooter. Fires $ magic projectiles along its lane; hits apply 1s Stasis to ordinary enemies, reducing movement speed by 30%. Bosses ignore Stasis.",
     J: zh ? "短程法术溅射。范围和 I 一致，发射 # 弹幕并造成 1.75 格半径、随距离衰减的范围法术伤害。" : "Short-range magic splash attacker. Same range as I, firing # projectiles with 1.75-cell radius splash and distance falloff.",
     K: zh ? "近程斩击塔。攻击自身一格和前方两格内的单体目标，释放十字斩特效。" : "Close-range slasher. Hits one target within itself plus two tiles ahead, with a cross slash.",
     k: zh ? "近程推波塔。攻击自身列和前方一列的上下三行，并额外覆盖本行更前方一格；每秒释放弧形推波，对范围内所有敌怪造成法术伤害。" : "Close-range wave attacker. Covers a 2x3 area over its column and the next column plus one extra forward cell in its lane; every second releases an arc wave that deals magic damage to all enemies in range.",
@@ -921,8 +921,8 @@ export function mechanicEncyclopediaEntries(): EncyclopediaEntry[] {
       icon: "◫",
       titleZh: "凝滞",
       titleEn: "Stasis",
-      linesZh: ["效果：移动速度降低到二分之一", "限制：Boss 通常不受影响"],
-      linesEn: ["Effect: movement speed becomes one half", "Limit: bosses usually ignore it"],
+      linesZh: ["效果：移动速度降低 30%（变为 70%）", "限制：Boss 通常不受影响"],
+      linesEn: ["Effect: movement speed reduced by 30% (to 70%)", "Limit: bosses usually ignore it"],
       descriptionZh:
         "凝滞是一种控制效果，会让普通敌怪移动变慢。它不阻止攻击和技能，和冻结不同；持续时间结束后敌怪恢复原速。",
       descriptionEn:

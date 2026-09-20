@@ -7,7 +7,7 @@ import { syncTowerFacingVisual } from "./towers";
 import { setPositionIfChanged, setScaleIfChanged, setVisibleIfChanged } from "./visualGuards";
 
 const STATUS_SPEED_MULTIPLIERS: Record<StatusEffectName, number> = {
-  stasis: 1 / 2,
+  stasis: 0.7,
   haste: 2,
   power: 1,
   flying: 1,

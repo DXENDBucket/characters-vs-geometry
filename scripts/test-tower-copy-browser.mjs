@@ -45,6 +45,17 @@ try {
       tested++;
     }
     let scene = start();
+    const boxSource = scene.spawnGeneratedTower("#", 3, 4, 1);
+    const boxCopy = scene.spawnGeneratedTower("@", 3, 3, 3);
+    const pushed = scene.spawnGeneratedTower("B", 2, 3, 1);
+    scene.towerSkills.update(15, 15000);
+    check(boxCopy.skills.push.sp === 30 && boxSource.skills.push.sp === 15, "Copied push must use its own level and charge");
+    scene.submitBattleCommand({ type: "selectCard", id: "A" }); click(scene, boxCopy);
+    check(scene.towerPush.isTargeting(), "Copied push click did not enter direction selection");
+    click(scene, pushed);
+    check(pushed.lane === 1 && pushed.column === 3 && boxCopy.lane === 3 && boxCopy.column === 3 &&
+      boxCopy.skills.push.sp === 0, "Copied push did not move its neighbor or consume charge");
+    scene = start();
     const wing = scene.spawnGeneratedTower("w", 3, 4, 1);
     const copy = scene.spawnGeneratedTower("@", 3, 3, 2);
     copy.skills.airPatrol.sp = 10;
