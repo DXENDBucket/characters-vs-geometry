@@ -11,14 +11,24 @@ export function bindButtonHover(
   const targets = [frame, ...labels];
   const hovered = new Set<Phaser.GameObjects.GameObject>();
   let outline: Phaser.GameObjects.Rectangle | undefined;
+  let outsideCanvas = false;
+  const leaveCanvas = () => {
+    outsideCanvas = true;
+    outline?.setVisible(false);
+  };
+  const enterCanvas = () => {
+    outsideCanvas = false;
+    refresh();
+  };
   const clear = () => {
     hovered.clear();
     scene.events.off(Phaser.Scenes.Events.POST_UPDATE, refresh);
-    scene.input.off(Phaser.Input.Events.GAME_OUT, clear);
+    scene.input.off(Phaser.Input.Events.GAME_OUT, leaveCanvas);
+    scene.input.off(Phaser.Input.Events.GAME_OVER, enterCanvas);
     outline?.setVisible(false);
   };
   const refresh = () => {
-    const visible = hovered.size > 0 && scene.input.enabled && frame.active && frame.visible && frame.input?.enabled && enabled();
+    const visible = !outsideCanvas && hovered.size > 0 && scene.input.enabled && frame.active && frame.visible && frame.input?.enabled && enabled();
     if (!visible) {
       outline?.setVisible(false);
       return;
@@ -35,9 +45,11 @@ export function bindButtonHover(
   };
   const bindings = targets.map((target) => {
     const over = () => {
+      outsideCanvas = false;
       if (!hovered.size) {
         scene.events.on(Phaser.Scenes.Events.POST_UPDATE, refresh);
-        scene.input.on(Phaser.Input.Events.GAME_OUT, clear);
+        scene.input.on(Phaser.Input.Events.GAME_OUT, leaveCanvas);
+        scene.input.on(Phaser.Input.Events.GAME_OVER, enterCanvas);
       }
       hovered.add(target);
       refresh();
