@@ -100,7 +100,6 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
         require(["laser", "mortar", "wings"].includes(value.bossCompanionActionPhase as string));
       }
       if (kind === "tower") {
-        require(value.adjacentHealthBonus === undefined || (finite(value.adjacentHealthBonus) && value.adjacentHealthBonus >= 0));
         if (value.moveVisual) {
           require(record(value.moveVisual) && [value.moveVisual.fromX, value.moveVisual.fromY,
             value.moveVisual.startedAt].every(finite) && finite(value.moveVisual.duration) && value.moveVisual.duration > 0);

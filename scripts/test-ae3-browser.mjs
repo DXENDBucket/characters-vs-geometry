@@ -32,7 +32,7 @@ try {
     const check = (condition, message) => { if (!condition) throw Error(message); };
     const start = (data = {}) => {
       for (const active of game.scene.getScenes(true)) game.scene.stop(active.sys.settings.key);
-      game.scene.start("GameScene", { levelId: "AE-3", seed: 123, selectedCards: ["+", "B", "A", "u", "q"], ...data });
+      game.scene.start("GameScene", { levelId: "AE-3", seed: 123, selectedCards: ["B", "A", "u", "q"], ...data });
       return game.scene.getScene("GameScene");
     };
     let scene = start();
@@ -56,13 +56,6 @@ try {
     check(scene.enemies.length === 3 && scene.enemies.every(e => e.kind === "circle" && !e.healthPool), "Circle split must occur exactly once");
 
     scene = start();
-    const plus = scene.spawnGeneratedTower("+", 3, 3, 1);
-    scene.spawnGeneratedTower("B", 3, 2, 2);
-    const right = scene.spawnGeneratedTower("B", 3, 4, 1);
-    check(plus.maxHp === 11400, "Live adjacent HP not updated on placement");
-    scene.combatRuntime().damageTower(plus, 5700, "true");
-    scene.triggerTowerRuntime().removeTower(right); scene.updateLevelAuras();
-    check(plus.maxHp === 3000 && plus.hp === 1500, "Live neighbor removal did not preserve ratio");
     const target = spawn("hexagon", 3, 9), source = spawn("equals2", 3, 8);
     changeEnemyHealth(source, -source.healthPool.maxHp / 2);
     applyEnemyPromotion(scene, target, "hexagon2", 0);
@@ -76,18 +69,16 @@ try {
     scene = start({ levelId: "IF-1" });
     scene.spawnGeneratedTower("B", 3, 2, 2);
     scene.spawnGeneratedTower("B", 3, 4, 1);
-    scene.spawnGeneratedTower("+", 3, 3, 2);
     spawn("square", 2, 8); spawn("tilde3", 4, 9); spawn("equals2", 3, 9);
     const snapshot = JSON.parse(JSON.stringify(captureBattleSnapshot(scene.battleState())));
     validateSurvivalSave({ version: 1, levelId: "IF-1", wave: scene.wave, savedAt: 1, difficulty: scene.difficulty,
-      unlimitedFirepower: false, selectedCards: ["+", "B"], graph: snapshot });
+      unlimitedFirepower: false, selectedCards: ["B"], graph: snapshot });
     const run = deltas => {
       scene = start({ levelId: "IF-1" });
       scene.applyBattleSave(restoreBattleSnapshot(scene, snapshot));
       scene.battlePaused = false;
       const linked = scene.enemies.find(e => e.kind === "equals2");
       check(linked.healthPool.members.length === 3 && linked.healthPool.members.every(e => e.healthPool === linked.healthPool), "Restored link identities");
-      check(scene.towers.find(t => t.type === "+").maxHp === 12660, "Restored + contribution");
       let i = 0;
       while (scene.simulation.tick < 120) scene.update(0, deltas[i++ % deltas.length]);
       check(scene.simulation.tick === 120, "Frame schedule overshot");
@@ -98,13 +89,13 @@ try {
 
     scene = start();
     scene.spawnGeneratedTower("B", 3, 2, 1);
-    scene.spawnGeneratedTower("+", 3, 3, 3);
+    const blocker = scene.spawnGeneratedTower("B", 3, 3, 3);
     scene.spawnGeneratedTower("B", 3, 4, 2);
     const melee = spawn("equals", 3, 3.4);
     scene.battleTime = 1000;
-    const hp = scene.towers.find(t => t.type === "+").hp;
+    const hp = blocker.hp;
     advanceEnemies(scene.combatRuntime(), 1000, 0);
-    check(scene.towers.find(t => t.type === "+").hp < hp && melee.hp < melee.maxHp, "Equals melee / + retaliation");
+    check(blocker.hp < hp && melee.hp < melee.maxHp, "Equals melee / B retaliation");
     removeEnemy(scene.unitLifecycleRuntime(), melee, false);
     for (const [kind, lane, column] of [["circle", 1, 9], ["tilde2", 2, 7], ["square", 4, 8], ["equals3", 3, 10]]) spawn(kind, lane, column);
     drawEnemyHealthLinks(scene.enemyHealthLinks, scene.enemies, 1000);

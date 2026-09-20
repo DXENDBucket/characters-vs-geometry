@@ -9,7 +9,6 @@ import type { BattleSaveState } from "../game/battleSaveState";
 import { captureBattleSnapshot, restoreBattleSnapshot } from "../game/battleSnapshot";
 import { deleteSurvivalSave, readSurvivalSave, writeSurvivalSave, type SurvivalSave } from "../survivalSaves";
 import { syncTowerHealthNetworks } from "../game/towerHealth";
-import { syncAdjacentHealthBonuses } from "../game/towerHealthBonus";
 import { detachEnemyHealth } from "../game/enemyHealth";
 import { drawEnemyHealthLinks } from "../render/enemyHealthLinks";
 import { PauseMenu } from "../render/pauseMenu";
@@ -1081,7 +1080,6 @@ export class GameScene extends Phaser.Scene {
 
     snapshotTowers.length = 0;
     snapshotValues.length = 0;
-    syncAdjacentHealthBonuses(this.towers, id => this.getDefinition(id));
     syncTowerHealthNetworks(this.towers);
     if (settleTowerHealth(this.unitLifecycleRuntime())) {
       this.updateLevelAuras();

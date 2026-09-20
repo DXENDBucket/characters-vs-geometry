@@ -33,7 +33,7 @@ export function towerBaseStatsFromDefinition(definition: CardDefinition): TowerB
 
 export function syncTowerFinalStats(
   tower: Tower,
-  options: { healMaxHpIncrease?: boolean; preserveHealthRatio?: boolean; towers?: Tower[]; towerAuraSources?: TowerAuraSources } = {}
+  options: { healMaxHpIncrease?: boolean; towers?: Tower[]; towerAuraSources?: TowerAuraSources } = {}
 ) {
   const previousMaxHp = tower.finalStats?.maxHp ?? tower.maxHp;
   calculateTowerFinalStats(tower, options.towers, options.towerAuraSources);
@@ -43,7 +43,7 @@ export function syncTowerFinalStats(
   tower.magicResistance = tower.finalStats.magicResistance;
   tower.attackSpeed = tower.finalStats.attackSpeed;
 
-  syncTowerHealthCapacity(tower, previousMaxHp, !!options.healMaxHpIncrease, options.preserveHealthRatio);
+  syncTowerHealthCapacity(tower, previousMaxHp, !!options.healMaxHpIncrease);
 }
 
 export function calculateTowerFinalStats(tower: Tower, towers?: Tower[], towerAuraSources?: TowerAuraSources) {
@@ -57,7 +57,7 @@ export function calculateTowerFinalStats(tower: Tower, towers?: Tower[], towerAu
     ? undefined
     : baseStats.attackSpeed * towerZealAttackSpeedMultiplier(towers, tower, towerAuraSources);
 
-  finalStats.maxHp = maxHp + (tower.adjacentHealthBonus ?? 0);
+  finalStats.maxHp = maxHp;
   finalStats.armor = baseStats.armor;
   finalStats.magicResistance = baseStats.magicResistance;
   finalStats.attackSpeed = attackSpeed;

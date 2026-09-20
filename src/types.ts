@@ -1,7 +1,6 @@
 import type Phaser from "phaser";
 
 export type CardId =
-  | "+"
   | "@"
   | "#"
   | "A"
@@ -179,7 +178,6 @@ export interface CardDefinition {
   healTargets?: number;
   splashRadius?: number;
   reflectAttackMultiplier?: number;
-  adjacentHealthBonus?: { ratio: number; ratioPerUpgrade: number; costLimit: number };
   triggerCount?: number;
   triggerInterval?: number;
   triggerRangeX?: number;
@@ -242,7 +240,6 @@ export interface TowerHealthPool {
 }
 
 export interface Tower {
-  adjacentHealthBonus?: number;
   copiedType?: CardId;
   copyRevision?: number;
   healthPool?: TowerHealthPool;

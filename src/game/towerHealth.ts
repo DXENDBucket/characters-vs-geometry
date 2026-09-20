@@ -60,19 +60,16 @@ export function changeTowerHealth(tower: Tower, amount: number) {
   return tower.hp - before;
 }
 
-export function syncTowerHealthCapacity(tower: Tower, previousMaxHp: number, healIncrease: boolean, preserveRatio = false) {
+export function syncTowerHealthCapacity(tower: Tower, previousMaxHp: number, healIncrease: boolean) {
   const pool = tower.healthPool;
   const delta = tower.finalStats.maxHp - previousMaxHp;
   if (pool) {
     if (delta === 0) return;
-    const fraction = ratio(pool.hp, pool.maxHp);
     pool.maxHp += delta / pool.linkCount;
-    pool.hp = preserveRatio ? pool.maxHp * fraction
-      : Math.min(pool.maxHp, pool.hp + (healIncrease ? Math.max(0, delta) / pool.linkCount : 0));
+    pool.hp = Math.min(pool.maxHp, pool.hp + (healIncrease ? Math.max(0, delta) / pool.linkCount : 0));
     syncPool(pool);
   } else {
-    tower.hp = preserveRatio ? tower.finalStats.maxHp * ratio(tower.hp, previousMaxHp)
-      : Math.min(tower.finalStats.maxHp, tower.hp + (healIncrease ? Math.max(0, delta) : 0));
+    tower.hp = Math.min(tower.finalStats.maxHp, tower.hp + (healIncrease ? Math.max(0, delta) : 0));
   }
 }
 
