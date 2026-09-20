@@ -2969,7 +2969,7 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 ## ASCII Expansion: AE-3
 
 - Unlocks after AE-2; 20 waves, 500 starting characters. Chapter 4 weights: initial 25, increment +18, extra increment +3; one flag every 10 waves.
-- Enemy pool: Circle I, Tilde I/II/III, Equals I/II/III, Pentagon I, Triangle Mortar I, Diamond I, Heart I.
+- Enemy pool: Circle I, Tilde I/II/III, Equals I/II/III, Shooting Pentagon I, Shooting Triangle I, Diamond I, Heart I.
 - Equals: HP 12000, armor 100, MR 25, average speed 15. All ranks have 400 physical attack and attack once per second, identical to Square I. Weights I/II/III: 80/200/320. Appears from the first flag wave.
 - On spawning, Equals connects once to up to its rank in nearest eligible enemies. Excludes leaders, Bosses/companions, other Equals and enemies already in a network. Connections never retarget or refill, including after promotion or a storage return. Leaving the field disconnects the member; removing Equals dissolves its network.
 - Shared maximum HP is the sum of members' individual maxima, initially using their combined current HP. Damage uses the struck member's defenses before reducing the pool; healing restores the pool. All members show the same health ratio and die together if the pool is depleted. Disconnects and capacity changes preserve the pool's health ratio.

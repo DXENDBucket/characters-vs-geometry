@@ -86,7 +86,7 @@ export const levelNodes: LevelNode[] = [
 export const levelConfigs: Record<string, LevelConfig> = {
   "AE-3": {
     id: "AE-3", unlockAfter: "AE-2",
-    enemyKinds: ["circle", "tilde", "tilde2", "tilde3", "equals", "equals2", "equals3", "pentagon", "mortarTriangle", "diamond", "heart"],
+    enemyKinds: ["circle", "tilde", "tilde2", "tilde3", "equals", "equals2", "equals3", "shootingPentagon", "shootingTriangle", "diamond", "heart"],
     firstWaveWeight: CHAPTER_FOUR_FIRST_WAVE_WEIGHT,
     waveWeightIncrement: CHAPTER_FOUR_WAVE_WEIGHT_INCREMENT,
     waveWeightIncrementGrowth: CHAPTER_FOUR_WAVE_WEIGHT_INCREMENT_GROWTH,

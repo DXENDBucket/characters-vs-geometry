@@ -20,7 +20,7 @@ test("AE-3 uses the chapter-four template and exact enemy pool, unlocking = and 
   assert.equal(level.unlockAfter, "AE-2");
   for (const field of ["firstWaveWeight", "waveWeightIncrement", "waveWeightIncrementGrowth", "startingChars", "wavesPerFlag"])
     assert.equal(level[field], template[field], field);
-  assert.deepEqual(level.enemyKinds, ["circle", "tilde", "tilde2", "tilde3", "equals", "equals2", "equals3", "pentagon", "mortarTriangle", "diamond", "heart"]);
+  assert.deepEqual(level.enemyKinds, ["circle", "tilde", "tilde2", "tilde3", "equals", "equals2", "equals3", "shootingPentagon", "shootingTriangle", "diamond", "heart"]);
   assert.ok(!load("src/data/cards.ts").cardDefinitions.some(card => card.id === "+"));
   for (const id of ["=", "1"]) assert.equal(load("src/data/cardUnlocks.ts").cardUnlockRequirement(id), "AE-3");
 });
