@@ -807,7 +807,7 @@ function towerDescription(id: CardId) {
   return descriptions[id];
 }
 
-function towerUpgradeText(id: CardId) {
+export function towerUpgradeText(id: CardId) {
   if (id === "!") return isZh() ? "只影响本卡冷却返还：生效后剩余冷却为 30 秒 / 自身有效等级。不会增加目标的攻速、伤害或连射。"
     : "Only improves this card's cooldown refund: 30s / effective level after resolving. Does not increase the target's attack speed, damage or volley count.";
   if (id === "0") return isZh() ? "每级增加 128 颗存储上限：1 级 128，2 级 256，以此类推；按有效等级计算。升级保留库存和字符 0，支持自动升级。"

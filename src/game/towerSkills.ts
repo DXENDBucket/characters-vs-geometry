@@ -8,6 +8,9 @@ import { activateOrientation, orientationIsReady } from "./orientation";
 import { activateGathering, gatheringIsReady } from "./gathering";
 import {
   CELL_WIDTH,
+  AIR_PATROL_SKILL_MAX,
+  AIR_PATROL_SKILL_COST,
+  AIR_PATROL_SKILL_DURATION,
   CLOCK_TOWER_SKILL_DURATION,
   CLOCK_TOWER_SKILL_MAX,
   GUARDIAN_TOWER_HEAL_RATIO,
@@ -36,10 +39,6 @@ import {
   towerDamageType
 } from "./towers";
 import { towerAttackAmount, towerFinalStats, withTowerBehavior } from "./unitStats";
-
-const AIR_PATROL_SKILL_MAX = 10;
-const AIR_PATROL_SKILL_COST = 10;
-const AIR_PATROL_SKILL_DURATION = 6_000;
 
 export interface TowerSkillRuntime {
   onTowerAction?: TowerActionListener;

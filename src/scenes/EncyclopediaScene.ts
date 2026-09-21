@@ -3,6 +3,7 @@ import { palette } from "../config";
 import { EncyclopediaPanel } from "../render/encyclopediaPanel";
 
 export class EncyclopediaScene extends Phaser.Scene {
+  private panel!: EncyclopediaPanel;
   constructor() {
     super("EncyclopediaScene");
   }
@@ -10,8 +11,8 @@ export class EncyclopediaScene extends Phaser.Scene {
   create() {
     this.cameras.main.setBackgroundColor(palette.black);
     const back = () => this.scene.start("MainMenuScene");
-    const panel = new EncyclopediaPanel(this, back);
-    panel.open("towers");
+    this.panel = new EncyclopediaPanel(this, back);
+    this.panel.open("towers");
     this.input.keyboard?.on("keydown-ESC", back);
     this.events.once("shutdown", () => this.input.keyboard?.off("keydown-ESC", back));
   }

@@ -3,10 +3,10 @@ import { towerFormType } from "./towerIdentity";
 import type { Tower } from "../types";
 import { inFriendlyRange, towerCell } from "./towerTopology";
 
-const ZEAL_ATTACK_SPEED_MULTIPLIER = 1.35;
+export const ZEAL_ATTACK_SPEED_MULTIPLIER = 1.35;
 const ZEAL_RADIUS_CELLS = 2;
 const BOARD_CELL_COUNT = COLUMNS * LANES;
-const UNYIELDING_PERCENT_PER_LEVEL = 15;
+export const UNYIELDING_PERCENT_PER_LEVEL = 15;
 const unyieldingCells = new Float64Array(BOARD_CELL_COUNT);
 
 export function isInCentered3x3Aura(source: Tower, target: Tower) {

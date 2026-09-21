@@ -15,10 +15,15 @@ import {
   mechanicEncyclopediaEntries,
   mechanicLinksForEntry,
   towerEncyclopediaEntries,
+  towerUpgradeText,
   type EncyclopediaEntry,
   type EncyclopediaMechanicId,
   type EncyclopediaTab
 } from "../encyclopedia";
+import { towerDetailSections, towerDetailRange, towerPreviewStats, type DetailField, type DetailSection } from "../encyclopediaDetails";
+import { enemyAttackSpeed } from "../game/enemyBehaviors";
+import { attackIntervalMs } from "../game/attackSpeed";
+import { getEnemyRegistration } from "../registry/enemies";
 import { DAMAGE_SYMBOLS, getLanguage, t } from "../i18n";
 import { bossEncyclopediaIcon, enemyEncyclopediaGroup, visibleEnemyEncyclopediaGroups, visibleEncyclopediaEntries } from "../encyclopediaVisibility";
 import { cardLetterCase, type CardLetterCase } from "../registry/cards";
@@ -66,11 +71,9 @@ interface DetailTableRow {
 type EncyclopediaStatMode = "coarse" | "exact";
 type DragArea = "grid" | "detail";
 
-const TILE_SIZE = 106;
-const TILE_GAP = 14;
-const GRID_COLUMNS = 5;
-const DETAIL_TABLE_LABEL_WIDTH = 82;
-const DETAIL_TABLE_ROW_HEIGHT = 22;
+const TILE_SIZE = 120;
+const TILE_GAP = 12;
+const GRID_COLUMNS = 2;
 const EMPTY_TABLE_VALUE = "/";
 const detailTextWrap = (width: number) => ({ width, useAdvancedWrap: true });
 const GRADE_LABELS = [
@@ -100,8 +103,8 @@ export class EncyclopediaPanel {
   private overlay!: Phaser.GameObjects.Container;
   private grid!: Phaser.GameObjects.Container;
   private detail!: Phaser.GameObjects.Container;
-  private readonly gridViewport = new Phaser.Geom.Rectangle(144, 224, 604, 374);
-  private readonly detailViewport = new Phaser.Geom.Rectangle(778, 224, 358, 374);
+  private readonly gridViewport = new Phaser.Geom.Rectangle(40, 170, 256, 548);
+  private readonly detailViewport = new Phaser.Geom.Rectangle(330, 150, 904, 568);
   private gridContentHeight = 0;
   private detailContentHeight = 0;
   private gridScrollY = 0;
@@ -119,10 +122,17 @@ export class EncyclopediaPanel {
   private cardCaseButtons: EncyclopediaCardCaseButton[] = [];
   private enemyGroupId = "main";
   private enemyGroupControls!: Phaser.GameObjects.Container;
-  private statMode: EncyclopediaStatMode = "coarse";
+  private statMode: EncyclopediaStatMode = "exact";
   private statModeButtons: EncyclopediaStatModeButton[] = [];
   private tiles: EncyclopediaTile[] = [];
   private selectedEntryId = "";
+  private previewLevel = 1;
+  private levelControls!: Phaser.GameObjects.Container;
+  private levelLabel!: Phaser.GameObjects.Text;
+  private selectedLabel!: Phaser.GameObjects.Text;
+  private scrollbars!: Phaser.GameObjects.Graphics;
+  private readonly scrollMemory = new Map<string, number>();
+  private readonly selectionMemory = new Map<string, string>();
 
   constructor(private readonly scene: Phaser.Scene, private readonly onClose?: () => void) {
     this.createOverlay();
@@ -174,10 +184,10 @@ export class EncyclopediaPanel {
     const backdrop = this.scene.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, palette.black, 0.78);
     backdrop.setInteractive();
     const panel = this.scene.add
-      .rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 10, 1060, 616, palette.black, 0.98)
+      .rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH - 24, GAME_HEIGHT - 24, palette.black, 0.99)
       .setStrokeStyle(2, palette.white, 0.95);
     const title = this.scene.add
-      .text(144, 86, t("encyclopedia.title"), {
+      .text(40, 38, t("encyclopedia.title"), {
         color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "26px",
@@ -185,11 +195,11 @@ export class EncyclopediaPanel {
       })
       .setOrigin(0, 0);
     const closeButton = this.scene.add
-      .rectangle(1128, 102, 54, 34, palette.black, 1)
+      .rectangle(1210, 52, 40, 40, palette.black, 1)
       .setStrokeStyle(2, palette.mid, 0.9)
       .setInteractive({ useHandCursor: true });
     const closeText = this.scene.add
-      .text(1128, 100, "X", {
+      .text(1210, 51, "×", {
         color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: "18px",
@@ -197,15 +207,30 @@ export class EncyclopediaPanel {
       })
       .setOrigin(0.5);
 
-    const enemyTab = this.createTabButton("enemies", 144, 136);
-    const towerTab = this.createTabButton("towers", 284, 136);
-    const mechanicTab = this.createTabButton("mechanics", 424, 136);
-    const upperCaseButton = this.createCardCaseButton("uppercase", 144, 184, "A");
-    const lowerCaseButton = this.createCardCaseButton("lowercase", 196, 184, "a");
-    const asciiButton = this.createCardCaseButton("ascii", 248, 184, "@");
+    const enemyTab = this.createTabButton("enemies", 330, 52);
+    const towerTab = this.createTabButton("towers", 474, 52);
+    const mechanicTab = this.createTabButton("mechanics", 618, 52);
+    const upperCaseButton = this.createCardCaseButton("uppercase", 40, 126, "A");
+    const lowerCaseButton = this.createCardCaseButton("lowercase", 96, 126, "a");
+    const asciiButton = this.createCardCaseButton("ascii", 152, 126, "@");
     this.enemyGroupControls = this.scene.add.container(0, 0);
-    const coarseModeButton = this.createStatModeButton("coarse", 760, 136, t("encyclopedia.coarse"));
-    const exactModeButton = this.createStatModeButton("exact", 846, 136, t("encyclopedia.exact"));
+    const coarseModeButton = this.createStatModeButton("coarse", 330, 114, t("encyclopedia.coarse"));
+    const exactModeButton = this.createStatModeButton("exact", 420, 114, t("encyclopedia.exact"));
+    this.levelControls = this.scene.add.container(0, 0);
+    this.levelLabel = this.scene.add.text(1104, 114, "Lv. 1", { fontFamily: "monospace", fontSize: "18px", color: uiTextColors.primary }).setOrigin(.5);
+    this.levelControls.add(this.levelLabel);
+    for (const [x, delta, symbol] of [[1022, -1, "−"], [1186, 1, "+"]] as const) {
+      const frame = this.scene.add.rectangle(x, 114, 36, 32, palette.black).setStrokeStyle(1, palette.mid).setInteractive({ useHandCursor: true });
+      const label = this.scene.add.text(x, 113, symbol, { fontFamily: "monospace", fontSize: "22px", color: uiTextColors.primary }).setOrigin(.5);
+      frame.on("pointerdown", () => this.changePreviewLevel(delta));
+      bindButtonHover(frame, [label]);
+      this.levelControls.add([frame, label]);
+    }
+    const previewCaption = this.scene.add.text(1000, 114, isZhLabel("预览等级", "Preview level"), { fontFamily: "monospace", fontSize: "14px", color: uiTextColors.secondary }).setOrigin(1, .5);
+    this.levelControls.add(previewCaption);
+    this.selectedLabel = this.scene.add.text(530, 114, "", { fontFamily: "monospace", fontSize: "17px", color: uiTextColors.primary,
+      wordWrap: detailTextWrap(310) }).setOrigin(0, .5);
+    this.scrollbars = this.scene.add.graphics();
 
     const gridFrame = this.scene.add
       .rectangle(
@@ -291,7 +316,10 @@ export class EncyclopediaPanel {
       gridMask,
       detailMask,
       this.grid,
-      this.detail
+      this.detail,
+      this.levelControls,
+      this.selectedLabel,
+      this.scrollbars
     ]);
     this.overlay.setDepth(260);
     this.overlay.setVisible(false);
@@ -397,12 +425,13 @@ export class EncyclopediaPanel {
     groups.forEach((group, index) => {
       const x = this.gridViewport.x + index * (width + 12) + width / 2;
       const selected = group.id === this.enemyGroupId;
-      const frame = this.scene.add.rectangle(x, 184, width, 30, selected ? palette.panel : palette.black)
+      const frame = this.scene.add.rectangle(x, 126, width, 30, selected ? palette.panel : palette.black)
         .setStrokeStyle(selected ? 3 : 2, selected ? palette.white : palette.dim, selected ? 1 : 0.7)
         .setInteractive({ useHandCursor: true });
-      const label = this.scene.add.text(x, 183, t(group.labelKey), {
-        color: uiTextColors.primary, fontFamily: "monospace", fontSize: "15px", fontStyle: "700"
+      const label = this.scene.add.text(x, 125, t(group.labelKey), {
+        color: uiTextColors.primary, fontFamily: "monospace", fontSize: "14px", fontStyle: "700"
       }).setOrigin(0.5).setAlpha(selected ? 1 : 0.78);
+      if (label.width > width - 12) label.setFontSize(12);
       frame.on("pointerdown", () => {
         if (this.enemyGroupId === group.id) return;
         this.enemyGroupId = group.id;
@@ -460,16 +489,19 @@ export class EncyclopediaPanel {
     }
   }
 
-  private rebuildGrid(preferredEntryId = this.selectedEntryId) {
+  private rebuildGrid(preferredEntryId = this.selectionMemory.get(this.listKey()) ?? this.selectedEntryId) {
     this.grid.removeAll(true);
     this.tiles = [];
     const entries = this.currentEntries();
     const selectedEntry = entries.find((entry) => this.entryId(entry) === preferredEntryId) ?? entries[0];
-    this.selectedEntryId = selectedEntry ? this.entryId(selectedEntry) : "";
+    const nextId = selectedEntry ? this.entryId(selectedEntry) : "";
+    if (nextId !== this.selectedEntryId) this.previewLevel = 1;
+    this.selectedEntryId = nextId;
+    this.selectionMemory.set(this.listKey(), nextId);
     entries.forEach((entry, index) => this.drawTile(entry, index));
     const rows = Math.ceil(entries.length / GRID_COLUMNS);
     this.gridContentHeight = rows * TILE_SIZE + Math.max(0, rows - 1) * TILE_GAP + 4;
-    this.setGridScroll(0);
+    this.setGridScroll(this.scrollMemory.get(this.listKey()) ?? 0);
     this.updateTileSelection();
     if (selectedEntry) {
       this.drawDetail(selectedEntry);
@@ -490,10 +522,10 @@ export class EncyclopediaPanel {
       .setStrokeStyle(2, palette.dim, 0.88)
       .setInteractive({ useHandCursor: true });
     const title = this.scene.add
-      .text(TILE_SIZE / 2, TILE_SIZE - 18, this.shortTitle(entry), {
+      .text(TILE_SIZE / 2, TILE_SIZE - 28, this.shortTitle(entry), {
         color: uiTextColors.body,
         fontFamily: "monospace",
-        fontSize: "12px",
+        fontSize: "13px",
         fontStyle: "700",
         align: "center",
         wordWrap: detailTextWrap(TILE_SIZE - 10)
@@ -524,7 +556,9 @@ export class EncyclopediaPanel {
   }
 
   private selectEntry(entry: EncyclopediaEntry) {
+    if (this.selectedEntryId !== this.entryId(entry)) this.previewLevel = 1;
     this.selectedEntryId = this.entryId(entry);
+    this.selectionMemory.set(this.listKey(), this.selectedEntryId);
     this.updateTileSelection();
     this.drawDetail(entry);
   }
@@ -539,6 +573,8 @@ export class EncyclopediaPanel {
 
   private drawEmptyDetail() {
     this.detail.removeAll(true);
+    this.levelControls.setVisible(false);
+    this.selectedLabel.setText("");
     const text = this.scene.add
       .text(this.detailViewport.width / 2, this.detailViewport.height / 2, t("encyclopedia.selectEntry"), {
         color: "#777777",
@@ -554,59 +590,46 @@ export class EncyclopediaPanel {
 
   private drawDetail(entry: EncyclopediaEntry) {
     this.detail.removeAll(true);
+    this.selectedLabel.setText(entry.title);
+    this.levelControls.setVisible(!!entry.card);
+    this.levelLabel.setText(`Lv. ${this.previewLevel}`);
     let y = 18;
     this.addEntryIcon(this.detail, entry, 46, y + 34, 1.08);
     const title = this.scene.add
       .text(92, y, entry.title, {
         color: uiTextColors.primary,
         fontFamily: "monospace",
-        fontSize: "19px",
+        fontSize: "26px",
         fontStyle: "700",
-        wordWrap: detailTextWrap(this.detailViewport.width - 112)
+        wordWrap: detailTextWrap(490)
       })
       .setOrigin(0, 0);
     this.detail.add(title);
-    y += Math.max(74, title.height + 18);
-
-    const statsTitle = this.scene.add
-      .text(18, y, t("encyclopedia.details"), {
-        color: uiTextColors.primary,
-        fontFamily: "monospace",
-        fontSize: "14px",
-        fontStyle: "700"
-      })
-      .setOrigin(0, 0);
-    this.detail.add(statsTitle);
-    y += 24;
-
-    y += this.drawDetailTable(entry, y) + 18;
-
-    const notes = this.detailNotes(entry);
-    if (notes.length > 0) {
-      const noteText = this.scene.add
-        .text(18, y, notes.join("\n"), {
-          color: uiTextColors.body,
-          fontFamily: "monospace",
-          fontSize: "12px",
-          lineSpacing: 4,
-          wordWrap: detailTextWrap(this.detailViewport.width - 36)
-        })
-        .setOrigin(0, 0);
-      this.detail.add(noteText);
-      y += noteText.height + 18;
+    if (entry.card) {
+      this.detailText(94, y + title.height + 10, isZhLabel("等级面板 · 未计光环及临时增益", "Level stats · before auras and temporary buffs"), 14, uiTextColors.secondary, 490);
+      this.drawRange(entry, 602, y);
     }
-
-    const description = this.scene.add
-      .text(18, y, entry.description, {
-        color: uiTextColors.secondary,
-        fontFamily: "monospace",
-        fontSize: "12px",
-        lineSpacing: 4,
-        wordWrap: detailTextWrap(this.detailViewport.width - 36)
-      })
-      .setOrigin(0, 0);
-    this.detail.add(description);
-    y += description.height + 18;
+    y += Math.max(124, title.height + 54);
+    if (!entry.mechanicId) y += this.drawDetailTable(entry, y) + 24;
+    if (entry.card) {
+      for (const section of towerDetailSections(entry.card, this.previewLevel, entry.description)) y = this.drawSection(section, y);
+      y = this.drawSection({ title: t("label.upgrade"), tag: isZhLabel("成长规则", "Progression"), tone: "passive", fields: [], description: towerUpgradeText(entry.card.id) }, y);
+    } else {
+      if (entry.enemyKind) {
+        const enemy = getEnemyDefinition(entry.enemyKind), mode = getEnemyRegistration(entry.enemyKind).attackMode;
+        const noRegularAttack = ["slopeTriangle", "solarBomb"].includes(enemyFamily(entry.enemyKind));
+        const speed = enemyAttackSpeed(entry.enemyKind);
+        y = this.drawSection({ title: isZhLabel("常规攻击", "Regular attack"), tag: isZhLabel("敌方行动", "Enemy action"), tone: "attack",
+          fields: [
+            { label: isZhLabel("攻击形式", "Attack mode"), value: noRegularAttack ? isZhLabel("无常规攻击", "No regular attack") : enemyModeLabel(mode) },
+            { label: isZhLabel("攻击速度", "Attack speed"), value: noRegularAttack ? "/" : `${formatNumber(speed)} · ${formatNumber(attackIntervalMs(speed) / 1000)}s` },
+            { label: isZhLabel("基础攻击", "Base attack"), value: this.damageValue(enemy.damage, enemy.damageType) }
+          ] }, y);
+      }
+      const notes = this.detailNotes(entry);
+      if (notes.length) y = this.drawSection({ title: isZhLabel("等级与机制", "Ranks & mechanics"), tag: "", tone: "passive", fields: [], description: notes.join("\n\n") }, y);
+      y = this.drawSection({ title: isZhLabel("详细说明", "Description"), tag: "", tone: "passive", fields: [], description: entry.description }, y);
+    }
     y = this.drawMechanicLinks(entry, y);
 
     this.detailContentHeight = y + 18;
@@ -617,39 +640,97 @@ export class EncyclopediaPanel {
     const rows = this.detailTableRows(entry);
     const x = 18;
     const width = this.detailViewport.width - 36;
-    const height = rows.length * DETAIL_TABLE_ROW_HEIGHT;
+    const columns = 5, cellWidth = width / columns, cellHeight = 64;
+    const height = Math.ceil(rows.length / columns) * cellHeight;
     const graphics = this.scene.add.graphics();
-    graphics.lineStyle(1, palette.dim, 0.86);
-    graphics.strokeRect(x, y, width, height);
-    graphics.lineBetween(x + DETAIL_TABLE_LABEL_WIDTH, y, x + DETAIL_TABLE_LABEL_WIDTH, y + height);
-    for (let index = 1; index < rows.length; index += 1) {
-      const rowY = y + index * DETAIL_TABLE_ROW_HEIGHT;
-      graphics.lineBetween(x, rowY, x + width, rowY);
-    }
+    graphics.lineStyle(1, palette.dim, 0.7);
+    for (let index = 0; index <= 2; index++) graphics.lineBetween(x, y + index * cellHeight, x + width, y + index * cellHeight);
+    for (let index = 1; index < columns; index++) graphics.lineBetween(x + index * cellWidth, y, x + index * cellWidth, y + height);
     this.detail.add(graphics);
-
     rows.forEach((row, index) => {
-      const rowY = y + index * DETAIL_TABLE_ROW_HEIGHT + DETAIL_TABLE_ROW_HEIGHT / 2 - 1;
-      const label = this.scene.add
-        .text(x + 8, rowY, row.label, {
-          color: uiTextColors.secondary,
-          fontFamily: "monospace",
-          fontSize: "11px",
-          fontStyle: "700"
-        })
-        .setOrigin(0, 0.5);
-      const value = this.scene.add
-        .text(x + DETAIL_TABLE_LABEL_WIDTH + 8, rowY, row.value, {
-          color: uiTextColors.primary,
-          fontFamily: "monospace",
-          fontSize: "11px",
-          wordWrap: detailTextWrap(width - DETAIL_TABLE_LABEL_WIDTH - 16)
-        })
-        .setOrigin(0, 0.5);
-      this.detail.add([label, value]);
+      const left = x + index % columns * cellWidth + 12, top = y + Math.floor(index / columns) * cellHeight;
+      this.detailText(left, top + 8, row.label, 13, uiTextColors.secondary, cellWidth - 24);
+      this.detailText(left, top + 29, row.value, 19, uiTextColors.primary, cellWidth - 24);
     });
-
     return height;
+  }
+
+  private detailText(x: number, y: number, text: string, size = 16, color: string = uiTextColors.body, width = this.detailViewport.width - x - 18) {
+    const label = this.scene.add.text(x, y, text, { fontFamily: "monospace", fontSize: `${size}px`, color,
+      lineSpacing: 6, wordWrap: detailTextWrap(width) }).setOrigin(0);
+    this.detail.add(label);
+    return label;
+  }
+
+  private drawSection(section: DetailSection, y: number) {
+    const colors = { attack: "#9cdfff", skill: "#ffe49a", aura: "#99e8ac", passive: uiTextColors.primary };
+    const color = colors[section.tone];
+    const heading = this.detailText(18, y, section.title, 19, color, 440);
+    const tag = this.detailText(486, y + 3, section.tag, 14, color, this.detailViewport.width - 504);
+    y += Math.max(heading.height, tag.height) + 14;
+    const divider = this.scene.add.graphics().lineStyle(1, palette.dim, .8);
+    divider.lineBetween(18, y, this.detailViewport.width - 18, y); this.detail.add(divider);
+    y += 12;
+    y = this.drawFields(section.fields, y);
+    if (section.description) {
+      const text = this.detailText(18, y, section.description);
+      y += text.height + 14;
+    }
+    return y + 20;
+  }
+
+  private drawFields(fields: DetailField[], y: number) {
+    const width = (this.detailViewport.width - 54) / 2;
+    for (let i = 0; i < fields.length; i += 2) {
+      let height = 0;
+      for (let col = 0; col < 2 && fields[i + col]; col++) {
+        const field = fields[i + col], x = 18 + col * (width + 18);
+        const label = this.detailText(x, y, field.label, 13, uiTextColors.secondary, width);
+        const value = this.detailText(x, y + label.height + 4, field.value, 16, uiTextColors.primary, width);
+        height = Math.max(height, label.height + 4 + value.height);
+      }
+      y += height + 16;
+    }
+    return y;
+  }
+
+  private drawRange(entry: EncyclopediaEntry, x: number, y: number) {
+    const range = entry.card && towerDetailRange(entry.card);
+    if (!range) return;
+    const size = 12, centerX = x + 96, centerY = y + 43;
+    const graphics = this.scene.add.graphics();
+    if (range.cells.length) {
+      for (let row = -2; row <= 2; row++) for (let col = -4; col <= 6; col++) {
+        const active = range.cells.some(([cx, cy]) => cx === col && cy === row);
+        graphics.fillStyle(active ? 0x72b7cc : palette.panel, active ? .85 : 1);
+        graphics.fillRect(centerX + col * size, centerY + row * size, size - 2, size - 2);
+      }
+      graphics.lineStyle(2, 0xffdd88, 1).strokeRect(centerX - 1, centerY - 1, size, size);
+      this.detail.add(graphics);
+    }
+    this.detailText(x, y + (range.cells.length ? 84 : 32), range.label, 13, "#9cdfff", 280);
+  }
+
+  private changePreviewLevel(delta: number) {
+    const entry = this.currentEntries().find(entry => this.entryId(entry) === this.selectedEntryId);
+    if (!entry?.card) return;
+    this.previewLevel = Phaser.Math.Clamp(this.previewLevel + delta, 1, 999);
+    const scroll = this.detailScrollY;
+    this.drawDetail(entry); this.setDetailScroll(scroll);
+  }
+
+  private listKey() { return `${this.tab}:${this.tab === "towers" ? this.cardCase : this.enemyGroupId}`; }
+
+  private updateScrollbars() {
+    if (!this.scrollbars) return;
+    this.scrollbars.clear();
+    for (const [rect, content, scroll] of [[this.gridViewport, this.gridContentHeight, this.gridScrollY], [this.detailViewport, this.detailContentHeight, this.detailScrollY]] as const) {
+      if (content <= rect.height) continue;
+      const height = Math.max(26, rect.height * rect.height / content);
+      const y = rect.y + (rect.height - height) * scroll / (content - rect.height);
+      this.scrollbars.fillStyle(palette.dim, .5).fillRect(rect.right + 6, rect.y, 3, rect.height);
+      this.scrollbars.fillStyle(0x9cdfff, .9).fillRect(rect.right + 6, y, 3, height);
+    }
   }
 
   private drawMechanicLinks(entry: EncyclopediaEntry, y: number) {
@@ -662,7 +743,7 @@ export class EncyclopediaPanel {
       .text(18, y, t("encyclopedia.relatedMechanics"), {
         color: uiTextColors.primary,
         fontFamily: "monospace",
-        fontSize: "13px",
+        fontSize: "16px",
         fontStyle: "700"
       })
       .setOrigin(0, 0);
@@ -677,22 +758,26 @@ export class EncyclopediaPanel {
         .text(x, rowY, label, {
           color: uiTextColors.primary,
           fontFamily: "monospace",
-          fontSize: "13px",
+          fontSize: "16px",
           fontStyle: "700"
         })
         .setOrigin(0, 0)
         .setInteractive({ useHandCursor: true });
+      if (x + link.width > this.detailViewport.width - 18 && x > 18) { x = 18; rowY += 32; link.setPosition(x, rowY); }
       const underline = this.scene.add.graphics();
       underline.lineStyle(1, palette.white, 0.92);
       underline.lineBetween(x, rowY + link.height + 1, x + link.width, rowY + link.height + 1);
-      link.on("pointerdown", () => this.openMechanic(mechanicId));
+      link.on("pointerup", (pointer: Phaser.Input.Pointer) => {
+        const position = this.pointerPosition(pointer);
+        if (!this.dragMoved && !this.timeIsSuppressingClick() && this.detailViewport.contains(position.x, position.y)) this.openMechanic(mechanicId);
+      });
       link.on("pointerover", () => link.setColor("#48ff88"));
       link.on("pointerout", () => link.setColor(uiTextColors.primary));
       this.detail.add([link, underline]);
       x += link.width + 18;
       if (x > this.detailViewport.width - 88) {
         x = 18;
-        rowY += 24;
+        rowY += 32;
       }
     }
     return rowY + 30;
@@ -702,6 +787,7 @@ export class EncyclopediaPanel {
     this.tab = "mechanics";
     this.updateTabs();
     this.updateCardCaseButtons();
+    this.updateEnemyGroupButtons();
     this.updateStatModeButtons();
     this.rebuildGrid(`mechanic:${mechanicId}`);
   }
@@ -774,11 +860,12 @@ export class EncyclopediaPanel {
     const row = (label: string, value: string): DetailTableRow => ({ label, value });
     if (entry.card) {
       const card = entry.card;
+      const stats = towerPreviewStats(card, this.previewLevel);
       return [
-        row(t("label.hp"), card.category === "special" ? EMPTY_TABLE_VALUE : this.statValue(card.maxHp, "hp")),
+        row(t("label.hp"), card.category === "special" ? EMPTY_TABLE_VALUE : this.statValue(stats.maxHp, "hp")),
         row(t("label.armor"), card.category === "special" ? EMPTY_TABLE_VALUE : this.statValue(card.armor ?? 0, "armor")),
         row(t("label.mr"), card.category === "special" ? EMPTY_TABLE_VALUE : this.statValue(card.magicResistance ?? 0, "mr")),
-        row(t("label.atk"), card.category === "special" ? EMPTY_TABLE_VALUE : this.damageValue(card.attackPower, card.damageType)),
+        row(t("label.atk"), card.category === "special" ? EMPTY_TABLE_VALUE : this.damageValue(stats.attackPower, card.damageType)),
         row(isZhLabel("攻速", "AS"), this.statValue(card.attackSpeed, "attackSpeed")),
         row(t("label.speed"), EMPTY_TABLE_VALUE),
         row(isZhLabel("范围", "RANGE"), this.statValue(card.rangeCells, "range")),
@@ -796,7 +883,7 @@ export class EncyclopediaPanel {
         row(t("label.armor"), this.statValue(enemy.armor, "armor")),
         row(t("label.mr"), this.statValue(enemy.magicResistance, "mr")),
         row(t("label.atk"), this.damageValue(enemy.damage, enemy.damageType)),
-        row(isZhLabel("攻速", "AS"), EMPTY_TABLE_VALUE),
+        row(isZhLabel("攻速", "AS"), ["slopeTriangle", "solarBomb"].includes(enemyFamily(entry.enemyKind)) ? EMPTY_TABLE_VALUE : this.statValue(enemyAttackSpeed(entry.enemyKind), "attackSpeed")),
         row(t("label.speed"), this.statValue(speed, "moveSpeed")),
         row(isZhLabel("范围", "RANGE"), EMPTY_TABLE_VALUE),
         row(t("label.cost"), EMPTY_TABLE_VALUE),
@@ -985,12 +1072,15 @@ export class EncyclopediaPanel {
     const maxScroll = Math.max(0, this.gridContentHeight - this.gridViewport.height);
     this.gridScrollY = Math.round(Phaser.Math.Clamp(scrollY, 0, maxScroll));
     this.grid.y = this.gridViewport.y - this.gridScrollY;
+    this.scrollMemory.set(this.listKey(), this.gridScrollY);
+    this.updateScrollbars();
   }
 
   private setDetailScroll(scrollY: number) {
     const maxScroll = Math.max(0, this.detailContentHeight - this.detailViewport.height);
     this.detailScrollY = Math.round(Phaser.Math.Clamp(scrollY, 0, maxScroll));
     this.detail.y = this.detailViewport.y - this.detailScrollY;
+    this.updateScrollbars();
   }
 }
 
@@ -1054,4 +1144,14 @@ function bossStatsForIcon(icon: NonNullable<EncyclopediaEntry["icon"]>) {
 
 function isZhLabel(zh: string, en: string) {
   return getLanguage() === "zh-CN" ? zh : en;
+}
+
+function enemyModeLabel(mode: string) {
+  const labels: Record<string, [string, string]> = {
+    melee: ["近战", "Melee"], ranged: ["远程弹幕", "Ranged projectile"], mortar: ["锁定迫击炮", "Targeted mortar"],
+    laser: ["激光", "Laser"], siegeRam: ["攻城冲撞", "Siege charge"], mace: ["重锤", "Mace"],
+    blockedDetonator: ["阻挡后引爆", "Detonates when blocked"], leader: ["领袖机制", "Leader behavior"],
+    companion: ["眷属攻击", "Companion attacks"], special: ["特殊机制", "Special behavior"]
+  };
+  return isZhLabel(...(labels[mode] ?? ["特殊机制", "Special behavior"]));
 }

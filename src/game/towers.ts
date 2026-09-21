@@ -6,7 +6,7 @@ import { projectileBankCapacity } from "./projectileBank";
 import { nodeOccupancy } from "./pipelineRules";
 import { syncHealthBar } from "./towerHealth";
 import { facingWithEffects } from "./rules/reversal";
-import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
+import { AIR_PATROL_INITIAL_SP, BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
 import { createUnitBorder } from "../render/unitShapes";
 import { drawParenthesisBorder } from "../render/parenthesisTower";
 import type { CardDefinition, CardId, CardState, SkillState, Tower } from "../types";
@@ -19,7 +19,6 @@ import {
 import { setAlphaIfChanged, setPositionIfChanged, setScaleIfChanged, setVisibleIfChanged } from "./visualGuards";
 
 const TRUE_DAMAGE_DURATION_PER_LEVEL = 12_000;
-const AIR_PATROL_INITIAL_SP = 8;
 
 export function createTower(
   scene: Phaser.Scene,
