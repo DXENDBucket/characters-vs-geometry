@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { bindButtonHover } from "./buttonHover";
+import { bindSliderInput } from "./sliderInput";
 import {
   CARD_BAR_WIDTH,
   CARD_HEIGHT,
@@ -82,6 +83,7 @@ interface GameHudActions {
   onAutoUpgradeEnabled: () => void;
   onAutoUpgradeReserveFocus: () => void;
   onGameSpeedChange: (speed: number) => void;
+  canChangeGameSpeed: () => boolean;
   onErase: () => void;
 }
 
@@ -167,15 +169,15 @@ export function createGameHud(
     .rectangle(speedSliderX + speedSliderWidth / 2, speedSliderY, speedSliderWidth + 24, 28, palette.black, 0.001)
     .setInteractive({ useHandCursor: true })
     .setDepth(20);
-  const setSpeedFromPointer = (pointer: Phaser.Input.Pointer) => {
-    const ratio = Phaser.Math.Clamp((pointer.x - speedSliderX) / speedSliderWidth, 0, 1);
-    const speed = GAME_SPEED_MIN + ratio * (GAME_SPEED_MAX - GAME_SPEED_MIN);
-    actions.onGameSpeedChange(Math.round(speed * 10) / 10);
-  };
-  speedHit.on("pointerdown", setSpeedFromPointer);
-  speedKnob.on("pointerdown", setSpeedFromPointer);
-  speedKnob.on("drag", (pointer: Phaser.Input.Pointer) => setSpeedFromPointer(pointer));
-  scene.input.setDraggable(speedKnob);
+  bindSliderInput(scene, [speedHit, speedKnob], {
+    enabled: actions.canChangeGameSpeed,
+    coordinate: pointer => pointer.x,
+    geometry: () => ({ start: speedSliderX, end: speedSliderX + speedSliderWidth, thumb: speedKnob.x, thumbSize: speedKnob.width }),
+    change: ratio => {
+      const speed = GAME_SPEED_MIN + ratio * (GAME_SPEED_MAX - GAME_SPEED_MIN);
+      actions.onGameSpeedChange(Math.round(speed * 10) / 10);
+    }
+  });
   bindButtonHover(speedKnob, [speedHit]);
 
   const progressText = scene.add

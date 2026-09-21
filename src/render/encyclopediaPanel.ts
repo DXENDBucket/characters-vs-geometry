@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { drawParenthesisBorder } from "./parenthesisTower";
 import { bindButtonHover } from "./buttonHover";
+import { bindSliderInput } from "./sliderInput";
 import {
   CUBE_BOSS_CONTACT_DAMAGE,
   CUBE_BOSS_STATS,
@@ -323,6 +324,24 @@ export class EncyclopediaPanel {
     ]);
     this.overlay.setDepth(260);
     this.overlay.setVisible(false);
+    for (const area of ["grid", "detail"] as const) {
+      const rect = area === "grid" ? this.gridViewport : this.detailViewport;
+      const hit = this.scene.add.zone(rect.right + 8, rect.centerY, 14, rect.height)
+        .setInteractive({ useHandCursor: true });
+      this.overlay.add(hit);
+      bindSliderInput(this.scene, [hit], {
+        coordinate: pointer => this.pointerPosition(pointer).y,
+        enabled: () => this.openState && this.scrollbarGeometry(area).maxScroll > 0,
+        geometry: () => this.scrollbarGeometry(area),
+        change: ratio => {
+          this.dragMoved = true;
+          this.suppressClickUntil = this.scene.time.now + 120;
+          const scroll = ratio * this.scrollbarGeometry(area).maxScroll;
+          if (area === "grid") this.setGridScroll(scroll);
+          else this.setDetailScroll(scroll);
+        }
+      });
+    }
   }
 
   private createTabButton(tab: EncyclopediaTab, x: number, y: number) {
@@ -724,13 +743,23 @@ export class EncyclopediaPanel {
   private updateScrollbars() {
     if (!this.scrollbars) return;
     this.scrollbars.clear();
-    for (const [rect, content, scroll] of [[this.gridViewport, this.gridContentHeight, this.gridScrollY], [this.detailViewport, this.detailContentHeight, this.detailScrollY]] as const) {
-      if (content <= rect.height) continue;
-      const height = Math.max(26, rect.height * rect.height / content);
-      const y = rect.y + (rect.height - height) * scroll / (content - rect.height);
+    for (const area of ["grid", "detail"] as const) {
+      const rect = area === "grid" ? this.gridViewport : this.detailViewport;
+      const { maxScroll, thumb, thumbSize } = this.scrollbarGeometry(area);
+      if (maxScroll <= 0) continue;
       this.scrollbars.fillStyle(palette.dim, .5).fillRect(rect.right + 6, rect.y, 3, rect.height);
-      this.scrollbars.fillStyle(0x9cdfff, .9).fillRect(rect.right + 6, y, 3, height);
+      this.scrollbars.fillStyle(0x9cdfff, .9).fillRect(rect.right + 5, thumb - thumbSize / 2, 5, thumbSize);
     }
+  }
+
+  private scrollbarGeometry(area: DragArea) {
+    const rect = area === "grid" ? this.gridViewport : this.detailViewport;
+    const content = area === "grid" ? this.gridContentHeight : this.detailContentHeight;
+    const scroll = area === "grid" ? this.gridScrollY : this.detailScrollY;
+    const maxScroll = Math.max(0, content - rect.height);
+    const thumbSize = Math.min(rect.height, Math.max(26, rect.height * rect.height / Math.max(1, content)));
+    const start = rect.y + thumbSize / 2, end = rect.bottom - thumbSize / 2;
+    return { start, end, thumbSize, maxScroll, thumb: start + (end - start) * (maxScroll > 0 ? scroll / maxScroll : 0) };
   }
 
   private drawMechanicLinks(entry: EncyclopediaEntry, y: number) {

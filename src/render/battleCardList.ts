@@ -80,7 +80,7 @@ export class BattleCardList {
   private readonly onDown = (pointer: Phaser.Input.Pointer) => {
     if (!this.canInteract() || !pointer.leftButtonDown() || !this.viewport.contains(pointer.x, pointer.y)) return;
     const scrollbar = this.maxOffset > 0 && pointer.x >= 198;
-    this.drag = { pointer, y: pointer.y, offset: this.offset, card: this.cardAt(pointer), moved: false, scrollbar };
+    this.drag = { pointer, y: pointer.y, offset: this.offset, card: this.cardAt(pointer), moved: scrollbar, scrollbar };
     if (scrollbar && (pointer.y < this.thumb.y || pointer.y > this.thumb.y + this.thumb.height)) {
       this.setOffset((pointer.y - this.viewport.y - this.thumb.height / 2) / this.thumbTravel() * this.maxOffset);
       this.drag.offset = this.offset;

@@ -499,6 +499,7 @@ export class GameScene extends Phaser.Scene {
       onAutoUpgradeEnabled: () => this.toggleAutoUpgradeEnabled(),
       onAutoUpgradeReserveFocus: () => this.focusAutoUpgradeReserveInput(),
       onGameSpeedChange: (speed) => this.setGameSpeed(speed),
+      canChangeGameSpeed: () => !this.gameOver && !this.menuOpen && !this.reselectOpen,
       onErase: () => this.toggleEraser()
     }, this.debugModeEnabled);
     this.pauseMenu = new PauseMenu({

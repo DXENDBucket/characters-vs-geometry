@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { bindButtonHover } from "../render/buttonHover";
+import { bindSliderInput } from "../render/sliderInput";
 import { createPageHeading, createHeaderNavigation } from "../render/pageHeader";
 import { readSurvivalSave } from "../survivalSaves";
 import {
@@ -650,15 +651,12 @@ export class LevelSelectScene extends Phaser.Scene {
       .setStrokeStyle(2, palette.white, 1)
       .setInteractive({ useHandCursor: true });
 
-    this.input.setDraggable(this.difficultyKnob);
     bindButtonHover(this.difficultyKnob, [hitArea]);
-    hitArea.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
-      this.setDifficultyFromX(pointer.x, trackX, trackWidth);
-    });
-    this.input.on("drag", (_pointer: Phaser.Input.Pointer, gameObject: Phaser.GameObjects.GameObject, dragX: number) => {
-      if (gameObject === this.difficultyKnob) {
-        this.setDifficultyFromX(dragX, trackX, trackWidth);
-      }
+    bindSliderInput(this, [hitArea, this.difficultyKnob], {
+      coordinate: pointer => pointer.x,
+      geometry: () => ({ start: trackX, end: trackX + trackWidth, thumb: this.difficultyKnob.x, thumbSize: this.difficultyKnob.width }),
+      change: ratio => this.setDifficultyFromX(trackX + ratio * trackWidth, trackX, trackWidth),
+      enabled: () => !this.encyclopediaPanel.isOpen()
     });
 
     for (let index = DIFFICULTY_MIN; index <= DIFFICULTY_MAX; index += 1) {
