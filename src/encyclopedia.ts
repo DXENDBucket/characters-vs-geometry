@@ -707,8 +707,8 @@ export function towerEncyclopediaEntry(id: CardId): EncyclopediaEntry {
 
 function towerLines(card: CardDefinition) {
   const firstLine = statLine([
-    [t("label.cost"), card.cost],
-    [t("label.cd"), seconds(card.cooldown)],
+    [t("label.cost"), card.id === "?" ? (isZh() ? "同目标" : "As target") : card.cost],
+    [t("label.cd"), card.id === "?" ? (isZh() ? "目标 ×2" : "Target x2") : seconds(card.cooldown)],
     [t("label.hp"), card.category === "special" ? "/" : card.maxHp],
     [t("label.armor"), card.category === "special" ? "/" : card.armor ?? 0],
     [t("label.mr"), card.category === "special" ? "/" : card.magicResistance ?? 0]
@@ -733,6 +733,8 @@ function towerLines(card: CardDefinition) {
 function towerDescription(id: CardId) {
   const zh = isZh();
   const descriptions: Record<CardId, string> = {
+    "?": zh ? "模仿者。在选卡时指定一座已解锁的常规塔，可与原卡同时携带，独立计算冷却。费用与目标相同，卡牌冷却为目标的两倍。部署后立即使用目标的外观、属性、行为和升级规则，也可参与自动升级。常规塔：基础费用 999 及以下；超级塔：1000–9999；究极塔：10000 及以上。"
+      : "Imitator. Choose an unlocked regular tower in the loadout. Can accompany the original card with an independent cooldown. Costs the same as the target, with twice its card cooldown. Immediately deploys as the target, inheriting its appearance, stats, behavior and upgrade rules, including normal auto-upgrades. Regular: base cost <=999; Super: 1000-9999; Ultimate: 10000+.",
     "()": zh ? "括号防护层，可与一座常规塔共用一格，先放括号或先放内部塔都可以。内部塔受到的所有伤害优先由括号承受，按括号自身护甲与法抗结算；击破括号的那次伤害不向内部溢出。范围攻击每格只判定一次，多判攻击的后续判定可在括号破坏后命中内部塔。括号与内部塔独立治疗、升级、擦除和移位。点击两侧括号可单独标记自动升级或擦除，点击中心操作内部塔。不能被 @ 复制。"
       : "Parenthesis protection layer. Shares a cell with one ordinary tower, in either deployment order. Receives all damage intended for the occupant using its own armor and MR. The breaking hit never spills through; later judgments may hit the occupant. Area attacks resolve once per cell. Shell and occupant have separate healing, upgrades, erasure and shifting. Click either bracket to select its auto-upgrade or erase it; the center selects the occupant. Cannot be copied by @.",
     "!": zh ? "持续攻击附着卡。放在已有塔上，永久允许该塔按原攻速和连射规则执行无需锁定目标的常规攻击，即使本行或射程内没有敌怪。适用于平射弹幕、激光、范围波；不自动释放技能，不绕过小 x、追踪迫击炮、斩击等必须有目标的条件。附着后显示金色 !，重复使用不叠加，升级和移动保留效果。生效后本卡冷却缩短为 30 秒 / 自身有效等级。"
@@ -808,6 +810,7 @@ function towerDescription(id: CardId) {
 }
 
 export function towerUpgradeText(id: CardId) {
+  if (id === "?") return isZh() ? "沿用模仿对象的升级规则；可用模仿卡或原卡升级同种塔，自动升级同理。卡槽各自计算冷却。" : "Follows the target's upgrade rules. Both the original and imitation cards can upgrade towers of that type, including auto-upgrades; each card keeps its own cooldown.";
   if (id === "!") return isZh() ? "只影响本卡冷却返还：生效后剩余冷却为 30 秒 / 自身有效等级。不会增加目标的攻速、伤害或连射。"
     : "Only improves this card's cooldown refund: 30s / effective level after resolving. Does not increase the target's attack speed, damage or volley count.";
   if (id === "0") return isZh() ? "每级增加 128 颗存储上限：1 级 128，2 级 256，以此类推；按有效等级计算。升级保留库存和字符 0，支持自动升级。"

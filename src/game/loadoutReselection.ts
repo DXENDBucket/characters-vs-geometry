@@ -1,4 +1,5 @@
 import type { CardId } from "../types";
+import { cardCooldownKey } from "./cardIdentity";
 
 export const RESELECT_UNLOCK_LEVEL = "2-4";
 export const RESELECT_COOLDOWN = 240_000;
@@ -23,15 +24,21 @@ export class LoadoutReselection {
     return Math.max(0, Math.min(1, 1 - (this.readyAt - battleTime) / RESELECT_COOLDOWN));
   }
 
-  confirm(battleTime: number, cards: ReadonlyArray<{ definition: { id: CardId }; readyAt: number }>) {
+  confirm(battleTime: number, cards: ReadonlyArray<{ definition: { id: CardId }; readyAt: number; displayTime?: number }>) {
     if (!this.isReady(battleTime)) return false;
     // Keep deadlines in each card's original clock, even while it is out of the loadout.
-    for (const card of cards) this.cardReadyTimes.set(card.definition.id, card.readyAt);
+    for (const card of cards) {
+      const key = cardCooldownKey(card.definition.id);
+      // An imitator can switch clock domains by changing its target (for example c -> A).
+      this.cardReadyTimes.set(key, key === "?"
+        ? battleTime + Math.max(0, card.readyAt - (card.displayTime ?? battleTime)) : card.readyAt);
+    }
     this.readyAt = battleTime + RESELECT_COOLDOWN;
     return true;
   }
 
-  cardReadyAt(id: CardId) {
-    return this.cardReadyTimes.get(id) ?? 0;
+  cardReadyAt(id: CardId, cardTime = 0, battleTime = 0) {
+    const key = cardCooldownKey(id), deadline = this.cardReadyTimes.get(key) ?? 0;
+    return key === "?" ? cardTime + Math.max(0, deadline - battleTime) : deadline;
   }
 }

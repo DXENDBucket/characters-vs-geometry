@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { test } from "node:test";
 import ts from "typescript";
+import { createTypeScriptLoader } from "./helpers/load-typescript.mjs";
 
 // Load the pure rules with the project's compiler, without a browser or Phaser.
 const source = fs.readFileSync(new URL("../src/game/rules/towerMovement.ts", import.meta.url), "utf8");
@@ -48,13 +49,18 @@ test("box push erases at board edges and sealed destinations instead of blocking
   }
 });
 
-const reselectSource = fs.readFileSync(new URL("../src/game/loadoutReselection.ts", import.meta.url), "utf8");
-const reselectModule = ts.transpileModule(reselectSource, {
-  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 }
+const { LoadoutReselection, RESELECT_UNLOCK_LEVEL, RESELECT_COOLDOWN } = createTypeScriptLoader()("src/game/loadoutReselection.ts");
+
+test("changing imitation target cannot reset the imitator cooldown and preserves the native slot", () => {
+  const state = new LoadoutReselection();
+  state.confirm(240000, [{ definition: { id: "?A" }, readyAt: 502000, displayTime: 500000 },
+    { definition: { id: "A" }, readyAt: 501000 }]);
+  assert.equal(state.cardReadyAt("?B", 500000, 240000), 502000);
+  assert.equal(state.cardReadyAt("A"), 501000);
+  const restored = new LoadoutReselection(); restored.restore(state.snapshot());
+  assert.equal(restored.cardReadyAt("?=", 750000, 241000), 751000);
+  assert.equal(restored.cardReadyAt("?()", 900000, 244000), 900000);
 });
-const { LoadoutReselection, RESELECT_UNLOCK_LEVEL, RESELECT_COOLDOWN } = await import(
-  `data:text/javascript;base64,${Buffer.from(reselectModule.outputText).toString("base64")}`
-);
 
 test("reselection unlocks after 2-4 and starts each battle and confirmation with a full 240-second cooldown", () => {
   const state = new LoadoutReselection();

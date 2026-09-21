@@ -1,4 +1,5 @@
 import type { CardId, Tower } from "../types";
+import { deploymentCardId } from "./cardIdentity";
 
 const key = (lane: number, column: number) => `${lane}:${column}`;
 export const isParenthesisTower = (tower: Pick<Tower, "type">) => tower.type === "()";
@@ -41,7 +42,7 @@ export function syncTowerOccupancy(towers: Tower[], occupied: Map<string, Tower>
 export function towerInPlacementLayer(occupied: Map<string, Tower>, lane: number, column: number, type: CardId) {
   const tower = occupied.get(key(lane, column));
   if (!tower) return undefined;
-  return type === "()" ? (isParenthesisTower(tower) ? tower : tower.parenthesisGuard)
+  return deploymentCardId(type) === "()" ? (isParenthesisTower(tower) ? tower : tower.parenthesisGuard)
     : isParenthesisTower(tower) ? parenthesisInner(tower) : tower;
 }
 

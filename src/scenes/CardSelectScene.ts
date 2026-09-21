@@ -24,12 +24,15 @@ import { cardSlotUnlockChapter } from "../data/cardSlotUnlocks";
 import { chapterIdForLevelId } from "../data/chapters";
 import { getLevelConfig } from "../data/levels";
 import { toRomanNumeral } from "../format";
-import { DAMAGE_SYMBOLS, t } from "../i18n";
+import { DAMAGE_SYMBOLS, getLanguage, t } from "../i18n";
+import { isImitatorCard, uniqueLoadout } from "../game/cardIdentity";
+import { isLoadoutCardId } from "../game/cardEligibility";
+import { clipInputToViewport } from "../render/viewportInput";
 import { isCardUnlocked, unlockedCardSlotCount } from "../progress";
 import { createEnemyShape, createUnitBorder } from "../render/unitShapes";
 import { drawParenthesisBorder } from "../render/parenthesisTower";
 import { EncyclopediaPanel } from "../render/encyclopediaPanel";
-import { allCardDefinitions, cardLetterCase, hasCardDefinition, type CardLetterCase } from "../registry/cards";
+import { allCardDefinitions, canImitateCard, cardLetterCase, getCardDefinition, type CardLetterCase } from "../registry/cards";
 import { enemyFamily, enemyRank, getEnemyDefinition, getEnemyDisplayName, type EnemyFamily } from "../registry/enemies";
 import type { BossKind, CardId, EnemyKind } from "../types";
 
@@ -76,6 +79,9 @@ export class CardSelectScene extends Phaser.Scene {
   private difficulty = DEFAULT_DIFFICULTY;
   private unlimitedFirepower = false;
   private selectedCards: CardId[] = [];
+  private choosingImitation = false;
+  private imitationHint!: Phaser.GameObjects.Text;
+  private imitationCancel!: Phaser.GameObjects.Text;
   private cardSlotCount = 0;
   private enemyPreviewList!: Phaser.GameObjects.Container;
   private enemyPreviewViewport!: Phaser.Geom.Rectangle;
@@ -119,6 +125,7 @@ export class CardSelectScene extends Phaser.Scene {
     this.levelSelectMapOffset = data.mapOffset;
     this.reselect = data.reselect;
     this.selectionFinished = false;
+    this.choosingImitation = false;
     this.levelId = data.levelId ?? "1-1";
     this.chapterId = data.chapterId ?? chapterIdForLevelId(this.levelId);
     this.difficulty = clampDifficulty(data.difficulty);
@@ -161,6 +168,7 @@ export class CardSelectScene extends Phaser.Scene {
       if (event.key !== "Escape" || event.repeat) return;
       event.preventDefault();
       if (this.encyclopedia.isOpen()) this.encyclopedia.close();
+      else if (this.choosingImitation) this.setImitationPicker(false);
       else if (this.reselect) this.backToLevelSelect();
     };
     this.input.keyboard?.on("keydown", onKey);
@@ -448,6 +456,14 @@ export class CardSelectScene extends Phaser.Scene {
       }
       this.slotFrames.push(frame);
       this.slotLabels.push(label);
+      if (!locked) {
+        frame.setInteractive({ useHandCursor: true }).on("pointerdown", () => {
+          if (this.encyclopedia.isOpen() || this.choosingImitation) return;
+          const id = this.selectedCards[index];
+          if (id) this.toggleCard(id);
+        });
+        bindButtonHover(frame, [label]);
+      }
     }
   }
 
@@ -463,6 +479,13 @@ export class CardSelectScene extends Phaser.Scene {
     this.cardPoolViewport = new Phaser.Geom.Rectangle(viewportX, viewportY, viewportWidth, viewportHeight);
     this.cardPoolList = this.add.container(viewportX, viewportY);
     this.createCardPoolCaseButtons(viewportX, viewportY - 26);
+    this.imitationHint = this.add.text(viewportX + 176, viewportY - 26,
+      getLanguage() === "zh-CN" ? "? · 选择常规塔" : "? · Choose a regular tower",
+      { fontFamily: "monospace", fontSize: "17px", color: uiTextColors.primary }).setOrigin(0, .5).setVisible(false);
+    this.imitationCancel = this.add.text(viewportX + viewportWidth - 28, viewportY - 26, "×",
+      { fontFamily: "monospace", fontSize: "26px", color: uiTextColors.primary })
+      .setOrigin(.5).setVisible(false).setInteractive({ useHandCursor: true })
+      .on("pointerdown", () => this.setImitationPicker(false));
 
     const maskGraphics = this.add.graphics().setVisible(false);
     maskGraphics.fillStyle(0xffffff, 1);
@@ -478,7 +501,8 @@ export class CardSelectScene extends Phaser.Scene {
     this.cardPoolList.removeAll(true);
     this.cardFrames.clear();
     const definitions = allCardDefinitions.filter((definition) =>
-      isCardUnlocked(definition.id) && cardLetterCase(definition.id) === this.cardPoolCase
+      isCardUnlocked(definition.id) && cardLetterCase(definition.id) === this.cardPoolCase &&
+      (!this.choosingImitation || canImitateCard(definition))
     );
     definitions.forEach((definition, index) => {
       const x = 89 + (index % columns) * columnGap;
@@ -497,7 +521,7 @@ export class CardSelectScene extends Phaser.Scene {
         })
         .setOrigin(0.5);
       const costText = this.add
-        .text(x - 10, y - 30, `${definition.cost}`, {
+        .text(x - 10, y - 30, definition.id === "?" ? "/" : `${definition.cost}`, {
           color: uiTextColors.primary,
           fontFamily: "monospace",
           fontSize: "17px"
@@ -516,13 +540,7 @@ export class CardSelectScene extends Phaser.Scene {
       this.cardPoolList.add(cardObjects);
 
       frame.on("pointerup", (pointer: Phaser.Input.Pointer) => this.handleCardPointerUp(definition.id, pointer));
-      border.setInteractive(new Phaser.Geom.Rectangle(-28, -28, 56, 56), Phaser.Geom.Rectangle.Contains).on(
-        "pointerup",
-        (pointer: Phaser.Input.Pointer) => this.handleCardPointerUp(definition.id, pointer)
-      );
-      label.setInteractive({ useHandCursor: true }).on("pointerup", (pointer: Phaser.Input.Pointer) =>
-        this.handleCardPointerUp(definition.id, pointer)
-      );
+      clipInputToViewport(frame, this.cardPoolViewport);
       this.cardFrames.set(definition.id, frame);
       bindButtonHover(frame, [border, label], () => {
         const position = this.pointerPosition(this.input.activePointer);
@@ -712,7 +730,7 @@ export class CardSelectScene extends Phaser.Scene {
     this.startButton.on("pointerdown", () => this.startLevel());
     this.startText.setInteractive({ useHandCursor: true }).on("pointerdown", () => this.startLevel());
     bindButtonHover(this.backButton, [this.backText]);
-    bindButtonHover(this.startButton, [this.startText], () => this.selectedCards.length > 0);
+    bindButtonHover(this.startButton, [this.startText], () => this.selectedCards.length > 0 && !this.choosingImitation);
     bindButtonHover(this.clearButton, [this.clearText], () => this.selectedCards.length > 0);
   }
 
@@ -721,16 +739,41 @@ export class CardSelectScene extends Phaser.Scene {
       return;
     }
 
-    if (this.selectedCards.includes(id)) {
-      this.selectedCards = this.selectedCards.filter((cardId) => cardId !== id);
-    } else if (this.selectedCards.length < this.cardSlotCount) {
-      this.selectedCards.push(id);
+    if (this.choosingImitation) {
+      if (!canImitateCard(getCardDefinition(id))) return;
+      const index = this.selectedCards.findIndex(isImitatorCard);
+      const variant: CardId = `?${id}`;
+      if (index >= 0) this.selectedCards[index] = variant;
+      else if (this.selectedCards.length < this.cardSlotCount) this.selectedCards.push(variant);
+      else return;
+      this.setImitationPicker(false);
+    } else if (id === "?") {
+      if (this.selectedCards.length < this.cardSlotCount || this.selectedCards.some(isImitatorCard)) this.setImitationPicker(true);
+      return;
+    } else {
+
+      if (this.selectedCards.includes(id)) {
+        this.selectedCards = this.selectedCards.filter((cardId) => cardId !== id);
+      } else if (this.selectedCards.length < this.cardSlotCount) {
+        this.selectedCards.push(id);
+      }
     }
     if (!this.reselect) writeStoredLoadout(this.selectedCards);
     this.updateCardSelection();
   }
 
+  private setImitationPicker(open: boolean) {
+    this.choosingImitation = open;
+    this.imitationHint.setVisible(open);
+    this.imitationCancel.setVisible(open);
+    this.cardPoolCase = open ? "uppercase" : "ascii";
+    this.cardPoolDragPointer = null;
+    this.cardPoolDragMoved = false;
+    this.populateCardPool(4, 190, 112);
+  }
+
   private clearLoadout() {
+    if (this.choosingImitation) this.setImitationPicker(false);
     if (this.selectedCards.length === 0) {
       return;
     }
@@ -755,7 +798,8 @@ export class CardSelectScene extends Phaser.Scene {
     });
 
     for (const [id, frame] of this.cardFrames) {
-      const selected = this.selectedCards.includes(id);
+      const selected = this.choosingImitation ? this.selectedCards.includes(`?${id}`)
+        : id === "?" ? this.selectedCards.some(isImitatorCard) : this.selectedCards.includes(id);
       const unlocked = isCardUnlocked(id);
       frame.setStrokeStyle(
         selected ? 3 : 2,
@@ -769,12 +813,12 @@ export class CardSelectScene extends Phaser.Scene {
     const enabled = this.selectedCards.length > 0;
     this.clearButton.setAlpha(enabled ? 1 : 0.34);
     this.clearText.setAlpha(enabled ? 1 : 0.28);
-    this.startButton.setAlpha(enabled ? 1 : 0.34);
-    this.startText.setAlpha(enabled ? 1 : 0.28);
+    this.startButton.setAlpha(enabled && !this.choosingImitation ? 1 : 0.34);
+    this.startText.setAlpha(enabled && !this.choosingImitation ? 1 : 0.28);
   }
 
   private startLevel() {
-    if (this.selectionFinished || this.selectedCards.length === 0) {
+    if (this.selectionFinished || this.choosingImitation || this.selectedCards.length === 0) {
       return;
     }
     this.selectionFinished = true;
@@ -796,6 +840,7 @@ export class CardSelectScene extends Phaser.Scene {
   }
 
   private backToLevelSelect() {
+    if (this.choosingImitation) { this.setImitationPicker(false); return; }
     if (this.selectionFinished) return;
     this.selectionFinished = true;
     if (this.reselect) {
@@ -827,9 +872,7 @@ function readStoredLoadout(cardSlotCount: number) {
       return [];
     }
 
-    return parsed
-      .filter((id, index, cards) => isValidStoredCard(id) && isCardUnlocked(id) && cards.indexOf(id) === index)
-      .slice(0, cardSlotCount);
+    return uniqueLoadout(parsed.filter((id): id is CardId => isLoadoutCardId(id) && isCardUnlocked(id)), cardSlotCount);
   } catch {
     return [];
   }
@@ -841,8 +884,4 @@ function writeStoredLoadout(cards: CardId[]) {
   } catch {
     // Storage failures must not prevent returning to a paused battle.
   }
-}
-
-function isValidStoredCard(id: unknown): id is CardId {
-  return typeof id === "string" && hasCardDefinition(id as CardId);
 }

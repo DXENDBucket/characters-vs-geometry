@@ -30,8 +30,8 @@ export class EdgeTowerControls {
     this.runtime().changed();
   }
 
-  use(position: EdgeTower): "handled" | "cooldown" | "noChars" {
-    const runtime = this.runtime(), card = runtime.card;
+  use(position: EdgeTower, card = this.runtime().card): "handled" | "cooldown" | "noChars" {
+    const runtime = this.runtime();
     if (!card || runtime.cardTime < card.readyAt) return "cooldown";
     if (runtime.chars < card.definition.cost) return "noChars";
     const existing = runtime.edges.find(edge => edgeKey(edge) === edgeKey(position));
@@ -45,12 +45,12 @@ export class EdgeTowerControls {
     return "handled";
   }
 
-  attemptAutoUpgrade() {
+  attemptAutoUpgrade(card = this.runtime().card) {
     const runtime = this.runtime();
-    if (!runtime.autoEnabled || runtime.reserveFocused || !runtime.card ||
-      runtime.chars - runtime.card.definition.cost < runtime.reserve) return;
+    if (!runtime.autoEnabled || runtime.reserveFocused || !card ||
+      runtime.chars - card.definition.cost < runtime.reserve) return;
     let target: EdgeTower | undefined;
     for (const edge of runtime.edges) if (edge.autoUpgrade && (!target || (edge.level ?? 1) < (target.level ?? 1))) target = edge;
-    if (target) this.use(target);
+    if (target) this.use(target, card);
   }
 }

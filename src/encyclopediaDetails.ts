@@ -88,8 +88,14 @@ export function towerDetailSections(card: CardDefinition, level: number, descrip
     if (card.skillDrainOnHit) regular.fields.push(field("技力削减", "SP drain", `${card.skillDrainOnHit} / ` + l("技能，Boss 除外", "skill, excluding Bosses")));
   } else {
     regular.tag = l("无", "None");
-    regular.fields = [field("常规行动", "Regular action", id === "@" ? l("随复制对象变化", "Determined by copied tower") : l("无主动常规攻击", "No regular attack"))];
+    regular.fields = [field("常规行动", "Regular action", id === "@" || id === "?" ? l("随复制对象变化", "Determined by copied tower") : l("无主动常规攻击", "No regular attack"))];
   }
+
+  if (id === "?") sections.push({ title: l("模仿", "Imitation"), tag: l("选卡配置", "Loadout choice"), tone: "passive",
+    fields: [field("可选对象", "Eligible targets", l("已解锁的常规塔", "Unlocked regular towers")),
+      field("部署费用", "Deployment cost", l("与目标相同", "Same as target")),
+      field("卡牌冷却", "Card cooldown", l("目标的 2 倍，独立冷却", "2x target cooldown, independent")),
+      field("部署行为", "Deployment", l("立即生效，沿用目标规则", "Immediate, uses target rules"))], description });
 
   if (skillIds.includes(id)) {
     let name = "", initial = 0, max = 10, cost = 10, duration = 0, regen = 1, automatic = false;

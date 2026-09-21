@@ -3,6 +3,7 @@ import { cardDefinitions } from "./data/cards";
 import { CUBE_BOSS_STATS } from "./config";
 import { isEnemyKind } from "./game/enemyIdentity";
 import { validateSurvivalSave } from "./survivalSaves";
+import { isLoadoutCardId } from "./game/cardEligibility";
 
 export const MAX_ARCHIVE_BYTES = 32 * 1024 * 1024;
 const RECOVERY_KEY = "charset-save-import-recovery-v1";
@@ -30,7 +31,7 @@ function validateEntry(key: string, raw: string) {
   }
   const value: unknown = JSON.parse(raw);
   if (key === LOADOUT_KEY) {
-    if (!validList(value, id => typeof id === "string" && cards.has(id)) || (value as unknown[]).length > 10) throw new Error("Invalid loadout");
+    if (!validList(value, isLoadoutCardId) || (value as unknown[]).length > 10) throw new Error("Invalid loadout");
     return;
   }
   if (!object(value)) throw new Error("Invalid save entry");

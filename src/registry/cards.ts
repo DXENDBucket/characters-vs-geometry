@@ -4,6 +4,7 @@ import {
 } from "../data/cards";
 import { cardBehaviorsById, idleCardBehavior, type CardBehavior } from "../game/cardBehaviors";
 import type { CardDefinition, CardId } from "../types";
+import { imitatedCardId, isImitatorCard, towerPriceTier } from "../game/cardIdentity";
 
 export type CardLetterCase = "uppercase" | "lowercase" | "ascii";
 
@@ -23,11 +24,25 @@ export function cardLetterCase(id: CardId): CardLetterCase {
 }
 
 export function getCardDefinition(id: CardId) {
+  resolveImitator(id);
   return definitionsById.get(id) ?? allCardDefinitions[0];
 }
 
 export function hasCardDefinition(id: CardId) {
+  resolveImitator(id);
   return definitionsById.has(id);
+}
+
+export function canImitateCard(definition: CardDefinition) {
+  return !isImitatorCard(definition.id) && towerPriceTier(definition.cost) === "regular";
+}
+
+function resolveImitator(id: CardId) {
+  if (definitionsById.has(id)) return;
+  const target = imitatedCardId(id);
+  const definition = target && definitionsById.get(target);
+  if (!definition || !canImitateCard(definition)) return;
+  definitionsById.set(id, { ...definition, id, cooldown: definition.cooldown * 2 });
 }
 
 export function getCardBehavior(id: CardId) {

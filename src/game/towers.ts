@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { deploymentCardId } from "./cardIdentity";
 import { topologyKey } from "./towerTopology";
 import { drawLogicalTowerRange } from "../render/towerLogicalRange";
 import { towerBehaviorType, towerActionContext, towerFormType, isLiteralNumberType, isNumberTower, isNumericOperatorType, numberTowerStoredCount, numberTowerValue, numberTowerMultiplier, numberTowerActionLevel, supportsTowerAutoUpgrade } from "./towerIdentity";
@@ -29,6 +30,8 @@ export function createTower(
   placedOrder: number,
   options: { transient?: boolean; turnTargetId?: string } = {}
 ): Tower {
+  const sourceCardId = definition.id;
+  definition = { ...definition, id: deploymentCardId(definition.id) };
   const x = BOARD_X + column * CELL_WIDTH + CELL_WIDTH / 2;
   const y = BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2;
   const body = scene.add.container(x, y).setDepth(20 + lane);
@@ -108,6 +111,7 @@ export function createTower(
   return {
     id: `tower:${placedOrder}`,
     type: definition.id,
+    sourceCardId: sourceCardId !== definition.id ? sourceCardId : undefined,
     lane,
     column,
     x,
@@ -358,7 +362,7 @@ export function syncTowerAutoUpgradeVisual(tower: Tower, active: boolean) {
 export function findAutoUpgradeTarget(towers: Tower[], cardId: CardId) {
   let target: Tower | undefined;
   for (const tower of towers) {
-    if (!tower.inPlay || !tower.autoUpgrade || tower.type !== cardId || !supportsTowerAutoUpgrade(tower)) {
+    if (!tower.inPlay || !tower.autoUpgrade || tower.type !== deploymentCardId(cardId) || !supportsTowerAutoUpgrade(tower)) {
       continue;
     }
 

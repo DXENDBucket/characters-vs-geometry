@@ -17,6 +17,7 @@ import { destroyContainedEnemies, enemiesWithPassengers, enemyIsActive } from ".
 import { ProjectileCircuitController, edgeAtPoint, edgePosition } from "../game/projectileCircuit";
 import { drawCircuitEdges } from "../render/circuitEdges";
 import { EdgeTowerControls } from "../game/edgeTowerControls";
+import { deploymentCardId, isImitatorCard, uniqueLoadout } from "../game/cardIdentity";
 import { createTowerProjectile } from "../game/projectiles";
 import { drawParenthesisBorder } from "../render/parenthesisTower";
 import { isParenthesisTower, syncTowerOccupancy, towerInPlacementLayer } from "../game/towerOccupancy";
@@ -794,7 +795,7 @@ export class GameScene extends Phaser.Scene {
     if (existingEdge && !this.shifter.isActive()) {
       if (this.autoUpgradeMode) {
         this.edgeControls.toggleAuto(existingEdge, this.isShiftPointer(pointer)); this.attemptAutoUpgrades();
-      } else if (this.selectedCardId === "=") this.handleTargetedEffectCardResult(this.edgeControls.use(existingEdge));
+      } else if (deploymentCardId(this.selectedCardId) === "=") this.handleTargetedEffectCardResult(this.edgeControls.use(existingEdge, this.cardStatesById.get(this.selectedCardId)));
       else this.edgeControls.cycle(existingEdge);
       this.syncPlacementGhost(pointer); return;
     }
@@ -830,11 +831,11 @@ export class GameScene extends Phaser.Scene {
     if (definition.category === "special") {
       const edge = edgeAtPoint(x, y);
       if (!edge) return;
-      this.handleTargetedEffectCardResult(this.edgeControls.use(edge)); this.syncPlacementGhost(pointer); return;
+      this.handleTargetedEffectCardResult(this.edgeControls.use(edge, this.cardStatesById.get(definition.id))); this.syncPlacementGhost(pointer); return;
     }
     const cardState = this.cardStatesById.get(definition.id);
     const effectiveChars = this.effectiveChars();
-    if (definition.id === "()" || (cellTower && isParenthesisTower(cellTower) && !this.targetedEffects.canHandle(definition.id))) {
+    if (deploymentCardId(definition.id) === "()" || (cellTower && isParenthesisTower(cellTower) && !this.targetedEffects.canHandle(definition.id))) {
       this.deploySelectedCard(definition, lane, column, pointer);
       return;
     }
@@ -955,9 +956,9 @@ export class GameScene extends Phaser.Scene {
     if (this.circuitEdges) {
       const preview = pointer && !this.gameOver && !this.menuOpen && !this.reselectOpen && !this.eraserMode && !this.autoUpgradeMode &&
         !this.shifter.isActive() && !this.towerPush.isTargeting() && !this.topology.isTargeting() &&
-        this.selectedCardId === "=" ? edgeAtPoint(pointer.x, pointer.y) : undefined;
-      const card = this.cardStatesById.get("=");
-      const canPlace = !!card && this.cardTimeFor("=") >= card.readyAt && this.effectiveChars() >= card.definition.cost &&
+        deploymentCardId(this.selectedCardId) === "=" ? edgeAtPoint(pointer.x, pointer.y) : undefined;
+      const card = this.cardStatesById.get(this.selectedCardId);
+      const canPlace = !!card && this.cardTimeFor(this.selectedCardId) >= card.readyAt && this.effectiveChars() >= card.definition.cost &&
         !!preview;
       drawCircuitEdges(this.circuitEdges, this.edgeTowers, edge => this.numbers.isEdgeActive(edge), preview, canPlace, this.autoUpgradeEnabled);
     }
@@ -1085,14 +1086,14 @@ export class GameScene extends Phaser.Scene {
     const y = BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2;
     const border = createUnitBorder(this, definition.category, 24, definition.category === "defense" ? 3 : 2);
     const label = this.add
-      .text(0, -3, definition.id, {
+      .text(0, -3, deploymentCardId(definition.id), {
         color: "#f5f5f5",
         fontFamily: "monospace",
         fontSize: "34px",
         fontStyle: "700"
       })
       .setOrigin(0.5);
-    if (definition.id === "()") { drawParenthesisBorder(border, palette.white); label.setVisible(false); }
+    if (deploymentCardId(definition.id) === "()") { drawParenthesisBorder(border, palette.white); label.setVisible(false); }
     const ghost = this.add.container(x, y, [border, label]).setDepth(18).setAlpha(0.32);
     this.placementGhosts.push(ghost);
   }
@@ -1319,7 +1320,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private cardDefinitionUsesClockCooldown(definition: CardDefinition) {
-    return definition.id !== "c" && definition.cost <= MIRROR_COST_LIMIT;
+    return deploymentCardId(definition.id) !== "c" && definition.cost <= MIRROR_COST_LIMIT;
   }
 
   private gainChars(amount: number, x: number, y: number) {
@@ -2378,7 +2379,7 @@ export class GameScene extends Phaser.Scene {
 
   private attemptAutoUpgrades() {
     this.deployment.attemptAutoUpgrades();
-    this.edgeControls.attemptAutoUpgrade();
+    for (const card of this.cardStates) if (deploymentCardId(card.definition.id) === "=") this.edgeControls.attemptAutoUpgrade(card);
   }
 
   private toggleDebugDamageMode() {
@@ -2646,7 +2647,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     for (const id of this.selectedCardIds) {
-      const actionId = cardControlAction(id);
+      const actionId = cardControlAction(isImitatorCard(id) ? "?" : id);
       if (bindings[actionId] === code) {
         return actionId;
       }
@@ -2667,7 +2668,7 @@ export class GameScene extends Phaser.Scene {
 
     if (actionId.startsWith("card:")) {
       const cardId = actionId.slice(5) as CardId;
-      if (this.selectedCardIds.includes(cardId)) {
+      if (this.selectedCardIds.includes(cardId) || cardId === "?" && this.selectedCardIds.some(isImitatorCard)) {
         this.selectCard(cardId);
       }
       return;
@@ -2712,6 +2713,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private selectCard(id: CardId) {
+    if (id === "?") id = this.selectedCardIds.find(isImitatorCard) ?? id;
     if (this.command({ type: "selectCard", id })) return;
     if (!this.selectedCardIds.includes(id)) {
       return;
@@ -2743,9 +2745,9 @@ export class GameScene extends Phaser.Scene {
 
   private sanitizeLoadout(selectedCards?: CardId[]) {
     const slotCount = this.playback ? CARD_SLOT_COUNT : unlockedCardSlotCount();
-    const validCards = (selectedCards ?? defaultCardLoadout).filter((id, index, cards): id is CardId => {
+    const validCards = uniqueLoadout((selectedCards ?? defaultCardLoadout).filter((id, index, cards): id is CardId => {
       return hasCardDefinition(id) && (this.playback || isCardUnlocked(id)) && cards.indexOf(id) === index;
-    });
+    }), slotCount);
 
     return validCards.length > 0
       ? validCards.slice(0, slotCount)
@@ -2930,7 +2932,7 @@ export class GameScene extends Phaser.Scene {
           if (command.cards.length && this.reselection.confirm(this.battleTime, this.cardStates)) {
             this.selectedCardIds = this.sanitizeLoadout(command.cards);
             this.cardList?.destroy(); this.createCardList();
-            for (const card of this.cardStates) card.readyAt = this.reselection.cardReadyAt(card.definition.id);
+            for (const card of this.cardStates) card.readyAt = this.reselection.cardReadyAt(card.definition.id, this.cardTimeFor(card.definition.id), this.battleTime);
             this.selectCard(this.selectedCardIds.includes(this.selectedCardId) ? this.selectedCardId : this.selectedCardIds[0]);
           }
           break;

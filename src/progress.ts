@@ -1,4 +1,6 @@
 import { CARD_SLOT_COUNT, CUBE_BOSS_STATS } from "./config";
+import { imitatedCardId } from "./game/cardIdentity";
+import { isLoadoutCardId } from "./game/cardEligibility";
 import { chapterDefinitions, chapterIdForLevelId, getChapterDefinition, levelNodesForChapter } from "./data/chapters";
 import { chapterGroups, groupForChapter } from "./data/chapterGroups";
 import { cardUnlockRequirement, cardUnlockRequirements } from "./data/cardUnlocks";
@@ -104,7 +106,9 @@ export function completedLevelCountForChapter(chapterId: string) {
   return levelNodesForChapter(chapterId).filter((node) => isLevelCompleted(node.id)).length;
 }
 
-export function isCardUnlocked(id: CardId) {
+export function isCardUnlocked(id: CardId): boolean {
+  const target = imitatedCardId(id);
+  if (target) return isLoadoutCardId(id) && isCardUnlocked("?") && isCardUnlocked(target);
   const state = progress();
   if (state.allCardsUnlocked) {
     return true;

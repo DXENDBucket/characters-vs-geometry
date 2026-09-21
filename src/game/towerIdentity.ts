@@ -1,4 +1,5 @@
 import type { CardId, NumberTowerState, Tower, TowerFinalStats } from "../types";
+import { deploymentCardId } from "./cardIdentity";
 
 export interface TowerBehaviorContext {
   type: CardId;
@@ -39,7 +40,7 @@ export function isLiteralNumberType(type: CardId) { return type === "0" || type 
 export function isNumericOperatorType(type: CardId) { return type === "+" || type === "-"; }
 
 export function canUpgradeTowerWithCard(tower: Pick<Tower, "type">, cardId: CardId) {
-  return tower.type === cardId;
+  return tower.type === deploymentCardId(cardId);
 }
 
 export function supportsTowerAutoUpgrade(tower: Pick<Tower, "type" | "copiedType" | "numberValue">) {

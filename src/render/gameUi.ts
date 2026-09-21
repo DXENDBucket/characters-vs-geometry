@@ -395,7 +395,7 @@ export function createCardStates(scene: Phaser.Scene, selectedCardIds: CardId[])
       .text(x + 37, y + 31, definition.id, {
         color: uiTextColors.primary,
         fontFamily: "monospace",
-        fontSize: "27px",
+        fontSize: definition.id.startsWith("?") ? (definition.id.length > 2 ? "17px" : "23px") : "27px",
         fontStyle: "700"
       })
       .setOrigin(0.5);

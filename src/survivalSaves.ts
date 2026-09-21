@@ -5,6 +5,8 @@ import { isEnemyKind } from "./game/enemyIdentity";
 import { validateSaveGraph, type SaveGraph } from "./game/saveGraph";
 import { validateBattleSave } from "./game/validateBattleSave";
 import type { CardId } from "./types";
+import { isLoadoutCardId } from "./game/cardEligibility";
+import { deploymentCardId, uniqueLoadout } from "./game/cardIdentity";
 
 const PREFIX = "charset-survival-v1:";
 const cards = new Set<string>(cardDefinitions.map(card => card.id));
@@ -24,11 +26,14 @@ export function validateSurvivalSave(save: SurvivalSave) {
       !Number.isSafeInteger(save.wave) || save.wave < 0 || !Number.isFinite(save.savedAt) ||
       !Number.isInteger(save.difficulty) || save.difficulty < DIFFICULTY_MIN || save.difficulty > DIFFICULTY_MAX ||
       typeof save.unlimitedFirepower !== "boolean" || !Array.isArray(save.selectedCards) ||
-      save.selectedCards.length > 10 || save.selectedCards.some(id => !cards.has(id))) throw new Error("Invalid survival save");
+      save.selectedCards.length > 10 || save.selectedCards.some(id => !isLoadoutCardId(id)) ||
+      uniqueLoadout(save.selectedCards, 10).length !== save.selectedCards.length) throw new Error("Invalid survival save");
   validateSaveGraph(save.graph);
   for (const node of save.graph.nodes) {
     const data = node.data;
     if (node.kind === "tower" && !cards.has(data.type as string)) throw new Error("Unknown saved tower");
+    if (node.kind === "tower" && data.sourceCardId !== undefined &&
+        (!isLoadoutCardId(data.sourceCardId) || deploymentCardId(data.sourceCardId) !== data.type)) throw new Error("Invalid tower source card");
     if (node.kind === "tower" && data.copiedType !== undefined &&
         (data.type !== "@" || !cards.has(data.copiedType as string))) throw new Error("Unknown copied tower");
     if (node.kind === "tower" && data.copyRevision !== undefined &&

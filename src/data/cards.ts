@@ -5,6 +5,10 @@ import type { CardDefinition, CardId } from "../types";
 
 export const cardDefinitions: CardDefinition[] = [
   {
+    id: "?", category: "special", cost: 0, cooldown: 0,
+    maxHp: 0, armor: 0, magicResistance: 0, attackPower: 0, stats: "COPY / CD x2"
+  },
+  {
     id: "()", category: "defense", cost: 275, cooldown: 20_000,
     maxHp: 3_000, armor: 500, magicResistance: 40, attackPower: 0, stats: "3000 A500 MR40"
   },

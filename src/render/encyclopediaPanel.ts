@@ -929,8 +929,8 @@ export class EncyclopediaPanel {
         row(isZhLabel("攻速", "AS"), this.statValue(card.attackSpeed, "attackSpeed")),
         row(t("label.speed"), EMPTY_TABLE_VALUE),
         row(isZhLabel("范围", "RANGE"), this.statValue(card.rangeCells, "range")),
-        row(t("label.cost"), this.statValue(card.cost, "cost")),
-        row(t("label.cd"), this.cooldownValue(card.cooldown)),
+        row(t("label.cost"), card.id === "?" ? isZhLabel("同目标", "As target") : this.statValue(card.cost, "cost")),
+        row(t("label.cd"), card.id === "?" ? isZhLabel("目标 ×2", "Target x2") : this.cooldownValue(card.cooldown)),
         row(t("label.weight"), EMPTY_TABLE_VALUE)
       ];
     }

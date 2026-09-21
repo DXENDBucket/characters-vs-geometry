@@ -13,6 +13,34 @@ const card = id => cardDefinitions.find(card => card.id === id);
 const sections = (id, level = 1) => towerDetailSections(card(id), level, towerEncyclopediaEntry(id).description);
 const values = section => section.fields.map(field => field.value).join("\n");
 
+test("imitator aliases preserve panels, double independent cooldowns and never enter the catalog", () => {
+  const { allCardDefinitions, canImitateCard, getCardDefinition, hasCardDefinition } = load("src/registry/cards.ts");
+  const { isLoadoutCardId } = load("src/game/cardEligibility.ts");
+  const { deploymentCardId, uniqueLoadout, towerPriceTier } = load("src/game/cardIdentity.ts");
+  const { canUpgradeTowerWithCard } = load("src/game/towerIdentity.ts");
+  const count = allCardDefinitions.length;
+  for (const target of allCardDefinitions.filter(canImitateCard)) {
+    const id = `?${target.id}`, variant = getCardDefinition(id);
+    assert.ok(isLoadoutCardId(id), id);
+    assert.equal(deploymentCardId(id), target.id);
+    assert.equal(canUpgradeTowerWithCard({ type: target.id }, id), true);
+    assert.deepEqual({ ...variant, id: target.id, cooldown: variant.cooldown / 2 }, target);
+  }
+  for (const id of ["?@", "?&", "?U", "??A", "?unknown"]) {
+    assert.equal(hasCardDefinition(id), false, id);
+    assert.equal(isLoadoutCardId(id), false, id);
+  }
+  assert.equal(isLoadoutCardId("?"), false);
+  assert.equal(allCardDefinitions.length, count);
+  assert.deepEqual(Array.from(uniqueLoadout(["A", "?A", "?B", "A", "?", "B"], 10)), ["A", "?A", "B"]);
+  assert.deepEqual([999, 1000, 9999, 10000].map(towerPriceTier), ["regular", "super", "super", "ultimate"]);
+  for (const language of ["zh-CN", "en"]) {
+    setLanguage(language);
+    assert.doesNotMatch(JSON.stringify(sections("?")), /undefined|NaN/);
+    assert.equal(sections("?")[1].tone, "passive");
+  }
+});
+
 test("enemy rank previews read actual combat stats, SP growth, volley hits and ranges", () => {
   const { enemyDetailSections, enemyPreviewAttackSpeed } = load("src/enemyEncyclopediaDetails.ts");
   const { enemyEncyclopediaEntries } = load("src/encyclopedia.ts");

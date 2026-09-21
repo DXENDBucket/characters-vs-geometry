@@ -1,4 +1,5 @@
 import type Phaser from "phaser";
+import { deploymentCardId } from "./cardIdentity";
 import type { TowerActionListener } from "./towerActions";
 import type { ScheduleBattleAction } from "./battleActions";
 import { palette } from "../config";
@@ -78,14 +79,14 @@ const targetedEffectDefinitions: Partial<Record<CardId, TargetedEffectDefinition
 };
 
 export function isTargetedEffectCardId(id: CardId) {
-  return Boolean(targetedEffectDefinitions[id]);
+  return Boolean(targetedEffectDefinitions[deploymentCardId(id)]);
 }
 
 export class TargetedEffectCardController {
   constructor(private readonly runtime: () => TargetedEffectCardRuntime) {}
 
   canHandle(id: CardId) {
-    return Boolean(targetedEffectDefinitions[id]);
+    return isTargetedEffectCardId(id);
   }
 
   imitate(id: CardId, target: Tower, level: number) {
@@ -217,7 +218,7 @@ export class TargetedEffectCardController {
       return;
     }
 
-    const definition = runtime.getDefinition(effectCard.type);
+    const definition = runtime.getDefinition(effectCard.sourceCardId ?? effectCard.type);
     const level = effectiveTowerLevel(effectCard);
     const target = runtime.towers.find((tower) => tower.id === effectCard.turnTargetId);
     if (target?.inPlay) {
@@ -240,7 +241,7 @@ export class TargetedEffectCardController {
 
   private findPendingEffectCard(runtime: TargetedEffectCardRuntime, type: CardId, lane: number, column: number) {
     return runtime.towers.find((tower) => {
-      return tower.transient && tower.type === type && tower.lane === lane && tower.column === column;
+      return tower.transient && (tower.sourceCardId ?? tower.type) === type && tower.lane === lane && tower.column === column;
     });
   }
 }

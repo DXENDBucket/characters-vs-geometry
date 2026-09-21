@@ -55,6 +55,20 @@ test("continuous-fire attachment unlocks only after clearing AE-5", () => {
   assert.equal(progress.isCardUnlocked("!"), true);
 });
 
+test("imitator unlocks at AE-6 and cannot bypass target unlocks or price limits", () => {
+  const { progress } = fixture();
+  assert.equal(progress.isCardUnlocked("?"), false);
+  assert.equal(progress.isCardUnlocked("?A"), false);
+  progress.completeLevel("AE-6");
+  assert.equal(progress.isCardUnlocked("?"), true);
+  assert.equal(progress.isCardUnlocked("?A"), true);
+  assert.equal(progress.isCardUnlocked("?b"), false);
+  progress.completeLevel("4-1");
+  assert.equal(progress.isCardUnlocked("?b"), true);
+  progress.unlockAllCards();
+  for (const id of ["?@", "?&", "?m", "?U", "??A", "?unknown"]) assert.equal(progress.isCardUnlocked(id), false, id);
+});
+
 test("AE-3 reveals Equals and unlocks number towers; AE-4 unlocks + and &", () => {
   const { progress } = fixture();
   assert.equal(progress.isLevelUnlocked("AE-3"), false);

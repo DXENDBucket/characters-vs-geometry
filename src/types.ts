@@ -3,6 +3,8 @@ import type { TowerActionEvent } from "./game/towerActions";
 import type { ProjectileIntegrity } from "./game/projectileIntegrity";
 
 export type CardId =
+  | "?"
+  | `?${string}`
   | "()"
   | "!"
   | "+"
@@ -280,6 +282,7 @@ export interface Tower extends NumberTowerState {
   imitatedSkillLevels?: Partial<Record<CardId, number>>;
   imitatedSkills?: CardId[];
   copiedType?: CardId;
+  sourceCardId?: CardId;
   copyRevision?: number;
   healthPool?: TowerHealthPool;
   unyieldingRatio?: number;
