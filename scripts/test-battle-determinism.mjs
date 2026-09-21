@@ -63,6 +63,19 @@ test("replay commands retain same-tick ordering and reject malformed input or in
       { tick: 10, sequence: 2, command: { type: "reserve", value: 500 } }
     ] };
   assert.doesNotThrow(() => validateReplay(JSON.parse(JSON.stringify(replay))));
+  const { migrateDifficulty } = load("src/config.ts");
+  for (let difficulty = 1; difficulty <= 8; difficulty++) {
+    assert.doesNotThrow(() => validateReplay({ ...replay, difficulty }));
+    assert.equal(migrateDifficulty(difficulty), difficulty - 1);
+  }
+  assert.throws(() => validateReplay({ ...replay, difficulty: 0 }), "removed legacy difficulty cannot be replayed faithfully");
+  assert.throws(() => validateReplay({ ...replay, difficulty: 9 }), "rebalanced legacy difficulty cannot be replayed faithfully");
+  for (let difficulty = 0; difficulty <= 9; difficulty++) {
+    assert.doesNotThrow(() => validateReplay({ ...replay, difficulty, difficultyVersion: 2 }));
+    assert.equal(migrateDifficulty(difficulty, 2), difficulty);
+  }
+  assert.throws(() => validateReplay({ ...replay, difficulty: 10, difficultyVersion: 2 }));
+  assert.throws(() => validateReplay({ ...replay, difficultyVersion: 999 }));
   for (const mutate of [
     r => r.version++, r => r.seed = NaN, r => r.endTick = 2,
     r => r.commands[1].sequence = 0, r => r.commands[2].tick = -1,

@@ -47,6 +47,7 @@ import {
   COLUMNS,
   CUBE_BOSS_STATS,
   DEFAULT_DIFFICULTY,
+  DIFFICULTY_VERSION,
   DEFAULT_GAME_SPEED,
   GAME_HEIGHT,
   GAME_WIDTH,
@@ -58,6 +59,7 @@ import {
   NATURAL_PRODUCE_INTERVAL,
   STARTING_CHARS,
   clampDifficulty,
+  migrateDifficulty,
   getDifficultyConfig,
   palette
 } from "../config";
@@ -356,6 +358,8 @@ export class GameScene extends Phaser.Scene {
     this.playback = data.replay ? structuredClone(data.replay) : undefined;
     if (this.playback) {
       validateReplay(this.playback);
+      this.playback.difficulty = migrateDifficulty(this.playback.difficulty, this.playback.difficultyVersion);
+      this.playback.difficultyVersion = DIFFICULTY_VERSION;
       data = { ...data, ...this.playback, resume: false };
     }
     this.simulation = new BattleClock();
@@ -381,6 +385,7 @@ export class GameScene extends Phaser.Scene {
     this.difficultyConfig = this.adjustDifficultyForUnlimitedFirepower(getDifficultyConfig(this.difficulty));
     this.selectedCardIds = this.sanitizeLoadout(tutorialLoadout(tutorialMechanic, data.selectedCards));
     this.replay = { version: BATTLE_RULES_VERSION, levelId: this.levelId, difficulty: this.difficulty,
+      difficultyVersion: DIFFICULTY_VERSION,
       unlimitedFirepower: this.unlimitedFirepower, selectedCards: [...this.selectedCardIds],
       seed: this.random.state, debug: this.debugModeEnabled, endTick: 0, commands: [] };
     this.setCardStates([]);
@@ -2812,6 +2817,7 @@ export class GameScene extends Phaser.Scene {
     if (!this.levelConfig.survival || this.gameOver) return false;
     try {
       return writeSurvivalSave({ version: 1, levelId: this.levelId, savedAt: Date.now(), wave: this.wave,
+        difficultyVersion: DIFFICULTY_VERSION,
         difficulty: this.difficulty, unlimitedFirepower: this.unlimitedFirepower,
         selectedCards: [...this.selectedCardIds], graph: captureBattleSnapshot(this.battleState()) });
     } catch { return false; }

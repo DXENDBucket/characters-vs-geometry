@@ -61,7 +61,7 @@ test("pending volleys survive save/restore, keep stable ordering and execute exa
 
 test("survival storage is durable, versioned, atomic on write failure and clears independently of best-wave records", () => {
   const f = fixture();
-  const save = { version: 1, levelId: "IF-1", savedAt: 123, wave: 5, difficulty: 3,
+  const save = { version: 1, difficultyVersion: 2, levelId: "IF-1", savedAt: 123, wave: 5, difficulty: 3,
     unlimitedFirepower: false, selectedCards: ["A"], graph: f.graph.encodeSaveGraph({
       battleTime: 1500, levelElapsed: 1500, cardTime: 1500, nextNaturalProduceAt: 5000, chars: 100,
       baseIntegrity: 6, wave: 5, waveTracker: null, enemiesDefeated: 0, towerOrder: 0, gameSpeed: 1,
@@ -72,11 +72,22 @@ test("survival storage is durable, versioned, atomic on write failure and clears
     }, classify) };
   assert.equal(f.saves.writeSurvivalSave(save), true);
   assert.deepEqual(f.saves.readSurvivalSave("IF-1"), save);
-  const difficultyNine = { ...save, difficulty: 9 };
-  assert.equal(f.saves.writeSurvivalSave(difficultyNine), true);
-  assert.deepEqual(f.saves.readSurvivalSave("IF-1"), difficultyNine);
+  const hardest = { ...save, difficulty: 9 };
+  assert.equal(f.saves.writeSurvivalSave(hardest), true);
+  assert.deepEqual(f.saves.readSurvivalSave("IF-1"), hardest);
   for (const difficulty of [-1, 10, 9.5]) assert.equal(f.saves.writeSurvivalSave({ ...save, difficulty }), false);
-  assert.deepEqual(f.saves.readSurvivalSave("IF-1"), difficultyNine);
+  assert.deepEqual(f.saves.readSurvivalSave("IF-1"), hardest);
+  for (const difficulty of [0, 1, 3, 9]) {
+    const legacy = { ...save, difficulty, difficultyVersion: undefined };
+    f.storage.set("charset-survival-v1:IF-1", JSON.stringify(legacy));
+    const migrated = f.saves.readSurvivalSave("IF-1");
+    assert.equal(migrated.difficulty, Math.max(0, difficulty - 1));
+    assert.equal(migrated.difficultyVersion, 2);
+    assert.deepEqual(migrated.graph, save.graph);
+    assert.equal(f.saves.writeSurvivalSave(migrated), true);
+    assert.deepEqual(f.saves.readSurvivalSave("IF-1"), migrated, "must not migrate twice");
+  }
+  assert.equal(f.saves.writeSurvivalSave({ ...save, difficultyVersion: 999 }), false);
   assert.equal(f.saves.writeSurvivalSave(save), true);
   f.window.localStorage.setItem = () => { throw new Error("Quota exceeded"); };
   assert.equal(f.saves.writeSurvivalSave({ ...save, savedAt: 999 }), false);
@@ -114,7 +125,7 @@ test("Boss Endless saves preserve Boss references and reject missing, dead or in
     reselection: { readyAt: 240000, cards: [] }, target: boss
   };
   const makeSave = (savedState = state, levelId = "IF-BE-1") => ({
-    version: 1, levelId, savedAt: 123, wave: 5, difficulty: 3, unlimitedFirepower: false, selectedCards: ["B"],
+    version: 1, difficultyVersion: 2, levelId, savedAt: 123, wave: 5, difficulty: 3, unlimitedFirepower: false, selectedCards: ["B"],
     graph: f.graph.encodeSaveGraph(savedState, value => value === savedState.boss ? { kind: "boss" } : classify(value))
   });
   const valid = makeSave();

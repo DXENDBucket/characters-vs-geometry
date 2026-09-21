@@ -14,7 +14,7 @@ const { enemyKindAtRank, isEnemyKind } = registry;
 const { enemyArchetypes } = load("src/data/enemyArchetypes.ts");
 const legacy = JSON.parse(fs.readFileSync(new URL("./fixtures/enemy-legacy.json", import.meta.url), "utf8"));
 
-test("difficulty 9 uses 666% wave weight and 86% final damage reduction", () => {
+test("difficulty 0-7 shifts down, 8-9 use new multipliers and default stays at 3", () => {
   const { DIFFICULTY_MAX, DEFAULT_DIFFICULTY, clampDifficulty, getDifficultyConfig } = load("src/config.ts");
   const { getLevelConfig } = load("src/data/levels.ts");
   const { waveWeightLimit } = load("src/game/waves.ts");
@@ -22,9 +22,21 @@ test("difficulty 9 uses 666% wave weight and 86% final damage reduction", () => 
   assert.equal(DEFAULT_DIFFICULTY, 3);
   assert.equal(clampDifficulty(9), 9);
   assert.equal(clampDifficulty(99), 9);
-  assert.deepEqual(getDifficultyConfig(9), { weightMultiplier: 6.66, finalDamageReduction: 0.86 });
-  assert.deepEqual(getDifficultyConfig(8), { weightMultiplier: 4, finalDamageReduction: 0.8 });
+  assert.equal(clampDifficulty(-1), 0);
+  assert.equal(clampDifficulty(), 3);
+  assert.deepEqual(Array.from({ length: 10 }, (_, i) => getDifficultyConfig(i)),
+    [[.5, 0], [1, 0], [1.4, .1], [1.8, .3], [2.2, .5], [2.6, .65], [3, .75], [4, .8], [5.2, .85], [6.66, .9]]
+      .map(([weightMultiplier, finalDamageReduction]) => ({ weightMultiplier, finalDamageReduction })));
+  const storage = new Map();
+  const { setLanguage, t } = createTypeScriptLoader({}, { window: { localStorage: {
+    getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value)
+  } } })("src/i18n.ts");
+  setLanguage("zh-CN");
+  assert.deepEqual(Array.from({ length: 10 }, (_, i) => t(`difficulty.${i}`)),
+    ["非常简单", "简单", "略微简单", "普通", "略微困难", "困难", "非常困难", "不可能", "完全无解", "哈哈哈哈哈哈哈哈哈"]);
+  setLanguage("en"); assert.equal(t("difficulty.3"), "NORMAL");
   const level = getLevelConfig("AE-6");
+  assert.equal(waveWeightLimit(level, getDifficultyConfig(8), 1), 130);
   assert.equal(waveWeightLimit(level, getDifficultyConfig(9), 1), 166);
 });
 

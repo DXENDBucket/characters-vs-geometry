@@ -2911,22 +2911,22 @@ The first wave starts `20s` after entering combat.
 
 ## Difficulty
 
-Difficulty is selected from `0` to `9` on the level-select screen. Default is `3`.
+Difficulty is selected from `0` to `9` on the level-select screen. Default is `3` (`普通` / `NORMAL`). Old difficulty 0 was removed; old difficulties 1-8 now use indices 0-7. Difficulties 8 and 9 use new values. All ten display names keep their original index assignments.
 
 | Difficulty | Weight Multiplier | Enemy Final Damage Reduction |
 | ---: | ---: | ---: |
-| 0 | 10% | 0% |
-| 1 | 50% | 0% |
-| 2 | 100% | 0% |
-| 3 | 140% | 10% |
-| 4 | 180% | 30% |
-| 5 | 220% | 50% |
-| 6 | 260% | 65% |
-| 7 | 300% | 75% |
-| 8 | 400% | 80% |
-| 9 | 666% | 86% |
+| 0 | 50% | 0% |
+| 1 | 100% | 0% |
+| 2 | 140% | 10% |
+| 3 | 180% | 30% |
+| 4 | 220% | 50% |
+| 5 | 260% | 65% |
+| 6 | 300% | 75% |
+| 7 | 400% | 80% |
+| 8 | 520% | 85% |
+| 9 | 666% | 90% |
 
-Difficulty 9 is named `哈哈哈哈哈哈哈哈哈` (`HAHAHAHAHAHAHAHAHA`).
+Difficulty 9 is named `哈哈哈哈哈哈哈哈哈` (`HAHAHAHAHAHAHAHAHA`). Legacy endless saves migrate their difficulty index once; old difficulty 0 resumes on the new minimum and old difficulty 9 moves to the rebalanced difficulty 8. Legacy replays at difficulties 1-8 migrate to preserve their parameters; old difficulty 0/9 replays are rejected because those presets were removed or rebalanced.
 
 Enemy final damage reduction is applied after armor, magic resistance, and minimum-damage rules. It also reduces true damage.
 

@@ -40,6 +40,7 @@ export const CARD_SLOT_COUNT = 10;
 export const DEFAULT_DIFFICULTY = 3;
 export const DIFFICULTY_MIN = 0;
 export const DIFFICULTY_MAX = 9;
+export const DIFFICULTY_VERSION = 2;
 export const DEFAULT_GAME_SPEED = 1;
 export const GAME_SPEED_MIN = 0.5;
 export const GAME_SPEED_MAX = 4;
@@ -135,17 +136,26 @@ export const palette = {
 };
 
 export const difficultyConfigs: Record<number, DifficultyConfig> = {
-  0: { weightMultiplier: 0.1, finalDamageReduction: 0 },
-  1: { weightMultiplier: 0.5, finalDamageReduction: 0 },
-  2: { weightMultiplier: 1, finalDamageReduction: 0 },
-  3: { weightMultiplier: 1.4, finalDamageReduction: 0.1 },
-  4: { weightMultiplier: 1.8, finalDamageReduction: 0.3 },
-  5: { weightMultiplier: 2.2, finalDamageReduction: 0.5 },
-  6: { weightMultiplier: 2.6, finalDamageReduction: 0.65 },
-  7: { weightMultiplier: 3, finalDamageReduction: 0.75 },
-  8: { weightMultiplier: 4, finalDamageReduction: 0.8 },
-  9: { weightMultiplier: 6.66, finalDamageReduction: 0.86 }
+  0: { weightMultiplier: 0.5, finalDamageReduction: 0 },
+  1: { weightMultiplier: 1, finalDamageReduction: 0 },
+  2: { weightMultiplier: 1.4, finalDamageReduction: 0.1 },
+  3: { weightMultiplier: 1.8, finalDamageReduction: 0.3 },
+  4: { weightMultiplier: 2.2, finalDamageReduction: 0.5 },
+  5: { weightMultiplier: 2.6, finalDamageReduction: 0.65 },
+  6: { weightMultiplier: 3, finalDamageReduction: 0.75 },
+  7: { weightMultiplier: 4, finalDamageReduction: 0.8 },
+  8: { weightMultiplier: 5.2, finalDamageReduction: 0.85 },
+  9: { weightMultiplier: 6.66, finalDamageReduction: 0.9 }
 };
+
+export function validStoredDifficulty(difficulty: number, version = 1) {
+  return (version === 1 || version === DIFFICULTY_VERSION) && Number.isInteger(difficulty) &&
+    difficulty >= DIFFICULTY_MIN && difficulty <= (version === 1 ? 9 : DIFFICULTY_MAX);
+}
+
+export function migrateDifficulty(difficulty: number, version = 1) {
+  return version === 1 ? Math.max(DIFFICULTY_MIN, difficulty - 1) : difficulty;
+}
 
 export function clampDifficulty(difficulty?: number) {
   if (typeof difficulty !== "number" || Number.isNaN(difficulty)) {

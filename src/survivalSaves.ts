@@ -1,5 +1,5 @@
 import { levelConfigs } from "./data/levels";
-import { DIFFICULTY_MIN, DIFFICULTY_MAX } from "./config";
+import { DIFFICULTY_VERSION, migrateDifficulty, validStoredDifficulty } from "./config";
 import { cardDefinitions } from "./data/cards";
 import { isEnemyKind } from "./game/enemyIdentity";
 import { validateSaveGraph, type SaveGraph } from "./game/saveGraph";
@@ -16,6 +16,7 @@ export interface SurvivalSave {
   savedAt: number;
   wave: number;
   difficulty: number;
+  difficultyVersion?: number;
   unlimitedFirepower: boolean;
   selectedCards: CardId[];
   graph: SaveGraph;
@@ -24,7 +25,7 @@ export interface SurvivalSave {
 export function validateSurvivalSave(save: SurvivalSave) {
   if (!save || save.version !== 1 || !Object.hasOwn(levelConfigs, save.levelId) || !levelConfigs[save.levelId].survival ||
       !Number.isSafeInteger(save.wave) || save.wave < 0 || !Number.isFinite(save.savedAt) ||
-      !Number.isInteger(save.difficulty) || save.difficulty < DIFFICULTY_MIN || save.difficulty > DIFFICULTY_MAX ||
+      !validStoredDifficulty(save.difficulty, save.difficultyVersion) ||
       typeof save.unlimitedFirepower !== "boolean" || !Array.isArray(save.selectedCards) ||
       save.selectedCards.length > 10 || save.selectedCards.some(id => !isLoadoutCardId(id)) ||
       uniqueLoadout(save.selectedCards, 10).length !== save.selectedCards.length) throw new Error("Invalid survival save");
@@ -54,7 +55,8 @@ export function readSurvivalSave(levelId: string): SurvivalSave | undefined {
     if (!raw) return;
     const save = JSON.parse(raw) as SurvivalSave;
     validateSurvivalSave(save);
-    if (save.levelId === levelId) return save;
+    if (save.levelId === levelId) return { ...save,
+      difficulty: migrateDifficulty(save.difficulty, save.difficultyVersion), difficultyVersion: DIFFICULTY_VERSION };
   } catch {
     // Leave unrecognized saves intact until an explicit new run or progress reset.
   }

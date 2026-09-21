@@ -2,6 +2,7 @@ import type { CardId } from "../types";
 import type { ToolControlAction } from "../settings/keybindings";
 import type { SaveGraph } from "./saveGraph";
 import { BATTLE_RULES_VERSION } from "./battleSimulation";
+import { validStoredDifficulty } from "../config";
 
 export interface BattlePointer {
   x: number;
@@ -27,6 +28,7 @@ export interface BattleReplay {
   version: typeof BATTLE_RULES_VERSION;
   levelId: string;
   difficulty: number;
+  difficultyVersion?: number;
   unlimitedFirepower: boolean;
   selectedCards: CardId[];
   debug: boolean;
@@ -37,7 +39,8 @@ export interface BattleReplay {
 }
 
 export function validateReplay(replay: BattleReplay) {
-  if (!replay || typeof replay.levelId !== "string" || !Number.isFinite(replay.difficulty) ||
+  if (!replay || typeof replay.levelId !== "string" || !validStoredDifficulty(replay.difficulty, replay.difficultyVersion) ||
+      ((replay.difficultyVersion ?? 1) === 1 && (replay.difficulty === 0 || replay.difficulty === 9)) ||
       typeof replay.unlimitedFirepower !== "boolean" || typeof replay.debug !== "boolean" ||
       !Array.isArray(replay.selectedCards) || !replay.selectedCards.length || replay.selectedCards.length > 10 ||
       replay.selectedCards.some(id => typeof id !== "string") ||
