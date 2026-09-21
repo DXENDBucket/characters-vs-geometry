@@ -748,8 +748,12 @@ export class CardSelectScene extends Phaser.Scene {
       else return;
       this.setImitationPicker(false);
     } else if (id === "?") {
-      if (this.selectedCards.length < this.cardSlotCount || this.selectedCards.some(isImitatorCard)) this.setImitationPicker(true);
-      return;
+      const index = this.selectedCards.findIndex(isImitatorCard);
+      if (index >= 0) this.selectedCards.splice(index, 1);
+      else {
+        if (this.selectedCards.length < this.cardSlotCount) this.setImitationPicker(true);
+        return;
+      }
     } else {
 
       if (this.selectedCards.includes(id)) {
