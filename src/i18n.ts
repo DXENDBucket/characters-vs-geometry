@@ -394,7 +394,7 @@ const dictionaries: Record<Language, Record<string, string>> = {
     "chapterGroup.ascii": "ASCII扩展",
     "chapter.AE": "特殊字符",
     "enemyFamily.equals": "等号",
-    "enemyFamily.dollar": "美元符号",
+    "enemyFamily.dollar": "货币符号",
     "enemy.dollar": "$ 1",
     "enemy.dollar2": "$ 2",
     "enemy.dollar3": "$ 3",

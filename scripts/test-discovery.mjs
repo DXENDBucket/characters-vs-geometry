@@ -69,6 +69,28 @@ test("imitator unlocks at AE-6 and cannot bypass target unlocks or price limits"
   for (const id of ["?@", "?&", "?m", "?U", "??A", "?unknown"]) assert.equal(progress.isCardUnlocked(id), false, id);
 });
 
+test("AE-7 follows AE-6, uses the requested pool and reveals Dollar on unlock", () => {
+  const { progress, levels } = fixture();
+  const level = levels.getLevelConfig("AE-7"), template = levels.getLevelConfig("AE-6");
+  assert.equal(level.totalWaves, 20);
+  assert.equal(level.unlockAfter, "AE-6");
+  assert.equal(levels.levelNodes.filter(node => node.id === "AE-7").length, 1);
+  for (const field of ["firstWaveWeight", "waveWeightIncrement", "waveWeightIncrementGrowth", "startingChars", "wavesPerFlag"])
+    assert.equal(level[field], template[field], field);
+  assert.deepEqual(level.enemyKinds, ["circle", "tilde", "tilde2", "tilde3", "equals", "equals2", "equals3",
+    "triangleRam", "triangleRam2", "triangleRam3", "hexMace", "dollar"]);
+  assert.equal(progress.isLevelUnlocked("AE-7"), false);
+  assert.equal(progress.discoveredEnemies().enemies.has("dollar"), false);
+  for (const id of ["4-10", "AE-1", "AE-2", "AE-3", "AE-4", "AE-5"])
+    progress.completeLevel(id);
+  assert.equal(progress.isLevelUnlocked("AE-7"), false);
+  assert.equal(progress.discoveredEnemies().enemies.has("dollar"), false);
+  progress.completeLevel("AE-6");
+  assert.equal(progress.isLevelUnlocked("AE-7"), true);
+  assert.equal(progress.discoveredEnemies().enemies.has("dollar"), true);
+  assert.equal(progress.discoveredEnemies().enemies.has("dollar2"), false);
+});
+
 test("AE-3 reveals Equals and unlocks number towers; AE-4 unlocks + and &", () => {
   const { progress } = fixture();
   assert.equal(progress.isLevelUnlocked("AE-3"), false);
