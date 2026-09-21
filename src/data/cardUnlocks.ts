@@ -5,6 +5,7 @@ export const INITIAL_CARD_IDS = ["A", "B", "D", "X", "F", "G"] as const satisfie
 // A string value means the card becomes available after that operation is cleared.
 // Chapter 5 intentionally has no unlocks; m is the final unlock after 4-10.
 export const cardUnlockRequirements: Record<CardId, string | null> = {
+  "()": "AE-5",
   "!": "AE-5",
   "0": "AE-3",
   "-": "AE-4",

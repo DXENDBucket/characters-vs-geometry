@@ -3,6 +3,7 @@ import type { TowerActionEvent } from "./game/towerActions";
 import type { ProjectileIntegrity } from "./game/projectileIntegrity";
 
 export type CardId =
+  | "()"
   | "!"
   | "+"
   | "-"
@@ -258,6 +259,8 @@ export interface NumberTowerState {
 }
 
 export interface Tower extends NumberTowerState {
+  parenthesisGuard?: Tower;
+  parenthesisInner?: Tower;
   projectileBank?: { shots: StoredTowerShot[]; remaining: number; nextAt: number; outletIndex: number };
   projectileNode?: {
     input: StoredTowerShot[];

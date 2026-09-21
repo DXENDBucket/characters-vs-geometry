@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { parenthesisInner, syncTowerOccupancy } from "./towerOccupancy";
 import { logicalTowerCell, physicalTowerCell, towerCell } from "./towerTopology";
 import type { TowerActionListener } from "./towerActions";
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, COLUMNS, LANES, palette } from "../config";
@@ -87,6 +88,10 @@ export class TowerPushController {
       const to = physicalTowerCell(source, { lane: move.toLane, column: move.toColumn });
       return { ...move, fromLane: from.lane, fromColumn: from.column, toLane: to.lane, toColumn: to.column, tower: byId.get(move.towerId)! };
     });
+    for (const move of [...moves]) {
+      const companion = move.tower.parenthesisGuard ?? parenthesisInner(move.tower);
+      if (companion && !moves.some(item => item.tower === companion)) moves.push({ ...move, towerId: companion.id, tower: companion });
+    }
     if (!free) spendSkillSp(getTowerSkillState(source, "push"), PUSH_MAX_SP);
     if (!free && runtime.onTowerAction?.(source, { kind: "skill", laneOffset: target.lane - origin.lane, columnOffset: target.column - origin.column })) return true;
     source.border.setAlpha(1);
@@ -112,6 +117,7 @@ export class TowerPushController {
         this.exits.push({ body: tower.body, fromX, fromY, x: tower.x, y: tower.y, at: runtime.battleTime });
       }
     }
+    syncTowerOccupancy(runtime.towers, runtime.occupied);
     runtime.onMoved(moves);
     for (const { tower } of moves) if (tower.inPlay) syncTowerFlyingVisual(tower, runtime.battleTime);
     return true;

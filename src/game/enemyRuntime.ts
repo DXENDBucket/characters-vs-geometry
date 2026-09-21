@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { towerAreaTargets, towerDamageReceiver } from "./towerOccupancy";
 import { collectParenthesisPassengers, passengerMovementStatus } from "./parenthesisEnemies";
 import { destroyContainedEnemies, enemyCanBeLoaded, enemyIsActive, syncPassengerPositions } from "./enemyContainers";
 import { towerBehaviorType } from "./towerIdentity";
@@ -431,7 +432,7 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
       }
 
       if (canEnemyMelee(enemy) && time >= enemy.attackAt) {
-        const target = redirectOrientedTarget(runtime.towers, blocker, time)!;
+        const target = towerDamageReceiver(redirectOrientedTarget(runtime.towers, blocker, time)!);
         runtime.damageTower(target, enemyAttackDamage(enemy, time), enemy.damageType);
         const blockerDefinition = getCardDefinition(towerBehaviorType(target));
         if (blockerDefinition.reflectAttackMultiplier && !runtime.onTowerAction?.(target, { kind: "retaliation", target: enemy })) {
@@ -750,7 +751,7 @@ function findLaserStoppingX(towers: Tower[], lane: number, fromX: number, direct
     if (
       tower.lane !== lane ||
       (direction < 0 ? tower.x >= fromX : tower.x <= fromX) ||
-      towerFinalStats(tower).magicResistance <= 0
+      towerFinalStats(towerDamageReceiver(tower)).magicResistance <= 0
     ) {
       continue;
     }
@@ -772,7 +773,7 @@ function beamHitTowers(
 ) {
   const targets = output ?? [];
   targets.length = 0;
-  for (const tower of towers) {
+  for (const tower of towerAreaTargets(towers)) {
     if (
       tower.lane !== lane ||
       (direction < 0 ? tower.x >= fromX : tower.x <= fromX) ||
@@ -835,7 +836,7 @@ function detonateSolarBombShieldBreak(runtime: EnemyAdvanceRuntime, bomb: Enemy)
   makeShellBurst(runtime.scene, bombX, bombY, radius, "true");
   makeShockPulse(runtime.scene, bombX, bombY, radius, radius, "true");
 
-  forEachSnapshot(runtime.towers, (tower) => {
+  forEachSnapshot(towerAreaTargets(runtime.towers), (tower) => {
     if (!tower.transient && pointIsInCircle(tower.x, tower.y, bombX, bombY, radius, radiusSq)) {
       runtime.damageTower(tower, SOLAR_BOMB_SHIELD_BREAK_AOE_DAMAGE, "true");
     }
@@ -1025,7 +1026,7 @@ function fireLeaderAreaAttack(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: 
   const radius = CELL_WIDTH * 1.75;
   const radiusSq = radius * radius;
   makeHeartPulse(runtime.scene, enemy.x, enemy.y, radius);
-  for (const tower of runtime.towers) {
+  for (const tower of towerAreaTargets(runtime.towers)) {
     const dx = tower.x - enemy.x;
     const dy = tower.y - enemy.y;
     const distanceSq = dx * dx + dy * dy;

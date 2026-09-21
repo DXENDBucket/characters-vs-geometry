@@ -4,7 +4,7 @@ import { LANES } from "../config";
 import { makeAutoUpgradePulse } from "../render/combatEffects";
 import type { CardDefinition, CardId, CardState, Tower } from "../types";
 import type { TowerExtractionPool } from "./towerExtraction";
-import { gridCellKey } from "./targeting";
+import { syncTowerOccupancy, towerInPlacementLayer } from "./towerOccupancy";
 import {
   applyTowerUpgradeStats,
   createTower,
@@ -112,8 +112,7 @@ export class TowerDeploymentController {
 
   private deploySingle(definition: CardDefinition, lane: number, column: number, levels: number) {
     const runtime = this.runtime();
-    const key = gridCellKey(lane, column);
-    const existingTower = runtime.occupied.get(key);
+    const existingTower = towerInPlacementLayer(runtime.occupied, lane, column, definition.id);
     if (existingTower) {
       if (!canUpgradeTowerWithCard(existingTower, definition.id)) {
         return false;
@@ -138,7 +137,7 @@ export class TowerDeploymentController {
     upgradedGroups.clear();
     try {
       for (let lane = 0; lane < LANES; lane += 1) {
-        const existingTower = runtime.occupied.get(gridCellKey(lane, column));
+        const existingTower = towerInPlacementLayer(runtime.occupied, lane, column, definition.id);
         if (existingTower) {
           if (canUpgradeTowerWithCard(existingTower, definition.id)) {
             const groupKey = this.upgradeGroupKey(existingTower);
@@ -182,7 +181,7 @@ export class TowerDeploymentController {
       runtime.resetTowerSkill(tower);
     }
     runtime.towers.push(tower);
-    runtime.occupied.set(gridCellKey(lane, column), tower);
+    syncTowerOccupancy(runtime.towers, runtime.occupied);
     runtime.updateLevelAuras();
   }
 

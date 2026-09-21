@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { towerInPlacementLayer } from "./towerOccupancy";
 import { inFriendlyRange, physicalTowerCell, towerCell } from "./towerTopology";
 import { towerBehaviorType } from "./towerIdentity";
 import { bossMovementDirection, enemyMovementDirection } from "./rules/reversal";
@@ -50,7 +51,6 @@ import {
   getLaneRepelTargets,
   getLowestMaxHpAttackTarget,
   getShiftTargets,
-  gridCellKey,
   hasAttackTarget,
   hasBlockedEnemy,
   hasLaneRepelTarget,
@@ -198,6 +198,7 @@ export const smallSummonerCardBehavior: CardBehavior = {
 };
 
 export const cardBehaviorsById: Record<CardId, CardBehavior> = {
+  "()": idleCardBehavior,
   "!": idleCardBehavior,
   "0": idleCardBehavior,
   "-": idleCardBehavior,
@@ -814,7 +815,7 @@ function getSmallSummonCell(
   const origin = towerCell(tower);
   for (let column = origin.column + direction; column >= 0 && column < COLUMNS; column += direction) {
     const cell = physicalTowerCell(tower, { lane: origin.lane, column });
-    if (!occupied.has(gridCellKey(cell.lane, cell.column)) && (isCellDeployable?.(cell.lane, cell.column) ?? true)) {
+    if (!towerInPlacementLayer(occupied, cell.lane, cell.column, "a") && (isCellDeployable?.(cell.lane, cell.column) ?? true)) {
       return cell;
     }
   }

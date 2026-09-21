@@ -5,7 +5,7 @@ import { isTargetedEffectCardId } from "./targetedEffectCards";
 import { calculateTowerFinalStats, towerBaseStatsFromDefinition } from "./unitStats";
 
 export function isCopyableDefinition(definition: CardDefinition) {
-  return definition.cost <= 999 && !isTargetedEffectCardId(definition.id);
+  return definition.cost <= 999 && definition.id !== "()" && !isTargetedEffectCardId(definition.id);
 }
 
 export interface TowerCopyRuntime {

@@ -32,6 +32,7 @@ import { forEachBossPart, gridCellKey } from "./targeting";
 import { changeTowerHealth, syncHealthBar, syncTowerHealthNetworks, towerHealthDepleted } from "./towerHealth";
 import { syncUnyieldingAuras } from "./towerAuras";
 import { towerFinalStats } from "./unitStats";
+import { syncTowerOccupancy, towerDamageReceiver } from "./towerOccupancy";
 
 export interface UnitLifecycleRuntime {
   onTowerAction?: TowerActionListener;
@@ -90,6 +91,7 @@ export function damageTower(runtime: UnitLifecycleRuntime, tower: Tower, damage:
     return;
   }
 
+  tower = towerDamageReceiver(tower);
   const stats = towerFinalStats(tower);
   const actualDamage = calculateDamage(damage, damageType, stats.armor, stats.magicResistance);
   changeTowerHealth(tower, -actualDamage);
@@ -304,6 +306,8 @@ export function removeTower(runtime: UnitLifecycleRuntime, tower: Tower) {
 
   Phaser.Utils.Array.Remove(runtime.towers, tower);
   tower.inPlay = false;
+  delete tower.parenthesisGuard; delete tower.parenthesisInner;
+  syncTowerOccupancy(runtime.towers, runtime.occupied);
   if (!tower.transient && runtime.occupied.get(gridCellKey(tower.lane, tower.column)) === tower) {
     runtime.occupied.delete(gridCellKey(tower.lane, tower.column));
   }

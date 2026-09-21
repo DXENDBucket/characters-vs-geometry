@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { towerAreaTargets, towerDamageReceiver } from "./towerOccupancy";
 import { towerBehaviorType } from "./towerIdentity";
 import type { TowerActionListener } from "./towerActions";
 import { updateProjectileTrail } from "../render/projectileTrail";
@@ -228,11 +229,12 @@ export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: numb
       }
 
       makeEnemyHitShards(runtime.scene, projectile.x, projectile.y);
-      const reflectsProjectile = hit.reflectProjectiles;
-      const routedReflection = reflectsProjectile && runtime.onTowerAction?.(hit, { kind: "reflection", projectile });
+      const receiver = towerDamageReceiver(hit);
+      const reflectsProjectile = receiver.reflectProjectiles;
+      const routedReflection = reflectsProjectile && runtime.onTowerAction?.(receiver, { kind: "reflection", projectile });
       forEachProjectileHit(projectile, damage => runtime.damageTower(hit, damage, projectile.damageType));
       if (reflectsProjectile && !routedReflection) {
-        reflectEnemyAttack(runtime, hit, projectile);
+        reflectEnemyAttack(runtime, receiver, projectile);
       }
       removeEnemyProjectile(runtime.enemyProjectiles, projectile);
       return;
@@ -656,11 +658,12 @@ function detonateEnemyMortar(runtime: ProjectileRuntime, projectile: MortarProje
   const rangeY = projectile.rangeY;
 
   try {
-    for (const tower of runtime.towers) {
+    for (const tower of towerAreaTargets(runtime.towers)) {
       if (Math.abs(tower.x - targetX) <= rangeX && Math.abs(tower.y - targetY) <= rangeY) {
         hitTowers.push(tower);
-        if (tower.reflectProjectiles) {
-          reflectors.push(tower);
+        const receiver = towerDamageReceiver(tower);
+        if (receiver.reflectProjectiles) {
+          reflectors.push(receiver);
         }
       }
     }

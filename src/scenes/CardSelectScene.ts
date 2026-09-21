@@ -27,6 +27,7 @@ import { toRomanNumeral } from "../format";
 import { DAMAGE_SYMBOLS, t } from "../i18n";
 import { isCardUnlocked, unlockedCardSlotCount } from "../progress";
 import { createEnemyShape, createUnitBorder } from "../render/unitShapes";
+import { drawParenthesisBorder } from "../render/parenthesisTower";
 import { EncyclopediaPanel } from "../render/encyclopediaPanel";
 import { allCardDefinitions, cardLetterCase, hasCardDefinition, type CardLetterCase } from "../registry/cards";
 import { enemyFamily, enemyRank, getEnemyDefinition, getEnemyDisplayName, type EnemyFamily } from "../registry/enemies";
@@ -502,6 +503,7 @@ export class CardSelectScene extends Phaser.Scene {
           fontSize: "17px"
         })
         .setOrigin(0, 0);
+      if (definition.id === "()") { drawParenthesisBorder(border, palette.white, 3); border.setScale(22 / 34); label.setVisible(false); }
       const statsText = this.add
         .text(x - 10, y - 5, definition.stats, {
           color: uiTextColors.secondary,

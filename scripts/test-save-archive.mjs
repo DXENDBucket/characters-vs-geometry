@@ -18,7 +18,7 @@ function fixture(entries = {}) {
 test("save archive round-trips progress, controls, language and empty loadouts without unrelated data", () => {
   const storage = fixture({ [LANGUAGE]: "zh-CN", [LOADOUT]: "[]", foreign: "keep",
     [PROGRESS]: JSON.stringify({ version: 1, completedLevelIds: ["1-1"], allCardsUnlocked: false, seenEnemyKinds: ["circle"] }),
-    "characters-vs-geometry-keybindings": JSON.stringify({ "card:#": "KeyH", "card:@": "KeyM", "tool:shifter": "Digit3" }) });
+    "characters-vs-geometry-keybindings": JSON.stringify({ "card:#": "KeyH", "card:@": "KeyM", "card:()": "KeyP", "tool:shifter": "Digit3" }) });
   const exported = archive.exportSaveArchive(storage);
   assert.equal(archive.parseSaveArchive(exported).entries.foreign, undefined);
   const restored = fixture({ foreign: "untouched", [LANGUAGE]: "en" });

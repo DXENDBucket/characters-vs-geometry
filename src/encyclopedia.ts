@@ -698,7 +698,7 @@ export function towerEncyclopediaEntries(): EncyclopediaEntry[] {
 export function towerEncyclopediaEntry(id: CardId): EncyclopediaEntry {
   const card = getCardDefinition(id);
   return {
-    title: `${card.id}  ${categoryName(card.category)}`,
+    title: `${card.id}  ${categoryName(card.category)}${card.id === "()" ? (isZh() ? "/特殊" : "/Special") : ""}`,
     card,
     lines: towerLines(card),
     description: towerDescription(card.id)
@@ -733,6 +733,8 @@ function towerLines(card: CardDefinition) {
 function towerDescription(id: CardId) {
   const zh = isZh();
   const descriptions: Record<CardId, string> = {
+    "()": zh ? "括号防护层，可与一座常规塔共用一格，先放括号或先放内部塔都可以。内部塔受到的所有伤害优先由括号承受，按括号自身护甲与法抗结算；击破括号的那次伤害不向内部溢出。范围攻击每格只判定一次，多判攻击的后续判定可在括号破坏后命中内部塔。括号与内部塔独立治疗、升级、擦除和移位。点击两侧括号可单独标记自动升级或擦除，点击中心操作内部塔。不能被 @ 复制。"
+      : "Parenthesis protection layer. Shares a cell with one ordinary tower, in either deployment order. Receives all damage intended for the occupant using its own armor and MR. The breaking hit never spills through; later judgments may hit the occupant. Area attacks resolve once per cell. Shell and occupant have separate healing, upgrades, erasure and shifting. Click either bracket to select its auto-upgrade or erase it; the center selects the occupant. Cannot be copied by @.",
     "!": zh ? "持续攻击附着卡。放在已有塔上，永久允许该塔按原攻速和连射规则执行无需锁定目标的常规攻击，即使本行或射程内没有敌怪。适用于平射弹幕、激光、范围波；不自动释放技能，不绕过小 x、追踪迫击炮、斩击等必须有目标的条件。附着后显示金色 !，重复使用不叠加，升级和移动保留效果。生效后本卡冷却缩短为 30 秒 / 自身有效等级。"
       : "Continuous-fire attachment. Apply to an existing tower to permanently allow free-aim regular attacks at their normal cadence and volley count, even with no enemies in the lane or range. Supports ordinary projectiles, lasers and area waves. Does not activate skills or bypass target requirements for homing shots, predictive mortars or targeted slashes. Shows a gold ! marker, does not stack, and persists through upgrades and movement. After resolving, this card's cooldown becomes 30s / its effective level.",
     "0": zh ? "管道蓄存器。自动接收和转发弹幕或行动效果，容量为 128 × 有效等级。支持激光、追踪弹、迫击炮、生产、治疗、技能和一次性效果。源塔照常支付技力、攻击冷却和自伤；一次性塔照常消失，只把效果存入管道。保留输入时等级、攻击力、属性及多判信息，不复制行动。空格和无关塔是透明通路，按可达接收节点轮流均分；双向连接允许回流，每步最多转交一次。堵塞或断线保留库存，摧毁后库存消失。升级提升容量，支持自动升级；临时等级消失时不删除超额库存。"

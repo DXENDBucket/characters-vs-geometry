@@ -17,6 +17,7 @@ import { t } from "../i18n";
 import { getCardDefinition } from "../registry/cards";
 import type { AlphaGameObject, CardId, CardState, CubeBoss } from "../types";
 import { createUnitBorder } from "./unitShapes";
+import { drawParenthesisBorder } from "./parenthesisTower";
 import type { TowerExtractionPool } from "../game/towerExtraction";
 
 export interface GameHudElements {
@@ -396,6 +397,7 @@ export function createCardStates(scene: Phaser.Scene, selectedCardIds: CardId[])
         fontStyle: "700"
       })
       .setOrigin(0.5);
+    if (definition.id === "()") { drawParenthesisBorder(previewBorder, palette.white, 3); previewBorder.setScale(19 / 34); label.setVisible(false); }
     const costText = scene.add.text(x + 78, y + 11, `${definition.cost}`, {
       color: uiTextColors.primary,
       fontFamily: "monospace",
@@ -793,6 +795,7 @@ function createUnlockedCardDetails(overlay: GameOverlayElements, unlockedCardIds
         fontStyle: "700"
       })
       .setOrigin(0.5);
+    if (card.id === "()") { drawParenthesisBorder(icon, palette.white, 3); icon.setScale(25 / 34); cardLabel.setVisible(false); }
     const title = scene.add
       .text(contentX, y, entry.title, {
         color: uiTextColors.primary,

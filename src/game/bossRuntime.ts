@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { towerAreaTargets, towerDamageReceiver } from "./towerOccupancy";
 import { towerBehaviorType } from "./towerIdentity";
 import { bossMovementDirection } from "./rules/reversal";
 import { isShockTower } from "./triggerTowers";
@@ -1000,7 +1001,7 @@ function leftwardDodecahedronLaserPath(towers: Tower[], lane: number, fromX: num
   const stoppingX = leftwardLaserStoppingX(towers, lane, fromX);
   const targets = dodecahedronLaserTargetsBuffer;
   targets.length = 0;
-  for (const tower of towers) {
+  for (const tower of towerAreaTargets(towers)) {
     if (tower.lane !== lane || tower.x >= fromX || (stoppingX !== undefined && tower.x < stoppingX)) {
       continue;
     }
@@ -1015,7 +1016,7 @@ function leftwardDodecahedronLaserPath(towers: Tower[], lane: number, fromX: num
 function leftwardLaserStoppingX(towers: Tower[], lane: number, fromX: number) {
   let stoppingX: number | undefined;
   for (const tower of towers) {
-    if (tower.lane !== lane || tower.x >= fromX || towerFinalStats(tower).magicResistance <= 0) {
+    if (tower.lane !== lane || tower.x >= fromX || towerFinalStats(towerDamageReceiver(tower)).magicResistance <= 0) {
       continue;
     }
 
@@ -1206,7 +1207,7 @@ function damageBossTouchingTowers(runtime: BossRuntime, boss: CubeBoss, seconds:
     targets.length = 0;
     const bounds = bossBounds(boss);
     try {
-      for (const tower of runtime.towers) {
+      for (const tower of towerAreaTargets(runtime.towers)) {
         if (towerIntersectsBossBounds(tower, bounds)) {
           targets.push(tower);
         }

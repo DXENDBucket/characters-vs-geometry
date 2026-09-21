@@ -32,8 +32,8 @@ export function syncHealthBar(tower: Tower) {
   tower.hpFill.x = -21 + reserveWidth;
   if (tower.negativeHpBack && tower.negativeHpFill) {
     const remaining = capacity > 0 ? Math.max(0, Math.min(1, (capacity + Math.min(0, hp)) / capacity)) : 0;
-    tower.negativeHpBack.setPosition(-21, 31).setVisible(capacity > 0);
-    tower.negativeHpFill.setPosition(-21, 31).setVisible(capacity > 0);
+    tower.negativeHpBack.setPosition(-21, tower.hpFill.y).setVisible(capacity > 0);
+    tower.negativeHpFill.setPosition(-21, tower.hpFill.y).setVisible(capacity > 0);
     tower.negativeHpBack.width = reserveWidth;
     tower.negativeHpFill.width = reserveWidth * remaining;
   }
@@ -79,7 +79,11 @@ export function syncTowerHealthCapacity(tower: Tower, previousMaxHp: number, hea
 export function syncTowerHealthNetworks(towers: Tower[]) {
   if (!towers.some(tower => tower.healthPool || (tower.inPlay && tower.type === "u"))) return;
   const active = towers.filter(tower => tower.inPlay && !tower.transient);
-  const cells = new Map(active.map(tower => { const cell = towerCell(tower); return [`${cell.lane}:${cell.column}`, tower]; }));
+  const cells = new Map<string, Tower[]>();
+  for (const tower of active) {
+    const cell = towerCell(tower), key = `${cell.lane}:${cell.column}`;
+    const members = cells.get(key) ?? []; members.push(tower); cells.set(key, members);
+  }
   const edges = new Map<Tower, Tower[]>();
   const add = (a: Tower, b: Tower) => {
     const neighbors = edges.get(a) ?? [];
@@ -91,8 +95,7 @@ export function syncTowerHealthNetworks(towers: Tower[]) {
     if (!edges.has(tower)) edges.set(tower, []);
     const cell = towerCell(tower);
     for (const [dl, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
-      const neighbor = cells.get(`${cell.lane + dl}:${cell.column + dc}`);
-      if (neighbor) {
+      for (const neighbor of cells.get(`${cell.lane + dl}:${cell.column + dc}`) ?? []) {
         add(tower, neighbor);
         add(neighbor, tower);
       }

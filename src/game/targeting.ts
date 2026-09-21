@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { towerAreaTargets, towerCellMembers, towerDamageReceiver } from "./towerOccupancy";
 import { enemyMaximumHp, parenthesisHalfSpan } from "./enemyContainers";
 import { towerAtCell, towerCell } from "./towerTopology";
 import { towerBehaviorType } from "./towerIdentity";
@@ -274,12 +275,9 @@ export function getHealTargets(
   }
 
   visitHealTargetCells(tower, definition, (lane, column) => {
-    const target = towerAtCell(occupied, tower, lane, column);
-    if (!target || target.hp >= towerFinalStats(target).maxHp) {
-      return;
+    for (const target of towerCellMembers(towerAtCell(occupied, tower, lane, column))) {
+      if (target.hp < towerFinalStats(target).maxHp) insertHealTarget(targets, target, count);
     }
-
-    insertHealTarget(targets, target, count);
   });
 
   return targets;
@@ -297,8 +295,7 @@ export function hasHealTarget(
 
   let found = false;
   visitHealTargetCells(tower, definition, (lane, column) => {
-    const target = towerAtCell(occupied, tower, lane, column);
-    if (target && target.hp < towerFinalStats(target).maxHp) {
+    if (towerCellMembers(towerAtCell(occupied, tower, lane, column)).some(target => target.hp < towerFinalStats(target).maxHp)) {
       found = true;
       return false;
     }
@@ -463,7 +460,8 @@ export function getBlockingTower(towers: Tower[], enemy: Enemy) {
 
   const enemyFlying = hasStatusEffectName(enemy, "flying");
   let blockingTower: Tower | undefined;
-  for (const tower of towers) {
+  for (const candidate of towerAreaTargets(towers)) {
+    const tower = blockingLayer(candidate, enemyFlying);
     if (!towerCanBlockEnemy(tower, enemy, enemyFlying)) {
       continue;
     }
@@ -490,7 +488,7 @@ export function getBlockingTowerFromOccupied(occupied: Map<string, Tower>, enemy
       continue;
     }
 
-    const tower = occupied.get(gridCellKey(enemy.lane, column));
+    const tower = blockingLayer(occupied.get(gridCellKey(enemy.lane, column)), enemyFlying);
     if (!tower || !towerCanBlockEnemy(tower, enemy, enemyFlying)) {
       continue;
     }
@@ -515,7 +513,7 @@ export function getSweptBlockingTowerFromOccupied(occupied: Map<string, Tower>, 
   // Scan in travel order, bounded by the board width rather than the enemy's speed.
   for (let column = direction < 0 ? lastColumn : firstColumn;
     direction < 0 ? column >= firstColumn : column <= lastColumn; column += direction) {
-    const tower = occupied.get(gridCellKey(enemy.lane, column));
+    const tower = blockingLayer(occupied.get(gridCellKey(enemy.lane, column)), enemyFlying);
     if (!tower || !towerCanBlockEnemy(tower, enemy, enemyFlying, false)) continue;
     const entryX = tower.x - direction * blockRadius;
     const x = direction < 0 ? Math.min(enemy.x, entryX) : Math.max(enemy.x, entryX);
@@ -539,13 +537,20 @@ function sweptOscillatingBlocker(occupied: Map<string, Tower>, enemy: Enemy, nex
   let hit: Tower | undefined, fraction = Infinity;
   for (let lane = firstLane; lane <= lastLane; lane++) {
     for (let column = firstColumn; column <= lastColumn; column++) {
-      const tower = occupied.get(gridCellKey(lane, column));
+      const tower = blockingLayer(occupied.get(gridCellKey(lane, column)), flying);
       if (!tower?.inPlay || tower.transient || towerIsFlying(tower) !== flying) continue;
       const time = segmentBoxHitTime(enemy.x - tower.x, enemy.y - tower.y, dx, dy, TOWER_BLOCK_RADIUS, CELL_HEIGHT / 2);
       if (time < fraction) { hit = tower; fraction = time; }
     }
   }
   return hit ? { tower: hit, x: enemy.x + dx * fraction, y: enemy.y + dy * fraction, fraction } : undefined;
+}
+
+function blockingLayer(tower: Tower, flying: boolean): Tower;
+function blockingLayer(tower: Tower | undefined, flying: boolean): Tower | undefined;
+function blockingLayer(tower: Tower | undefined, flying: boolean) {
+  if (!tower || towerIsFlying(tower) === flying) return tower;
+  return towerDamageReceiver(tower);
 }
 
 function towerCanBlockEnemy(tower: Tower, enemy: Enemy, enemyFlying: boolean, checkPosition = true) {

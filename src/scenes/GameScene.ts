@@ -18,6 +18,8 @@ import { ProjectileCircuitController, edgeAtPoint, edgeKey, edgePosition } from 
 import { drawCircuitEdges } from "../render/circuitEdges";
 import { EdgeTowerControls } from "../game/edgeTowerControls";
 import { createTowerProjectile } from "../game/projectiles";
+import { drawParenthesisBorder } from "../render/parenthesisTower";
+import { isParenthesisTower, parenthesisAtPoint, syncTowerOccupancy, towerInPlacementLayer } from "../game/towerOccupancy";
 import { executePipelineAction, healPipelineArea, pipelineActionSelfCost } from "../game/pipelineActionEffects";
 import type { TowerActionEvent } from "../game/towerActions";
 import { reflectEnemyAttack } from "../game/projectileRuntime";
@@ -756,12 +758,14 @@ export class GameScene extends Phaser.Scene {
     const column = Math.floor((x - BOARD_X) / CELL_WIDTH);
     const lane = Math.floor((y - BOARD_Y) / CELL_HEIGHT);
     const key = gridCellKey(lane, column);
-    const existingTower = this.occupied.get(key);
+    const cellTower = this.occupied.get(key);
+    const pointedParenthesis = parenthesisAtPoint(cellTower, x, y);
+    const existingTower = pointedParenthesis ?? cellTower;
 
     if (this.eraserMode) {
       const edge = edgeAtPoint(x, y);
       const edgeIndex = edge ? this.edgeTowers.findIndex(item => edgeKey(item) === edgeKey(edge)) : -1;
-      if (edgeIndex >= 0) {
+      if (edgeIndex >= 0 && !pointedParenthesis) {
         const position = edgePosition(this.edgeTowers[edgeIndex]);
         this.edgeTowers.splice(edgeIndex, 1); this.numbers.sync();
         makeEraseMark(this, position.x, position.y);
@@ -784,7 +788,7 @@ export class GameScene extends Phaser.Scene {
 
     const pointedEdge = edgeAtPoint(x, y);
     const existingEdge = pointedEdge && this.edgeTowers.find(edge => edgeKey(edge) === edgeKey(pointedEdge));
-    if (existingEdge && !this.shifter.isActive()) {
+    if (existingEdge && !this.shifter.isActive() && !pointedParenthesis) {
       if (this.autoUpgradeMode) {
         this.edgeControls.toggleAuto(existingEdge, this.isShiftPointer(pointer)); this.attemptAutoUpgrades();
       } else if (this.selectedCardId === "=") this.handleTargetedEffectCardResult(this.edgeControls.use(existingEdge));
@@ -827,6 +831,10 @@ export class GameScene extends Phaser.Scene {
     }
     const cardState = this.cardStatesById.get(definition.id);
     const effectiveChars = this.effectiveChars();
+    if (definition.id === "()" || (cellTower && isParenthesisTower(cellTower) && !this.targetedEffects.canHandle(definition.id))) {
+      this.deploySelectedCard(definition, lane, column, pointer);
+      return;
+    }
     if (existingTower?.type === "&" && !existingTower.topologyTarget) {
       this.prepareSkillTargeting(); this.topology.begin(existingTower); return;
     }
@@ -975,7 +983,7 @@ export class GameScene extends Phaser.Scene {
     const lane = Math.floor((pointer.y - BOARD_Y) / CELL_HEIGHT);
     const column = Math.floor((pointer.x - BOARD_X) / CELL_WIDTH);
 
-    if (this.shifter.isActive() && this.shifter.hasSelection() && !this.occupied.get(gridCellKey(lane, column))) {
+    if (this.shifter.isActive() && this.shifter.hasSelection() && this.shifter.isMoveDestination(this.occupied.get(gridCellKey(lane, column)))) {
       const move = this.shifter.previewMove(lane, column);
       if (move.valid) {
         for (const position of move.positions) {
@@ -1014,14 +1022,14 @@ export class GameScene extends Phaser.Scene {
 
     if (this.unlimitedFirepower) {
       for (let targetLane = 0; targetLane < LANES; targetLane += 1) {
-        if (this.cellIsDeployable(targetLane, column) && !this.occupied.get(gridCellKey(targetLane, column))) {
+        if (this.cellIsDeployable(targetLane, column) && !towerInPlacementLayer(this.occupied, targetLane, column, definition.id)) {
           ghosts.push({ type: definition.id, lane: targetLane, column });
         }
       }
       return ghosts;
     }
 
-    if (this.cellIsDeployable(lane, column) && !this.occupied.get(gridCellKey(lane, column))) {
+    if (this.cellIsDeployable(lane, column) && !towerInPlacementLayer(this.occupied, lane, column, definition.id)) {
       ghosts.push({ type: definition.id, lane, column });
     }
 
@@ -1041,6 +1049,7 @@ export class GameScene extends Phaser.Scene {
         fontStyle: "700"
       })
       .setOrigin(0.5);
+    if (definition.id === "()") { drawParenthesisBorder(border, palette.white); label.setVisible(false); }
     const ghost = this.add.container(x, y, [border, label]).setDepth(18).setAlpha(0.32);
     this.placementGhosts.push(ghost);
   }
@@ -1140,6 +1149,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateLevelAuras() {
+    syncTowerOccupancy(this.towers, this.occupied);
     syncTowerTopology(this.towers);
     this.syncCopiedTowers();
     const snapshotTowers = this.levelBonusSnapshotTowers;
@@ -1769,7 +1779,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private spawnGeneratedTower(id: CardId, lane: number, column: number, level: number, facingDirection: -1 | 1 = 1) {
-    if (!this.cellIsDeployable(lane, column) || this.occupied.has(gridCellKey(lane, column))) {
+    if (!this.cellIsDeployable(lane, column) || towerInPlacementLayer(this.occupied, lane, column, id)) {
       return null;
     }
 
@@ -1787,7 +1797,7 @@ export class GameScene extends Phaser.Scene {
     syncTowerLevelText(tower);
     setTowerFacing(tower, facingDirection);
     this.towers.push(tower);
-    this.occupied.set(gridCellKey(lane, column), tower);
+    syncTowerOccupancy(this.towers, this.occupied);
     this.updateLevelAuras();
     return tower;
   }
@@ -2066,8 +2076,8 @@ export class GameScene extends Phaser.Scene {
   private sealColumn(column: number) {
     let removedTower = false;
     for (let lane = 0; lane < LANES; lane += 1) {
-      const tower = this.occupied.get(gridCellKey(lane, column));
-      if (tower?.inPlay) {
+      for (const tower of this.towers.filter(tower => tower.lane === lane && tower.column === column)) {
+        if (!tower.inPlay) continue;
         makeEraseMark(this, tower.x, tower.y);
         removeTower(this.unitLifecycleRuntime(), tower);
         removedTower = true;
@@ -2808,7 +2818,7 @@ export class GameScene extends Phaser.Scene {
     this.enemyProjectiles = state.enemyProjectiles;
     this.mortarProjectiles = state.mortarProjectiles;
     this.occupied.clear();
-    for (const tower of this.towers) if (tower.inPlay && !tower.transient) this.occupied.set(gridCellKey(tower.lane, tower.column), tower);
+    syncTowerOccupancy(this.towers, this.occupied);
     this.sealedCells = new Set(state.sealedCells);
     this.storage.restore(state.storage);
     this.shifter.restore(state.shifter);

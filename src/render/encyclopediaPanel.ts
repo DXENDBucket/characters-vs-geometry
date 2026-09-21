@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { drawParenthesisBorder } from "./parenthesisTower";
 import { bindButtonHover } from "./buttonHover";
 import {
   CUBE_BOSS_CONTACT_DAMAGE,
@@ -734,6 +735,7 @@ export class EncyclopediaPanel {
           fontStyle: "700"
         })
         .setOrigin(0.5);
+      if (entry.card.id === "()") { drawParenthesisBorder(border, palette.white, 3); border.setScale(25 * scale / 34); label.setVisible(false); }
       parent.add([border, label]);
       return;
     }

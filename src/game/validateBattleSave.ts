@@ -137,6 +137,12 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
   }
   require(array(state.towers, member("tower")) && array(state.enemies, member("enemy")) &&
     array(state.projectiles, member("projectile")) && array(state.enemyProjectiles, member("enemyProjectile")) && array(state.mortarProjectiles, member("mortar")));
+  const towerCells = new Set<string>();
+  for (const tower of state.towers) {
+    if (!tower.inPlay || tower.transient) continue;
+    const key = `${tower.lane}:${tower.column}:${tower.type === "()" ? "shell" : "main"}`;
+    require(!towerCells.has(key)); towerCells.add(key);
+  }
   for (const shot of [...state.projectiles, ...state.enemyProjectiles, ...state.mortarProjectiles]) {
     require(integrity(shot as unknown as Record<string, unknown>));
   }
@@ -180,6 +186,16 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
         require(["laser", "mortar", "wings"].includes(value.bossCompanionActionPhase as string));
       }
       if (kind === "tower") {
+        if (value.parenthesisGuard !== undefined) {
+          const guard = value.parenthesisGuard;
+          require(member("tower")(guard) && record(guard) && guard.type === "()" && value.type !== "()" &&
+            guard.lane === value.lane && guard.column === value.column);
+        }
+        if (value.parenthesisInner !== undefined) {
+          const inner = value.parenthesisInner;
+          require(member("tower")(inner) && record(inner) && value.type === "()" && inner.type !== "()" &&
+            inner.lane === value.lane && inner.column === value.column);
+        }
         for (const key of ["healingCredit", "healingUpdatedAt"]) {
           require(value[key] === undefined || finite(value[key]) && (value[key] as number) >= 0);
         }

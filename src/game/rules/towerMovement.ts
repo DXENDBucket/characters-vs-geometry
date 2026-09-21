@@ -22,8 +22,9 @@ export interface MovableTower extends GridPosition {
 export interface MovementBoard {
   lanes: number;
   columns: number;
+  layers?: number;
   getTower: (id: string) => MovableTower | undefined;
-  occupantAt: (lane: number, column: number) => string | undefined;
+  occupantAt: (lane: number, column: number, movingTowerId?: string) => string | undefined;
   isCellDeployable: (lane: number, column: number) => boolean;
 }
 
@@ -47,7 +48,7 @@ export function planTowerMove(command: MoveTowersCommand, board: MovementBoard):
   }
   if (
     command.type !== "moveTowers" ||
-    command.sources.length > board.lanes * board.columns ||
+    command.sources.length > board.lanes * board.columns * (board.layers ?? 1) ||
     !isGridPosition(command.destination)
   ) {
     return { valid: false, reason: "invalid" };
@@ -64,7 +65,7 @@ export function planTowerMove(command: MoveTowersCommand, board: MovementBoard):
     if (
       !tower?.inPlay || tower.id !== source.towerId ||
       tower.lane !== source.lane || tower.column !== source.column ||
-      board.occupantAt(source.lane, source.column) !== source.towerId
+      board.occupantAt(source.lane, source.column, source.towerId) !== source.towerId
     ) {
       return { valid: false, reason: "stale" };
     }
@@ -83,7 +84,7 @@ export function planTowerMove(command: MoveTowersCommand, board: MovementBoard):
     if (!board.isCellDeployable(toLane, toColumn)) {
       return { valid: false, reason: "sealed" };
     }
-    const occupant = board.occupantAt(toLane, toColumn);
+    const occupant = board.occupantAt(toLane, toColumn, source.towerId);
     if (occupant !== undefined && !selectedIds.has(occupant)) {
       return { valid: false, reason: "occupied" };
     }

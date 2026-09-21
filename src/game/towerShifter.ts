@@ -3,6 +3,7 @@ import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, COLUMNS, LANES, palette } fr
 import type { Tower } from "../types";
 import { gridCellKey } from "./targeting";
 import { syncTowerFlyingVisual } from "./towers";
+import { isParenthesisTower, syncTowerOccupancy, towerInPlacementLayer } from "./towerOccupancy";
 import { planTowerMove, SHIFTER_BASE_COOLDOWN, type MoveTowersCommand, type TowerMove } from "./rules/towerMovement";
 
 export type TowerShifterPointerResult = "selected" | "empty" | "invalid" | "moved" | "cooldown";
@@ -104,6 +105,11 @@ export class TowerShifterController {
     return [...this.liveSelection()];
   }
 
+  isMoveDestination(existingTower: Tower | undefined) {
+    const first = this.liveSelection()[0];
+    return !existingTower || !!first && isParenthesisTower(first) !== isParenthesisTower(existingTower);
+  }
+
   handlePointer(lane: number, column: number, existingTower: Tower | undefined, additive: boolean): TowerShifterPointerResult {
     const runtime = this.runtime();
     if (runtime.cardTime < this.readyAt) {
@@ -111,7 +117,7 @@ export class TowerShifterController {
       return "cooldown";
     }
 
-    if (existingTower) {
+    if (existingTower && (additive || !this.hasSelection() || !this.isMoveDestination(existingTower))) {
       this.selectTower(existingTower, additive);
       return "selected";
     }
@@ -178,8 +184,9 @@ export class TowerShifterController {
     return planTowerMove(command, {
       lanes: LANES,
       columns: COLUMNS,
+      layers: 2,
       getTower: (id) => towersById.get(id),
-      occupantAt: (lane, column) => runtime.occupied.get(gridCellKey(lane, column))?.id,
+      occupantAt: (lane, column, movingId) => towerInPlacementLayer(runtime.occupied, lane, column, towersById.get(movingId!)!.type)?.id,
       isCellDeployable: (lane, column) => runtime.isCellDeployable?.(lane, column) ?? true
     });
   }
@@ -255,6 +262,7 @@ export class TowerShifterController {
       syncTowerFlyingVisual(tower, runtime.battleTime);
       runtime.occupied.set(gridCellKey(lane, column), tower);
     }
+    syncTowerOccupancy(runtime.towers, runtime.occupied);
   }
 
   private liveSelection() {

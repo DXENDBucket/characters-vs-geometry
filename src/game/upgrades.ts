@@ -17,7 +17,7 @@ const VOLLEY_UPGRADEABLE_CARDS = new Set<CardId>([
   "K",
   "Z"
 ]);
-const MAX_HP_UPGRADEABLE_CARDS = new Set<CardId>(["B", "D", "O", "o", "R", "h", "L", "j", "N", "q", "n", "T", "u", "&"]);
+const MAX_HP_UPGRADEABLE_CARDS = new Set<CardId>(["()", "B", "D", "O", "o", "R", "h", "L", "j", "N", "q", "n", "T", "u", "&"]);
 const ATTACK_POWER_UPGRADEABLE_CARDS = new Set<CardId>(["d", "z", "x", "Q", "k", "S", "V", "v", "l", "G"]);
 const UPGRADE_SCALE = 0.8;
 const UPGRADE_SOFTCAP_START = 20;

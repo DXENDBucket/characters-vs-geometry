@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { syncTowerOccupancy, towerCellMembers, towerInPlacementLayer } from "./towerOccupancy";
 import { logicalTowerCell, physicalTowerCell, towerAtCell, towerCell, topologyKey } from "./towerTopology";
 import { COLUMNS, LANES } from "../config";
 import type { CardDefinition, CardId, Tower } from "../types";
@@ -221,20 +222,18 @@ export class TowerMirrorController {
     this.syncTargetedEffectMirrors(runtime, first, secondTower);
     this.syncTargetedEffectMirrors(runtime, second, firstTower);
 
-    if (firstTower && !secondTower && this.canMirrorTowerSource(runtime, firstTower)) {
-      this.createMirrorTower(runtime, firstTower, second.lane, second.column);
-      return;
-    }
-
-    if (secondTower && !firstTower && this.canMirrorTowerSource(runtime, secondTower)) {
-      this.createMirrorTower(runtime, secondTower, first.lane, first.column);
+    for (const type of ["A", "()"] as const) {
+      const a = towerInPlacementLayer(runtime.occupied, first.lane, first.column, type);
+      const b = towerInPlacementLayer(runtime.occupied, second.lane, second.column, type);
+      if (a && !b && this.canMirrorTowerSource(runtime, a)) this.createMirrorTower(runtime, a, second.lane, second.column);
+      else if (b && !a && this.canMirrorTowerSource(runtime, b)) this.createMirrorTower(runtime, b, first.lane, first.column);
     }
   }
 
   private createMirrorTower(runtime: TowerMirrorRuntime, source: Tower, lane: number, column: number) {
     if (
       !this.cellIsDeployable(runtime, lane, column) ||
-      runtime.occupied.has(gridCellKey(lane, column)) ||
+      towerInPlacementLayer(runtime.occupied, lane, column, source.type) ||
       !this.canMirrorTowerSource(runtime, source)
     ) {
       return null;
@@ -247,7 +246,7 @@ export class TowerMirrorController {
     syncTowerLevelText(mirror);
 
     runtime.towers.push(mirror);
-    runtime.occupied.set(gridCellKey(lane, column), mirror);
+    syncTowerOccupancy(runtime.towers, runtime.occupied);
     this.linkMirrors(runtime, source, mirror);
     syncTowerDerivedStats(mirror, true, runtime.towers);
     runtime.updateLevelAuras();
@@ -499,9 +498,8 @@ export class TowerMirrorController {
       return;
     }
 
-    const groupId = runtime.occupied.get(gridCellKey(lane, column))?.mirrorGroupId;
-    if (groupId) {
-      groupIds.add(groupId);
+    for (const tower of towerCellMembers(runtime.occupied.get(gridCellKey(lane, column)))) {
+      if (tower.mirrorGroupId) groupIds.add(tower.mirrorGroupId);
     }
   }
 
@@ -527,9 +525,8 @@ export class TowerMirrorController {
       return;
     }
 
-    const tower = runtime.occupied.get(gridCellKey(lane, column));
-    if (tower?.mirrorGroupId) {
-      towers.push(tower);
+    for (const tower of towerCellMembers(runtime.occupied.get(gridCellKey(lane, column)))) {
+      if (tower.mirrorGroupId) towers.push(tower);
     }
   }
 

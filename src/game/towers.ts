@@ -8,6 +8,7 @@ import { syncHealthBar } from "./towerHealth";
 import { facingWithEffects } from "./rules/reversal";
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
 import { createUnitBorder } from "../render/unitShapes";
+import { drawParenthesisBorder } from "../render/parenthesisTower";
 import type { CardDefinition, CardId, CardState, SkillState, Tower } from "../types";
 import { syncTowerFinalStats, towerBaseStatsFromDefinition, towerFinalStats } from "./unitStats";
 import type { TowerAuraSources } from "./towerAuras";
@@ -70,6 +71,13 @@ export function createTower(
     })
     .setOrigin(0.5);
   if (isLiteralNumberType(definition.id)) levelText.setVisible(false);
+  if (definition.id === "()") {
+    drawParenthesisBorder(border, palette.white);
+    drawParenthesisBorder(autoUpgradeBorder, palette.green, 2, 3);
+    label.setVisible(false);
+    levelText.setPosition(-30, -32).setFontSize(9);
+    for (const bar of [hpBack, hpFill, negativeHpBack, negativeHpFill]) bar.setY(-32);
+  }
 
   body.add([
     ...(rangeBorder ? [rangeBorder] : []),
@@ -227,6 +235,12 @@ export function effectiveTowerLevel(tower: Tower) {
 }
 
 export function syncTowerLevelText(tower: Tower) {
+  if (tower.type === "()") {
+    const bonus = tower.levelBonus + tower.mirrorLevelBonus;
+    const text = bonus > 0 ? `${tower.level}+${bonus}` : String(tower.level);
+    tower.levelText.setText(text).setFontSize(Math.min(9, 18 / text.length)).setColor(bonus > 0 ? "#9fdcff" : "#b0b0b0");
+    return;
+  }
   if (towerFormType(tower) === "0") {
     const count = tower.projectileBank?.shots.length ?? 0;
     if (tower.type === "0") tower.label.setText("0");

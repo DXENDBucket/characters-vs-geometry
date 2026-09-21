@@ -194,7 +194,7 @@ test("@ copies every eligible panel including ASCII using its own level, not tar
     const caster = f.place("@", 3, 3, 3);
     f.place(definition.id, 20, 3, 4);
     f.sync();
-    const eligible = definition.cost <= 999 && !["b", "t", "y", "!"].includes(definition.id);
+    const eligible = definition.cost <= 999 && !["b", "t", "y", "!", "()"].includes(definition.id);
     assert.equal(f.isCopyableDefinition(definition), eligible, definition.id);
     assert.equal(caster.type, "@");
     assert.equal(caster.level, 3);
