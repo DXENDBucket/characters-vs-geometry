@@ -5,7 +5,7 @@ const load = createTypeScriptLoader();
 const { ProjectileCircuitController, edgeAtPoint, edgePosition } = load("src/game/projectileCircuit.ts");
 const { EdgeTowerControls } = load("src/game/edgeTowerControls.ts");
 const { projectileBankCapacity } = load("src/game/projectileBank.ts");
-const { nodeOccupancy, processorCapacity } = load("src/game/pipelineRules.ts");
+const { nodeOccupancy } = load("src/game/pipelineRules.ts");
 const { syncTowerTopology } = load("src/game/towerTopology.ts");
 const { BOARD_X, BOARD_Y, CELL_WIDTH, CELL_HEIGHT } = load("src/config.ts");
 const { cardDefinitions } = load("src/data/cards.ts");
@@ -136,7 +136,7 @@ test("connection flow has a bounded burst and refills at 25 shots per level per 
 });
 
 test("buffer capacity scales with level and retains over-capacity ammo when temporary levels expire", () => {
-  for (const type of ["0", "-"]) {
+  for (const type of ["0", "-", "+"]) {
     const f = fixture(["A", type]); f.state.edges[0].level = 100;
     for (let i = 0; i < 128; i++) assert.equal(f.controller.capture(f.shot()), true);
     assert.equal(f.controller.capture(f.shot()), false);
@@ -175,17 +175,21 @@ test("healing outlet converts the complete multi-hit damage budget at five to on
   assert.equal(f.state.output.length, 0); assert.equal(f.outlet.projectileNode.input.length, 0);
 });
 
-test("healing stock waits for injured allies and processing rate and capacity scale with level", () => {
+test("healing stock waits for injured allies; upgrades increase capacity without increasing healing or throughput", () => {
   const f = fixture(["A", "+"]); f.state.edges[0].level = 100;
-  let injured = false, healed = 0; f.state.heal = () => { if (!injured) return false; healed++; return true; };
-  for (let i = 0; i < 25; i++) assert.equal(f.controller.capture(f.shot()), true);
+  let injured = false, healed = 0;
+  f.state.heal = (_tower, amount) => { assert.equal(amount, 80); if (!injured) return false; healed++; return true; };
+  for (let i = 0; i < 128; i++) assert.equal(f.controller.capture(f.shot()), true);
   assert.equal(f.controller.capture(f.shot()), false);
-  f.tick(1000); assert.equal(nodeOccupancy(f.bank), 25);
+  f.tick(1000); assert.equal(nodeOccupancy(f.bank), 128);
   injured = true; f.tick(); assert.equal(healed, 25);
   f.controller.capture(f.shot()); f.controller.update(); assert.equal(healed, 25);
   f.tick(39); assert.equal(healed, 25); f.tick(1); assert.equal(healed, 26);
-  f.bank.level = 2; f.controller.sync(); assert.equal(processorCapacity(f.bank), 50);
-  f.controller.capture(f.shot()); f.tick(20); assert.equal(healed, 27);
+  const stock = f.bank.projectileNode.input[0];
+  f.bank.level = 2; f.controller.sync(); assert.equal(projectileBankCapacity(f.bank), 256);
+  assert.equal(f.bank.projectileNode.input[0], stock);
+  f.controller.capture(f.shot()); f.tick(20); assert.equal(healed, 26);
+  f.tick(20); assert.equal(healed, 27);
 });
 
 test("old bundler jobs and completed stock migrate without losing damage or duplicating effects", () => {
@@ -352,7 +356,7 @@ test("real nodes cannot be bypassed when full, but their removal opens transpare
     const f = fixture(["A"]), middle = f.place(type, 2), end = f.place("0", 4);
     for (let col = 0; col < 4; col++) f.edge(col, 3, "horizontal", ">").level = 100;
     f.controller.sync();
-    const capacity = type === "1" ? 1 : type === "+" ? 25 : 128;
+    const capacity = type === "1" ? 1 : 128;
     for (let i = 0; i < capacity; i++) assert.equal(f.controller.capture(f.shot()), true);
     assert.equal(f.controller.capture(f.shot()), false);
     assert.equal(end.projectileBank.shots.length, 0);

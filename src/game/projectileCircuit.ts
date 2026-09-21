@@ -5,7 +5,7 @@ import { isLiteralNumberType, numberTowerValue, towerFormType, towerActionContex
 import type { TowerActionEvent } from "./towerActions";
 import { storeTowerAction } from "./pipelineActionPayload";
 import { projectileBankCapacity } from "./projectileBank";
-import { nodeOccupancy, processorCapacity, processorRate } from "./pipelineRules";
+import { HEALING_RATE, nodeOccupancy } from "./pipelineRules";
 import { PipelineRouting } from "./pipelineRouting";
 
 export { PROJECTILE_BANK_CAPACITY } from "./projectileBank";
@@ -85,7 +85,7 @@ export class ProjectileCircuitController {
     switch (towerFormType(tower)) {
       case "0": return projectileBankCapacity(tower);
       case "1": return Math.max(1, numberTowerValue(tower));
-      case "+": return processorCapacity(tower);
+      case "+":
       case "-": return projectileBankCapacity(tower);
       default: return 0;
     }
@@ -183,7 +183,7 @@ export class ProjectileCircuitController {
         for (const shot of node.input.splice(0, count)) runtime.emit(shot, tower);
         runtime.changed(tower);
       } else if (type === "+") {
-        const rate = processorRate(tower);
+        const rate = HEALING_RATE;
         tower.healingCredit = Math.min(rate, (tower.healingCredit ?? rate) + Math.max(0, time - (tower.healingUpdatedAt ?? time)) * rate / 1000);
         tower.healingUpdatedAt = time;
         let changed = false;

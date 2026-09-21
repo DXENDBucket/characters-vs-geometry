@@ -82,7 +82,7 @@ try {
     check(patient.hp === patient.maxHp - 260 && !plus.projectileNode.input.length, "Healing conversion lost multi-hit budget");
     const levelBefore = plus.level, stocked = plus.projectileNode;
     select("+"); scene.cardStatesById.get("+").readyAt = 0; pointer(plus.x, plus.y);
-    check(plus.level === levelBefore + 1 && plus.projectileNode === stocked && plus.levelText.text.endsWith("/50"),
+    check(plus.level === levelBefore + 1 && plus.projectileNode === stocked && plus.levelText.text.endsWith("/256"),
       "Processor upgrade reset queues or failed to expand storage");
     const erased = edgePosition(scene.edgeTowers[2]); scene.eraserMode = true; pointer(erased.x, erased.y);
     check(scene.edgeTowers.length === 3 && outlet.inPlay, "Edge erasure removed adjacent tower");
