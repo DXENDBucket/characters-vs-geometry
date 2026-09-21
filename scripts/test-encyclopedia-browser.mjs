@@ -33,6 +33,18 @@ try {
           check(item.x >= 0 && item.x + item.width <= panel.detailViewport.width + 1, `${entry.title}: overflowing text ${item.text}`);
         }
         check(panel.detailContentHeight > 0, "Missing detail height");
+        if (entry.card) {
+          const { towerDetailSections } = await import("/src/encyclopediaDetails.ts");
+          const expected = towerDetailSections(entry.card, panel.previewLevel, entry.description)
+            .flatMap(section => section.ranges ?? []).filter(range => range.shape.kind !== "nonSpatial").length;
+          const diagrams = panel.detail.list.filter(item => item.name === "range-diagram");
+          check(diagrams.length >= expected, `${entry.title}: missing range diagram`);
+          for (const diagram of diagrams) {
+            const data = diagram.getData("range");
+            check(data.diagram.cells.length > 0, `${entry.title}: blank range diagram`);
+            check(Number.isFinite(data.diagram.left) && Number.isFinite(data.diagram.bottom), "Unbounded preview");
+          }
+        }
       }
     }
     panel.setTab("towers"); panel.setCardCase("uppercase");
@@ -76,5 +88,21 @@ try {
   await page.screenshot({ path: "logs/encyclopedia-header-desktop.png" });
   await page.setViewportSize({ width: 960, height: 640 }); await page.waitForTimeout(150);
   await page.screenshot({ path: "logs/encyclopedia-skill-small.png" });
+  for (const width of [1440, 960]) {
+    await page.setViewportSize({ width, height: width === 1440 ? 960 : 640 });
+    for (const [id, heading] of [["e", "热忱"], ["i", "一次性效果"], ["l", "一次性效果"], ["A", "常规攻击"], ["S", "术法迫击"], ["M", "常规攻击"], ["E", "常规攻击"]]) {
+      await page.evaluate(async ({ id, heading }) => {
+        const panel = window.__testGame.scene.getScene("EncyclopediaScene").panel;
+        const { towerEncyclopediaEntries } = await import("/src/encyclopedia.ts");
+        panel.setCardCase(id === id.toUpperCase() ? "uppercase" : "lowercase");
+        panel.selectEntry(towerEncyclopediaEntries().find(entry => entry.card.id === id));
+        const title = panel.detail.list.find(item => item.type === "Text" && item.text === heading);
+        if (!title) throw Error(`Missing section: ${heading}`);
+        panel.setDetailScroll(Math.max(0, title.y - 12));
+      }, { id, heading });
+      await page.waitForTimeout(50);
+      await page.screenshot({ path: `logs/encyclopedia-range-${id}-${width}.png` });
+    }
+  }
   assert.deepEqual(errors, []); console.log("Encyclopedia browser checks passed", inspect);
 } finally { await browser.close(); }

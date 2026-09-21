@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { drawParenthesisBorder } from "./parenthesisTower";
 import { bindButtonHover } from "./buttonHover";
 import { bindSliderInput } from "./sliderInput";
+import { drawRangeDiagram } from "./rangeDiagram";
 import {
   CUBE_BOSS_CONTACT_DAMAGE,
   CUBE_BOSS_STATS,
@@ -624,11 +625,12 @@ export class EncyclopediaPanel {
       })
       .setOrigin(0, 0);
     this.detail.add(title);
+    let headerHeight = Math.max(124, title.height + 54);
     if (entry.card) {
       this.detailText(94, y + title.height + 10, isZhLabel("等级面板 · 未计光环及临时增益", "Level stats · before auras and temporary buffs"), 14, uiTextColors.secondary, 490);
-      this.drawRange(entry, 602, y);
+      headerHeight = Math.max(headerHeight, this.drawRange(entry, 602, y));
     }
-    y += Math.max(124, title.height + 54);
+    y += headerHeight;
     if (!entry.mechanicId) y += this.drawDetailTable(entry, y) + 24;
     if (entry.card) {
       for (const section of towerDetailSections(entry.card, this.previewLevel, entry.description)) y = this.drawSection(section, y);
@@ -690,6 +692,24 @@ export class EncyclopediaPanel {
     const divider = this.scene.add.graphics().lineStyle(1, palette.dim, .8);
     divider.lineBetween(18, y, this.detailViewport.width - 18, y); this.detail.add(divider);
     y += 12;
+    const diagramColor = section.tone === "aura" ? 0x99e8ac : section.tone === "skill" ? 0xffe49a : 0x9cdfff;
+    const ranges = section.ranges ?? [];
+    const rangeWidth = (this.detailViewport.width - 54) / 2;
+    for (let index = 0; index < ranges.length; index += 2) {
+      let rowHeight = 0;
+      for (let col = 0; col < 2 && ranges[index + col]; col++) {
+        const range = ranges[index + col], x = 18 + col * (rangeWidth + 18);
+        const spatial = range.shape.kind !== "nonSpatial";
+        if (spatial) drawRangeDiagram(this.scene, this.detail, range, x, y, 152, 112, diagramColor);
+        const textX = x + (spatial ? 164 : 0), textWidth = rangeWidth - (spatial ? 164 : 0);
+        const caption = this.detailText(textX, y + 10, range.caption, 13, uiTextColors.secondary, textWidth);
+        const label = this.detailText(textX, y + 34, range.labelText, 14, color, textWidth);
+        const origin = spatial ? this.detailText(textX, y + 40 + label.height,
+          range.origin === "impact" ? isZhLabel("中心：命中点", "Center: impact") : isZhLabel("基准：自身", "Origin: self"), 12, uiTextColors.secondary, textWidth) : undefined;
+        rowHeight = Math.max(rowHeight, 112, caption.height + 20, 48 + label.height + (origin?.height ?? 0));
+      }
+      y += rowHeight + 12;
+    }
     y = this.drawFields(section.fields, y);
     if (section.description) {
       const text = this.detailText(18, y, section.description);
@@ -715,19 +735,10 @@ export class EncyclopediaPanel {
 
   private drawRange(entry: EncyclopediaEntry, x: number, y: number) {
     const range = entry.card && towerDetailRange(entry.card);
-    if (!range) return;
-    const size = 12, centerX = x + 96, centerY = y + 43;
-    const graphics = this.scene.add.graphics();
-    if (range.cells.length) {
-      for (let row = -2; row <= 2; row++) for (let col = -4; col <= 6; col++) {
-        const active = range.cells.some(([cx, cy]) => cx === col && cy === row);
-        graphics.fillStyle(active ? 0x72b7cc : palette.panel, active ? .85 : 1);
-        graphics.fillRect(centerX + col * size, centerY + row * size, size - 2, size - 2);
-      }
-      graphics.lineStyle(2, 0xffdd88, 1).strokeRect(centerX - 1, centerY - 1, size, size);
-      this.detail.add(graphics);
-    }
-    this.detailText(x, y + (range.cells.length ? 84 : 32), range.label, 13, "#9cdfff", 280);
+    if (!range) return 0;
+    drawRangeDiagram(this.scene, this.detail, range, x, y, 280, 84);
+    const label = this.detailText(x, y + 88, range.labelText, 13, "#9cdfff", 280);
+    return 104 + label.height;
   }
 
   private changePreviewLevel(delta: number) {

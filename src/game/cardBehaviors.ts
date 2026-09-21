@@ -974,7 +974,7 @@ function shouldMirrorProjectilePattern(tower: Tower, pattern: ProjectilePatternC
   }
 
   const area = pattern.maxTravelArea ?? getCardAttackArea(towerBehaviorType(tower));
-  if (area.kind === "verticalFan") {
+  if (area.kind === "fan" && area.direction !== "forward") {
     return false;
   }
 

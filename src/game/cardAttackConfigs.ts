@@ -1,4 +1,4 @@
-import { CELL_WIDTH } from "../config";
+import { CELL_HEIGHT, CELL_WIDTH } from "../config";
 import type { CardId, ProjectileKind } from "../types";
 
 export type MuzzleFace = "right" | "up" | "down" | "left" | "center";
@@ -25,8 +25,8 @@ export type AttackAreaConfig =
       rangeCells: number;
     }
   | {
-      kind: "verticalFan";
-      direction: "up" | "down";
+      kind: "fan";
+      direction: "forward" | "up" | "down";
       halfWidth: number;
       spreadDegrees: number;
       spreadSlope?: number;
@@ -53,9 +53,9 @@ export const cardAttackAreas: Partial<Record<CardId, AttackAreaConfig>> = {
   A: { kind: "laneForward", startOffsetX: 24 },
   a: { kind: "laneRectangle", rangeCells: 5 },
   C: { kind: "laneForward", startOffsetX: 24 },
-  E: { kind: "laneForward", startOffsetX: 24 },
-  M: { kind: "verticalFan", direction: "down", halfWidth: CELL_WIDTH * 0.35, spreadDegrees: 10, spreadSlope: angleSlope(10) },
-  W: { kind: "verticalFan", direction: "up", halfWidth: CELL_WIDTH * 0.35, spreadDegrees: 10, spreadSlope: angleSlope(10) },
+  E: { kind: "fan", direction: "forward", halfWidth: CELL_HEIGHT * 0.35, spreadDegrees: 10, spreadSlope: angleSlope(10) },
+  M: { kind: "fan", direction: "down", halfWidth: CELL_WIDTH * 0.35, spreadDegrees: 10, spreadSlope: angleSlope(10) },
+  W: { kind: "fan", direction: "up", halfWidth: CELL_WIDTH * 0.35, spreadDegrees: 10, spreadSlope: angleSlope(10) },
   I: { kind: "laneRectangle", rangeCells: 6 },
   Q: { kind: "laneForward", startOffsetX: 24 },
   J: { kind: "laneRectangle", rangeCells: 6 },

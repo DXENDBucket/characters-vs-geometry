@@ -760,16 +760,16 @@ export function canAttackBossPart(tower: Tower, definition: CardDefinition, boss
   const bottom = boss.y + halfHeight;
   const area = getCardAttackArea(towerBehaviorType(tower));
   const direction = towerFacingDirection(tower);
-  if (area.kind === "verticalFan") {
-    const verticalDirection = area.direction === "down" ? 1 : -1;
-    const bossIsInDirection = verticalDirection > 0 ? top > tower.y : bottom < tower.y;
-    if (!bossIsInDirection) {
-      return false;
-    }
-
-    const distance = verticalDirection > 0 ? top - tower.y : tower.y - bottom;
-    const spread = area.halfWidth + verticalFanSpreadSlope(area) * distance;
-    return tower.x >= left - spread && tower.x <= right + spread;
+  if (area.kind === "fan") {
+    const horizontal = area.direction === "forward";
+    const axisDirection = horizontal ? direction : area.direction === "down" ? 1 : -1;
+    const origin = horizontal ? tower.x : tower.y;
+    const near = axisDirection > 0 ? (horizontal ? left : top) : (horizontal ? right : bottom);
+    const distance = (near - origin) * axisDirection;
+    if (distance <= 0) return false;
+    const spread = area.halfWidth + fanSpreadSlope(area) * distance;
+    const cross = horizontal ? tower.y : tower.x;
+    return cross >= (horizontal ? top : left) - spread && cross <= (horizontal ? bottom : right) + spread;
   }
 
   if (tower.y < top || tower.y > bottom) {
@@ -794,7 +794,7 @@ function enemyIsInAttackArea(
   enemy: Enemy
 ) {
   const area = query.area;
-  if (area.kind !== "verticalFan" && (enemy.oscillationCenterY !== undefined
+  if (area.kind !== "fan" && (enemy.oscillationCenterY !== undefined
     ? Math.abs(enemy.y - tower.y) > CELL_HEIGHT / 2 : enemy.lane !== tower.lane)) {
     return false;
   }
@@ -803,15 +803,13 @@ function enemyIsInAttackArea(
     return false;
   }
 
-  if (area.kind === "verticalFan") {
-    const verticalDirection = area.direction === "down" ? 1 : -1;
-    const dy = enemy.y - tower.y;
-    if (dy * verticalDirection <= 0) {
-      return false;
-    }
-
-    const spread = area.halfWidth + verticalFanSpreadSlope(area) * Math.abs(dy);
-    return Math.abs(enemy.x - tower.x) <= spread;
+  if (area.kind === "fan") {
+    const horizontal = area.direction === "forward";
+    const axisDirection = horizontal ? query.direction : area.direction === "down" ? 1 : -1;
+    const distance = (horizontal ? enemy.x - tower.x : enemy.y - tower.y) * axisDirection;
+    if (distance <= 0) return false;
+    const spread = area.halfWidth + fanSpreadSlope(area) * distance;
+    return Math.abs(horizontal ? enemy.y - tower.y : enemy.x - tower.x) <= spread;
   }
 
   if (area.kind === "laneRectangle") {
@@ -827,12 +825,12 @@ function enemyIsInAttackArea(
     : enemy.x < tower.x - startOffset && enemy.x >= range.left;
 }
 
-function verticalFanSpreadSlope(area: Extract<AttackAreaConfig, { kind: "verticalFan" }>) {
+function fanSpreadSlope(area: Extract<AttackAreaConfig, { kind: "fan" }>) {
   return area.spreadSlope ?? Math.tan(Phaser.Math.DegToRad(area.spreadDegrees));
 }
 
 function attackTargetPriority(query: AttackTargetQuery, enemy: Enemy) {
-  if (query.area.kind === "verticalFan") {
+  if (query.area.kind === "fan" && query.area.direction !== "forward") {
     return Math.abs(enemy.y - query.towerY);
   }
 

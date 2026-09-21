@@ -62,12 +62,107 @@ test("SP skills distinguish initial charge, cost, duration, regeneration and hea
 
 test("auras and range diagrams use distinct centered areas and stacking rules", () => {
   setLanguage("zh-CN");
-  assert.equal(towerDetailRange(card("e")).cells.length, 21);
-  assert.equal(towerDetailRange(card("g")).cells.length, 9);
-  assert.equal(towerDetailRange(card("U")).cells.length, 8);
-  assert.equal(towerDetailRange(card("P")).cells.length, 24);
+  assert.equal(towerDetailRange(card("e")).diagram.cells.length, 21);
+  assert.equal(towerDetailRange(card("g")).diagram.cells.length, 9);
+  assert.equal(towerDetailRange(card("U")).diagram.cells.length, 8);
+  assert.equal(towerDetailRange(card("P")).diagram.cells.length, 24);
   const e = sections("e").find(section => section.tone === "aura");
   assert.match(values(e), /攻击速度 \+35%/);
   assert.match(values(e), /不叠加/);
   assert.match(values(sections("g", 3).find(section => section.tone === "aura")), /45%/);
+});
+
+test("range geometry is generated from reusable shapes and live attack/trigger configuration", () => {
+  const { towerRanges } = load("src/data/towerRanges.ts");
+  const { rangeContains, rangeDiagram } = load("src/rangeGeometry.ts");
+  const { CELL_WIDTH, CELL_HEIGHT, SPELL_MORTAR_AOE_RANGE_X } = load("src/config.ts");
+  const { cardAttackAreas } = load("src/game/cardAttackConfigs.ts");
+  assert.equal(towerRanges(card("a")).attack.shape.right, cardAttackAreas.a.rangeCells - 1);
+  assert.equal(rangeContains(towerRanges(card("a")).attack.shape, 5, 0), false);
+  assert.equal(rangeContains(towerRanges(card("e")).aura.shape, 2, 2), false);
+  assert.equal(rangeContains(towerRanges(card("e")).aura.shape, 2, 1), true);
+  assert.equal(rangeContains(towerRanges(card("U")).aura.shape, 0, 0), false);
+  assert.equal(towerRanges(card("i")).skill.shape.radius, card("i").triggerRangeX / CELL_WIDTH);
+  assert.equal(towerRanges(card("F")).skill.shape.halfHeight, card("F").triggerRangeY / CELL_HEIGHT);
+  assert.equal(towerRanges(card("S")).impact.shape.halfWidth, SPELL_MORTAR_AOE_RANGE_X / CELL_WIDTH);
+  assert.equal(towerRanges({ ...card("i"), triggerRangeX: CELL_WIDTH * 3 }).skill.shape.radius, 3);
+  assert.deepEqual([...rangeDiagram(towerRanges(card("l")).skill.shape).extensions], ["up", "down"]);
+  const entireRow = { kind: "row", halfHeight: .5 };
+  assert.deepEqual([...rangeDiagram(entireRow).extensions], ["left", "right"]);
+  assert.equal(rangeContains(entireRow, 1000, 0), true);
+  assert.equal(rangeContains(entireRow, 0, 1), false);
+  assert.deepEqual([...rangeDiagram(towerRanges(card("A")).attack.shape).extensions], ["right"]);
+  assert.equal(rangeDiagram(towerRanges(card("x")).attack.shape).extensions.length, 4);
+  assert.equal(rangeContains(towerRanges(card("M")).attack.shape, 0, 4), true);
+  assert.equal(rangeContains(towerRanges(card("M")).attack.shape, 0, -4), false);
+  assert.equal(rangeContains(towerRanges(card("W")).attack.shape, 0, -4), true);
+  assert.equal(towerRanges(card("c")).skill.shape.kind, "nonSpatial");
+  const shape = { kind: "grid", left: -2, right: 2, top: -2, bottom: 2, cutCorners: true };
+  assert.equal(rangeDiagram(shape).cells.length, 21);
+});
+
+test("attack, skill, aura and impact diagrams retain distinct scopes without stale free-card text", () => {
+  setLanguage("zh-CN");
+  assert.equal(card("a").cost, 15);
+  assert.doesNotMatch(towerEncyclopediaEntry("a").description, /免费/);
+  const t = sections("T");
+  assert.equal(t[0].ranges[0].diagram.cells.length, 1);
+  assert.equal(t.find(section => section.tone === "aura").ranges[0].diagram.cells.length, 21);
+  for (const id of ["w", "o", "j", "c", "h", "S", "#", "F", "f", "i", "l", "r", "G"]) {
+    assert.ok(sections(id).find(section => section.tone === "skill").ranges.length, id);
+  }
+  for (const id of ["e", "g", "T", "U"]) {
+    assert.ok(sections(id).find(section => section.tone === "aura").ranges.length, id);
+  }
+  const s = sections("S").find(section => section.tone === "skill");
+  assert.equal(s.ranges[0].shape.kind, "global");
+  assert.equal(s.ranges[1].origin, "impact");
+  assert.equal(sections("J")[0].ranges[0].shape.kind, "grid");
+  assert.equal(sections("J")[0].ranges[1].shape.kind, "circle");
+  assert.match(towerDetailRange(card("U")).labelText, /不含自身/);
+  setLanguage("en");
+  assert.doesNotMatch(towerEncyclopediaEntry("a").description, /free/i);
+});
+
+test("E uses the shared forward fan, mirrors with facing, and retains three projectile angles", () => {
+  const targetingLoad = createTypeScriptLoader({
+    phaser: { default: {} }, "src/render/unitShapes.ts": {},
+    "src/game/towers.ts": { towerFacingDirection: tower => tower.facingDirection ?? 1 },
+    "src/game/enemyBehaviors.ts": { enemyIsBurrowed: enemy => !!enemy.burrowed, enemyIsHighFlying: enemy => !!enemy.highFlightUntil }
+  });
+  const { hasAttackTarget, canAttackBossPart } = targetingLoad("src/game/targeting.ts");
+  const { cardAttackAreas, getProjectilePattern } = targetingLoad("src/game/cardAttackConfigs.ts");
+  const { BOARD_X, BOARD_Y, CELL_WIDTH, CELL_HEIGHT } = targetingLoad("src/config.ts");
+  const tower = { type: "E", lane: 3, column: 5, x: BOARD_X + 5.5 * CELL_WIDTH, y: BOARD_Y + 3.5 * CELL_HEIGHT };
+  const target = (dx, dy, extra = {}) => ({ kind: "circle", inPlay: true, x: tower.x + dx, y: tower.y + dy,
+    lane: tower.lane + Math.round(dy / CELL_HEIGHT), ...extra });
+  const canFire = enemy => hasAttackTarget(tower, card("E"), [enemy], null);
+  const distance = CELL_WIDTH * 5;
+  const edge = cardAttackAreas.E.halfWidth + cardAttackAreas.E.spreadSlope * distance;
+  assert.equal(canFire(target(distance, CELL_HEIGHT)), true, "Enemy in adjacent lane can trigger E");
+  for (const sign of [-1, 1]) {
+    assert.equal(canFire(target(distance, sign * (edge - .01))), true);
+    assert.equal(canFire(target(distance, sign * (edge + .01))), false);
+  }
+  assert.equal(canFire(target(-distance, 0)), false);
+  assert.equal(canFire(target(0, 0)), false);
+  assert.equal(canFire(target(distance, 0, { burrowed: true })), false);
+  assert.equal(canFire(target(distance, 0, { highFlightUntil: 9999 })), false);
+  tower.facingDirection = -1;
+  assert.equal(canFire(target(-distance, CELL_HEIGHT)), true);
+  assert.equal(canFire(target(distance, 0)), false);
+  assert.deepEqual(getProjectilePattern("E").shots.map(shot => shot.angleDegrees), [-10, 0, 10]);
+  const boss = { x: tower.x - distance, y: tower.y + CELL_HEIGHT, hitboxWidth: 50, hitboxHeight: 50 };
+  assert.equal(canAttackBossPart(tower, card("E"), boss), true);
+  assert.equal(canAttackBossPart(tower, card("E"), { ...boss, x: tower.x + distance }), false);
+  assert.equal(canAttackBossPart(tower, card("E"), { ...boss, y: tower.y + 300 }), false);
+  const copied = { ...tower, type: "@", copiedType: "E" };
+  assert.equal(hasAttackTarget(copied, card("E"), [target(-distance, CELL_HEIGHT)], null), true);
+  for (const [id, sign] of [["W", -1], ["M", 1]]) {
+    const verticalTower = { ...tower, type: id };
+    assert.equal(hasAttackTarget(verticalTower, card(id), [target(20, sign * 200)], null), true);
+    assert.equal(hasAttackTarget(verticalTower, card(id), [target(20, -sign * 200)], null), false);
+    assert.equal(canAttackBossPart(verticalTower, card(id), { x: tower.x, y: tower.y + sign * 200, hitboxWidth: 50, hitboxHeight: 50 }), true);
+  }
+  assert.equal(towerDetailRange(card("E")).shape.direction, "right");
 });
