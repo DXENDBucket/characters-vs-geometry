@@ -72,6 +72,12 @@ test("survival storage is durable, versioned, atomic on write failure and clears
     }, classify) };
   assert.equal(f.saves.writeSurvivalSave(save), true);
   assert.deepEqual(f.saves.readSurvivalSave("IF-1"), save);
+  const difficultyNine = { ...save, difficulty: 9 };
+  assert.equal(f.saves.writeSurvivalSave(difficultyNine), true);
+  assert.deepEqual(f.saves.readSurvivalSave("IF-1"), difficultyNine);
+  for (const difficulty of [-1, 10, 9.5]) assert.equal(f.saves.writeSurvivalSave({ ...save, difficulty }), false);
+  assert.deepEqual(f.saves.readSurvivalSave("IF-1"), difficultyNine);
+  assert.equal(f.saves.writeSurvivalSave(save), true);
   f.window.localStorage.setItem = () => { throw new Error("Quota exceeded"); };
   assert.equal(f.saves.writeSurvivalSave({ ...save, savedAt: 999 }), false);
   assert.equal(f.saves.readSurvivalSave("IF-1").wave, 5);

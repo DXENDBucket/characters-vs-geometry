@@ -1,4 +1,5 @@
 import { levelConfigs } from "./data/levels";
+import { DIFFICULTY_MIN, DIFFICULTY_MAX } from "./config";
 import { cardDefinitions } from "./data/cards";
 import { isEnemyKind } from "./game/enemyIdentity";
 import { validateSaveGraph, type SaveGraph } from "./game/saveGraph";
@@ -21,7 +22,7 @@ export interface SurvivalSave {
 export function validateSurvivalSave(save: SurvivalSave) {
   if (!save || save.version !== 1 || !Object.hasOwn(levelConfigs, save.levelId) || !levelConfigs[save.levelId].survival ||
       !Number.isSafeInteger(save.wave) || save.wave < 0 || !Number.isFinite(save.savedAt) ||
-      !Number.isInteger(save.difficulty) || save.difficulty < 0 || save.difficulty > 8 ||
+      !Number.isInteger(save.difficulty) || save.difficulty < DIFFICULTY_MIN || save.difficulty > DIFFICULTY_MAX ||
       typeof save.unlimitedFirepower !== "boolean" || !Array.isArray(save.selectedCards) ||
       save.selectedCards.length > 10 || save.selectedCards.some(id => !cards.has(id))) throw new Error("Invalid survival save");
   validateSaveGraph(save.graph);

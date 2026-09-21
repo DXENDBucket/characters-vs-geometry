@@ -39,7 +39,7 @@ export const LEVEL_NODE_HEIGHT = 72;
 export const CARD_SLOT_COUNT = 10;
 export const DEFAULT_DIFFICULTY = 3;
 export const DIFFICULTY_MIN = 0;
-export const DIFFICULTY_MAX = 8;
+export const DIFFICULTY_MAX = 9;
 export const DEFAULT_GAME_SPEED = 1;
 export const GAME_SPEED_MIN = 0.5;
 export const GAME_SPEED_MAX = 4;
@@ -143,7 +143,8 @@ export const difficultyConfigs: Record<number, DifficultyConfig> = {
   5: { weightMultiplier: 2.2, finalDamageReduction: 0.5 },
   6: { weightMultiplier: 2.6, finalDamageReduction: 0.65 },
   7: { weightMultiplier: 3, finalDamageReduction: 0.75 },
-  8: { weightMultiplier: 4, finalDamageReduction: 0.8 }
+  8: { weightMultiplier: 4, finalDamageReduction: 0.8 },
+  9: { weightMultiplier: 6.66, finalDamageReduction: 0.86 }
 };
 
 export function clampDifficulty(difficulty?: number) {

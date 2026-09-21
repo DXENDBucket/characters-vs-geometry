@@ -14,6 +14,20 @@ const { enemyKindAtRank, isEnemyKind } = registry;
 const { enemyArchetypes } = load("src/data/enemyArchetypes.ts");
 const legacy = JSON.parse(fs.readFileSync(new URL("./fixtures/enemy-legacy.json", import.meta.url), "utf8"));
 
+test("difficulty 9 uses 666% wave weight and 86% final damage reduction", () => {
+  const { DIFFICULTY_MAX, DEFAULT_DIFFICULTY, clampDifficulty, getDifficultyConfig } = load("src/config.ts");
+  const { getLevelConfig } = load("src/data/levels.ts");
+  const { waveWeightLimit } = load("src/game/waves.ts");
+  assert.equal(DIFFICULTY_MAX, 9);
+  assert.equal(DEFAULT_DIFFICULTY, 3);
+  assert.equal(clampDifficulty(9), 9);
+  assert.equal(clampDifficulty(99), 9);
+  assert.deepEqual(getDifficultyConfig(9), { weightMultiplier: 6.66, finalDamageReduction: 0.86 });
+  assert.deepEqual(getDifficultyConfig(8), { weightMultiplier: 4, finalDamageReduction: 0.8 });
+  const level = getLevelConfig("AE-6");
+  assert.equal(waveWeightLimit(level, getDifficultyConfig(9), 1), 166);
+});
+
 test("V prioritizes ranged attack modes, then final attack, then distance within its lane", () => {
   const targetingLoad = createTypeScriptLoader({
     phaser: { default: {} },

@@ -2906,7 +2906,7 @@ The first wave starts `20s` after entering combat.
 
 ## Difficulty
 
-Difficulty is selected from `0` to `8` on the level-select screen. Default is `3`.
+Difficulty is selected from `0` to `9` on the level-select screen. Default is `3`.
 
 | Difficulty | Weight Multiplier | Enemy Final Damage Reduction |
 | ---: | ---: | ---: |
@@ -2919,6 +2919,9 @@ Difficulty is selected from `0` to `8` on the level-select screen. Default is `3
 | 6 | 260% | 65% |
 | 7 | 300% | 75% |
 | 8 | 400% | 80% |
+| 9 | 666% | 86% |
+
+Difficulty 9 is named `哈哈哈哈哈哈哈哈哈` (`HAHAHAHAHAHAHAHAHA`).
 
 Enemy final damage reduction is applied after armor, magic resistance, and minimum-damage rules. It also reduces true damage.
 
