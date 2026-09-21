@@ -78,7 +78,7 @@ test("AE-7 follows AE-6, uses the requested pool and reveals Dollar on unlock", 
   for (const field of ["firstWaveWeight", "waveWeightIncrement", "waveWeightIncrementGrowth", "startingChars", "wavesPerFlag"])
     assert.equal(level[field], template[field], field);
   assert.deepEqual(level.enemyKinds, ["circle", "tilde", "tilde2", "tilde3", "equals", "equals2", "equals3",
-    "triangleRam", "triangleRam2", "triangleRam3", "hexMace", "dollar"]);
+    "triangleRam", "triangleRam2", "triangleRam3", "hexMace", "dollar", "heart"]);
   assert.equal(progress.isLevelUnlocked("AE-7"), false);
   assert.equal(progress.discoveredEnemies().enemies.has("dollar"), false);
   for (const id of ["4-10", "AE-1", "AE-2", "AE-3", "AE-4", "AE-5"])

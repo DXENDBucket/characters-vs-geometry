@@ -3026,7 +3026,7 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 ## ASCII Expansion: AE-7
 
 - Unlocks after AE-6; 20 waves, 500 starting characters. Chapter 4 weights: initial 25, increment +18, extra increment +3; one flag every 10 waves.
-- Enemy pool: Circle I, Tilde I/II/III, Equals I/II/III, Triangle Ram I/II/III, Hex Mace I, Dollar I (`$`).
+- Enemy pool: Circle I, Tilde I/II/III, Equals I/II/III, Triangle Ram I/II/III, Hex Mace I, Dollar I (`$`), Heart I.
 
 ## Recent Enemy Additions
 
