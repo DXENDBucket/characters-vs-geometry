@@ -3010,6 +3010,11 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 - Passengers cannot be hit until the host is destroyed. Skills and ranged attacks continue; wing effects lift the entire group. Only the host deals blocked melee damage. Destruction releases passengers at their displayed seats.
 - Same group exclusions as Equals: no leaders, Boss companions, solar bombs, Equals, existing health-linked or carried units. Parentheses never loads Parentheses, cannot join Equals links, and cannot be loaded or stored by any mechanism, including Burrow Arrow and q.
 
+## ASCII Expansion: AE-6
+
+- Unlocks after AE-5; 20 waves, 500 starting characters. Chapter 4 weights: initial 25, increment +18, extra increment +3; one flag every 10 waves.
+- Enemy pool: Circle I/II, Tilde I/II/III, Equals I/II/III, Parentheses I/II/III, Triangle Mortar I/II/III.
+
 ## Recent Enemy Additions
 
 - Heart Lead moves each eligible enemy directly to the caster's row center using actual position for its area test. A tilde's sine-wave center, last position and phase reset there, preventing its former trajectory from offsetting the pull. Simultaneous hearts still claim each target only once.

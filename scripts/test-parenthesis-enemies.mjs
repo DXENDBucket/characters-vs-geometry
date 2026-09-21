@@ -36,6 +36,19 @@ test("AE-5 has 30 waves and the exact requested chapter-four pool", () => {
     "triangleRam", "triangleRam2", "triangleRam3", "hexMace", "hexMace2", "parentheses", "parentheses2", "parentheses3", "slopeTriangle3"]);
 });
 
+test("AE-6 has 20 waves, follows AE-5 and uses the requested enemy ranks", () => {
+  const { getLevelConfig, levelNodes } = load("src/data/levels.ts");
+  const level = getLevelConfig("AE-6"), base = getLevelConfig("AE-1");
+  assert.equal(level.totalWaves, 20);
+  assert.equal(level.unlockAfter, "AE-5");
+  assert.equal(levelNodes.filter(node => node.id === "AE-6").length, 1);
+  for (const field of ["firstWaveWeight", "waveWeightIncrement", "waveWeightIncrementGrowth", "startingChars", "wavesPerFlag"])
+    assert.equal(level[field], base[field]);
+  assert.deepEqual(level.enemyKinds, ["circle", "circle2", "tilde", "tilde2", "tilde3", "equals", "equals2", "equals3",
+    "parentheses", "parentheses2", "parentheses3", "mortarTriangle", "mortarTriangle2", "mortarTriangle3"]);
+  for (const kind of level.enemyKinds) assert.ok(getEnemyDefinition(kind), kind);
+});
+
 test("Parentheses ranks scale capacity and weight only, retaining Triangle I attack", () => {
   for (const rank of [1, 2, 3, 100]) {
     const kind = enemyKindAtRank("parentheses", rank), definition = getEnemyDefinition(kind);
