@@ -208,7 +208,7 @@ export interface CardDefinition {
   produceAmount?: number;
   hitProduceAmount?: number;
   attackProduceAmount?: number;
-  mortarTargeting?: "lowestMaxHp" | "first";
+  mortarTargeting?: "rangedHighestAttack" | "first";
   mortarSingleTarget?: boolean;
   mortarAoeFalloff?: boolean;
   mortarHitRadius?: number;

@@ -49,7 +49,7 @@ import {
   getHealTargets,
   hasHealTarget,
   getLaneRepelTargets,
-  getLowestMaxHpAttackTarget,
+  getRangedHighestAttackTarget,
   getShiftTargets,
   hasAttackTarget,
   hasBlockedEnemy,
@@ -185,7 +185,7 @@ export const arcWaveCardBehavior: CardBehavior = {
 
 export const predictiveMortarCardBehavior: CardBehavior = {
   canUse: (tower, definition, time, runtime, cooldownAlreadyReady) => {
-    return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(towerAttackAmount(tower, definition) > 0 && hasPredictiveMortarTarget(tower, definition, runtime));
+    return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(towerAttackAmount(tower, definition) > 0 && hasPredictiveMortarTarget(tower, definition, runtime, time));
   },
   execute: firePredictiveMortar
 };
@@ -704,15 +704,16 @@ function fireArcWave(tower: Tower, definition: CardDefinition, runtime: CardBeha
 function hasPredictiveMortarTarget(
   tower: Tower,
   definition: CardDefinition,
-  runtime: CardReadinessRuntime
+  runtime: CardReadinessRuntime,
+  time: number
 ) {
-  return Boolean(getPredictiveMortarEnemyTarget(tower, definition, runtime.enemies) || canAttackBoss(tower, definition, runtime.boss));
+  return Boolean(getPredictiveMortarEnemyTarget(tower, definition, runtime.enemies, time) || canAttackBoss(tower, definition, runtime.boss));
 }
 
 function firePredictiveMortar(tower: Tower, definition: CardDefinition, runtime: CardBehaviorRuntime) {
   const damage = towerAttackAmount(tower, definition);
   const damageType = towerDamageType(tower, definition.damageType ?? "magic", runtime.battleTime);
-  const enemy = getPredictiveMortarEnemyTarget(tower, definition, runtime.enemies);
+  const enemy = getPredictiveMortarEnemyTarget(tower, definition, runtime.enemies, runtime.battleTime);
   const target = enemy
     ? predictedEnemyMortarTarget(enemy, runtime)
     : predictedBossMortarTarget(tower, definition, runtime.boss);
@@ -752,12 +753,12 @@ function firePredictiveMortar(tower: Tower, definition: CardDefinition, runtime:
   );
 }
 
-function getPredictiveMortarEnemyTarget(tower: Tower, definition: CardDefinition, enemies: Enemy[]) {
+function getPredictiveMortarEnemyTarget(tower: Tower, definition: CardDefinition, enemies: Enemy[], time: number) {
   if (definition.mortarTargeting === "first") {
     return getAttackTarget(tower, definition, enemies);
   }
 
-  return getLowestMaxHpAttackTarget(tower, definition, enemies);
+  return getRangedHighestAttackTarget(tower, definition, enemies, time);
 }
 
 function predictedEnemyMortarTarget(enemy: Enemy, runtime: CardBehaviorRuntime) {

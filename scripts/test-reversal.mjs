@@ -20,7 +20,10 @@ const stubs = new Map(Object.entries({
   "src/render/combatEffects.ts": effects,
   "src/render/unitShapes.ts": { syncSolarBombShape: noop, createUnitBorder: () => uiVisual() },
   "src/i18n.ts": { DAMAGE_SYMBOLS: {}, EFFECT_SYMBOLS: {} },
-  "src/registry/enemies.ts": { enemyFamily: (kind) => kind.replace(/[23]$/, ""), enemyIsBossCompanion: () => false },
+  "src/registry/enemies.ts": {
+    enemyFamily: (kind) => kind.replace(/[23]$/, ""), enemyIsBossCompanion: () => false,
+    getEnemyRegistration: kind => load("src/data/enemyArchetypes.ts").enemyArchetypes[kind.replace(/[23]$/, "")]
+  },
   "src/game/enemyBehaviors.ts": {
     enemyIsBurrowed: (enemy) => !!enemy.burrowed,
     enemyIsHighFlying: (enemy) => enemy.highFlightUntil !== undefined || enemy.statusEffects.some((effect) => effect.name === "highFlying"),
@@ -31,7 +34,8 @@ const stubs = new Map(Object.entries({
   "src/game/enemyRuntime.ts": { releaseBurrowCargo: noop, spawnSplitEnemies: noop },
   "src/game/combatStats.ts": {
     enemyDefenseStats: (enemy) => enemy.baseStats, bossFinalStats: (boss) => boss.baseStats,
-    enemyMovementSpeed: () => 10
+    enemyMovementSpeed: () => 10,
+    enemyAttackDamage: enemy => enemy.baseStats.damage ?? 0
   },
   "src/game/slowAura.ts": { isPointInSlowAura: () => true, slowAuraSources: () => [], movementSpeedMultiplier: () => 1 },
   "src/game/enemySupport.ts": { enemySupportSources: () => ({}) },
@@ -1316,7 +1320,7 @@ test("all cards preserve baseline attack and upgrade modes, including softcap an
   const baseline = {
     A: 400, a: 400, B: 400, C: 500, d: 400, z: 400, x: 200, E: 400, e: 90, g: 90, M: 400, W: 400,
     w: 400, F: 1400, l: 15000, r: 200, G: 15000, H: 700, I: 400, Q: 400, J: 600,
-    K: 1800, k: 280, S: 5000, Z: 400, V: 1300, v: 350, P: 250, p: 250
+    K: 1800, k: 280, S: 5000, Z: 400, V: 1700, v: 350, P: 250, p: 250
   };
   const attackUpgrades = new Set(["d", "z", "x", "Q", "k", "S", "V", "v", "l", "G"]);
   for (const card of cardDefinitions) {

@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { towerAreaTargets, towerCellMembers, towerDamageReceiver } from "./towerOccupancy";
-import { enemyMaximumHp, parenthesisHalfSpan } from "./enemyContainers";
+import { parenthesisHalfSpan } from "./enemyContainers";
 import { towerAtCell, towerCell } from "./towerTopology";
 import { towerBehaviorType } from "./towerIdentity";
 import {
@@ -14,7 +14,8 @@ import {
   LANES
 } from "../config";
 import type { CardDefinition, CubeBoss, Enemy, Tower } from "../types";
-import { enemyIsBossCompanion } from "../registry/enemies";
+import { enemyIsBossCompanion, getEnemyRegistration } from "../registry/enemies";
+import { enemyAttackDamage } from "./combatStats";
 import { enemyIsBurrowed, enemyIsHighFlying } from "./enemyBehaviors";
 import { enemyIsSolarBomb } from "./solarBomb";
 import { getCardAttackArea, type AttackAreaConfig } from "./cardAttackConfigs";
@@ -648,21 +649,26 @@ export function getAttackTarget(tower: Tower, definition: CardDefinition, enemie
   return target;
 }
 
-export function getLowestMaxHpAttackTarget(tower: Tower, definition: CardDefinition, enemies: Enemy[]) {
+export function getRangedHighestAttackTarget(tower: Tower, definition: CardDefinition, enemies: Enemy[], time: number) {
   const query = attackTargetQuery(tower, definition);
   let target: Enemy | undefined;
-  let targetMaxHp = Number.POSITIVE_INFINITY;
+  let targetRanged = false;
+  let targetAttack = Number.NEGATIVE_INFINITY;
   let targetPriority = Number.POSITIVE_INFINITY;
   for (const enemy of enemies) {
-    if (!enemyIsInAttackArea(tower, query, enemy)) {
+    if (!enemy.inPlay || !enemyIsInAttackArea(tower, query, enemy)) {
       continue;
     }
 
-    const maxHp = enemyMaximumHp(enemy);
+    const mode = getEnemyRegistration(enemy.kind).attackMode;
+    const ranged = mode === "ranged" || mode === "laser" || mode === "mortar" || mode === "companion";
+    const attack = enemyAttackDamage(enemy, time);
     const priority = attackTargetPriority(query, enemy);
-    if (maxHp < targetMaxHp || (maxHp === targetMaxHp && priority < targetPriority)) {
+    if (!target || (ranged && !targetRanged) || (ranged === targetRanged &&
+      (attack > targetAttack || (attack === targetAttack && priority < targetPriority)))) {
       target = enemy;
-      targetMaxHp = maxHp;
+      targetRanged = ranged;
+      targetAttack = attack;
       targetPriority = priority;
     }
   }

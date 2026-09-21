@@ -14,6 +14,53 @@ const { enemyKindAtRank, isEnemyKind } = registry;
 const { enemyArchetypes } = load("src/data/enemyArchetypes.ts");
 const legacy = JSON.parse(fs.readFileSync(new URL("./fixtures/enemy-legacy.json", import.meta.url), "utf8"));
 
+test("V prioritizes ranged attack modes, then final attack, then distance within its lane", () => {
+  const targetingLoad = createTypeScriptLoader({
+    phaser: { default: {} },
+    "src/render/unitShapes.ts": {},
+    "src/game/towers.ts": { towerFacingDirection: tower => tower.facingDirection ?? 1 },
+    "src/game/enemyBehaviors.ts": {
+      enemyIsBurrowed: enemy => !!enemy.burrowed,
+      enemyIsHighFlying: enemy => !!enemy.highFlightUntil
+    },
+    "src/game/statusEffects.ts": {
+      statusMultipliers: enemy => ({ speed: 1, armor: 1, attack: enemy.attackMultiplier ?? 1 })
+    }
+  });
+  const { getRangedHighestAttackTarget } = targetingLoad("src/game/targeting.ts");
+  const { BOARD_X, BOARD_Y, CELL_WIDTH, CELL_HEIGHT } = targetingLoad("src/config.ts");
+  const card = targetingLoad("src/data/cards.ts").cardDefinitions.find(card => card.id === "V");
+  assert.equal(card.attackPower, 1700);
+  assert.equal(card.mortarTargeting, "rangedHighestAttack");
+  const tower = { type: "V", lane: 2, column: 3, x: BOARD_X + 3.5 * CELL_WIDTH, y: BOARD_Y + 2.5 * CELL_HEIGHT };
+  const enemy = (kind, damage, offset = 100, extra = {}) => ({
+    kind, inPlay: true, lane: 2, x: tower.x + offset, y: tower.y, statusEffects: [],
+    baseStats: { maxHp: 5000, damage }, finalStats: {}, ...extra
+  });
+  const choose = enemies => getRangedHighestAttackTarget(tower, card, enemies, 1000);
+  const melee = enemy("triangleRam", 9999);
+  for (const kind of ["shootingTriangle", "diamond3", "shootingPentagon3", "mortarTriangle3", "pentagon2", "shootingTriangle20"]) {
+    const ranged = enemy(kind, 100, 200);
+    assert.equal(choose([melee, ranged]), ranged, kind);
+    assert.equal(choose([ranged, melee]), ranged, kind);
+  }
+  const mortar = enemy("mortarTriangle3", 1150, 220), shooter = enemy("shootingTriangle", 400);
+  assert.equal(choose([shooter, mortar]), mortar);
+  shooter.attackMultiplier = 3;
+  assert.equal(choose([mortar, shooter]), shooter);
+  assert.equal(choose([enemy("circle", 400), melee]), melee);
+  const near = enemy("pentagon", 800, 80), far = enemy("pentagon3", 800, 200);
+  assert.equal(choose([far, near]), near);
+  assert.equal(choose([near, far]), near);
+  for (const extra of [{ lane: 1 }, { burrowed: true }, { highFlightUntil: 2000 }, { inPlay: false }, { x: tower.x - 80 }]) {
+    assert.equal(choose([enemy("mortarTriangle", 99999, 100, extra), melee]), melee);
+  }
+  tower.facingDirection = -1;
+  assert.equal(choose([near, far]), undefined);
+  const behind = enemy("mortarTriangle", 1150, -100);
+  assert.equal(choose([near, behind]), behind);
+});
+
 test("IF-1 uses +1 increment growth while 1-9 retains its original linear weights", () => {
   const { getLevelConfig } = load("src/data/levels.ts");
   const { waveWeightLimit, waveScheduleAction } = load("src/game/waves.ts");

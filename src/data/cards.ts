@@ -711,11 +711,11 @@ export const cardDefinitions: CardDefinition[] = [
     armor: 150,
     magicResistance: 40,
     attackSpeed: 30,
-    attackPower: 1_300,
+    attackPower: 1_700,
     damageType: "magic",
-    mortarTargeting: "lowestMaxHp",
+    mortarTargeting: "rangedHighestAttack",
     mortarSingleTarget: true,
-    stats: `1300${DAMAGE_SYMBOLS.magic} / PREDICT`
+    stats: `1700${DAMAGE_SYMBOLS.magic} / PREDICT`
   },
   {
     id: "v",
