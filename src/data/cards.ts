@@ -28,7 +28,7 @@ export const cardDefinitions: CardDefinition[] = [
     id: "=",
     category: "special",
     cost: 50,
-    cooldown: 3_000,
+    cooldown: 1_000,
     maxHp: 0,
     armor: 0,
     magicResistance: 0,
