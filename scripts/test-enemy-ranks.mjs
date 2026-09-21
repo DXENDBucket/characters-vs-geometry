@@ -292,7 +292,9 @@ test("every Infinite Front stage has uncapped wave weights while story bosses ke
 test("all 66 existing enemy panels and registrations exactly match the pre-refactor snapshot", () => {
   assert.deepEqual(Object.keys(registry.allEnemyDefinitions).filter(kind => !["tilde", "equals", "parentheses", "dollar"].includes(registry.enemyFamily(kind))), Object.keys(legacy));
   for (const [kind, expected] of Object.entries(legacy)) {
-    assert.deepEqual(registry.getEnemyRegistration(kind), expected, kind);
+    const currentExpected = expected.family === "triangleRam"
+      ? { ...expected, definition: { ...expected.definition, minWave: 5 } } : expected;
+    assert.deepEqual(registry.getEnemyRegistration(kind), currentExpected, kind);
   }
 });
 
@@ -314,6 +316,33 @@ test("every minion and leader supports unregistered ranks through the same famil
       assert.equal(registry.enemyIsLeader(kind), !!legacy[family].leader || legacy[family].attackMode === "leader");
     }
   }
+});
+
+test("all Triangle Ram ranks enter only from wave 5 in regular and unlimited pools", () => {
+  const { buildWaveKinds } = load("src/game/waves.ts");
+  const { buildInfiniteWaveKinds } = load("src/game/infiniteWaves.ts");
+  const last = length => length - 1;
+  const ranks = [1, 2, 3, 10, 100];
+  for (const rank of ranks) {
+    const kind = enemyKindAtRank("triangleRam", rank), panel = registry.getEnemyDefinition(kind);
+    assert.equal(panel.minWave, 5);
+    for (const ignoreMinFlag of [false, true]) {
+      for (let wave = 1; wave <= 4; wave++) {
+        assert.deepEqual(buildWaveKinds([kind], registry.getEnemyDefinition, panel.weight, wave, 10, last, ignoreMinFlag), []);
+        const mixed = buildWaveKinds(["circle", kind], registry.getEnemyDefinition, panel.weight, wave, 10, last, ignoreMinFlag);
+        assert.ok(mixed.length > 0 && mixed.every(id => id === "circle"));
+      }
+      assert.deepEqual(buildWaveKinds([kind], registry.getEnemyDefinition, panel.weight, 5, 10, last, ignoreMinFlag), [kind]);
+    }
+    assert.deepEqual(buildInfiniteWaveKinds(["triangleRam"], panel.weight, 4, 10, last), []);
+    assert.deepEqual(buildInfiniteWaveKinds(["triangleRam"], panel.weight, 5, 10, last), [kind]);
+  }
+  for (let wave = 1; wave <= 4; wave++) {
+    const kinds = buildInfiniteWaveKinds(["circle", "triangleRam"], 1000, wave, 10, last);
+    assert.ok(kinds.length > 0 && kinds.every(kind => registry.enemyFamily(kind) === "circle"));
+  }
+  assert.deepEqual(buildInfiniteWaveKinds(["hexMace"], 375, 5, 10, last), [], "flag-gated enemies still wait for flag 1");
+  assert.deepEqual(buildInfiniteWaveKinds(["hexMace"], 375, 10, 10, last), ["hexMace"]);
 });
 
 test("rank ids preserve old spellings and reject invalid or noncanonical save values", () => {

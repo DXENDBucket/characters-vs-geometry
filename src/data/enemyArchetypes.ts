@@ -63,7 +63,7 @@ export const enemyArchetypes: Record<EnemyFamily, EnemyArchetype> = {
     promotionMaxRank: 3
   },
   triangleRam: {
-    base: { hp: 5000, armor: 200, magicResistance: 0, damage: 1400, damageType: "physical", speedMultiplier: 1.5, weight: 75 },
+    base: { hp: 5000, armor: 200, magicResistance: 0, damage: 1400, damageType: "physical", speedMultiplier: 1.5, weight: 75, minWave: 5 },
     growth: { speedMultiplier: 0.5, weight: 150 },
     catalogRanks: 3,
     attackMode: "siegeRam",

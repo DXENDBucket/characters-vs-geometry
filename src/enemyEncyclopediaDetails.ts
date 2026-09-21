@@ -132,12 +132,16 @@ export function enemyDetailSections(kind: EnemyKind, description: string): Detai
     : l("I 级不分裂；更高等级死亡时分裂为低一级圆。", "Rank I does not split; higher ranks split into the preceding rank."));
   if (["tilde", "triangle", "square", "trapezoid"].includes(family)) passive("单位特性", "Traits", description);
   const minFlag = stats.minFlag ?? 0;
+  const spawnRestrictions = [
+    ...(stats.minWave ? [l(`第 ${stats.minWave} 波起`, `From wave ${stats.minWave}`)] : []),
+    ...(minFlag ? [l(`第 ${minFlag} 旗起；关卡可覆盖旗帜限制`, `From flag ${minFlag}; stages may override the flag restriction`)] : [])
+  ];
   const growth = enemyArchetypes[family].growth;
   const changes = Object.entries(growth).map(([key, value]) => `${l(({ hp: "生命", armor: "护甲", magicResistance: "法抗", damage: "攻击", speedMultiplier: "移速倍率", weight: "权重", healthLinkCapacity: "连接数" } as Record<string, string>)[key] ?? key, key)} +${n(value!)}`);
   sections.push({ title: l("等级与出场", "Rank & spawn"), tag: l("基础规则", "Base rules"), tone: "passive", fields: [
     f("每级面板增量", "Panel growth per rank", changes.join(" · ") || l("面板不增长", "No panel growth")),
     f("常规出场限制", "Regular spawn restriction", leader ? l("旗帜波固定领袖，不占常规权重；关卡可指定额外召唤", "Fixed flag-wave leader, outside regular weight; stages may add summons")
-      : minFlag ? l(`第 ${minFlag} 旗起；关卡可覆盖此限制`, `From flag ${minFlag}; stages may override`) : "/"),
+      : spawnRestrictions.join(" · ") || "/"),
     f("自然出场等级上限", "Natural spawn rank cap", enemyArchetypes[family].spawnRankCap?.toString() ?? l("无固定上限，取决于关卡", "No fixed cap; determined by stage")) ] });
   return sections;
 }

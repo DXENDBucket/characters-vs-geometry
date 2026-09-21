@@ -2,6 +2,8 @@
 
 ## Enemy Weights
 
+Triangle Ram of every rank is excluded from natural wave pools during waves 1-4 and becomes eligible from wave 5. This applies to story, ASCII Expansion and both endless modes, including stages that ignore flag restrictions. Scripted Boss summons are unaffected.
+
 All endless stages (IF and IF-BE) apply an environment HP multiplier to newly created non-Boss enemies: `1 + 0.35 * floor(max(0, currentWave - 1) / wavesPerFlag)`. Waves 1-10 use x1, 11-20 use x1.35, 21-30 use x1.70, with no cap. It does not wait for the flag wave to be cleared. Existing enemies retain their spawn multiplier, including after promotion, storage and save/resume. Summoned and split enemies use the current multiplier; Boss HP is unchanged. The multiplier is applied last, after native health bonuses; health-sharing uses each member's final capacity.
 
 Dollar `$` ranks I/II/III have weights `240/440/640` (`240 + 200 * (rank - 1)`), HP `20000`, armor `200`, MR `50`, physical ATK `800`, attack speed `60`, movement speed `10`. Incitement: initial `20/25` SP, `1 SP/s`, automatically spends `20` at full SP with eligible targets. Grants the closest `4 * rank` other minions `+30% Power` and `+100% Haste` for `15s`; SP recovery continues. Excludes self, leaders, Bosses, Boss companions and Solar Bombs. Power supports source-defined multipliers and independent deadlines for different strengths; only the strongest active value applies. Rank I first appears in AE-7.

@@ -1,6 +1,7 @@
 import { enemyArchetypes } from "../data/enemyArchetypes";
 import { enemyKindAtRank, parseEnemyKind } from "./enemyIdentity";
 import type { EnemyFamily, EnemyKind } from "../types";
+import { enemyAvailableInWave } from "./waves";
 
 export function infiniteLeaderKinds(leaderKinds: readonly EnemyKind[], waveNumber: number, wavesPerFlag: number): EnemyKind[] {
   if (waveNumber < wavesPerFlag || waveNumber % wavesPerFlag !== 0) return [];
@@ -17,9 +18,8 @@ export function buildInfiniteWaveKinds(
   randomIndex: (length: number) => number
 ): EnemyKind[] {
   if (!Number.isFinite(weightLimit) || weightLimit < 0) throw new RangeError("Invalid wave weight");
-  const flag = Math.floor(waveNumber / wavesPerFlag);
   const pool = [...new Set(families)].map(family => ({ family, ...enemyArchetypes[family] }))
-    .filter(entry => entry.base.weight > 0 && flag >= (entry.base.minFlag ?? 0));
+    .filter(entry => enemyAvailableInWave(entry.base, waveNumber, wavesPerFlag));
   for (const entry of pool) {
     if (!Number.isFinite(entry.growth.weight) || entry.growth.weight! <= 0) {
       throw new RangeError(`Unlimited ranks require positive weight growth: ${entry.family}`);

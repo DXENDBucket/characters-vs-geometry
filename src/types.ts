@@ -537,6 +537,7 @@ export interface EnemyDefinition {
   speedMultiplier?: number;
   weight: number;
   minFlag?: number;
+  minWave?: number;
 }
 
 export interface WaveTracker {

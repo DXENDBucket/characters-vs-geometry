@@ -13,6 +13,12 @@ export function waveWeightLimit(levelConfig: LevelConfig, difficultyConfig: Diff
   return Math.max(10, Math.floor(cappedWeight * difficultyConfig.weightMultiplier));
 }
 
+export function enemyAvailableInWave(enemy: Pick<EnemyDefinition, "weight" | "minWave" | "minFlag">,
+  waveNumber: number, wavesPerFlag: number, ignoreMinFlag = false) {
+  return enemy.weight > 0 && waveNumber >= (enemy.minWave ?? 1) &&
+    (ignoreMinFlag || Math.floor(waveNumber / wavesPerFlag) >= (enemy.minFlag ?? 0));
+}
+
 export function buildWaveKinds(
   enemyKinds: EnemyKind[],
   enemies: Partial<Record<EnemyKind, EnemyDefinition>> | ((kind: EnemyKind) => EnemyDefinition),
@@ -24,13 +30,12 @@ export function buildWaveKinds(
 ) {
   const kinds: EnemyKind[] = [];
   let remainingWeight = weightLimit;
-  const currentFlag = Math.floor(waveNumber / wavesPerFlag);
   const enemyPool: EnemyDefinition[] = [];
   let minWeight = Number.POSITIVE_INFINITY;
   for (const kind of enemyKinds) {
     const enemy = typeof enemies === "function" ? enemies(kind) : enemies[kind];
     if (!enemy) throw new RangeError(`Unknown wave enemy: ${kind}`);
-    if (enemy.weight <= 0 || (!ignoreMinFlag && currentFlag < (enemy.minFlag ?? 0))) {
+    if (!enemyAvailableInWave(enemy, waveNumber, wavesPerFlag, ignoreMinFlag)) {
       continue;
     }
 
