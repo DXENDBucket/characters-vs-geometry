@@ -116,7 +116,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
 
   return [
     {
-      title: zh ? "$ 系列" : "Dollar Series",
+      title: zh ? "货币符号系列" : "Dollar Series",
       enemyKind: "dollar",
       chapterGroupId: "ascii",
       lines: [statLine([
