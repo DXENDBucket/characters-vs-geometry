@@ -55,6 +55,12 @@ try {
     check(text().includes("巡空") && text().includes("10 / 10") && text().includes("6s"), "Skill fields missing");
     panel.setDetailScroll(240); check(panel.detailScrollY > 0, "Cannot scroll skills");
     panel.setTab("enemies"); panel.openEnemy("parentheses3"); check(panel.selectedEntryId.includes("parentheses"), "Enemy deep link failed");
+    check(panel.previewLevel === 3 && panel.levelControls.visible, "Enemy deep link lost rank");
+    panel.openEnemy("shootingTriangle6"); check(text().includes("2/1/1/1/1"), "Enemy preview lost multi-hit distribution");
+    panel.changePreviewLevel(1); check(panel.previewLevel === 7 && text().includes("2/2/1/1/1"), "Enemy rank preview did not update");
+    panel.openBoss("cube2"); check(panel.previewLevel === 2 && text().includes("200000"), "Boss rank preview failed");
+    panel.openBoss("icosahedron"); panel.changePreviewLevel(1);
+    check(text().includes("飞跃") && text().includes("200000") && !text().includes("心跳 α"), "Boss phase preview mixed phases");
     panel.setTab("towers"); panel.setCardCase("lowercase"); panel.selectEntry(towerEncyclopediaEntries().find(entry => entry.card.id === "e"));
     check(text().includes("常驻光环") && text().includes("攻击速度 +35%"), "Aura fields missing");
     panel.setGridScroll(200);
@@ -104,5 +110,58 @@ try {
       await page.screenshot({ path: `logs/encyclopedia-range-${id}-${width}.png` });
     }
   }
+  // Scrolled-out tiles must not intercept controls above their visual mask.
+  for (const width of [1440, 960]) {
+    await page.setViewportSize({ width, height: width === 1440 ? 960 : 640 });
+    await page.waitForTimeout(100);
+    await page.evaluate(() => { const p = window.__testGame.scene.getScene("EncyclopediaScene").panel; p.setTab("towers"); p.setCardCase("uppercase"); });
+    for (const [name, x] of [["lowercase", 117], ["ascii", 173], ["uppercase", 61], ["lowercase", 98], ["ascii", 154], ["uppercase", 42]]) {
+      await page.evaluate(() => window.__testGame.scene.getScene("EncyclopediaScene").panel.setGridScroll(132));
+      const position = await at(x, 126); await page.mouse.click(position.x, position.y);
+      assert.equal(await page.evaluate(() => window.__testGame.scene.getScene("EncyclopediaScene").panel.cardCase), name, `Masked tile intercepted ${name} at ${width}px`);
+    }
+  }
+  const level = () => page.evaluate(() => window.__testGame.scene.getScene("EncyclopediaScene").panel.previewLevel);
+  const prepare = async enemy => page.evaluate(enemy => {
+    const p = window.__testGame.scene.getScene("EncyclopediaScene").panel;
+    if (enemy) p.openEnemy("angelPentagon");
+    else { p.open("towers"); p.setCardCase("uppercase"); }
+    p.previewLevel = 1; p.drawDetail(p.currentEntries().find(entry => p.entryId(entry) === p.selectedEntryId));
+  }, enemy);
+  for (const enemy of [false, true]) {
+    await prepare(enemy);
+    const position = await at(1186, 114);
+    await page.mouse.move(position.x, position.y); await page.mouse.down(); await page.waitForTimeout(920);
+    assert.ok(await level() >= 5, "Hold did not repeat");
+    await page.mouse.up(); const released = await level(); await page.waitForTimeout(260); assert.equal(await level(), released, "Hold continued after release");
+    await page.mouse.down();
+    const outside = await at(800, 114); await page.mouse.move(outside.x, outside.y); await page.waitForTimeout(100);
+    const exited = await level(); await page.waitForTimeout(520); assert.equal(await level(), exited, "Hold continued outside button"); await page.mouse.up();
+  }
+  await prepare(true);
+  const position = await at(1186, 114);
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: true });
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: position.x, y: position.y, id: 1 }] });
+  await page.waitForTimeout(900); assert.ok(await level() >= 5, "Touch hold did not repeat");
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  const touchReleased = await level(); await page.waitForTimeout(300); assert.equal(await level(), touchReleased, "Touch release did not stop repeat");
+  await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: false });
+  await prepare(true);
+  await page.mouse.move(position.x, position.y); await page.mouse.down();
+  await page.evaluate(() => window.__testGame.events.emit("blur"));
+  const blurred = await level(); await page.waitForTimeout(520); assert.equal(await level(), blurred, "Blur did not cancel hold"); await page.mouse.up();
+  await prepare(true);
+  await page.mouse.down(); await page.evaluate(() => {
+    const p = window.__testGame.scene.getScene("EncyclopediaScene").panel;
+    // Keep this test scene alive; the real close callback navigates away and destroys it.
+    const onClose = p.onClose; p.onClose = undefined; p.close(); p.onClose = onClose;
+  });
+  const closed = await level(); await page.waitForTimeout(520); assert.equal(await level(), closed, "Closing did not cancel hold"); await page.mouse.up();
+  await prepare(true);
+  await page.evaluate(() => { const p = window.__testGame.scene.getScene("EncyclopediaScene").panel; p.openEnemy("archangelHeptagon3"); p.setDetailScroll(290); });
+  await page.screenshot({ path: "logs/encyclopedia-enemy-skills.png" });
+  await page.evaluate(() => { const p = window.__testGame.scene.getScene("EncyclopediaScene").panel; p.openBoss("icosahedron"); p.changePreviewLevel(2); p.setDetailScroll(450); });
+  await page.screenshot({ path: "logs/encyclopedia-boss-phase.png" });
   assert.deepEqual(errors, []); console.log("Encyclopedia browser checks passed", inspect);
 } finally { await browser.close(); }

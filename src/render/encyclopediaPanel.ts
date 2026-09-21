@@ -2,10 +2,11 @@ import Phaser from "phaser";
 import { drawParenthesisBorder } from "./parenthesisTower";
 import { bindButtonHover } from "./buttonHover";
 import { bindSliderInput } from "./sliderInput";
+import { bindHoldButton } from "./holdButton";
+import { clipInputToViewport } from "./viewportInput";
 import { drawRangeDiagram } from "./rangeDiagram";
 import {
   CUBE_BOSS_CONTACT_DAMAGE,
-  CUBE_BOSS_STATS,
   ENEMY_SPEED,
   GAME_HEIGHT,
   GAME_WIDTH,
@@ -23,13 +24,13 @@ import {
   type EncyclopediaTab
 } from "../encyclopedia";
 import { towerDetailSections, towerDetailRange, towerPreviewStats, type DetailField, type DetailSection } from "../encyclopediaDetails";
-import { enemyAttackSpeed } from "../game/enemyBehaviors";
-import { attackIntervalMs } from "../game/attackSpeed";
-import { getEnemyRegistration } from "../registry/enemies";
+import { enemyDetailSections, enemyPreviewAttackSpeed } from "../enemyEncyclopediaDetails";
+import { bossDetailSections, bossPreviewLimit, bossPreviewStats } from "../bossEncyclopediaDetails";
+import { enemyKindAtRank } from "../game/enemyIdentity";
 import { DAMAGE_SYMBOLS, getLanguage, t } from "../i18n";
 import { bossEncyclopediaIcon, enemyEncyclopediaGroup, visibleEnemyEncyclopediaGroups, visibleEncyclopediaEntries } from "../encyclopediaVisibility";
 import { cardLetterCase, type CardLetterCase } from "../registry/cards";
-import { enemyFamily, getEnemyDefinition } from "../registry/enemies";
+import { enemyFamily, enemyRank, getEnemyDefinition } from "../registry/enemies";
 import type { BossKind, DamageType, EnemyKind } from "../types";
 import {
   createCubeIcon,
@@ -131,6 +132,8 @@ export class EncyclopediaPanel {
   private previewLevel = 1;
   private levelControls!: Phaser.GameObjects.Container;
   private levelLabel!: Phaser.GameObjects.Text;
+  private previewCaption!: Phaser.GameObjects.Text;
+  private readonly cancelLevelHolds: Array<() => void> = [];
   private selectedLabel!: Phaser.GameObjects.Text;
   private scrollbars!: Phaser.GameObjects.Graphics;
   private readonly scrollMemory = new Map<string, number>();
@@ -153,11 +156,19 @@ export class EncyclopediaPanel {
   }
 
   openEnemy(kind: EnemyKind) {
-    this.openMatchingEnemy((entry) => !!entry.enemyKind && enemyFamily(entry.enemyKind) === enemyFamily(kind));
+    const entry = this.openMatchingEnemy((entry) => !!entry.enemyKind && enemyFamily(entry.enemyKind) === enemyFamily(kind));
+    if (entry) {
+      this.previewLevel = Math.min(999, enemyRank(kind));
+      this.drawDetail(entry);
+    }
   }
 
   openBoss(kind: BossKind) {
-    this.openMatchingEnemy((entry) => entry.icon === bossEncyclopediaIcon(kind));
+    const entry = this.openMatchingEnemy((entry) => entry.icon === bossEncyclopediaIcon(kind));
+    if (entry) {
+      this.previewLevel = kind.endsWith("2") ? 2 : 1;
+      this.drawDetail(entry);
+    }
   }
 
   private openMatchingEnemy(matches: (entry: EncyclopediaEntry) => boolean) {
@@ -169,9 +180,11 @@ export class EncyclopediaPanel {
     if (index < 0) return;
     this.selectEntry(entries[index]);
     this.setGridScroll(Math.floor(index / GRID_COLUMNS) * (TILE_SIZE + TILE_GAP));
+    return entries[index];
   }
 
   close() {
+    this.cancelLevelHolds.forEach(cancel => cancel());
     this.openState = false;
     this.dragPointer = null;
     this.dragArea = null;
@@ -224,12 +237,13 @@ export class EncyclopediaPanel {
     for (const [x, delta, symbol] of [[1022, -1, "−"], [1186, 1, "+"]] as const) {
       const frame = this.scene.add.rectangle(x, 114, 36, 32, palette.black).setStrokeStyle(1, palette.mid).setInteractive({ useHandCursor: true });
       const label = this.scene.add.text(x, 113, symbol, { fontFamily: "monospace", fontSize: "22px", color: uiTextColors.primary }).setOrigin(.5);
-      frame.on("pointerdown", () => this.changePreviewLevel(delta));
+      this.cancelLevelHolds.push(bindHoldButton(this.scene, frame, () => this.changePreviewLevel(delta),
+        () => this.openState && this.levelControls.visible));
       bindButtonHover(frame, [label]);
       this.levelControls.add([frame, label]);
     }
-    const previewCaption = this.scene.add.text(1000, 114, isZhLabel("预览等级", "Preview level"), { fontFamily: "monospace", fontSize: "14px", color: uiTextColors.secondary }).setOrigin(1, .5);
-    this.levelControls.add(previewCaption);
+    this.previewCaption = this.scene.add.text(1000, 114, isZhLabel("预览等级", "Preview level"), { fontFamily: "monospace", fontSize: "14px", color: uiTextColors.secondary }).setOrigin(1, .5);
+    this.levelControls.add(this.previewCaption);
     this.selectedLabel = this.scene.add.text(530, 114, "", { fontFamily: "monospace", fontSize: "17px", color: uiTextColors.primary,
       wordWrap: detailTextWrap(310) }).setOrigin(0, .5);
     this.scrollbars = this.scene.add.graphics();
@@ -415,6 +429,7 @@ export class EncyclopediaPanel {
   }
 
   private setTab(tab: EncyclopediaTab) {
+    this.cancelLevelHolds.forEach(cancel => cancel());
     this.tab = tab;
     this.updateTabs();
     this.updateCardCaseButtons();
@@ -424,6 +439,7 @@ export class EncyclopediaPanel {
   }
 
   private setCardCase(letterCase: CardLetterCase) {
+    this.cancelLevelHolds.forEach(cancel => cancel());
     if (letterCase === this.cardCase) {
       return;
     }
@@ -566,6 +582,8 @@ export class EncyclopediaPanel {
     };
     frame.on("pointerup", openEntry);
     title.setInteractive({ useHandCursor: true }).on("pointerup", openEntry);
+    clipInputToViewport(frame, this.gridViewport);
+    clipInputToViewport(title, this.gridViewport);
     bindButtonHover(frame, [title], () => {
       const position = this.pointerPosition(this.scene.input.activePointer);
       return !this.dragMoved && this.gridViewport.contains(position.x, position.y);
@@ -576,6 +594,7 @@ export class EncyclopediaPanel {
   }
 
   private selectEntry(entry: EncyclopediaEntry) {
+    this.cancelLevelHolds.forEach(cancel => cancel());
     if (this.selectedEntryId !== this.entryId(entry)) this.previewLevel = 1;
     this.selectedEntryId = this.entryId(entry);
     this.selectionMemory.set(this.listKey(), this.selectedEntryId);
@@ -611,8 +630,10 @@ export class EncyclopediaPanel {
   private drawDetail(entry: EncyclopediaEntry) {
     this.detail.removeAll(true);
     this.selectedLabel.setText(entry.title);
-    this.levelControls.setVisible(!!entry.card);
-    this.levelLabel.setText(`Lv. ${this.previewLevel}`);
+    this.levelControls.setVisible(!!entry.card || !!entry.enemyKind || !!entry.icon);
+    this.previewCaption.setText(entry.icon === "icosahedron" ? isZhLabel("预览阶段", "Preview phase") : isZhLabel("预览等级", "Preview level"));
+    this.levelLabel.setText(`${entry.icon === "icosahedron" ? "P" : "Lv."} ${this.previewLevel}`);
+    if (entry.enemyKind) entry = { ...entry, enemyKind: enemyKindAtRank(enemyFamily(entry.enemyKind), this.previewLevel) };
     let y = 18;
     this.addEntryIcon(this.detail, entry, 46, y + 34, 1.08);
     const title = this.scene.add
@@ -629,24 +650,19 @@ export class EncyclopediaPanel {
     if (entry.card) {
       this.detailText(94, y + title.height + 10, isZhLabel("等级面板 · 未计光环及临时增益", "Level stats · before auras and temporary buffs"), 14, uiTextColors.secondary, 490);
       headerHeight = Math.max(headerHeight, this.drawRange(entry, 602, y));
+    } else if (entry.enemyKind || entry.icon) {
+      this.detailText(94, y + title.height + 10, isZhLabel("基础面板 · 未计状态、光环及难度修正", "Base stats · before effects, auras and difficulty modifiers"), 14, uiTextColors.secondary, 490);
     }
     y += headerHeight;
     if (!entry.mechanicId) y += this.drawDetailTable(entry, y) + 24;
     if (entry.card) {
       for (const section of towerDetailSections(entry.card, this.previewLevel, entry.description)) y = this.drawSection(section, y);
       y = this.drawSection({ title: t("label.upgrade"), tag: isZhLabel("成长规则", "Progression"), tone: "passive", fields: [], description: towerUpgradeText(entry.card.id) }, y);
+    } else if (entry.enemyKind) {
+      for (const section of enemyDetailSections(entry.enemyKind, entry.description)) y = this.drawSection(section, y);
+    } else if (entry.icon) {
+      for (const section of bossDetailSections(entry.icon, this.previewLevel)) y = this.drawSection(section, y);
     } else {
-      if (entry.enemyKind) {
-        const enemy = getEnemyDefinition(entry.enemyKind), mode = getEnemyRegistration(entry.enemyKind).attackMode;
-        const noRegularAttack = ["slopeTriangle", "solarBomb"].includes(enemyFamily(entry.enemyKind));
-        const speed = enemyAttackSpeed(entry.enemyKind);
-        y = this.drawSection({ title: isZhLabel("常规攻击", "Regular attack"), tag: isZhLabel("敌方行动", "Enemy action"), tone: "attack",
-          fields: [
-            { label: isZhLabel("攻击形式", "Attack mode"), value: noRegularAttack ? isZhLabel("无常规攻击", "No regular attack") : enemyModeLabel(mode) },
-            { label: isZhLabel("攻击速度", "Attack speed"), value: noRegularAttack ? "/" : `${formatNumber(speed)} · ${formatNumber(attackIntervalMs(speed) / 1000)}s` },
-            { label: isZhLabel("基础攻击", "Base attack"), value: this.damageValue(enemy.damage, enemy.damageType) }
-          ] }, y);
-      }
       const notes = this.detailNotes(entry);
       if (notes.length) y = this.drawSection({ title: isZhLabel("等级与机制", "Ranks & mechanics"), tag: "", tone: "passive", fields: [], description: notes.join("\n\n") }, y);
       y = this.drawSection({ title: isZhLabel("详细说明", "Description"), tag: "", tone: "passive", fields: [], description: entry.description }, y);
@@ -743,8 +759,11 @@ export class EncyclopediaPanel {
 
   private changePreviewLevel(delta: number) {
     const entry = this.currentEntries().find(entry => this.entryId(entry) === this.selectedEntryId);
-    if (!entry?.card) return;
-    this.previewLevel = Phaser.Math.Clamp(this.previewLevel + delta, 1, 999);
+    if (!entry || entry.mechanicId) return;
+    const max = entry.icon ? bossPreviewLimit(entry.icon) : entry.enemyKind && enemyFamily(entry.enemyKind) === "solarBomb" ? 1 : 999;
+    const level = Phaser.Math.Clamp(this.previewLevel + delta, 1, max);
+    if (level === this.previewLevel) return;
+    this.previewLevel = level;
     const scroll = this.detailScrollY;
     this.drawDetail(entry); this.setDetailScroll(scroll);
   }
@@ -813,6 +832,7 @@ export class EncyclopediaPanel {
       });
       link.on("pointerover", () => link.setColor("#48ff88"));
       link.on("pointerout", () => link.setColor(uiTextColors.primary));
+      clipInputToViewport(link, this.detailViewport);
       this.detail.add([link, underline]);
       x += link.width + 18;
       if (x > this.detailViewport.width - 88) {
@@ -923,7 +943,7 @@ export class EncyclopediaPanel {
         row(t("label.armor"), this.statValue(enemy.armor, "armor")),
         row(t("label.mr"), this.statValue(enemy.magicResistance, "mr")),
         row(t("label.atk"), this.damageValue(enemy.damage, enemy.damageType)),
-        row(isZhLabel("攻速", "AS"), ["slopeTriangle", "solarBomb"].includes(enemyFamily(entry.enemyKind)) ? EMPTY_TABLE_VALUE : this.statValue(enemyAttackSpeed(entry.enemyKind), "attackSpeed")),
+        row(isZhLabel("攻速", "AS"), this.statValue(enemyPreviewAttackSpeed(entry.enemyKind), "attackSpeed")),
         row(t("label.speed"), this.statValue(speed, "moveSpeed")),
         row(isZhLabel("范围", "RANGE"), EMPTY_TABLE_VALUE),
         row(t("label.cost"), EMPTY_TABLE_VALUE),
@@ -932,7 +952,7 @@ export class EncyclopediaPanel {
       ];
     }
 
-    const bossStats = entry.icon ? bossStatsForIcon(entry.icon) : null;
+    const bossStats = entry.icon ? bossPreviewStats(entry.icon, this.previewLevel) : null;
     if (bossStats) {
       return [
         row(t("label.hp"), this.statValue(bossStats.hp, "bossHp")),
@@ -1032,7 +1052,7 @@ export class EncyclopediaPanel {
     if (entry.mechanicIcon) {
       return entry.title;
     }
-    return entry.title.replace(/\s*Series$/i, "").replace(/\s*Leader$/i, "");
+    return entry.title.replace(/(?:领袖)?系列$/, "").replace(/\s*Series$/i, "").replace(/\s*Leader$/i, "");
   }
 
   private mechanicTitle(mechanicId: EncyclopediaMechanicId) {
@@ -1170,28 +1190,6 @@ function formatNumber(value: number) {
   return Number.isInteger(value) ? `${value}` : value.toFixed(1);
 }
 
-function bossStatsForIcon(icon: NonNullable<EncyclopediaEntry["icon"]>) {
-  const iconToKind: Record<NonNullable<EncyclopediaEntry["icon"]>, BossKind> = {
-    cube: "cube",
-    tetrahedron: "tetrahedron",
-    dodecahedron: "dodecahedron",
-    smallStellatedDodecahedron: "smallStellatedDodecahedron",
-    octahedron: "octahedron",
-    icosahedron: "icosahedron"
-  };
-  return CUBE_BOSS_STATS[iconToKind[icon]];
-}
-
 function isZhLabel(zh: string, en: string) {
   return getLanguage() === "zh-CN" ? zh : en;
-}
-
-function enemyModeLabel(mode: string) {
-  const labels: Record<string, [string, string]> = {
-    melee: ["近战", "Melee"], ranged: ["远程弹幕", "Ranged projectile"], mortar: ["锁定迫击炮", "Targeted mortar"],
-    laser: ["激光", "Laser"], siegeRam: ["攻城冲撞", "Siege charge"], mace: ["重锤", "Mace"],
-    blockedDetonator: ["阻挡后引爆", "Detonates when blocked"], leader: ["领袖机制", "Leader behavior"],
-    companion: ["眷属攻击", "Companion attacks"], special: ["特殊机制", "Special behavior"]
-  };
-  return isZhLabel(...(labels[mode] ?? ["特殊机制", "Special behavior"]));
 }

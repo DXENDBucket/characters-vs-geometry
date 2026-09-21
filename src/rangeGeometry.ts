@@ -4,7 +4,7 @@ export type RangeShape =
   | { kind: "cells"; cells: readonly RangeCell[] }
   | { kind: "rectangle"; halfWidth: number; halfHeight: number }
   | { kind: "circle"; radius: number }
-  | { kind: "lane"; start: number }
+  | { kind: "lane"; start: number; direction?: 1 | -1; halfHeight?: number }
   | { kind: "row"; halfHeight: number }
   | { kind: "column"; halfWidth: number }
   | { kind: "fan"; direction: "up" | "down" | "right"; halfWidth: number; slope: number }
@@ -25,7 +25,7 @@ export function rangeContains(shape: RangeShape, x: number, y: number): boolean 
     case "cells": return shape.cells.some(([cx, cy]) => x === cx && y === cy);
     case "rectangle": return Math.abs(x) <= shape.halfWidth && Math.abs(y) <= shape.halfHeight;
     case "circle": return x * x + y * y <= shape.radius * shape.radius;
-    case "lane": return x >= shape.start && y === 0;
+    case "lane": return x * (shape.direction ?? 1) >= shape.start && Math.abs(y) <= (shape.halfHeight ?? 0);
     case "row": return Math.abs(y) <= shape.halfHeight;
     case "column": return Math.abs(x) <= shape.halfWidth;
     case "fan": {
@@ -48,7 +48,9 @@ export function rangeDiagram(shape: RangeShape) {
       top = Math.min(0, ...shape.cells.map(cell => cell[1])); bottom = Math.max(0, ...shape.cells.map(cell => cell[1])); break;
     case "circle": left = top = -Math.ceil(shape.radius); right = bottom = Math.ceil(shape.radius); break;
     case "rectangle": left = -Math.ceil(shape.halfWidth); right = -left; top = -Math.ceil(shape.halfHeight); bottom = -top; break;
-    case "lane": left = -1; right = 5; top = -1; bottom = 1; extensions.push("right"); break;
+    case "lane":
+      left = shape.direction === -1 ? -5 : -1; right = shape.direction === -1 ? 1 : 5;
+      top = -Math.max(1, Math.ceil(shape.halfHeight ?? 0)); bottom = -top; extensions.push(shape.direction === -1 ? "left" : "right"); break;
     case "row": left = -3; right = 3; top = -Math.ceil(shape.halfHeight); bottom = -top; extensions.push("left", "right"); break;
     case "column": left = -Math.ceil(shape.halfWidth); right = -left; top = -3; bottom = 3; extensions.push("up", "down"); break;
     case "fan":

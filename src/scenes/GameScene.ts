@@ -951,7 +951,7 @@ export class GameScene extends Phaser.Scene {
 
   private syncPlacementGhost(pointer?: Phaser.Input.Pointer) {
     if (this.circuitEdges) {
-      const preview = pointer && !this.gameOver && !this.battlePaused && !this.eraserMode && !this.autoUpgradeMode &&
+      const preview = pointer && !this.gameOver && !this.menuOpen && !this.reselectOpen && !this.eraserMode && !this.autoUpgradeMode &&
         !this.shifter.isActive() && !this.towerPush.isTargeting() && !this.topology.isTargeting() &&
         this.selectedCardId === "=" ? edgeAtPoint(pointer.x, pointer.y) : undefined;
       const card = this.cardStatesById.get("=");
@@ -977,7 +977,7 @@ export class GameScene extends Phaser.Scene {
     const ghosts = this.placementGhostSpecBuffer;
     ghosts.length = 0;
 
-    if (!pointer || this.gameOver || this.battlePaused || !this.isInsideBoard(pointer.x, pointer.y)) {
+    if (!pointer || this.gameOver || this.menuOpen || this.reselectOpen || !this.isInsideBoard(pointer.x, pointer.y)) {
       return ghosts;
     }
 

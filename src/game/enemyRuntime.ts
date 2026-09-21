@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { HEART_ATTACK_RADIUS, ENEMY_MORTAR_RANGE_X, ENEMY_MORTAR_RANGE_Y } from "../data/enemyCombatConfig";
 import { towerAreaTargets, towerDamageReceiver } from "./towerOccupancy";
 import { collectParenthesisPassengers, passengerMovementStatus } from "./parenthesisEnemies";
 import { destroyContainedEnemies, enemyCanBeLoaded, enemyIsActive, syncPassengerPositions } from "./enemyContainers";
@@ -1023,7 +1024,7 @@ function removeEscapedReverseEnemy(runtime: EnemyAdvanceRuntime, enemy: Enemy) {
 }
 
 function fireLeaderAreaAttack(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number) {
-  const radius = CELL_WIDTH * 1.75;
+  const radius = HEART_ATTACK_RADIUS;
   const radiusSq = radius * radius;
   makeHeartPulse(runtime.scene, enemy.x, enemy.y, radius);
   for (const tower of towerAreaTargets(runtime.towers)) {
@@ -1298,8 +1299,8 @@ function fireEnemyMortarShot(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: n
       targetY: target.y,
       damage: enemyAttackDamage(enemy, time),
       damageType: enemy.damageType,
-      rangeX: CELL_WIDTH * 1.5,
-      rangeY: CELL_HEIGHT * 1.5,
+      rangeX: ENEMY_MORTAR_RANGE_X,
+      rangeY: ENEMY_MORTAR_RANGE_Y,
       ...enemyMortarMarker(enemy.kind),
       sourceEnemy: enemy,
       targetTower: target

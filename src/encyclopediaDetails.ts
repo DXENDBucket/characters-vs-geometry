@@ -10,6 +10,8 @@ import { attackIntervalMs } from "./game/attackSpeed";
 import { getProjectilePattern } from "./game/cardAttackConfigs";
 import { towerRanges } from "./data/towerRanges";
 import { detailRange, type DetailRange } from "./encyclopediaRanges";
+import { skillChargeFields, type DetailField, type DetailSection } from "./encyclopediaSections";
+export type { DetailField, DetailSection } from "./encyclopediaSections";
 import { isMaxHpUpgradeable, scaledByEffectiveUpgrades, upgradedAttackPower, volleyShotCount } from "./game/upgrades";
 import { volleyHitsAt, volleyTimingCount } from "./game/volley";
 import { ORIENTATION_MAX_SP, ORIENTATION_DURATION } from "./game/orientation";
@@ -17,15 +19,6 @@ import { GATHERING_MAX_SP, GATHERING_DURATION } from "./game/gathering";
 import { PUSH_MAX_SP, PUSH_DURATION } from "./game/pushSkill";
 import { UNYIELDING_PERCENT_PER_LEVEL, ZEAL_ATTACK_SPEED_MULTIPLIER } from "./game/towerAuras";
 
-export interface DetailField { label: string; value: string }
-export interface DetailSection {
-  title: string;
-  tag: string;
-  tone: "attack" | "skill" | "aura" | "passive";
-  fields: DetailField[];
-  description?: string;
-  ranges?: DetailRange[];
-}
 const l = (zh: string, en: string) => getLanguage() === "zh-CN" ? zh : en;
 const n = (value: number) => Number.isInteger(value) ? `${value}` : `${Number(value.toFixed(2))}`;
 const field = (zh: string, en: string, value: string): DetailField => ({ label: l(zh, en), value });
@@ -108,10 +101,7 @@ export function towerDetailSections(card: CardDefinition, level: number, descrip
     if (id === "h") { name = l("守护", "Guardian"); max = GUARDIAN_TOWER_SKILL_MAX; cost = GUARDIAN_TOWER_SKILL_COST; automatic = true; pause = false; }
     if (id === "S") { name = l("术法迫击", "Spell Mortar"); max = SPELL_MORTAR_SKILL_MAX; cost = SPELL_MORTAR_SKILL_COST; duration = (SPELL_MORTAR_SHOT_COUNT - 1) * SPELL_MORTAR_SHOT_INTERVAL; }
     if (id === "#") { name = l("推箱子", "Box Push"); max = cost = PUSH_MAX_SP; duration = PUSH_DURATION; regen = 1 + .5 * (level - 1); pause = false; }
-    const fields = [field("初始技力", "Initial SP", `${initial}`), field("消耗 / 上限", "Cost / max SP", `${cost} / ${max}`),
-      field("回复方式", "Recovery", l(`自动 · ${n(regen)}/秒`, `Auto · ${n(regen)}/s`)),
-      field("持续时间", "Duration", duration ? seconds(duration) : l("瞬时", "Instant")),
-      field("期间回复", "While active", pause ? l("暂停", "Paused") : l("继续", "Continues")),
+    const fields = [...skillChargeFields({ initial, max, cost, regen, duration, pause }),
       field("选定目标", "Target selection", ["S", "#"].includes(id) ? l("手动选定", "Manual targeting") : l("无需手动选定", "No manual targeting"))];
     if (id === "S") fields.push(field("每发伤害", "Per shell", damageValue), field("连发", "Volley", `${SPELL_MORTAR_SHOT_COUNT} · ${seconds(SPELL_MORTAR_SHOT_INTERVAL)}`));
     if (id === "h") fields.push(field("每目标治疗量", "Healing per target", `${Math.round(stats.maxHp * GUARDIAN_TOWER_HEAL_RATIO)} HP · ` + l(`小 h 生命上限的 ${GUARDIAN_TOWER_HEAL_RATIO * 100}%`, `${GUARDIAN_TOWER_HEAL_RATIO * 100}% of h's max HP`)));

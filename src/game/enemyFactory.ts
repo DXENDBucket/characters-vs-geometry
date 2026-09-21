@@ -10,8 +10,8 @@ import { enemyIsSolarBomb, syncSolarBombVisual } from "./solarBomb";
 import { applyStatusEffect, statusSpeedMultiplier } from "./statusEffects";
 import { enemyBaseStatsFromDefinition } from "./unitStats";
 
-const ARCHANGEL_SPAWN_HIGH_FLIGHT_DURATION = 3_000;
-const ARCHANGEL_SPAWN_SPEED_MULTIPLIER = 2.5;
+export const ARCHANGEL_SPAWN_HIGH_FLIGHT_DURATION = 3_000;
+export const ARCHANGEL_SPAWN_SPEED_MULTIPLIER = 2.5;
 
 interface CreateEnemyOptions {
   kind: EnemyKind;

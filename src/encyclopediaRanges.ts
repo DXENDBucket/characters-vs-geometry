@@ -33,7 +33,9 @@ export function rangeLabel(range: RangeDefinition): string {
     case "rectangle": return l(`${n(s.halfWidth * 2)}×${n(s.halfHeight * 2)} 格区域`, `${n(s.halfWidth * 2)}x${n(s.halfHeight * 2)}-cell area`);
     case "column": return l(`全列，宽 ${n(s.halfWidth * 2)} 格`, `Entire column, ${n(s.halfWidth * 2)} cells wide`);
     case "row": return l(`全行，高 ${n(s.halfHeight * 2)} 格`, `Entire row, ${n(s.halfHeight * 2)} cells high`);
-    case "lane": return l("本行前方，至场地边界", "Forward lane to the board edge");
+    case "lane": return (s.halfHeight ?? 0) > 0
+      ? l(`前方 ${n(Math.floor(s.halfHeight!) * 2 + 1)} 行，至场地边界`, `${n(Math.floor(s.halfHeight!) * 2 + 1)} forward lanes to the board edge`)
+      : l("本行前方，至场地边界", "Forward lane to the board edge");
     case "fan": return s.direction === "right" ? l("前方扇形，至场地边界", "Forward fan to the board edge")
       : s.direction === "up" ? l("向上扇形，至场地边界", "Upward fan to the board edge") : l("向下扇形，至场地边界", "Downward fan to the board edge");
     case "global": return l("全场", "Entire battlefield");

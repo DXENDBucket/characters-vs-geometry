@@ -13,6 +13,66 @@ const card = id => cardDefinitions.find(card => card.id === id);
 const sections = (id, level = 1) => towerDetailSections(card(id), level, towerEncyclopediaEntry(id).description);
 const values = section => section.fields.map(field => field.value).join("\n");
 
+test("enemy rank previews read actual combat stats, SP growth, volley hits and ranges", () => {
+  const { enemyDetailSections, enemyPreviewAttackSpeed } = load("src/enemyEncyclopediaDetails.ts");
+  const { enemyEncyclopediaEntries } = load("src/encyclopedia.ts");
+  const { enemyKindAtRank, enemyFamily } = load("src/registry/enemies.ts");
+  const { rangeContains } = load("src/rangeGeometry.ts");
+  for (const language of ["en", "zh-CN"]) {
+    setLanguage(language);
+    for (const entry of enemyEncyclopediaEntries().filter(entry => entry.enemyKind)) {
+      for (const rank of [1, 2, 6, 999]) {
+        const detail = enemyDetailSections(enemyKindAtRank(enemyFamily(entry.enemyKind), rank), entry.description);
+        assert.equal(detail[0].tone, "attack");
+        assert.doesNotMatch(JSON.stringify(detail), /undefined|NaN|Infinity/);
+        for (const range of detail.flatMap(section => section.ranges ?? [])) assert.ok(range.diagram.cells.length);
+      }
+    }
+  }
+  const detail = kind => enemyDetailSections(kind, "");
+  assert.match(values(detail("shootingTriangle6")[0]), /2\/1\/1\/1\/1/);
+  assert.equal(enemyPreviewAttackSpeed("triangleRam"), undefined);
+  assert.equal(enemyPreviewAttackSpeed("slopeTriangle3"), undefined);
+  assert.equal(enemyPreviewAttackSpeed("triangle3"), 180);
+  assert.match(values(detail("angelPentagon3").find(section => section.tone === "skill")), /1.4\/秒/);
+  assert.match(values(detail("archangelHeptagon3").find(section => section.tone === "skill")), /6s/);
+  assert.match(values(detail("hexSpellBulwark3").find(section => section.tone === "aura")), /\+60/);
+  const laser = detail("shootingPentagon")[0].ranges[0];
+  assert.ok(rangeContains(laser.shape, -1000, 0));
+  assert.ok(!rangeContains(laser.shape, 1, 0));
+  assert.equal(laser.diagram.extensions[0], "left");
+  assert.equal(detail("mortarTriangle")[0].ranges[1].origin, "impact");
+});
+
+test("boss previews distinguish dynamic ranks and the four final-boss phases", () => {
+  setLanguage("zh-CN");
+  const { bossDetailSections, bossPreviewStats, bossPreviewLimit } = load("src/bossEncyclopediaDetails.ts");
+  const { getLevelConfig } = load("src/data/levels.ts");
+  assert.equal(bossPreviewLimit("icosahedron"), 4);
+  assert.equal(bossPreviewLimit("smallStellatedDodecahedron"), 1);
+  assert.equal(bossPreviewStats("cube", 3).hp, 250000);
+  assert.equal(bossPreviewStats("cube", 3).armor, 900);
+  for (const icon of ["cube", "tetrahedron", "dodecahedron", "octahedron", "smallStellatedDodecahedron", "icosahedron"]) {
+    for (const rank of [1, Math.min(bossPreviewLimit(icon), 6)]) {
+      assert.doesNotMatch(JSON.stringify(bossDetailSections(icon, rank)), /undefined|NaN|Infinity/);
+    }
+  }
+  for (const [index, phase] of getLevelConfig("5-10").bossPhases.entries()) {
+    const stats = bossPreviewStats("icosahedron", index + 1);
+    assert.equal(stats.hp, phase.maxHp);
+    assert.equal(stats.armor, phase.armor);
+    assert.equal(stats.magicResistance, phase.magicResistance);
+    assert.equal(stats.reduction, phase.finalDamageReduction ?? 0);
+  }
+  const p2 = bossDetailSections("icosahedron", 2);
+  assert.equal(p2.find(section => section.title === "冲击").fields[0].value, "75");
+  assert.equal(p2.find(section => section.title === "飞跃").fields[0].value, "35");
+  assert.ok(!p2.some(section => section.title === "心跳 α"));
+  const p3 = bossDetailSections("icosahedron", 3);
+  assert.ok(p3.some(section => section.title === "无尽羽翼"));
+  assert.match(p3.find(section => section.title === "眷属与庇护").description, /7 个 1 级/);
+});
+
 test("every tower has structured, localized regular-action details at base and high levels", () => {
   for (const language of ["zh-CN", "en"]) {
     setLanguage(language);
