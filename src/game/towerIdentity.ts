@@ -69,6 +69,7 @@ export function numberTowerActionLevel(tower: Pick<Tower, "type" | "copiedType" 
 }
 
 export function towerHasSkillBehavior(tower: Tower, type: CardId) {
+  if (tower.routedSkills?.[type] !== undefined) return false;
   return towerBehaviorType(tower) === type ||
     ((isNumberTower(tower) || isNumericOperatorType(towerFormType(tower))) && tower.imitatedSkills?.includes(type) === true);
 }

@@ -299,8 +299,7 @@ export function removeTower(runtime: UnitLifecycleRuntime, tower: Tower) {
   }
 
   if (towerBehaviorType(tower) === "T") {
-    runtime.onTowerAction?.(tower, { kind: "detonation" });
-    detonateSlowAuraTower(runtime, tower);
+    if (!runtime.onTowerAction?.(tower, { kind: "detonation" })) detonateSlowAuraTower(runtime, tower);
   }
 
   Phaser.Utils.Array.Remove(runtime.towers, tower);

@@ -221,8 +221,7 @@ export class TargetedEffectCardController {
     const level = effectiveTowerLevel(effectCard);
     const target = runtime.towers.find((tower) => tower.id === effectCard.turnTargetId);
     if (target?.inPlay) {
-      runtime.onTowerAction?.(effectCard, { kind: "targeted" });
-      targetedEffectDefinitions[effectCard.type]?.apply(runtime, target, level);
+      if (!runtime.onTowerAction?.(effectCard, { kind: "targeted" })) targetedEffectDefinitions[effectCard.type]?.apply(runtime, target, level);
     }
 
     runtime.removeTower(effectCard);

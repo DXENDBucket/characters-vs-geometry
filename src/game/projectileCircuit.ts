@@ -1,9 +1,11 @@
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, COLUMNS, LANES } from "../config";
 import type { CardDefinition, CardId, EdgeTower, EnemyProjectile, MortarProjectile, Projectile, StoredTowerShot, Tower } from "../types";
 import { consumeProjectileDamage, projectileDamageBudget, projectileVisualScale, segmentInInterceptionRange } from "./projectileIntegrity";
-import { isLiteralNumberType, numberTowerValue, towerFormType } from "./towerIdentity";
+import { isLiteralNumberType, numberTowerValue, towerFormType, towerActionContext } from "./towerIdentity";
+import type { TowerActionEvent } from "./towerActions";
+import { storeTowerAction } from "./pipelineActionPayload";
 import { projectileBankCapacity } from "./projectileBank";
-import { BUNDLE_SHOTS, nodeOccupancy, processorCapacity, processorRate } from "./pipelineRules";
+import { nodeOccupancy, processorCapacity, processorRate } from "./pipelineRules";
 import { PipelineRouting } from "./pipelineRouting";
 
 export { PROJECTILE_BANK_CAPACITY } from "./projectileBank";
@@ -36,14 +38,9 @@ interface CircuitRuntime {
   battleTime: number;
   getDefinition: (id: CardId) => CardDefinition;
   emit: (shot: StoredTowerShot, outlet: Tower) => void;
+  heal?: (tower: Tower, amount: number) => boolean;
   changed: (tower: Tower) => void;
   intercepted?: (tower: Tower, target: EnemyProjectile | MortarProjectile) => void;
-}
-
-function bundleKey(shot: StoredTowerShot) {
-  if (shot.partialHitDamage !== undefined) return undefined;
-  return JSON.stringify([shot.type, shot.sourceTower?.id, shot.sourceBehaviorType, shot.damage, shot.damageType,
-    shot.splashRadius, shot.debuff, shot.debuffDuration, shot.vx, shot.vy, String(shot.remainingRange)]);
 }
 
 export class ProjectileCircuitController {
@@ -59,16 +56,22 @@ export class ProjectileCircuitController {
     this.nodes = []; this.interceptors = [];
     const sources: Tower[] = [];
     for (const tower of runtime.towers) {
-      if (!tower.inPlay || tower.transient) continue;
+      if (!tower.inPlay) continue;
       const type = towerFormType(tower);
       if (type === "=" || (type !== "+" && type !== "-" && runtime.getDefinition(tower.type).cost > 999)) continue;
-      if (type !== "1" && type !== "-") sources.push(tower);
+      if (type !== "1" && type !== "-" && type !== "+") sources.push(tower);
+      if (tower.transient) continue;
       if (type === "0") {
         tower.projectileBank ??= { shots: [], remaining: 0, nextAt: 0, outletIndex: 0 };
         tower.projectileBank.remaining = 0;
       }
       if (["0", "1", "+", "-"].includes(type)) {
         tower.projectileNode ??= { input: [], output: [] };
+        if (type === "+") {
+          // Preserve ammunition in saves from the old bundler without executing the old recipe.
+          tower.projectileNode.input.push(...tower.projectileNode.output.splice(0), ...(tower.projectileNode.processing?.shots ?? []));
+          delete tower.projectileNode.processing;
+        }
         this.nodes.push(tower); runtime.changed(tower);
         if (type === "-") this.interceptors.push(tower);
       }
@@ -98,6 +101,7 @@ export class ProjectileCircuitController {
     for (let offset = 0; offset < this.nodes.length; offset++) {
       const index = (start + offset) % this.nodes.length, target = this.nodes[index], path = paths.get(target);
       if (!path || !target.inPlay || this.occupancy(target) >= this.capacity(target)) continue;
+      if (["+", "-"].includes(towerFormType(target)) && projectileDamageBudget(shot) <= 0) continue;
       const queue = towerFormType(target) === "0" ? target.projectileBank?.shots : target.projectileNode?.input;
       if (!queue) continue;
       this.routing.consume(path);
@@ -124,6 +128,13 @@ export class ProjectileCircuitController {
     if (!this.transfer(source, shot)) return false;
     projectile.body.destroy();
     return true;
+  }
+
+  captureAction(source: Tower, event: TowerActionEvent) {
+    if (!this.nodes.length || !source.inPlay || towerActionContext(source) || event.kind === "combined" ||
+      ["0", "1", "+", "-", "="].includes(towerFormType(source))) return false;
+    if (!this.routing.pathsFrom(source, this.runtime().battleTime).size) return false;
+    return this.transfer(source, storeTowerAction(source, this.runtime().getDefinition(towerFormType(source)), event, this.runtime().battleTime));
   }
 
   intercept(target: EnemyProjectile | MortarProjectile, from: { x: number; y: number }) {
@@ -160,29 +171,6 @@ export class ProjectileCircuitController {
     if (changed) this.runtime().changed(tower);
   }
 
-  private startProcessing(tower: Tower, earliest: number) {
-    const node = tower.projectileNode!, groups = new Map<string, StoredTowerShot[]>();
-    // Finished ammunition gets an output attempt before it can enter another five-to-one recipe.
-    for (const shot of [...node.output, ...node.input]) {
-      const key = bundleKey(shot);
-      if (key === undefined) continue;
-      const group = groups.get(key) ?? [];
-      group.push(shot); groups.set(key, group);
-      if (group.length !== BUNDLE_SHOTS) continue;
-      const hitCount = group.reduce((sum, item) => sum + item.hitCount, 0);
-      if (!Number.isSafeInteger(hitCount)) continue;
-      const chosen = new Set(group);
-      node.input = node.input.filter(item => !chosen.has(item));
-      node.output = node.output.filter(item => !chosen.has(item));
-      const result = { ...group[0], hitCount };
-      delete result.initialDamageBudget;
-      const start = Math.max(earliest, ...group.map(item => item.pipelineMovedAt ?? earliest));
-      node.processing = { shots: [result], count: BUNDLE_SHOTS, completeAt: start + BUNDLE_SHOTS * 1000 / processorRate(tower) };
-      return true;
-    }
-    return false;
-  }
-
   update() {
     const runtime = this.runtime(), time = runtime.battleTime;
     for (const tower of this.nodes) {
@@ -195,19 +183,14 @@ export class ProjectileCircuitController {
         for (const shot of node.input.splice(0, count)) runtime.emit(shot, tower);
         runtime.changed(tower);
       } else if (type === "+") {
-        this.forwardQueue(tower, node.output);
-        let earliest = time, changed = false;
-        while (true) {
-          if (!node.processing) {
-            if (!this.startProcessing(tower, earliest)) break;
-            changed = true;
-          }
-          const job = node.processing!;
-          if (job.completeAt > time) break;
-          earliest = job.completeAt;
-          node.output.push(...job.shots);
-          delete node.processing; changed = true;
-          this.forwardQueue(tower, node.output);
+        const rate = processorRate(tower);
+        tower.healingCredit = Math.min(rate, (tower.healingCredit ?? rate) + Math.max(0, time - (tower.healingUpdatedAt ?? time)) * rate / 1000);
+        tower.healingUpdatedAt = time;
+        let changed = false;
+        while (node.input.length && tower.healingCredit >= 1) {
+          const amount = projectileDamageBudget(node.input[0]) / 5;
+          if (amount <= 0 || !runtime.heal?.(tower, amount)) break;
+          node.input.shift(); tower.healingCredit -= 1; changed = true;
         }
         if (changed) runtime.changed(tower);
       }

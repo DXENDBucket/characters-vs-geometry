@@ -88,7 +88,7 @@ export class TowerPushController {
       return { ...move, fromLane: from.lane, fromColumn: from.column, toLane: to.lane, toColumn: to.column, tower: byId.get(move.towerId)! };
     });
     if (!free) spendSkillSp(getTowerSkillState(source, "push"), PUSH_MAX_SP);
-    runtime.onTowerAction?.(source, { kind: "skill", laneOffset: target.lane - origin.lane, columnOffset: target.column - origin.column });
+    if (!free && runtime.onTowerAction?.(source, { kind: "skill", laneOffset: target.lane - origin.lane, columnOffset: target.column - origin.column })) return true;
     source.border.setAlpha(1);
     // Commit all cells before any removal callback can rebuild mirror/health networks.
     for (const move of moves) runtime.occupied.delete(gridCellKey(move.fromLane, move.fromColumn));

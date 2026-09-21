@@ -26,7 +26,7 @@ export interface TowerSkillDefinition extends RegisteredSkillDefinition<Tower, v
 }
 
 export interface TowerSkillActions {
-  onAction?: (tower: Tower) => void;
+  onAction?: (tower: Tower) => boolean | void;
   imitatePush: NonNullable<TowerSkillDefinition["imitate"]>;
   imitateSpellMortar: NonNullable<TowerSkillDefinition["imitate"]>;
   imitateGuardian: NonNullable<TowerSkillDefinition["imitate"]>;

@@ -1,7 +1,7 @@
 import type { CardId, CubeBoss, Enemy, EnemyProjectile, MortarProjectile, Tower } from "../types";
 
 export type NativeTowerActionEvent =
-  | { kind: "attack" }
+  | { kind: "attack"; hitCount?: number }
   | { kind: "production" | "hitProduction" | "shock" | "detonation" | "targeted" }
   | { kind: "trap"; target: Enemy | CubeBoss | "boss" }
   | { kind: "retaliation"; target: Enemy }
@@ -11,4 +11,5 @@ export type NativeTowerActionEvent =
 export type TowerActionEvent = NativeTowerActionEvent | { kind: "combined"; original: NativeTowerActionEvent };
 
 export interface ImitationBehavior { type: CardId; level: number }
-export type TowerActionListener = (source: Tower, event: TowerActionEvent) => void;
+// Returning true transfers the effect into a pipeline; the caller still pays its normal cost.
+export type TowerActionListener = (source: Tower, event: TowerActionEvent) => boolean | void;

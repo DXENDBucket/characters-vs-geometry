@@ -229,9 +229,9 @@ export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: numb
 
       makeEnemyHitShards(runtime.scene, projectile.x, projectile.y);
       const reflectsProjectile = hit.reflectProjectiles;
-      if (reflectsProjectile) runtime.onTowerAction?.(hit, { kind: "reflection", projectile });
+      const routedReflection = reflectsProjectile && runtime.onTowerAction?.(hit, { kind: "reflection", projectile });
       forEachProjectileHit(projectile, damage => runtime.damageTower(hit, damage, projectile.damageType));
-      if (reflectsProjectile) {
+      if (reflectsProjectile && !routedReflection) {
         reflectEnemyAttack(runtime, hit, projectile);
       }
       removeEnemyProjectile(runtime.enemyProjectiles, projectile);
@@ -666,7 +666,9 @@ function detonateEnemyMortar(runtime: ProjectileRuntime, projectile: MortarProje
     }
 
     if (projectile.sourceEnemy?.inPlay) {
-      for (const tower of reflectors) runtime.onTowerAction?.(tower, { kind: "reflection", projectile });
+      for (let i = reflectors.length - 1; i >= 0; i--) {
+        if (runtime.onTowerAction?.(reflectors[i], { kind: "reflection", projectile })) reflectors.splice(i, 1);
+      }
     }
     for (const tower of hitTowers) {
       forEachProjectileHit(projectile, damage => runtime.damageTower(tower, damage, projectile.damageType));

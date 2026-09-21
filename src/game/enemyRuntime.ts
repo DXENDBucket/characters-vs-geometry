@@ -434,8 +434,7 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
         const target = redirectOrientedTarget(runtime.towers, blocker, time)!;
         runtime.damageTower(target, enemyAttackDamage(enemy, time), enemy.damageType);
         const blockerDefinition = getCardDefinition(towerBehaviorType(target));
-        if (blockerDefinition.reflectAttackMultiplier) {
-          runtime.onTowerAction?.(target, { kind: "retaliation", target: enemy });
+        if (blockerDefinition.reflectAttackMultiplier && !runtime.onTowerAction?.(target, { kind: "retaliation", target: enemy })) {
           runtime.damageEnemy(
             enemy,
             towerAttackAmount(target, blockerDefinition, blockerDefinition.reflectAttackMultiplier),

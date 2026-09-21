@@ -17,8 +17,8 @@ export const cardDefinitions: CardDefinition[] = [
     maxHp: 1_200, armor: 150, magicResistance: 0, attackPower: 0, stats: "INTERCEPT R2.6"
   },
   {
-    id: "+", category: "function", cost: 50, cooldown: 3_000,
-    maxHp: 1_200, armor: 150, magicResistance: 0, attackPower: 0, stats: "BUNDLE 5"
+    id: "+", category: "function", cost: 500, cooldown: 10_000,
+    maxHp: 1_200, armor: 150, magicResistance: 0, attackPower: 0, stats: "HEAL 1/5"
   },
   {
     id: "&", category: "function", cost: 4_200, cooldown: 120_000,

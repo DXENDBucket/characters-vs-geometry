@@ -35,7 +35,7 @@ export function isShockTower(tower: Tower | undefined): tower is Tower {
 
 export function triggerShockTower(runtime: TriggerTowerRuntime, tower: Tower) {
   if (!tower.inPlay) return;
-  runtime.onTowerAction?.(tower, { kind: "shock" });
+  if (runtime.onTowerAction?.(tower, { kind: "shock" })) { runtime.removeTower(tower); return; }
   const definition = runtime.getDefinition(towerBehaviorType(tower));
   const interval = definition.triggerInterval ?? 50;
   const damage = towerAttackAmount(tower, definition);
@@ -112,7 +112,7 @@ export function executeShockPulse(runtime: TriggerTowerRuntime, action: Extract<
 
 export function triggerTrapTower(runtime: TriggerTowerRuntime, tower: Tower, target: Enemy | CubeBoss | "boss") {
   if (!tower.inPlay) return;
-  runtime.onTowerAction?.(tower, { kind: "trap", target });
+  if (runtime.onTowerAction?.(tower, { kind: "trap", target })) { runtime.removeTower(tower); return; }
   const definition = runtime.getDefinition(towerBehaviorType(tower));
   const damage = towerAttackAmount(tower, definition);
   const damageType = towerDamageType(tower, definition.damageType ?? "magic", runtime.battleTime);

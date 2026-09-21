@@ -9,7 +9,7 @@ const { nodeOccupancy, processorCapacity } = load("src/game/pipelineRules.ts");
 const { syncTowerTopology } = load("src/game/towerTopology.ts");
 const { BOARD_X, BOARD_Y, CELL_WIDTH, CELL_HEIGHT } = load("src/config.ts");
 const { cardDefinitions } = load("src/data/cards.ts");
-const { canUpgradeTowerWithCard, supportsTowerAutoUpgrade } = load("src/game/towerIdentity.ts");
+const { canUpgradeTowerWithCard, supportsTowerAutoUpgrade, withTowerActionContext } = load("src/game/towerIdentity.ts");
 const { projectileDamageBudget, consumeProjectileDamage, forEachProjectileHit, projectileVisualScale } = load("src/game/projectileIntegrity.ts");
 
 function fixture(types = ["A", "0", "1"]) {
@@ -18,7 +18,10 @@ function fixture(types = ["A", "0", "1"]) {
     emit: (shot, outlet) => state.output.push({ shot, outlet, at: state.battleTime }), changed() {} };
   const controller = new ProjectileCircuitController(() => state);
   const place = (type, column, lane = 3, level = 1) => {
-    const tower = { id: `tower:${state.towers.length}`, type, column, lane, level, placedOrder: state.towers.length, inPlay: true,
+    const definition = state.getDefinition(type);
+    const tower = { id: `tower:${state.towers.length}`, type, column, lane, level, levelBonus: 0, mirrorLevelBonus: 0,
+      finalStats: { maxHp: 1200, armor: 150, magicResistance: 0, attackPower: definition.attackPower ?? 0 },
+      trueDamageUntil: 0, placedOrder: state.towers.length, inPlay: true,
       x: BOARD_X + (column + .5) * CELL_WIDTH, y: BOARD_Y + (lane + .5) * CELL_HEIGHT };
     state.towers.push(tower); return tower;
   };
@@ -37,7 +40,7 @@ const hostile = (tower, damage = 900, hitCount = 1) => ({ x: tower.x, y: tower.y
   body: { setScale(value) { this.scale = value; } } });
 
 test("pipeline component prices and cooldowns match their individual panels", () => {
-  for (const [id, cost, cooldown] of [["=", 50, 1000], ["0", 50, 3000], ["1", 50, 3000], ["+", 50, 3000], ["-", 500, 10000]]) {
+  for (const [id, cost, cooldown] of [["=", 50, 1000], ["0", 50, 3000], ["1", 50, 3000], ["+", 500, 10000], ["-", 500, 10000]]) {
     const card = cardDefinitions.find(card => card.id === id);
     assert.deepEqual([card.cost, card.cooldown], [cost, cooldown], id);
   }
@@ -147,7 +150,7 @@ test("buffer capacity scales with level and retains over-capacity ammo when temp
 });
 
 test("interceptors and numeric outlets are input-only even with outward or bidirectional pipes", () => {
-  for (const type of ["-", "1"]) {
+  for (const type of ["-", "1", "+"]) {
     const f = fixture(["A", type, "0"]); f.bank.level = 2;
     for (const mode of ["=", ">", "<", "!="]) {
       f.state.edges[1].mode = mode; f.controller.sync();
@@ -164,51 +167,60 @@ test("interceptors and numeric outlets are input-only even with outward or bidir
   }
 });
 
-test("processor waits for five compatible shots, preserves armor judgments, and only forwards to a real outlet", () => {
+test("healing outlet converts the complete multi-hit damage budget at five to one and never forwards", () => {
   const f = fixture(["A", "+", "1"]);
-  for (let i = 0; i < 4; i++) f.controller.capture(f.shot());
-  f.tick(1000); assert.equal(f.bank.projectileNode.processing, undefined); assert.equal(f.state.output.length, 0);
-  f.controller.capture(f.shot({ hitCount: 2 }));
-  f.tick(1); assert.equal(f.bank.projectileNode.processing.count, 5);
-  f.tick(199); assert.equal(f.state.output.length, 0);
-  f.tick(1); assert.equal(f.state.output.length, 1);
-  assert.equal(f.state.output[0].shot.hitCount, 6);
-  const hits = []; forEachProjectileHit(f.state.output[0].shot, d => hits.push(d));
-  assert.deepEqual(hits, [400, 400, 400, 400, 400, 400]);
+  const heals = []; f.state.heal = (tower, amount) => { assert.equal(tower, f.bank); heals.push(amount); return true; };
+  f.controller.capture(f.shot({ hitCount: 3, partialHitDamage: 200 })); f.tick();
+  assert.deepEqual(heals, [200]); assert.equal(nodeOccupancy(f.bank), 0);
+  assert.equal(f.state.output.length, 0); assert.equal(f.outlet.projectileNode.input.length, 0);
 });
 
-test("processed projectiles can be bundled again; blocked results stay in the processor", () => {
-  const f = fixture(["A", "+", "+", "1"]);
-  f.state.edges.forEach(edge => { edge.mode = ">"; });
-  for (let i = 0; i < 25; i++) f.controller.capture(f.shot());
-  for (let i = 0; i < 40; i++) f.tick();
-  assert.equal(f.state.output.length, 1); assert.equal(f.state.output[0].shot.hitCount, 25);
-  const g = fixture(["A", "+", "1"]); g.state.edges[1].mode = "!=";
-  for (let i = 0; i < 5; i++) g.controller.capture(g.shot());
-  g.tick(); g.tick(200); assert.equal(g.state.output.length, 0); assert.equal(g.bank.projectileNode.output.length, 1);
-  g.state.edges[1].mode = ">"; g.tick(); assert.equal(g.state.output.length, 1);
-});
-
-test("processed ammunition can flow back to its upstream buffer", () => {
-  const f = fixture(["A", "0", "+"]);
-  for (let i = 0; i < 5; i++) f.controller.capture(f.shot());
-  f.tick(); f.tick(200);
-  assert.equal(f.bank.projectileBank.shots.length, 1);
-  assert.equal(f.bank.projectileBank.shots[0].hitCount, 5);
-  assert.equal(nodeOccupancy(f.outlet), 0);
-  assert.equal(f.state.output.length, 0);
-});
-
-test("processor separates incompatible payloads, preserves queue on upgrade, and scales processing time", () => {
-  const f = fixture(["A", "+", "1"]);
-  for (let i = 0; i < 4; i++) f.controller.capture(f.shot());
-  f.controller.capture(f.shot({ damageType: "magic" })); f.tick();
-  assert.equal(f.bank.projectileNode.processing, undefined);
-  const stock = f.bank.projectileNode.input[0];
+test("healing stock waits for injured allies and processing rate and capacity scale with level", () => {
+  const f = fixture(["A", "+"]); f.state.edges[0].level = 100;
+  let injured = false, healed = 0; f.state.heal = () => { if (!injured) return false; healed++; return true; };
+  for (let i = 0; i < 25; i++) assert.equal(f.controller.capture(f.shot()), true);
+  assert.equal(f.controller.capture(f.shot()), false);
+  f.tick(1000); assert.equal(nodeOccupancy(f.bank), 25);
+  injured = true; f.tick(); assert.equal(healed, 25);
+  f.controller.capture(f.shot()); f.controller.update(); assert.equal(healed, 25);
+  f.tick(39); assert.equal(healed, 25); f.tick(1); assert.equal(healed, 26);
   f.bank.level = 2; f.controller.sync(); assert.equal(processorCapacity(f.bank), 50);
-  assert.equal(f.bank.projectileNode.input[0], stock);
-  f.controller.capture(f.shot()); f.tick(1);
-  assert.equal(f.bank.projectileNode.processing.completeAt - f.state.battleTime, 100);
+  f.controller.capture(f.shot()); f.tick(20); assert.equal(healed, 27);
+});
+
+test("old bundler jobs and completed stock migrate without losing damage or duplicating effects", () => {
+  const f = fixture(["A", "+"]); f.controller.capture(f.shot({ hitCount: 5 }));
+  const shot = f.bank.projectileNode.input.pop();
+  f.bank.projectileNode.processing = { shots: [shot], count: 5, completeAt: 200 };
+  f.bank.projectileNode.output.push({ ...shot, hitCount: 10 });
+  f.controller.sync(); f.controller.sync();
+  assert.equal(f.bank.projectileNode.processing, undefined);
+  assert.equal(nodeOccupancy(f.bank), 2);
+  assert.equal(f.bank.projectileNode.input.reduce((sum, shot) => sum + projectileDamageBudget(shot), 0), 6000);
+});
+
+test("actions snapshot source stats and survive source removal; outlet execution cannot be captured again", () => {
+  const f = fixture(["f", "0", "1"]); f.source.level = 3; f.source.levelBonus = 1;
+  f.source.finalStats.attackPower = 321;
+  assert.equal(f.controller.captureAction(f.source, { kind: "shock" }), true);
+  const stored = f.bank.projectileBank.shots[0];
+  f.source.finalStats.attackPower = 999; f.source.level = 9; f.source.inPlay = false;
+  f.controller.sync(); f.tick();
+  assert.equal(f.state.output.length, 1); assert.equal(f.state.output[0].shot, stored);
+  assert.equal(stored.action.level, 4); assert.equal(stored.action.stats.attackPower, 321);
+  assert.equal(stored.action.event.kind, "shock");
+  withTowerActionContext(f.outlet, { type: "f", level: 4, stats: stored.action.stats }, () => {
+    assert.equal(f.controller.captureAction(f.outlet, { kind: "shock" }), false);
+  });
+});
+
+test("non-damage actions use buffers and numeric outlets but cannot clog damage converters", () => {
+  for (const target of ["0", "1", "+", "-"]) {
+    const f = fixture(["X", target]);
+    assert.equal(f.controller.captureAction(f.source, { kind: "production" }), target === "0" || target === "1");
+  }
+  const f = fixture(["w", "0"]); f.state.edges[0].mode = "!="; f.controller.sync();
+  assert.equal(f.controller.captureAction(f.source, { kind: "skill" }), false);
 });
 
 test("local interceptor requires delivered ammo, never steals across closed pipes, and keeps partial leftovers", () => {
@@ -235,7 +247,7 @@ test("interception respects friendly mortars and sweeps high speed shots without
   assert.ok(projectileVisualScale(target) < projectileVisualScale({ damage: 400, hitCount: 3 }));
 });
 
-test("homing projectiles and skills bypass pipes; branches distribute without duplication", () => {
+test("homing projectiles bypass per-projectile capture because their complete action is routed separately", () => {
   const f = fixture(["0", "A", "0"]), a = f.bank;
   assert.equal(f.controller.capture(f.shot({ type: "chevron", sourceTower: a })), false);
   assert.equal(f.controller.capture(f.shot({ sourceTower: a, targetEnemy: {} })), false);

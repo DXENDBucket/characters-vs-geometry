@@ -38,16 +38,27 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
     (shot.sourceBehaviorType === undefined || cardDefinitions.some(card => card.id === shot.sourceBehaviorType)) &&
     (shot.debuff === undefined || typeof shot.debuff === "string") &&
     (shot.debuffDuration === undefined || finite(shot.debuffDuration) && shot.debuffDuration >= 0) &&
-    (shot.pipelineMovedAt === undefined || finite(shot.pipelineMovedAt) && shot.pipelineMovedAt >= 0);
+    (shot.pipelineMovedAt === undefined || finite(shot.pipelineMovedAt) && shot.pipelineMovedAt >= 0) &&
+    (shot.action === undefined || pipelineAction(shot.action));
   const learnable = (type: unknown) => cardDefinitions.some(card => card.id === type && card.cost <= 999 && card.id !== "1" && card.id !== "0");
   const behavior = (value: unknown) => record(value) && learnable(value.type) && Number.isSafeInteger(value.level) && (value.level as number) >= 1;
   const nativeTowerEvent = (value: unknown) => record(value) && (
-    ["attack", "production", "hitProduction", "shock", "detonation", "targeted"].includes(value.kind as string) ||
+    ["production", "hitProduction", "shock", "detonation", "targeted"].includes(value.kind as string) ||
+    (value.kind === "attack" && (value.hitCount === undefined || Number.isSafeInteger(value.hitCount) && (value.hitCount as number) >= 1)) ||
     (value.kind === "trap" && (value.target === "boss" || member("enemy")(value.target) || member("boss")(value.target))) ||
     (value.kind === "retaliation" && member("enemy")(value.target)) ||
     (value.kind === "reflection" && (member("enemyProjectile")(value.projectile) || member("mortar")(value.projectile))) ||
     (value.kind === "skill" && ["x", "y", "laneOffset", "columnOffset"].every(key => value[key] === undefined || finite(value[key])))
   );
+  const actionStats = (value: unknown) => record(value) &&
+    ["maxHp", "armor", "magicResistance", "attackPower"].every(key => finite(value[key])) &&
+    (value.maxHp as number) > 0 && (value.attackPower as number) >= 0 &&
+    (value.attackSpeed === undefined || finite(value.attackSpeed) && value.attackSpeed >= 0) &&
+    (value.damageType === undefined || ["physical", "magic", "true"].includes(value.damageType as string));
+  const actionContext = (value: unknown) => record(value) && Number.isSafeInteger(value.level) &&
+    (value.level as number) >= 1 && actionStats(value.stats);
+  const pipelineAction = (value: unknown) => record(value) && learnable(value.type) && actionContext(value) &&
+    nativeTowerEvent(value.event) && finite(value.baseDamage) && value.baseDamage >= 0;
   const towerEvent = (value: unknown) => nativeTowerEvent(value) ||
     (record(value) && value.kind === "combined" && nativeTowerEvent(value.original));
   const numberMemory = (value: unknown) => array(value, entry => record(entry) && learnable(entry.type) &&
@@ -169,6 +180,13 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
         require(["laser", "mortar", "wings"].includes(value.bossCompanionActionPhase as string));
       }
       if (kind === "tower") {
+        for (const key of ["healingCredit", "healingUpdatedAt"]) {
+          require(value[key] === undefined || finite(value[key]) && (value[key] as number) >= 0);
+        }
+        if (value.routedSkills !== undefined) require(record(value.routedSkills) &&
+          Object.entries(value.routedSkills).every(([type, until]) => learnable(type) && finite(until) && until >= 0));
+        if (value.pipelineSkillContexts !== undefined) require(record(value.pipelineSkillContexts) &&
+          Object.entries(value.pipelineSkillContexts).every(([type, context]) => learnable(type) && actionContext(context)));
         require(value.continuousAttack === undefined || typeof value.continuousAttack === "boolean");
         if (value.nextInterceptionAt !== undefined) require(finite(value.nextInterceptionAt) && value.nextInterceptionAt >= 0);
         if (value.projectileBank !== undefined) {

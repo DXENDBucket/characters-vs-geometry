@@ -367,6 +367,7 @@ export function applyTowerTrueDamage(tower: Tower, battleTime: number, level: nu
 }
 
 export function towerDamageType(tower: Tower, damageType: CardDefinition["damageType"], battleTime: number) {
+  if (towerActionContext(tower)?.stats.damageType) return towerActionContext(tower)!.stats.damageType!;
   return towerHasTrueDamage(tower, battleTime) ? "true" : damageType ?? "physical";
 }
 

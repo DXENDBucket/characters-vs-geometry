@@ -36,8 +36,12 @@ try {
       ctrl: false, shift: false, right: false } });
     const actions = () => scene.actionQueue.update(scene.battleTime, action => scene.executeBattleAction(action));
     const attach = tower => {
+      // Apply locally; open pipes now transfer instant attachments just like other actions.
+      const modes = scene.edgeTowers.map(edge => edge.mode);
+      scene.edgeTowers.forEach(edge => { edge.mode = "!="; }); scene.numbers.sync();
       scene.cardStatesById.get("!").readyAt = 0;
       scene.submitBattleCommand({ type: "selectCard", id: "!" }); click(tower.column, tower.lane); actions();
+      scene.edgeTowers.forEach((edge, index) => { edge.mode = modes[index]; }); scene.numbers.sync();
     };
     start();
     check(!isCopyableDefinition(getCardDefinition("!")), "Instant attachment can be copied by @");

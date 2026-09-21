@@ -265,6 +265,10 @@ export interface Tower extends NumberTowerState {
     processing?: { shots: StoredTowerShot[]; count: number; completeAt: number };
   };
   nextInterceptionAt?: number;
+  healingCredit?: number;
+  healingUpdatedAt?: number;
+  routedSkills?: Partial<Record<CardId, number>>;
+  pipelineSkillContexts?: Partial<Record<CardId, { level: number; stats: TowerFinalStats }>>;
   projectileRouteIndex?: number;
   continuousAttack?: boolean;
   topologyTarget?: { lane: number; column: number };
@@ -452,6 +456,7 @@ export interface EdgeTower {
 }
 
 export interface StoredTowerShot extends ProjectileIntegrity {
+  action?: { type: CardId; level: number; stats: TowerFinalStats; event: import("./game/towerActions").NativeTowerActionEvent; baseDamage: number };
   pipelineMovedAt?: number;
   type: Exclude<ProjectileKind, "chevron">;
   sourceTower?: Tower;

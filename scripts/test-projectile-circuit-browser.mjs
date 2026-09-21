@@ -49,9 +49,9 @@ try {
       return result;
     };
     start();
-    const source = place("A", 1), bank = place("0", 2), plus = place("+", 3), outlet = place("1", 4, 3, 2);
+    const source = place("A", 1), bank = place("0", 2), outlet = place("1", 4, 3, 2);
     const edge = link(1); link(2).mode = ">"; link(3);
-    check(scene.towers.length === 4 && scene.occupied.size === 4 && edge.level === 1, "Connector occupies a regular cell");
+    check(scene.towers.length === 3 && scene.occupied.size === 3 && edge.level === 1, "Connector occupies a regular cell");
     const money = scene.effectiveChars(); link(1);
     check(edge.level === 2 && Math.abs(scene.effectiveChars() - money + 50) < 1e-6, "Stacking = failed to upgrade");
     select("A"); const p = edgePosition(edge);
@@ -63,13 +63,11 @@ try {
     scene.autoUpgradeMode = false; scene.cardStatesById.get("=").readyAt = 0; scene.attemptAutoUpgrades();
     check(edge.level === 3 && edge.mode === "=", "Automatic connector upgrade reset mode or failed");
     edge.autoUpgrade = false;
-    for (let i = 0; i < 5; i++) check(capture(source, i === 0 ? 2 : 1), "Source capture failed");
-    check(bank.projectileBank.shots.length === 5 && !scene.projectiles.length, "Source skipped local buffer");
-    tick(); check(!bank.projectileBank.shots.length && plus.projectileNode.processing?.count === 5, "Zero did not automatically forward");
-    tick(199); check(!outlet.projectileNode.input.length, "Processor completed too early");
-    tick(1); check(outlet.projectileNode.input.length === 1 && !scene.projectiles.length, "Outlet fired an incomplete batch");
-    for (let i = 0; i < 5; i++) capture(source);
-    tick(); tick(200);
+    check(capture(source, 6), "Source capture failed");
+    check(bank.projectileBank.shots.length === 1 && !scene.projectiles.length, "Source skipped local buffer");
+    tick(); check(!bank.projectileBank.shots.length && outlet.projectileNode.input.length === 1, "Zero did not automatically forward");
+    check(!scene.projectiles.length, "Outlet fired an incomplete batch");
+    capture(source, 5); tick();
     check(scene.projectiles.length === 2 && scene.projectiles[0].hitCount === 6 && scene.projectiles[1].hitCount === 5,
       "Full batch lost multi-hit payload or did not fire together");
     check(scene.projectiles.every(shot => shot.x === outlet.x + 26 && shot.circuitChecked), "Wrong outlet position or recapture flag");
@@ -77,13 +75,17 @@ try {
     const enemy = createEnemy(scene, { kind: "circle", lane: 3, x: bundled.x, time: 0, waveNumber: 1, waveWeight: 10, finalDamageReduction: 0 });
     scene.enemies.push(enemy); const hits = [];
     updateTowerProjectiles({ ...scene.projectileRuntime(), damageEnemy: (_, damage) => hits.push(damage) }, 0);
-    check(hits.length === 6 && hits.every(d => d === 400), "Bundling changed the armor threshold");
+    check(hits.length === 6 && hits.every(d => d === 400), "Pipeline changed the armor threshold");
+    const healingSource = place("A", 6), plus = place("+", 7), patient = place("B", 8);
+    link(6); patient.hp -= 500;
+    capture(healingSource, 3); tick();
+    check(patient.hp === patient.maxHp - 260 && !plus.projectileNode.input.length, "Healing conversion lost multi-hit budget");
     const levelBefore = plus.level, stocked = plus.projectileNode;
     select("+"); scene.cardStatesById.get("+").readyAt = 0; pointer(plus.x, plus.y);
     check(plus.level === levelBefore + 1 && plus.projectileNode === stocked && plus.levelText.text.endsWith("/50"),
       "Processor upgrade reset queues or failed to expand storage");
     const erased = edgePosition(scene.edgeTowers[2]); scene.eraserMode = true; pointer(erased.x, erased.y);
-    check(scene.edgeTowers.length === 2 && outlet.inPlay, "Edge erasure removed adjacent tower");
+    check(scene.edgeTowers.length === 3 && outlet.inPlay, "Edge erasure removed adjacent tower");
 
     start();
     const ammoSource = place("A", 1), minus = place("-", 2), victim = place("B", 3); link(1);
@@ -101,7 +103,7 @@ try {
     const secondSource = place("A", 1, 1), processor = place("+", 2, 1); place("1", 3, 1, 3);
     const sourceEdge = link(1, 1), outputEdge = link(2, 1); sourceEdge.mode = ">"; outputEdge.mode = ">"; outputEdge.autoUpgrade = true;
     for (let i = 0; i < 5; i++) capture(secondSource, 3);
-    tick(); check(processor.projectileNode.processing?.count === 5, "Missing in-progress recipe");
+    check(processor.projectileNode.input.length === 5, "Missing healing stock");
     const snapshot = JSON.parse(JSON.stringify(captureBattleSnapshot(scene.battleState())));
     const save = { version: 1, levelId: "IF-1", wave: scene.wave, savedAt: 1, difficulty: scene.difficulty,
       unlimitedFirepower: false, selectedCards, graph: snapshot };
@@ -114,8 +116,8 @@ try {
     const run = delta => {
       start(); scene.applyBattleSave(restoreBattleSnapshot(scene, snapshot));
       const savedProcessor = scene.towers.find(t => t.type === "+");
-      check(savedProcessor.projectileNode.processing.count === 5 && savedProcessor.projectileNode.processing.shots[0].hitCount === 15,
-        "Save lost processing progress or judgments");
+      check(savedProcessor.projectileNode.input.length === 5 && savedProcessor.projectileNode.input[0].hitCount === 3,
+        "Save lost healing stock or judgments");
       check(scene.edgeTowers.some(e => e.mode === ">" && e.autoUpgrade) && scene.edgeTowers.some(e => e.flowCredit === 20),
         "Save lost direction, auto flag or consumed throughput");
       check(scene.towers.find(t => t.type === "-").projectileNode.input.length === 2, "Save lost local interceptor ammo");

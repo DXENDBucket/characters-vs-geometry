@@ -51,7 +51,7 @@ export function resetOrientation(tower: Tower, state: SkillState) {
 }
 
 function syncOrientationVisual(tower: Tower, state: SkillState, time: number) {
-  const active = time < state.activeUntil;
+  const active = time < state.activeUntil && !tower.routedSkills?.o;
   const rangeAlpha = active ? 0.9 : 0.22;
   if (tower.rangeBorder && tower.rangeBorder.alpha !== rangeAlpha) tower.rangeBorder.setAlpha(rangeAlpha);
   const borderAlpha = !active && state.sp >= ORIENTATION_MAX_SP ? 0.62 + Math.sin(time / 90) * 0.28 : 1;
