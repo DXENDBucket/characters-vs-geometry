@@ -14,12 +14,14 @@ import { deleteSurvivalSave, readSurvivalSave, writeSurvivalSave, type SurvivalS
 import { syncTowerHealthNetworks } from "../game/towerHealth";
 import { detachEnemyHealth } from "../game/enemyHealth";
 import { destroyContainedEnemies, enemiesWithPassengers, enemyIsActive } from "../game/enemyContainers";
-import { ProjectileCircuitController, edgeAtPoint, edgeKey, edgePosition } from "../game/projectileCircuit";
+import { ProjectileCircuitController, edgeAtPoint, edgePosition } from "../game/projectileCircuit";
 import { drawCircuitEdges } from "../render/circuitEdges";
 import { EdgeTowerControls } from "../game/edgeTowerControls";
 import { createTowerProjectile } from "../game/projectiles";
 import { drawParenthesisBorder } from "../render/parenthesisTower";
-import { isParenthesisTower, parenthesisAtPoint, syncTowerOccupancy, towerInPlacementLayer } from "../game/towerOccupancy";
+import { isParenthesisTower, syncTowerOccupancy, towerInPlacementLayer } from "../game/towerOccupancy";
+import { boardPointerTarget } from "../game/boardPointerTarget";
+import { BoardToolPreview, type BoardToolHint } from "../render/boardToolPreview";
 import { executePipelineAction, healPipelineArea, pipelineActionSelfCost } from "../game/pipelineActionEffects";
 import type { TowerActionEvent } from "../game/towerActions";
 import { reflectEnemyAttack } from "../game/projectileRuntime";
@@ -278,6 +280,10 @@ export class GameScene extends Phaser.Scene {
   private levelAuraCachedTowers: Tower[] = [];
   private levelAuraCachedStates: LevelAuraTowerSignature[] = [];
   private placementGhosts: Phaser.GameObjects.Container[] = [];
+  private toolPreview!: BoardToolPreview;
+  private readonly toolHintBuffer: BoardToolHint[] = [];
+  private previewCtrlKey?: Phaser.Input.Keyboard.Key;
+  private previewShiftKey?: Phaser.Input.Keyboard.Key;
   private placementGhostKey = "";
   private readonly placementGhostSpecBuffer: PlacementGhostSpec[] = [];
   private readonly bossHpBarStateCache: BossHpBarState = {
@@ -486,6 +492,9 @@ export class GameScene extends Phaser.Scene {
     this.events.once("shutdown", () => this.cleanupSceneHandlers());
     this.cameras.main.setBackgroundColor(palette.black);
     this.drawBoard();
+    this.toolPreview = new BoardToolPreview(this);
+    this.previewCtrlKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.CTRL, false);
+    this.previewShiftKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT, false);
     this.circuitEdges = this.add.graphics().setDepth(19);
     this.enemyHealthLinks = this.add.graphics().setDepth(59);
     this.ui = createGameHud(this, this.levelId, this.difficulty, {
@@ -756,17 +765,12 @@ export class GameScene extends Phaser.Scene {
     }
     this.autoUpgradeReserveInputFocused = false;
 
-    const column = Math.floor((x - BOARD_X) / CELL_WIDTH);
-    const lane = Math.floor((y - BOARD_Y) / CELL_HEIGHT);
-    const key = gridCellKey(lane, column);
-    const cellTower = this.occupied.get(key);
-    const pointedParenthesis = parenthesisAtPoint(cellTower, x, y);
-    const existingTower = pointedParenthesis ?? cellTower;
+    const { lane, column, cellTower, pointedParenthesis, tower: existingTower, edge: existingEdge } =
+      boardPointerTarget(this.occupied, this.edgeTowers, x, y)!;
 
     if (this.eraserMode) {
-      const edge = edgeAtPoint(x, y);
-      const edgeIndex = edge ? this.edgeTowers.findIndex(item => edgeKey(item) === edgeKey(edge)) : -1;
-      if (edgeIndex >= 0 && !pointedParenthesis) {
+      const edgeIndex = existingEdge ? this.edgeTowers.indexOf(existingEdge) : -1;
+      if (edgeIndex >= 0) {
         const position = edgePosition(this.edgeTowers[edgeIndex]);
         this.edgeTowers.splice(edgeIndex, 1); this.numbers.sync();
         makeEraseMark(this, position.x, position.y);
@@ -787,9 +791,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    const pointedEdge = edgeAtPoint(x, y);
-    const existingEdge = pointedEdge && this.edgeTowers.find(edge => edgeKey(edge) === edgeKey(pointedEdge));
-    if (existingEdge && !this.shifter.isActive() && !pointedParenthesis) {
+    if (existingEdge && !this.shifter.isActive()) {
       if (this.autoUpgradeMode) {
         this.edgeControls.toggleAuto(existingEdge, this.isShiftPointer(pointer)); this.attemptAutoUpgrades();
       } else if (this.selectedCardId === "=") this.handleTargetedEffectCardResult(this.edgeControls.use(existingEdge));
@@ -820,7 +822,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.shifter.isActive()) {
-      this.handleShifterPointer(pointer, lane, column, existingTower);
+      this.handleShifterPointer(pointer, lane, column, existingTower, !!pointedParenthesis);
       return;
     }
 
@@ -918,8 +920,8 @@ export class GameScene extends Phaser.Scene {
     this.syncPlacementGhost(pointer);
   }
 
-  private handleShifterPointer(pointer: Phaser.Input.Pointer, lane: number, column: number, existingTower?: Tower) {
-    const result = this.shifter.handlePointer(lane, column, existingTower, this.isCtrlPointer(pointer));
+  private handleShifterPointer(pointer: Phaser.Input.Pointer, lane: number, column: number, existingTower?: Tower, explicitSelection = false) {
+    const result = this.shifter.handlePointer(lane, column, existingTower, this.isCtrlPointer(pointer), explicitSelection);
     if (result === "cooldown") {
       this.clearPlacementGhosts();
       this.showToast(t("toast.cooldown"));
@@ -962,15 +964,54 @@ export class GameScene extends Phaser.Scene {
     if (this.towerPush.isTargeting() || this.topology.isTargeting()) { this.clearPlacementGhosts(); return; }
     const ghosts = this.placementGhostSpecs(pointer);
     const nextKey = placementGhostKey(ghosts);
-    if (nextKey === this.placementGhostKey) {
-      return;
+    if (nextKey !== this.placementGhostKey) {
+      this.clearPlacementGhosts();
+      this.placementGhostKey = nextKey;
+      for (const ghost of ghosts) {
+        this.addPlacementGhost(ghost.type, ghost.lane, ghost.column);
+      }
     }
+    this.toolPreview.show(this.toolPreviewHints(pointer));
+  }
 
-    this.clearPlacementGhosts();
-    this.placementGhostKey = nextKey;
-    for (const ghost of ghosts) {
-      this.addPlacementGhost(ghost.type, ghost.lane, ghost.column);
+  private toolPreviewHints(pointer?: Phaser.Input.Pointer): BoardToolHint[] {
+    const hints = this.toolHintBuffer;
+    hints.length = 0;
+    if (!pointer || this.gameOver || this.menuOpen || this.reselectOpen || this.debugDamageMode !== null ||
+      this.towerPush.isTargeting() || this.topology.isTargeting() || this.towerSkills.hasSpellMortarTargeting()) return hints;
+    const target = boardPointerTarget(this.occupied, this.edgeTowers, pointer.x, pointer.y);
+    if (!target) return hints;
+    const { tower, edge, lane, column, pointedParenthesis } = target;
+    const towerHint = (tower: Tower, action: BoardToolHint["action"]) => hints.push({
+      x: tower.x, y: tower.y, shape: isParenthesisTower(tower) ? "parenthesis" : "tower", action
+    });
+    const edgeHint = (edge: EdgeTower, action: BoardToolHint["action"]) => hints.push({ ...edgePosition(edge), shape: "edge", action });
+    const invalid = () => hints.push({ x: BOARD_X + (column + .5) * CELL_WIDTH, y: BOARD_Y + (lane + .5) * CELL_HEIGHT, shape: "cell", action: "invalid" });
+    if (this.eraserMode) {
+      if (edge) edgeHint(edge, "erase");
+      else if (tower) towerHint(tower, "erase");
+      else invalid();
+    } else if (this.autoUpgradeMode) {
+      const all = pointer === this.input.activePointer ? this.previewShiftKey?.isDown ?? this.isShiftPointer(pointer) : this.isShiftPointer(pointer);
+      if (edge) {
+        for (const item of all ? this.edgeTowers : [edge]) edgeHint(item, edge.autoUpgrade ? "autoOff" : "autoOn");
+      } else if (tower && supportsTowerAutoUpgrade(tower)) {
+        for (const item of all ? this.towers : [tower]) {
+          if (item.inPlay && item.type === tower.type && supportsTowerAutoUpgrade(item)) towerHint(item, tower.autoUpgrade ? "autoOff" : "autoOn");
+        }
+      } else if (tower) towerHint(tower, "invalid");
+      else invalid();
+    } else if (this.shifter.isActive()) {
+      const additive = this.previewIsAdditive(pointer);
+      const action = this.shifter.pointerAction(lane, column, tower, additive, !!pointedParenthesis);
+      if (action === "select" && tower) towerHint(tower, additive && this.shifter.isSelected(tower) ? "deselect" : "select");
+      else if (action !== "move" || !this.shifter.previewMove(lane, column).valid) invalid();
     }
+    return hints;
+  }
+
+  private previewIsAdditive(pointer: Phaser.Input.Pointer) {
+    return pointer === this.input.activePointer ? this.previewCtrlKey?.isDown ?? this.isCtrlPointer(pointer) : this.isCtrlPointer(pointer);
   }
 
   private placementGhostSpecs(pointer?: Phaser.Input.Pointer): PlacementGhostSpec[] {
@@ -984,7 +1025,8 @@ export class GameScene extends Phaser.Scene {
     const lane = Math.floor((pointer.y - BOARD_Y) / CELL_HEIGHT);
     const column = Math.floor((pointer.x - BOARD_X) / CELL_WIDTH);
 
-    if (this.shifter.isActive() && this.shifter.hasSelection() && this.shifter.isMoveDestination(this.occupied.get(gridCellKey(lane, column)))) {
+    const target = boardPointerTarget(this.occupied, this.edgeTowers, pointer.x, pointer.y)!;
+    if (this.shifter.isActive() && this.shifter.pointerAction(lane, column, target.tower, this.previewIsAdditive(pointer), !!target.pointedParenthesis) === "move") {
       const move = this.shifter.previewMove(lane, column);
       if (move.valid) {
         for (const position of move.positions) {
@@ -1056,6 +1098,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private clearPlacementGhosts() {
+    this.toolPreview?.clear();
     for (const ghost of this.placementGhosts) {
       ghost.destroy();
     }
@@ -2496,12 +2539,14 @@ export class GameScene extends Phaser.Scene {
 
   private endGame() {
     this.gameOver = true;
+    this.clearPlacementGhosts();
     if (this.levelConfig.survival && !this.playback) deleteSurvivalSave(this.levelId);
     showGameOverlay(this.overlay, t("overlay.breach"), t("button.menu"));
   }
 
   private endLevel() {
     this.gameOver = true;
+    this.clearPlacementGhosts();
     const reselectUnlocked = this.levelId === RESELECT_UNLOCK_LEVEL && !isLevelCompleted(RESELECT_UNLOCK_LEVEL);
     const previousCardSlotCount = unlockedCardSlotCount();
     const unlockedCardIds = this.playback ? [] : completeLevel(this.levelId);

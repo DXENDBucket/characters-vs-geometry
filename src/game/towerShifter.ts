@@ -1,10 +1,11 @@
 import Phaser from "phaser";
-import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, COLUMNS, LANES, palette } from "../config";
+import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, COLUMNS, LANES } from "../config";
 import type { Tower } from "../types";
 import { gridCellKey } from "./targeting";
 import { syncTowerFlyingVisual } from "./towers";
 import { isParenthesisTower, syncTowerOccupancy, towerInPlacementLayer } from "./towerOccupancy";
 import { planTowerMove, SHIFTER_BASE_COOLDOWN, type MoveTowersCommand, type TowerMove } from "./rules/towerMovement";
+import { drawTowerSelection } from "../render/boardToolPreview";
 
 export type TowerShifterPointerResult = "selected" | "empty" | "invalid" | "moved" | "cooldown";
 
@@ -105,24 +106,35 @@ export class TowerShifterController {
     return [...this.liveSelection()];
   }
 
-  isMoveDestination(existingTower: Tower | undefined) {
-    const first = this.liveSelection()[0];
-    return !existingTower || !!first && isParenthesisTower(first) !== isParenthesisTower(existingTower);
+  isSelected(tower: Tower) { return this.selectionSet.has(tower); }
+
+  pointerAction(lane: number, column: number, existingTower: Tower | undefined, additive: boolean, explicitSelection = false) {
+    if (!this.isReady()) return "cooldown";
+    // Match the movement planner's top-left anchor, independent of Ctrl selection order.
+    // Prefer the inner layer when both layers occupy that anchor cell.
+    let anchor: Tower | undefined;
+    for (const tower of this.liveSelection()) {
+      if (!anchor || tower.lane < anchor.lane || tower.lane === anchor.lane && (tower.column < anchor.column ||
+        tower.column === anchor.column && isParenthesisTower(anchor) && !isParenthesisTower(tower))) anchor = tower;
+    }
+    if (existingTower && (additive || explicitSelection || !anchor ||
+      lane === anchor.lane && column === anchor.column || isParenthesisTower(anchor) === isParenthesisTower(existingTower))) return "select";
+    return anchor ? "move" : "empty";
   }
 
-  handlePointer(lane: number, column: number, existingTower: Tower | undefined, additive: boolean): TowerShifterPointerResult {
-    const runtime = this.runtime();
-    if (runtime.cardTime < this.readyAt) {
+  handlePointer(lane: number, column: number, existingTower: Tower | undefined, additive: boolean, explicitSelection = false): TowerShifterPointerResult {
+    const action = this.pointerAction(lane, column, existingTower, additive, explicitSelection);
+    if (action === "cooldown") {
       this.deactivate();
       return "cooldown";
     }
 
-    if (existingTower && (additive || !this.hasSelection() || !this.isMoveDestination(existingTower))) {
+    if (action === "select" && existingTower) {
       this.selectTower(existingTower, additive);
       return "selected";
     }
 
-    if (this.liveSelection().length === 0) {
+    if (action === "empty") {
       return "empty";
     }
 
@@ -209,8 +221,7 @@ export class TowerShifterController {
       let mark = this.selectionMarks.get(tower);
       if (!mark) {
         mark = runtime.scene.add.graphics().setDepth(58);
-        mark.lineStyle(2, palette.magic, 0.92);
-        mark.strokeRect(-CELL_WIDTH / 2 + 7, -CELL_HEIGHT / 2 + 7, CELL_WIDTH - 14, CELL_HEIGHT - 14);
+        drawTowerSelection(mark, isParenthesisTower(tower));
         this.selectionMarks.set(tower, mark);
       }
       mark.setPosition(tower.body.x, tower.body.y);
