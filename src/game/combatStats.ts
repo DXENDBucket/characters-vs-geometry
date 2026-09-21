@@ -9,6 +9,7 @@ import {
 } from "./enemySupport";
 import { movementSpeedMultiplier, type SlowAuraSources } from "./slowAura";
 import { statusMultipliers, type StatusMultipliers } from "./statusEffects";
+import { movementHasteMultiplier, setMovementHasteEffect } from "./rules/statusEffectRules";
 
 const DODECAHEDRON_COMPANION_DAMAGE_REDUCTION = 0.95;
 
@@ -51,15 +52,25 @@ export function syncEnemyFinalStats(enemy: Enemy, context: EnemyFinalStatsContex
   const includeDefense = context.includeDefense ?? Boolean(context.enemies);
   const includeMovement = context.includeMovement ?? false;
   const includeAttack = context.includeAttack ?? false;
-  const status = context.status ?? (context.time !== undefined && (includeMovement || includeDefense || includeAttack)
-    ? statusMultipliers(enemy, context.time)
-    : undefined);
-  const statusSpeed = includeMovement ? status?.speed ?? 1 : 1;
-  const statusArmor = includeDefense ? status?.armor ?? 1 : 1;
+  let status = context.status ?? (context.time !== undefined && (includeMovement || includeDefense || includeAttack)
+    ? statusMultipliers(enemy, context.time) : undefined);
   const support = context.support ?? (context.enemies && (includeDefense || includeMovement)
     ? enemySupportBonuses(context.enemies, enemy, { includeDefense, includeMovement, sources: context.supportSources })
     : undefined);
-  const supportSpeed = includeMovement ? support?.speedMultiplier ?? 1 : 1;
+  const previousHaste = includeMovement ? movementHasteMultiplier(enemy) : 1;
+  const auraSpeed = support?.speedMultiplier ?? 1;
+  const auraChanged = includeMovement && setMovementHasteEffect(enemy, auraSpeed);
+  // Passenger movement may carry a merged status copy rather than the enemy's live cache.
+  if (auraChanged && status && status !== enemy.statusMultiplierCache) {
+    status = { ...status, speed: status.speed * auraSpeed / previousHaste };
+  }
+  if (auraChanged) {
+    enemy.statusMultiplierCache.visualSyncedAt = Number.NaN;
+    const refreshed = statusMultipliers(enemy, context.time ?? 0);
+    status ??= refreshed;
+  }
+  const statusSpeed = includeMovement ? status?.speed ?? 1 : 1;
+  const statusArmor = includeDefense ? status?.armor ?? 1 : 1;
   const terrainSpeed = includeMovement && context.towers
     ? movementSpeedMultiplier(context.towers, context.x ?? enemy.x, context.y ?? enemy.y, context.slowAuraSources)
     : 1;
@@ -72,7 +83,7 @@ export function syncEnemyFinalStats(enemy: Enemy, context: EnemyFinalStatsContex
     ? baseStats.magicResistance + (support?.magicResistance ?? 0)
     : finalStats.magicResistance;
   const speed = includeMovement
-    ? (context.baseSpeed ?? baseStats.speed) * statusSpeed * supportSpeed * terrainSpeed
+    ? (context.baseSpeed ?? baseStats.speed) * statusSpeed * terrainSpeed
     : finalStats.speed;
   const passengerAttack = includeAttack ? (enemy.parenthesisCargo ?? []).reduce((sum, passenger) =>
     sum + enemyAttackDamage(passenger, context.time ?? 0), 0) * PASSENGER_STAT_RATIO : 0;

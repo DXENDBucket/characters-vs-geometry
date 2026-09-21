@@ -351,7 +351,7 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
       if (!enemyIsHighFlying(passenger) && !hasStatusEffectName(passenger, "frozen")) updateEnemyRangedAttack(runtime, passenger, time);
     }
     enemy.finalStats.speed = movementSpeed;
-    if ((hasStatusEffectName(enemy, "haste") || support.speedMultiplier > 1) && time >= enemy.nextHasteTrailAt) {
+    if (hasStatusEffectName(enemy, "haste") && time >= enemy.nextHasteTrailAt) {
       makeHasteTrail(runtime.scene, enemy.x, enemy.y);
       enemy.nextHasteTrailAt = time + 120;
     }

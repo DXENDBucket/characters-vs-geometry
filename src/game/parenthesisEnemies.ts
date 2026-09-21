@@ -78,8 +78,9 @@ export function passengerMovementStatus(passenger: Enemy, carrier: Enemy, time: 
   const carrierStatus = statusMultipliers(carrier, time);
   let speed = status.speed;
   for (const effect of carrier.statusEffects) {
+    if (effect.source === "movementAura") continue;
     const value = effectSpeedMultiplier(effect);
-    const own = passenger.statusEffects.find(entry => entry.name === effect.name);
+    const own = passenger.statusEffects.find(entry => entry.name === effect.name && entry.source === effect.source);
     const ownValue = own ? effectSpeedMultiplier(own) : 1;
     if (ownValue === 0) return { ...status, speed: 0 };
     const merged = Math.min(value, ownValue) < 1 ? Math.min(value, ownValue) : Math.max(value, ownValue);

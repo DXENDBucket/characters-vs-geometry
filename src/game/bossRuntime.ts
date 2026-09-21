@@ -20,7 +20,6 @@ import {
   TETRAHEDRON_BOSS_CHARGE_DURATION,
   TETRAHEDRON_BOSS_CHARGE_SUPPRESSION_SP_GAIN,
   TETRAHEDRON_BOSS_DESPERATION_CHARGE_SP_GAIN,
-  TETRAHEDRON_BOSS_HASTE_MULTIPLIER,
   TETRAHEDRON_BOSS_IMPACT_CHARGE_SP_GAIN,
   TETRAHEDRON_BOSS_SUPPRESSION_IMPACT_SP_GAIN
 } from "../config";
@@ -63,6 +62,7 @@ import { createMortarProjectile } from "./projectiles";
 import { SOLAR_BOMB_KIND } from "./solarBomb";
 import { makeWingPulse, triggerAngelWings } from "./enemySupport";
 import { applyStatusEffect, hasStatusEffect } from "./statusEffects";
+import { activeStatusSpeedMultiplier } from "./rules/statusEffectRules";
 import {
   bossBounds,
   findBossPart,
@@ -1156,11 +1156,11 @@ function bossLane(boss: CubeBoss) {
 }
 
 function bossMovementMultiplier(boss: CubeBoss, time: number) {
-  return isTetrahedronBoss(boss) && time < boss.bossHasteUntil ? TETRAHEDRON_BOSS_HASTE_MULTIPLIER : 1;
+  return activeStatusSpeedMultiplier(boss, time);
 }
 
 function updateBossHasteVisual(runtime: BossRuntime, boss: CubeBoss) {
-  if (!isTetrahedronBoss(boss) || runtime.battleTime >= boss.bossHasteUntil) {
+  if (bossMovementMultiplier(boss, runtime.battleTime) <= 1) {
     return;
   }
 

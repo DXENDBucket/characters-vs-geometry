@@ -13,6 +13,28 @@ const card = id => cardDefinitions.find(card => card.id === id);
 const sections = (id, level = 1) => towerDetailSections(card(id), level, towerEncyclopediaEntry(id).description);
 const values = section => section.fields.map(field => field.value).join("\n");
 
+test("every combat effect has a mechanism entry and relevant units link to newly documented mechanics", () => {
+  const { mechanicEncyclopediaEntries, mechanicLinksForEntry, enemyEncyclopediaEntries } = load("src/encyclopedia.ts");
+  const { statusEffectDefinitions } = load("src/data/statusEffects.ts");
+  for (const language of ["zh-CN", "en"]) {
+    setLanguage(language);
+    const entries = mechanicEncyclopediaEntries(), ids = new Set(entries.map(entry => entry.mechanicId));
+    assert.equal(ids.size, entries.length);
+    for (const effect of Object.keys(statusEffectDefinitions)) {
+      assert.ok(ids.has({ frozen: "freeze", reversed: "reversal" }[effect] ?? effect), effect);
+    }
+    assert.doesNotMatch(JSON.stringify(entries), /undefined|NaN/);
+    for (const [kind, id] of [["heart", "haste"], ["chargingHexagon", "haste"], ["hexagon", "armorBoost"],
+      ["hexSpellBulwark", "magicResistanceBoost"], ["equals", "healthLink"]]) {
+      assert.ok(mechanicLinksForEntry(enemyEncyclopediaEntries().find(entry => entry.enemyKind === kind)).includes(id), kind);
+    }
+    for (const [card, id] of [["u", "healthLink"], ["T", "slowField"], ["&", "topology"], ["0", "pipeline"], ["!", "continuousFire"]]) {
+      assert.ok(mechanicLinksForEntry(towerEncyclopediaEntry(card)).includes(id), card);
+    }
+    assert.ok(mechanicLinksForEntry(enemyEncyclopediaEntries().find(entry => entry.icon === "tetrahedron")).includes("power"));
+  }
+});
+
 test("imitator aliases preserve panels, double independent cooldowns and never enter the catalog", () => {
   const { allCardDefinitions, canImitateCard, getCardDefinition, hasCardDefinition } = load("src/registry/cards.ts");
   const { isLoadoutCardId } = load("src/game/cardEligibility.ts");

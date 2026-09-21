@@ -6,6 +6,7 @@ import {
   CELL_HEIGHT,
   CELL_WIDTH,
   TETRAHEDRON_BOSS_HASTE_DURATION,
+  TETRAHEDRON_BOSS_HASTE_MULTIPLIER,
   TETRAHEDRON_BOSS_INVINCIBLE_DURATION
 } from "../config";
 import { isIcosahedronBoss, isTetrahedronBoss } from "../bosses/cubeBoss";
@@ -27,7 +28,7 @@ import {
   solarBombIsDepleted,
   syncSolarBombVisual
 } from "./solarBomb";
-import { addFrozenPhysicalDamage, hasStatusEffect, syncEnemyBodyPosition } from "./statusEffects";
+import { addFrozenPhysicalDamage, applyStatusEffect, hasStatusEffect, syncEnemyBodyPosition } from "./statusEffects";
 import { forEachBossPart, gridCellKey } from "./targeting";
 import { changeTowerHealth, syncHealthBar, syncTowerHealthNetworks, towerHealthDepleted } from "./towerHealth";
 import { syncUnyieldingAuras } from "./towerAuras";
@@ -142,7 +143,8 @@ export function damageBoss(
     boss.criticalHpTriggered = true;
     boss.pendingCriticalSummon = true;
     boss.invincibleUntil = runtime.battleTime + TETRAHEDRON_BOSS_INVINCIBLE_DURATION;
-    boss.bossHasteUntil = runtime.battleTime + TETRAHEDRON_BOSS_HASTE_DURATION;
+    if (isTetrahedronBoss(boss)) applyStatusEffect(boss, "haste", TETRAHEDRON_BOSS_HASTE_DURATION,
+      runtime.battleTime, TETRAHEDRON_BOSS_HASTE_MULTIPLIER);
     boss.nextBossHasteTrailAt = runtime.battleTime;
     boss.hp = nextHp <= 0 ? 1 : boss.maxHp * 0.1;
     syncBossCopyHp(boss);

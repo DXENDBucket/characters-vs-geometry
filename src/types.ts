@@ -220,6 +220,7 @@ export interface CardDefinition {
 
 export interface StatusEffect {
   name: StatusEffectName;
+  source?: "movementAura";
   expiresAt: number;
   speedMultiplier?: number;
   showHalo?: boolean;
@@ -631,7 +632,7 @@ export interface CubeBoss {
   companionsInitialized: boolean;
   companionDeathsHandled: number;
   invincibleUntil: number;
-  bossHasteUntil: number;
+  bossHasteUntil: number; // Legacy save field; live haste is stored in statusEffects.
   nextBossHasteTrailAt: number;
   octahedronCopies?: CubeBoss[];
   octahedronSolarBombsInitialized?: boolean;

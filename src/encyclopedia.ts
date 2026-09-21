@@ -7,11 +7,22 @@ import {
 import { attackIntervalMs } from "./game/attackSpeed";
 import { DAMAGE_SYMBOLS, EFFECT_SYMBOLS, getLanguage, t } from "./i18n";
 import { allCardDefinitions, getCardDefinition } from "./registry/cards";
-import { getEnemyDefinition } from "./registry/enemies";
+import { enemyFamily, getEnemyDefinition } from "./registry/enemies";
+import { statusEffectDefinitions } from "./data/statusEffects";
 import type { CardDefinition, CardId, DamageType, EnemyKind, UnitCategory } from "./types";
 
 export type EncyclopediaTab = "enemies" | "towers" | "mechanics";
 export type EncyclopediaMechanicId =
+  | "haste"
+  | "power"
+  | "armorBoost"
+  | "magicResistanceBoost"
+  | "slowField"
+  | "healthLink"
+  | "transport"
+  | "pipeline"
+  | "topology"
+  | "continuousFire"
   | "flying"
   | "highFlying"
   | "stasis"
@@ -937,6 +948,7 @@ function seconds(ms: number) {
 
 export function mechanicEncyclopediaEntries(): EncyclopediaEntry[] {
   const zh = isZh();
+  const powerPercent = Math.round(((statusEffectDefinitions.power.attack ?? 1) - 1) * 100);
   const entries: Array<{
     id: EncyclopediaMechanicId;
     icon: string;
@@ -947,6 +959,76 @@ export function mechanicEncyclopediaEntries(): EncyclopediaEntry[] {
     descriptionZh: string;
     descriptionEn: string;
   }> = [
+    {
+      id: "haste", icon: ">>", titleZh: "加速", titleEn: "Haste",
+      linesZh: ["效果：按来源倍率提高移动速度，不提高攻速", "同类光环取最高；光环与限时加速相乘"],
+      linesEn: ["Effect: multiplies movement speed, not attack speed", "Strongest movement aura; aura and timed haste multiply"],
+      descriptionZh: "统一的移速增益 effect。心形和冲锋六边形为本行后方敌怪提供 1.5 倍速度，同类光环不叠加，离开范围或来源失效后移除。正四面体冲锋赋予 7 秒限时加速：I 为 2 倍、II 为 2.5 倍，此后每级 +0.5 倍；技能期间新出现的敌怪也获得剩余时长。正四面体濒死时自身获得 60 秒 3 倍速度。重复限时加速取较高倍率与较晚结束时间；它与移动光环、飞行附带加速、凝滞及减速力场分别相乘。冻结仍令速度为零。",
+      descriptionEn: "A movement-speed effect. Heart and Charging Hexagon grant 1.5x speed to enemies behind them in the same lane; these auras do not stack and end on leaving range or losing the source. Tetrahedron Charge grants 7s timed haste: 2x at rank I, 2.5x at II, then +0.5x per rank. New enemies during Charge receive its remaining duration. A critical Tetrahedron gains 3x speed for 60s. Repeated timed haste keeps the strongest multiplier and latest expiry. Timed haste, movement auras, flight speed, Stasis and slow fields multiply separately; Freeze still sets speed to zero."
+    },
+    {
+      id: "power", icon: "!", titleZh: "力量", titleEn: "Power",
+      linesZh: [`效果：攻击力 +${powerPercent}%`, "重复赋予：不叠加；正四面体赋予的力量永久持续"],
+      linesEn: [`Effect: +${powerPercent}% attack`, "Does not stack; Tetrahedron's Power is permanent"],
+      descriptionZh: `力量使敌怪的攻击力变为 ${statusEffectDefinitions.power.attack} 倍，不改变攻速、移速或防御。正四面体的孤注一掷向与自身接触的敌怪赋予永久力量。强化后的攻击力用于该敌怪的伤害计算，头顶显示红色 ! 标识。`,
+      descriptionEn: `Power multiplies enemy attack by ${statusEffectDefinitions.power.attack}, without changing attack speed, movement or defenses. Tetrahedron's Desperation permanently empowers touching enemies. Their attacks use the increased attack stat, and a red ! marker appears overhead.`
+    },
+    {
+      id: "armorBoost", icon: "⬡", titleZh: "护甲增益", titleEn: "Armor Buff",
+      linesZh: ["效果：加算护甲，减少物理伤害", "六边形：I +50，II +80，此后每级 +30"],
+      linesEn: ["Effect: additive armor against physical damage", "Hexagon: I +50, II +80, then +30 per rank"],
+      descriptionZh: "六边形为半径 1.4 格内的敌怪（包括自己）提供护甲，接触范围的 Boss 也可受益。多个光环加算，脱离范围后失效；敌怪头顶显示六边形标识。碎甲在加算护甲之后按比例降低护甲。",
+      descriptionEn: "Hexagons grant armor within 1.4 cells, including themselves and Bosses touching the area. Multiple auras add together and end outside their range. Enemies show a hexagon marker. Sunder multiplies armor after additive bonuses."
+    },
+    {
+      id: "magicResistanceBoost", icon: "⬡M", titleZh: "法抗增益", titleEn: "MR Buff",
+      linesZh: ["效果：加算法术抗性", "术战壁垒：I +40，II +50，此后每级 +10"],
+      linesEn: ["Effect: additive magic resistance", "Spell Bulwark: I +40, II +50, then +10 per rank"],
+      descriptionZh: "六边形术战壁垒为本行敌怪（包括自身）提供加算法抗；多个来源可叠加，来源消失或不再同行时失效。标识与护甲增益同为六边形，但呈法术浅蓝色。护甲与法抗分别应对物理和法术伤害，真实伤害无视这两种防御。",
+      descriptionEn: "Hex Spell Bulwarks add MR to same-lane enemies, including themselves. Sources stack; leaving the lane or losing a source removes its contribution. The hexagon marker is light magic blue. Armor and MR resist physical and magic damage respectively; true damage ignores both."
+    },
+    {
+      id: "slowField", icon: "T", titleZh: "减速力场", titleEn: "Slow Field",
+      linesZh: ["效果：范围内移动与弹幕速度变为 1/6", "叠加：多个力场不重复相乘；不同于凝滞"],
+      linesEn: ["Effect: movement and projectile speed become 1/6", "Multiple fields do not stack; distinct from Stasis"],
+      descriptionZh: "大 T 的缺角 5×5 范围形成减速力场，影响范围内普通敌怪及双方弹幕、抛射体的运动，不改变攻击速度，也不影响 Boss。离开范围即恢复；可与凝滞、加速等移速效果相乘。大 T 无论因何原因消失，都会清除范围内所有弹幕与抛射体。",
+      descriptionEn: "T creates a cornerless 5x5 slow field affecting ordinary enemy movement and both sides' projectiles and mortars, but not attack speed or Bosses. Movement returns to normal outside the field; it multiplies with Stasis and Haste. Removing T for any reason clears all projectiles in its area."
+    },
+    {
+      id: "healthLink", icon: "HP=", titleZh: "生命共享", titleEn: "Shared Health",
+      linesZh: ["效果：网络成员共用当前生命池", "显示：成员血条使用相同生命比例"],
+      linesEn: ["Effect: network members share a health pool", "Display: every member shows the same HP ratio"],
+      descriptionZh: "小 u 将自身及相邻四格的塔连成网络，共享伤害与治疗；上限为成员生命上限之和除以网络内小 u 的数量。成员变更保持比例，合并网络按原上限加权。敌方等号只在出场时按等级连接最近的合格敌怪，上限为成员生命之和，不会持续换人。共享生命不等于镜像：两者的连接、升级与移除规则不同。",
+      descriptionEn: "u links itself and cardinally adjacent towers, sharing damage and healing. Capacity is the members' total max HP divided by the number of u towers. Membership changes preserve ratio; merging pools uses capacity-weighted ratios. Enemy Equals links eligible nearby enemies only on spawn, up to its rank; capacity is their total HP. Shared health is not mirroring and has different connection, upgrade and removal rules."
+    },
+    {
+      id: "transport", icon: "()", titleZh: "装载与保护", titleEn: "Transport & Protection",
+      linesZh: ["敌方括号：先击破载具，才能攻击乘客", "我方括号：优先承受内部塔的伤害"],
+      linesEn: ["Enemy parentheses: destroy the carrier to reach passengers", "Friendly parentheses: intercept damage to the occupant"],
+      descriptionZh: "敌方括号最多容纳等级 +1 个合格小怪，速度取自身与乘客最高值，并获得乘客总生命与攻击的 35% 加成；乘客可使用技能，阻挡时仅载具近战。载具摧毁后在显示位置释放乘客，括号本身不能被装载。我方括号与塔共用一格，按自身防御优先承伤，击破该层的单次判定不向内部溢出；内外分别升级、治疗和移位。潜地箭头与小 q 有各自的装载／释放规则。",
+      descriptionEn: "Enemy parentheses carry rank +1 eligible minions, use the highest movement speed and gain 35% of passenger HP and attack. Passengers may cast skills; only the carrier melees when blocked. Destroying it releases passengers at their displayed positions; parentheses cannot themselves be loaded. Friendly parentheses share a cell and take damage first using their own defenses, without breaking-hit overflow. Shell and occupant upgrade, heal and move separately. Burrow Arrow and q have their own storage and release rules."
+    },
+    {
+      id: "pipeline", icon: "=", titleZh: "管道", titleEn: "Pipeline",
+      linesZh: ["连接件：双向、单向或断开", "保留攻击属性、伤害与多次判定信息"],
+      linesEn: ["Connectors: bidirectional, one-way or disconnected", "Preserves attack type, damage and individual hit counts"],
+      descriptionZh: "连接件位于网格边，流速随等级提升；空格和无关塔作为透明通路，将输入分配给可达接收节点。0 自动存储转发，1 集齐对应数字量后一起发射；- 消耗五倍我方伤害抵消敌方弹幕，+ 按 5:1 转成范围治疗。可运输弹幕以及支持的攻击、生产、治疗、技能和一次性效果，来源照常付出冷却、技力及自伤，一次性塔照常消失，不凭空复制行动。",
+      descriptionEn: "Edge connectors have level-scaled throughput. Empty cells and unrelated towers are transparent routes distributing inputs among reachable receivers. 0 buffers and forwards; 1 fires after collecting its batch. - spends five friendly damage per enemy damage intercepted; + converts damage into area healing at 5:1. Supported attacks, production, healing, skills and one-shot effects can travel through the network. Sources still pay cooldown, SP and self-damage; consumed towers disappear. No actions are duplicated."
+    },
+    {
+      id: "topology", icon: "&", titleZh: "拓扑交换", titleEn: "Topology Swap",
+      linesZh: ["效果：交换两个格子的塔间逻辑位置", "不改变：显示位置、阻挡、对敌索敌与弹幕"],
+      linesEn: ["Effect: swaps two cells for tower-to-tower logic", "Unchanged: visuals, blocking, enemy targeting and projectiles"],
+      descriptionZh: "& 改变塔间邻接、范围、连接和生成位置的计算。显示位置与对敌交互仍按实际格子。多个交换按建立顺序应用；移除一个 & 时恢复其交换并重新计算其余交换。相关范围显示会在交换位置挖洞，并在另一端显示对应方框。",
+      descriptionEn: "& changes adjacency, ranges, connections and generation positions between friendly towers. Rendering and enemy interactions use physical cells. Swaps apply in establishment order; removing an & recalculates the remaining swaps. Range indicators cut out exchanged cells and mark their counterparts."
+    },
+    {
+      id: "continuousFire", icon: "!", titleZh: "持续攻击", titleEn: "Continuous Fire",
+      linesZh: ["效果：永久允许无目标的常规攻击", "不自动释放技能，不绕过必须锁定目标的条件"],
+      linesEn: ["Effect: permanently enables free-aim regular attacks", "Does not auto-cast skills or bypass mandatory target locks"],
+      descriptionZh: "! 附着后允许塔按原攻速和连射规则不断尝试可自由瞄准的常规攻击，即使射程内没有敌怪。不会让追踪弹、预判迫击炮、斩击等必须有目标的攻击凭空发动。重复附着不叠加，升级与移动保留。",
+      descriptionEn: "! allows regular free-aim attacks at the tower's existing cadence and volley count even without nearby enemies. Homing shots, predictive mortars and slashes still require targets. The attachment does not stack and survives upgrades and movement."
+    },
     {
       id: "flying",
       icon: "↟",
@@ -1124,6 +1206,23 @@ export function mechanicLinksForEntry(entry: EncyclopediaEntry): EncyclopediaMec
   addIfMatched("mirror", ["镜像", "mirror"]);
   addIfMatched("sp", ["技力", " sp", "sp/"]);
   addIfMatched("invincible", ["无敌", "invincible", "invulnerability"]);
+  addIfMatched("haste", ["加速", "haste", "movement speed"]);
+  addIfMatched("power", ["力量", "permanent power", "empower"]);
+  addIfMatched("armorBoost", ["护甲光环", "armor aura"]);
+  addIfMatched("magicResistanceBoost", ["法抗光环", "mr aura", "magic-resistance aura"]);
+  addIfMatched("slowField", ["减速力场", "slow field", "slow aura"]);
+  addIfMatched("healthLink", ["共享生命", "共享血量", "shared health", "shared hp"]);
+  addIfMatched("transport", ["乘客", "装载", "passenger", "carrier"]);
+  addIfMatched("pipeline", ["管道", "pipeline"]);
+  addIfMatched("topology", ["拓扑", "topology"]);
+  addIfMatched("continuousFire", ["持续攻击", "continuous-fire"]);
+  const family = entry.enemyKind && enemyFamily(entry.enemyKind);
+  if (family === "heart" || family === "chargingHexagon") links.push("haste");
+  if (family === "hexagon") links.push("armorBoost");
+  if (family === "hexSpellBulwark") links.push("magicResistanceBoost");
+  if (family === "equals" || entry.card?.id === "u") links.push("healthLink");
+  if (entry.card?.id === "T") links.push("slowField");
+  if (entry.icon === "tetrahedron" || entry.icon === "icosahedron") links.push("haste", "power");
   return [...new Set(links)];
 }
 

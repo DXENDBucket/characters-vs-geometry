@@ -154,7 +154,7 @@ export function enemySupportBonuses(
   let hasLeaderBuff = false;
 
   for (const enemy of enemiesWithPassengers(enemies)) {
-    if (enemyIsHighFlying(enemy)) {
+    if (!supportSourceIsActive(enemy)) {
       continue;
     }
 

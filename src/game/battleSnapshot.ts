@@ -1,4 +1,6 @@
 import type Phaser from "phaser";
+import { TETRAHEDRON_BOSS_HASTE_MULTIPLIER } from "../config";
+import { refreshStatusEffect } from "./rules/statusEffectRules";
 import type { CubeBoss, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower } from "../types";
 import { createCubeBoss, updateCubeBossMotion } from "../bosses/cubeBoss";
 import { rankedBossFamily } from "../bosses/bossRanks";
@@ -101,6 +103,10 @@ export function restoreBattleSnapshot(scene: Phaser.Scene, graph: SaveGraph): Ba
       if (!tower.inPlay) tower.body.destroy();
     }
     for (const boss of bosses) {
+      if (rankedBossFamily(boss.kind) === "tetrahedron" && boss.bossHasteUntil > state.battleTime) {
+        refreshStatusEffect(boss, "haste", boss.bossHasteUntil, TETRAHEDRON_BOSS_HASTE_MULTIPLIER);
+      }
+      boss.bossHasteUntil = 0;
       if (boss !== state.boss && !state.boss?.octahedronCopies?.includes(boss)) boss.body.destroy();
       else {
         if (boss !== state.boss) boss.body.setDepth(87);

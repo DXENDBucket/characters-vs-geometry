@@ -1,29 +1,15 @@
 import { CELL_HEIGHT, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
 import { syncPassengerPositions } from "./enemyContainers";
 import { enemyFamily } from "../registry/enemies";
-import type { CubeBoss, Enemy, StatusEffect, StatusEffectName, Tower } from "../types";
+import type { CubeBoss, Enemy, StatusEffectName, Tower } from "../types";
 import { syncEnemyFacingVisual } from "./enemyBehaviors";
 import { applyReversalEffect } from "./rules/reversal";
 import { syncTowerFacingVisual } from "./towers";
 import { setPositionIfChanged, setScaleIfChanged, setVisibleIfChanged } from "./visualGuards";
+import { statusEffectDefinitions } from "../data/statusEffects";
+import { effectSpeedMultiplier, refreshStatusEffect } from "./rules/statusEffectRules";
+export { effectSpeedMultiplier } from "./rules/statusEffectRules";
 
-const STATUS_SPEED_MULTIPLIERS: Record<StatusEffectName, number> = {
-  stasis: 0.7,
-  haste: 2,
-  power: 1,
-  flying: 1,
-  invincible: 1,
-  highFlying: 1,
-  sunder: 1,
-  frozen: 0,
-  reversed: 1
-};
-const STATUS_ATTACK_MULTIPLIERS: Partial<Record<StatusEffectName, number>> = {
-  power: 1.3
-};
-const STATUS_ARMOR_MULTIPLIERS: Partial<Record<StatusEffectName, number>> = {
-  sunder: 0.5
-};
 const BURROW_DISPLAY_OFFSET_Y = CELL_HEIGHT * 0.55;
 
 export interface StatusMultipliers {
@@ -41,6 +27,7 @@ export function applyStatusEffect(
   showHalo?: boolean
 ): void;
 export function applyStatusEffect(unit: Tower | CubeBoss, name: "reversed", duration: number, time: number): void;
+export function applyStatusEffect(unit: CubeBoss, name: "haste", duration: number, time: number, speedMultiplier?: number): void;
 export function applyStatusEffect(
   unit: Enemy | Tower | CubeBoss,
   name: StatusEffectName,
@@ -50,6 +37,7 @@ export function applyStatusEffect(
   showHalo = false
 ) {
   if (!("statusMultiplierCache" in unit)) {
+    if (name === "haste" && "rank" in unit) refreshStatusEffect(unit, name, time + duration, speedMultiplier);
     if (name === "reversed") {
       applyReversalEffect(unit, duration, time);
       if ("facingDirection" in unit) {
@@ -64,32 +52,12 @@ export function applyStatusEffect(
     return;
   }
 
-  const expiresAt = time + duration;
-  const existing = statusEffectByName(enemy, name);
-  if (existing) {
-    existing.expiresAt = name === "sunder" ? expiresAt : Math.max(existing.expiresAt, expiresAt);
-    existing.speedMultiplier = Math.max(
-      existing.speedMultiplier ?? STATUS_SPEED_MULTIPLIERS[name],
-      speedMultiplier ?? STATUS_SPEED_MULTIPLIERS[name]
-    );
-    existing.showHalo = existing.showHalo || showHalo;
-    if (name === "frozen") {
-      existing.physicalDamageTaken = 0;
-    }
-    invalidateStatusVisuals(enemy);
-    return;
-  }
-
-  enemy.statusEffects.push({ name, expiresAt, speedMultiplier, showHalo, physicalDamageTaken: name === "frozen" ? 0 : undefined });
+  refreshStatusEffect(enemy, name, time + duration, speedMultiplier, showHalo);
   invalidateStatusVisuals(enemy);
 }
 
 export function statusSpeedMultiplier(enemy: Enemy, time: number) {
   return statusMultipliers(enemy, time).speed;
-}
-
-export function effectSpeedMultiplier(effect: StatusEffect) {
-  return effect.speedMultiplier ?? STATUS_SPEED_MULTIPLIERS[effect.name];
 }
 
 export function statusAttackMultiplier(enemy: Enemy, time: number) {
@@ -119,8 +87,8 @@ export function statusMultipliers(enemy: Enemy, time: number): StatusMultipliers
   let armor = 1;
   for (const effect of enemy.statusEffects) {
     speed *= effectSpeedMultiplier(effect);
-    attack *= STATUS_ATTACK_MULTIPLIERS[effect.name] ?? 1;
-    armor *= STATUS_ARMOR_MULTIPLIERS[effect.name] ?? 1;
+    attack *= statusEffectDefinitions[effect.name].attack ?? 1;
+    armor *= statusEffectDefinitions[effect.name].armor ?? 1;
   }
   multipliers.speed = speed;
   multipliers.attack = attack;
