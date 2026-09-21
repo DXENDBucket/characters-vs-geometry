@@ -88,6 +88,12 @@ export function createUnitBorder(
 
 export function createEnemyShape(scene: Phaser.Scene, kind: EnemyKind, options: EnemyShapeOptions = {}) {
   const family = enemyFamily(kind);
+  if (family === "dollar") {
+    const shape = scene.add.container(0, 0);
+    const symbol = scene.add.text(0, 0, "$", { fontFamily: "monospace", fontSize: "52px", color: "#f5f5f5" }).setOrigin(0.5);
+    shape.add([symbol, createEnemyLabel(scene, 0, -36, kind)]);
+    return shape;
+  }
   if (family === "parentheses") {
     const shape = scene.add.container(0, 0);
     const frame = scene.add.graphics();

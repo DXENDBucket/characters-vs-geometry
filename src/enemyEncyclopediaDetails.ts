@@ -1,5 +1,6 @@
 import { ANGEL_WINGS_SKILL_MAX, CELL_HEIGHT, CELL_WIDTH } from "./config";
 import { enemyArchetypes } from "./data/enemyArchetypes";
+import { INCITEMENT } from "./data/incitement";
 import { HEART_ATTACK_RADIUS, ENEMY_MORTAR_RANGE_X, ENEMY_MORTAR_RANGE_Y } from "./data/enemyCombatConfig";
 import { getEnemyRegistration } from "./registry/enemies";
 import { enemyAttackSpeed, initialEnemySkillStates } from "./game/enemyBehaviors";
@@ -73,7 +74,12 @@ export function enemyDetailSections(kind: EnemyKind, description: string): Detai
     fields.push(f("触发条件", "Trigger", condition ?? l("技力达到上限自动发动", "Automatically at full SP")));
     sections.push({ title: l(zh, en), tag: l("技力技能 · 自动触发", "SP skill · Automatic"), tone: "skill", fields, ranges: [detailRange(range)], description: text });
   };
-  if (family === "hexagon") {
+  if (family === "dollar") {
+    skill("incitement", "煽动", "Incitement", INCITEMENT.maxSp, INCITEMENT.cost, INCITEMENT.regen, 0, battlefieldRange,
+      l(`选取距离自身最近的 ${INCITEMENT.targetsPerRank * rank} 个其他小怪，赋予 +30% 力量和 +100% 加速，均持续 15 秒；施放后技力继续恢复。排除领袖、Boss、眷属及阳炎爆弹。`,
+        `Grants +30% Power and +100% Haste to the nearest ${INCITEMENT.targetsPerRank * rank} other minions for 15s. SP recovery continues. Excludes leaders, Bosses, companions and Solar Bombs.`),
+      l("满技力，且有合格的其他小怪", "Full SP with another eligible minion"));
+  } else if (family === "hexagon") {
     const range = circle(support.HEX_ARMOR_RADIUS);
     aura("装甲光环", "Armor Aura", range, `+${support.HEX_ARMOR_RANK_ONE_BONUS + (rank - 1) * support.HEX_ARMOR_BONUS_PER_EXTRA_RANK} ` + l("护甲", "armor"),
       l("范围内敌怪，含自身；接触光环的 Boss", "Enemies including self; Boss hitboxes touching the aura"), l("加算叠加", "Additive"));

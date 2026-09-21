@@ -68,6 +68,7 @@ export type CardId =
   | "z"
   | "Z";
 export type EnemyFamily =
+  | "dollar"
   | "equals"
   | "parentheses"
   | "tilde"
@@ -224,6 +225,7 @@ export interface StatusEffect {
   expiresAt: number;
   speedMultiplier?: number;
   showHalo?: boolean;
+  attackMultiplier?: number;
   physicalDamageTaken?: number;
 }
 
@@ -374,6 +376,7 @@ export interface Enemy {
   parenthesisCargo?: Enemy[];
   parenthesisCarrier?: Enemy;
   parenthesisHpBonus?: number;
+  environmentHpMultiplier?: number;
   slopeFacingDirection?: -1 | 1;
   highFlightStartedAt?: number;
   highFlightUntil?: number;

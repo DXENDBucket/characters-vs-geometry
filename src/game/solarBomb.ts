@@ -1,4 +1,5 @@
 import { palette } from "../config";
+import { enemyMaximumHp } from "./enemyContainers";
 import { syncSolarBombShape } from "../render/unitShapes";
 import type { DamageType, Enemy } from "../types";
 
@@ -32,11 +33,11 @@ export function solarBombDamageMultiplier(enemy: Enemy, damageType: DamageType) 
     return 1;
   }
 
-  if (enemy.hp > enemy.baseStats.maxHp * 0.5 && damageType === "magic") {
+  if (enemy.hp > enemyMaximumHp(enemy) * 0.5 && damageType === "magic") {
     return 0.05;
   }
 
-  if (enemy.hp < enemy.baseStats.maxHp * 0.5 && damageType === "physical") {
+  if (enemy.hp < enemyMaximumHp(enemy) * 0.5 && damageType === "physical") {
     return 0.05;
   }
 
@@ -89,7 +90,7 @@ export function syncSolarBombVisual(enemy: Enemy) {
 
   const color = solarBombIsDepleted(enemy)
     ? palette.gold
-    : enemy.hp < enemy.baseStats.maxHp * 0.5
+    : enemy.hp < enemyMaximumHp(enemy) * 0.5
       ? palette.magic
       : palette.white;
   syncSolarBombShape(enemy.shape, color);

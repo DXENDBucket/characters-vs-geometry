@@ -86,3 +86,73 @@ test("boss haste uses the same timed effect and expires at exactly its deadline"
   assert.equal(activeStatusSpeedMultiplier(boss, 60999), 3);
   assert.equal(activeStatusSpeedMultiplier(boss, 61000), 1);
 });
+
+test("Power supports different strengths without making a temporary stronger buff permanent", () => {
+  const unit = enemy();
+  applyStatusEffect(unit, "power", Infinity, 0);
+  applyStatusEffect(unit, "power", 1000, 100, { attackMultiplier: 1.8 });
+  assert.equal(enemyAttackDamage(unit, 100), 720);
+  applyStatusEffect(unit, "power", 1000, 200, { attackMultiplier: 1.8 });
+  assert.equal(unit.statusEffects.length, 2);
+  assert.equal(enemyAttackDamage(unit, 1199), 720);
+  assert.equal(enemyAttackDamage(unit, 1200), 520);
+  const timed = enemy();
+  applyStatusEffect(timed, "power", 1000, 0, { attackMultiplier: 1.6 });
+  applyStatusEffect(timed, "power", 1000, 1000, { attackMultiplier: 1.1 });
+  assert.ok(Math.abs(enemyAttackDamage(timed, 1000) - 440) < 1e-8);
+  assert.equal(enemyAttackDamage(timed, 2000), 400);
+});
+
+test("Dollar ranks keep combat stats and grow weight plus Incitement target capacity", () => {
+  const { getEnemyDefinition, enemyKindAtRank } = load("src/registry/enemies.ts");
+  const { initialEnemySkillStates, enemyAttackSpeed } = load("src/game/enemyBehaviors.ts");
+  for (const rank of [1, 2, 3, 100]) {
+    const kind = enemyKindAtRank("dollar", rank), panel = getEnemyDefinition(kind);
+    assert.deepEqual([panel.hp, panel.armor, panel.magicResistance, panel.damage, panel.speedMultiplier], [20000, 200, 50, 800, 1]);
+    assert.equal(panel.weight, 240 + 200 * (rank - 1));
+    assert.equal(enemyAttackSpeed(kind), 60);
+    assert.deepEqual(initialEnemySkillStates(kind).incitement, { sp: 20, spBuffer: 0, activeUntil: 0 });
+  }
+});
+
+test("Incitement selects nearest other minions, scaling by rank and excluding leader-restricted units", () => {
+  const { incitementTargets } = load("src/game/incitement.ts");
+  const caster = enemy("dollar", 0);
+  const targets = Array.from({ length: 12 }, (_, i) => enemy("circle", 10 + i));
+  const excluded = ["heart", "archangelHeptagon3", "hexSpellBulwark", "slopeTriangle", "burrowArrow", "solarBomb", "dodecahedronCompanion"].map(kind => enemy(kind, 1));
+  excluded.push({ ...enemy("circle", 0), hp: 0 }, { ...enemy("circle", 0), inPlay: false });
+  assert.deepEqual(incitementTargets(caster, [caster, ...excluded, ...targets]), targets.slice(0, 4));
+  caster.kind = "dollar2";
+  assert.deepEqual(incitementTargets(caster, [caster, ...excluded, ...targets]), targets.slice(0, 8));
+  const tie = enemy("triangle", 10);
+  assert.deepEqual(incitementTargets(caster, [tie, targets[0]]), [tie, targets[0]]);
+});
+
+test("Incitement casts at 25 SP for 20, recovers during the 15s buffs and never buffs itself", () => {
+  const { updateIncitement } = load("src/game/incitement.ts");
+  const { initialEnemySkillStates } = load("src/game/enemyBehaviors.ts");
+  const caster = enemy("dollar"), target = enemy();
+  const state = initialEnemySkillStates("dollar").incitement, runtime = { enemies: [caster, target] };
+  updateIncitement(caster, state, 4, 4000, runtime);
+  assert.equal(state.sp, 24); assert.equal(target.statusEffects.length, 0);
+  updateIncitement(caster, state, 1, 5000, runtime);
+  assert.equal(state.sp, 5); assert.equal(caster.statusEffects.length, 0);
+  assert.equal(enemyAttackDamage(target, 19999), 520);
+  assert.equal(statusMultipliers(target, 19999).speed, 2);
+  updateIncitement(caster, state, 1, 6000, runtime); assert.equal(state.sp, 6);
+  assert.equal(enemyAttackDamage(target, 20000), 400);
+  assert.equal(statusMultipliers(target, 20000).speed, 1);
+  updateIncitement(caster, state, 100, 20000, { enemies: [caster] });
+  assert.equal(state.sp, 25, "no eligible target retains full SP");
+});
+
+test("the skill registry pauses Incitement while frozen and resumes without losing initial SP", () => {
+  const { updateEnemySkills } = load("src/game/enemySupport.ts");
+  const { initialEnemySkillStates } = load("src/game/enemyBehaviors.ts");
+  const caster = enemy("dollar"), target = enemy(); caster.skills = initialEnemySkillStates("dollar");
+  const runtime = { enemies: [caster, target] };
+  applyStatusEffect(caster, "frozen", 1000, 0);
+  updateEnemySkills(runtime, 1, 999); assert.equal(caster.skills.incitement.sp, 20);
+  updateEnemySkills(runtime, 5, 1000); assert.equal(caster.skills.incitement.sp, 5);
+  assert.equal(enemyAttackDamage(target, 1000), 520);
+});

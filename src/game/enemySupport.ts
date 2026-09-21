@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { updateIncitement } from "./incitement";
 import { changeEnemyHealth } from "./enemyHealth";
 import { relocateEnemyToLane } from "./oscillatingMovement";
 import { enemiesWithPassengers, enemyIsActive, enemyMaximumHp } from "./enemyContainers";
@@ -101,7 +102,8 @@ const enemySkillRegistry = createEnemySkillRegistry({
   updateHexHeal,
   updateAngelWings,
   updateArchangelAscension,
-  updateHeartLead
+  updateHeartLead,
+  updateIncitement
 });
 const activeEnemyBuffer: Enemy[] = [];
 const heartLeadReadyCastersBuffer: HeartLeadCaster[] = [];

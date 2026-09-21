@@ -14,6 +14,7 @@ export const ARCHANGEL_SPAWN_HIGH_FLIGHT_DURATION = 3_000;
 export const ARCHANGEL_SPAWN_SPEED_MULTIPLIER = 2.5;
 
 interface CreateEnemyOptions {
+  environmentHpMultiplier?: number;
   kind: EnemyKind;
   waveNumber: number;
   time: number;
@@ -40,6 +41,8 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
     finalDamageReduction: options.finalDamageReduction
   });
   const isBurrowArrow = family === "burrowArrow";
+  const environmentHpMultiplier = options.environmentHpMultiplier ?? 1;
+  const maxHp = baseStats.maxHp * environmentHpMultiplier;
   const movementDirection = options.movementDirection ?? -1;
   const body = scene.add.container(options.x, y).setDepth(60 + options.lane);
   const statusBorder = scene.add.circle(0, 0, 28, palette.black, 0).setStrokeStyle(2, palette.magic, 0.92);
@@ -101,10 +104,11 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
     spawnX: options.x,
     x: options.x,
     y,
-    hp: baseStats.maxHp,
+    hp: maxHp,
+    environmentHpMultiplier,
     baseStats,
-    finalStats: { ...baseStats },
-    maxHp: baseStats.maxHp,
+    finalStats: { ...baseStats, maxHp },
+    maxHp,
     armor: baseStats.armor,
     magicResistance: baseStats.magicResistance,
     speed: baseStats.speed,

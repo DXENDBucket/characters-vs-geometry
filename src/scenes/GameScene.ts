@@ -11,6 +11,7 @@ import { BattleActionQueue, type BattleAction, type ScheduleBattleAction } from 
 import type { BattleSaveState } from "../game/battleSaveState";
 import { captureBattleSnapshot, restoreBattleSnapshot } from "../game/battleSnapshot";
 import { deleteSurvivalSave, readSurvivalSave, writeSurvivalSave, type SurvivalSave } from "../survivalSaves";
+import { endlessEnemyHpMultiplier } from "../game/endlessEnvironment";
 import { syncTowerHealthNetworks } from "../game/towerHealth";
 import { detachEnemyHealth } from "../game/enemyHealth";
 import { destroyContainedEnemies, enemiesWithPassengers, enemyIsActive } from "../game/enemyContainers";
@@ -1649,6 +1650,7 @@ export class GameScene extends Phaser.Scene {
 
   private createCombatRuntime(): CombatRuntime {
     return {
+      enemyHpMultiplier: () => endlessEnemyHpMultiplier(this.levelConfig, this.wave),
       onTowerAction: this.routeTowerAction,
       scheduleBattleAction: this.scheduleBattleAction,
       scene: this,
@@ -1690,6 +1692,7 @@ export class GameScene extends Phaser.Scene {
 
   private createBossRuntime(): BossRuntime {
     return {
+      enemyHpMultiplier: () => endlessEnemyHpMultiplier(this.levelConfig, this.wave),
       scheduleBattleAction: this.scheduleBattleAction,
       scene: this,
       enemies: this.enemies,
@@ -1760,6 +1763,7 @@ export class GameScene extends Phaser.Scene {
 
   private createUnitLifecycleRuntime(): UnitLifecycleRuntime {
     return {
+      enemyHpMultiplier: () => endlessEnemyHpMultiplier(this.levelConfig, this.wave),
       onTowerAction: this.routeTowerAction,
       scene: this,
       enemies: this.enemies,
@@ -2470,6 +2474,7 @@ export class GameScene extends Phaser.Scene {
   private updateHud() {
     const activeLevelConfig = this.activeLevelConfig();
     updateGameHud(this.ui, {
+      enemyHpMultiplier: activeLevelConfig.survival ? endlessEnemyHpMultiplier(activeLevelConfig, this.wave) : undefined,
       chars: this.effectiveChars(),
       rawChars: this.chars,
       charsSoftcapped: charsAreSoftcapped(this.chars),

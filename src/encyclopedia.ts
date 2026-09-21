@@ -112,8 +112,20 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
   const square = getEnemyDefinition("square");
   const equals = getEnemyDefinition("equals");
   const parentheses = getEnemyDefinition("parentheses");
+  const dollar = getEnemyDefinition("dollar");
 
   return [
+    {
+      title: zh ? "$ 系列" : "Dollar Series",
+      enemyKind: "dollar",
+      chapterGroupId: "ascii",
+      lines: [statLine([
+        [t("label.hp"), dollar.hp], [t("label.armor"), dollar.armor],
+        [t("label.mr"), dollar.magicResistance], [t("label.atk"), damageText(dollar.damage, dollar.damageType)]]),
+        zh ? "权重 I/II/III：240 / 440 / 640；移速 10；攻速 60。" : "Weight I/II/III: 240 / 440 / 640; speed 10; attack speed 60."],
+      description: zh ? "煽动：初始 20 技力，上限 25，每秒恢复 1；满技力消耗 20，为最近的 4 × 等级个其他小怪赋予 +30% 力量和 +100% 加速，均持续 15 秒。施放后继续回技，目标不足时作用于全部可选目标。不选择自己、领袖、Boss、Boss 眷属或阳炎爆弹。"
+        : "Incitement: starts at 20/25 SP, regenerates 1 SP/s. At full SP, spends 20 to grant +30% Power and +100% Haste to the nearest 4 x rank other minions for 15s. Recovery continues after casting. Excludes self, leaders, Bosses, Boss companions and Solar Bombs."
+    },
     {
       title: zh ? "括号系列" : "Parentheses Series",
       enemyKind: "parentheses",
@@ -968,10 +980,10 @@ export function mechanicEncyclopediaEntries(): EncyclopediaEntry[] {
     },
     {
       id: "power", icon: "!", titleZh: "力量", titleEn: "Power",
-      linesZh: [`效果：攻击力 +${powerPercent}%`, "重复赋予：不叠加；正四面体赋予的力量永久持续"],
-      linesEn: [`Effect: +${powerPercent}% attack`, "Does not stack; Tetrahedron's Power is permanent"],
-      descriptionZh: `力量使敌怪的攻击力变为 ${statusEffectDefinitions.power.attack} 倍，不改变攻速、移速或防御。正四面体的孤注一掷向与自身接触的敌怪赋予永久力量。强化后的攻击力用于该敌怪的伤害计算，头顶显示红色 ! 标识。`,
-      descriptionEn: `Power multiplies enemy attack by ${statusEffectDefinitions.power.attack}, without changing attack speed, movement or defenses. Tetrahedron's Desperation permanently empowers touching enemies. Their attacks use the increased attack stat, and a red ! marker appears overhead.`
+      linesZh: [`默认效果：攻击力 +${powerPercent}%；幅度由来源决定`, "不叠加，取当前最强效果；持续时间由来源决定"],
+      linesEn: [`Default: +${powerPercent}% attack; strength depends on source`, "Strongest active effect only; duration depends on source"],
+      descriptionZh: "力量按来源指定的倍率提高攻击力，不改变攻速、移速或防御，头顶显示红色 !。正四面体赋予的力量永久持续；$ 的煽动赋予 +30% 力量，持续 15 秒。不同幅度分别计时，强效果到期后恢复仍存在的弱效果。",
+      descriptionEn: "Power increases attack by a source-defined multiplier, without changing attack speed, movement or defenses. A red ! marks it. Tetrahedron grants permanent Power; Dollar's Incitement grants +30% for 15s. Different strengths expire independently; the strongest active value applies."
     },
     {
       id: "armorBoost", icon: "⬡", titleZh: "护甲增益", titleEn: "Armor Buff",

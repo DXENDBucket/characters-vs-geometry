@@ -42,7 +42,7 @@ export function containedEnemies(enemy: Enemy) {
 }
 
 export function enemyMaximumHp(enemy: Enemy) {
-  return enemy.baseStats.maxHp + (enemy.parenthesisHpBonus ?? 0);
+  return (enemy.baseStats.maxHp + (enemy.parenthesisHpBonus ?? 0)) * (enemy.environmentHpMultiplier ?? 1);
 }
 
 export function parenthesisHalfSpan(enemy: Enemy) {

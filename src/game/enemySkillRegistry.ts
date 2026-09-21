@@ -16,12 +16,14 @@ export interface EnemySkillActions {
   updateAngelWings: EnemySkillDefinition["update"];
   updateArchangelAscension: EnemySkillDefinition["update"];
   updateHeartLead: EnemySkillDefinition["update"];
+  updateIncitement: EnemySkillDefinition["update"];
 }
 
 export function createEnemySkillRegistry(
   actions: EnemySkillActions
 ): Partial<Record<EnemyFamily, EnemySkillDefinition[]>> {
   return {
+    dollar: [{ stateKey: "incitement", update: actions.updateIncitement }],
     hexagon: [
       {
         stateKey: "heal",

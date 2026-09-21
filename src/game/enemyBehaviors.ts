@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { enemyMaximumHp } from "./enemyContainers";
+import { INCITEMENT } from "../data/incitement";
 import { syncParenthesisVisual } from "../render/parenthesisEnemy";
 import { battleRandom, isBattlePlayback } from "./battleSimulation";
 import { cubePromotionKind } from "../bosses/bossRanks";
@@ -82,6 +83,7 @@ export function enemyAttackInterval(kind: EnemyKind) {
 
 export function initialEnemySkillStates(kind: EnemyKind): Record<string, SkillState> {
   const family = enemyFamily(kind);
+  if (family === "dollar") return { incitement: { sp: INCITEMENT.initialSp, spBuffer: 0, activeUntil: 0 } };
   if (family === "angelPentagon") {
     const rank = enemyRank(kind);
     if (rank >= 2) {

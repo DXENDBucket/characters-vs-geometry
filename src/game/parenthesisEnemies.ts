@@ -46,7 +46,8 @@ export function collectParenthesisPassengers(carrier: Enemy, enemies: Enemy[], t
     changed = true;
   }
   if (!changed) return;
-  carrier.parenthesisHpBonus = cargo.reduce((sum, passenger) => sum + enemyMaximumHp(passenger), 0) * PASSENGER_STAT_RATIO;
+  // Transfer native health, then apply the carrier's environment multiplier once.
+  carrier.parenthesisHpBonus = cargo.reduce((sum, passenger) => sum + enemyMaximumHp(passenger) / (passenger.environmentHpMultiplier ?? 1), 0) * PASSENGER_STAT_RATIO;
   carrier.maxHp = carrier.finalStats.maxHp = enemyMaximumHp(carrier);
   carrier.hp = carrier.maxHp * hpRatio;
   syncParenthesisVisual(carrier);

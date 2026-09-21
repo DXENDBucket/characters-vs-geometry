@@ -7,7 +7,7 @@ import { applyReversalEffect } from "./rules/reversal";
 import { syncTowerFacingVisual } from "./towers";
 import { setPositionIfChanged, setScaleIfChanged, setVisibleIfChanged } from "./visualGuards";
 import { statusEffectDefinitions } from "../data/statusEffects";
-import { effectSpeedMultiplier, refreshStatusEffect } from "./rules/statusEffectRules";
+import { effectAttackMultiplier, effectSpeedMultiplier, refreshStatusEffect, type StatusEffectModifiers } from "./rules/statusEffectRules";
 export { effectSpeedMultiplier } from "./rules/statusEffectRules";
 
 const BURROW_DISPLAY_OFFSET_Y = CELL_HEIGHT * 0.55;
@@ -23,7 +23,7 @@ export function applyStatusEffect(
   name: StatusEffectName,
   duration: number,
   time: number,
-  speedMultiplier?: number,
+  speedMultiplier?: number | StatusEffectModifiers,
   showHalo?: boolean
 ): void;
 export function applyStatusEffect(unit: Tower | CubeBoss, name: "reversed", duration: number, time: number): void;
@@ -33,7 +33,7 @@ export function applyStatusEffect(
   name: StatusEffectName,
   duration: number,
   time: number,
-  speedMultiplier?: number,
+  speedMultiplier?: number | StatusEffectModifiers,
   showHalo = false
 ) {
   if (!("statusMultiplierCache" in unit)) {
@@ -47,6 +47,7 @@ export function applyStatusEffect(
     return;
   }
   const enemy = unit;
+  removeExpiredStatusEffects(enemy, time);
   if (enemyFamily(enemy.kind) === "archangelHeptagon" && name === "flying") {
     applyStatusEffect(enemy, "highFlying", duration, time, speedMultiplier, false);
     return;
@@ -85,13 +86,15 @@ export function statusMultipliers(enemy: Enemy, time: number): StatusMultipliers
   let speed = 1;
   let attack = 1;
   let armor = 1;
+  let power = 1;
   for (const effect of enemy.statusEffects) {
     speed *= effectSpeedMultiplier(effect);
-    attack *= statusEffectDefinitions[effect.name].attack ?? 1;
+    if (effect.name === "power") power = Math.max(power, effectAttackMultiplier(effect));
+    else attack *= effectAttackMultiplier(effect);
     armor *= statusEffectDefinitions[effect.name].armor ?? 1;
   }
   multipliers.speed = speed;
-  multipliers.attack = attack;
+  multipliers.attack = attack * power;
   multipliers.armor = armor;
   return multipliers;
 }

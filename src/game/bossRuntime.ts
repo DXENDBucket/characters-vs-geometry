@@ -145,6 +145,7 @@ const ICOSAHEDRON_FINAL_REINFORCEMENTS: Array<{
 ];
 
 export interface BossRuntime {
+  enemyHpMultiplier?: () => number;
   scheduleBattleAction?: ScheduleBattleAction;
   scene: Phaser.Scene;
   enemies: Enemy[];

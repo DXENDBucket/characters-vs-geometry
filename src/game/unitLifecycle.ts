@@ -36,6 +36,7 @@ import { towerFinalStats } from "./unitStats";
 import { syncTowerOccupancy, towerDamageReceiver } from "./towerOccupancy";
 
 export interface UnitLifecycleRuntime {
+  enemyHpMultiplier?: () => number;
   onTowerAction?: TowerActionListener;
   scene: Phaser.Scene;
   enemies: Enemy[];

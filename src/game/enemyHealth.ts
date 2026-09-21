@@ -4,7 +4,7 @@ import { canJoinEnemyGroup, enemyMaximumHp } from "./enemyContainers";
 
 function syncPool(pool: EnemyHealthPool) {
   const ratio = pool.maxHp > 0 ? Math.max(0, Math.min(1, pool.hp / pool.maxHp)) : 0;
-  for (const member of pool.members) member.hp = member.baseStats.maxHp * ratio;
+  for (const member of pool.members) member.hp = enemyMaximumHp(member) * ratio;
 }
 
 export function changeEnemyHealth(enemy: Enemy, amount: number) {
@@ -24,7 +24,7 @@ export function syncEnemyHealthCapacity(enemy: Enemy) {
   const pool = enemy.healthPool;
   if (!pool) return;
   const ratio = pool.hp / pool.maxHp;
-  pool.maxHp = pool.members.reduce((sum, member) => sum + member.baseStats.maxHp, 0);
+  pool.maxHp = pool.members.reduce((sum, member) => sum + enemyMaximumHp(member), 0);
   pool.hp = pool.maxHp * ratio;
   syncPool(pool);
 }
@@ -43,7 +43,7 @@ export function initializeEnemyHealthLinks(owner: Enemy, enemies: readonly Enemy
   const pool: EnemyHealthPool = {
     owner, members,
     hp: members.reduce((sum, member) => sum + member.hp, 0),
-    maxHp: members.reduce((sum, member) => sum + member.baseStats.maxHp, 0)
+    maxHp: members.reduce((sum, member) => sum + enemyMaximumHp(member), 0)
   };
   for (const member of members) member.healthPool = pool;
   syncPool(pool);
@@ -60,7 +60,7 @@ export function detachEnemyHealth(enemy: Enemy) {
   }
   const ratio = pool.hp / pool.maxHp;
   pool.members = pool.members.filter(member => member !== enemy);
-  pool.maxHp = pool.members.reduce((sum, member) => sum + member.baseStats.maxHp, 0);
+  pool.maxHp = pool.members.reduce((sum, member) => sum + enemyMaximumHp(member), 0);
   pool.hp = pool.maxHp * ratio;
   if (pool.members.length === 1) pool.owner.healthPool = undefined;
   else syncPool(pool);

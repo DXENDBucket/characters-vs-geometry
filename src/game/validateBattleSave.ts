@@ -154,6 +154,7 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
       require(array(value.statusEffects, effect => record(effect) && typeof effect.name === "string" && timestamp(effect.expiresAt)));
       require(Number.isInteger(value.lane) && (value.lane as number) >= 0 && (value.lane as number) < 7);
       if (kind === "enemy") {
+        require(value.environmentHpMultiplier === undefined || finite(value.environmentHpMultiplier) && value.environmentHpMultiplier >= 1);
         if (value.parenthesisCargo !== undefined) {
           const identity = parseEnemyKind(value.kind);
           require(Array.isArray(value.parenthesisCargo));

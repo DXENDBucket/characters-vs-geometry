@@ -29,6 +29,7 @@ export interface GameHudElements {
   charsText: Phaser.GameObjects.Text;
   extractionText: Phaser.GameObjects.Text;
   statusText: Phaser.GameObjects.Text;
+  environmentText: Phaser.GameObjects.Text;
   progressText: Phaser.GameObjects.Text;
   progressBack: Phaser.GameObjects.Rectangle;
   progressFill: Phaser.GameObjects.Rectangle;
@@ -98,6 +99,7 @@ interface CardUpdateState {
 }
 
 interface HudUpdateState {
+  enemyHpMultiplier?: number;
   chars: number;
   rawChars: number;
   charsSoftcapped: boolean;
@@ -148,6 +150,9 @@ export function createGameHud(
     fontSize: "16px"
   });
   const speedSliderX = 348;
+  const environmentText = scene.add.text(550, 120, "", {
+    color: "#9fdcff", fontFamily: "monospace", fontSize: "13px"
+  }).setOrigin(0, 0.5);
   const speedSliderY = 120;
   const speedSliderWidth = 176;
   const speedText = scene.add
@@ -321,6 +326,7 @@ export function createGameHud(
 
   const ui: GameHudElements = {
     titleText,
+    environmentText,
     pauseMenuButton,
     pauseMenuText,
     pauseMenuTooltip,
@@ -614,6 +620,8 @@ export function updateToolButtonStates(
 }
 
 export function updateGameHud(ui: GameHudElements, state: HudUpdateState) {
+  setTextIfChanged(ui.environmentText, state.enemyHpMultiplier === undefined ? "" :
+    t("label.enemyEnvironmentHp", { value: Math.round(state.enemyHpMultiplier * 100) / 100 }));
   const waveText = state.wave === 0 ? t("label.wait") : `${state.wave}`;
   const flag = state.wave === 0 ? 0 : Math.ceil(state.wave / state.wavesPerFlag);
   const pauseText = state.battlePaused ? `    ${t("label.paused")}` : "";

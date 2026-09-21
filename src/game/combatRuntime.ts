@@ -5,6 +5,7 @@ import type { ProjectileMotionFrame } from "./projectileMotion";
 import type { CardDefinition, CardId, CubeBoss, DamageType, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower } from "../types";
 
 export interface CombatRuntime {
+  enemyHpMultiplier?: () => number;
   onTowerAction?: TowerActionListener;
   projectileMotion?: ProjectileMotionFrame;
   scheduleBattleAction?: ScheduleBattleAction;
@@ -54,7 +55,7 @@ export type CardBehaviorRuntime = Pick<
   | "isCellDeployable"
 >;
 
-export type EnemySpawnRuntime = Pick<CombatRuntime, "scene" | "enemies">;
+export type EnemySpawnRuntime = Pick<CombatRuntime, "scene" | "enemies" | "enemyHpMultiplier">;
 
 export type EnemyAdvanceRuntime = Pick<
   CombatRuntime,

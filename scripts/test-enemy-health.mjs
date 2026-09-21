@@ -13,6 +13,52 @@ function enemy(kind, x = 0, y = 0, ratio = 1) {
     baseStats: { maxHp: definition.hp }, waveNumber: 1 };
 }
 
+test("all endless stages increase new-enemy HP only on waves after flags, without a cap", () => {
+  const { endlessEnemyHpMultiplier: multiplier } = load("src/game/endlessEnvironment.ts");
+  const { levelConfigs } = load("src/data/levels.ts");
+  for (const level of Object.values(levelConfigs)) {
+    for (const [wave, expected] of [[0, 1], [1, 1], [10, 1], [11, 1.35], [20, 1.35], [21, 1.7], [1001, 36]]) {
+      assert.equal(multiplier(level, wave), level.survival ? expected : 1);
+    }
+  }
+});
+
+test("shared health accounts for different spawn multipliers and retains them on capacity changes", () => {
+  const { enemyMaximumHp } = load("src/game/enemyContainers.ts");
+  const owner = enemy("equals"), target = enemy("circle", 10);
+  owner.environmentHpMultiplier = 1.7; owner.maxHp = owner.hp = enemyMaximumHp(owner);
+  link(owner, [owner, target]);
+  assert.equal(owner.healthPool.maxHp, 23400);
+  change(target, -11700);
+  assert.equal(owner.hp, 10200); assert.equal(target.hp, 1500);
+  target.baseStats.maxHp = 5000; resize(target);
+  assert.equal(owner.healthPool.maxHp, 25400);
+  assert.equal(target.hp, 2500); assert.equal(owner.hp, 10200);
+  detach(owner); assert.equal(target.hp, 2500);
+});
+
+test("final environment multiplier survives save graphs and applies after native carrier bonuses", () => {
+  const { enemyMaximumHp } = load("src/game/enemyContainers.ts");
+  const { encodeSaveGraph, decodeSaveGraph } = load("src/game/saveGraph.ts");
+  const unit = enemy("parentheses");
+  unit.environmentHpMultiplier = 1.7; unit.parenthesisHpBonus = 3500;
+  unit.hp = unit.maxHp = enemyMaximumHp(unit);
+  assert.equal(unit.maxHp, 14450); assert.equal(unit.baseStats.maxHp, 5000);
+  const graph = encodeSaveGraph(unit, value => ({ kind: Array.isArray(value) ? "array" : "object" }));
+  const restored = decodeSaveGraph(JSON.parse(JSON.stringify(graph)), () => ({}));
+  assert.equal(enemyMaximumHp(restored), 14450);
+  restored.baseStats.maxHp = 10000; assert.equal(enemyMaximumHp(restored), 22950);
+  delete restored.environmentHpMultiplier; assert.equal(enemyMaximumHp(restored), 13500, "legacy saves default to x1");
+});
+
+test("Solar Bomb resistance thresholds use final environmentally scaled HP", () => {
+  const { solarBombDamageMultiplier } = load("src/game/solarBomb.ts");
+  const unit = enemy("solarBomb"); unit.environmentHpMultiplier = 2;
+  unit.hp = 15000; assert.equal(solarBombDamageMultiplier(unit, "magic"), .05);
+  unit.hp = 9000; assert.equal(solarBombDamageMultiplier(unit, "physical"), .05);
+  assert.equal(solarBombDamageMultiplier(unit, "magic"), 1);
+});
+
 test("AE-3 uses the chapter-four template and exact enemy pool, unlocking = and 1 but not +", () => {
   const { getLevelConfig } = load("src/data/levels.ts");
   const level = getLevelConfig("AE-3"), template = getLevelConfig("AE-1");

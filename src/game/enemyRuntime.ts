@@ -2,7 +2,7 @@ import Phaser from "phaser";
 import { HEART_ATTACK_RADIUS, ENEMY_MORTAR_RANGE_X, ENEMY_MORTAR_RANGE_Y } from "../data/enemyCombatConfig";
 import { towerAreaTargets, towerDamageReceiver } from "./towerOccupancy";
 import { collectParenthesisPassengers, passengerMovementStatus } from "./parenthesisEnemies";
-import { destroyContainedEnemies, enemyCanBeLoaded, enemyIsActive, syncPassengerPositions } from "./enemyContainers";
+import { destroyContainedEnemies, enemyCanBeLoaded, enemyIsActive, enemyMaximumHp, syncPassengerPositions } from "./enemyContainers";
 import { towerBehaviorType } from "./towerIdentity";
 import { battleRandom } from "./battleSimulation";
 import type { BattleAction } from "./battleActions";
@@ -127,7 +127,7 @@ const lockedAttackBlockedCountsBuffer = new Map<string, number>();
 const enemyLaserHitTowersBuffer: Tower[] = [];
 
 export function spawnEnemyAt(runtime: EnemySpawnRuntime, options: SpawnEnemyOptions) {
-  const enemy = createEnemy(runtime.scene, options);
+  const enemy = createEnemy(runtime.scene, { ...options, environmentHpMultiplier: runtime.enemyHpMultiplier?.() });
   runtime.enemies.push(enemy);
   initializeEnemyHealthLinks(enemy, runtime.enemies);
   for (const member of enemy.healthPool?.members ?? []) syncEnemyVisualScale(member);
@@ -1135,7 +1135,7 @@ function advanceSiegeRam(
   makeShellBurst(runtime.scene, enemy.x, enemy.y, CELL_WIDTH * 0.85, enemy.damageType);
   makeShockPulse(runtime.scene, enemy.x, enemy.y, CELL_WIDTH * 0.82, CELL_HEIGHT * 0.62);
   runtime.damageTower(redirectOrientedTarget(runtime.towers, blocker, time)!, enemyAttackDamage(enemy, time), enemy.damageType);
-  runtime.damageEnemy(enemy, enemy.baseStats.maxHp * 10_000, "true");
+  runtime.damageEnemy(enemy, enemyMaximumHp(enemy) * 10_000, "true");
   return true;
 }
 
@@ -1157,7 +1157,7 @@ function advanceBlockedDetonator(
       makeShellBurst(runtime.scene, enemy.x, enemy.y, CELL_WIDTH, detonation.damageType);
       makeShockPulse(runtime.scene, enemy.x, enemy.y, CELL_WIDTH * 0.72, CELL_HEIGHT * 0.72);
       runtime.damageTower(redirectOrientedTarget(runtime.towers, blocker, time)!, detonation.damage * enemyAttackMultiplier(enemy, time), detonation.damageType);
-      runtime.damageEnemy(enemy, enemy.baseStats.maxHp * 10_000, "true");
+      runtime.damageEnemy(enemy, enemyMaximumHp(enemy) * 10_000, "true");
       return true;
     }
 
