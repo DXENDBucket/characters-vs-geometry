@@ -30,6 +30,7 @@ npm run desktop:dist
 
 ## 参考资料
 
+- [解锁参考](unlock-reference.md)：初始字符、逐关字符奖励、卡槽、功能及无尽关卡开放条件。
 - `wave-reference.md`：敌人权重、关卡波次、角色属性和难度规则。
 
 ## 许可证
