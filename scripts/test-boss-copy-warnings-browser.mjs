@@ -22,6 +22,12 @@ try {
     const { BOARD_X, BOARD_Y, CELL_WIDTH, CELL_HEIGHT } = await import("/src/config.ts");
     const game = window.__testGame; game.loop.stop();
     const check = (value, message) => { if (!value) throw Error(message); };
+    const checkRedWarnings = boss => {
+      const frames = boss.body.list.filter(object => object.name === "boss-copy-warning");
+      const labels = boss.body.list.filter(object => object.name === "boss-copy-countdown");
+      check(frames.length > 0 && frames.every(frame => frame.commandBuffer.includes(0xff6464)), "Warning frame must be red");
+      check(labels.length > 0 && labels.every(label => label.style.color === "#ff6464"), "Warning countdown must be red");
+    };
     const start = id => {
       for (const scene of game.scene.getScenes(true)) game.scene.stop(scene.sys.settings.key);
       game.scene.start("GameScene", { levelId: id, selectedCards: ["A"], seed: 42, difficulty: 0 });
@@ -36,6 +42,7 @@ try {
     check(boss.invincibleUntil === Infinity && boss.octahedronCopies.length === 0, "Shield must precede delayed body");
     check(boss.pendingCopies.length === 1 && scene.enemies.length === bombs, "Bombs or body spawned before warning");
     check(boss.body.getByName("boss-copy-countdown").text === "4", "Missing countdown");
+    checkRedWarnings(boss);
     const destination = { ...boss.pendingCopies[0] };
     tick(4999); check(boss.octahedronCopies.length === 0, "Early spawn");
     tick(4999); check(boss.pendingCopies[0].readyAt === 5000, "Paused clock advanced warning");
@@ -52,6 +59,7 @@ try {
     const restored = restoreBattleSnapshot(scene, graph);
     check(restored.boss.pendingCopies[0].readyAt === 10000, "Save changed deadline");
     check(restored.boss.body.getByName("boss-copy-countdown").text === "4", "Restore did not recreate warning");
+    checkRedWarnings(restored.boss);
     for (const part of [boss, ...boss.octahedronCopies]) part.body.destroy();
     for (const enemy of scene.enemies) enemy.body.destroy();
     scene.applyBattleSave(restored); boss = scene.boss;
@@ -66,6 +74,7 @@ try {
     scene.bossPhaseIndex = 3; scene.resetBossForPhase(boss); scene.applyBossPhaseStats(boss);
     boss.hp = boss.maxHp * .25; tick(1000);
     check(boss.pendingCopies.length === 3 && !boss.octahedronCopies.length && boss.invincibleUntil === 0, "Icosahedron thresholds must warn without shielding");
+    checkRedWarnings(boss);
     check(!scene.enemies.some(enemy => enemy.kind === "solarBomb"), "Icosahedron spawned bombs");
     tick(5000); check(boss.octahedronCopies.length === 3, "Icosahedron threshold bodies missing");
     damageBoss(scene.unitLifecycleRuntime(), 1e10, "true");
