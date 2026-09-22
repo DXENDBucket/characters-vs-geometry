@@ -1,7 +1,8 @@
 import Phaser from "phaser";
 import { bindButtonHover } from "../render/buttonHover";
 import { createPageHeading, createHeaderNavigation } from "../render/pageHeader";
-import { GAME_HEIGHT, GAME_WIDTH, palette, uiTextColors } from "../config";
+import { createSelectionMapViewport, drawSelectionMapFrame } from "../render/selectionMap";
+import { palette, uiTextColors } from "../config";
 import { levelNodesForChapter, type ChapterDefinition } from "../data/chapters";
 import { chaptersInGroup, getChapterGroup } from "../data/chapterGroups";
 import { t } from "../i18n";
@@ -29,7 +30,7 @@ export class ChapterSelectScene extends Phaser.Scene {
   private chapterCards: ChapterCard[] = [];
   private mapContainer!: Phaser.GameObjects.Container;
   private mapBounds!: Phaser.Geom.Rectangle;
-  private readonly mapViewport = new Phaser.Geom.Rectangle(38, 130, GAME_WIDTH - 76, GAME_HEIGHT - 184);
+  private readonly mapViewport = createSelectionMapViewport();
   private mapDragPointer: Phaser.Input.Pointer | null = null;
   private mapDragTimer: Phaser.Time.TimerEvent | null = null;
   private mapDragging = false;
@@ -74,9 +75,7 @@ export class ChapterSelectScene extends Phaser.Scene {
   private drawBackdrop() {
     createPageHeading(this, t("app.title"), t("label.chapterSelect"));
 
-    const frame = this.add.graphics();
-    frame.lineStyle(1, palette.dim, 1);
-    frame.strokeRect(this.mapViewport.x, this.mapViewport.y, this.mapViewport.width, this.mapViewport.height);
+    drawSelectionMapFrame(this, this.mapViewport);
   }
 
   private createMapContainer() {

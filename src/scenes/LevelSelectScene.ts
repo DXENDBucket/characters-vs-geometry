@@ -2,12 +2,12 @@ import Phaser from "phaser";
 import { bindButtonHover } from "../render/buttonHover";
 import { bindSliderInput } from "../render/sliderInput";
 import { createPageHeading, createHeaderNavigation } from "../render/pageHeader";
+import { createSelectionMapViewport, drawSelectionMapFrame } from "../render/selectionMap";
 import { readSurvivalSave } from "../survivalSaves";
 import {
   DEFAULT_DIFFICULTY,
   DIFFICULTY_MAX,
   DIFFICULTY_MIN,
-  GAME_HEIGHT,
   GAME_WIDTH,
   LEVEL_NODE_HEIGHT,
   LEVEL_NODE_WIDTH,
@@ -61,7 +61,7 @@ export class LevelSelectScene extends Phaser.Scene {
   private unlimitedFirepower = false;
   private mapContainer!: Phaser.GameObjects.Container;
   private mapBounds!: Phaser.Geom.Rectangle;
-  private readonly mapViewport = new Phaser.Geom.Rectangle(38, 156, GAME_WIDTH - 76, GAME_HEIGHT - 246);
+  private readonly mapViewport = createSelectionMapViewport();
   private readonly footerY = 715;
   private mapDragPointer: Phaser.Input.Pointer | null = null;
   private mapDragTimer: Phaser.Time.TimerEvent | null = null;
@@ -143,9 +143,7 @@ export class LevelSelectScene extends Phaser.Scene {
   private drawBackdrop() {
     createPageHeading(this, t("app.title"), this.chapterLabel());
 
-    const frame = this.add.graphics();
-    frame.lineStyle(1, palette.dim, 1);
-    frame.strokeRect(this.mapViewport.x, this.mapViewport.y, this.mapViewport.width, this.mapViewport.height);
+    drawSelectionMapFrame(this, this.mapViewport);
   }
 
   private createMapContainer() {
