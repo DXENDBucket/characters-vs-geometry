@@ -8,6 +8,20 @@ import ts from "typescript";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const storageKey = "characters-vs-geometry-progress-v1";
 
+test("Q unlocks after 2-2 and O after 2-3", () => {
+  const { progress } = fixture();
+  progress.completeLevel("1-10");
+  assert.equal(progress.isCardUnlocked("R"), true);
+  assert.equal(progress.isCardUnlocked("O"), false);
+  assert.equal(progress.isCardUnlocked("Q"), false);
+  assert.deepEqual(progress.completeLevel("2-2"), ["Q"]);
+  assert.equal(progress.isCardUnlocked("Q"), true);
+  assert.equal(progress.isCardUnlocked("O"), false);
+  assert.deepEqual(progress.completeLevel("2-3"), ["O"]);
+  assert.equal(progress.isCardUnlocked("O"), true);
+  assert.deepEqual(progress.completeLevel("2-4"), ["c"]);
+});
+
 test("flawless clears retain per-difficulty records, including difficulty zero and repeat clears", () => {
   const { progress, storage, writes } = fixture();
   progress.completeLevel("1-1");
