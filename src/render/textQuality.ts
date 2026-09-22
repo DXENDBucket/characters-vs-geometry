@@ -1,8 +1,9 @@
 import Phaser from "phaser";
+import { MAX_RENDER_SCALE } from "./renderResolution";
 
-const TEXT_RESOLUTION = 2;
+const TEXT_RESOLUTION = MAX_RENDER_SCALE;
 
-/** Supersample text without enlarging the battlefield framebuffer or changing input coordinates. */
+/** Text textures cover the maximum framebuffer scale without changing their logical dimensions. */
 export class TextQualityPlugin extends Phaser.Plugins.ScenePlugin {
   boot() {
     this.systems?.events.on(Phaser.Scenes.Events.ADDED_TO_SCENE, this.onAdded, this);

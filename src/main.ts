@@ -10,6 +10,7 @@ import { SettingsScene } from "./scenes/SettingsScene";
 import { MainMenuScene } from "./scenes/MainMenuScene";
 import { EncyclopediaScene } from "./scenes/EncyclopediaScene";
 import { TextQualityPlugin } from "./render/textQuality";
+import { installHighDpiRenderer } from "./render/highDpiRenderer";
 import { recoverSaveImport } from "./saveArchive";
 
 try { recoverSaveImport(); } catch (error) { console.error("Save recovery is pending", error); }
@@ -20,6 +21,7 @@ const game = new Phaser.Game({
   width: GAME_WIDTH,
   height: GAME_HEIGHT,
   pixelArt: false,
+  callbacks: { postBoot: installHighDpiRenderer },
   plugins: {
     scene: [{ key: "TextQuality", plugin: TextQualityPlugin, start: true }]
   },
