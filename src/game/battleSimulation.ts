@@ -1,5 +1,10 @@
 export const BATTLE_STEP_MS = 1000 / 60;
-export const BATTLE_RULES_VERSION = 1;
+export const BATTLE_RULES_VERSION = 2;
+
+// Version 1 saves have no pending copy warnings; their existing bodies and clock remain valid.
+export function canRestoreBattleVersion(version: unknown) {
+  return version === 1 || version === BATTLE_RULES_VERSION;
+}
 
 export class BattleRandom {
   constructor(public state: number) { this.state >>>= 0; }

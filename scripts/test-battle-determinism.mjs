@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { createTypeScriptLoader } from "./helpers/load-typescript.mjs";
 
 const load = createTypeScriptLoader();
-const { BattleRandom, BattleClock, BATTLE_STEP_MS, battleRandom, setBattleRandom } = load("src/game/battleSimulation.ts");
+const { BattleRandom, BattleClock, BATTLE_STEP_MS, BATTLE_RULES_VERSION, battleRandom, setBattleRandom } = load("src/game/battleSimulation.ts");
 const { validateReplay } = load("src/game/battleCommands.ts");
 
 test("battle RNG has a stable integer sequence, isolated streams and resumable state", () => {
@@ -55,7 +55,7 @@ test("clock checkpoint preserves sub-tick time and bounded catch-up", () => {
 });
 
 test("replay commands retain same-tick ordering and reject malformed input or incompatible rules", () => {
-  const replay = { version: 1, seed: 42, endTick: 100, levelId: "1-1", difficulty: 3,
+  const replay = { version: BATTLE_RULES_VERSION, seed: 42, endTick: 100, levelId: "1-1", difficulty: 3,
     unlimitedFirepower: false, debug: false, selectedCards: ["S"],
     commands: [
       { tick: 0, sequence: 0, command: { type: "selectCard", id: "S" } },
@@ -63,6 +63,7 @@ test("replay commands retain same-tick ordering and reject malformed input or in
       { tick: 10, sequence: 2, command: { type: "reserve", value: 500 } }
     ] };
   assert.doesNotThrow(() => validateReplay(JSON.parse(JSON.stringify(replay))));
+  assert.throws(() => validateReplay({ ...replay, version: 1 }), "Old immediate-split replays are incompatible with delayed copies");
   const { migrateDifficulty } = load("src/config.ts");
   for (let difficulty = 1; difficulty <= 8; difficulty++) {
     assert.doesNotThrow(() => validateReplay({ ...replay, difficulty }));

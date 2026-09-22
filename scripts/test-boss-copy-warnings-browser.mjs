@@ -1,0 +1,105 @@
+import assert from "node:assert/strict";
+import { mkdir } from "node:fs/promises";
+import { pathToFileURL } from "node:url";
+const option = name => process.argv.find(value => value.startsWith(`--${name}=`))?.slice(name.length + 3);
+const { chromium } = await import(option("playwright") ? pathToFileURL(option("playwright")).href : "playwright");
+const browser = await chromium.launch({ executablePath: option("browser"), headless: true });
+try {
+  await mkdir("logs", { recursive: true });
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  const errors = []; page.on("pageerror", error => errors.push(error.message));
+  await page.route("**/src/main.ts*", async route => {
+    const response = await route.fetch();
+    await route.fulfill({ response, body: await response.text() + "\nwindow.__testGame=game;" });
+  });
+  await page.goto(option("url") ?? "http://127.0.0.1:5173");
+  await page.waitForFunction(() => window.__testGame?.scene.getScenes(true).length);
+  await page.evaluate(async () => {
+    const { updateBossRuntime } = await import("/src/game/bossRuntime.ts");
+    const { damageBoss } = await import("/src/game/unitLifecycle.ts");
+    const { captureBattleSnapshot, restoreBattleSnapshot } = await import("/src/game/battleSnapshot.ts");
+    const { validateBattleSave } = await import("/src/game/validateBattleSave.ts");
+    const { BOARD_X, BOARD_Y, CELL_WIDTH, CELL_HEIGHT } = await import("/src/config.ts");
+    const game = window.__testGame; game.loop.stop();
+    const check = (value, message) => { if (!value) throw Error(message); };
+    const start = id => {
+      for (const scene of game.scene.getScenes(true)) game.scene.stop(scene.sys.settings.key);
+      game.scene.start("GameScene", { levelId: id, selectedCards: ["A"], seed: 42, difficulty: 0 });
+      return game.scene.getScene("GameScene");
+    };
+    let scene = start("IF-BE-4");
+    const tick = time => { scene.battleTime = time; updateBossRuntime(scene.bossRuntime(), 0); };
+    let boss = scene.boss;
+    boss.invincibleUntil = 0; boss.hp = boss.maxHp * .75;
+    const bombs = scene.enemies.length;
+    tick(1000);
+    check(boss.invincibleUntil === Infinity && boss.octahedronCopies.length === 0, "Shield must precede delayed body");
+    check(boss.pendingCopies.length === 1 && scene.enemies.length === bombs, "Bombs or body spawned before warning");
+    check(boss.body.getByName("boss-copy-countdown").text === "4", "Missing countdown");
+    const destination = { ...boss.pendingCopies[0] };
+    tick(4999); check(boss.octahedronCopies.length === 0, "Early spawn");
+    tick(4999); check(boss.pendingCopies[0].readyAt === 5000, "Paused clock advanced warning");
+    boss.invincibleUntil = 0;
+    tick(5000);
+    check(boss.octahedronCopies.length === 1 && boss.invincibleUntil === 0, "Delayed appearance re-shielded a broken body");
+    check(boss.octahedronCopies[0].invincibleUntil === Infinity && scene.enemies.length === bombs + 2, "Copy missing shield or bombs");
+    check(boss.octahedronCopies[0].x === destination.x && boss.octahedronCopies[0].y === destination.y, "Wrong spawn destination");
+    check(!boss.body.getByName("boss-copy-warning"), "Expired warning remains");
+    boss.hp = boss.maxHp * .5; tick(6000);
+    check(boss.invincibleUntil === Infinity && boss.octahedronCopies[0].invincibleUntil === Infinity, "Existing copies not shielded immediately");
+    const graph = JSON.parse(JSON.stringify(captureBattleSnapshot(scene.battleState())));
+    validateBattleSave(graph, scene.wave, "octahedron");
+    const restored = restoreBattleSnapshot(scene, graph);
+    check(restored.boss.pendingCopies[0].readyAt === 10000, "Save changed deadline");
+    check(restored.boss.body.getByName("boss-copy-countdown").text === "4", "Restore did not recreate warning");
+    for (const part of [boss, ...boss.octahedronCopies]) part.body.destroy();
+    for (const enemy of scene.enemies) enemy.body.destroy();
+    scene.applyBattleSave(restored); boss = scene.boss;
+    tick(9999); check(boss.octahedronCopies.length === 1, "Restored copy appeared early");
+    tick(10000); check(boss.octahedronCopies.length === 2, "Restored copy failed to appear");
+    boss.hp = boss.maxHp * .25; tick(11000);
+    check(scene.actionQueue.snapshot().length === 0, "Reinforcements started before third copy appeared");
+    tick(15000); check(boss.octahedronCopies.length === 3 && scene.actionQueue.snapshot().length === 5, "Third copy missed reinforcements");
+    tick(16000); check(boss.octahedronCopies.length === 3, "Duplicate split");
+
+    scene = start("5-10"); boss = scene.boss;
+    scene.bossPhaseIndex = 3; scene.resetBossForPhase(boss); scene.applyBossPhaseStats(boss);
+    boss.hp = boss.maxHp * .25; tick(1000);
+    check(boss.pendingCopies.length === 3 && !boss.octahedronCopies.length && boss.invincibleUntil === 0, "Icosahedron thresholds must warn without shielding");
+    check(!scene.enemies.some(enemy => enemy.kind === "solarBomb"), "Icosahedron spawned bombs");
+    tick(5000); check(boss.octahedronCopies.length === 3, "Icosahedron threshold bodies missing");
+    damageBoss(scene.unitLifecycleRuntime(), 1e10, "true");
+    const expires = boss.invincibleUntil;
+    check(boss.hp === 1 && expires === 20000, "Fatal lock did not activate immediately");
+    tick(5000); check(boss.pendingCopies.length === 1 && boss.octahedronCopies.length === 3, "Fatal copy did not wait");
+    tick(8999); check(boss.octahedronCopies.length === 3, "Fatal copy appeared early");
+    tick(9000);
+    const final = boss.octahedronCopies.at(-1);
+    check(boss.octahedronCopies.length === 4 && final.invincibleUntil === expires, "Fatal copy restarted invincibility");
+    check(final.x === BOARD_X + 1.5 * CELL_WIDTH && final.y === BOARD_Y + 2.5 * CELL_HEIGHT && final.movementDirection === 1, "Final destination changed");
+
+    scene = start("IF-BE-4"); boss = scene.boss; boss.hp *= .75; tick(1000);
+    const warning = boss.body.getByName("boss-copy-warning");
+    const oldState = scene.battleState(); oldState.simulation.version = 1;
+    validateBattleSave(captureBattleSnapshot(oldState), scene.wave, "octahedron");
+    scene.applyBattleSave(oldState);
+    boss.invincibleUntil = 0; damageBoss(scene.unitLifecycleRuntime(), 1e10, "true");
+    check(scene.boss !== boss && !warning.scene, "Defeated boss retained its warning");
+    tick(6000); check(!scene.boss.octahedronCopies.length, "Old pending copy leaked to new boss");
+
+    window.__showCopyWarnings = () => {
+      scene = start("5-10"); boss = scene.boss;
+      scene.bossPhaseIndex = 3; scene.resetBossForPhase(boss); scene.applyBossPhaseStats(boss);
+      boss.hp *= .25; tick(1000); scene.battlePaused = true;
+      scene.updateHud(); game.loop.wake();
+    };
+    window.__showCopyWarnings();
+  });
+  await page.waitForTimeout(200);
+  await page.screenshot({ path: "logs/boss-copy-warnings-desktop.png" });
+  await page.setViewportSize({ width: 800, height: 600 });
+  await page.waitForTimeout(200);
+  await page.screenshot({ path: "logs/boss-copy-warnings-small.png" });
+  assert.deepEqual(errors, []);
+  console.log("Boss split warnings, shield timing, saved countdown, reinforcements, fatal copy and cleanup passed.");
+} finally { await browser.close(); }

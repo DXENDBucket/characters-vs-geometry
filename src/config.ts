@@ -46,6 +46,7 @@ export const GAME_SPEED_MIN = 0.5;
 export const GAME_SPEED_MAX = 4;
 export const BOSS_HITBOX_WIDTH = CELL_WIDTH * 2.95;
 export const BOSS_HITBOX_HEIGHT = CELL_HEIGHT * 2.95;
+export const BOSS_COPY_WARNING_DURATION = 4_000;
 export const CUBE_BOSS_STATS: Record<
   BossKind,
   { hp: number; armor: number; magicResistance: number; speed: number; hitboxCells?: number }

@@ -3,6 +3,7 @@ import { TETRAHEDRON_BOSS_HASTE_MULTIPLIER } from "../config";
 import { refreshStatusEffect } from "./rules/statusEffectRules";
 import type { CubeBoss, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower } from "../types";
 import { createCubeBoss, updateCubeBossMotion } from "../bosses/cubeBoss";
+import { syncBossCopyWarnings } from "../render/bossCopyWarnings";
 import { rankedBossFamily } from "../bosses/bossRanks";
 import { getCardDefinition } from "../registry/cards";
 import { towerBehaviorType } from "./towerIdentity";
@@ -111,6 +112,7 @@ export function restoreBattleSnapshot(scene: Phaser.Scene, graph: SaveGraph): Ba
       else {
         if (boss !== state.boss) boss.body.setDepth(87);
         updateCubeBossMotion(boss, 0, 0, state.battleTime);
+        syncBossCopyWarnings(boss, state.battleTime);
       }
     }
     const storedEnemies = new Set(state.storage.map(entry => entry.enemy));

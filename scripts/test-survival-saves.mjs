@@ -191,6 +191,19 @@ test("Boss Endless saves preserve Boss references and reject missing, dead or in
   assert.equal(octaLoaded.target.invincibleUntil, 0);
   assert.equal(octaLoaded.target.movementAxis, "y");
   assert.equal(octaLoaded.actions[0].action.boss, octaLoaded.boss);
+  const pendingCopy = { x: 700, y: 250, movementAxis: "y", movementDirection: 1,
+    startedAt: 1000, readyAt: 5000, phaseIndex: 0, triggerReinforcements: false };
+  octaBoss.pendingCopies = [pendingCopy];
+  assert.equal(f.saves.writeSurvivalSave(octaSave()), true);
+  const warningLoaded = f.graph.decodeSaveGraph(f.saves.readSurvivalSave("IF-BE-4").graph, () => ({}));
+  assert.deepEqual(warningLoaded.boss.pendingCopies, [pendingCopy]);
+  for (const change of [{ x: Infinity }, { readyAt: 500 }, { movementAxis: "z" }, { movementDirection: 0 }, { phaseIndex: -1 }]) {
+    octaBoss.pendingCopies = [{ ...pendingCopy, ...change }];
+    assert.equal(f.saves.writeSurvivalSave(octaSave()), false);
+  }
+  octaBoss.pendingCopies = [pendingCopy, pendingCopy, pendingCopy];
+  assert.equal(f.saves.writeSurvivalSave(octaSave()), false);
+  octaBoss.pendingCopies = [];
   for (const copies of [[copy, copy], [octaBoss], [copy, copy, copy, copy]]) {
     octaBoss.octahedronCopies = copies;
     assert.equal(f.saves.writeSurvivalSave(octaSave()), false);

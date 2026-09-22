@@ -5,7 +5,7 @@ import { TowerTopologyController } from "../game/towerTopologyController";
 import { syncFriendlyRangeVisual, syncTowerAutoUpgradeVisual, towerFacingDirection } from "../game/towers";
 import { syncTowerCopies } from "../game/towerCopy";
 import { syncTowerFormVisual } from "../game/towers";
-import { BattleClock, BattleRandom, BATTLE_STEP_MS, BATTLE_RULES_VERSION, setBattleRandom, setBattlePlayback } from "../game/battleSimulation";
+import { BattleClock, BattleRandom, BATTLE_STEP_MS, BATTLE_RULES_VERSION, canRestoreBattleVersion, setBattleRandom, setBattlePlayback } from "../game/battleSimulation";
 import { validateReplay, type BattleCommand, type BattlePointer, type BattleReplay, type RecordedBattleCommand } from "../game/battleCommands";
 import { BattleActionQueue, type BattleAction, type ScheduleBattleAction } from "../game/battleActions";
 import type { BattleSaveState } from "../game/battleSaveState";
@@ -64,6 +64,7 @@ import {
   palette
 } from "../config";
 import { createCubeBoss, isDodecahedronBoss, isOctahedronBoss } from "../bosses/cubeBoss";
+import { clearBossCopyWarnings } from "../render/bossCopyWarnings";
 import { enemyIsBossCompanion } from "../registry/enemies";
 import { chapterIdForLevelId } from "../data/chapters";
 import { getLevelConfig } from "../data/levels";
@@ -2103,6 +2104,8 @@ export class GameScene extends Phaser.Scene {
       copy.body.destroy();
     }
     boss.octahedronCopies = [];
+    boss.pendingCopies = [];
+    clearBossCopyWarnings(boss);
     boss.octahedronSolarBombsInitialized = false;
     boss.octahedronSpawn75Triggered = false;
     boss.octahedronSpawn50Triggered = false;
@@ -2836,7 +2839,7 @@ export class GameScene extends Phaser.Scene {
 
   private applyBattleSave(state: BattleSaveState) {
     if (state.simulation) {
-      if (state.simulation.version !== BATTLE_RULES_VERSION) throw new Error("Incompatible battle rules");
+      if (!canRestoreBattleVersion(state.simulation.version)) throw new Error("Incompatible battle rules");
       this.simulation.restore(state.simulation.clock);
       this.random.state = state.simulation.randomState;
     } else {

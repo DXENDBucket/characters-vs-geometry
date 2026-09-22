@@ -90,12 +90,12 @@ export function bossDetailSections(icon: BossIcon, level: number): DetailSection
       l("全部眷属死亡后开始回技，满技力自动发动", "Starts recovering after all companions die; activates at full SP"));
   }
   if (icon === "octahedron" || ico && level === 4) {
-    passive("共享血条分身", "Shared-HP bodies", l("75%／50%／25% 生命各产生一个分身，状态效果独立。依次在底线侧中路反向移动、第八列顶部向下、第五列底部向上。2／3／4 个本体提供额外 20%／40%／60% 全伤害减免。", "Spawns bodies at 75% / 50% / 25% HP with independent effects: base-side middle moving backward, column 8 top moving down, column 5 bottom moving up. With 2 / 3 / 4 bodies, gain an extra 20% / 40% / 60% damage reduction."));
+    passive("共享血条分身", "Shared-HP bodies", l("75%／50%／25% 生命各触发一次分身，目标位置预警 4s 后出现，状态效果独立。依次在底线侧中路反向移动、第八列顶部向下、第五列底部向上。2／3／4 个本体提供额外 20%／40%／60% 全伤害减免。", "At 75% / 50% / 25% HP, telegraphs each destination for 4s before spawning a body with independent effects: base-side middle moving backward, column 8 top moving down, column 5 bottom moving up. With 2 / 3 / 4 bodies, gain an extra 20% / 40% / 60% damage reduction."));
     passive("领袖增援", "Leader reinforcements", l(`仅 25% 分身事件：全行术战壁垒，0.5s 后第 2/4/6 行潜地箭头，再 0.5s 第 2/4/6 行心形，再 0.5s 全行斜坡三角形，再 0.5s 全行大天使。均为 ${rank} 级。`,
       `Only at the 25% split: Bulwarks in every lane; after 0.5s Burrow Arrows in lanes 2/4/6; after 0.5s Hearts in 2/4/6; after 0.5s Ramps in all lanes; after 0.5s Archangels in all lanes. All rank ${rank}.`), [column]);
     passive(ico ? "最终锁血" : "阳炎护盾", ico ? "Final survival" : "Solar shield", ico
-      ? l("阈值分身不无敌，也不召唤阳炎爆弹。首次受到致命伤害锁 1 血，所有本体无敌 15s，并在第二列第三行生成向下移动的最终分身。", "Threshold splits grant neither invincibility nor Sun Bombs. The first lethal hit locks HP at 1, grants all bodies 15s Invincible, and adds a final downward-moving body in column 2, row 3.")
-      : l("开局及每次分身时，所有本体无敌，并在第 2/6 行最右列生成阳炎爆弹。金色爆弹撞击无敌本体后破盾并消失，半径 2.6 格内造成 2900 真实伤害，不分敌我。", "Entry and every split make all bodies invincible and spawn Sun Bombs in the rightmost cells of lanes 2/6. A gold bomb breaks the struck body's shield, disappears, and deals 2900 true damage to both sides within 2.6 cells."));
+      ? l("阈值分身不无敌，也不召唤阳炎爆弹。首次受到致命伤害锁 1 血，所有本体立即无敌 15s；预警 4s 后在第二列第三行生成向下移动的最终分身，共用剩余无敌时间。", "Threshold splits grant neither invincibility nor Sun Bombs. The first lethal hit locks HP at 1 and immediately grants all bodies 15s Invincible. After a 4s warning, the final body spawns in column 2, row 3 moving down, sharing the remaining invincibility time.")
+      : l("开局及每次触发分身预警时，场上所有本体立即无敌。开局及分身实际出现时，在第 2/6 行最右列生成阳炎爆弹，新分身无敌。金色爆弹撞击无敌本体后破盾并消失，半径 2.6 格内造成 2900 真实伤害，不分敌我。", "Entry and each split warning immediately shield all existing bodies. Sun Bombs spawn in the rightmost cells of lanes 2/6 on entry and when each invincible copy appears. A gold bomb breaks the struck body's shield, disappears, and deals 2900 true damage to both sides within 2.6 cells."));
   }
   return sections;
 }

@@ -5,7 +5,7 @@ import type { BossKind, Enemy } from "../types";
 import { cardDefinitions } from "../data/cards";
 import { parseEnemyKind } from "./enemyIdentity";
 import { getEnemyDefinition } from "../registry/enemies";
-import { BATTLE_RULES_VERSION, validBattleClock } from "./battleSimulation";
+import { canRestoreBattleVersion, validBattleClock } from "./battleSimulation";
 import { BUNDLE_SHOTS, PIPELINE_RATE } from "./pipelineRules";
 
 export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossKind?: BossKind) {
@@ -85,7 +85,7 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
   }
   if (state.simulation !== undefined) {
     const simulation = state.simulation;
-    require(record(simulation) && simulation.version === BATTLE_RULES_VERSION && validBattleClock(simulation.clock) &&
+    require(record(simulation) && canRestoreBattleVersion(simulation.version) && validBattleClock(simulation.clock) &&
       Number.isInteger(simulation.randomState) && simulation.randomState >= 0 && simulation.randomState <= 0xffffffff &&
       Number.isSafeInteger(simulation.mirrorNextGroupId) && simulation.mirrorNextGroupId >= 1);
   }
@@ -113,14 +113,24 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
     }
     require(array(boss.statusEffects, effect => record(effect) && typeof effect.name === "string" && timestamp(effect.expiresAt)));
     if (family === "octahedron") {
+      if (boss.pendingCopies !== undefined) require(Array.isArray(boss.pendingCopies) && boss.pendingCopies.length <= 3 &&
+        boss.pendingCopies.length + (Array.isArray(boss.octahedronCopies) ? boss.octahedronCopies.length : 0) <= 3 && array(boss.pendingCopies, spawn => record(spawn) &&
+          finite(spawn.x) && finite(spawn.y) && finite(spawn.startedAt) && finite(spawn.readyAt) && spawn.readyAt > spawn.startedAt &&
+          Number.isInteger(spawn.phaseIndex) && (spawn.phaseIndex as number) >= 0 &&
+          ["x", "y"].includes(spawn.movementAxis as string) && (spawn.movementDirection === -1 || spawn.movementDirection === 1) &&
+          (spawn.invincibleUntil === undefined || finite(spawn.invincibleUntil)) &&
+          (spawn.triggerReinforcements === undefined || typeof spawn.triggerReinforcements === "boolean")));
       require(!boss.octahedronCopies || (Array.isArray(boss.octahedronCopies) && boss.octahedronCopies.length <= 3 &&
         new Set(boss.octahedronCopies).size === boss.octahedronCopies.length && boss.octahedronCopies.every(copy =>
           member("boss")(copy) && copy !== boss && copy.rank === boss.rank && copy.kind === boss.kind &&
-          copy.hp === boss.hp && copy.maxHp === boss.maxHp && !copy.octahedronCopies?.length)));
+          copy.hp === boss.hp && copy.maxHp === boss.maxHp && !copy.octahedronCopies?.length && !copy.pendingCopies?.length)));
       require(["x", "y"].includes(boss.movementAxis as string) && (boss.movementDirection === -1 || boss.movementDirection === 1));
       for (const key of ["octahedronSolarBombsInitialized", "octahedronSpawn75Triggered", "octahedronSpawn50Triggered", "octahedronSpawn25Triggered"])
         require(boss[key] === undefined || typeof boss[key] === "boolean");
-    } else require(!boss.octahedronCopies || (Array.isArray(boss.octahedronCopies) && boss.octahedronCopies.length === 0));
+    } else {
+      require(!boss.octahedronCopies || (Array.isArray(boss.octahedronCopies) && boss.octahedronCopies.length === 0));
+      require(boss.pendingCopies === undefined || Array.isArray(boss.pendingCopies) && boss.pendingCopies.length === 0);
+    }
     require(boss.advanceMinionKind === ((boss.rank as number) === 1 ? "square" : `square${boss.rank}`));
     for (const key of ["hitboxWidth", "hitboxHeight", "rotationX", "rotationY", "rotationZ", "velocityX", "velocityY", "velocityZ",
       "targetVelocityX", "targetVelocityY", "targetVelocityZ", "nextTurnIn", "contactAttackBuffer"]) require(finite(boss[key]));

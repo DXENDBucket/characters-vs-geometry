@@ -594,6 +594,18 @@ export interface BossSkill<Name extends BossSkillName = BossSkillName> extends S
   cost: number;
 }
 
+export interface PendingBossCopy {
+  x: number;
+  y: number;
+  movementAxis: "x" | "y";
+  movementDirection: -1 | 1;
+  startedAt: number;
+  readyAt: number;
+  phaseIndex: number;
+  invincibleUntil?: number;
+  triggerReinforcements?: boolean;
+}
+
 export interface CubeBoss {
   statusEffects: StatusEffect[];
   kind: BossKind;
@@ -639,6 +651,7 @@ export interface CubeBoss {
   bossHasteUntil: number; // Legacy save field; live haste is stored in statusEffects.
   nextBossHasteTrailAt: number;
   octahedronCopies?: CubeBoss[];
+  pendingCopies?: PendingBossCopy[];
   octahedronSolarBombsInitialized?: boolean;
   octahedronSpawn75Triggered?: boolean;
   octahedronSpawn50Triggered?: boolean;

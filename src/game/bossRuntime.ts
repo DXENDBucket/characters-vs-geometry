@@ -11,6 +11,7 @@ import {
   BOARD_Y,
   BOSS_HITBOX_HEIGHT,
   BOSS_HITBOX_WIDTH,
+  BOSS_COPY_WARNING_DURATION,
   CELL_HEIGHT,
   CELL_WIDTH,
   COLUMNS,
@@ -49,7 +50,8 @@ import {
   makeTetrahedronCollapse
 } from "../render/combatEffects";
 import { syncDodecahedronCompanionShape } from "../render/unitShapes";
-import type { BossCompanionActionPhase, BossSkill, CubeBoss, DamageType, Enemy, MortarProjectile, Tower } from "../types";
+import type { BossCompanionActionPhase, BossSkill, CubeBoss, DamageType, Enemy, MortarProjectile, PendingBossCopy, Tower } from "../types";
+import { syncBossCopyWarnings } from "../render/bossCopyWarnings";
 import { createBossSkillRegistry, runRegisteredBossSkills } from "./bossSkillRegistry";
 import { enemyAttackMultiplier } from "./combatStats";
 import { applyEnemyPromotion, enemyIsHighFlying, findPromotionTargets } from "./enemyBehaviors";
@@ -254,6 +256,8 @@ export function updateBossRuntime(runtime: BossRuntime, seconds: number) {
   triggerTetrahedronHalfHpBurst(runtime, boss);
   triggerTetrahedronCriticalSummon(runtime, boss);
   triggerIcosahedronFinalFatalSummon(runtime, boss);
+  updatePendingBossCopies(runtime, boss);
+  syncBossCopyWarnings(boss, runtime.battleTime);
   updateBossSkills(runtime, boss, seconds);
   const removedByFunctionalTower = findBossPart(boss, (part) => {
     triggerFunctionalTowersTouchingBoss(runtime, part);
@@ -293,7 +297,7 @@ function triggerOctahedronSplits(runtime: BossRuntime, boss: CubeBoss) {
 
   if (!boss.octahedronSpawn75Triggered && boss.hp <= boss.maxHp * 0.75) {
     boss.octahedronSpawn75Triggered = true;
-    spawnOctahedronCopy(runtime, boss, {
+    scheduleBossCopy(runtime, boss, {
       x: BOARD_X + BOSS_HITBOX_WIDTH / 2,
       y: BOARD_Y + BOARD_HEIGHT / 2,
       movementAxis: "x",
@@ -303,7 +307,7 @@ function triggerOctahedronSplits(runtime: BossRuntime, boss: CubeBoss) {
 
   if (!boss.octahedronSpawn50Triggered && boss.hp <= boss.maxHp * 0.5) {
     boss.octahedronSpawn50Triggered = true;
-    spawnOctahedronCopy(runtime, boss, {
+    scheduleBossCopy(runtime, boss, {
       x: BOARD_X + 7.5 * CELL_WIDTH,
       y: BOARD_Y + BOSS_HITBOX_HEIGHT / 2,
       movementAxis: "y",
@@ -313,7 +317,7 @@ function triggerOctahedronSplits(runtime: BossRuntime, boss: CubeBoss) {
 
   if (!boss.octahedronSpawn25Triggered && boss.hp <= boss.maxHp * 0.25) {
     boss.octahedronSpawn25Triggered = true;
-    spawnOctahedronCopy(runtime, boss, {
+    scheduleBossCopy(runtime, boss, {
       x: BOARD_X + 4.5 * CELL_WIDTH,
       y: BOARD_Y + BOARD_HEIGHT - BOSS_HITBOX_HEIGHT / 2,
       movementAxis: "y",
@@ -330,7 +334,7 @@ function triggerIcosahedronFinalSplits(runtime: BossRuntime, boss: CubeBoss) {
 
   if (!boss.octahedronSpawn75Triggered && boss.hp <= boss.maxHp * 0.75) {
     boss.octahedronSpawn75Triggered = true;
-    spawnIcosahedronFinalCopy(runtime, boss, {
+    scheduleBossCopy(runtime, boss, {
       x: BOARD_X + boss.hitboxWidth / 2,
       y: BOARD_Y + BOARD_HEIGHT / 2,
       movementAxis: "x",
@@ -340,7 +344,7 @@ function triggerIcosahedronFinalSplits(runtime: BossRuntime, boss: CubeBoss) {
 
   if (!boss.octahedronSpawn50Triggered && boss.hp <= boss.maxHp * 0.5) {
     boss.octahedronSpawn50Triggered = true;
-    spawnIcosahedronFinalCopy(runtime, boss, {
+    scheduleBossCopy(runtime, boss, {
       x: BOARD_X + 7.5 * CELL_WIDTH,
       y: BOARD_Y + boss.hitboxHeight / 2,
       movementAxis: "y",
@@ -350,13 +354,35 @@ function triggerIcosahedronFinalSplits(runtime: BossRuntime, boss: CubeBoss) {
 
   if (!boss.octahedronSpawn25Triggered && boss.hp <= boss.maxHp * 0.25) {
     boss.octahedronSpawn25Triggered = true;
-    spawnIcosahedronFinalCopy(runtime, boss, {
+    scheduleBossCopy(runtime, boss, {
       x: BOARD_X + 4.5 * CELL_WIDTH,
       y: BOARD_Y + BOARD_HEIGHT - boss.hitboxHeight / 2,
       movementAxis: "y",
-      movementDirection: -1
+      movementDirection: -1,
+      triggerReinforcements: true
     });
-    scheduleIcosahedronFinalReinforcements(runtime, boss);
+  }
+}
+
+function scheduleBossCopy(runtime: BossRuntime, boss: CubeBoss,
+  options: Omit<PendingBossCopy, "startedAt" | "readyAt" | "phaseIndex">) {
+  boss.pendingCopies ??= [];
+  boss.pendingCopies.push({ ...options, startedAt: runtime.battleTime,
+    readyAt: runtime.battleTime + BOSS_COPY_WARNING_DURATION, phaseIndex: runtime.bossPhaseIndex });
+  if (isOctahedronBoss(boss)) grantOctahedronInvincibility(boss);
+}
+
+function updatePendingBossCopies(runtime: BossRuntime, boss: CubeBoss) {
+  if (!boss.pendingCopies?.length) return;
+  const ready = boss.pendingCopies.filter(spawn => spawn.readyAt <= runtime.battleTime && spawn.phaseIndex === runtime.bossPhaseIndex);
+  boss.pendingCopies = boss.pendingCopies.filter(spawn => spawn.readyAt > runtime.battleTime && spawn.phaseIndex === runtime.bossPhaseIndex);
+  if (boss.hp <= 0) { boss.pendingCopies = []; return; }
+  for (const spawn of ready) {
+    if (isOctahedronBoss(boss)) spawnOctahedronCopy(runtime, boss, spawn);
+    else if (isIcosahedronFinalPhase(runtime, boss)) {
+      spawnIcosahedronFinalCopy(runtime, boss, spawn);
+      if (spawn.triggerReinforcements) scheduleIcosahedronFinalReinforcements(runtime, boss);
+    }
   }
 }
 
@@ -382,7 +408,8 @@ function spawnOctahedronCopy(
   copy.octahedronCopies = undefined;
   boss.octahedronCopies ??= [];
   boss.octahedronCopies.push(copy);
-  triggerOctahedronInvincibilityCycle(runtime, boss);
+  copy.invincibleUntil = Number.POSITIVE_INFINITY;
+  spawnOctahedronSolarBombs(runtime);
   if (options.triggerReinforcements) {
     scheduleOctahedronReinforcements(runtime, boss);
   }
@@ -405,7 +432,7 @@ function spawnIcosahedronFinalCopy(
   syncBossBaseStats(copy);
   copy.hp = boss.hp;
   copy.body.setDepth(87);
-  copy.invincibleUntil = options.invincibleUntil ?? 0;
+  copy.invincibleUntil = Math.max(options.invincibleUntil ?? 0, boss.invincibleUntil);
   copy.octahedronCopies = undefined;
   copy.companionsInitialized = true;
   boss.octahedronCopies ??= [];
@@ -428,7 +455,7 @@ function triggerIcosahedronFinalFatalSummon(runtime: BossRuntime, boss: CubeBoss
 
   boss.pendingCriticalSummon = false;
   const invincibleUntil = boss.invincibleUntil;
-  spawnIcosahedronFinalCopy(runtime, boss, {
+  scheduleBossCopy(runtime, boss, {
     x: BOARD_X + 1.5 * CELL_WIDTH,
     y: BOARD_Y + 2.5 * CELL_HEIGHT,
     movementAxis: "y",
@@ -450,11 +477,14 @@ export function initializeOctahedronSolarBombs(runtime: BossRuntime, boss: CubeB
 }
 
 function triggerOctahedronInvincibilityCycle(runtime: BossRuntime, boss: CubeBoss) {
+  grantOctahedronInvincibility(boss);
+  spawnOctahedronSolarBombs(runtime);
+}
+
+function grantOctahedronInvincibility(boss: CubeBoss) {
   forEachBossPart(boss, (part) => {
     part.invincibleUntil = Number.POSITIVE_INFINITY;
   });
-
-  spawnOctahedronSolarBombs(runtime);
 }
 
 function spawnOctahedronSolarBombs(runtime: BossRuntime) {
