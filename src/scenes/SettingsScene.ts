@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { bindButtonHover } from "../render/buttonHover";
+import { createAudioSettingsControls } from "../render/audioSettingsControls";
 import { createPageHeading, createHeaderNavigation } from "../render/pageHeader";
 import { GAME_HEIGHT, GAME_WIDTH, palette, uiTextColors } from "../config";
 import { getLanguage, setLanguage, t, type Language } from "../i18n";
@@ -82,6 +83,7 @@ export class SettingsScene extends Phaser.Scene {
     this.createDebugModeControl();
     this.createControlRows();
     this.createProgressControls();
+    createAudioSettingsControls(this);
     this.createResetButton();
     this.refreshBindings();
 

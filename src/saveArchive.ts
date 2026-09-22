@@ -4,6 +4,7 @@ import { CUBE_BOSS_STATS, DIFFICULTY_MIN, DIFFICULTY_MAX } from "./config";
 import { isEnemyKind } from "./game/enemyIdentity";
 import { validateSurvivalSave } from "./survivalSaves";
 import { isLoadoutCardId } from "./game/cardEligibility";
+import { validAudioSettings } from "./audio/settings";
 
 export const MAX_ARCHIVE_BYTES = 32 * 1024 * 1024;
 const RECOVERY_KEY = "charset-save-import-recovery-v1";
@@ -51,7 +52,9 @@ function validateEntry(key: string, raw: string) {
         !levelId(id) || !Number.isSafeInteger(count) || (count as number) < 0))) throw new Error("Invalid endless records");
     }
   } else if (key === PREFERENCES_KEY) {
-    if (Object.keys(value).some(key => key !== "debugMode") || (value.debugMode !== undefined && typeof value.debugMode !== "boolean")) throw new Error("Invalid preferences");
+    if (Object.keys(value).some(key => key !== "debugMode" && key !== "audio") ||
+        (value.debugMode !== undefined && typeof value.debugMode !== "boolean") ||
+        (value.audio !== undefined && !validAudioSettings(value.audio))) throw new Error("Invalid preferences");
   } else if (key === BINDINGS_KEY) {
     if (Object.entries(value).some(([action, code]) =>
       !(/^(tool:[a-zA-Z]+|slot:(10|[1-9]))$/.test(action) || action.startsWith("card:") && cards.has(action.slice(5))) ||

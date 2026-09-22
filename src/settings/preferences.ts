@@ -1,7 +1,10 @@
+import { normalizeAudioSettings, type AudioSettings } from "../audio/settings";
+
 const STORAGE_KEY = "characters-vs-geometry-preferences";
 
 interface StoredPreferences {
   debugMode?: boolean;
+  audio?: AudioSettings;
 }
 
 let cachedPreferences: StoredPreferences | null = null;
@@ -13,7 +16,16 @@ export function isDebugModeEnabled() {
 }
 
 export function setDebugModeEnabled(enabled: boolean) {
-  const next = { ...preferences(), debugMode: enabled };
+  writePreferences({ ...preferences(), debugMode: enabled });
+}
+
+export function getAudioSettings() { return normalizeAudioSettings(preferences().audio); }
+
+export function setAudioSettings(patch: Partial<AudioSettings>) {
+  writePreferences({ ...preferences(), audio: normalizeAudioSettings({ ...getAudioSettings(), ...patch }) });
+}
+
+function writePreferences(next: StoredPreferences) {
   cachedPreferences = next;
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
@@ -36,7 +48,7 @@ function readPreferences(): StoredPreferences {
 
     const parsed = JSON.parse(raw) as StoredPreferences | null;
     return parsed && typeof parsed === "object"
-      ? { debugMode: parsed.debugMode === true }
+      ? { debugMode: parsed.debugMode === true, audio: normalizeAudioSettings(parsed.audio) }
       : {};
   } catch {
     return {};

@@ -12,8 +12,10 @@ import { EncyclopediaScene } from "./scenes/EncyclopediaScene";
 import { TextQualityPlugin } from "./render/textQuality";
 import { installHighDpiRenderer } from "./render/highDpiRenderer";
 import { recoverSaveImport } from "./saveArchive";
+import { installAudio } from "./audio/player";
 
 try { recoverSaveImport(); } catch (error) { console.error("Save recovery is pending", error); }
+const disposeAudio = installAudio();
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -21,6 +23,7 @@ const game = new Phaser.Game({
   width: GAME_WIDTH,
   height: GAME_HEIGHT,
   pixelArt: false,
+  audio: { noAudio: true },
   callbacks: { postBoot: installHighDpiRenderer },
   plugins: {
     scene: [{ key: "TextQuality", plugin: TextQualityPlugin, start: true }]
@@ -36,6 +39,7 @@ const game = new Phaser.Game({
     roundPixels: true
   }
 });
+game.events.once(Phaser.Core.Events.DESTROY, disposeAudio);
 
 window.addEventListener("contextmenu", (event) => event.preventDefault());
 

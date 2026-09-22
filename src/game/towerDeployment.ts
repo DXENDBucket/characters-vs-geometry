@@ -34,6 +34,7 @@ export interface TowerDeploymentRuntime {
   isCellDeployable?: (lane: number, column: number) => boolean;
   updateLevelAuras: () => void;
   updateCards: () => void;
+  onFeedback?: (kind: "deploy" | "upgrade") => void;
   extraction: TowerExtractionPool;
 }
 
@@ -183,6 +184,7 @@ export class TowerDeploymentController {
     runtime.towers.push(tower);
     syncTowerOccupancy(runtime.towers, runtime.occupied);
     runtime.updateLevelAuras();
+    runtime.onFeedback?.("deploy");
   }
 
   private upgradeTower(tower: Tower, levels: number) {
@@ -214,6 +216,7 @@ export class TowerDeploymentController {
       duration: 90,
       ease: "Quad.easeOut"
     });
+    if (targets.length) runtime.onFeedback?.("upgrade");
   }
 
   private isCellDeployable(lane: number, column: number) {

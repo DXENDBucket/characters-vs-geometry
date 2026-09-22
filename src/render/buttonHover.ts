@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { palette } from "../config";
+import { playSound } from "../audio/player";
 
 /** Keep hover feedback separate from persistent selection and cooldown styling. */
 export function bindButtonHover(
@@ -45,6 +46,7 @@ export function bindButtonHover(
       .setRotation(frame.rotation).setDepth(frame.depth + 0.01).setAlpha(frame.alpha).setVisible(true);
   };
   const bindings = targets.map((target) => {
+    const click = () => { if (enabled() && target.input?.enabled) playSound("ui"); };
     const over = () => {
       outsideCanvas = false;
       if (!hovered.size) {
@@ -60,14 +62,14 @@ export function bindButtonHover(
       if (!hovered.size) clear();
       refresh();
     };
-    target.on("pointerover", over).on("pointerout", out);
-    return { target, over, out };
+    target.on("pointerover", over).on("pointerout", out).on("pointerdown", click);
+    return { target, over, out, click };
   });
   const destroy = () => {
     clear();
     scene.events.off(Phaser.Scenes.Events.SHUTDOWN, destroy);
-    for (const { target, over, out } of bindings) {
-      target.off("pointerover", over).off("pointerout", out);
+    for (const { target, over, out, click } of bindings) {
+      target.off("pointerover", over).off("pointerout", out).off("pointerdown", click);
     }
     outline?.destroy();
     outline = undefined;

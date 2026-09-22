@@ -1,4 +1,6 @@
 import Phaser from "phaser";
+import { playSound, soundPlayer } from "../audio/player";
+import { bindBattleAudio } from "../audio/battleAudio";
 import { canUpgradeTowerWithCard, supportsTowerAutoUpgrade, towerBehaviorType, towerFormType } from "../game/towerIdentity";
 import { syncTowerTopology, inFriendlyRange, towerCell, physicalTowerCell } from "../game/towerTopology";
 import { TowerTopologyController } from "../game/towerTopologyController";
@@ -595,10 +597,14 @@ export class GameScene extends Phaser.Scene {
     this.input.on("pointermove", this.scenePointerMoveHandler);
     this.input.keyboard?.on("keydown", this.sceneKeyDownHandler);
     window.addEventListener("pagehide", this.saveOnPageHide);
+    bindBattleAudio(this, !!this.levelConfig.bossKind, () => ({
+      paused: this.battlePaused || this.menuOpen || this.reselectOpen, finished: this.gameOver
+    }));
     if (this.levelConfig.survival && this.battlePaused) this.openPauseMenu();
   }
 
   private cleanupSceneHandlers() {
+    soundPlayer.stop("battle");
     window.removeEventListener("pagehide", this.saveOnPageHide);
     this.cardList?.destroy();
     this.cardList = undefined;
@@ -791,6 +797,7 @@ export class GameScene extends Phaser.Scene {
         const position = edgePosition(this.edgeTowers[edgeIndex]);
         this.edgeTowers.splice(edgeIndex, 1); this.numbers.sync();
         makeEraseMark(this, position.x, position.y);
+        playSound("erase");
         this.eraserMode = false; this.updateCards(); this.syncPlacementGhost(pointer); return;
       }
       if (!existingTower) {
@@ -803,6 +810,7 @@ export class GameScene extends Phaser.Scene {
       removeTower(this.unitLifecycleRuntime(), existingTower);
       this.updateLevelAuras();
       makeEraseMark(this, erasedX, erasedY);
+      playSound("erase");
       this.eraserMode = false;
       this.updateCards();
       return;
@@ -959,6 +967,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (result === "moved") {
+      playSound("move");
       this.clearPlacementGhosts();
       this.updateCards();
       return;
@@ -1124,6 +1133,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handleTargetedEffectCardResult(result: TargetedEffectCardResult) {
+    if (result === "handled") playSound("deploy");
     if (result === "cooldown") {
       this.showToast(t("toast.cooldown"));
       return;
@@ -1646,7 +1656,8 @@ export class GameScene extends Phaser.Scene {
       mirrorGroupFor: (tower) => this.mirrors.mirrorGroupFor(tower),
       isCellDeployable: (lane, column) => this.cellIsDeployable(lane, column),
       updateLevelAuras: () => this.updateLevelAuras(),
-      updateCards: () => this.updateCards()
+      updateCards: () => this.updateCards(),
+      onFeedback: (kind) => playSound(kind)
     };
   }
 
@@ -1933,6 +1944,7 @@ export class GameScene extends Phaser.Scene {
     this.baseIntegrity -= 1;
     removeEnemy(this.unitLifecycleRuntime(), enemy, false);
     this.cameras.main.shake(110, 0.004);
+    playSound("breach");
     if (this.baseIntegrity <= 0) {
       this.endGame();
       return true;
@@ -1979,6 +1991,7 @@ export class GameScene extends Phaser.Scene {
       gameTime
     });
     this.applyWaveStartMechanics();
+    playSound(waveNumber % activeLevelConfig.wavesPerFlag === 0 ? "flag" : "wave");
 
     this.showToast(
       waveNumber % activeLevelConfig.wavesPerFlag === 0
@@ -1989,6 +2002,7 @@ export class GameScene extends Phaser.Scene {
 
   private spawnTutorialWave(spawns: TutorialEnemySpawn[]) {
     const waveNumber = this.wave + 1;
+    playSound(waveNumber % this.levelConfig.wavesPerFlag === 0 ? "flag" : "wave");
     let totalWeight = 0;
     this.wave = waveNumber;
     spawns.forEach((spawn, index) => {
@@ -2532,6 +2546,7 @@ export class GameScene extends Phaser.Scene {
 
   private openPauseMenu() {
     if (this.menuOpen || this.reselectOpen) return;
+    soundPlayer.stop("battle");
     this.menuOpen = true;
     this.autoUpgradeReserveInputFocused = false;
     this.ui.pauseMenuTooltip.setVisible(false);
@@ -2564,6 +2579,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private endGame() {
+    soundPlayer.stop("battle");
+    playSound("defeat");
     this.gameOver = true;
     this.clearPlacementGhosts();
     if (this.levelConfig.survival && !this.playback) deleteSurvivalSave(this.levelId);
@@ -2571,6 +2588,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private endLevel() {
+    soundPlayer.stop("battle");
+    playSound("victory");
     this.gameOver = true;
     this.clearPlacementGhosts();
     const reselectUnlocked = this.levelId === RESELECT_UNLOCK_LEVEL && !isLevelCompleted(RESELECT_UNLOCK_LEVEL);
