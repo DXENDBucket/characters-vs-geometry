@@ -5,7 +5,8 @@ import { GAME_HEIGHT, GAME_WIDTH, palette, uiTextColors } from "../config";
 import { chapterGroups, type ChapterGroupDefinition } from "../data/chapterGroups";
 import { levelNodesForChapter } from "../data/chapters";
 import { t } from "../i18n";
-import { completedLevelCountForChapter, isChapterGroupUnlocked } from "../progress";
+import { completedLevelCountForChapter, flawlessSummaryForChapters, isChapterGroupUnlocked } from "../progress";
+import { createCompletionMarks } from "../render/completionMarks";
 import { createTowerWord } from "../render/towerWord";
 
 export class ChapterGroupSelectScene extends Phaser.Scene {
@@ -15,6 +16,7 @@ export class ChapterGroupSelectScene extends Phaser.Scene {
   private maskGraphics?: Phaser.GameObjects.Graphics;
   private viewport = new Phaser.Geom.Rectangle();
   private frames: Phaser.GameObjects.Rectangle[] = [];
+  private frameColors: number[] = [];
   private indicator!: Phaser.GameObjects.Text;
   private offset = 0;
   private step = 0;
@@ -68,6 +70,7 @@ export class ChapterGroupSelectScene extends Phaser.Scene {
     this.clearMask();
     this.root.removeAll(true);
     this.frames = [];
+    this.frameColors = [];
     const parent = this.game.canvas.parentElement;
     const screenWidth = parent?.clientWidth || window.innerWidth;
     const screenHeight = parent?.clientHeight || window.innerHeight;
@@ -103,6 +106,7 @@ export class ChapterGroupSelectScene extends Phaser.Scene {
   private drawGroup(group: ChapterGroupDefinition, index: number) {
     const card = this.add.container(index * this.step, 0).setScale(this.cardSize / 480);
     const unlocked = isChapterGroupUnlocked(group.id);
+    const flawless = flawlessSummaryForChapters(group.chapterIds);
     card.setAlpha(unlocked ? 1 : 0.5);
     const frame = this.add.rectangle(0, 0, 480, 480, palette.black, 1).setStrokeStyle(2, palette.mid);
     card.add(frame);
@@ -146,11 +150,25 @@ export class ChapterGroupSelectScene extends Phaser.Scene {
     }).setOrigin(0.5));
     const count = group.chapterIds.reduce((total, id) => total + levelNodesForChapter(id).length, 0);
     const completed = group.chapterIds.reduce((total, id) => total + completedLevelCountForChapter(id), 0);
+    const allCompleted = !group.survival && count > 0 && completed === count;
+    const frameColor = flawless.difficulty !== undefined ? palette.gold : allCompleted ? palette.completed : palette.mid;
+    frame.setStrokeStyle(2, frameColor);
+    this.frameColors.push(frameColor);
+    card.add(createCompletionMarks(this, 218, -218, allCompleted, flawless.difficulty));
     const meta = unlocked ? t(group.survival ? "label.levelCount" : "label.chapterProgress", { completed, count })
       : t("label.unlockAfter", { level: group.unlockAfter ?? "" });
     card.add(this.add.text(0, 190, meta, {
       fontFamily: "monospace", fontSize: "17px", color: !group.survival && completed === count ? uiTextColors.completed : uiTextColors.secondary
     }).setOrigin(0.5));
+    if (flawless.total > 0 && unlocked) {
+      const chapters = group.chapterIds.map(id => flawlessSummaryForChapters([id])).filter(summary => summary.total > 0);
+      card.add(this.add.text(0, 218, flawless.difficulty !== undefined
+        ? t("label.flawlessGroup", { difficulty: flawless.difficulty })
+        : t("label.flawlessChapterProgress", { count: chapters.filter(summary => summary.difficulty !== undefined).length, total: chapters.length }), {
+        fontFamily: "monospace", fontSize: "15px",
+        color: flawless.count > 0 ? `#${palette.gold.toString(16)}` : uiTextColors.secondary
+      }).setOrigin(0.5).setName("flawless-progress"));
+    }
     this.strip.add(card);
   }
 
@@ -187,7 +205,7 @@ export class ChapterGroupSelectScene extends Phaser.Scene {
   private highlight(index: number) {
     this.frames.forEach((frame, i) => {
       const highlighted = i === index && isChapterGroupUnlocked(chapterGroups[i].id);
-      frame.setStrokeStyle(highlighted ? 3 : 2, highlighted ? palette.green : palette.mid);
+      frame.setStrokeStyle(highlighted ? 3 : 2, highlighted ? palette.green : this.frameColors[i]);
     });
   }
 

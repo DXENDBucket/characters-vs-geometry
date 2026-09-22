@@ -1,6 +1,6 @@
 import { levelConfigs } from "./data/levels";
 import { cardDefinitions } from "./data/cards";
-import { CUBE_BOSS_STATS } from "./config";
+import { CUBE_BOSS_STATS, DIFFICULTY_MIN, DIFFICULTY_MAX } from "./config";
 import { isEnemyKind } from "./game/enemyIdentity";
 import { validateSurvivalSave } from "./survivalSaves";
 import { isLoadoutCardId } from "./game/cardEligibility";
@@ -39,6 +39,12 @@ function validateEntry(key: string, raw: string) {
     if (value.version !== 1 || !validList(value.completedLevelIds, levelId) || typeof value.allCardsUnlocked !== "boolean") throw new Error("Invalid progress");
     if (value.seenEnemyKinds !== undefined && !validList(value.seenEnemyKinds, isEnemyKind)) throw new Error("Invalid enemies");
     if (value.seenBossKinds !== undefined && !validList(value.seenBossKinds, kind => typeof kind === "string" && Object.hasOwn(CUBE_BOSS_STATS, kind))) throw new Error("Invalid bosses");
+    if (value.flawlessDifficulties !== undefined && (!object(value.flawlessDifficulties) ||
+        Object.entries(value.flawlessDifficulties).some(([id, difficulties]) => !levelId(id) || levelConfigs[id].survival ||
+          !(value.completedLevelIds as string[]).includes(id) || !validList(difficulties, difficulty =>
+            typeof difficulty === "number" && Number.isInteger(difficulty) && difficulty >= DIFFICULTY_MIN && difficulty <= DIFFICULTY_MAX)))) {
+      throw new Error("Invalid flawless records");
+    }
     for (const field of ["bestWaves", "bestBossRanks"]) {
       const records = value[field];
       if (records !== undefined && (!object(records) || Object.entries(records).some(([id, count]) =>

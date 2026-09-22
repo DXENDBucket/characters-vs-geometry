@@ -8,6 +8,53 @@ import ts from "typescript";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const storageKey = "characters-vs-geometry-progress-v1";
 
+test("flawless clears retain per-difficulty records, including difficulty zero and repeat clears", () => {
+  const { progress, storage, writes } = fixture();
+  progress.completeLevel("1-1");
+  assert.equal(progress.bestFlawlessDifficulty("1-1"), undefined);
+  progress.completeLevel("1-1", { difficulty: 0, flawless: true });
+  assert.equal(progress.bestFlawlessDifficulty("1-1"), 0);
+  progress.completeLevel("1-1", { difficulty: 7, flawless: true });
+  progress.completeLevel("1-1", { difficulty: 3, flawless: true });
+  progress.completeLevel("1-1", { difficulty: 9, flawless: false });
+  progress.completeLevel("1-1", { difficulty: 10, flawless: true });
+  progress.completeLevel("IF-1", { difficulty: 9, flawless: true });
+  const before = writes();
+  assert.deepEqual(progress.completeLevel("1-1", { difficulty: 7, flawless: true }), []);
+  assert.equal(writes(), before);
+  const saved = JSON.parse(storage.get(storageKey));
+  assert.deepEqual(saved.flawlessDifficulties, { "1-1": [0, 3, 7] });
+  assert.equal(fixture(saved).progress.bestFlawlessDifficulty("1-1"), 7);
+  progress.resetProgress();
+  assert.equal(progress.bestFlawlessDifficulty("1-1"), undefined);
+});
+
+test("old saves and one-click completion do not invent flawless records", () => {
+  const { progress } = fixture({ version: 1, completedLevelIds: ["1-1"], allCardsUnlocked: false });
+  progress.completeAllLevels();
+  assert.equal(progress.bestFlawlessDifficulty("1-1"), undefined);
+  assert.equal(progress.flawlessSummaryForChapters(["1"]).count, 0);
+  assert.equal(progress.flawlessSummaryForChapters(["IF", "IFB"]).difficulty, undefined);
+  const loaded = fixture({ version: 1, completedLevelIds: ["1-1"], flawlessDifficulties: {
+    "1-1": [0, 3, 3, "9", -1, 10, 1.5], "1-2": [9], "IF-1": [9], unknown: [9]
+  } }).progress;
+  assert.equal(loaded.bestFlawlessDifficulty("1-1"), 3);
+  for (const id of ["1-2", "IF-1", "unknown"]) assert.equal(loaded.bestFlawlessDifficulty(id), undefined);
+});
+
+test("chapter and group flawless ratings require every operation and use the weakest best clear", () => {
+  const { progress, levels } = fixture();
+  const nodes = levels.levelNodes.filter(node => node.id.startsWith("AE-"));
+  for (const node of nodes.slice(1)) progress.completeLevel(node.id, { difficulty: 9, flawless: true });
+  assert.deepEqual(progress.flawlessSummaryForChapters(["AE"]), { count: nodes.length - 1, total: nodes.length, difficulty: undefined });
+  progress.completeLevel(nodes[0].id, { difficulty: 0, flawless: true });
+  assert.equal(progress.flawlessSummaryForChapters(["AE"]).difficulty, 0);
+  progress.completeLevel(nodes[0].id, { difficulty: 4, flawless: true });
+  assert.equal(progress.flawlessSummaryForChapters(["AE"]).difficulty, 4);
+  assert.equal(progress.flawlessSummaryForChapters(["AE", "1"]).difficulty, undefined);
+  assert.deepEqual(progress.flawlessSummaryForChapters(["IF", "IFB"]), { count: 0, total: 0, difficulty: undefined });
+});
+
 function fixture(saved) {
   const storage = new Map(saved ? [[storageKey, JSON.stringify(saved)]] : []);
   let writes = 0;

@@ -3,6 +3,7 @@ import { bindButtonHover } from "../render/buttonHover";
 import { bindSliderInput } from "../render/sliderInput";
 import { createPageHeading, createHeaderNavigation } from "../render/pageHeader";
 import { createSelectionMapViewport, drawSelectionMapFrame } from "../render/selectionMap";
+import { createCompletionMarks } from "../render/completionMarks";
 import { readSurvivalSave } from "../survivalSaves";
 import {
   DEFAULT_DIFFICULTY,
@@ -36,7 +37,7 @@ import { getLevelConfig } from "../data/levels";
 import { toRomanNumeral } from "../format";
 import { isTutorialMechanic } from "../game/tutorial";
 import { t } from "../i18n";
-import { bestBossRankForLevel, bestWaveForLevel, isChapterUnlocked, isLevelCompleted, isLevelUnlocked } from "../progress";
+import { bestBossRankForLevel, bestWaveForLevel, bestFlawlessDifficulty, isChapterUnlocked, isLevelCompleted, isLevelUnlocked } from "../progress";
 import { EncyclopediaPanel } from "../render/encyclopediaPanel";
 import type { BossKind, LevelNode } from "../types";
 
@@ -304,10 +305,11 @@ export class LevelSelectScene extends Phaser.Scene {
   private createLevelNode(node: LevelNode) {
     const unlocked = isLevelUnlocked(node.id);
     const completed = isLevelCompleted(node.id);
+    const flawlessDifficulty = bestFlawlessDifficulty(node.id);
     const alpha = unlocked ? 1 : 0.28;
     const frame = this.add
       .rectangle(node.x, node.y, LEVEL_NODE_WIDTH, LEVEL_NODE_HEIGHT, palette.black, 1)
-      .setStrokeStyle(2, completed ? palette.completed : unlocked ? palette.mid : palette.dim, 1)
+      .setStrokeStyle(2, flawlessDifficulty !== undefined ? palette.gold : completed ? palette.completed : unlocked ? palette.mid : palette.dim, 1)
       .setInteractive({ useHandCursor: unlocked })
       .setAlpha(alpha);
     const label = this.add
@@ -330,17 +332,8 @@ export class LevelSelectScene extends Phaser.Scene {
           color: uiTextColors.secondary, fontFamily: "monospace", fontSize: "17px"
         }).setOrigin(0.5));
     }
-    if (completed) {
-      const completedMark = this.add
-        .text(node.x + LEVEL_NODE_WIDTH / 2 - 12, node.y - LEVEL_NODE_HEIGHT / 2 + 10, "✓", {
-          color: uiTextColors.completed,
-          fontFamily: "monospace",
-          fontSize: "17px",
-          fontStyle: "700"
-        })
-        .setOrigin(0.5);
-      this.mapContainer.add(completedMark);
-    }
+    this.mapContainer.add(createCompletionMarks(this, node.x + LEVEL_NODE_WIDTH / 2 - 12,
+      node.y - LEVEL_NODE_HEIGHT / 2 + 10, completed, flawlessDifficulty));
     this.createBossNodePreview(node, alpha);
 
     frame.on("pointerup", (pointer: Phaser.Input.Pointer) => {

@@ -271,6 +271,7 @@ export class GameScene extends Phaser.Scene {
   // Stored as raw resources; affordability and spending use the softcapped effective value.
   private chars = STARTING_CHARS;
   private baseIntegrity = BASE_INTEGRITY;
+  private flawlessRun = true;
   private wave = 0;
   private waveTracker: WaveTracker | null = null;
   private enemiesDefeated = 0;
@@ -404,6 +405,7 @@ export class GameScene extends Phaser.Scene {
     this.sealedCellMarks = new Map<string, Phaser.GameObjects.Text>();
     this.chars = this.startingCharsForLevel();
     this.baseIntegrity = BASE_INTEGRITY;
+    this.flawlessRun = !this.unlimitedFirepower && !this.resumeSave;
     this.wave = 0;
     this.waveTracker = null;
     this.enemiesDefeated = 0;
@@ -1919,6 +1921,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handleEnemyReachedBase(enemy: Enemy) {
+    this.flawlessRun = false;
     this.baseIntegrity -= 1;
     removeEnemy(this.unitLifecycleRuntime(), enemy, false);
     this.cameras.main.shake(110, 0.004);
@@ -2288,6 +2291,7 @@ export class GameScene extends Phaser.Scene {
       cardState.readyAt = this.cardTimeFor(cardState.definition.id);
     });
     this.baseIntegrity += 1_000;
+    this.flawlessRun = false;
     this.gainChars(10_000, this.ui.debugButton.x, this.ui.debugButton.y + 34);
     this.showToast(t("toast.debugChars"));
     this.updateCards();
@@ -2425,6 +2429,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private applyDebugDamage(x: number, y: number) {
+    this.flawlessRun = false;
     const rangeX = CELL_WIDTH / 2;
     const rangeY = CELL_HEIGHT / 2;
     const damage = this.debugDamageMode === "super" ? 105_000 : 15_000;
@@ -2560,11 +2565,12 @@ export class GameScene extends Phaser.Scene {
     this.clearPlacementGhosts();
     const reselectUnlocked = this.levelId === RESELECT_UNLOCK_LEVEL && !isLevelCompleted(RESELECT_UNLOCK_LEVEL);
     const previousCardSlotCount = unlockedCardSlotCount();
-    const unlockedCardIds = this.playback ? [] : completeLevel(this.levelId);
+    const flawless = this.flawlessRun && this.baseIntegrity >= BASE_INTEGRITY && !this.levelConfig.survival && !this.playback;
+    const unlockedCardIds = this.playback ? [] : completeLevel(this.levelId, { difficulty: this.difficulty, flawless });
     const currentCardSlotCount = unlockedCardSlotCount();
     showGameOverlay(
       this.overlay,
-      t("overlay.clear"),
+      t(flawless ? "overlay.flawless" : "overlay.clear"),
       t("button.menu"),
       unlockedCardIds,
       currentCardSlotCount > previousCardSlotCount

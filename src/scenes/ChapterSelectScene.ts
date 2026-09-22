@@ -2,12 +2,14 @@ import Phaser from "phaser";
 import { bindButtonHover } from "../render/buttonHover";
 import { createPageHeading, createHeaderNavigation } from "../render/pageHeader";
 import { createSelectionMapViewport, drawSelectionMapFrame } from "../render/selectionMap";
+import { createCompletionMarks } from "../render/completionMarks";
 import { palette, uiTextColors } from "../config";
 import { levelNodesForChapter, type ChapterDefinition } from "../data/chapters";
 import { chaptersInGroup, getChapterGroup } from "../data/chapterGroups";
 import { t } from "../i18n";
 import {
   completedLevelCountForChapter,
+  flawlessSummaryForChapters,
   isChapterGroupUnlocked,
   isChapterCompleted,
   isChapterUnlocked
@@ -208,16 +210,17 @@ export class ChapterSelectScene extends Phaser.Scene {
       const completedCount = completedLevelCountForChapter(chapter.id);
       const unlocked = isChapterUnlocked(chapter.id);
       const completed = isChapterCompleted(chapter.id);
+      const flawless = flawlessSummaryForChapters([chapter.id]);
       const frame = this.add
         .rectangle(chapter.x, chapter.y, CHAPTER_CARD_WIDTH, CHAPTER_CARD_HEIGHT, palette.black, 1)
         .setStrokeStyle(
           2,
-          completed ? palette.completed : unlocked ? palette.mid : palette.dim,
+          flawless.difficulty !== undefined ? palette.gold : completed ? palette.completed : unlocked ? palette.mid : palette.dim,
           unlocked ? 0.95 : 0.45
         )
         .setInteractive({ useHandCursor: unlocked });
       const label = this.add
-        .text(chapter.x, chapter.y - 18, t(chapter.labelKey), {
+        .text(chapter.x, chapter.y - 9, t(chapter.labelKey), {
           color: uiTextColors.primary,
           fontFamily: "monospace",
           fontSize: "22px",
@@ -227,7 +230,7 @@ export class ChapterSelectScene extends Phaser.Scene {
       const meta = this.add
         .text(
           chapter.x,
-          chapter.y + 20,
+          chapter.y + (flawless.total ? 14 : 20),
           levelCount > 0 && !chapter.survival
             ? t("label.chapterProgress", { completed: completedCount, count: levelCount })
             : t("label.levelCount", { count: levelCount }),
@@ -245,6 +248,14 @@ export class ChapterSelectScene extends Phaser.Scene {
       meta.setAlpha(alpha);
 
       this.mapContainer.add([frame, label, meta]);
+      this.mapContainer.add(createCompletionMarks(this, chapter.x + CHAPTER_CARD_WIDTH / 2 - 12,
+        chapter.y - CHAPTER_CARD_HEIGHT / 2 + 10, completed, flawless.difficulty));
+      if (flawless.total > 0) {
+        this.mapContainer.add(this.add.text(chapter.x, chapter.y + 31, t("label.flawlessProgress", { count: flawless.count, total: flawless.total }), {
+          color: flawless.count > 0 ? `#${palette.gold.toString(16)}` : uiTextColors.secondary,
+          fontFamily: "monospace", fontSize: "12px"
+        }).setOrigin(0.5).setAlpha(alpha).setName("flawless-progress"));
+      }
       frame.on("pointerup", (pointer: Phaser.Input.Pointer) => this.openChapter(chapter, pointer));
       label
         .setInteractive({ useHandCursor: unlocked })

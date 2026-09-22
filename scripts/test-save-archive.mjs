@@ -9,6 +9,18 @@ const PROGRESS = "characters-vs-geometry-progress-v1";
 const LOADOUT = "characters-vs-geometry:last-card-loadout";
 const JOURNAL = "charset-save-import-recovery-v1";
 const envelope = entries => JSON.stringify({ format: "charset-save", version: 1, exportedAt: "2026-09-20T00:00:00.000Z", entries });
+
+test("flawless difficulty records survive archives and malformed claims are rejected", () => {
+  const progress = { version: 1, completedLevelIds: ["1-1"], allCardsUnlocked: false,
+    flawlessDifficulties: { "1-1": [0, 3, 9] } };
+  const storage = fixture({ [PROGRESS]: JSON.stringify(progress) }), restored = fixture();
+  archive.importSaveArchive(archive.exportSaveArchive(storage), restored);
+  assert.deepEqual(JSON.parse(restored.getItem(PROGRESS)), progress);
+  for (const records of [[], null, { "1-1": [10] }, { "1-1": ["3"] }, { "1-1": [-1] },
+    { "1-1": [1.5] }, { "1-2": [3] }, { "IF-1": [3] }, { unknown: [3] }]) {
+    assert.throws(() => archive.parseSaveArchive(envelope({ [PROGRESS]: JSON.stringify({ ...progress, flawlessDifficulties: records }) })));
+  }
+});
 function fixture(entries = {}) {
   const values = new Map(Object.entries(entries));
   return { values, get length() { return values.size; }, key: i => [...values.keys()][i] ?? null,

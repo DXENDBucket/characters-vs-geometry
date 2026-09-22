@@ -1,4 +1,4 @@
-import { CARD_SLOT_COUNT, CUBE_BOSS_STATS } from "./config";
+import { CARD_SLOT_COUNT, CUBE_BOSS_STATS, DIFFICULTY_MIN, DIFFICULTY_MAX } from "./config";
 import { imitatedCardId } from "./game/cardIdentity";
 import { isLoadoutCardId } from "./game/cardEligibility";
 import { chapterDefinitions, chapterIdForLevelId, getChapterDefinition, levelNodesForChapter } from "./data/chapters";
@@ -21,6 +21,7 @@ interface StoredProgress {
   seenBossKinds: BossKind[];
   bestWaves: Record<string, number>;
   bestBossRanks: Record<string, number>;
+  flawlessDifficulties: Record<string, number[]>;
 }
 
 export interface ProgressSummary {
@@ -43,6 +44,22 @@ export function reloadProgress() { cachedProgress = null; }
 
 export function isLevelCompleted(levelId: string) {
   return progress().completedLevelIds.includes(levelId);
+}
+
+export function bestFlawlessDifficulty(levelId: string): number | undefined {
+  const difficulties = progress().flawlessDifficulties[levelId];
+  return difficulties?.length ? Math.max(...difficulties) : undefined;
+}
+
+export function flawlessSummaryForChapters(chapterIds: readonly string[]) {
+  const nodes = chapterIds.flatMap(id => levelNodesForChapter(id)).filter(node => !getLevelConfig(node.id).survival);
+  const difficulties = nodes.map(node => bestFlawlessDifficulty(node.id)).filter((value): value is number => value !== undefined);
+  return {
+    count: difficulties.length,
+    total: nodes.length,
+    // A chapter's rating is the difficulty reached by every operation, not its best single clear.
+    difficulty: nodes.length > 0 && difficulties.length === nodes.length ? Math.min(...difficulties) : undefined
+  };
 }
 
 export function isLevelUnlocked(levelId: string) {
@@ -126,13 +143,17 @@ export function unlockedCardSlotCount() {
   return Math.min(CARD_SLOT_COUNT, INITIAL_CARD_SLOT_COUNT + chapterSlots);
 }
 
-export function completeLevel(levelId: string) {
+export function completeLevel(levelId: string, result?: { difficulty: number; flawless: boolean }) {
   if (!knownLevelIds.has(levelId)) {
     return [];
   }
 
   const state = progress();
-  if (state.completedLevelIds.includes(levelId)) {
+  const flawless = result?.flawless === true && Number.isInteger(result.difficulty) &&
+    result.difficulty >= DIFFICULTY_MIN && result.difficulty <= DIFFICULTY_MAX;
+  const previousDifficulties = state.flawlessDifficulties[levelId] ?? [];
+  const newFlawless = flawless && !previousDifficulties.includes(result!.difficulty);
+  if (state.completedLevelIds.includes(levelId) && !newFlawless) {
     return [];
   }
 
@@ -142,6 +163,10 @@ export function completeLevel(levelId: string) {
 
   writeProgress({
     ...state,
+    flawlessDifficulties: newFlawless ? {
+      ...state.flawlessDifficulties,
+      [levelId]: [...previousDifficulties, result!.difficulty].sort((a, b) => a - b)
+    } : state.flawlessDifficulties,
     completedLevelIds: levelNodes
       .map((node) => node.id)
       .filter((id) => id === levelId || state.completedLevelIds.includes(id))
@@ -220,7 +245,7 @@ function progress() {
 }
 
 function emptyProgress(): StoredProgress {
-  return { version: SAVE_VERSION, completedLevelIds: [], allCardsUnlocked: false, seenEnemyKinds: [], seenBossKinds: [], bestWaves: {}, bestBossRanks: {} };
+  return { version: SAVE_VERSION, completedLevelIds: [], allCardsUnlocked: false, seenEnemyKinds: [], seenBossKinds: [], bestWaves: {}, bestBossRanks: {}, flawlessDifficulties: {} };
 }
 
 function readProgress(): StoredProgress {
@@ -251,6 +276,12 @@ function readProgress(): StoredProgress {
       version: SAVE_VERSION,
       completedLevelIds: levelNodes.map((node) => node.id).filter((id) => completed.has(id)),
       allCardsUnlocked: parsed.allCardsUnlocked === true,
+      flawlessDifficulties: Object.fromEntries(completableNodes.filter(node => completed.has(node.id)).flatMap(node => {
+        const values = parsed.flawlessDifficulties?.[node.id];
+        const valid = Array.isArray(values) ? [...new Set(values.filter(value => Number.isInteger(value) &&
+          value >= DIFFICULTY_MIN && value <= DIFFICULTY_MAX))].sort((a, b) => a - b) : [];
+        return valid.length ? [[node.id, valid]] : [];
+      })),
       seenEnemyKinds: Array.isArray(parsed.seenEnemyKinds) ? [...new Set(parsed.seenEnemyKinds.filter(isEnemyKind))] : [],
       seenBossKinds: validStoredKinds(parsed.seenBossKinds, CUBE_BOSS_STATS),
       bestWaves: Object.fromEntries(levelNodes.filter(node => getLevelConfig(node.id).survival).map(node => {
