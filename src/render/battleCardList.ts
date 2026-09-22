@@ -1,5 +1,4 @@
 import Phaser from "phaser";
-import { playUiClick } from "../audio/player";
 import { BOARD_HEIGHT, BOARD_Y, CARD_HEIGHT, CARD_WIDTH, palette } from "../config";
 import type { CardId, CardState } from "../types";
 import { createCardStates, destroyCardStates } from "./gameUi";
@@ -104,7 +103,6 @@ export class BattleCardList {
     this.drag = undefined;
     if (!this.canInteract() || drag.moved || drag.scrollbar || !this.viewport.contains(pointer.x, pointer.y)) return;
     if (drag.card && this.cardAt(pointer) === drag.card) {
-      playUiClick();
       this.onSelect(drag.card.definition.id);
     }
   };

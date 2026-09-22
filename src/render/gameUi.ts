@@ -425,7 +425,7 @@ export function createCardStates(scene: Phaser.Scene, selectedCardIds: CardId[])
       .rectangle(x + 17, y + 58, CARD_BAR_WIDTH, 4, palette.white, 1)
       .setOrigin(0, 0.5);
 
-    bindButtonHover(frame);
+    bindButtonHover(frame, [], undefined, { clickSound: false });
 
     return {
       definition,

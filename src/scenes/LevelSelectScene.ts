@@ -343,7 +343,7 @@ export class LevelSelectScene extends Phaser.Scene {
       this.selectLevelNode(node, pointer);
     });
     bindButtonHover(frame, [label], () => unlocked && !this.mapDragging &&
-      !this.encyclopediaPanel.isOpen() && this.mapViewport.contains(this.input.activePointer.x, this.input.activePointer.y), 3);
+      !this.encyclopediaPanel.isOpen() && this.mapViewport.contains(this.input.activePointer.x, this.input.activePointer.y), { lineWidth: 3 });
   }
 
   private selectLevelNode(node: LevelNode, pointer: Phaser.Input.Pointer) {

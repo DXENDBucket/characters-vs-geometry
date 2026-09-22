@@ -7,8 +7,9 @@ export function bindButtonHover(
   frame: Phaser.GameObjects.Rectangle,
   labels: Phaser.GameObjects.GameObject[] = [],
   enabled: () => boolean = () => true,
-  lineWidth = 2
+  options: { lineWidth?: number; clickSound?: boolean } = {}
 ) {
+  const { lineWidth = 2, clickSound = true } = options;
   const scene = frame.scene;
   const targets = [frame, ...labels];
   const hovered = new Set<Phaser.GameObjects.GameObject>();
@@ -46,7 +47,7 @@ export function bindButtonHover(
       .setRotation(frame.rotation).setDepth(frame.depth + 0.01).setAlpha(frame.alpha).setVisible(true);
   };
   const bindings = targets.map((target) => {
-    const click = () => { if (enabled() && target.input?.enabled) playUiClick(); };
+    const click = () => { if (clickSound && enabled() && target.input?.enabled) playUiClick(); };
     const over = () => {
       outsideCanvas = false;
       if (!hovered.size) {

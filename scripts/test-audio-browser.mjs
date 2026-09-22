@@ -123,7 +123,7 @@ try {
   await page.waitForTimeout(650);
   await page.screenshot({ path: "logs/audio-settings-english.png" });
 
-  await start("GameScene", { levelId: "1-1", selectedCards: ["A"], difficulty: 0, seed: 42 });
+  await start("GameScene", { levelId: "1-1", selectedCards: ["A", "B"], difficulty: 0, seed: 42 });
   await page.waitForFunction(() => window.__audio.soundPlayer.music.element?.currentTime > .05);
   assert.equal(await page.evaluate(() => window.__audio.soundPlayer.music.track), "battle");
   assert.equal(await page.evaluate(() => window.__audio.soundPlayer.music.element.loop), true);
@@ -136,6 +136,21 @@ try {
   await page.evaluate(() => window.__testGame.scene.getScene("GameScene").closePauseMenu());
   await page.waitForFunction(time => window.__audio.soundPlayer.music.element.currentTime > time, pausedAt);
   await page.evaluate(() => { const s = window.__testGame.scene.getScene("GameScene"); s.battlePaused = true; s.chars = 10000; window.__audio.soundPlayer.buffers.clear(); });
+  const beforeCardSwitch = await page.evaluate(() => window.__uiClicks);
+  const cardB = await at(110, 218);
+  await page.mouse.move(cardB.x, cardB.y); await page.mouse.down();
+  await page.waitForTimeout(200); await page.mouse.up();
+  await page.waitForTimeout(250);
+  assert.equal(await page.evaluate(() => window.__testGame.scene.getScene("GameScene").selectedCardId), "B");
+  assert.equal(await page.evaluate(() => window.__uiClicks), beforeCardSwitch, "Neither mouse down nor release should sound when switching battle cards");
+  assert.equal(await page.evaluate(() => window.__testGame.scene.getScene("GameScene").cardStates[1].frame.parentContainer.list
+    .some(object => object.name === "button-hover" && object.visible)), true, "Silent cards must retain hover feedback");
+  await page.evaluate(async () => {
+    (await window.__module("/src/settings/keybindings.ts")).setKeybinding("card:A", "KeyA");
+  });
+  await page.keyboard.press("a");
+  await page.waitForFunction(() => window.__testGame.scene.getScene("GameScene").selectedCardId === "A");
+  assert.equal(await page.evaluate(() => window.__uiClicks), beforeCardSwitch, "Keyboard selection also stays silent");
   await click(240 + 2.5 * 78, 138 + 3.5 * 78);
   assert.equal(await page.evaluate(() => window.__audio.soundPlayer.buffers.has("deploy")), true);
   await page.evaluate(() => { const s = window.__testGame.scene.getScene("GameScene"); s.cardStates[0].readyAt = 0; });
