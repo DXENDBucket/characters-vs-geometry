@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { playUiClick } from "../audio/player";
 import { drawParenthesisBorder } from "./parenthesisTower";
 import { bindButtonHover } from "./buttonHover";
 import { bindSliderInput } from "./sliderInput";
@@ -839,7 +840,10 @@ export class EncyclopediaPanel {
       underline.lineBetween(x, rowY + link.height + 1, x + link.width, rowY + link.height + 1);
       link.on("pointerup", (pointer: Phaser.Input.Pointer) => {
         const position = this.pointerPosition(pointer);
-        if (!this.dragMoved && !this.timeIsSuppressingClick() && this.detailViewport.contains(position.x, position.y)) this.openMechanic(mechanicId);
+        if (!this.dragMoved && !this.timeIsSuppressingClick() && this.detailViewport.contains(position.x, position.y)) {
+          playUiClick();
+          this.openMechanic(mechanicId);
+        }
       });
       link.on("pointerover", () => link.setColor("#48ff88"));
       link.on("pointerout", () => link.setColor(uiTextColors.primary));

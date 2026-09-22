@@ -15,7 +15,7 @@ const fixture = () => {
 test("synthesized cues have finite audible PCM, headroom, and silent edges", () => {
   for (const id of Object.keys(soundDefinitions)) {
     const samples = synthesizeSound(id);
-    assert(samples.length > 1000 && samples.length < 22050, id);
+    assert(samples.length > 300 && samples.length < 22050, id);
     assert(samples.every(Number.isFinite), id);
     assert.equal(samples[0], 0, id);
     assert.equal(samples.at(-1), 0, id);
@@ -31,6 +31,17 @@ test("sound generation is repeatable and does not consume gameplay randomness", 
     Math.random = () => { throw Error("Audio consumed global randomness"); };
     for (const id of Object.keys(soundDefinitions)) assert.deepEqual(synthesizeSound(id), synthesizeSound(id));
   } finally { Math.random = random; }
+});
+
+test("typewriter cues are short, and frequent upgrades remain much quieter than placement", () => {
+  const rms = samples => Math.sqrt(samples.reduce((sum, n) => sum + n * n, 0) / samples.length);
+  for (const id of ["ui", "deploy"]) {
+    assert(soundDefinitions[id].voices.some(voice => voice.tone === "clack"));
+    assert(synthesizeSound(id).length < 22050 * .05);
+  }
+  assert(rms(synthesizeSound("upgrade")) < rms(synthesizeSound("deploy")) * .4);
+  assert(synthesizeSound("upgrade").length < 22050 * .06);
+  assert(soundDefinitions.upgrade.cooldown >= 250);
 });
 
 test("audio settings normalize corrupt local values and strictly validate archives", () => {

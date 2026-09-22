@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { palette } from "../config";
-import { playSound } from "../audio/player";
+import { playUiClick } from "../audio/player";
 
 /** Keep hover feedback separate from persistent selection and cooldown styling. */
 export function bindButtonHover(
@@ -46,7 +46,7 @@ export function bindButtonHover(
       .setRotation(frame.rotation).setDepth(frame.depth + 0.01).setAlpha(frame.alpha).setVisible(true);
   };
   const bindings = targets.map((target) => {
-    const click = () => { if (enabled() && target.input?.enabled) playSound("ui"); };
+    const click = () => { if (enabled() && target.input?.enabled) playUiClick(); };
     const over = () => {
       outsideCanvas = false;
       if (!hovered.size) {

@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { playUiClick } from "../audio/player";
 import { GAME_HEIGHT, GAME_WIDTH, palette, uiTextColors } from "../config";
 import { t } from "../i18n";
 import { createTowerWord } from "../render/towerWord";
@@ -110,6 +111,7 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   private addMenuItem(x: number, y: number, text: string, action: () => void, enabled = true) {
+    const activate = () => { playUiClick(); action(); };
     const index = this.items.length;
     const hitArea = this.add.rectangle(x, y, 368, 50, palette.white, 0);
     const label = this.add.text(x - 130, y, text, {
@@ -121,12 +123,12 @@ export class MainMenuScene extends Phaser.Scene {
     }).setOrigin(0.5).setVisible(false);
     const divider = this.add.rectangle(x, y + 27, 328, 1, palette.dim, 0.65);
     this.root.add([hitArea, label, arrow, divider]);
-    this.items.push({ hitArea, label, arrow, enabled, action });
+    this.items.push({ hitArea, label, arrow, enabled, action: activate });
     if (enabled) {
       hitArea.setInteractive({ useHandCursor: true });
       hitArea.on("pointerover", () => this.select(index));
       hitArea.on("pointerout", () => this.select(-1));
-      hitArea.on("pointerup", () => action());
+      hitArea.on("pointerup", activate);
     } else {
       this.root.add(this.add.text(x + 164, y, t("menu.soon"), {
         fontFamily: "monospace", fontSize: "14px", color: "#777777"

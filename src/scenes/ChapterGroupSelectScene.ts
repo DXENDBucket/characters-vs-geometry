@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { playUiClick } from "../audio/player";
 import { bindButtonHover } from "../render/buttonHover";
 import { createPageHeading } from "../render/pageHeader";
 import { GAME_HEIGHT, GAME_WIDTH, palette, uiTextColors } from "../config";
@@ -262,6 +263,7 @@ export class ChapterGroupSelectScene extends Phaser.Scene {
 
   private openGroup(index: number) {
     if (!isChapterGroupUnlocked(chapterGroups[index].id)) return;
+    playUiClick();
     this.scene.start("ChapterSelectScene", { groupId: chapterGroups[index].id });
   }
 

@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { playUiClick } from "../audio/player";
 import { bindButtonHover } from "../render/buttonHover";
 import { createPageHeading } from "../render/pageHeader";
 import { enemyArchetypes } from "../data/enemyArchetypes";
@@ -288,6 +289,7 @@ export class CardSelectScene extends Phaser.Scene {
       this.cardPoolDragPointer = null;
       if (link.enemyKind) this.encyclopedia.openEnemy(link.enemyKind);
       else if (link.bossKind) this.encyclopedia.openBoss(link.bossKind);
+      playUiClick();
     });
     zone.on("pointerout", () => this.previewHint.setVisible(false));
 

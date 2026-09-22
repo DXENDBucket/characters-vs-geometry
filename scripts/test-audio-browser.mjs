@@ -24,8 +24,32 @@ try {
   assert.equal(await page.evaluate(() => !!window.__audio.soundPlayer.context), false, "Audio must wait for input");
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   assert.equal(await page.evaluate(() => !!window.__audio.soundPlayer.context), false);
-  await page.mouse.click(10, 10);
+  await page.evaluate(() => {
+    const player = window.__audio.soundPlayer, play = player.play.bind(player);
+    window.__uiClicks = 0;
+    player.play = (...args) => { const accepted = play(...args); if (accepted && args[0] === "ui") window.__uiClicks++; return accepted; };
+  });
+  const singlePlayer = await page.evaluate(() => {
+    const g = window.__testGame, rect = g.canvas.getBoundingClientRect();
+    const button = g.scene.getScene("MainMenuScene").items[0].hitArea;
+    return { x: rect.x + button.x * rect.width / g.scale.width, y: rect.y + button.y * rect.height / g.scale.height };
+  });
+  await page.mouse.click(singlePlayer.x, singlePlayer.y);
   await page.waitForFunction(() => window.__audio.soundPlayer.context?.state === "running");
+  await page.waitForFunction(() => window.__uiClicks === 1);
+  await page.waitForFunction(() => window.__testGame.scene.isActive("ChapterGroupSelectScene"));
+  await page.waitForTimeout(100);
+  await page.mouse.move(640, 360); await page.mouse.down();
+  await page.mouse.move(560, 360, { steps: 6 }); await page.mouse.up();
+  assert.equal(await page.evaluate(() => window.__uiClicks), 1, "Dragging a group is not a click");
+  await page.evaluate(() => window.__testGame.scene.getScene("ChapterGroupSelectScene").select(1));
+  await page.mouse.click(640, 360);
+  await page.waitForTimeout(100);
+  assert.equal(await page.evaluate(() => window.__uiClicks), 1, "Locked groups stay silent");
+  await page.evaluate(() => window.__testGame.scene.getScene("ChapterGroupSelectScene").select(0));
+  await page.mouse.click(640, 360);
+  await page.waitForFunction(() => window.__uiClicks === 2);
+  await page.waitForFunction(() => window.__testGame.scene.isActive("ChapterSelectScene"));
   const audio = await page.evaluate(async () => {
     const { soundPlayer: player, MAX_AUDIO_VOICES } = window.__audio;
     const analyzer = player.context.createAnalyser();
@@ -71,6 +95,13 @@ try {
     return { x: rect.x + x * rect.width / g.scale.width, y: rect.y + y * rect.height / g.scale.height };
   }, { x, y });
   const click = async (x, y) => { const p = await at(x, y); await page.mouse.click(p.x, p.y); };
+  await page.mouse.move(10, 10);
+  await start("MainMenuScene");
+  const beforeKeyboard = await page.evaluate(() => window.__uiClicks);
+  await page.evaluate(() => window.__testGame.scene.getScene("MainMenuScene").select(0));
+  await page.keyboard.press("Enter");
+  await page.waitForFunction(before => window.__uiClicks === before + 1, beforeKeyboard);
+  await page.waitForFunction(() => window.__testGame.scene.isActive("ChapterGroupSelectScene"));
   await start("SettingsScene");
   await click(950, 634);
   assert.equal(await page.evaluate(() => window.__prefs.getAudioSettings().muted), true);

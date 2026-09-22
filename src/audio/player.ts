@@ -165,6 +165,14 @@ export class SoundPlayer {
 export const soundPlayer = new SoundPlayer();
 export function playSound(id: SoundId, position?: number) { return soundPlayer.play(id, position); }
 
+/** The very first menu click may arrive while the browser is still resuming audio. */
+export function playUiClick() {
+  const requestedAt = performance.now();
+  void soundPlayer.unlock().then(() => {
+    if (performance.now() - requestedAt < 200) playSound("ui");
+  });
+}
+
 /** Shared by canvas and DOM menus. No audio context is created before a user gesture. */
 export function installAudio() {
   let activated = false;
@@ -173,7 +181,7 @@ export function installAudio() {
   const key = (event: KeyboardEvent) => { if (!event.repeat) unlock(); };
   const domClick = (event: MouseEvent) => {
     const button = event.target instanceof Element ? event.target.closest("button") : null;
-    if (button && !button.disabled) playSound("ui");
+    if (button && !button.disabled) playUiClick();
   };
   const visibility = () => { if (document.hidden) void soundPlayer.suspend(); else resume(); };
   const blur = () => { void soundPlayer.suspend(); };

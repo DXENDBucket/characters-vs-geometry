@@ -4,7 +4,9 @@ interface Voice {
   duration: number;
   delay?: number;
   gain: number;
-  tone?: "soft" | "noise";
+  tone?: "soft" | "noise" | "clack";
+  attack?: number;
+  release?: number;
 }
 interface SoundDefinition {
   channel: "ui" | "battle";
@@ -14,11 +16,17 @@ interface SoundDefinition {
 }
 
 export const soundDefinitions = {
-  ui: { channel: "ui", cooldown: 65, priority: 1, voices: [{ hz: 880, endHz: 620, duration: .055, gain: .18 }] },
+  ui: { channel: "ui", cooldown: 65, priority: 1, voices: [
+    { hz: 0, duration: .009, gain: .5, tone: "clack", attack: .0003, release: .0015 },
+    { hz: 330, duration: .03, gain: .085, tone: "soft", attack: .0005, release: .004 },
+    { hz: 0, duration: .007, delay: .013, gain: .16, tone: "clack", attack: .0003, release: .0015 }] },
   deploy: { channel: "battle", cooldown: 90, priority: 2, voices: [
-    { hz: 250, endHz: 420, duration: .13, gain: .24, tone: "soft" }, { hz: 840, duration: .08, delay: .025, gain: .1 }] },
-  upgrade: { channel: "battle", cooldown: 180, priority: 1, voices: [
-    { hz: 523.25, duration: .11, gain: .16 }, { hz: 783.99, duration: .15, delay: .07, gain: .18 }] },
+    { hz: 0, duration: .012, gain: .5, tone: "clack", attack: .0003, release: .002 },
+    { hz: 165, duration: .045, gain: .17, tone: "soft", attack: .0005, release: .005 },
+    { hz: 0, duration: .008, delay: .018, gain: .2, tone: "clack", attack: .0003, release: .002 }] },
+  upgrade: { channel: "battle", cooldown: 250, priority: 1, voices: [
+    { hz: 0, duration: .012, gain: .12, tone: "clack", attack: .001, release: .003 },
+    { hz: 240, duration: .05, gain: .055, tone: "soft", attack: .001, release: .008 }] },
   erase: { channel: "battle", cooldown: 100, priority: 1, voices: [
     { hz: 0, duration: .16, gain: .18, tone: "noise" }, { hz: 300, endHz: 120, duration: .12, gain: .12 }] },
   move: { channel: "battle", cooldown: 160, priority: 2, voices: [
@@ -53,13 +61,15 @@ export function synthesizeSound(id: SoundId, sampleRate = 22050): Float32Array<A
     for (let i = 0; i < count; i++) {
       const ratio = i / count, elapsed = i / sampleRate;
       phase += 2 * Math.PI * (voice.hz + ((voice.endHz ?? voice.hz) - voice.hz) * ratio) / sampleRate;
-      const envelope = Math.min(1, elapsed / .006) * Math.pow(1 - ratio, 1.7) * Math.min(1, (count - i - 1) / (sampleRate * .012));
+      const envelope = Math.min(1, elapsed / (voice.attack ?? .006)) * Math.pow(1 - ratio, 1.7) *
+        Math.min(1, (count - i - 1) / (sampleRate * (voice.release ?? .012)));
       let value = Math.sin(phase);
       if (voice.tone === "soft") value = (value + .16 * Math.sin(3 * phase)) / 1.16;
-      if (voice.tone === "noise") {
+      if (voice.tone === "noise" || voice.tone === "clack") {
         noiseSeed = (Math.imul(noiseSeed, 1664525) + 1013904223) >>> 0;
-        noise += .3 * ((noiseSeed / 0x100000000 * 2 - 1) - noise);
-        value = noise;
+        const white = noiseSeed / 0x100000000 * 2 - 1;
+        noise += .3 * (white - noise);
+        value = voice.tone === "clack" ? white - noise : noise;
       }
       samples[start + i] += value * envelope * voice.gain;
     }
