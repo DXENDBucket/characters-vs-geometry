@@ -13,7 +13,7 @@ import {
   palette,
   uiTextColors
 } from "../config";
-import { towerEncyclopediaEntry } from "../encyclopedia";
+import { createUnlockedCardDetails } from "./cardUnlockDetails";
 import { t } from "../i18n";
 import { getCardDefinition } from "../registry/cards";
 import type { AlphaGameObject, CardId, CardState, CubeBoss } from "../types";
@@ -744,7 +744,8 @@ export function showGameOverlay(
   buttonText: string,
   unlockedCardIds: CardId[] = [],
   unlockedCardSlot?: { current: number; total: number },
-  unlockedToolMessage?: string
+  unlockedToolMessage?: string,
+  onOpenCard?: (id: CardId) => void
 ) {
   const hasCardUnlocks = unlockedCardIds.length > 0;
   const hasSlotUnlock = Boolean(unlockedCardSlot);
@@ -780,65 +781,9 @@ export function showGameOverlay(
   overlay.buttonText.setText(buttonText);
   overlay.buttonText.setPosition(GAME_WIDTH / 2, menuY - 3);
   if (hasCardUnlocks) {
-    createUnlockedCardDetails(overlay, unlockedCardIds);
+    createUnlockedCardDetails(overlay.details, unlockedCardIds, onOpenCard);
   }
   overlay.container.setVisible(true);
-}
-
-function createUnlockedCardDetails(overlay: GameOverlayElements, unlockedCardIds: CardId[]) {
-  const scene = overlay.container.scene;
-  const rowHeight = unlockedCardIds.length > 1 ? 195 : 260;
-  const startY = unlockedCardIds.length > 1 ? 190 : 220;
-
-  unlockedCardIds.forEach((id, index) => {
-    const entry = towerEncyclopediaEntry(id);
-    const card = entry.card ?? getCardDefinition(id);
-    const y = startY + index * rowHeight;
-    const iconX = 176;
-    const contentX = 226;
-    const icon = createUnitBorder(scene, card.category, 25, 2).setPosition(iconX, y + 28);
-    const cardLabel = scene.add
-      .text(iconX, y + 25, card.id, {
-        color: uiTextColors.primary,
-        fontFamily: "monospace",
-        fontSize: "24px",
-        fontStyle: "700"
-      })
-      .setOrigin(0.5);
-    if (card.id === "()") { drawParenthesisBorder(icon, palette.white, 3); icon.setScale(25 / 34); cardLabel.setVisible(false); }
-    const title = scene.add
-      .text(contentX, y, entry.title, {
-        color: uiTextColors.primary,
-        fontFamily: "monospace",
-        fontSize: "20px",
-        fontStyle: "700"
-      })
-      .setOrigin(0, 0);
-    const stats = scene.add
-      .text(contentX, y + 32, entry.lines.join("\n"), {
-        color: uiTextColors.secondary,
-        fontFamily: "monospace",
-        fontSize: "12px",
-        lineSpacing: 2,
-        wordWrap: { width: 870, useAdvancedWrap: true }
-      })
-      .setOrigin(0, 0);
-    const description = scene.add
-      .text(contentX, y + 92, entry.description, {
-        color: uiTextColors.body,
-        fontFamily: "monospace",
-        fontSize: "14px",
-        lineSpacing: 2,
-        wordWrap: { width: 870, useAdvancedWrap: true }
-      })
-      .setOrigin(0, 0);
-
-    overlay.details.add([icon, cardLabel, title, stats, description]);
-    if (index < unlockedCardIds.length - 1) {
-      const divider = scene.add.rectangle(GAME_WIDTH / 2, y + rowHeight - 18, 900, 1, palette.dim, 0.7);
-      overlay.details.add(divider);
-    }
-  });
 }
 
 function createToolButton(scene: Phaser.Scene, x: number, y: number, width: number, label: string) {

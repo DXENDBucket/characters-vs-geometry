@@ -576,7 +576,8 @@ export interface LevelConfig {
     | "tutorialBasics"
     | "tutorialTowerTypes"
     | "tutorialAutoUpgrade"
-    | "tutorialShifter";
+    | "tutorialShifter"
+    | "tutorialDamage";
 }
 
 export interface BossPhaseConfig {

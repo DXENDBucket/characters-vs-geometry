@@ -31,7 +31,7 @@ import { DAMAGE_SYMBOLS, getLanguage, t } from "../i18n";
 import { bossEncyclopediaIcon, enemyEncyclopediaGroup, visibleEnemyEncyclopediaGroups, visibleEncyclopediaEntries } from "../encyclopediaVisibility";
 import { cardLetterCase, type CardLetterCase } from "../registry/cards";
 import { enemyFamily, enemyRank, getEnemyDefinition } from "../registry/enemies";
-import type { BossKind, DamageType, EnemyKind } from "../types";
+import type { BossKind, CardId, DamageType, EnemyKind } from "../types";
 import {
   createCubeIcon,
   createDodecahedronIcon,
@@ -161,6 +161,17 @@ export class EncyclopediaPanel {
       this.previewLevel = Math.min(999, enemyRank(kind));
       this.drawDetail(entry);
     }
+  }
+
+  openTower(id: CardId) {
+    this.cardCase = cardLetterCase(id);
+    this.previewLevel = 1;
+    this.open("towers");
+    const entries = this.currentEntries();
+    const index = entries.findIndex(entry => entry.card?.id === id);
+    if (index < 0) return;
+    this.selectEntry(entries[index]);
+    this.setGridScroll(Math.floor(index / GRID_COLUMNS) * (TILE_SIZE + TILE_GAP));
   }
 
   openBoss(kind: BossKind) {

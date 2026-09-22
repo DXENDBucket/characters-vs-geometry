@@ -60,7 +60,8 @@ export function isTutorialMechanic(mechanic: LevelConfig["specialMechanic"]) {
   return mechanic === "tutorialBasics" ||
     mechanic === "tutorialTowerTypes" ||
     mechanic === "tutorialAutoUpgrade" ||
-    mechanic === "tutorialShifter";
+    mechanic === "tutorialShifter" ||
+    mechanic === "tutorialDamage";
 }
 
 export interface GuidedTutorialCopy {

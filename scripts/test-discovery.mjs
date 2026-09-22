@@ -327,6 +327,7 @@ test("old saves migrate without losing progress and malformed discovery values a
   const { progress } = fixture({ version: 1, completedLevelIds: ["1-3"], allCardsUnlocked: false,
     seenEnemyKinds: ["circle", "circle", "missing", "__proto__", 42], seenBossKinds: "octahedron" });
   assert.equal(progress.isLevelCompleted("0-4"), true);
+  assert.equal(progress.isLevelCompleted("0-5"), true);
   assert.equal(progress.isCardUnlocked("I"), true);
   assert.equal(progress.discoveredEnemies().enemies.has("square"), true);
   assert.equal(progress.discoveredEnemies().enemies.has("missing"), false);

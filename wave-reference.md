@@ -287,7 +287,8 @@ Debug Mode is disabled by default and persists locally from Settings. When disab
 ## Level 0-3 Tutorial
 
 - Uses a fixed `A` loadout and `150` starting characters.
-- Demonstrates marking a tower for Auto Upgrade, waiting for a real automatic level purchase, the global Run toggle, and the character Floor reserve.
+- Deploys two A towers, marks the upper tower for Auto Upgrade, and waits for a real automatic level purchase; introduces the global Run toggle and character Floor reserve.
+- Practices `Shift + click` in Auto Upgrade mode to mark/unmark all currently deployed towers of the same type, using the clicked tower's next state.
 - Finishes by selecting Eraser and removing the marked tower with no refund.
 
 ## Level 0-4 Tutorial
@@ -295,6 +296,14 @@ Debug Mode is disabled by default and persists locally from Settings. When disab
 - Uses a fixed `A / B` loadout and `500` starting characters.
 - Demonstrates a single-tower shift, the `15s` base cooldown, placement ghosts, and invalid-destination behavior.
 - Demonstrates `Ctrl + left-click` multi-selection, the upper-left anchor, preserved relative positions, and compounded cooldown growth.
+
+## Level 0-5 Tutorial
+
+- A safe, interactive damage lab using the same armor/resistance calculation as combat; no borrowed cards or permanent unlock changes.
+- Explains attack power times attack multiplier, physical damage and its 10% armor floor, magic damage and its 5% resistance floor, and true damage.
+- Compares individually resolved hits: four 100 physical hits vs. one 400 hit against 300 armor.
+- Examples exclude difficulty and special damage reduction; true damage does not bypass invincibility or all-damage reduction.
+- Completion rewards now show concise character introductions with direct encyclopedia links and paging for multiple unlocks.
 
 ## Level 1-1 Weight Growth
 

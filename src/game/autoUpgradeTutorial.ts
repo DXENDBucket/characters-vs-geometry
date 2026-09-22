@@ -14,6 +14,8 @@ type TutorialStep =
   | "mark"
   | "waiting"
   | "controls"
+  | "batchMark"
+  | "batchClear"
   | "selectErase"
   | "erase"
   | "complete";
@@ -52,25 +54,28 @@ const TUTORIAL_COPY: Record<TutorialStep, GuidedTutorialCopy> = {
     buttonKey: "tutorial.continue"
   },
   selectErase: {
-    lesson: 5,
+    lesson: 6,
     titleKey: "tutorial.auto.erase.title",
     bodyKey: "tutorial.auto.erase.select"
   },
   erase: {
-    lesson: 5,
+    lesson: 6,
     titleKey: "tutorial.auto.erase.title",
     bodyKey: "tutorial.auto.erase.body"
   },
   complete: {
-    lesson: 6,
+    lesson: 7,
     titleKey: "tutorial.auto.complete.title",
     bodyKey: "tutorial.auto.complete.body",
     buttonKey: "tutorial.finish"
-  }
+  },
+  batchMark: { lesson: 5, titleKey: "tutorial.auto.batch.title", bodyKey: "tutorial.auto.batch.mark" },
+  batchClear: { lesson: 5, titleKey: "tutorial.auto.batch.title", bodyKey: "tutorial.auto.batch.clear" }
 };
 
-const TOTAL_LESSONS = 6;
+const TOTAL_LESSONS = 7;
 const TARGET = { lane: 3, column: 4 };
+const PEER = { lane: 4, column: 4 };
 
 export class AutoUpgradeTutorialController {
   private step: TutorialStep = "intro";
@@ -93,7 +98,7 @@ export class AutoUpgradeTutorialController {
     switch (this.step) {
       case "deploy": {
         const tower = this.findTargetTower();
-        if (tower) {
+        if (tower && this.findPeerTower()) {
           this.tower = tower;
           this.setStep("selectAuto");
         }
@@ -130,6 +135,17 @@ export class AutoUpgradeTutorialController {
       case "controls":
         this.ensureTower();
         break;
+      case "batchMark":
+      case "batchClear": {
+        if (!this.ensureTower()) break;
+        const peer = this.findPeerTower();
+        if (!peer) { this.setStep("deploy"); break; }
+        const marked = this.step === "batchMark";
+        if (this.tower?.autoUpgrade === marked && peer.autoUpgrade === marked) {
+          this.setStep(marked ? "batchClear" : "selectErase");
+        }
+        break;
+      }
       case "selectErase":
         if (!this.ensureTower()) {
           break;
@@ -164,7 +180,7 @@ export class AutoUpgradeTutorialController {
         this.setStep("deploy");
         return;
       case "controls":
-        this.setStep("selectErase");
+        this.setStep("batchMark");
         return;
       case "complete":
         this.runtime.finish();
@@ -194,6 +210,7 @@ export class AutoUpgradeTutorialController {
       case "deploy":
         this.view.drawCardHighlight("A", alpha);
         this.view.drawCellHighlight(TARGET.lane, TARGET.column, alpha);
+        this.view.drawCellHighlight(PEER.lane, PEER.column, alpha);
         return;
       case "selectAuto":
         this.view.drawToolHighlight("autoUpgrade", alpha);
@@ -211,6 +228,11 @@ export class AutoUpgradeTutorialController {
         return;
       case "selectErase":
         this.view.drawToolHighlight("erase", alpha);
+        return;
+      case "batchMark":
+      case "batchClear":
+        this.view.drawToolHighlight("autoUpgrade", alpha);
+        this.view.drawCellHighlight(PEER.lane, PEER.column, alpha);
         return;
       case "erase":
         this.view.drawToolHighlight("erase", alpha);
@@ -232,5 +254,10 @@ export class AutoUpgradeTutorialController {
     return this.runtime.getTowers().find((tower) => {
       return tower.inPlay && tower.type === "A" && tower.lane === TARGET.lane && tower.column === TARGET.column;
     });
+  }
+
+  private findPeerTower() {
+    return this.runtime.getTowers().find(tower => tower.inPlay && tower.type === "A" &&
+      tower.lane === PEER.lane && tower.column === PEER.column);
   }
 }

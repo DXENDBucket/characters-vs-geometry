@@ -271,6 +271,7 @@ function readProgress(): StoredProgress {
       completed.add("0-2");
       completed.add("0-3");
       completed.add("0-4");
+      completed.add("0-5");
     }
     return {
       version: SAVE_VERSION,

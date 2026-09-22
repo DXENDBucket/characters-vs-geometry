@@ -30,6 +30,7 @@ import { reflectEnemyAttack } from "../game/projectileRuntime";
 import { detonateSlowAuraTower } from "../game/unitLifecycle";
 import { drawEnemyHealthLinks } from "../render/enemyHealthLinks";
 import { PauseMenu } from "../render/pauseMenu";
+import { EncyclopediaPanel } from "../render/encyclopediaPanel";
 import { BattleCardList } from "../render/battleCardList";
 import { TowerExtractionPool } from "../game/towerExtraction";
 import { LoadoutReselection, RESELECT_UNLOCK_LEVEL } from "../game/loadoutReselection";
@@ -235,6 +236,7 @@ export class GameScene extends Phaser.Scene {
   private replayCursor = 0;
   private executingCommand = false;
   private tutorialAdvance?: () => void;
+  private rewardEncyclopedia?: EncyclopediaPanel;
   private actionQueue = new BattleActionQueue();
   private resumeSave?: SurvivalSave;
   private resumeRequested = false;
@@ -338,6 +340,10 @@ export class GameScene extends Phaser.Scene {
     this.syncPlacementGhost(pointer);
   };
   private readonly sceneKeyDownHandler = (event: KeyboardEvent) => {
+    if (this.rewardEncyclopedia?.isOpen()) {
+      if (event.key === "Escape") { event.preventDefault(); this.rewardEncyclopedia.close(); }
+      return;
+    }
     if (event.key === "Escape") {
       event.preventDefault();
       if (!event.repeat) this.openPauseMenu();
@@ -369,6 +375,7 @@ export class GameScene extends Phaser.Scene {
     setBattleRandom(this, this.random);
     setBattlePlayback(this, Boolean(this.playback));
     this.tutorialAdvance = undefined;
+    this.rewardEncyclopedia = undefined;
     this.replayCursor = 0;
     this.executingCommand = false;
     this.resumeRequested = Boolean(data.resume);
@@ -2579,7 +2586,11 @@ export class GameScene extends Phaser.Scene {
       currentCardSlotCount > previousCardSlotCount
         ? { current: currentCardSlotCount, total: CARD_SLOT_COUNT }
         : undefined,
-      reselectUnlocked ? t("toast.reselectUnlocked") : undefined
+      reselectUnlocked ? t("toast.reselectUnlocked") : undefined,
+      id => {
+        this.rewardEncyclopedia ??= new EncyclopediaPanel(this);
+        this.rewardEncyclopedia.openTower(id);
+      }
     );
   }
 
