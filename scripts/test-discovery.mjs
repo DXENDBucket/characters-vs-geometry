@@ -8,6 +8,14 @@ import ts from "typescript";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const storageKey = "characters-vs-geometry-progress-v1";
 
+test("v unlocks after 3-4 rather than 2-9", () => {
+  const { progress } = fixture();
+  assert.deepEqual(progress.completeLevel("2-9"), []);
+  assert.equal(progress.isCardUnlocked("v"), false);
+  assert.deepEqual(progress.completeLevel("3-4"), ["v"]);
+  assert.equal(progress.isCardUnlocked("v"), true);
+});
+
 test("j unlocks after 3-10 rather than 2-6", () => {
   const { progress } = fixture();
   assert.deepEqual(progress.completeLevel("2-6"), ["n"]);
