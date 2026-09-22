@@ -40,7 +40,12 @@ test("typewriter cues are short, and frequent upgrades remain much quieter than 
     assert(synthesizeSound(id).length < 22050 * .05);
   }
   assert(rms(synthesizeSound("upgrade")) < rms(synthesizeSound("deploy")) * .4);
-  assert(synthesizeSound("upgrade").length < 22050 * .06);
+  assert.deepEqual(soundDefinitions.upgrade.voices.map(({ hz, duration, delay = 0, tone }) => ({ hz, duration, delay, tone })), [
+    { hz: 523.25, duration: .11, delay: 0, tone: undefined },
+    { hz: 783.99, duration: .15, delay: .07, tone: undefined }
+  ]);
+  assert.equal(soundDefinitions.upgrade.voices[0].gain, .16 * .25);
+  assert.equal(soundDefinitions.upgrade.voices[1].gain, .18 * .25);
   assert(soundDefinitions.upgrade.cooldown >= 250);
 });
 

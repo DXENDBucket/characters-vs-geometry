@@ -25,8 +25,7 @@ export const soundDefinitions = {
     { hz: 165, duration: .045, gain: .17, tone: "soft", attack: .0005, release: .005 },
     { hz: 0, duration: .008, delay: .018, gain: .2, tone: "clack", attack: .0003, release: .002 }] },
   upgrade: { channel: "battle", cooldown: 250, priority: 1, voices: [
-    { hz: 0, duration: .012, gain: .12, tone: "clack", attack: .001, release: .003 },
-    { hz: 240, duration: .05, gain: .055, tone: "soft", attack: .001, release: .008 }] },
+    { hz: 523.25, duration: .11, gain: .04 }, { hz: 783.99, duration: .15, delay: .07, gain: .045 }] },
   erase: { channel: "battle", cooldown: 100, priority: 1, voices: [
     { hz: 0, duration: .16, gain: .18, tone: "noise" }, { hz: 300, endHz: 120, duration: .12, gain: .12 }] },
   move: { channel: "battle", cooldown: 160, priority: 2, voices: [
