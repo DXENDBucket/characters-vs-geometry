@@ -188,9 +188,9 @@ export const cardDefinitions: CardDefinition[] = [
     cooldown: 20_000,
     maxHp: 3_000,
     attackPower: 0,
-    armor: 500,
-    magicResistance: 40,
-    stats: "3000 A500 MR40"
+    armor: 300,
+    magicResistance: 70,
+    stats: "3000 A300 MR70"
   },
   {
     id: "o",

@@ -4,6 +4,17 @@ import { test } from "node:test";
 import ts from "typescript";
 import { createTypeScriptLoader } from "./helpers/load-typescript.mjs";
 
+test("O specializes in magic resistance without changing its cost, health or cooldown", () => {
+  const { cardDefinitions } = createTypeScriptLoader()("src/data/cards.ts");
+  const card = cardDefinitions.find(card => card.id === "O");
+  assert.equal(card.armor, 300);
+  assert.equal(card.magicResistance, 70);
+  assert.equal(card.maxHp, 3000);
+  assert.equal(card.cost, 125);
+  assert.equal(card.cooldown, 20000);
+  assert.equal(card.stats, "3000 A300 MR70");
+});
+
 // Load the pure rules with the project's compiler, without a browser or Phaser.
 const source = fs.readFileSync(new URL("../src/game/rules/towerMovement.ts", import.meta.url), "utf8");
 const { outputText } = ts.transpileModule(source, {
