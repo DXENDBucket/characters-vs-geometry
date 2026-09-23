@@ -2,7 +2,7 @@ import { CELL_HEIGHT, CELL_WIDTH } from "../config";
 import { towerBehaviorType, towerHasSkillBehavior } from "./towerIdentity";
 import { getCardDefinition } from "../registry/cards";
 import { makeShiftEffect } from "../render/combatEffects";
-import type { Projectile, SkillState, Tower } from "../types";
+import type { EnemyProjectile, Projectile, SkillState, Tower } from "../types";
 import type { ProjectileRuntime } from "./projectileRuntime";
 import { gainSkillSp, getTowerSkillState, resetSkillCharge, spendSkillSp } from "./skillState";
 
@@ -53,7 +53,7 @@ function syncGatheringVisual(tower: Tower, state: SkillState, time: number) {
 export function gatherProjectile(
   runtime: ProjectileRuntime,
   sources: Tower[],
-  projectile: Projectile,
+  projectile: Projectile | EnemyProjectile,
   previousX: number,
   previousY: number
 ) {
@@ -76,7 +76,8 @@ export function gatherProjectile(
   projectile.lastGatheredAt = runtime.battleTime;
   const fromY = projectile.y;
   projectile.y = source.y;
-  projectile.lane = source.lane;
+  if ("sourceLane" in projectile) projectile.sourceLane = source.lane;
+  else projectile.lane = source.lane;
   projectile.body.setPosition(projectile.x, projectile.y);
   makeShiftEffect(runtime.scene, projectile.x, fromY, projectile.x, projectile.y);
   const definition = getCardDefinition("j");

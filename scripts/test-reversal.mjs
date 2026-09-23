@@ -351,11 +351,14 @@ function gatheringFixture() {
   const shot = (overrides = {}) => ({ type: "bolt", lane: 2, x: j.x, y: j.y - CELL_HEIGHT,
     vx: 0, vy: 0, damage: 400, damageType: "physical", hitCount: 3,
     maxX: 10000, limitDirection: 1, splashRadius: 0, body: visual(), ...overrides });
-  return { ...f, j, shot, ...load("src/game/gathering.ts"),
+  const enemyShot = (overrides = {}) => ({ x: j.x, y: j.y - CELL_HEIGHT, sourceLane: 2,
+    vx: 0, damage: 400, damageType: "magic", hitCount: 3, body: visual(), ...overrides });
+  return { ...f, j, shot, enemyShot, ...load("src/game/gathering.ts"),
+    updateEnemy: seconds => load("src/game/projectileRuntime.ts").updateEnemyProjectiles(f.runtime, seconds),
     update: seconds => load("src/game/projectileRuntime.ts").updateTowerProjectiles(f.runtime, seconds) };
 }
 
-test("j matches L's panel and HP upgrades, costs 225 and unlocks one stage after L", () => {
+test("j matches L's panel and HP upgrades, costs 225 and unlocks after 3-10", () => {
   const f = extractionFixture();
   const card = f.state.getDefinition("j");
   const l = f.state.getDefinition("L");
@@ -363,7 +366,7 @@ test("j matches L's panel and HP upgrades, costs 225 and unlocks one stage after
   assert.equal(card.cost, 225);
   assert.equal(card.selfDamage, 100);
   assert.equal(card.selfDamageType, "true");
-  assert.equal(load("src/data/cardUnlocks.ts").cardUnlockRequirement("j"), "2-6");
+  assert.equal(load("src/data/cardUnlocks.ts").cardUnlockRequirement("j"), "3-10");
   const j = f.place("j");
   towers.applyTowerUpgradeStats(j, card, towers.upgradeTowerLevel(j), 0);
   assert.equal(j.finalStats.maxHp, 5400);
@@ -450,14 +453,13 @@ test("Gathering catches fast shots from either direction, preserves velocity/tar
   assert.equal(f.runtime.projectiles.length, 0);
 });
 
-test("Gathering leaves enemy bullets and mortars alone, and ignores expired, transient or removed gatherers", () => {
+test("Gathering leaves mortars alone, and ignores expired, transient or removed gatherers", () => {
   const f = gatheringFixture();
-  const enemyShot = { x: f.j.x, y: f.shot().y, vx: 0, sourceLane: 2, body: visual() };
+  const enemyShot = f.enemyShot();
   const mortar = { owner: "tower", fromX: 300, fromY: 200, targetX: 600, targetY: 200,
     x: f.j.x, y: f.shot().y, progress: 0, duration: 1000, body: visual() };
   f.runtime.enemyProjectiles.push(enemyShot);
   f.runtime.mortarProjectiles.push(mortar);
-  load("src/game/projectileRuntime.ts").updateEnemyProjectiles(f.runtime, 0);
   load("src/game/projectileRuntime.ts").updateMortarProjectiles(f.runtime, 0.01);
   assert.equal(enemyShot.sourceLane, 2);
   assert.equal(mortar.targetY, 200);
@@ -468,9 +470,106 @@ test("Gathering leaves enemy bullets and mortars alone, and ignores expired, tra
     Object.assign(f.j, state);
     if (!f.j.transient && f.j.inPlay) f.runtime.battleTime = 10000;
     f.update(0);
+    f.updateEnemy(0);
     assert.equal(shot.lane, 2);
+    assert.equal(enemyShot.sourceLane, 2);
     assert.equal(f.j.hp, 3000);
   }
+});
+
+test("Gathering pulls enemy bullets into the new lane without converting damage or hit count", () => {
+  const f = gatheringFixture(), shot = f.enemyShot();
+  const hits = [];
+  f.runtime.damageTower = (...args) => hits.push(args);
+  f.runtime.enemyProjectiles.push(shot);
+  f.updateEnemy(0);
+  assert.equal(shot.sourceLane, f.j.lane);
+  assert.equal(shot.y, f.j.y);
+  assert.equal(shot.lastGatheredAt, 1000);
+  assert.equal(shot.hitCount, 3);
+  assert.deepEqual(hits, [[f.j, 100, "true"], [f.j, 400, "magic"], [f.j, 400, "magic"], [f.j, 400, "magic"]]);
+  assert.equal(f.runtime.enemyProjectiles.length, 0);
+  assert.equal(f.runtime.projectiles.length, 0);
+});
+
+test("Gathering sweeps fast enemy bullets from both directions and keeps their velocity", () => {
+  const { CELL_WIDTH } = load("src/config.ts");
+  for (const direction of [-1, 1]) {
+    const f = gatheringFixture();
+    const shot = f.enemyShot({ x: f.j.x - direction * CELL_WIDTH, vx: direction * CELL_WIDTH * 2 });
+    f.runtime.enemyProjectiles.push(shot);
+    f.updateEnemy(1);
+    assert.equal(shot.sourceLane, f.j.lane);
+    assert.equal(shot.x, f.j.x + direction * CELL_WIDTH);
+    assert.equal(shot.vx, direction * CELL_WIDTH * 2);
+    assert.equal(shot.damage, 400);
+    assert.equal(shot.hitCount, 3);
+    assert.equal(f.j.hp, 2900);
+    assert(f.runtime.enemyProjectiles.includes(shot));
+  }
+});
+
+test("enemy Gathering shares the interval and cancels simultaneous competing pulls", () => {
+  for (const reverseOrder of [false, true]) {
+    const f = gatheringFixture(), other = f.place("j", 1, 1, 4);
+    other.skills.gathering = { sp: 0, spBuffer: 0, activeUntil: 10000 };
+    if (reverseOrder) f.runtime.towers.reverse();
+    const shot = f.enemyShot();
+    f.runtime.enemyProjectiles.push(shot);
+    f.updateEnemy(0);
+    assert.equal(shot.sourceLane, 2);
+    assert.equal(f.j.hp, 3000);
+    assert.equal(other.hp, 3000);
+  }
+  const f = gatheringFixture(), other = f.place("j", 1, 2, 4);
+  other.skills.gathering = { sp: 0, spBuffer: 0, activeUntil: 10000 };
+  const shot = f.enemyShot();
+  const pull = () => f.gatherProjectile(f.runtime, f.runtime.towers, shot, shot.x, shot.y);
+  assert.equal(pull(), true);
+  f.runtime.battleTime = 1099;
+  assert.equal(pull(), false);
+  assert.equal(shot.sourceLane, 3);
+  f.runtime.battleTime = 1100;
+  assert.equal(pull(), true);
+  assert.equal(shot.sourceLane, 2);
+  assert.equal(f.j.hp, 2900);
+  assert.equal(other.hp, 2900);
+});
+
+test("enemy Gathering stops on lethal self-damage and tolerates linked projectile cleanup", () => {
+  const f = gatheringFixture(), first = f.enemyShot(), second = f.enemyShot();
+  f.j.hp = 100;
+  f.runtime.enemyProjectiles.push(first, second);
+  f.updateEnemy(0);
+  assert.equal(f.j.inPlay, false);
+  assert.equal(first.sourceLane, 3);
+  assert.equal(second.sourceLane, 2);
+  const other = gatheringFixture(), shot = other.enemyShot();
+  other.runtime.enemyProjectiles.push(shot);
+  other.runtime.damageTower = () => { other.j.inPlay = false; other.runtime.enemyProjectiles.length = 0; shot.body.destroy(); };
+  other.updateEnemy(0);
+  assert.equal(shot.body.destroyed, true);
+  assert.equal(other.runtime.enemyProjectiles.length, 0);
+});
+
+test("enemy Gathering preserves interception before movement and checks the destination without a phantom diagonal", () => {
+  const f = gatheringFixture(), shot = f.enemyShot();
+  f.runtime.enemyProjectiles.push(shot);
+  const segments = [];
+  f.runtime.interceptProjectile = (projectile, from) => {
+    segments.push({ from: { ...from }, to: { x: projectile.x, y: projectile.y } });
+    return segments.length === 2;
+  };
+  f.updateEnemy(0);
+  assert.equal(segments.length, 2);
+  assert.deepEqual(segments[1], { from: { x: f.j.x, y: f.j.y }, to: { x: f.j.x, y: f.j.y } });
+  assert.equal(f.runtime.enemyProjectiles.length, 0);
+  assert.equal(f.j.hp, 2900);
+  const blocked = gatheringFixture();
+  blocked.runtime.enemyProjectiles.push(blocked.enemyShot());
+  blocked.runtime.interceptProjectile = () => true;
+  blocked.updateEnemy(0);
+  assert.equal(blocked.j.hp, 3000);
 });
 
 test("Gathering stops immediately on lethal self-damage and tolerates linked projectile cleanup", () => {

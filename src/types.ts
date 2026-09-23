@@ -483,6 +483,7 @@ export interface StoredTowerShot extends ProjectileIntegrity {
 }
 
 export interface EnemyProjectile extends ProjectileIntegrity {
+  lastGatheredAt?: number;
   appearance?: "bolt" | "star";
   hitCount?: number;
   x: number;

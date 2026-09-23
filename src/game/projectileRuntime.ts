@@ -200,6 +200,7 @@ export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: numb
   }
 
   const slowSources = projectileSlowAuraSources(runtime);
+  const gatherers = runtime.towers.filter(tower => gatheringIsActive(tower, runtime.battleTime));
   const transientTargets =
     runtime.towers.length === runtime.occupied.size
       ? emptyEnemyProjectileTransientTargets
@@ -212,6 +213,14 @@ export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: numb
     if (runtime.interceptProjectile?.(projectile, from)) {
       removeEnemyProjectile(runtime.enemyProjectiles, projectile);
       return;
+    }
+    if (gatherers.length > 0 && gatherProjectile(runtime, gatherers, projectile, from.x, from.y)) {
+      // Linked removals can clear this shot; the lane change itself is not a swept trajectory.
+      if (!runtime.enemyProjectiles.includes(projectile)) return;
+      if (runtime.interceptProjectile?.(projectile, { x: projectile.x, y: projectile.y })) {
+        removeEnemyProjectile(runtime.enemyProjectiles, projectile);
+        return;
+      }
     }
     const hit = findEnemyProjectileHitTower(runtime.occupied, projectile, transientTargets);
 
