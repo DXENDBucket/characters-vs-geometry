@@ -34,7 +34,7 @@ try {
     const scene = game.scene.getScene("GameScene"), boss = scene.boss;
     const check = (ok, message) => { if (!ok) throw Error(message); };
     check(boss?.kind === "del", "DEL did not spawn");
-    check(boss.hp === 120000 && boss.baseStats.armor === 150 && boss.baseStats.magicResistance === 20, "Wrong panel");
+    check(boss.hp === 500000 && boss.baseStats.armor === 150 && boss.baseStats.magicResistance === 20, "Wrong panel");
     check(boss.hitboxWidth === config.CELL_WIDTH * 3 && boss.hitboxHeight === config.CELL_HEIGHT * 3, "Wrong hitbox");
     check(boss.hasSkills && boss.skills.deleteStack.sp === 40 && !boss.labelText.visible, "Skill or label mismatch");
     const position = [boss.x, boss.y];
@@ -46,7 +46,7 @@ try {
     check(restored.boss.kind === "del" && restored.boss.hp === boss.hp, "Snapshot lost DEL");
     restored.boss.body.destroy();
     scene.combatRuntime().damageBoss(1000, "physical");
-    check(boss.hp < 120000 && boss.hp > 119000, "DEL cannot receive damage");
+    check(boss.hp < boss.maxHp && boss.hp > boss.maxHp-1000, "DEL cannot receive damage");
     updateBossRuntime(scene.bossRuntime(), 1);
     check(boss.skills.deleteStack.sp === 40 && !scene.timedCellSeals.entries.length, "No-target cast spent SP");
     scene.chars = 50000;
@@ -179,14 +179,14 @@ try {
     check(scene.timedCellSealGraphics.depth === 1 && scene.timedCellWarningGraphics.depth > boss.body.depth,
       "Seals and warnings do not use separate layers");
     check([...scene.sealedCellMarks.values()].every(mark => mark.depth === 1), "Permanent seal is not at the bottom");
-    scene.combatRuntime().damageBoss(boss.hp - 90001, "true");
+    scene.combatRuntime().damageBoss(boss.hp - (boss.maxHp*.75+1), "true");
     check(!boss.delSweep, "Sweep triggered above 75%");
     scene.combatRuntime().damageBoss(1, "true");
-    check(boss.hp === 90000 && boss.invincibleUntil === Infinity && boss.delSweep.phase === "warning", "Threshold did not shield immediately");
+    check(boss.hp === boss.maxHp*.75 && boss.invincibleUntil === Infinity && boss.delSweep.phase === "warning", "Threshold did not shield immediately");
     check(boss.body.list.some(child => child.name === "del-sweep-warning"), "Three-lane warning missing");
     const children = scene.battlefield.worldLayer.list.length;
     scene.combatRuntime().damageBoss(1000000, "true");
-    check(boss.hp === 90000 && scene.battlefield.worldLayer.list.length === children, "Invulnerability failed or spawned conventional invulnerability VFX");
+    check(boss.hp === boss.maxHp*.75 && scene.battlefield.worldLayer.list.length === children, "Invulnerability failed or spawned conventional invulnerability VFX");
     const graph = JSON.parse(JSON.stringify(captureBattleSnapshot(scene.battleState())));
     validateBattleSave(graph, scene.wave, "del");
     const restored = restoreBattleSnapshot(scene, graph);
@@ -219,7 +219,7 @@ try {
       check(!scene.towers.some(t => t.lane === 3 && t.column === 5), "Swept tower survived erasure");
       check(!boss.body.list.some(child => child.name === "del-sweep-warning"), "Warning leaked after sweep");
       scene.combatRuntime().damageBoss(1000, "true");
-      check(boss.hp === 89000 && boss.delSweep.phase === "complete", "Return retained invulnerability or retriggered");
+      check(boss.hp === boss.maxHp*.75-1000 && boss.delSweep.phase === "complete", "Return retained invulnerability or retriggered");
       drawTimedCellSeals(scene.timedCellSealGraphics, scene.timedCellSeals.entries, scene.battleTime, scene.timedCellWarningGraphics);
       return { cells: expected, phase: boss.delSweep.phase };
     };
@@ -247,7 +247,7 @@ try {
     const scene = game.scene.getScene("GameScene"), boss = scene.boss;
     const check = (ok, message) => { if (!ok) throw Error(message); };
     const home = [boss.x,boss.y], startedAt = scene.battleTime;
-    scene.combatRuntime().damageBoss(boss.hp-60001, "true");
+    scene.combatRuntime().damageBoss(boss.hp-(boss.maxHp*.5+1), "true");
     check(!boss.delLaneSweep, "Half sweep triggered early");
     scene.combatRuntime().damageBoss(1,"true");
     check(boss.delLaneSweep?.phase === "warning" && boss.invincibleUntil === Infinity, "Half threshold not immediately shielded");
@@ -280,7 +280,7 @@ try {
           const shot = createTowerProjectile(scene,{type:"bolt",x:part.x,y:part.y,lane:Math.floor((part.y-c.BOARD_Y)/78),
             speed:0,damage:999999,damageType:"true",splashRadius:0,angleDegrees:0,maxX:Infinity});
           scene.projectiles.push(shot); updateTowerProjectiles(scene.projectileRuntime(),0);
-          check(!scene.projectiles.includes(shot) && boss.hp === 60000, "Echo failed to block shot invulnerably");
+          check(!scene.projectiles.includes(shot) && boss.hp === boss.maxHp*.5, "Echo failed to block shot invulnerably");
         }
         roundTrip();
       } else {
@@ -310,7 +310,7 @@ try {
           check(scene.deployment.useCard(scene.getDefinition("B"),lane,1) === "deployed", "Cannot prepare outer-lane tower");
           outerTowers.push(scene.towers.find(t => t.lane === lane && t.column === 1));
         }
-        scene.combatRuntime().damageBoss(boss.hp-30001,"true");
+        scene.combatRuntime().damageBoss(boss.hp-(boss.maxHp*.25+1),"true");
         check(boss.delLaneSweep.stage === "half", "Quarter sweep triggered early");
         scene.combatRuntime().damageBoss(1,"true");
         quarterStartedAt = scene.battleTime;

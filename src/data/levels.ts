@@ -95,7 +95,8 @@ export const levelConfigs: Record<string, LevelConfig> = {
   "AE-10": {
     id: "AE-10", unlockAfter: "AE-9",
     enemyKinds: ["circle", "tilde", "tilde2", "tilde3", "equals", "equals2", "equals3",
-      "parentheses", "parentheses2", "parentheses3", "dollar", "chevronLeader"],
+      "parentheses", "parentheses2", "parentheses3", "dollar", "chevronLeader",
+      "mortarTriangle", "pentagon", "diamond", "diamond2", "diamond3"],
     firstWaveWeight: CHAPTER_FOUR_FIRST_WAVE_WEIGHT,
     waveWeightIncrement: CHAPTER_FOUR_WAVE_WEIGHT_INCREMENT,
     waveWeightIncrementGrowth: CHAPTER_FOUR_WAVE_WEIGHT_INCREMENT_GROWTH,

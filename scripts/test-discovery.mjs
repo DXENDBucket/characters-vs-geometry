@@ -114,7 +114,7 @@ function fixture(saved) {
   };
 }
 
-test("AE-10 unlocks DEL after AE-9 and uses its enemy pool in a finite Boss battle", () => {
+test("AE-10 unlocks DEL after AE-9 and adds mortar, pentagon and diamond ranks to its Boss battle pool", () => {
   const { progress, levels, visibility } = fixture();
   const level = levels.getLevelConfig("AE-10");
   assert.equal(level.bossKind, "del");
@@ -122,7 +122,8 @@ test("AE-10 unlocks DEL after AE-9 and uses its enemy pool in a finite Boss batt
   assert.equal(level.survival, undefined);
   assert.equal(level.startingChars, 500);
   assert.equal(level.waveWeightCap, 800);
-  assert.deepEqual(level.enemyKinds, levels.getLevelConfig("AE-9").enemyKinds);
+  assert.deepEqual(level.enemyKinds, [...levels.getLevelConfig("AE-9").enemyKinds,
+    "mortarTriangle", "pentagon", "diamond", "diamond2", "diamond3"]);
   for (const id of ["4-10", "AE-1", "AE-2", "AE-3", "AE-4", "AE-5", "AE-6", "AE-7", "AE-8"])
     progress.completeLevel(id);
   assert.equal(progress.isLevelUnlocked("AE-10"), false);
