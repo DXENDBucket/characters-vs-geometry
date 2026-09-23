@@ -5,6 +5,7 @@ import {
   ENEMY_SPEED
 } from "./config";
 import { attackIntervalMs } from "./game/attackSpeed";
+import { isTowerShellType } from "./game/towerOccupancy";
 import { DAMAGE_SYMBOLS, EFFECT_SYMBOLS, getLanguage, t } from "./i18n";
 import { allCardDefinitions, getCardDefinition } from "./registry/cards";
 import { enemyFamily, getEnemyDefinition } from "./registry/enemies";
@@ -721,7 +722,7 @@ export function towerEncyclopediaEntries(): EncyclopediaEntry[] {
 export function towerEncyclopediaEntry(id: CardId): EncyclopediaEntry {
   const card = getCardDefinition(id);
   return {
-    title: `${card.id}  ${categoryName(card.category)}${card.id === "()" ? (isZh() ? "/特殊" : "/Special") : ""}`,
+    title: `${card.id}  ${categoryName(card.category)}${isTowerShellType(card.id) ? (isZh() ? "/特殊" : "/Special") : ""}`,
     card,
     lines: towerLines(card),
     description: towerDescription(card.id)
@@ -755,6 +756,8 @@ function towerLines(card: CardDefinition) {
 
 function towerDescription(id: CardId) {
   const zh = isZh();
+  const shellDescription = zh ? "同格防护层，可与一座塔共用一格，部署顺序不限。每格最多一层防护，圆括号与方括号不能叠套或互相升级。内部塔受到的所有伤害优先由防护层承受，按其自身护甲与法抗结算；击破防护层的那次伤害不向内部溢出。范围攻击每格只判定一次，多判的后续判定可在防护层破坏后命中内部塔。防护层与内部塔独立治疗、升级、擦除和移位。点击两侧可单独标记自动升级或擦除，点击中心操作内部塔。不能被 @ 复制。"
+    : "Protective layer sharing a cell with one tower, in either deployment order. Each cell allows only one shell: parentheses and square brackets cannot stack or upgrade each other. Receives the occupant's damage using its own armor and MR, without spillover on the breaking hit. Area attacks resolve once per cell; later judgments can hit the exposed occupant. Shell and occupant have independent healing, upgrades, erasure and shifting. Side clicks select the shell for auto-upgrades or erasure; the center selects the occupant. Cannot be copied by @.";
   const descriptions: Record<CardId, string> = {
     "/": zh ? "物理护盾出口，只进不出。保护自身为中心、缺四角的 5×5 范围内的友方塔，包括自己，受 & 拓扑影响。在目标护甲结算后，每抵消 1 点物理伤害消耗 3 点库存伤害；储备不足时抵消部分伤害。多个出口按部署顺序补足减免，不重复消耗。仅成功抵消时，在受保护塔上显示短暂白色光环护盾。法术伤害和真实伤害不受影响。多判按剩余总伤害计入储备，不执行库存原本的攻击或附带效果，不接收无伤害行动。缓存为 128 × 有效等级，升级只增加容量，保留库存。"
       : "Input-only physical shield outlet. Protects friendly towers, including itself, in a centered 5x5 area without corners, respecting & topology. After the target's armor, spends 3 stored damage per 1 physical damage absorbed. Insufficient reserves give partial protection. Multiple outlets contribute in placement order without redundant spending. Successful absorption briefly displays a white halo shield on the protected tower. Magic and true damage are unaffected. Counts remaining total multi-hit damage without executing stored attacks or effects; rejects non-damaging actions. Capacity is 128 per effective level; upgrades only expand capacity and retain stock.",
@@ -762,8 +765,8 @@ function towerDescription(id: CardId) {
       : "Input-only magic shield outlet. Protects friendly towers, including itself, in a centered 5x5 area without corners, respecting & topology. After the target's MR, spends 3 stored damage per 1 magic damage absorbed. Insufficient reserves give partial protection. Multiple outlets contribute in placement order without redundant spending. Successful absorption briefly displays a blue halo shield on the protected tower. Physical and true damage are unaffected. Counts remaining total multi-hit damage without executing stored attacks or effects; rejects non-damaging actions. Capacity is 128 per effective level; upgrades only expand capacity and retain stock.",
     "?": zh ? "模仿者。在选卡时指定一座已解锁的常规塔，可与原卡同时携带，独立计算冷却。费用与目标相同，卡牌冷却为目标的两倍。部署后立即使用目标的外观、属性、行为和升级规则，也可参与自动升级。常规塔：基础费用 999 及以下；超级塔：1000–9999；究极塔：10000 及以上。"
       : "Imitator. Choose an unlocked regular tower in the loadout. Can accompany the original card with an independent cooldown. Costs the same as the target, with twice its card cooldown. Immediately deploys as the target, inheriting its appearance, stats, behavior and upgrade rules, including normal auto-upgrades. Regular: base cost <=999; Super: 1000-9999; Ultimate: 10000+.",
-    "()": zh ? "括号防护层，可与一座常规塔共用一格，先放括号或先放内部塔都可以。内部塔受到的所有伤害优先由括号承受，按括号自身护甲与法抗结算；击破括号的那次伤害不向内部溢出。范围攻击每格只判定一次，多判攻击的后续判定可在括号破坏后命中内部塔。括号与内部塔独立治疗、升级、擦除和移位。点击两侧括号可单独标记自动升级或擦除，点击中心操作内部塔。不能被 @ 复制。"
-      : "Parenthesis protection layer. Shares a cell with one ordinary tower, in either deployment order. Receives all damage intended for the occupant using its own armor and MR. The breaking hit never spills through; later judgments may hit the occupant. Area attacks resolve once per cell. Shell and occupant have separate healing, upgrades, erasure and shifting. Click either bracket to select its auto-upgrade or erase it; the center selects the occupant. Cannot be copied by @.",
+    "()": shellDescription,
+    "[]": shellDescription,
     "!": zh ? "持续攻击附着卡。放在已有塔上，永久允许该塔按原攻速和连射规则执行无需锁定目标的常规攻击，即使本行或射程内没有敌怪。适用于平射弹幕、激光、范围波；不自动释放技能，不绕过小 x、追踪迫击炮、斩击等必须有目标的条件。附着后显示金色 !，重复使用不叠加，升级和移动保留效果。生效后本卡冷却缩短为 30 秒 / 自身有效等级。"
       : "Continuous-fire attachment. Apply to an existing tower to permanently allow free-aim regular attacks at their normal cadence and volley count, even with no enemies in the lane or range. Supports ordinary projectiles, lasers and area waves. Does not activate skills or bypass target requirements for homing shots, predictive mortars or targeted slashes. Shows a gold ! marker, does not stack, and persists through upgrades and movement. After resolving, this card's cooldown becomes 30s / its effective level.",
     "0": zh ? "管道蓄存器。自动接收和转发弹幕或行动效果，容量为 128 × 有效等级。支持激光、追踪弹、迫击炮、生产、治疗、技能和一次性效果。源塔照常支付技力、攻击冷却和自伤；一次性塔照常消失，只把效果存入管道。保留输入时等级、攻击力、属性及多判信息，不复制行动。空格和无关塔是透明通路，按可达接收节点轮流均分；双向连接允许回流，每步最多转交一次。堵塞或断线保留库存，摧毁后库存消失。升级提升容量，支持自动升级；临时等级消失时不删除超额库存。"

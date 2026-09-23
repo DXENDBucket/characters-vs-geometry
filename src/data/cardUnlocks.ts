@@ -10,6 +10,7 @@ export const cardUnlockRequirements: Record<CardId, string | null> = {
   "*": "AE-7",
   "/": "AE-7",
   "()": "AE-5",
+  "[]": "AE-8",
   "!": "AE-5",
   "0": "AE-3",
   "-": "AE-4",

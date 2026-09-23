@@ -22,8 +22,8 @@ import { drawCircuitEdges } from "../render/circuitEdges";
 import { EdgeTowerControls } from "../game/edgeTowerControls";
 import { deploymentCardId, isImitatorCard, uniqueLoadout } from "../game/cardIdentity";
 import { createTowerProjectile } from "../game/projectiles";
-import { drawParenthesisBorder } from "../render/parenthesisTower";
-import { isParenthesisTower, syncTowerOccupancy, towerInPlacementLayer } from "../game/towerOccupancy";
+import { drawTowerShellBorder } from "../render/parenthesisTower";
+import { isParenthesisTower, isTowerShellType, syncTowerOccupancy, towerInPlacementLayer } from "../game/towerOccupancy";
 import { boardPointerTarget } from "../game/boardPointerTarget";
 import { BoardToolPreview, type BoardToolHint } from "../render/boardToolPreview";
 import { executePipelineAction, healPipelineArea, pipelineActionSelfCost } from "../game/pipelineActionEffects";
@@ -860,7 +860,7 @@ export class GameScene extends Phaser.Scene {
     }
     const cardState = this.cardStatesById.get(definition.id);
     const effectiveChars = this.effectiveChars();
-    if (deploymentCardId(definition.id) === "()" || (cellTower && isParenthesisTower(cellTower) && !this.targetedEffects.canHandle(definition.id))) {
+    if (isTowerShellType(deploymentCardId(definition.id)) || (cellTower && isParenthesisTower(cellTower) && !this.targetedEffects.canHandle(definition.id))) {
       this.deploySelectedCard(definition, lane, column, pointer);
       return;
     }
@@ -1010,7 +1010,7 @@ export class GameScene extends Phaser.Scene {
     if (!target) return hints;
     const { tower, edge, lane, column, pointedParenthesis } = target;
     const towerHint = (tower: Tower, action: BoardToolHint["action"]) => hints.push({
-      x: tower.x, y: tower.y, shape: isParenthesisTower(tower) ? "parenthesis" : "tower", action
+      x: tower.x, y: tower.y, shape: tower.type === "[]" ? "squareBracket" : isParenthesisTower(tower) ? "parenthesis" : "tower", action
     });
     const edgeHint = (edge: EdgeTower, action: BoardToolHint["action"]) => hints.push({ ...edgePosition(edge), shape: "edge", action });
     const invalid = () => hints.push({ x: BOARD_X + (column + .5) * CELL_WIDTH, y: BOARD_Y + (lane + .5) * CELL_HEIGHT, shape: "cell", action: "invalid" });
@@ -1119,7 +1119,7 @@ export class GameScene extends Phaser.Scene {
         fontStyle: "700"
       })
       .setOrigin(0.5);
-    if (deploymentCardId(definition.id) === "()") { drawParenthesisBorder(border, palette.white); label.setVisible(false); }
+    if (isTowerShellType(deploymentCardId(definition.id))) { drawTowerShellBorder(border, palette.white, 3, 0, deploymentCardId(definition.id)); label.setVisible(false); }
     const ghost = this.add.container(x, y, [border, label]).setDepth(18).setAlpha(0.32);
     this.placementGhosts.push(ghost);
   }

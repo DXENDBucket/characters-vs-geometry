@@ -17,13 +17,24 @@ test("parenthesis shell keeps its own defenses, unlocks after AE-5 and upgrades 
   assert.equal(load("src/game/upgrades.ts").isMaxHpUpgradeable("()"), true);
 });
 
-test("either placement order keeps one independent inner layer and one shell", () => {
+test("square brackets unlock at AE-8 with 600 armor, no MR, and the same price and HP growth as parentheses", () => {
+  const square = cardDefinitions.find(card => card.id === "[]"), round = cardDefinitions.find(card => card.id === "()");
+  for (const key of ["maxHp", "attackPower", "cooldown", "cost", "category"]) assert.equal(square[key], round[key], key);
+  assert.equal(square.armor, 600); assert.equal(square.magicResistance, 0);
+  assert.equal(cardUnlockRequirement("[]"), "AE-8");
+  assert.equal(load("src/game/upgrades.ts").isMaxHpUpgradeable("[]"), true);
+});
+
+for (const shellType of ["()", "[]"]) {
+test(`${shellType}: either placement order keeps one independent inner layer and one shell`, () => {
   for (const reverse of [false, true]) {
-    const inner = tower("A"), shell = tower("()"), occupied = new Map();
+    const inner = tower("A"), shell = tower(shellType), occupied = new Map();
     syncTowerOccupancy(reverse ? [shell, inner] : [inner, shell], occupied);
     assert.equal(occupied.get("2:3"), inner);
     assert.equal(towerInPlacementLayer(occupied, 2, 3, "A"), inner);
     assert.equal(towerInPlacementLayer(occupied, 2, 3, "()"), shell);
+    assert.equal(towerInPlacementLayer(occupied, 2, 3, "[]"), shell);
+    assert.equal(towerInPlacementLayer(occupied, 2, 3, "?[]"), shell);
     assert.equal(towerDamageReceiver(inner), shell);
     assert.equal(towerDamageReceiver(shell), shell);
     assert.equal(parenthesisAtPoint(inner, inner.x, inner.y), undefined);
@@ -31,8 +42,8 @@ test("either placement order keeps one independent inner layer and one shell", (
   }
 });
 
-test("area targets snapshot one judgment per cell, including when that judgment breaks the shell", () => {
-  const inner = tower("A"), shell = tower("()"), occupied = new Map();
+test(`${shellType}: area targets snapshot one judgment per cell, including when that judgment breaks the shell`, () => {
+  const inner = tower("A"), shell = tower(shellType), occupied = new Map();
   syncTowerOccupancy([shell, inner], occupied);
   const targets = towerAreaTargets([shell, inner]); assert.deepEqual(targets, [inner]);
   shell.inPlay = false; syncTowerOccupancy([shell, inner], occupied);
@@ -43,8 +54,8 @@ test("area targets snapshot one judgment per cell, including when that judgment 
   assert.deepEqual(towerAreaTargets([shell, inner]), [shell]);
 });
 
-test("movement checks occupancy in the moving tower's own layer", () => {
-  const inner = tower("A"), shell = tower("()"), other = tower("B", 4), occupied = new Map();
+test(`${shellType}: movement checks occupancy in the moving tower's own layer`, () => {
+  const inner = tower("A"), shell = tower(shellType), other = tower("B", 4), occupied = new Map();
   const towers = [inner, shell, other]; syncTowerOccupancy(towers, occupied);
   const byId = new Map(towers.map(tower => [tower.id, tower]));
   const board = { lanes: 7, columns: 13, getTower: id => byId.get(id), isCellDeployable: () => true,
@@ -53,4 +64,14 @@ test("movement checks occupancy in the moving tower's own layer", () => {
   assert.equal(move(shell).valid, true); assert.equal(move(inner).valid, false);
   shell.column = 4; syncTowerOccupancy(towers, occupied);
   assert.equal(towerDamageReceiver(inner), inner); assert.equal(towerDamageReceiver(other), shell);
+});
+}
+
+test("square bracket border uses straight corners and keeps the same selection footprint", () => {
+  const { drawTowerShellBorder } = load("src/render/parenthesisTower.ts");
+  const points = [];
+  const graphics = { clear() { return this; }, lineStyle() { return this; }, beginPath() {}, strokePath() {},
+    moveTo(x, y) { points.push([x, y]); }, lineTo(x, y) { points.push([x, y]); } };
+  drawTowerShellBorder(graphics, 0xffffff, 3, 0, "[]");
+  assert.deepEqual(points, [[-26, -24], [-34, -24], [-34, 24], [-26, 24], [26, -24], [34, -24], [34, 24], [26, 24]]);
 });

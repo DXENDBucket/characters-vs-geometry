@@ -7,6 +7,7 @@ import { parseEnemyKind } from "./enemyIdentity";
 import { getEnemyDefinition } from "../registry/enemies";
 import { canRestoreBattleVersion, validBattleClock } from "./battleSimulation";
 import { BUNDLE_SHOTS, PIPELINE_RATE } from "./pipelineRules";
+import { isTowerShellType } from "./towerOccupancy";
 
 export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossKind?: BossKind) {
   const units = new Map<NodeKind, Set<object>>();
@@ -150,7 +151,7 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
   const towerCells = new Set<string>();
   for (const tower of state.towers) {
     if (!tower.inPlay || tower.transient) continue;
-    const key = `${tower.lane}:${tower.column}:${tower.type === "()" ? "shell" : "main"}`;
+    const key = `${tower.lane}:${tower.column}:${isTowerShellType(tower.type) ? "shell" : "main"}`;
     require(!towerCells.has(key)); towerCells.add(key);
   }
   for (const shot of [...state.projectiles, ...state.enemyProjectiles, ...state.mortarProjectiles]) {
@@ -199,12 +200,12 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
       if (kind === "tower") {
         if (value.parenthesisGuard !== undefined) {
           const guard = value.parenthesisGuard;
-          require(member("tower")(guard) && record(guard) && guard.type === "()" && value.type !== "()" &&
+          require(member("tower")(guard) && record(guard) && isTowerShellType(guard.type) && !isTowerShellType(value.type) &&
             guard.lane === value.lane && guard.column === value.column);
         }
         if (value.parenthesisInner !== undefined) {
           const inner = value.parenthesisInner;
-          require(member("tower")(inner) && record(inner) && value.type === "()" && inner.type !== "()" &&
+          require(member("tower")(inner) && record(inner) && isTowerShellType(value.type) && !isTowerShellType(inner.type) &&
             inner.lane === value.lane && inner.column === value.column);
         }
         for (const key of ["healingCredit", "healingUpdatedAt"]) {

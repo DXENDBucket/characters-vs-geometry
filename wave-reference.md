@@ -222,6 +222,7 @@ Towers have separate base and final `attackPower`. Attack damage and healing use
 | = | Special | Edge | 50 | 1s | 0 | 0 | 0 | Unlocked after AE-3. Internal-edge connector; click cycles bidirectional, forward, backward and closed. No ammo storage or attackable body. | +25 shots/s flow per level; supports auto-upgrades |
 | ! | Function | Triangle | 200 | 30s | 1200 | 150 | 0 | Unlocked after AE-5. Permanently enables free-aim regular attacks without enemies in range. No auto skills or target-required attacks; does not stack. | Remaining card cooldown becomes 30s / effective level after applying |
 | () | Defense / Special | Parentheses | 275 | 20s | 3000 | 300 | 40 | Shares a cell with one ordinary tower. Receives its damage first, using shell defenses; the breaking hit does not spill through. | +80% base HP per effective upgrade |
+| [] | Defense / Special | Square brackets | 275 | 20s | 3000 | 600 | 0 | Unlock: AE-8. Same protective layer as (); receives occupant damage with its own defenses, without overflow. Only one shell per cell: () and [] cannot stack or upgrade each other. | +80% base HP per effective upgrade |
 | ? | Special | Target | 0 | 0s | 0 | 0 | 0 | Unlock: AE-6. Catalog values are placeholders: choose an unlocked regular tower at loadout selection; deployment cost and combat stats match that tower, card cooldown is doubled and independent. Deploys immediately as the target; can accompany the original card. Regular towers cost <=999, Super 1000-9999, Ultimate >=10000. | Uses target upgrade rules, including normal auto-upgrades; original and imitation cards can upgrade the same tower type |
 | + | Function | Triangle | 500 | 10s | 1200 | 150 | 0 | Input-only healing outlet. Converts total incoming damage to healing at 5:1 in small e's range, without an aura outline. Fixed 25 payloads/s. | 128 local capacity per effective level, like -; upgrades retain stock |
 | - | Function | Triangle | 500 | 10s | 1200 | 150 | 0 | Input-only interceptor. Local ammo cancels enemy bullets/mortars within radius 2.6, one shot per 0.1s. Spends 5 friendly damage per 1 enemy damage; retains leftovers. | 128 local capacity per effective level, like 0; upgrades retain stock |
@@ -3044,6 +3045,8 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 - Enemy pool: Circle I, Tilde I/II/III, Equals I/II/III, Triangle Ram I/II/III, Hex Mace I, Dollar I (`$`), Heart I.
 
 ## ASCII Expansion: AE-8
+
+- Clear reward: `[]`, square-bracket protective layer. Costs 275, cooldown 20s, 3000 HP, 600 armor, 0 MR and 0 ATK; other rules match parentheses.
 
 - Unlocks after AE-7; 30 waves, 500 starting characters. Chapter 4 weights: initial 25, increment +18, extra increment +3; one flag every 10 waves.
 - Enemy pool: Circle I, Tilde I/II, Parentheses I/II/III, Dollar I (`$`), Square II, Trapezoid II, Triangle Mortar I/II/III, Pentagon I/II/III, Hex Spell Bulwark I.

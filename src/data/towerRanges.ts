@@ -39,7 +39,7 @@ export const towerRangeDefinitions: Partial<Record<CardId, TowerRanges>> = {
   c: { skill: { shape: { kind: "nonSpatial" }, label: { zh: "符合条件的卡槽，不受距离限制", en: "Eligible card slots, no distance limit" } } },
   "+": { passive: centered5 }, "*": { passive: centered5 }, "/": { passive: centered5 },
   "-": { passive: { shape: { kind: "circle", radius: 2.6 } } },
-  "()": { passive: self }, "&": { passive: global }
+  "()": { passive: self }, "[]": { passive: self }, "&": { passive: global }
 };
 
 export function towerRanges(card: CardDefinition): TowerRanges {

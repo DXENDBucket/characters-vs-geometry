@@ -1,11 +1,12 @@
 import type { CardDefinition, CardId, Tower } from "../types";
+import { isTowerShellType } from "./towerOccupancy";
 import { towerAtCell, towerCell } from "./towerTopology";
 import { facingWithEffects } from "./rules/reversal";
 import { isTargetedEffectCardId } from "./targetedEffectCards";
 import { calculateTowerFinalStats, towerBaseStatsFromDefinition } from "./unitStats";
 
 export function isCopyableDefinition(definition: CardDefinition) {
-  return definition.cost <= 999 && definition.id !== "()" && !isTargetedEffectCardId(definition.id);
+  return definition.cost <= 999 && !isTowerShellType(definition.id) && !isTargetedEffectCardId(definition.id);
 }
 
 export interface TowerCopyRuntime {

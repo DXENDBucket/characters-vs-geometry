@@ -12,8 +12,11 @@ try {
   });
   await page.goto(option("url") ?? "http://127.0.0.1:5173");
   await page.waitForFunction(() => window.__testGame?.scene.getScenes(true).length);
-  const result = await page.evaluate(async () => {
-    const progress = await import("/src/progress.ts"), c = await import("/src/config.ts");
+  const shellType = option("shell") ?? "()";
+  const result = await page.evaluate(async shellType => {
+    const moduleFor = path => import(performance.getEntriesByType("resource").map(r => r.name)
+      .find(url => new URL(url).pathname === path) ?? path);
+    const progress = await moduleFor("/src/progress.ts"), c = await moduleFor("/src/config.ts");
     const { createMortarProjectile } = await import("/src/game/projectiles.ts");
     const { updateMortarProjectiles } = await import("/src/game/projectileRuntime.ts");
     const { captureBattleSnapshot, restoreBattleSnapshot } = await import("/src/game/battleSnapshot.ts");
@@ -22,7 +25,8 @@ try {
     const { getBlockingTowerFromOccupied } = await import("/src/game/targeting.ts");
     const game = window.__testGame; game.loop.stop(); progress.unlockAllCards(); progress.completeAllLevels();
     const check = (ok, text) => { if (!ok) throw Error(text); };
-    const selectedCards = ["()", "A", "B", "=", "#", "e", "m", "w", "s", "0"];
+    const otherShell = shellType === "[]" ? "()" : "[]";
+    const selectedCards = [shellType, "A", "B", "=", "#", "e", "m", "w", "s", otherShell];
     let scene;
     const start = () => {
       for (const active of game.scene.getScenes(true)) game.scene.stop(active.sys.settings.key);
@@ -42,27 +46,30 @@ try {
         damage: amount, hitCount: hits, damageType: "true", rangeX: c.CELL_WIDTH, rangeY: c.CELL_HEIGHT });
       shot.progress = .999; scene.mortarProjectiles.push(shot); updateMortarProjectiles(scene.projectileRuntime(), .1);
     };
-    for (const order of [["()", "A"], ["A", "()"]]) {
+    for (const order of [[shellType, "A"], ["A", shellType]]) {
       start(); for (const type of order) place(type);
-      const shell = scene.towers.find(t => t.type === "()"), inner = scene.towers.find(t => t.type === "A");
+      const shell = scene.towers.find(t => t.type === shellType), inner = scene.towers.find(t => t.type === "A");
       check(scene.occupied.size === 1 && scene.occupied.get("3:4") === inner && inner.parenthesisGuard === shell, "Placement order lost an occupant");
-      damage(inner, 700, "physical"); check(shell.hp === 2600 && inner.hp === 1200, "Physical damage did not use shell armor");
-      damage(inner, 100, "magic"); check(shell.hp === 2540 && inner.hp === 1200, "Magic damage did not use shell MR");
-      damage(inner, 80); check(shell.hp === 2460 && inner.hp === 1200, "True damage skipped shell");
+      const chars = scene.chars;
+      check(scene.deployment.useCard(scene.getDefinition(otherShell), 3, 4) === "occupied", "Different shell types stacked or cross-upgraded");
+      check(scene.chars === chars && shell.level === 1 && scene.towers.length === 2, "Rejected shell consumed resources");
+      damage(inner, 700, "physical"); check(shell.hp === (shellType === "[]" ? 2900 : 2600) && inner.hp === 1200, "Physical damage did not use shell armor");
+      damage(inner, 100, "magic"); check(shell.hp === (shellType === "[]" ? 2800 : 2540) && inner.hp === 1200, "Magic damage did not use shell MR");
+      damage(inner, 80); check(shell.hp === (shellType === "[]" ? 2720 : 2460) && inner.hp === 1200, "True damage skipped shell");
       damage(inner, 50000); check(!shell.inPlay && inner.inPlay && inner.hp === 1200 && scene.occupied.get("3:4") === inner,
         "Breaking hit spilled through or erased occupant");
       damage(inner, 100); check(inner.hp === 1100, "Damage failed to reach exposed occupant");
-      const replacement = place("()"); place("()");
+      const replacement = place(shellType); place(shellType);
       check(replacement.level === 2 && replacement.maxHp === 5400 && inner.level === 1, "Shell upgrade changed occupant or lost HP scaling");
       place("A"); check(inner.level === 2 && replacement.level === 2, "Inner upgrade touched shell");
     }
 
-    start(); let inner = place("A"), shell = place("()"); mortar(inner);
+    start(); let inner = place("A"), shell = place(shellType); mortar(inner);
     check(!shell.inPlay && inner.inPlay && inner.hp === 1200, "Area attack hit one shared cell twice");
-    shell = place("()"); mortar(inner, 2);
+    shell = place(shellType); mortar(inner, 2);
     check(!shell.inPlay && !inner.inPlay, "Second independent hit did not hit the exposed occupant");
 
-    start(); inner = place("A"); shell = place("()");
+    start(); inner = place("A"); shell = place(shellType);
     scene.edgeTowers.push({ type: "=", axis: "horizontal", lane: 3, column: 4, level: 1 }); scene.numbers.sync();
     scene.autoUpgradeEnabled = false; scene.autoUpgradeMode = true;
     click(shell.x + 32, shell.y);
@@ -76,29 +83,31 @@ try {
       "Shifting shell failed to detach or protect destination occupant");
     scene.eraserMode = true; click(shell.x + 32, shell.y);
     check(!shell.inPlay && dest.inPlay && scene.occupied.get("3:7") === dest, "Erasing shell erased inner tower");
-    shell = place("()", 7); scene.eraserMode = true; click(dest.x, dest.y);
+    shell = place(shellType, 7); scene.eraserMode = true; click(dest.x, dest.y);
     check(shell.inPlay && !dest.inPlay && scene.occupied.get("3:7") === shell, "Erasing occupant erased shell");
     scene.submitBattleCommand({ type: "selectCard", id: "A" }); scene.cardStatesById.get("A").readyAt = 0;
     click(shell.x, shell.y); check(shell.parenthesisInner?.type === "A", "Pointer could not deploy into empty shell");
 
-    start(); const push = place("#", 3); inner = place("A", 4); shell = place("()", 4); place("B", 5);
+    start(); const push = place("#", 3); inner = place("A", 4); shell = place(shellType, 4); place("B", 5);
     check(scene.towerPush.push(push, 3, 4, true), "Push rejected wrapped cell");
     check(shell.column === 5 && inner.column === 5 && inner.parenthesisGuard === shell && scene.occupied.get("3:5") === inner,
       "Push lost a colocated layer or duplicated a cell");
 
-    start(); const flyer = place("w"), groundShell = place("()"); flyer.flyingUntil = 10000;
+    start(); const flyer = place("w"), groundShell = place(shellType); flyer.flyingUntil = 10000;
     const enemy = createEnemy(scene, { kind: "circle", lane: 3, x: flyer.x, time: 0, waveNumber: 1, waveWeight: 10, finalDamageReduction: 0 });
     check(getBlockingTowerFromOccupied(scene.occupied, enemy) === groundShell, "Ground shell cannot block while occupant flies");
     enemy.body.destroy();
 
-    start(); const original = place("A", 3); place("()", 3); place("()", 5); place("m", 4); scene.mirrors.syncMirrors();
+    start(); const original = place("A", 3); place(shellType, 3); place(shellType, 5); place("m", 4); scene.mirrors.syncMirrors();
     check(scene.occupied.get("3:5")?.type === "A" && scene.occupied.get("3:5").parenthesisGuard,
       "Mirror could not generate a regular tower inside an empty shell");
-    start(); const generator = place("s", 3), emptyShell = place("()", 4);
+    start(); place(shellType, 3); place("m", 4); scene.mirrors.syncMirrors();
+    check(scene.towers.some(t => t.inPlay && t.type === shellType && t.column === 5), "Mirror failed to copy the shell layer");
+    start(); const generator = place("s", 3), emptyShell = place(shellType, 4);
     scene.executeBattleAction({ type: "volley", tower: generator, copyRevision: generator.copyRevision, hitCount: 1 });
     check(emptyShell.parenthesisInner?.type === "a", "Summon skipped the nearest empty shell");
 
-    start(); inner = place("A"); shell = place("()"); shell.autoUpgrade = true; shell.hp = 1800;
+    start(); inner = place("A"); shell = place(shellType); shell.autoUpgrade = true; shell.hp = 1800;
     const graph = JSON.parse(JSON.stringify(captureBattleSnapshot(scene.battleState())));
     const save = { version: 1, levelId: "IF-1", wave: scene.wave, savedAt: 1, difficulty: scene.difficulty,
       unlimitedFirepower: false, selectedCards, graph };
@@ -110,20 +119,20 @@ try {
     };
     const checksum = replay(1000 / 60); check(replay(1000 / 144) === checksum, "Shell battle state depends on rendering frame rate");
     start(); scene.applyBattleSave(restoreBattleSnapshot(scene, graph));
-    inner = scene.towers.find(t => t.type === "A"); shell = scene.towers.find(t => t.type === "()");
+    inner = scene.towers.find(t => t.type === "A"); shell = scene.towers.find(t => t.type === shellType);
     check(scene.occupied.size === 1 && inner.parenthesisGuard === shell && shell.hp === 1800 && shell.autoUpgrade, "Restore lost protection or upgrade state");
     damage(inner, 100); check(shell.hp === 1700 && inner.hp === 1200, "Restored shell failed to protect");
     scene.sealColumn(4); check(!inner.inPlay && !shell.inPlay && !scene.occupied.has("3:4"), "Sealed cell retained one layer");
 
-    start(); place("A", 3); const visualShell = place("()", 3); place("()", 5); place("B", 5); place("()", 7);
+    start(); place("A", 3); const visualShell = place(shellType, 3); place(shellType, 5); place("B", 5); place(shellType, 7);
     visualShell.autoUpgrade = true; scene.deployment.syncAutoUpgradeBorders();
-    const empty = place("()", 9); scene.submitBattleCommand({ type: "selectCard", id: "A" });
+    const empty = place(shellType, 9); scene.submitBattleCommand({ type: "selectCard", id: "A" });
     scene.cardStatesById.get("A").readyAt = 0; scene.syncPlacementGhost({ ...at(9), ctrlKey: false, shiftKey: false });
     scene.battlePaused = true; scene.updateHud(); scene.updateCards();
     game.loop.start(game.step.bind(game)); return { towers: scene.towers.length, capacity: visualShell.maxHp };
-  });
-  await page.waitForTimeout(150); await page.screenshot({ path: "logs/parenthesis-towers-desktop.png" });
+  }, shellType);
+  await page.waitForTimeout(650); await page.screenshot({ path: `logs/shell-${shellType === "[]" ? "square" : "round"}-desktop.png` });
   await page.setViewportSize({ width: 800, height: 600 }); await page.waitForTimeout(150);
-  await page.screenshot({ path: "logs/parenthesis-towers-small.png" });
+  await page.screenshot({ path: `logs/shell-${shellType === "[]" ? "square" : "round"}-small.png` });
   assert.deepEqual(errors, []); console.log("Parenthesis tower browser checks passed", result);
 } finally { await browser.close(); }

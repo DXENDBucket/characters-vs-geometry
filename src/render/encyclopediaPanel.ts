@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { playUiClick } from "../audio/player";
-import { drawParenthesisBorder } from "./parenthesisTower";
+import { drawTowerShellBorder } from "./parenthesisTower";
+import { isTowerShellType } from "../game/towerOccupancy";
 import { bindButtonHover } from "./buttonHover";
 import { bindSliderInput } from "./sliderInput";
 import { bindHoldButton } from "./holdButton";
@@ -896,7 +897,7 @@ export class EncyclopediaPanel {
           fontStyle: "700"
         })
         .setOrigin(0.5);
-      if (entry.card.id === "()") { drawParenthesisBorder(border, palette.white, 3); border.setScale(25 * scale / 34); label.setVisible(false); }
+      if (isTowerShellType(entry.card.id)) { drawTowerShellBorder(border, palette.white, 3, 0, entry.card.id); border.setScale(25 * scale / 34); label.setVisible(false); }
       parent.add([border, label]);
       return;
     }

@@ -221,7 +221,7 @@ export class TowerShifterController {
       let mark = this.selectionMarks.get(tower);
       if (!mark) {
         mark = runtime.scene.add.graphics().setDepth(58);
-        drawTowerSelection(mark, isParenthesisTower(tower));
+        drawTowerSelection(mark, tower.type);
         this.selectionMarks.set(tower, mark);
       }
       mark.setPosition(tower.body.x, tower.body.y);

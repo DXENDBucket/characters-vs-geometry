@@ -184,7 +184,9 @@ test("AE-8 follows AE-7 with 30 waves, the ASCII template and exactly the reques
   progress.completeLevel("AE-7");
   assert.equal(progress.isLevelUnlocked("AE-8"), true);
   for (const kind of level.enemyKinds) assert.equal(progress.discoveredEnemies().enemies.has(kind), true, kind);
-  assert.deepEqual(progress.completeLevel("AE-8"), []);
+  assert.equal(progress.isCardUnlocked("[]"), false);
+  assert.deepEqual(progress.completeLevel("AE-8"), ["[]"]);
+  assert.equal(progress.isCardUnlocked("[]"), true);
   assert.equal(progress.isLevelCompleted("AE-8"), true);
 });
 

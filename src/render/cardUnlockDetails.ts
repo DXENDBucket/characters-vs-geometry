@@ -5,7 +5,8 @@ import { t } from "../i18n";
 import { getCardDefinition } from "../registry/cards";
 import type { CardId } from "../types";
 import { bindButtonHover } from "./buttonHover";
-import { drawParenthesisBorder } from "./parenthesisTower";
+import { drawTowerShellBorder } from "./parenthesisTower";
+import { isTowerShellType } from "../game/towerOccupancy";
 import { createUnitBorder } from "./unitShapes";
 
 export function createUnlockedCardDetails(
@@ -28,7 +29,7 @@ export function createUnlockedCardDetails(
     const icon = createUnitBorder(scene, card.category, 25, 2).setPosition(202, y + 40);
     container.add(icon);
     const glyph = text(202, y + (card.id === "*" ? 44 : 38), card.id, 24).setOrigin(.5);
-    if (id === "()") { drawParenthesisBorder(icon, palette.white, 3); icon.setScale(25 / 34); glyph.setVisible(false); }
+    if (isTowerShellType(id)) { drawTowerShellBorder(icon, palette.white, 3, 0, id); icon.setScale(25 / 34); glyph.setVisible(false); }
     const title = text(250, y + 12, entry.title, 20);
     const link = text(1096, y + 14, t("overlay.cardDetails"), 14, uiTextColors.secondary).setOrigin(1, 0);
     text(250, y + 44, id === "?" ? t("overlay.imitatorCost") : t("overlay.cardOverview", {
