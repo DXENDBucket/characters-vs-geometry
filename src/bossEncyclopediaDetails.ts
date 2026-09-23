@@ -52,8 +52,8 @@ export function bossDetailSections(icon: BossIcon, level: number): DetailSection
   }
   if (icon === "del") {
     skill("删除：格式化", "Delete: Format", DEL_FORMAT.maxSp, DEL_FORMAT.cost, DEL_FORMAT.initialSp,
-      l("预警 3 秒，本体在 DEL 和灰色 NUL 字样之间故障闪烁。随后场上所有格子塔变为 NUL，持续 8 秒，每格只显示一个。期间攻击、技能、光环、阻挡和其他功能全部暂停，不会被敌方选中或命中，也不能擦除、升级或移动；NUL 格不能部署新塔，其他空格不受影响。结束后恢复原塔及其状态。边上的 = 不受影响。",
-        "Warns for 3s, glitching between DEL and gray NUL. Then nullifies all grid towers for 8s, displaying one NUL per occupied cell. All functions, blocking and targeting are suspended; towers cannot be attacked, erased, upgraded or moved, and their cells cannot receive new towers. Other empty cells remain usable. Original towers and state return afterward. Edge connectors (=) are unaffected."),
+      l(`预警 3 秒，本体在 DEL 和灰色 NUL 字样之间故障闪烁。随后场上所有格子塔变为 NUL，持续 ${DEL_FORMAT.durationMs / 1000} 秒，每格只显示一个。期间攻击、技能、光环、阻挡和其他功能全部暂停，不会被敌方选中或命中，也不能擦除、升级或移动；NUL 格不能部署新塔，其他空格不受影响。结束后恢复原塔及其状态。边上的 = 不受影响。`,
+        `Warns for 3s, glitching between DEL and gray NUL. Then nullifies all grid towers for ${DEL_FORMAT.durationMs / 1000}s, displaying one NUL per occupied cell. All functions, blocking and targeting are suspended; towers cannot be attacked, erased, upgraded or moved, and their cells cannot receive new towers. Other empty cells remain usable. Original towers and state return afterward. Edge connectors (=) are unaffected.`),
       battlefieldRange, DEL_FORMAT.durationMs,
       l("仅在生命严格低于 50% 时每秒恢复 1 技力，满技力自动释放。", "Recovers 1 SP/s only below 50% HP; casts automatically at full SP."));
     passive("25% 生命机制", "25% HP event", l("首次降至 25% 生命：沿用半血扫荡机制，改为第 1、7 行预警和清场。预警 3 秒后，无敌的 1×1 DEL 字样以速度 600 向左扫过，阻挡弹幕并封禁经过格子 40 秒，本体不动并保持无敌。字样离场后解除本次无敌，本体绿色闪烁，在这两行各召唤一个心形 I。",

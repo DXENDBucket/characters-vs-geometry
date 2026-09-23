@@ -54,13 +54,13 @@ try {
     boss.delLaneSweep={stage:"quarter",phase:"complete",startedAt:0,previousInvincibleUntil:0,sealedCells:[],parts:[],summons:1};
     boss.skills.deleteStack.sp=0;
     const skill=boss.skills.deleteFormat;
-    check(skill.sp===0&&skill.maxSp===90&&skill.cost===90,"Wrong Format skill panel");
+    check(skill.sp===0&&skill.maxSp===75&&skill.cost===75,"Wrong Format skill panel");
     boss.hp=boss.maxHp*.5; updateBossRuntime(scene.bossRuntime(),10);
     check(skill.sp===0,"Format charged at exactly 50% HP");
-    boss.hp--; updateBossRuntime(scene.bossRuntime(),89);
-    check(skill.sp===89&&!boss.deleteFormatReadyAt,"Format charged at wrong rate");
+    boss.hp--; updateBossRuntime(scene.bossRuntime(),74);
+    check(skill.sp===74&&!boss.deleteFormatReadyAt,"Format charged at wrong rate");
     updateBossRuntime(scene.bossRuntime(),1);
-    check(skill.sp===0&&boss.deleteFormatReadyAt===3000&&skill.activeUntil===11000,"Format did not cast for 90 SP");
+    check(skill.sp===0&&boss.deleteFormatReadyAt===3000&&skill.activeUntil===13000,"Format did not cast for 75 SP");
     const original=scene.towers.slice(), hp=original.map(t=>t.hp), levels=original.map(t=>t.level), pool=a.healthPool;
     check(pool&&pool===u.healthPool,"Health network not prepared");
     const roundTrip=()=>{
@@ -99,25 +99,25 @@ try {
       check(scene.deployment.useCard(scene.getDefinition("B"),1,7)==="deployed","Empty-cell placement was blocked");
       check(scene.towers.length===1&&scene.towers[0].inPlay,"New tower was incorrectly nullified");
       scene.battleTime=8000; scene.storage.update();
-      check(scene.storage.count===1&&scene.storage.snapshot()[0].releaseAt===15000,"Stored enemy escaped NUL");
-      check(scene.actionQueue.snapshot().some(entry=>entry.action.tower===a&&entry.at===15000),"Queued action was not paused");
+      check(scene.storage.count===1&&scene.storage.snapshot()[0].releaseAt===17000,"Stored enemy escaped NUL");
+      check(scene.actionQueue.snapshot().some(entry=>entry.action.tower===a&&entry.at===17000),"Queued action was not paused");
       check(a.healthPool===pool&&a.mirrorGroupId===99&&b.mirrorGroupId===99,"Suspension broke networks");
-      scene.nullification.update(10999);check(!a.inPlay,"NUL ended before 8s");
+      scene.nullification.update(12999);check(!a.inPlay,"NUL ended before 10s");
       drawNullifiedTowers(scene.nullifiedTowerGraphics,scene.nullification.snapshot(),scene.battleTime); roundTrip();
     };
     window.__formatRecover=()=>{
-      scene.battleTime=11000;scene.nullification.update(scene.battleTime);
+      scene.battleTime=13000;scene.nullification.update(scene.battleTime);
       check(!scene.nullification.snapshot()&&scene.towers.length===original.length+1,"Original towers not restored");
       check(original.every((t,i)=>t.inPlay&&t.body.visible&&!t.nullified&&t.hp===hp[i]&&t.level===levels[i]),"Recovery changed tower state");
       check(a.parenthesisGuard===guard&&a.mirrorGroupId===99&&a.healthPool===u.healthPool,"Recovered shell/mirror/health links wrong");
       check(getBlockingTower(scene.towers,enemy)&&scene.cellIsDeployable(3,3),"Restored tower cannot block or upgrade");
       scene.storage.update();check(scene.storage.count===1,"Cargo delay lost on recovery");
-      scene.battleTime=15000;scene.storage.update();check(scene.storage.count===0&&cargo.inPlay,"Cargo did not resume");
+      scene.battleTime=17000;scene.storage.update();check(scene.storage.count===0&&cargo.inPlay,"Cargo did not resume");
       roundTrip();
     };
     window.__formatResume=()=>{
       for(const en of scene.enemies)en.body.destroy();scene.enemies.length=0;
-      scene.nullification.start(scene.battleTime,8000);
+      scene.nullification.start(scene.battleTime,10000);
       const graph=JSON.parse(JSON.stringify(captureBattleSnapshot(scene.battleState())));
       validateBattleSave(graph,scene.wave,"del");
       const restored=restoreBattleSnapshot(scene,graph), expectedTowers=restored.nullifiedTowers.towers;
@@ -125,7 +125,7 @@ try {
       scene.boss.body.destroy();
       scene.applyBattleSave(restored);
       check(scene.towers.length===0&&!scene.cellIsDeployable(3,3),"Loaded NUL cells became usable");
-      for(let tick=0;tick<479;tick++)scene.stepBattle();
+      for(let tick=0;tick<599;tick++)scene.stepBattle();
       check(scene.nullification.snapshot()&&scene.towers.length===0,"Loaded suspension ended early");
       for(let tick=0;tick<2;tick++)scene.stepBattle();
       check(!scene.nullification.snapshot()&&expectedTowers.every(t=>scene.towers.includes(t)&&t.inPlay&&t.body.scene),

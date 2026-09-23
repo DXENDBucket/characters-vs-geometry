@@ -7,7 +7,7 @@ export const DEL_DELETE_STACK = {
   glitchMs: 2000
 } as const;
 
-export const DEL_FORMAT = { maxSp: 90, cost: 90, initialSp: 0, warningMs: 3000, durationMs: 8000 } as const;
+export const DEL_FORMAT = { maxSp: 75, cost: 75, initialSp: 0, warningMs: 3000, durationMs: 10000 } as const;
 
 export const DEL_SWEEP = { hpRatio: .75, warningMs: 3000, speed: 600, sealMs: 40000 } as const;
 
