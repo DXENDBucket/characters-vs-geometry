@@ -79,7 +79,11 @@ export function bossRect(boss: CubeBoss) {
 }
 
 export function bossParts(boss: CubeBoss | null) {
-  return boss ? [boss, ...(boss.octahedronCopies ?? [])] : [];
+  return boss ? [boss, ...secondaryBossParts(boss)] : [];
+}
+
+export function secondaryBossParts(boss: CubeBoss) {
+  return boss.delLaneSweep?.parts ?? boss.octahedronCopies ?? [];
 }
 
 export function findBossPart(boss: CubeBoss | null, predicate: (part: CubeBoss) => boolean) {
@@ -91,7 +95,7 @@ export function findBossPart(boss: CubeBoss | null, predicate: (part: CubeBoss) 
     return boss;
   }
 
-  for (const part of boss.octahedronCopies ?? []) {
+  for (const part of secondaryBossParts(boss)) {
     if (predicate(part)) {
       return part;
     }
@@ -106,7 +110,7 @@ export function forEachBossPart(boss: CubeBoss | null, visit: (part: CubeBoss) =
   }
 
   visit(boss);
-  for (const part of boss.octahedronCopies ?? []) {
+  for (const part of secondaryBossParts(boss)) {
     visit(part);
   }
 }
@@ -206,7 +210,7 @@ export function bossPartAtPoint(boss: CubeBoss | null, x: number, y: number) {
     return boss;
   }
 
-  for (const part of boss.octahedronCopies ?? []) {
+  for (const part of secondaryBossParts(boss)) {
     if (pointInBossBounds(part, x, y)) {
       return part;
     }
@@ -229,7 +233,7 @@ export function bossPartInRadius(boss: CubeBoss | null, x: number, y: number, ra
     return boss;
   }
 
-  for (const part of boss.octahedronCopies ?? []) {
+  for (const part of secondaryBossParts(boss)) {
     if (bossPartDistanceSqToPoint(part, x, y) <= radiusSq) {
       return part;
     }
@@ -253,7 +257,7 @@ export function bossPartInRect(boss: CubeBoss | null, x: number, y: number, widt
     return boss;
   }
 
-  for (const part of boss.octahedronCopies ?? []) {
+  for (const part of secondaryBossParts(boss)) {
     if (bossPartIntersectsRect(part, x, right, y, bottom)) {
       return part;
     }

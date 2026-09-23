@@ -51,6 +51,8 @@ export function bossDetailSections(icon: BossIcon, level: number): DetailSection
       l(`在自身前方一列的每行召唤一个 ${rank} 级正方形。`, `Summons a rank ${rank} Square in each lane of the column ahead.`), column);
   }
   if (icon === "del") {
+    passive("50% 生命机制", "50% HP event", l("首次降至 50% 生命：本体留在原位并无敌，第 2、6 行红色预警 3 秒。随后各出现一个无敌的 DEL 字样，以速度 600 向左移动，碰撞箱为 1×1，可阻挡弹幕，经过的格子封禁 40 秒。两者完全离场后解除本次无敌，本体绿色闪烁，在第 2、6 行各召唤 3 个三角攻城锤 V，每批间隔 1 秒。",
+      "First reaching 50% HP: remains stationary and invincible; warns lanes 2 and 6 in red for 3s. An invincible DEL glyph sweeps each lane leftward at speed 600 with a 1x1 Boss hitbox that blocks projectiles and seals touched cells for 40s. Once both leave, this invulnerability ends; DEL flashes green and summons 3 Triangle Rams V per lane, one pair every second."), [battlefieldRange]);
     passive("75% 生命机制", "75% HP event", l("首次降至 75% 生命：中间三行红色预警 3 秒，本体金色故障闪动并无敌。随后以速度 600 向左完全离场，再从右侧向左回到原位停止，全程不触发底线且保持无敌。移动时碰撞箱经过的格子擦除并封禁 40 秒。限时封格的 × 按剩余时间从原尺寸缩至 50%，永久封格不缩小。",
       "First reaching 75% HP: warns the middle three lanes in red for 3s; DEL glitches gold and becomes invincible. Moves left at speed 600 until fully off-board, then returns from the right to its original position. Remains invincible and cannot breach the base throughout. Cells touched by its moving hitbox are erased and sealed for 40s. Timed seal marks shrink from full size to 50%; permanent marks do not shrink."), [battlefieldRange]);
     skill("删除：栈", "Delete: Stack", DEL_DELETE_STACK.maxSp, DEL_DELETE_STACK.cost, DEL_DELETE_STACK.initialSp,

@@ -1,5 +1,6 @@
 import Phaser from "phaser";
-import { DEL_DELETE_STACK } from "../data/delBoss";
+import { DEL_DELETE_STACK, DEL_LANE_SWEEP } from "../data/delBoss";
+import { advanceDelLaneSweep, startDelLaneSweep } from "./delLaneSweep";
 import { advanceDelSweep, delSweepActive, startDelSweep } from "./delSweep";
 import { syncDelSweepWarning } from "../render/delSweepWarning";
 import { towerAreaTargets, towerDamageReceiver } from "./towerOccupancy";
@@ -267,6 +268,25 @@ export function updateBossRuntime(runtime: BossRuntime, seconds: number) {
 
   initializeOctahedronSolarBombs(runtime, boss);
   startDelSweep(boss, runtime.battleTime);
+  startDelLaneSweep(boss, runtime.battleTime);
+  if (boss.delLaneSweep && boss.delLaneSweep.phase !== "complete") advanceDelLaneSweep(boss, runtime.battleTime, {
+    createEcho: (x, y) => {
+      const echo = createCubeBoss(runtime.scene, "del", runtime.finalDamageReduction, { x, y });
+      echo.delEcho = true;
+      echo.hasSkills = false;
+      echo.hitboxWidth = CELL_WIDTH;
+      echo.hitboxHeight = CELL_HEIGHT;
+      echo.invincibleUntil = Infinity;
+      echo.body.setDepth(87);
+      return echo;
+    },
+    sealCell: runtime.sealCell,
+    summon: lane => {
+      spawnEnemyAt(runtime, { kind: DEL_LANE_SWEEP.summonKind, lane,
+        x: BOARD_X + BOARD_WIDTH + CELL_WIDTH / 2, time: runtime.battleTime,
+        waveNumber: runtime.wave || 0, waveWeight: 0, finalDamageReduction: runtime.finalDamageReduction });
+    }
+  });
   updateBossPartsMotion(runtime, boss, seconds);
   syncDelSweepWarning(boss, runtime.battleTime);
   triggerOctahedronSplits(runtime, boss);
@@ -308,12 +328,12 @@ function updateBossPartsMotion(runtime: BossRuntime, boss: CubeBoss, seconds: nu
     return;
   }
   forEachBossPart(boss, (part) => {
-    updateCubeBossMotion(part, seconds, bossMovementMultiplier(part, runtime.battleTime), runtime.battleTime);
+    updateCubeBossMotion(part, part.delEcho ? 0 : seconds, bossMovementMultiplier(part, runtime.battleTime), runtime.battleTime);
   });
 }
 
 function bossPartReachesBase(boss: CubeBoss) {
-  if (delSweepActive(boss)) return false;
+  if (delSweepActive(boss) || boss.delEcho) return false;
   return (boss.movementAxis ?? "x") === "x" && bossMovementDirection(boss) < 0 && bossBounds(boss).left <= BOARD_X - 20;
 }
 

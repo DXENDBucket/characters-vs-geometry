@@ -9,7 +9,7 @@ import { canRestoreBattleVersion, validBattleClock } from "./battleSimulation";
 import { BUNDLE_SHOTS, PIPELINE_RATE } from "./pipelineRules";
 import { isTowerShellType } from "./towerOccupancy";
 import { CHEVRON_LEADER } from "../data/chevronLeader";
-import { LANES, COLUMNS } from "../config";
+import { LANES, COLUMNS, CELL_WIDTH, CELL_HEIGHT } from "../config";
 
 export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossKind?: BossKind) {
   const units = new Map<NodeKind, Set<object>>();
@@ -114,6 +114,20 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
         finite(sweep.startedAt) && sweep.startedAt >= 0 && finite(sweep.homeX) && finite(sweep.homeY) &&
         finite(sweep.previousInvincibleUntil) && array(sweep.sealedCells, key => typeof key === "string"));
     }
+    if (boss.delEcho !== undefined) require(family === "del" && typeof boss.delEcho === "boolean");
+    if (boss.delEcho) require((boss as unknown) !== state.boss && boss.hitboxWidth === CELL_WIDTH && boss.hitboxHeight === CELL_HEIGHT &&
+      !boss.hasSkills && boss.delLaneSweep === undefined && boss.delSweep === undefined);
+    if (boss.delLaneSweep !== undefined) {
+      const sweep = boss.delLaneSweep;
+      require(family === "del" && !boss.delEcho && record(sweep) &&
+        ["warning", "sweeping", "summoning", "complete"].includes(sweep.phase as string) &&
+        finite(sweep.startedAt) && sweep.startedAt >= 0 && finite(sweep.previousInvincibleUntil) &&
+        Number.isInteger(sweep.summons) && (sweep.summons as number) >= 0 && (sweep.summons as number) <= 3 &&
+        array(sweep.sealedCells, key => typeof key === "string") && Array.isArray(sweep.parts) &&
+        sweep.parts.length === (sweep.phase === "sweeping" ? 2 : 0) &&
+        new Set(sweep.parts).size === sweep.parts.length && sweep.parts.every(part =>
+          member("boss")(part) && part.delEcho === true && part.invincibleUntil === Infinity));
+    }
     for (const key of ["maxHp", "armor", "magicResistance", "speed", "finalDamageReduction"]) {
       require(finite(boss.baseStats[key]) && finite(boss.finalStats[key]));
     }
@@ -148,7 +162,8 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
     for (const key of ["hitboxWidth", "hitboxHeight", "rotationX", "rotationY", "rotationZ", "velocityX", "velocityY", "velocityZ",
       "targetVelocityX", "targetVelocityY", "targetVelocityZ", "nextTurnIn", "contactAttackBuffer"]) require(finite(boss[key]));
     require(finite(boss.invincibleUntil) || ((family === "octahedron" ||
-      family === "del" && record(boss.delSweep) && boss.delSweep.phase !== "complete") && boss.invincibleUntil === Infinity));
+      family === "del" && (boss.delEcho || record(boss.delSweep) && boss.delSweep.phase !== "complete" ||
+        record(boss.delLaneSweep) && ["warning", "sweeping"].includes(boss.delLaneSweep.phase as string))) && boss.invincibleUntil === Infinity));
     if (family === "tetrahedron") {
       for (const key of ["halfHpTriggered", "criticalHpTriggered", "pendingCriticalSummon"]) require(typeof boss[key] === "boolean");
       for (const key of ["chargeExpiresAt", "bossHasteUntil", "nextBossHasteTrailAt"]) require(finite(boss[key]));

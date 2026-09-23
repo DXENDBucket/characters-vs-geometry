@@ -1,13 +1,15 @@
 import type Phaser from "phaser";
 import { BOARD_X, BOARD_Y, BOARD_WIDTH, CELL_HEIGHT, LANES, palette } from "../config";
-import { DEL_SWEEP } from "../data/delBoss";
+import { DEL_SWEEP, DEL_LANE_SWEEP } from "../data/delBoss";
 import type { CubeBoss } from "../types";
 
 const warnings = new WeakMap<CubeBoss, Phaser.GameObjects.Graphics>();
 
 export function syncDelSweepWarning(boss: CubeBoss, time: number) {
-  const state = boss.delSweep;
-  if (state?.phase !== "warning" || time >= state.startedAt + DEL_SWEEP.warningMs) {
+  const laneSweep = boss.delLaneSweep?.phase === "warning";
+  const state = laneSweep ? boss.delLaneSweep : boss.delSweep;
+  const warningMs = laneSweep ? DEL_LANE_SWEEP.warningMs : DEL_SWEEP.warningMs;
+  if (state?.phase !== "warning" || time >= state.startedAt + warningMs) {
     warnings.get(boss)?.destroy(); warnings.delete(boss); return;
   }
   let graphic = warnings.get(boss);
@@ -15,10 +17,12 @@ export function syncDelSweepWarning(boss: CubeBoss, time: number) {
     graphic = boss.body.scene.add.graphics().setName("del-sweep-warning");
     boss.body.addAt(graphic, 0); warnings.set(boss, graphic);
   }
-  graphic.clear().setPosition(BOARD_X - boss.x, BOARD_Y + (Math.floor(LANES / 2) - 1) * CELL_HEIGHT - boss.y);
-  const progress = Math.max(0, Math.min(1, (time - state.startedAt) / DEL_SWEEP.warningMs));
+  graphic.clear().setPosition(BOARD_X - boss.x, BOARD_Y - boss.y);
+  const progress = Math.max(0, Math.min(1, (time - state.startedAt) / warningMs));
   const pulse = .6 + .3 * Math.sin((time - state.startedAt) / 110);
-  for (let lane = 0; lane < 3; lane++) {
+  const center = Math.floor(LANES / 2);
+  const lanes = laneSweep ? DEL_LANE_SWEEP.lanes : [center - 1, center, center + 1];
+  for (const lane of lanes) {
     const y = lane * CELL_HEIGHT;
     graphic.fillStyle(palette.enemyShot, .06 + pulse * .06).fillRect(0, y, BOARD_WIDTH, CELL_HEIGHT);
     graphic.lineStyle(2, palette.enemyShot, pulse).strokeRect(1, y + 1, BOARD_WIDTH - 2, CELL_HEIGHT - 2);

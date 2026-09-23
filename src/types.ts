@@ -626,7 +626,18 @@ export interface DelSweepState {
   sealedCells: string[];
 }
 
+export interface DelLaneSweepState {
+  phase: "warning" | "sweeping" | "summoning" | "complete";
+  startedAt: number;
+  previousInvincibleUntil: number;
+  sealedCells: string[];
+  parts: CubeBoss[];
+  summons: number;
+}
+
 export interface CubeBoss {
+  delLaneSweep?: DelLaneSweepState;
+  delEcho?: boolean;
   delSweep?: DelSweepState;
   deleteStackPending?: boolean;
   statusEffects: StatusEffect[];

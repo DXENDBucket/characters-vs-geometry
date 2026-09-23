@@ -41,6 +41,7 @@ import {
   bossPartInRadius,
   bossPartInRect,
   bossParts,
+  secondaryBossParts,
   clampXToBossPart,
   clampYToBossPart,
   findBossPart,
@@ -598,7 +599,7 @@ function bossRadiusFalloff(boss: CubeBoss | null, x: number, y: number, radius: 
   }
 
   updateBossRadiusFalloffResult(boss, x, y, radius);
-  for (const part of boss.octahedronCopies ?? []) {
+  for (const part of secondaryBossParts(boss)) {
     updateBossRadiusFalloffResult(part, x, y, radius);
   }
   return bossRadiusFalloffResult;

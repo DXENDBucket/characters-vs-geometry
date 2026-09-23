@@ -5,6 +5,7 @@ import type { CubeBoss, Enemy, EnemyProjectile, MortarProjectile, Projectile, To
 import { createCubeBoss, updateCubeBossMotion } from "../bosses/cubeBoss";
 import { syncBossCopyWarnings } from "../render/bossCopyWarnings";
 import { syncDelSweepWarning } from "../render/delSweepWarning";
+import { secondaryBossParts } from "./targeting";
 import { rankedBossFamily } from "../bosses/bossRanks";
 import { getCardDefinition } from "../registry/cards";
 import { towerBehaviorType } from "./towerIdentity";
@@ -110,7 +111,7 @@ export function restoreBattleSnapshot(scene: Phaser.Scene, graph: SaveGraph): Ba
         refreshStatusEffect(boss, "haste", boss.bossHasteUntil, TETRAHEDRON_BOSS_HASTE_MULTIPLIER);
       }
       boss.bossHasteUntil = 0;
-      if (boss !== state.boss && !state.boss?.octahedronCopies?.includes(boss)) boss.body.destroy();
+      if (boss !== state.boss && (!state.boss || !secondaryBossParts(state.boss).includes(boss))) boss.body.destroy();
       else {
         if (boss !== state.boss) boss.body.setDepth(87);
         updateCubeBossMotion(boss, 0, 0, state.battleTime);

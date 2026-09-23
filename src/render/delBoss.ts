@@ -25,11 +25,11 @@ function stroke(graphics: Phaser.GameObjects.Graphics, points: Stroke, x: number
 }
 
 // Animated 2D glyph orbits: one graphics object, no per-frame Text objects or gameplay RNG.
-export function drawDelBoss(graphics: Phaser.GameObjects.Graphics, radius: number, time: number, invincible = false, errorActive = false, goldActive = false) {
+export function drawDelBoss(graphics: Phaser.GameObjects.Graphics, radius: number, time: number, invincible = false, errorActive = false, goldActive = false, greenActive = false) {
   graphics.clear();
   const seconds = time / 1000;
-  const alertActive = goldActive || errorActive;
-  const alertColor = goldActive ? 0xffd75a : 0xff4d4d;
+  const alertActive = goldActive || greenActive || errorActive;
+  const alertColor = goldActive ? 0xffd75a : greenActive ? 0x65f599 : 0xff4d4d;
   const errorFlash = alertActive && Math.floor(time / 80) % 2 === 0;
   const color = invincible && !goldActive ? 0xffd75a : 0xf5f5f5;
   const count = radius < 40 ? 32 : 56;
@@ -79,7 +79,7 @@ export function drawDelBoss(graphics: Phaser.GameObjects.Graphics, radius: numbe
   };
   if (glitch) {
     drawName(-offset, -radius * .022, alertActive ? alertColor : 0x9fdcff, .65);
-    drawName(offset, radius * .022, goldActive ? alertColor : 0xff6464, .5);
+    drawName(offset, radius * .022, goldActive || greenActive ? alertColor : 0xff6464, .5);
   }
   drawName(offset, 0, errorFlash ? alertColor : color, 1);
   if (glitch) {
@@ -96,4 +96,11 @@ export function createDelIcon(scene: Phaser.Scene, radius = 27) {
   const icon = scene.add.graphics();
   drawDelBoss(icon, radius, 1200);
   return icon;
+}
+
+export function drawDelEcho(graphics: Phaser.GameObjects.Graphics, size: number, time: number) {
+  graphics.clear().lineStyle(2, Math.floor(time / 120) % 2 ? 0xffd75a : 0xf5f5f5);
+  for (let i = 0; i < LETTERS.length; i++) {
+    for (const path of LETTERS[i]) stroke(graphics, path, (i - 1) * size * .3, 0, size * .31);
+  }
 }

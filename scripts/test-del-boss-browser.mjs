@@ -233,7 +233,81 @@ try {
   const swept = await page.evaluate(() => window.__finishSweepCheck());
   await page.waitForTimeout(100);
   await page.screenshot({ path: "logs/del-sweep-return.png" });
+  await page.evaluate(async () => {
+    const moduleFor = path => import(performance.getEntriesByType("resource").map(r => r.name)
+      .find(url => new URL(url).pathname === path) ?? path);
+    const c = await moduleFor("/src/config.ts");
+    const { updateBossRuntime } = await moduleFor("/src/game/bossRuntime.ts");
+    const { bossParts, bossPartAtPoint, bossPartInRadius, bossPartInRect } = await moduleFor("/src/game/targeting.ts");
+    const { createTowerProjectile } = await moduleFor("/src/game/projectiles.ts");
+    const { updateTowerProjectiles } = await moduleFor("/src/game/projectileRuntime.ts");
+    const { captureBattleSnapshot, restoreBattleSnapshot } = await moduleFor("/src/game/battleSnapshot.ts");
+    const { validateBattleSave } = await moduleFor("/src/game/validateBattleSave.ts");
+    const game = window.__testGame; game.loop.stop();
+    const scene = game.scene.getScene("GameScene"), boss = scene.boss;
+    const check = (ok, message) => { if (!ok) throw Error(message); };
+    const home = [boss.x,boss.y], startedAt = scene.battleTime;
+    scene.combatRuntime().damageBoss(boss.hp-60001, "true");
+    check(!boss.delLaneSweep, "Half sweep triggered early");
+    scene.combatRuntime().damageBoss(1,"true");
+    check(boss.delLaneSweep?.phase === "warning" && boss.invincibleUntil === Infinity, "Half threshold not immediately shielded");
+    const roundTrip = () => {
+      const graph = JSON.parse(JSON.stringify(captureBattleSnapshot(scene.battleState())));
+      validateBattleSave(graph, scene.wave, "del");
+      const restored = restoreBattleSnapshot(scene, graph);
+      check(restored.boss.delLaneSweep.phase === boss.delLaneSweep.phase, "Lost half phase in save");
+      check(bossParts(restored.boss).length === bossParts(boss).length, "Lost echoes in save");
+      for (const part of bossParts(restored.boss)) {
+        check(!!part.body.scene, "Restore destroyed active echo");
+        if (part.delEcho) check(part.hitboxWidth === 78 && part.hitboxHeight === 78, "Restore lost echo size");
+        part.body.destroy();
+      }
+      for (const tower of restored.towers) tower.body.destroy();
+      for (const enemy of restored.enemies) enemy.body.destroy();
+    };
+    window.__halfFrame = step => {
+      if (step === "warning") {
+        scene.battleTime = startedAt+160; updateBossRuntime(scene.bossRuntime(),0); roundTrip();
+      } else if (step === "sweep") {
+        scene.battleTime = startedAt+2999; updateBossRuntime(scene.bossRuntime(),0);
+        check(bossParts(boss).length === 1, "Echo spawned during warning");
+        scene.battleTime = startedAt+4000; updateBossRuntime(scene.bossRuntime(),0);
+        check(bossParts(boss).length === 3 && boss.x === home[0] && boss.y === home[1], "Wrong echo count or main Boss moved");
+        for (const part of boss.delLaneSweep.parts) {
+          check(part.hitboxWidth === 78 && part.hitboxHeight === 78 && part.invincibleUntil === Infinity, "Wrong echo hitbox or invulnerability");
+          check(bossPartAtPoint(boss,part.x,part.y) === part && bossPartInRadius(boss,part.x,part.y,1) === part &&
+            bossPartInRect(boss,part.x-1,part.y-1,2,2) === part, "Echo omitted from Boss target queries");
+          const shot = createTowerProjectile(scene,{type:"bolt",x:part.x,y:part.y,lane:Math.floor((part.y-c.BOARD_Y)/78),
+            speed:0,damage:999999,damageType:"true",splashRadius:0,angleDegrees:0,maxX:Infinity});
+          scene.projectiles.push(shot); updateTowerProjectiles(scene.projectileRuntime(),0);
+          check(!scene.projectiles.includes(shot) && boss.hp === 60000, "Echo failed to block shot invulnerably");
+        }
+        roundTrip();
+      } else {
+        const exitAt = startedAt+3000+(c.BOARD_WIDTH+c.CELL_WIDTH+33)/600*1000;
+        scene.battleTime = exitAt+.01; updateBossRuntime(scene.bossRuntime(),0);
+        check(boss.delLaneSweep.phase === "summoning" && bossParts(boss).length === 1 && boss.invincibleUntil !== Infinity,
+          "Echoes failed to leave or shield lingered");
+        const rams = () => scene.enemies.filter(e => e.kind === "triangleRam5");
+        check(rams().length === 2, "First pair missing"); roundTrip();
+        scene.battleTime = exitAt+1000; updateBossRuntime(scene.bossRuntime(),0);
+        check(rams().length === 4, "Second pair missing");
+        scene.battleTime = exitAt+2000; updateBossRuntime(scene.bossRuntime(),0);
+        check(rams().length === 6 && [1,5].every(lane => rams().filter(e => e.lane === lane).length === 3), "Wrong rank-V summon lanes/count");
+        check(boss.delLaneSweep.sealedCells.length === 26 && !scene.gameOver && scene.baseIntegrity === 6,
+          "Half sweep skipped cells or breached base");
+        check(boss.x === home[0] && boss.y === home[1], "Main moved during half sweep");
+      }
+    };
+    game.loop.start(game.step.bind(game));
+  });
+  for (const step of ["warning", "sweep", "summon"]) {
+    await page.evaluate(step => window.__halfFrame(step), step);
+    await page.waitForTimeout(100);
+    await page.screenshot({path:`logs/del-half-${step}.png`});
+  }
   assert.deepEqual(errors, []);
+  console.log("DEL half-health sweep, projectile collision, summons and snapshot checks passed");
   console.log("DEL sweep checks passed", sweepResult, swept);
   console.log("DEL browser checks passed", result);
 } finally {

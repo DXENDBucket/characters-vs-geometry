@@ -142,6 +142,50 @@ test("DEL sweep warns, sweeps only three lanes, wraps without crossing the board
   assert.deepEqual(a, resumed);
 });
 
+test("DEL half-health sweep shields once, covers only lanes 2/6 and summons three rank-V pairs on battle time", () => {
+  const load = createTypeScriptLoader();
+  const { startDelLaneSweep, advanceDelLaneSweep } = load("src/game/delLaneSweep.ts");
+  const c = load("src/config.ts");
+  const boss = { kind: "del", hp: 60001, maxHp: 120000, x: 1100, y: 411, invincibleUntil: 7 };
+  assert.equal(startDelLaneSweep(boss, 0), false);
+  boss.hp = 60000; boss.delSweep = { phase: "returning" };
+  assert.equal(startDelLaneSweep(boss, 0), false, "Do not overlap the 75% sweep");
+  boss.delSweep.phase = "complete";
+  assert.equal(startDelLaneSweep(boss, 0), true);
+  assert.equal(boss.invincibleUntil, Infinity);
+  let destroyed = 0;
+  const cells = [], summons = [], echoes = [];
+  const callbacks = {
+    createEcho: (x,y) => { const echo = { x,y,body: { destroy: () => destroyed++ } }; echoes.push(echo); return echo; },
+    sealCell: (lane,col,ms) => { assert.equal(ms,40000); cells.push(`${lane}:${col}`); },
+    summon: lane => summons.push(lane)
+  };
+  advanceDelLaneSweep(boss, 2999, callbacks); assert.equal(echoes.length, 0);
+  advanceDelLaneSweep(boss, 3500, callbacks);
+  assert.equal(echoes.length, 2);
+  assert.deepEqual(echoes.map(p => p.y), [1,5].map(lane => c.BOARD_Y + (lane+.5)*c.CELL_HEIGHT));
+  assert.equal(echoes[0].x, c.BOARD_X+c.BOARD_WIDTH+c.CELL_WIDTH/2-300);
+  assert.equal(boss.x, 1100); assert.equal(boss.y, 411);
+  const exitAt = 3000 + (c.BOARD_WIDTH+c.CELL_WIDTH+33)/600*1000;
+  advanceDelLaneSweep(boss, exitAt-1, callbacks);
+  assert.equal(boss.invincibleUntil, Infinity); assert.equal(summons.length,0);
+  advanceDelLaneSweep(boss, exitAt+.01, callbacks);
+  assert.equal(destroyed,2); assert.equal(boss.delLaneSweep.parts.length,0);
+  assert.equal(cells.length,26); assert.equal(new Set(cells).size,26);
+  assert.ok(cells.every(key => key.startsWith("1:") || key.startsWith("5:")));
+  assert.equal(boss.invincibleUntil,7); assert.deepEqual(summons,[1,5]);
+  advanceDelLaneSweep(boss, exitAt+999, callbacks); assert.equal(summons.length,2);
+  advanceDelLaneSweep(boss, exitAt+1000, callbacks); assert.equal(summons.length,4);
+  const resumed = structuredClone(boss);
+  advanceDelLaneSweep(boss, exitAt+3001, callbacks);
+  const restoredSummons = [];
+  advanceDelLaneSweep(resumed, exitAt+3001, { ...callbacks, summon: lane => restoredSummons.push(lane) });
+  assert.deepEqual(boss,resumed); assert.deepEqual(restoredSummons,[1,5]);
+  assert.deepEqual(summons,[1,5,1,5,1,5]); assert.equal(boss.delLaneSweep.phase,"complete");
+  assert.equal(startDelLaneSweep(boss,exitAt+4000),false);
+  advanceDelLaneSweep(boss,exitAt+5000,callbacks); assert.equal(summons.length,6);
+});
+
 test("O specializes in magic resistance without changing its cost, health or cooldown", () => {
   const { cardDefinitions } = createTypeScriptLoader()("src/data/cards.ts");
   const card = cardDefinitions.find(card => card.id === "O");

@@ -11,6 +11,7 @@ import {
 } from "../config";
 import { isIcosahedronBoss, isTetrahedronBoss, updateCubeBossMotion } from "../bosses/cubeBoss";
 import { startDelSweep, delSweepActive } from "./delSweep";
+import { startDelLaneSweep, delLaneSweepInvincible } from "./delLaneSweep";
 import { syncDelSweepWarning } from "../render/delSweepWarning";
 import { makeBossHitFlash, makeBossInvincibleFlash, makeEnemyInvincibleFlash, makeShockPulse } from "../render/combatEffects";
 import type { CubeBoss, DamageType, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower, WaveTracker } from "../types";
@@ -33,7 +34,7 @@ import {
   syncSolarBombVisual
 } from "./solarBomb";
 import { addFrozenPhysicalDamage, applyStatusEffect, hasStatusEffect, syncEnemyBodyPosition } from "./statusEffects";
-import { forEachBossPart, gridCellKey } from "./targeting";
+import { bossParts, secondaryBossParts, forEachBossPart, gridCellKey } from "./targeting";
 import { changeTowerHealth, syncHealthBar, syncTowerHealthNetworks, towerHealthDepleted } from "./towerHealth";
 import { syncUnyieldingAuras } from "./towerAuras";
 import { towerFinalStats } from "./unitStats";
@@ -123,9 +124,9 @@ export function damageBoss(
   }
 
   const damagedPart = targetPart ?? boss;
-  if (damagedPart !== boss && !boss.octahedronCopies?.includes(damagedPart)) return false;
+  if (damagedPart !== boss && !secondaryBossParts(boss).includes(damagedPart)) return false;
   if (damagedPart.invincibleUntil > runtime.battleTime) {
-    if (!delSweepActive(damagedPart)) {
+    if (!delSweepActive(damagedPart) && !delLaneSweepInvincible(damagedPart)) {
       makeBossInvincibleFlash(runtime.scene, damagedPart.x, damagedPart.y, damagedPart.hitboxWidth, damagedPart.hitboxHeight);
     }
     return false;
@@ -164,7 +165,7 @@ export function damageBoss(
   }
 
   boss.hp = nextHp;
-  if (startDelSweep(boss, runtime.battleTime)) {
+  if (startDelSweep(boss, runtime.battleTime) || startDelLaneSweep(boss, runtime.battleTime)) {
     updateCubeBossMotion(boss, 0, 0, runtime.battleTime);
     syncDelSweepWarning(boss, runtime.battleTime);
   }
@@ -278,7 +279,7 @@ export function removeBoss(runtime: UnitLifecycleRuntime, animate = true) {
     return;
   }
 
-  const bodies = [boss, ...(boss.octahedronCopies ?? [])].map((part) => part.body);
+  const bodies = bossParts(boss).map((part) => part.body);
   runtime.setBoss(null);
   if (!animate) {
     for (const body of bodies) body.destroy();
