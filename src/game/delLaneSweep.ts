@@ -1,5 +1,5 @@
 import { BOARD_X, BOARD_Y, BOARD_WIDTH, CELL_WIDTH, CELL_HEIGHT, COLUMNS } from "../config";
-import { delLaneSweepConfig } from "../data/delBoss";
+import { delLaneSweepConfig, DEL_ECHO_HITBOX_CELLS } from "../data/delBoss";
 import type { CubeBoss, EnemyKind } from "../types";
 import { delSweepActive } from "./delSweep";
 
@@ -41,8 +41,9 @@ export function advanceDelLaneSweep(boss: CubeBoss, time: number, callbacks: {
     const nextX = Math.max(exitX, entryX - (time - startsMovingAt) * speed / 1000);
     for (let i = 0; i < state.parts.length; i++) {
       const part = state.parts[i], lane = lanes[i];
-      const left = Math.max(0, Math.floor((nextX - CELL_WIDTH / 2 - BOARD_X) / CELL_WIDTH));
-      const right = Math.min(COLUMNS - 1, Math.ceil((part.x + CELL_WIDTH / 2 - BOARD_X) / CELL_WIDTH) - 1);
+      const halfWidth = CELL_WIDTH * DEL_ECHO_HITBOX_CELLS / 2;
+      const left = Math.max(0, Math.floor((nextX - halfWidth - BOARD_X) / CELL_WIDTH));
+      const right = Math.min(COLUMNS - 1, Math.ceil((part.x + halfWidth - BOARD_X) / CELL_WIDTH) - 1);
       for (let column = left; column <= right; column++) {
         const key = `${lane}:${column}`;
         if (state.sealedCells.includes(key)) continue;

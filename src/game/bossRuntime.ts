@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { DEL_DELETE_STACK, DEL_FORMAT } from "../data/delBoss";
+import { DEL_DELETE_STACK, DEL_FORMAT, DEL_ECHO_HITBOX_CELLS } from "../data/delBoss";
 import { advanceDelLaneSweep, startDelLaneSweep } from "./delLaneSweep";
 import { advanceDelSweep, delSweepActive, startDelSweep } from "./delSweep";
 import { syncDelSweepWarning } from "../render/delSweepWarning";
@@ -288,8 +288,8 @@ export function updateBossRuntime(runtime: BossRuntime, seconds: number) {
       const echo = createCubeBoss(runtime.scene, "del", runtime.finalDamageReduction, { x, y });
       echo.delEcho = true;
       echo.hasSkills = false;
-      echo.hitboxWidth = CELL_WIDTH;
-      echo.hitboxHeight = CELL_HEIGHT;
+      echo.hitboxWidth = CELL_WIDTH * DEL_ECHO_HITBOX_CELLS;
+      echo.hitboxHeight = CELL_HEIGHT * DEL_ECHO_HITBOX_CELLS;
       echo.invincibleUntil = Infinity;
       echo.body.setDepth(87);
       return echo;

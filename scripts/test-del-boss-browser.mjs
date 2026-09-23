@@ -20,6 +20,7 @@ try {
     const moduleFor = path => import(performance.getEntriesByType("resource").map(r => r.name)
       .find(url => new URL(url).pathname === path) ?? path);
     const config = await moduleFor("/src/config.ts");
+    const { towerIntersectsBoss } = await moduleFor("/src/game/targeting.ts");
     const progress = await moduleFor("/src/progress.ts");
     const { updateCubeBossMotion } = await moduleFor("/src/bosses/cubeBoss.ts");
     const { updateBossRuntime } = await moduleFor("/src/game/bossRuntime.ts");
@@ -36,7 +37,14 @@ try {
     const check = (ok, message) => { if (!ok) throw Error(message); };
     check(boss?.kind === "del", "DEL did not spawn");
     check(boss.hp === 500000 && boss.baseStats.armor === 150 && boss.baseStats.magicResistance === 20, "Wrong panel");
-    check(boss.hitboxWidth === config.CELL_WIDTH * 3 && boss.hitboxHeight === config.CELL_HEIGHT * 3, "Wrong hitbox");
+    check(scene.chars === 2000, "Wrong AE-10 starting characters");
+    check(boss.hitboxWidth === config.CELL_WIDTH * 2.95 && boss.hitboxHeight === config.CELL_HEIGHT * 2.95, "Wrong hitbox");
+    for (let offset = -3; offset <= 3; offset++) {
+      check(towerIntersectsBoss({ x: boss.x, y: boss.y + offset * config.CELL_HEIGHT }, boss) === (Math.abs(offset) <= 1),
+        `DEL contact reached wrong lane offset ${offset}`);
+      check(towerIntersectsBoss({ x: boss.x + offset * config.CELL_WIDTH, y: boss.y }, boss) === (Math.abs(offset) <= 1),
+        `DEL contact reached wrong column offset ${offset}`);
+    }
     check(boss.hasSkills && boss.skills.deleteStack.sp === 40 && !boss.labelText.visible, "Skill or label mismatch");
     const position = [boss.x, boss.y];
     updateCubeBossMotion(boss, 60, 1, 60000);
@@ -46,6 +54,13 @@ try {
     const restored = restoreBattleSnapshot(scene, graph);
     check(restored.boss.kind === "del" && restored.boss.hp === boss.hp, "Snapshot lost DEL");
     restored.boss.body.destroy();
+    boss.hitboxWidth = config.CELL_WIDTH * 3; boss.hitboxHeight = config.CELL_HEIGHT * 3;
+    const legacyGraph = JSON.parse(JSON.stringify(captureBattleSnapshot(scene.battleState())));
+    validateBattleSave(legacyGraph, scene.wave, "del");
+    const legacy = restoreBattleSnapshot(scene, legacyGraph);
+    boss.hitboxWidth = config.CELL_WIDTH * 2.95; boss.hitboxHeight = config.CELL_HEIGHT * 2.95;
+    check(legacy.boss.hitboxWidth === boss.hitboxWidth && legacy.boss.hitboxHeight === boss.hitboxHeight, "Legacy DEL hitbox not migrated");
+    legacy.boss.body.destroy();
     scene.combatRuntime().damageBoss(1000, "physical");
     check(boss.hp < boss.maxHp && boss.hp > boss.maxHp-1000, "DEL cannot receive damage");
     updateBossRuntime(scene.bossRuntime(), 1);
@@ -239,7 +254,7 @@ try {
       .find(url => new URL(url).pathname === path) ?? path);
     const c = await moduleFor("/src/config.ts");
     const { updateBossRuntime } = await moduleFor("/src/game/bossRuntime.ts");
-    const { bossParts, bossPartAtPoint, bossPartInRadius, bossPartInRect } = await moduleFor("/src/game/targeting.ts");
+    const { bossParts, bossPartAtPoint, bossPartInRadius, bossPartInRect, towerIntersectsBoss } = await moduleFor("/src/game/targeting.ts");
     const { createTowerProjectile } = await moduleFor("/src/game/projectiles.ts");
     const { updateTowerProjectiles } = await moduleFor("/src/game/projectileRuntime.ts");
     const { captureBattleSnapshot, restoreBattleSnapshot } = await moduleFor("/src/game/battleSnapshot.ts");
@@ -252,15 +267,21 @@ try {
     check(!boss.delLaneSweep, "Half sweep triggered early");
     scene.combatRuntime().damageBoss(1,"true");
     check(boss.delLaneSweep?.phase === "warning" && boss.invincibleUntil === Infinity, "Half threshold not immediately shielded");
-    const roundTrip = () => {
+    const roundTrip = (legacy = false) => {
+      if (legacy) for (const part of boss.delLaneSweep.parts) {
+        part.hitboxWidth = c.CELL_WIDTH; part.hitboxHeight = c.CELL_HEIGHT;
+      }
       const graph = JSON.parse(JSON.stringify(captureBattleSnapshot(scene.battleState())));
+      if (legacy) for (const part of boss.delLaneSweep.parts) {
+        part.hitboxWidth = c.CELL_WIDTH * .95; part.hitboxHeight = c.CELL_HEIGHT * .95;
+      }
       validateBattleSave(graph, scene.wave, "del");
       const restored = restoreBattleSnapshot(scene, graph);
       check(restored.boss.delLaneSweep.phase === boss.delLaneSweep.phase, "Lost half phase in save");
       check(bossParts(restored.boss).length === bossParts(boss).length, "Lost echoes in save");
       for (const part of bossParts(restored.boss)) {
         check(!!part.body.scene, "Restore destroyed active echo");
-        if (part.delEcho) check(part.hitboxWidth === 78 && part.hitboxHeight === 78, "Restore lost echo size");
+        if (part.delEcho) check(part.hitboxWidth === c.CELL_WIDTH * .95 && part.hitboxHeight === c.CELL_HEIGHT * .95, "Restore lost echo size");
         part.body.destroy();
       }
       for (const tower of restored.towers) tower.body.destroy();
@@ -275,7 +296,13 @@ try {
         scene.battleTime = startedAt+4000; updateBossRuntime(scene.bossRuntime(),0);
         check(bossParts(boss).length === 3 && boss.x === home[0] && boss.y === home[1], "Wrong echo count or main Boss moved");
         for (const part of boss.delLaneSweep.parts) {
-          check(part.hitboxWidth === 78 && part.hitboxHeight === 78 && part.invincibleUntil === Infinity, "Wrong echo hitbox or invulnerability");
+          check(part.hitboxWidth === c.CELL_WIDTH * .95 && part.hitboxHeight === c.CELL_HEIGHT * .95 && part.invincibleUntil === Infinity, "Wrong echo hitbox or invulnerability");
+          for (let offset = -1; offset <= 1; offset++) {
+            check(towerIntersectsBoss({ x: part.x, y: part.y + offset * c.CELL_HEIGHT }, part) === (offset === 0),
+              `DEL echo touched adjacent lane ${offset}`);
+            check(towerIntersectsBoss({ x: part.x + offset * c.CELL_WIDTH, y: part.y }, part) === (offset === 0),
+              `DEL echo touched adjacent column ${offset}`);
+          }
           check(bossPartAtPoint(boss,part.x,part.y) === part && bossPartInRadius(boss,part.x,part.y,1) === part &&
             bossPartInRect(boss,part.x-1,part.y-1,2,2) === part, "Echo omitted from Boss target queries");
           const shot = createTowerProjectile(scene,{type:"bolt",x:part.x,y:part.y,lane:Math.floor((part.y-c.BOARD_Y)/78),
@@ -284,6 +311,7 @@ try {
           check(!scene.projectiles.includes(shot) && boss.hp === boss.maxHp*.5, "Echo failed to block shot invulnerably");
         }
         roundTrip();
+        roundTrip(true);
       } else {
         const exitAt = startedAt+3000+(c.BOARD_WIDTH+c.CELL_WIDTH+33)/600*1000;
         scene.battleTime = exitAt+.01; updateBossRuntime(scene.bossRuntime(),0);

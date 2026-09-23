@@ -9,7 +9,7 @@ import { canRestoreBattleVersion, validBattleClock } from "./battleSimulation";
 import { BUNDLE_SHOTS, PIPELINE_RATE } from "./pipelineRules";
 import { isTowerShellType } from "./towerOccupancy";
 import { CHEVRON_LEADER } from "../data/chevronLeader";
-import { delLaneSweepConfig } from "../data/delBoss";
+import { delLaneSweepConfig, DEL_ECHO_HITBOX_CELLS } from "../data/delBoss";
 import { LANES, COLUMNS, CELL_WIDTH, CELL_HEIGHT } from "../config";
 
 export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossKind?: BossKind) {
@@ -118,7 +118,8 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
         finite(sweep.previousInvincibleUntil) && array(sweep.sealedCells, key => typeof key === "string"));
     }
     if (boss.delEcho !== undefined) require(family === "del" && typeof boss.delEcho === "boolean");
-    if (boss.delEcho) require((boss as unknown) !== state.boss && boss.hitboxWidth === CELL_WIDTH && boss.hitboxHeight === CELL_HEIGHT &&
+    if (boss.delEcho) require((boss as unknown) !== state.boss &&
+      [DEL_ECHO_HITBOX_CELLS, 1].some(size => boss.hitboxWidth === CELL_WIDTH * size && boss.hitboxHeight === CELL_HEIGHT * size) &&
       !boss.hasSkills && boss.delLaneSweep === undefined && boss.delSweep === undefined);
     if (boss.delLaneSweep !== undefined) {
       const sweep = boss.delLaneSweep;

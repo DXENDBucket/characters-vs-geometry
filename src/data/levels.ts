@@ -100,7 +100,7 @@ export const levelConfigs: Record<string, LevelConfig> = {
     firstWaveWeight: CHAPTER_FOUR_FIRST_WAVE_WEIGHT,
     waveWeightIncrement: CHAPTER_FOUR_WAVE_WEIGHT_INCREMENT,
     waveWeightIncrementGrowth: CHAPTER_FOUR_WAVE_WEIGHT_INCREMENT_GROWTH,
-    startingChars: CHAPTER_FOUR_STARTING_CHARS,
+    startingChars: 2000,
     wavesPerFlag: WAVES_PER_FLAG, waveWeightCap: 800,
     bossKind: "del", endless: true
   },

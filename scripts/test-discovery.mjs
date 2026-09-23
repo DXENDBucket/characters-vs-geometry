@@ -120,7 +120,7 @@ test("AE-10 unlocks DEL after AE-9 and adds mortar, pentagon and diamond ranks t
   assert.equal(level.bossKind, "del");
   assert.equal(level.endless, true);
   assert.equal(level.survival, undefined);
-  assert.equal(level.startingChars, 500);
+  assert.equal(level.startingChars, 2000);
   assert.equal(level.waveWeightCap, 800);
   assert.deepEqual(level.enemyKinds, [...levels.getLevelConfig("AE-9").enemyKinds,
     "mortarTriangle", "pentagon", "diamond", "diamond2", "diamond3"]);
