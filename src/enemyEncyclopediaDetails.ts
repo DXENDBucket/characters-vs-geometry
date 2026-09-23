@@ -123,7 +123,7 @@ export function enemyDetailSections(kind: EnemyKind, description: string): Detai
   }
   if (family === "heart") {
     skill("lead", "引领", "Lead", support.HEART_LEAD_SKILL_MAX, support.HEART_LEAD_SKILL_COST, support.HEART_LEAD_REGEN_PER_SECOND, 0,
-      { shape: { kind: "grid", left: 0, right: support.HEART_LEAD_COLUMN_SPAN - 1, top: -support.HEART_LEAD_LANE_RADIUS, bottom: support.HEART_LEAD_LANE_RADIUS }, label: { zh: "本列及右侧四列，上下两行", en: "Own column and four to the right, two lanes up/down" } },
+      { shape: { kind: "grid", left: 0, right: support.HEART_LEAD_COLUMN_SPAN - 1, top: -support.HEART_LEAD_LANE_RADIUS, bottom: support.HEART_LEAD_LANE_RADIUS }, label: { zh: "本列及右侧四列，上下各一行", en: "Own column and four to the right, one lane up/down" } },
       l("将区域内普通小怪直接拉到自身所在行。排除领袖、Boss 眷属、已装载及高空飞行单位。同一批心形发动时，每个目标只被分配一次。", "Moves ordinary minions directly into the caster's lane. Excludes leaders, Boss companions, passengers and High Flight. Simultaneous casters claim each target only once."),
       l("满技力且区域内有可牵引目标", "Full SP and an eligible target in the area"));
   }
