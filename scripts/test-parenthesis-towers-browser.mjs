@@ -46,9 +46,9 @@ try {
       start(); for (const type of order) place(type);
       const shell = scene.towers.find(t => t.type === "()"), inner = scene.towers.find(t => t.type === "A");
       check(scene.occupied.size === 1 && scene.occupied.get("3:4") === inner && inner.parenthesisGuard === shell, "Placement order lost an occupant");
-      damage(inner, 700, "physical"); check(shell.hp === 2800 && inner.hp === 1200, "Physical damage did not use shell armor");
-      damage(inner, 100, "magic"); check(shell.hp === 2740 && inner.hp === 1200, "Magic damage did not use shell MR");
-      damage(inner, 80); check(shell.hp === 2660 && inner.hp === 1200, "True damage skipped shell");
+      damage(inner, 700, "physical"); check(shell.hp === 2600 && inner.hp === 1200, "Physical damage did not use shell armor");
+      damage(inner, 100, "magic"); check(shell.hp === 2540 && inner.hp === 1200, "Magic damage did not use shell MR");
+      damage(inner, 80); check(shell.hp === 2460 && inner.hp === 1200, "True damage skipped shell");
       damage(inner, 50000); check(!shell.inPlay && inner.inPlay && inner.hp === 1200 && scene.occupied.get("3:4") === inner,
         "Breaking hit spilled through or erased occupant");
       damage(inner, 100); check(inner.hp === 1100, "Damage failed to reach exposed occupant");

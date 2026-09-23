@@ -18,7 +18,7 @@ export const cardDefinitions: CardDefinition[] = [
   },
   {
     id: "()", category: "defense", cost: 275, cooldown: 20_000,
-    maxHp: 3_000, armor: 500, magicResistance: 40, attackPower: 0, stats: "3000 A500 MR40"
+    maxHp: 3_000, armor: 300, magicResistance: 40, attackPower: 0, stats: "3000 A300 MR40"
   },
   {
     id: "!", category: "function", cost: 200, cooldown: 30_000,

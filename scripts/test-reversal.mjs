@@ -389,7 +389,7 @@ test("physical pipeline shields spend post-armor damage, including parentheses, 
   lifecycle.damageTower(f.runtime, target, 1000, "physical");
   assert.equal(shell.hp, 3000);
   assert.equal(target.hp, 2200);
-  assert.equal(projectileDamageBudget(outlet.projectileNode.input[0]), 1500);
+  assert.equal(projectileDamageBudget(outlet.projectileNode.input[0]), 900);
 });
 
 function gatheringFixture() {

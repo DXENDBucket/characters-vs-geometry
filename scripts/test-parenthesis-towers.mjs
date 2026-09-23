@@ -11,7 +11,7 @@ const tower = (type, column = 3) => ({ id: `${type}:${column}`, type, lane: 2, c
 test("parenthesis shell keeps its own defenses, unlocks after AE-5 and upgrades HP", () => {
   const shell = cardDefinitions.find(card => card.id === "()"), O = cardDefinitions.find(card => card.id === "O");
   for (const key of ["maxHp", "attackPower", "cooldown"]) assert.equal(shell[key], O[key], key);
-  assert.equal(shell.armor, 500); assert.equal(shell.magicResistance, 40);
+  assert.equal(shell.armor, 300); assert.equal(shell.magicResistance, 40);
   assert.equal(shell.cost, 275); assert.equal(shell.category, "defense");
   assert.equal(cardUnlockRequirement("()"), "AE-5");
   assert.equal(load("src/game/upgrades.ts").isMaxHpUpgradeable("()"), true);
