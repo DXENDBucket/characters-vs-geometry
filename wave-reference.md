@@ -3061,7 +3061,8 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 
 - Unlocks after AE-9. Boss battle: waves continue until DEL is defeated; not an Infinite Front operation.
 - Same enemy pool as AE-9. Starting characters 500; initial weight 25, increment +18, extra increment +3, provisional weight cap 800 (same as 2-10).
-- DEL: 120000 HP, 150 armor, 20 MR, speed 0, fixed 3-by-3-cell hitbox. Other base stats follow Tetrahedron I. No unique skills yet; standard Boss contact damage remains.
+- DEL: 120000 HP, 150 armor, 20 MR, speed 0, fixed 3-by-3-cell hitbox. Other base stats follow Tetrahedron I; standard Boss contact damage remains.
+- Delete: Stack starts at 40/40 SP, recovers 1 SP/s and spends 40 SP. With no living tower, holds its charge. DEL glitches red for 1s, then selects the most recently placed living tower's physical cell; if none remains, ends without refunding SP. A 5s cell warning follows. At 6s after casting, erases all towers in that cell and prohibits deployment for 90s. Once locked, the cell does not follow a moved/replaced target. Timers pause with battle; existing permanent seals remain permanent.
 - Visual: intermittent DEL glitches and two rapidly rotating, tilting rings of alternating binary digits, with rounded zero glyphs. Battle, map preview and encyclopedia share the same renderer.
 
 ## Recent Enemy Additions

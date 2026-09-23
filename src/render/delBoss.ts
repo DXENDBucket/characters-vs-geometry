@@ -25,14 +25,15 @@ function stroke(graphics: Phaser.GameObjects.Graphics, points: Stroke, x: number
 }
 
 // Animated 2D glyph orbits: one graphics object, no per-frame Text objects or gameplay RNG.
-export function drawDelBoss(graphics: Phaser.GameObjects.Graphics, radius: number, time: number, invincible = false) {
+export function drawDelBoss(graphics: Phaser.GameObjects.Graphics, radius: number, time: number, invincible = false, errorActive = false) {
   graphics.clear();
   const seconds = time / 1000;
-  const color = invincible ? 0xffd75a : 0xf5f5f5;
+  const errorFlash = errorActive && Math.floor(time / 80) % 2 === 0;
+  const color = errorFlash ? 0xff4d4d : invincible ? 0xffd75a : 0xf5f5f5;
   const count = radius < 40 ? 32 : 56;
   const digitSize = radius * .09;
   const glitchPhase = (time % 4100 + 4100) % 4100;
-  const glitch = glitchPhase >= 3300 && glitchPhase < 3430;
+  const glitch = errorActive || glitchPhase >= 3300 && glitchPhase < 3430;
   const offset = glitch ? Math.sin(Math.floor(time / 28) * 2.1) * radius * .045 : 0;
 
   const glyphs: { path: Stroke; x: number; y: number; size: number; tangent: number; depth: number }[] = [];
@@ -75,12 +76,12 @@ export function drawDelBoss(graphics: Phaser.GameObjects.Graphics, radius: numbe
     }
   };
   if (glitch) {
-    drawName(-offset, -radius * .022, 0x9fdcff, .65);
+    drawName(-offset, -radius * .022, errorActive ? 0xff4d4d : 0x9fdcff, .65);
     drawName(offset, radius * .022, 0xff6464, .5);
   }
   drawName(offset, 0, color, 1);
   if (glitch) {
-    graphics.lineStyle(Math.max(1, radius * .015), 0x9fdcff, .9);
+    graphics.lineStyle(Math.max(1, radius * .015), errorActive ? 0xff4d4d : 0x9fdcff, .9);
     for (let i = 0; i < 3; i++) {
       const y = (i - 1) * radius * .14;
       graphics.lineBetween(-radius * .55 + offset * i, y, radius * .48 - offset * i, y);

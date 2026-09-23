@@ -9,6 +9,7 @@ import { canRestoreBattleVersion, validBattleClock } from "./battleSimulation";
 import { BUNDLE_SHOTS, PIPELINE_RATE } from "./pipelineRules";
 import { isTowerShellType } from "./towerOccupancy";
 import { CHEVRON_LEADER } from "../data/chevronLeader";
+import { LANES, COLUMNS } from "../config";
 
 export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossKind?: BossKind) {
   const units = new Map<NodeKind, Set<object>>();
@@ -105,11 +106,14 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
     require(Number.isSafeInteger(boss.rank) && (boss.rank as number) >= 1);
     require(finite(boss.hp) && boss.hp >= 0 && finite(boss.maxHp) && boss.maxHp > 0 && boss.hp <= boss.maxHp);
     if (!record(boss.baseStats) || !record(boss.finalStats) || !record(boss.skills)) throw new Error("Invalid boss state");
+    if (family === "del") require((boss.deleteStackPending === undefined || typeof boss.deleteStackPending === "boolean") &&
+      (!boss.deleteStackPending || record(boss.skills.deleteStack)));
     for (const key of ["maxHp", "armor", "magicResistance", "speed", "finalDamageReduction"]) {
       require(finite(boss.baseStats[key]) && finite(boss.finalStats[key]));
     }
     const skillKeys = ["promotion", "advance", ...(family === "tetrahedron"
-      ? ["charge", "impact", "suppression", "desperation"] : family === "dodecahedron" ? ["endlessWings"] : [])];
+      ? ["charge", "impact", "suppression", "desperation"] : family === "dodecahedron" ? ["endlessWings"] :
+        family === "del" && boss.skills.deleteStack !== undefined ? ["deleteStack"] : [])];
     for (const key of skillKeys) {
       const skill = boss.skills[key];
       require(record(skill) && [skill.sp, skill.spBuffer, skill.activeUntil, skill.maxSp, skill.cost].every(finite));
@@ -294,6 +298,11 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
   require(array(state.storage, entry => record(entry) && member("enemy")(entry.enemy) && member("tower")(entry.carrier) && finite(entry.releaseAt)));
   require(array(state.spellMortarFlights, entry => record(entry) && member("tower")(entry.source) && finite(entry.progress) && entry.progress >= 0 && entry.progress <= 1));
   require(array(state.sealedCells, cell => typeof cell === "string"));
+  if (state.timedCellSeals !== undefined) require(array(state.timedCellSeals, seal => record(seal) &&
+    Number.isInteger(seal.lane) && (seal.lane as number) >= 0 && (seal.lane as number) < LANES &&
+    Number.isInteger(seal.column) && (seal.column as number) >= 0 && (seal.column as number) < COLUMNS &&
+    finite(seal.warnedAt) && seal.warnedAt >= 0 && finite(seal.sealsAt) && seal.sealsAt > seal.warnedAt &&
+    finite(seal.expiresAt) && seal.expiresAt > seal.sealsAt && typeof seal.active === "boolean"));
   require(record(state.shifter) && [state.shifter.readyAt, state.shifter.cooldownStartedAt, state.shifter.cooldownDuration].every(finite));
   require(record(state.reselection) && finite(state.reselection.readyAt) && array(state.reselection.cards,
     item => Array.isArray(item) && item.length === 2 && typeof item[0] === "string" && timestamp(item[1])));

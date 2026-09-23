@@ -124,7 +124,8 @@ export type BossSkillName =
   | "ultimateAdvance"
   | "heartbeatAlpha"
   | "heartbeatBeta"
-  | "leap";
+  | "leap"
+  | "deleteStack";
 export type ProjectileKind = "bolt" | "shell" | "star" | "hash" | "dollar" | "chevron";
 export type UnitCategory = "production" | "attack" | "defense" | "function" | "healing" | "special";
 export type DamageType = "physical" | "magic" | "true";
@@ -617,6 +618,7 @@ export interface PendingBossCopy {
 }
 
 export interface CubeBoss {
+  deleteStackPending?: boolean;
   statusEffects: StatusEffect[];
   kind: BossKind;
   rank: number;
@@ -649,6 +651,7 @@ export interface CubeBoss {
     heartbeatAlpha?: BossSkill<"heartbeatAlpha">;
     heartbeatBeta?: BossSkill<"heartbeatBeta">;
     leap?: BossSkill<"leap">;
+    deleteStack?: BossSkill<"deleteStack">;
   };
   contactAttackBuffer: number;
   chargeExpiresAt: number;

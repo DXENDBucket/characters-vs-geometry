@@ -5,6 +5,7 @@ import type { TowerShifterController } from "./towerShifter";
 import type { TowerStorageController } from "./towerStorage";
 import type { SpellMortarFlight } from "./towerSkills";
 import type { BattleClockState } from "./battleSimulation";
+import type { TimedCellSeal } from "./timedCellSeals";
 
 export interface BattleSaveState {
   edgeTowers?: EdgeTower[];
@@ -40,4 +41,5 @@ export interface BattleSaveState {
   extraction: number;
   spellMortarFlights: SpellMortarFlight[];
   sealedCells: string[];
+  timedCellSeals?: TimedCellSeal[];
 }

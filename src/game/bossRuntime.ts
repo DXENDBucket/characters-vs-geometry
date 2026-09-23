@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { DEL_DELETE_STACK } from "../data/delBoss";
 import { towerAreaTargets, towerDamageReceiver } from "./towerOccupancy";
 import { towerBehaviorType } from "./towerIdentity";
 import { bossMovementDirection } from "./rules/reversal";
@@ -150,6 +151,7 @@ const ICOSAHEDRON_FINAL_REINFORCEMENTS: Array<{
 export interface BossRuntime {
   enemyHpMultiplier?: () => number;
   scheduleBattleAction?: ScheduleBattleAction;
+  warnCellSeal: (lane: number, column: number, warningMs: number, durationMs: number, leadInMs: number) => void;
   scene: Phaser.Scene;
   enemies: Enemy[];
   towers: Tower[];
@@ -167,6 +169,14 @@ export interface BossRuntime {
 }
 
 const bossSkillRegistry = createBossSkillRegistry<BossRuntime>({
+  del: [{
+    skillKey: "deleteStack",
+    canUse: runtime => runtime.towers.some(tower => tower.inPlay),
+    use: (runtime, boss, skill) => {
+      boss.deleteStackPending = true;
+      skill.activeUntil = runtime.battleTime + DEL_DELETE_STACK.glitchMs;
+    }
+  }],
   cube: [
     {
       skillKey: "promotion",
@@ -244,6 +254,12 @@ export function updateBossRuntime(runtime: BossRuntime, seconds: number) {
   const boss = runtime.getBoss();
   if (!boss) {
     return;
+  }
+
+  if (boss.kind === "del" && boss.deleteStackPending && runtime.battleTime >= boss.skills.deleteStack!.activeUntil) {
+    boss.deleteStackPending = false;
+    const target = latestPlacedTower(runtime.towers.filter(tower => tower.inPlay));
+    if (target) runtime.warnCellSeal(target.lane, target.column, DEL_DELETE_STACK.warningMs, DEL_DELETE_STACK.sealMs, 0);
   }
 
   initializeOctahedronSolarBombs(runtime, boss);
@@ -1326,6 +1342,11 @@ function triggerTetrahedronCriticalSummon(runtime: BossRuntime, boss: CubeBoss) 
 
 function updateBossSkills(runtime: BossRuntime, boss: CubeBoss, seconds: number) {
   if (!boss.hasSkills) {
+    return;
+  }
+
+  if (boss.kind === "del") {
+    runRegisteredBossSkills(runtime, boss, bossSkillRegistry.del, seconds);
     return;
   }
 

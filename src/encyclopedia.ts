@@ -121,8 +121,8 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
       title: "DEL", icon: "del", chapterGroupId: "ascii",
       lines: [statLine([[t("label.hp"), CUBE_BOSS_STATS.del.hp], [t("label.armor"), CUBE_BOSS_STATS.del.armor],
         [t("label.mr"), CUBE_BOSS_STATS.del.magicResistance], [t("label.speed"), CUBE_BOSS_STATS.del.speed]])],
-      description: zh ? "ASCII 扩展 AE-10 的 Boss。碰撞体为 3×3 格，静止。双重二进制环围绕 DEL 快速旋转，字形偶尔出现错位干扰。当前没有专属技能，保留 Boss 的常规接触伤害。"
-        : "Boss of ASCII Expansion AE-10. Stationary with a 3x3-cell hitbox. Two fast binary rings surround DEL, with occasional glyph glitches. No unique skills yet; retains standard Boss contact damage."
+      description: zh ? "ASCII 扩展 AE-10 的 Boss。碰撞体为 3×3 格，静止。双重二进制环围绕 DEL 快速旋转，字形偶尔出现错位干扰。通过「删除：栈」锁定最后部署的塔所在格，预警后擦除并暂时封禁。"
+        : "Boss of ASCII Expansion AE-10. Stationary with a 3x3-cell hitbox and two rotating binary rings. Delete: Stack telegraphs, erases and temporarily seals the most recently deployed tower's cell."
     },
     {
       title: zh ? "大于号系列" : "Greater-Than Sign Series",

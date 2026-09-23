@@ -1,4 +1,5 @@
 import * as config from "./config";
+import { DEL_DELETE_STACK } from "./data/delBoss";
 import { getLevelConfig } from "./data/levels";
 import { bossStatsAtRank, rankedBossFamily, tetrahedronChargeSpeedAtRank, dodecahedronAttacksAtRank } from "./bosses/bossRanks";
 import { getEnemyDefinition } from "./registry/enemies";
@@ -48,6 +49,12 @@ export function bossDetailSections(icon: BossIcon, level: number): DetailSection
       l("满技力且至少有 3 个合法目标", "Full SP and at least 3 eligible targets"));
     skill("推进", "Advance", config.CUBE_BOSS_ADVANCE_SKILL_MAX, config.CUBE_BOSS_ADVANCE_SKILL_COST, 0,
       l(`在自身前方一列的每行召唤一个 ${rank} 级正方形。`, `Summons a rank ${rank} Square in each lane of the column ahead.`), column);
+  }
+  if (icon === "del") {
+    skill("删除：栈", "Delete: Stack", DEL_DELETE_STACK.maxSp, DEL_DELETE_STACK.cost, DEL_DELETE_STACK.initialSp,
+      l("本体红色故障闪动 1 秒后，锁定此时最后放置的塔所在格；若此时无塔则结束，不返还技力。格子预警 5 秒后擦除格内的塔，并封禁 90 秒。锁格后目标移动或消失不改变预警位置。",
+        "DEL glitches red for 1s, then locks the cell of the most recently placed tower at that moment. If no tower remains, the skill ends without an SP refund. After a 5s cell warning, erases towers there and seals the cell for 90s; the warning no longer follows the target."),
+      battlefieldRange, DEL_DELETE_STACK.sealMs, l("满技力且场上有塔时自动释放；无塔时保留技力", "Automatically at full SP when a tower exists; holds SP otherwise"));
   }
   if (ico && level === 1) {
     skill("终极推进", "Ultimate Advance", config.ICOSAHEDRON_BOSS_ULTIMATE_ADVANCE_SKILL_MAX, config.ICOSAHEDRON_BOSS_ULTIMATE_ADVANCE_SKILL_COST, config.ICOSAHEDRON_BOSS_ULTIMATE_ADVANCE_INITIAL_SP,

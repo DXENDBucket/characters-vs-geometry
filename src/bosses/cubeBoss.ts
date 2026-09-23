@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { drawDelBoss } from "../render/delBoss";
+import { DEL_DELETE_STACK } from "../data/delBoss";
 import { bossMovementDirection, expireReversalEffect } from "../game/rules/reversal";
 import {
   BOARD_HEIGHT,
@@ -289,6 +290,8 @@ export function createCubeBoss(
     advanceMinionKind: enemyKindAtRank("square", rank),
     hasSkills: !isSkilllessBossKind(kind),
     skills: {
+      ...(kind === "del" ? { deleteStack: createBossSkill("deleteStack", DEL_DELETE_STACK.maxSp,
+        DEL_DELETE_STACK.cost, DEL_DELETE_STACK.initialSp) } : {}),
       promotion: createBossSkill("promotion", CUBE_BOSS_PROMOTION_SKILL_MAX, CUBE_BOSS_PROMOTION_SKILL_COST),
       advance: createBossSkill("advance", CUBE_BOSS_ADVANCE_SKILL_MAX, CUBE_BOSS_ADVANCE_SKILL_COST),
       ...(isTetrahedronBossKind(kind) || isIcosahedronBossKind(kind)
@@ -463,7 +466,8 @@ export function bossAdvanceSpawnPoints(boss: CubeBoss) {
 function drawCubeBoss(boss: CubeBoss, time: number) {
   if (boss.kind === "del") {
     boss.labelText.setVisible(false);
-    drawDelBoss(boss.frame, Math.min(boss.hitboxWidth!, boss.hitboxHeight!) / 2 - 6, time, boss.invincibleUntil > time);
+    drawDelBoss(boss.frame, Math.min(boss.hitboxWidth!, boss.hitboxHeight!) / 2 - 6, time, boss.invincibleUntil > time,
+      (boss.skills.deleteStack?.activeUntil ?? 0) > time);
     return;
   }
   if (isTetrahedronBoss(boss)) {
@@ -571,7 +575,6 @@ export function isIcosahedronBoss(boss: CubeBoss) {
 
 function isSkilllessBossKind(kind: BossKind) {
   return (
-    kind === "del" ||
     isDodecahedronBossKind(kind) ||
     isSmallStellatedDodecahedronBossKind(kind) ||
     isOctahedronBossKind(kind)

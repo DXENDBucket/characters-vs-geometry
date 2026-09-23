@@ -4,6 +4,55 @@ import { test } from "node:test";
 import ts from "typescript";
 import { createTypeScriptLoader } from "./helpers/load-typescript.mjs";
 
+test("timed seals wait for a 1s cue and 5s warning, erase once, and last 90s", () => {
+  const { TimedCellSeals } = createTypeScriptLoader()("src/game/timedCellSeals.ts");
+  const seals = new TimedCellSeals(), erased = [];
+  const erase = (lane, column) => {
+    assert.ok(seals.isSealed(lane, column), "Seal must block mirror respawn before erasure");
+    erased.push([lane, column]);
+  };
+  seals.warn(2, 5, 100, 5000, 90000, 1000);
+  assert.equal(seals.entries[0].warnedAt, 1100);
+  for (const time of [100, 1000, 1100, 6099]) {
+    assert.equal(seals.update(time, erase), false);
+    assert.equal(seals.isSealed(2, 5), false);
+  }
+  assert.equal(seals.update(6100, erase), true);
+  assert.deepEqual(erased, [[2, 5]]);
+  for (const time of [6100, 6100, 96100 - 1]) {
+    seals.update(time, erase);
+    assert.equal(seals.isSealed(2, 5), true);
+  }
+  assert.equal(erased.length, 1);
+  assert.equal(seals.update(96100, erase), true);
+  assert.equal(seals.isSealed(2, 5), false);
+});
+
+test("timed seals restore both cue and active phases and retain overlapping seals", () => {
+  const { TimedCellSeals } = createTypeScriptLoader()("src/game/timedCellSeals.ts");
+  let seals = new TimedCellSeals();
+  seals.warn(0, 1, 0, 5000, 90000, 1000);
+  const restore = () => {
+    const saved = JSON.parse(JSON.stringify(seals.snapshot()));
+    seals = new TimedCellSeals(); seals.restore(saved);
+  };
+  restore();
+  let erased = 0;
+  seals.update(6000, () => erased++);
+  restore();
+  seals.update(7000, () => erased++);
+  assert.equal(erased, 1);
+  seals.warn(0, 1, 40000, 5000, 90000, 1000);
+  seals.update(46000, () => erased++);
+  assert.equal(erased, 2);
+  seals.update(96000, () => erased++);
+  assert.equal(seals.isSealed(0, 1), true);
+  seals.update(136000, () => erased++);
+  assert.equal(seals.isSealed(0, 1), false);
+  seals.restore();
+  assert.deepEqual(seals.snapshot(), []);
+});
+
 test("O specializes in magic resistance without changing its cost, health or cooldown", () => {
   const { cardDefinitions } = createTypeScriptLoader()("src/data/cards.ts");
   const card = cardDefinitions.find(card => card.id === "O");

@@ -12,6 +12,7 @@ export interface BossSkillRegistry<Runtime> {
   cube: readonly BossSkillDefinition<Runtime>[];
   tetrahedron: readonly BossSkillDefinition<Runtime>[];
   icosahedron: readonly BossSkillDefinition<Runtime>[];
+  del: readonly BossSkillDefinition<Runtime>[];
 }
 
 export function createBossSkillRegistry<Runtime>(registry: BossSkillRegistry<Runtime>) {
