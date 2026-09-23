@@ -168,6 +168,26 @@ test("AE-7 follows AE-6, uses the requested pool and reveals Dollar on unlock", 
   assert.equal(progress.discoveredEnemies().enemies.has("dollar2"), false);
 });
 
+test("AE-8 follows AE-7 with 30 waves, the ASCII template and exactly the requested enemy ranks", () => {
+  const { progress, levels } = fixture();
+  const level = levels.getLevelConfig("AE-8"), template = levels.getLevelConfig("AE-7");
+  assert.equal(level.totalWaves, 30);
+  assert.equal(level.unlockAfter, "AE-7");
+  assert.equal(levels.levelNodes.filter(node => node.id === "AE-8").length, 1);
+  for (const field of ["firstWaveWeight", "waveWeightIncrement", "waveWeightIncrementGrowth", "startingChars", "wavesPerFlag"])
+    assert.equal(level[field], template[field], field);
+  assert.deepEqual(level.enemyKinds, ["circle", "tilde", "tilde2", "parentheses", "parentheses2", "parentheses3",
+    "dollar", "square2", "trapezoid2", "mortarTriangle", "mortarTriangle2", "mortarTriangle3",
+    "pentagon", "pentagon2", "pentagon3", "hexSpellBulwark"]);
+  for (const id of ["4-10", "AE-1", "AE-2", "AE-3", "AE-4", "AE-5", "AE-6"]) progress.completeLevel(id);
+  assert.equal(progress.isLevelUnlocked("AE-8"), false);
+  progress.completeLevel("AE-7");
+  assert.equal(progress.isLevelUnlocked("AE-8"), true);
+  for (const kind of level.enemyKinds) assert.equal(progress.discoveredEnemies().enemies.has(kind), true, kind);
+  assert.deepEqual(progress.completeLevel("AE-8"), []);
+  assert.equal(progress.isLevelCompleted("AE-8"), true);
+});
+
 test("AE-3 reveals Equals and unlocks number towers; AE-4 unlocks + and &", () => {
   const { progress } = fixture();
   assert.equal(progress.isLevelUnlocked("AE-3"), false);

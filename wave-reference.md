@@ -182,7 +182,7 @@ Towers have separate base and final `attackPower`. Attack damage and healing use
 | D | Defense | Square | 100 | 20s | 3000 | 800 | 0 | High-armor blocker | +`2400` max/current HP per level |
 | d | Attack | Diamond | 175 | 10s | 1200 | 150 | 20 | Fires a light-blue piercing magic laser, `400✦`, every `3s`. The laser stops after hitting the first enemy with MR. Hit enemies gain `10s` Sunder, reducing final armor by `50%` and showing a white `▣` icon; repeated hits refresh Sunder to `10s` | +`320✦` attack per level |
 | z | Attack | Diamond | 175 | 10s | 1200 | 150 | 20 | Unlock: clear `3-8`, the first Angel Pentagon stage. Same light-blue piercing magic laser as d: `400✦` every `3s`, stops after hitting the first enemy with MR. Successful hits remove `1 SP` from every existing skill of the target, including leaders but excluding Bosses, clamped to `0`. Boss damage is unchanged. Invincibility prevents drain. Preserves fractional recovery progress and active skills; no Sunder. | +`320✦` attack per level; SP drain stays `1` |
-| O | Defense | Square | 125 | 20s | 3000 | 500 | 40 | Armor-heavy magic-resistant blocker | +`2400` max/current HP per level |
+| O | Defense | Square | 125 | 20s | 3000 | 300 | 70 | High magic resistance with moderate armor | +`2400` max/current HP per level |
 | o | Defense | Square | 175 | 20s | 3000 | 500 | 0 | Unlock: clear `2-8`, the first Mortar Triangle stage. ATK `0`, no retaliation. Orientation: starts at `0/10 SP`, recovers `1 SP/s`; click to spend `10 SP` for `6s`, pausing recovery. Redirects enemy attacks/skills targeting towers in the centered cornerless `5x5` area to itself, including airborne locked mortars. Untargeted shots, line lasers and AOE are unchanged. Pale green range when active, dim when idle. Most recently activated source wins overlaps without redirect chains. | +`2400` max/current HP per level; resets Orientation SP and active effect |
 | R | Defense | Square | 225 | 15s | 3000 | 350 | 35 | Enemy projectiles still damage it, then reflect into friendly projectiles with the same damage and damage type. Locked mortars that hit R are reflected back at the shooter | +`2400` max/current HP per level |
 | X | Production | Circle | 50 | 1.5s | 1200 | 150 | 0 | Produces `25` chars every `10s` using attack speed, shown as `Aa`; Zeal speeds this up | +`20` chars per production per level |
@@ -3038,6 +3038,11 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 
 - Unlocks after AE-6; 20 waves, 500 starting characters. Chapter 4 weights: initial 25, increment +18, extra increment +3; one flag every 10 waves.
 - Enemy pool: Circle I, Tilde I/II/III, Equals I/II/III, Triangle Ram I/II/III, Hex Mace I, Dollar I (`$`), Heart I.
+
+## ASCII Expansion: AE-8
+
+- Unlocks after AE-7; 30 waves, 500 starting characters. Chapter 4 weights: initial 25, increment +18, extra increment +3; one flag every 10 waves.
+- Enemy pool: Circle I, Tilde I/II, Parentheses I/II/III, Dollar I (`$`), Square II, Trapezoid II, Triangle Mortar I/II/III, Pentagon I/II/III, Hex Spell Bulwark I.
 
 ## Recent Enemy Additions
 
