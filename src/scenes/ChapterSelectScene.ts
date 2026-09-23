@@ -227,6 +227,8 @@ export class ChapterSelectScene extends Phaser.Scene {
           fontStyle: "700"
         })
         .setOrigin(0.5);
+      const maxLabelWidth = CHAPTER_CARD_WIDTH - 24;
+      if (label.width > maxLabelWidth) label.setFontSize(Math.floor(22 * maxLabelWidth / label.width));
       const meta = this.add
         .text(
           chapter.x,

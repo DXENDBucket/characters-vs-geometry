@@ -110,9 +110,25 @@ function fixture(saved) {
   }
   return {
     progress: load("src/progress.ts"), visibility: load("src/encyclopediaVisibility.ts"),
-    levels: load("src/data/levels.ts"), storage, writes: () => writes
+    levels: load("src/data/levels.ts"), chapters: load("src/data/chapters.ts"),
+    chapterGroups: load("src/data/chapterGroups.ts"), storage, writes: () => writes
   };
 }
+
+test("Symbol Domain Capital follows Symbol Domain as an empty ASCII chapter", () => {
+  const { progress, chapters, chapterGroups } = fixture();
+  assert.deepEqual(chapterGroups.chaptersInGroup("ascii").map(chapter => chapter.id), ["AE", "AE2"]);
+  assert.equal(chapters.getChapterDefinition("AE2").parentId, "AE");
+  assert.equal(chapterGroups.groupForChapter("AE2").id, "ascii");
+  assert.equal(chapters.chapterIdForLevelId("AE-10"), "AE");
+  assert.equal(chapters.chapterIdForLevelId("AE2-1"), "AE2");
+  assert.deepEqual(chapters.levelNodesForChapter("AE2"), []);
+  progress.completeAllLevels();
+  assert.equal(progress.isChapterUnlocked("AE2"), false);
+  assert.equal(progress.isChapterCompleted("AE2"), false);
+  assert.equal(progress.isLevelUnlocked("AE2-1"), false);
+  assert.equal(progress.isChapterCompleted("AE"), true);
+});
 
 test("AE-10 unlocks DEL after AE-9 and adds mortar, pentagon and diamond ranks to its Boss battle pool", () => {
   const { progress, levels, visibility } = fixture();
