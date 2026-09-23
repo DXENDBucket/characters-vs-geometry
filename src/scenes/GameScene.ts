@@ -36,6 +36,7 @@ import { drawEnemyHealthLinks } from "../render/enemyHealthLinks";
 import { PauseMenu } from "../render/pauseMenu";
 import { EncyclopediaPanel } from "../render/encyclopediaPanel";
 import { BattleCardList } from "../render/battleCardList";
+import { BattlefieldLayer } from "../render/battlefieldLayer";
 import { TowerExtractionPool } from "../game/towerExtraction";
 import { LoadoutReselection, RESELECT_UNLOCK_LEVEL } from "../game/loadoutReselection";
 import { TowerStorageController } from "../game/towerStorage";
@@ -261,6 +262,7 @@ export class GameScene extends Phaser.Scene {
   private nextNaturalProduceAt = NATURAL_PRODUCE_INTERVAL;
   private cardStates: CardState[] = [];
   private cardList?: BattleCardList;
+  private battlefield!: BattlefieldLayer;
   private cardStatesById = new Map<CardId, CardState>();
   private selectedCardId: CardId = "X";
   private towers: Tower[] = [];
@@ -518,6 +520,7 @@ export class GameScene extends Phaser.Scene {
     this.events.once("shutdown", () => this.cleanupSceneHandlers());
     this.cameras.main.setBackgroundColor(palette.black);
     this.drawBoard();
+    this.battlefield = new BattlefieldLayer(this);
     this.timedCellSealGraphics = this.add.graphics().setDepth(1);
     this.timedCellWarningGraphics = this.add.graphics().setDepth(115);
     this.toolPreview = new BoardToolPreview(this);
@@ -525,7 +528,7 @@ export class GameScene extends Phaser.Scene {
     this.previewShiftKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT, false);
     this.circuitEdges = this.add.graphics().setDepth(19);
     this.enemyHealthLinks = this.add.graphics().setDepth(59);
-    this.ui = createGameHud(this, this.levelId, this.difficulty, {
+    this.ui = this.battlefield.ui(() => createGameHud(this, this.levelId, this.difficulty, {
       onMenu: () => this.openPauseMenu(),
       onDebug: () => this.grantDebugChars(),
       onDebugDamage: () => this.toggleDebugDamageMode(),
@@ -538,7 +541,7 @@ export class GameScene extends Phaser.Scene {
       onGameSpeedChange: (speed) => this.setGameSpeed(speed),
       canChangeGameSpeed: () => !this.gameOver && !this.menuOpen && !this.reselectOpen,
       onErase: () => this.toggleEraser()
-    }, this.debugModeEnabled);
+    }, this.debugModeEnabled));
     this.pauseMenu = new PauseMenu({
       resume: () => this.closePauseMenu(),
       settings: () => {
@@ -561,7 +564,7 @@ export class GameScene extends Phaser.Scene {
     if (!this.resumeSave && !this.playback?.checkpoint) this.spawnBossIfNeeded();
     this.createCardList();
     this.updateCards();
-    this.overlay = createGameOverlay(this, () => this.handleOverlayAction());
+    this.overlay = this.battlefield.ui(() => createGameOverlay(this, () => this.handleOverlayAction()));
     if (this.resumeSave) {
       try {
         this.applyBattleSave(restoreBattleSnapshot(this, this.resumeSave.graph));
@@ -596,10 +599,10 @@ export class GameScene extends Phaser.Scene {
           shifterReadyRatio: this.shifter.cooldownRatio(),
           shifterSelection: this.shifter.selectedTowers()
         }),
-        spawnWave: (spawns) => this.spawnTutorialWave(spawns),
+        spawnWave: (spawns) => this.battlefield.world(() => this.spawnTutorialWave(spawns)),
         finish: () => this.endLevel()
       };
-      this.tutorial = createTutorialController(this.levelConfig.specialMechanic, runtime);
+      this.tutorial = this.battlefield.ui(() => createTutorialController(this.levelConfig.specialMechanic, runtime));
     }
 
     this.input.on("pointerdown", this.scenePointerDownHandler);
@@ -633,8 +636,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createCardList() {
-    this.cardList = new BattleCardList(this, this.selectedCardIds, (id) => this.selectCard(id),
-      () => !this.gameOver && !this.menuOpen && !this.reselectOpen);
+    this.cardList = this.battlefield.ui(() => new BattleCardList(this, this.selectedCardIds, (id) => this.selectCard(id),
+      () => !this.gameOver && !this.menuOpen && !this.reselectOpen));
     this.setCardStates(this.cardList.cards);
     this.cardList.ensureVisible(this.selectedCardId);
   }
@@ -709,7 +712,7 @@ export class GameScene extends Phaser.Scene {
     projectileRuntime.slowAuraSources = slowAuraSources(this.towers);
     updateMortarProjectiles(projectileRuntime, seconds);
     if (this.tutorial) {
-      this.tutorial.update();
+      this.battlefield.ui(() => this.tutorial!.update());
     } else {
       this.updateWaveSchedule(this.levelElapsed, this.battleTime);
     }
@@ -2302,8 +2305,8 @@ export class GameScene extends Phaser.Scene {
     this.autoUpgradeReserveInputFocused = false;
     this.cancelSpellMortarTargeting();
     this.clearPlacementGhosts();
-    this.reselectShade = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, palette.black, 0.4)
-      .setDepth(1000);
+    this.reselectShade = this.battlefield.ui(() => this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, palette.black, 0.4)
+      .setDepth(1000));
     this.scene.pause();
     this.scene.launch("CardSelectScene", {
       levelId: this.levelId,
@@ -2638,7 +2641,7 @@ export class GameScene extends Phaser.Scene {
         : undefined,
       reselectUnlocked ? t("toast.reselectUnlocked") : undefined,
       id => {
-        this.rewardEncyclopedia ??= new EncyclopediaPanel(this);
+        this.rewardEncyclopedia ??= this.battlefield.ui(() => new EncyclopediaPanel(this));
         this.rewardEncyclopedia.openTower(id);
       }
     );
@@ -2998,7 +3001,7 @@ export class GameScene extends Phaser.Scene {
     this.executingCommand = true;
     try {
       switch (command.type) {
-        case "tutorialAdvance": this.tutorialAdvance?.(); break;
+        case "tutorialAdvance": this.battlefield.ui(() => this.tutorialAdvance?.()); break;
         case "cancelTargeting": this.cancelSpellMortarTargeting(); break;
         case "debugMode":
           this.debugModeEnabled = command.enabled;

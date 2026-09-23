@@ -40,6 +40,7 @@ export function bindButtonHover(
       outline = scene.add.rectangle(0, 0, frame.width, frame.height)
         .setName("button-hover").setStrokeStyle(lineWidth, palette.green);
       frame.parentContainer?.add(outline);
+      if (!frame.parentContainer && frame.displayList instanceof Phaser.GameObjects.Layer) frame.displayList.add(outline);
     }
     if (outline.width !== frame.width || outline.height !== frame.height) outline.setSize(frame.width, frame.height);
     outline.setPosition(frame.x, frame.y)

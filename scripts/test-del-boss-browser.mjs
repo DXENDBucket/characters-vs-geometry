@@ -184,9 +184,9 @@ try {
     scene.combatRuntime().damageBoss(1, "true");
     check(boss.hp === 90000 && boss.invincibleUntil === Infinity && boss.delSweep.phase === "warning", "Threshold did not shield immediately");
     check(boss.body.list.some(child => child.name === "del-sweep-warning"), "Three-lane warning missing");
-    const children = scene.children.list.length;
+    const children = scene.battlefield.worldLayer.list.length;
     scene.combatRuntime().damageBoss(1000000, "true");
-    check(boss.hp === 90000 && scene.children.list.length === children, "Invulnerability failed or spawned conventional invulnerability VFX");
+    check(boss.hp === 90000 && scene.battlefield.worldLayer.list.length === children, "Invulnerability failed or spawned conventional invulnerability VFX");
     const graph = JSON.parse(JSON.stringify(captureBattleSnapshot(scene.battleState())));
     validateBattleSave(graph, scene.wave, "del");
     const restored = restoreBattleSnapshot(scene, graph);
