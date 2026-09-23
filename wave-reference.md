@@ -3053,6 +3053,10 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 
 ## Recent Enemy Additions
 
+- Chevron leader (`>` / `<`): HP `32000`, +`16000` per additional rank, armor `100`, MR `50`, ATK `450` magic, fixed speed `15`. No stage pool assigned yet.
+- Cannon form charges for `12s`, then fires a light-green ion ball along its facing: `1000% ATK`, radius `2.4` cells, linear damage falloff. No ordinary melee; freezing and High Flight pause charging.
+- At half maximum HP it permanently switches to `<`, cancels unfinished charging, sets armor to `260` and base speed to `30`, and uses Hex Mace acceleration/bounce mechanics. Collisions deal **magic** damage equal to ATK times actual speed divided by 10. Facing is unchanged and healing cannot revert the form.
+
 - Heart Lead moves each eligible enemy directly to the caster's row center using actual position for its area test. A tilde's sine-wave center, last position and phase reset there, preventing its former trajectory from offsetting the pull. Simultaneous hearts still claim each target only once.
 
 - Shooting Triangle 2: weight `100`, HP `2000`, armor `70`, attack `400` physical, average speed `4`, body label `II`.

@@ -1,6 +1,6 @@
 import type { EnemyDefinition, EnemyFamily } from "../types";
 
-export type EnemyAttackMode = "melee" | "ranged" | "mortar" | "laser" | "blockedDetonator" | "siegeRam" | "mace" | "special" | "leader" | "companion";
+export type EnemyAttackMode = "melee" | "ranged" | "chargedRanged" | "mortar" | "laser" | "blockedDetonator" | "siegeRam" | "mace" | "special" | "leader" | "companion";
 type EnemyPanel = Omit<EnemyDefinition, "kind" | "label">;
 type GrowthField = "hp" | "armor" | "magicResistance" | "damage" | "speedMultiplier" | "weight" | "healthLinkCapacity";
 
@@ -18,6 +18,13 @@ export interface EnemyArchetype {
 
 // Only the finite catalog is enumerated. Runtime ranks are resolved on demand.
 export const enemyArchetypes: Record<EnemyFamily, EnemyArchetype> = {
+  chevronLeader: {
+    base: { hp: 32000, armor: 100, magicResistance: 50, damage: 450, damageType: "magic", speedMultiplier: 1.5, weight: 0 },
+    growth: { hp: 16000 },
+    catalogRanks: 3,
+    attackMode: "chargedRanged",
+    leader: true
+  },
   dollar: {
     base: { hp: 20000, armor: 200, magicResistance: 50, damage: 800, damageType: "physical", speedMultiplier: 1, weight: 240 },
     growth: { weight: 200 },

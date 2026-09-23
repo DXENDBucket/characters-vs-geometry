@@ -661,7 +661,8 @@ export function getRangedHighestAttackTarget(tower: Tower, definition: CardDefin
     }
 
     const mode = getEnemyRegistration(enemy.kind).attackMode;
-    const ranged = mode === "ranged" || mode === "laser" || mode === "mortar" || mode === "companion";
+    const ranged = mode === "ranged" || mode === "laser" || mode === "mortar" || mode === "companion" ||
+      (mode === "chargedRanged" && !enemy.chevronAssault);
     const attack = enemyAttackDamage(enemy, time);
     const priority = attackTargetPriority(query, enemy);
     if (!target || (ranged && !targetRanged) || (ranged === targetRanged &&

@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { drawParentheses } from "./parenthesisEnemy";
+import { drawChevronFrame } from "./chevronLeader";
 import {
   DODECAHEDRON_EDGES,
   DODECAHEDRON_UNIT_VERTICES,
@@ -88,6 +89,15 @@ export function createUnitBorder(
 
 export function createEnemyShape(scene: Phaser.Scene, kind: EnemyKind, options: EnemyShapeOptions = {}) {
   const family = enemyFamily(kind);
+  if (family === "chevronLeader") {
+    const shape = scene.add.container(0, 0);
+    const frame = scene.add.graphics();
+    const charge = scene.add.graphics().setPosition(-12, 0);
+    drawChevronFrame(frame);
+    shape.setData("chevronFrame", frame).setData("ionCharge", charge);
+    shape.add([frame, charge, createEnemyLabel(scene, 0, -39, kind)]);
+    return shape;
+  }
   if (family === "dollar") {
     const shape = scene.add.container(0, 0);
     const symbol = scene.add.text(0, 0, "$", { fontFamily: "monospace", fontSize: "52px", color: "#f5f5f5" }).setOrigin(0.5);

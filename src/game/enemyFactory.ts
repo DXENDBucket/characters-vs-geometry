@@ -118,6 +118,8 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
     solarBombDepleted: false,
     solarBombLastCollisionAt: 0,
     maceVelocity: enemyIsMace(options.kind) ? 0 : undefined,
+    chevronAssault: family === "chevronLeader" ? false : undefined,
+    ionChargeMs: family === "chevronLeader" ? 0 : undefined,
     maceFacingDirection: enemyIsMace(options.kind)
       ? options.maceFacingDirection ?? movementDirection
       : undefined,

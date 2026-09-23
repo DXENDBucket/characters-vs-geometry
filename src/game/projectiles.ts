@@ -1,8 +1,10 @@
 import Phaser from "phaser";
+import { CHEVRON_LEADER } from "../data/chevronLeader";
+import { drawIonOrb } from "../render/chevronLeader";
 import { towerActionContext, towerBehaviorType } from "./towerIdentity";
 import { attachProjectileTrail } from "../render/projectileTrail";
-import { enemyMovementDirection } from "./rules/reversal";
-import { BOARD_HEIGHT, BOARD_WIDTH, BOARD_X, BOARD_Y, palette } from "../config";
+import { enemyFacingDirection, enemyMovementDirection } from "./rules/reversal";
+import { BOARD_HEIGHT, BOARD_WIDTH, BOARD_X, BOARD_Y, CELL_WIDTH, palette } from "../config";
 import { enemyFamily } from "../registry/enemies";
 import { damageEffectColor, damageEffectTextColor } from "../render/combatEffects";
 import type {
@@ -133,7 +135,7 @@ export function createEnemyProjectile(scene: Phaser.Scene, enemy: Enemy, time: n
 
 export function restoreEnemyProjectile(scene: Phaser.Scene, state: Omit<EnemyProjectile, "body">): EnemyProjectile {
   const isDiamondShot = state.appearance === "star";
-  const body = isDiamondShot
+  const body = state.appearance === "ion" ? scene.add.graphics().setPosition(state.x, state.y).setDepth(91) : isDiamondShot
     ? scene.add
         .text(state.x, state.y - 1, "*", {
           color: "#ff6464",
@@ -144,12 +146,23 @@ export function restoreEnemyProjectile(scene: Phaser.Scene, state: Omit<EnemyPro
         .setOrigin(0.5)
         .setDepth(91)
     : scene.add.rectangle(state.x, state.y, 18, 4, palette.enemyShot, 1).setDepth(91);
+  if (state.appearance === "ion") drawIonOrb(body as Phaser.GameObjects.Graphics);
   body.rotation = isDiamondShot ? 0 : state.vx < 0 ? Math.PI : 0;
   body.setScale(projectileVisualScale(state));
   return {
     ...state,
     body
   };
+}
+
+export function createIonProjectile(scene: Phaser.Scene, enemy: Enemy, time: number): EnemyProjectile {
+  const direction = enemyFacingDirection(enemy);
+  return restoreEnemyProjectile(scene, {
+    x: enemy.x + direction * 12, y: enemy.y, vx: direction * CHEVRON_LEADER.projectileSpeed,
+    appearance: "ion", sourceLane: enemy.lane, hitCount: 1,
+    damage: enemyAttackDamage(enemy, time) * CHEVRON_LEADER.attackMultiplier, damageType: "magic",
+    splashRadius: CHEVRON_LEADER.radiusCells * CELL_WIDTH
+  });
 }
 
 export interface MortarProjectileSpec extends ProjectileIntegrity {
@@ -240,7 +253,7 @@ export function createReflectedProjectile(
 ): Projectile {
   const reflectedAngle = projectile.vx < 0 ? 0 : 180;
   return createTowerProjectile(scene, {
-    type: "bolt",
+    type: projectile.splashRadius ? "shell" : "bolt",
     hitCount: projectile.hitCount,
     partialHitDamage: projectile.partialHitDamage,
     initialDamageBudget: projectile.initialDamageBudget,
@@ -250,7 +263,7 @@ export function createReflectedProjectile(
     speed: Math.abs(projectile.vx),
     damage: projectile.damage,
     damageType,
-    splashRadius: 0,
+    splashRadius: projectile.splashRadius ?? 0,
     angleDegrees: reflectedAngle,
     maxX: reflectedAngle === 180 ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY,
     limitDirection: reflectedAngle === 180 ? -1 : 1,

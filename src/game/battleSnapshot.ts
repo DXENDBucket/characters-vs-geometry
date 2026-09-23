@@ -12,6 +12,7 @@ import { createEnemy } from "./enemyFactory";
 import { createTower, syncTowerFacingVisual, syncTowerFlyingVisual, syncTowerHpBar, syncTowerLevelText, syncTowerTrueDamageVisual } from "./towers";
 import { createMortarProjectile, createTowerProjectile, restoreEnemyProjectile } from "./projectiles";
 import { syncEnemyFacingVisual, syncEnemyVisualScale } from "./enemyBehaviors";
+import { syncChevronVisual } from "../render/chevronLeader";
 import { statusMultipliers, syncEnemyBodyPosition } from "./statusEffects";
 import { decodeSaveGraph, encodeSaveGraph, type GraphNode, type NodeKind, type SaveGraph } from "./saveGraph";
 import type { BattleSaveState } from "./battleSaveState";
@@ -125,6 +126,7 @@ export function restoreBattleSnapshot(scene: Phaser.Scene, graph: SaveGraph): Ba
     for (const enemy of enemies) {
       statusMultipliers(enemy, state.battleTime);
       syncEnemyFacingVisual(enemy); syncEnemyVisualScale(enemy); syncEnemyBodyPosition(enemy);
+      syncChevronVisual(enemy);
       enemy.body.setVisible(enemy.inPlay);
       if (!enemy.inPlay && !storedEnemies.has(enemy)) enemy.body.destroy();
     }

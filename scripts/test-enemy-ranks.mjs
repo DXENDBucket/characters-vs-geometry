@@ -14,6 +14,45 @@ const { enemyKindAtRank, isEnemyKind } = registry;
 const { enemyArchetypes } = load("src/data/enemyArchetypes.ts");
 const legacy = JSON.parse(fs.readFileSync(new URL("./fixtures/enemy-legacy.json", import.meta.url), "utf8"));
 
+test("chevron leader gains additive 50% base HP per rank, with unchanged magic ATK and defenses", () => {
+  const behavior = load("src/game/enemyBehaviors.ts");
+  for (const rank of [1, 2, 3, 20]) {
+    const kind = enemyKindAtRank("chevronLeader", rank), stats = registry.getEnemyDefinition(kind);
+    assert.equal(stats.hp, 32000 + (rank - 1) * 16000);
+    assert.deepEqual([stats.armor, stats.magicResistance, stats.damage, stats.damageType, stats.speedMultiplier, stats.weight],
+      [100, 50, 450, "magic", 1.5, 0]);
+    assert.equal(registry.enemyIsLeader(kind), true);
+    assert.equal(behavior.canEnemyMelee({ kind }), false);
+    assert.equal(behavior.shouldEnemyShoot({ kind, attackAt: 0 }, 999999), false);
+    assert.equal(behavior.enemyAttackSpeed(kind), 5);
+  }
+});
+
+test("ion charge fires every twelve active seconds and assault switches only once without turning or healing", () => {
+  const phaseLoad = createTypeScriptLoader({ "src/game/unitStats.ts": {
+    applyEnemyBaseStats: (enemy, stats) => { enemy.baseStats = stats; }
+  } });
+  const { advanceIonCharge, updateChevronPhase, enemyUsesMaceMovement } = phaseLoad("src/game/chevronLeader.ts");
+  const enemy = { kind: "chevronLeader2", hp: 48000, maxHp: 48000, movementDirection: 1,
+    baseStats: { maxHp: 48000, armor: 100, speed: 15, magicResistance: 50, damage: 450, damageType: "magic" } };
+  assert.equal(enemyUsesMaceMovement(enemy), false);
+  let shots = 0;
+  for (let i = 0; i < 720; i++) if (advanceIonCharge(enemy, 1 / 60)) shots++;
+  assert.equal(shots, 1);
+  assert.ok(enemy.ionChargeMs < 1e-6);
+  assert.equal(updateChevronPhase(enemy), false);
+  enemy.hp = 24001; assert.equal(updateChevronPhase(enemy), false);
+  enemy.hp = 24000; enemy.ionChargeMs = 11999;
+  assert.equal(updateChevronPhase(enemy), true);
+  assert.deepEqual([enemy.hp, enemy.maxHp, enemy.maceFacingDirection, enemy.ionChargeMs, enemy.maceVelocity], [24000, 48000, 1, 0, 0]);
+  assert.deepEqual([enemy.baseStats.armor, enemy.baseStats.speed, enemy.baseStats.magicResistance, enemy.baseStats.damageType], [260, 30, 50, "magic"]);
+  assert.equal(enemyUsesMaceMovement(enemy), true);
+  assert.equal(advanceIonCharge(enemy, 12), false);
+  enemy.hp = 48000; assert.equal(updateChevronPhase(enemy), false);
+  assert.equal(enemy.chevronAssault, true);
+  assert.equal(updateChevronPhase({ ...enemy, hp: 0, chevronAssault: false }), false);
+});
+
 test("difficulty 0-7 shifts down, 8-9 use new multipliers and default stays at 3", () => {
   const { DIFFICULTY_MAX, DEFAULT_DIFFICULTY, clampDifficulty, getDifficultyConfig } = load("src/config.ts");
   const { getLevelConfig } = load("src/data/levels.ts");
@@ -290,7 +329,7 @@ test("every Infinite Front stage has uncapped wave weights while story bosses ke
 });
 
 test("all 66 existing enemy panels and registrations exactly match the pre-refactor snapshot", () => {
-  assert.deepEqual(Object.keys(registry.allEnemyDefinitions).filter(kind => !["tilde", "equals", "parentheses", "dollar"].includes(registry.enemyFamily(kind))), Object.keys(legacy));
+  assert.deepEqual(Object.keys(registry.allEnemyDefinitions).filter(kind => !["tilde", "equals", "parentheses", "dollar", "chevronLeader"].includes(registry.enemyFamily(kind))), Object.keys(legacy));
   for (const [kind, expected] of Object.entries(legacy)) {
     const currentExpected = expected.family === "triangleRam"
       ? { ...expected, definition: { ...expected.definition, minWave: 5 } } : expected;
@@ -300,7 +339,7 @@ test("all 66 existing enemy panels and registrations exactly match the pre-refac
 
 test("every minion and leader supports unregistered ranks through the same family growth rules", () => {
   for (const [family, archetype] of Object.entries(enemyArchetypes)) {
-    if (["solarBomb", "dodecahedronCompanion", "tilde", "equals", "parentheses", "dollar"].includes(family)) continue;
+    if (["solarBomb", "dodecahedronCompanion", "tilde", "equals", "parentheses", "dollar", "chevronLeader"].includes(family)) continue;
     for (const rank of [4, 10, 100, 10000]) {
       const kind = enemyKindAtRank(family, rank);
       assert.equal(registry.enemyFamily(kind), family);

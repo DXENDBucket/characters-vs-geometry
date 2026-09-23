@@ -1,6 +1,7 @@
 import { ANGEL_WINGS_SKILL_MAX, CELL_HEIGHT, CELL_WIDTH } from "./config";
 import { enemyArchetypes } from "./data/enemyArchetypes";
 import { INCITEMENT } from "./data/incitement";
+import { CHEVRON_LEADER } from "./data/chevronLeader";
 import { HEART_ATTACK_RADIUS, ENEMY_MORTAR_RANGE_X, ENEMY_MORTAR_RANGE_Y } from "./data/enemyCombatConfig";
 import { getEnemyRegistration } from "./registry/enemies";
 import { enemyAttackSpeed, initialEnemySkillStates } from "./game/enemyBehaviors";
@@ -24,6 +25,7 @@ const noRegularModes = new Set(["siegeRam", "mace", "blockedDetonator", "compani
 
 export function enemyPreviewAttackSpeed(kind: EnemyKind) {
   const { family, attackMode } = getEnemyRegistration(kind);
+  if (family === "chevronLeader") return enemyAttackSpeed(kind);
   return noRegularModes.has(attackMode) || family === "slopeTriangle" ? undefined : enemyAttackSpeed(kind);
 }
 
@@ -36,7 +38,15 @@ export function enemyDetailSections(kind: EnemyKind, description: string): Detai
   const hits = ranged ? rank : 1, shots = volleyTimingCount(hits);
   const attack: DetailSection = { title: l("常规攻击", "Regular attack"), tag: l("自动", "Automatic"), tone: "attack", fields: [] };
   const sections: DetailSection[] = [attack];
-  if (speed === undefined) {
+  if (family === "chevronLeader") {
+    attack.title = l("常规攻击 · 离子炮", "Regular attack · Ion Cannon");
+    attack.ranges = [detailRange(enemyForwardRange, l("发射方向", "Firing direction")),
+      detailRange({ shape: { kind: "circle", radius: CHEVRON_LEADER.radiusCells }, origin: "impact" }, l("爆炸范围", "Blast area"))];
+    attack.fields = [f("蓄能时间", "Charge time", s(CHEVRON_LEADER.chargeMs)),
+      f("中心伤害", "Center damage", `${n(stats.damage * CHEVRON_LEADER.attackMultiplier)} ${damageType} · 1000% ATK`),
+      f("命中方式", "Resolution", l("沿面向方向平射，命中首座塔后范围爆炸，随距离线性衰减", "Straight shot along facing; explodes at the first tower with linear falloff")),
+      f("触发规则", "Trigger", l("无需目标；冻结与高空飞行暂停蓄能；不进行普通近战", "No target required; Frozen and High Flight pause charging; no ordinary melee"))];
+  } else if (speed === undefined) {
     attack.tag = l("无", "None");
     attack.fields = [f("常规攻击", "Regular attack", l("无；见下方触发机制", "None; see triggered mechanics below"))];
   } else {
@@ -68,6 +78,11 @@ export function enemyDetailSections(kind: EnemyKind, description: string): Detai
       f("作用对象", "Recipients", recipients), f("效果", "Effect", effect), f("叠加规则", "Stacking", stacking)],
       description: l("光环来源处于高空飞行时不提供加成。", "The aura is inactive while its source is in High Flight.") });
   };
+  if (family === "chevronLeader") passive("半血变形 · 冲撞", "Half-HP transformation · Ram",
+    l("生命降至上限的一半时永久变为 <，取消蓄能但保留朝向。从静止朝面向方向加速，经过 7 格达到 4 倍基础移速；接触塔后造成法术伤害并反弹。回血不会恢复炮击形态。",
+      "At half maximum HP, permanently changes to <, cancels charging and keeps facing. Accelerates from rest to 4x base speed over 7 cells; contact deals magic damage and bounces. Healing does not restore cannon form."), enemyContactRange,
+    [f("护甲", "Armor", n(CHEVRON_LEADER.assaultArmor)), f("基础移速", "Base speed", n(CHEVRON_LEADER.assaultSpeed)),
+      f("碰撞伤害", "Collision damage", l("攻击力 × 实际移速 / 10，法术伤害", "ATK x actual speed / 10, magic damage"))]);
   const skill = (key: string, zh: string, en: string, max: number, cost: number, regen: number, duration: number, range: RangeDefinition, text: string, condition?: string) => {
     const state = initialEnemySkillStates(kind)[key];
     const fields = skillChargeFields({ initial: state?.sp ?? 0, max, cost, regen: regen * (state?.regenMultiplier ?? 1), duration, pause: duration > 0 });

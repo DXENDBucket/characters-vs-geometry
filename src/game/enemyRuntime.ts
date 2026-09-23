@@ -1,4 +1,6 @@
 import Phaser from "phaser";
+import { advanceIonCharge, enemyUsesMaceMovement, updateChevronPhase } from "./chevronLeader";
+import { syncChevronVisual } from "../render/chevronLeader";
 import { HEART_ATTACK_RADIUS, ENEMY_MORTAR_RANGE_X, ENEMY_MORTAR_RANGE_Y } from "../data/enemyCombatConfig";
 import { towerAreaTargets, towerDamageReceiver } from "./towerOccupancy";
 import { collectParenthesisPassengers, passengerMovementStatus } from "./parenthesisEnemies";
@@ -18,7 +20,6 @@ import {
   enemyIsBossCompanion,
   enemyIsLaser,
   enemyIsLeader,
-  enemyIsMace,
   enemyIsMortar,
   enemyIsSiegeRam,
   enemyRank,
@@ -52,7 +53,7 @@ import {
 } from "./enemyBehaviors";
 import { createEnemy } from "./enemyFactory";
 import { detachEnemyHealth, initializeEnemyHealthLinks } from "./enemyHealth";
-import { createEnemyProjectile, createMortarProjectile } from "./projectiles";
+import { createEnemyProjectile, createIonProjectile, createMortarProjectile } from "./projectiles";
 import { enemyAttackDamage, enemyAttackMultiplier, enemyMovementMultiplier, enemyMovementSpeed } from "./combatStats";
 import {
   enemySupportBonuses,
@@ -318,6 +319,7 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
     }
 
     const status = statusMultipliers(enemy, time);
+    if (updateChevronPhase(enemy)) syncChevronVisual(enemy);
     if (hasStatusEffectName(enemy, "frozen")) {
       return;
     }
@@ -343,7 +345,7 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
     );
     for (const passenger of enemy.parenthesisCargo ?? []) {
       const inherited = passengerMovementStatus(passenger, enemy, time);
-      const speed = enemyIsMace(passenger.kind)
+      const speed = enemyUsesMaceMovement(passenger)
         ? Math.abs(hexMaceMovementTargetX(runtime, passenger, seconds, time, inherited, supportSources, slowSources) - passenger.x) / Math.max(seconds, 1e-9)
         : enemyMovementSpeed(passenger, { enemies: runtime.enemies, towers: runtime.towers, time,
           status: inherited, supportSources, slowAuraSources: slowSources }, siegeRamSpeed(passenger));
@@ -368,6 +370,8 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
     }
 
     updateEnemyRangedAttack(runtime, enemy, time);
+    if (!enemyIsHighFlying(enemy) && advanceIonCharge(enemy, seconds)) runtime.enemyProjectiles.push(createIonProjectile(runtime.scene, enemy, time));
+    syncChevronVisual(enemy);
 
     if (enemyFamily(enemy.kind) === "heart" && time >= enemy.attackAt) {
       fireLeaderAreaAttack(runtime, enemy, time);
@@ -379,7 +383,7 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
     let nextY = enemy.y;
     let nextPhase = enemy.oscillationPhase ?? 0;
     if (!blocker) {
-      nextX = enemyIsMace(enemy.kind)
+      nextX = enemyUsesMaceMovement(enemy)
         ? hexMaceMovementTargetX(runtime, enemy, seconds, time, status, supportSources, slowSources)
         : enemy.x + enemyMovementDirection(enemy) * movementSpeed * seconds;
       if (enemy.oscillationCenterY !== undefined && movementSpeed > 0) {
@@ -457,7 +461,7 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
       return;
     }
 
-    const movementDirection = enemyIsMace(enemy.kind) ? Math.sign(enemy.maceVelocity ?? 0) : enemyMovementDirection(enemy);
+    const movementDirection = enemyUsesMaceMovement(enemy) ? Math.sign(enemy.maceVelocity ?? 0) : enemyMovementDirection(enemy);
     if (!blocker) {
       enemy.x = nextX;
       if (enemy.oscillationCenterY !== undefined) commitOscillation(enemy, nextY, nextPhase);
@@ -1050,7 +1054,7 @@ function advanceHexMace(
   supportSources: EnemySupportSources,
   slowSources: SlowAuraSources
 ) {
-  if (!enemyIsMace(enemy.kind)) {
+  if (!enemyUsesMaceMovement(enemy)) {
     return false;
   }
 

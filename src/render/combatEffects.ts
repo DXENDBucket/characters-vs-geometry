@@ -463,8 +463,8 @@ export function makeTowerLaserEffect(scene: Phaser.Scene, fromX: number, y: numb
   });
 }
 
-export function makeShellBurst(scene: Phaser.Scene, x: number, y: number, radius: number, damageType: DamageType) {
-  const ring = acquireEffectCircle(scene, x, y, radius / 5, palette.black, 0, 2, damageEffectColor(damageType), 0.9, 105);
+export function makeShellBurst(scene: Phaser.Scene, x: number, y: number, radius: number, damageType: DamageType, color = damageEffectColor(damageType)) {
+  const ring = acquireEffectCircle(scene, x, y, radius / 5, palette.black, 0, 2, color, 0.9, 105);
   scene.tweens.add({
     targets: ring,
     scale: 5,

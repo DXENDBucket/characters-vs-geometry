@@ -114,8 +114,18 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
   const equals = getEnemyDefinition("equals");
   const parentheses = getEnemyDefinition("parentheses");
   const dollar = getEnemyDefinition("dollar");
+  const chevron = getEnemyDefinition("chevronLeader");
 
   return [
+    {
+      title: zh ? "尖括号系列" : "Chevron Series",
+      enemyKind: "chevronLeader",
+      chapterGroupId: "ascii",
+      lines: [statLine([[t("label.hp"), chevron.hp], [t("label.armor"), chevron.armor],
+        [t("label.mr"), chevron.magicResistance], [t("label.atk"), damageText(chevron.damage, chevron.damageType)]])],
+      description: zh ? "领袖。> 形态每 12 秒蓄满一发浅绿色离子炮，朝面向方向平射，造成攻击力 1000% 的法术伤害，半径 2.4 格，随距离线性衰减；不进行近战。半血时永久变为 <，取消蓄能，护甲变为 260、基础移速变为 30，改为六边形重锤式加速与反弹冲撞，碰撞同样造成法术伤害。变形不反转朝向。每额外等级增加 16000 基础生命。"
+        : "Leader. The > form charges a light-green ion shot every 12s, firing along its facing for 1000% ATK magic damage within 2.4 cells with linear falloff; no melee. At half HP it permanently becomes <, cancels charging, gains 260 armor and 30 base speed, and uses Hex Mace acceleration and rebounding magic collisions without reversing facing. Each extra rank adds 16000 base HP."
+    },
     {
       title: zh ? "货币符号系列" : "Dollar Series",
       enemyKind: "dollar",

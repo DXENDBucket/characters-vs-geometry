@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { CHEVRON_LEADER } from "../data/chevronLeader";
 import { towerAreaTargets, towerDamageReceiver } from "./towerOccupancy";
 import { towerBehaviorType } from "./towerIdentity";
 import type { TowerActionListener } from "./towerActions";
@@ -241,7 +242,22 @@ export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: numb
       const receiver = towerDamageReceiver(hit);
       const reflectsProjectile = receiver.reflectProjectiles;
       const routedReflection = reflectsProjectile && runtime.onTowerAction?.(receiver, { kind: "reflection", projectile });
-      forEachProjectileHit(projectile, damage => runtime.damageTower(hit, damage, projectile.damageType));
+      if (projectile.splashRadius) {
+        const x = hit.x, y = hit.y, radius = projectile.splashRadius;
+        makeShellBurst(runtime.scene, x, y, radius, projectile.damageType,
+          projectile.appearance === "ion" ? CHEVRON_LEADER.color : undefined);
+        const targets = towerAreaTargets(runtime.towers);
+        for (const tower of targets) {
+          const dx = tower.x - x, dy = tower.y - y;
+          const falloff = radiusFalloffFromDistanceSq(dx * dx + dy * dy, radius);
+          if (falloff <= 0) continue;
+          forEachProjectileHit(projectile, damage => {
+            if (tower.inPlay) runtime.damageTower(tower, damage * falloff, projectile.damageType);
+          });
+        }
+      } else {
+        forEachProjectileHit(projectile, damage => runtime.damageTower(hit, damage, projectile.damageType));
+      }
       if (reflectsProjectile && !routedReflection) {
         reflectEnemyAttack(runtime, receiver, projectile);
       }

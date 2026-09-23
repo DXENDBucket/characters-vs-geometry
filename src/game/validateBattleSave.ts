@@ -8,6 +8,7 @@ import { getEnemyDefinition } from "../registry/enemies";
 import { canRestoreBattleVersion, validBattleClock } from "./battleSimulation";
 import { BUNDLE_SHOTS, PIPELINE_RATE } from "./pipelineRules";
 import { isTowerShellType } from "./towerOccupancy";
+import { CHEVRON_LEADER } from "../data/chevronLeader";
 
 export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossKind?: BossKind) {
   const units = new Map<NodeKind, Set<object>>();
@@ -157,6 +158,11 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
   for (const shot of [...state.projectiles, ...state.enemyProjectiles, ...state.mortarProjectiles]) {
     require(integrity(shot as unknown as Record<string, unknown>));
   }
+  for (const object of units.get("enemyProjectile") ?? []) {
+    const shot = object as Record<string, unknown>;
+    require(shot.appearance === undefined || ["bolt", "star", "ion"].includes(shot.appearance as string));
+    require(shot.splashRadius === undefined || finite(shot.splashRadius) && shot.splashRadius >= 0);
+  }
   for (const kind of ["tower", "enemy"] as const) {
     for (const object of units.get(kind) ?? []) {
       const value = object as Record<string, unknown>;
@@ -165,6 +171,8 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
       require(array(value.statusEffects, effect => record(effect) && typeof effect.name === "string" && timestamp(effect.expiresAt)));
       require(Number.isInteger(value.lane) && (value.lane as number) >= 0 && (value.lane as number) < 7);
       if (kind === "enemy") {
+        require(value.chevronAssault === undefined || typeof value.chevronAssault === "boolean");
+        require(value.ionChargeMs === undefined || finite(value.ionChargeMs) && value.ionChargeMs >= 0 && value.ionChargeMs < CHEVRON_LEADER.chargeMs);
         require(value.environmentHpMultiplier === undefined || finite(value.environmentHpMultiplier) && value.environmentHpMultiplier >= 1);
         if (value.parenthesisCargo !== undefined) {
           const identity = parseEnemyKind(value.kind);

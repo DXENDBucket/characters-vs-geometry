@@ -1,7 +1,9 @@
 import Phaser from "phaser";
+import { CHEVRON_LEADER } from "../data/chevronLeader";
 import { enemyMaximumHp } from "./enemyContainers";
 import { INCITEMENT } from "../data/incitement";
 import { syncParenthesisVisual } from "../render/parenthesisEnemy";
+import { syncChevronVisual } from "../render/chevronLeader";
 import { battleRandom, isBattlePlayback } from "./battleSimulation";
 import { cubePromotionKind } from "../bosses/bossRanks";
 import { recordEnemySeen } from "../progress";
@@ -58,6 +60,7 @@ export function enemyAttackSpeed(kind: EnemyKind) {
   }
 
   const family = enemyFamily(kind);
+  if (family === "chevronLeader") return attackSpeedFromInterval(CHEVRON_LEADER.chargeMs);
   if (family === "heart") {
     return attackSpeedFromInterval(5_000);
   }
@@ -167,6 +170,7 @@ export function syncEnemyFacingVisual(enemy: Enemy) {
     }
     setScaleIfChanged(scalable, baseScaleX * facingScale, baseScaleY);
   }
+  syncChevronVisual(enemy);
 }
 
 export function enemyIsBurrowed(enemy: Enemy) {
@@ -328,7 +332,7 @@ export function canEnemyMelee(enemy: Enemy) {
   }
 
   const family = enemyFamily(kind);
-  return family !== "heart" && family !== "slopeTriangle";
+  return family !== "heart" && family !== "slopeTriangle" && family !== "chevronLeader";
 }
 
 export function enemyIgnoresLeaderRestrictedMechanics(enemy: Enemy) {

@@ -15,6 +15,8 @@ import type { CubeBoss, DamageType, Enemy, EnemyProjectile, MortarProjectile, Pr
 import { bossFinalStats, enemyDefenseStats } from "./combatStats";
 import { calculateDamage } from "./damage";
 import { changeEnemyHealth, detachEnemyHealth } from "./enemyHealth";
+import { updateChevronPhase } from "./chevronLeader";
+import { syncChevronVisual } from "../render/chevronLeader";
 import { destroyContainedEnemies } from "./enemyContainers";
 import { releaseParenthesisPassengers } from "./parenthesisEnemies";
 import { enemyIsHighFlying, syncEnemyVisualScale } from "./enemyBehaviors";
@@ -233,6 +235,7 @@ export function damageEnemy(
     syncEnemyBodyPosition(enemy);
   }
   changeEnemyHealth(enemy, -actualDamage);
+  if (updateChevronPhase(enemy)) syncChevronVisual(enemy);
   if (enemyIsSolarBomb(enemy) && enemy.hp <= 0) {
     depleteSolarBomb(enemy);
     syncEnemyBodyPosition(enemy);

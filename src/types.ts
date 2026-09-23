@@ -71,6 +71,7 @@ export type CardId =
   | "z"
   | "Z";
 export type EnemyFamily =
+  | "chevronLeader"
   | "dollar"
   | "equals"
   | "parentheses"
@@ -367,6 +368,8 @@ export interface Enemy {
   speed: number;
   movementDirection?: -1 | 1;
   maceVelocity?: number;
+  chevronAssault?: boolean;
+  ionChargeMs?: number;
   maceFacingDirection?: -1 | 1;
   solarBombVelocityX?: number;
   solarBombVelocityY?: number;
@@ -487,7 +490,8 @@ export interface StoredTowerShot extends ProjectileIntegrity {
 
 export interface EnemyProjectile extends ProjectileIntegrity {
   lastGatheredAt?: number;
-  appearance?: "bolt" | "star";
+  appearance?: "bolt" | "star" | "ion";
+  splashRadius?: number;
   hitCount?: number;
   x: number;
   y: number;
@@ -495,7 +499,7 @@ export interface EnemyProjectile extends ProjectileIntegrity {
   damage: number;
   damageType: DamageType;
   sourceLane: number;
-  body: Phaser.GameObjects.Shape | Phaser.GameObjects.Text;
+  body: Phaser.GameObjects.Shape | Phaser.GameObjects.Text | Phaser.GameObjects.Graphics;
 }
 
 export interface MortarProjectile extends ProjectileIntegrity {
