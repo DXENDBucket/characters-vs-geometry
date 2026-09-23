@@ -627,6 +627,7 @@ export interface DelSweepState {
 }
 
 export interface DelLaneSweepState {
+  stage?: "half" | "quarter"; // Older saves without a stage are the half-health event.
   phase: "warning" | "sweeping" | "summoning" | "complete";
   startedAt: number;
   previousInvincibleUntil: number;

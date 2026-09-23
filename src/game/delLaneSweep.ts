@@ -1,6 +1,6 @@
 import { BOARD_X, BOARD_Y, BOARD_WIDTH, CELL_WIDTH, CELL_HEIGHT, COLUMNS } from "../config";
-import { DEL_LANE_SWEEP } from "../data/delBoss";
-import type { CubeBoss } from "../types";
+import { delLaneSweepConfig } from "../data/delBoss";
+import type { CubeBoss, EnemyKind } from "../types";
 import { delSweepActive } from "./delSweep";
 
 export function delLaneSweepInvincible(boss: CubeBoss) {
@@ -8,9 +8,12 @@ export function delLaneSweepInvincible(boss: CubeBoss) {
 }
 
 export function startDelLaneSweep(boss: CubeBoss, time: number) {
-  if (boss.kind !== "del" || boss.delEcho || boss.delLaneSweep || delSweepActive(boss) ||
-    boss.hp <= 0 || boss.hp > boss.maxHp * DEL_LANE_SWEEP.hpRatio) return false;
-  boss.delLaneSweep = { phase: "warning", startedAt: time, previousInvincibleUntil: boss.invincibleUntil,
+  if (boss.kind !== "del" || boss.delEcho || delSweepActive(boss) || boss.hp <= 0) return false;
+  const previous = boss.delLaneSweep;
+  if (previous && (previous.phase !== "complete" || previous.stage === "quarter")) return false;
+  const stage = previous ? "quarter" : "half";
+  if (boss.hp > boss.maxHp * delLaneSweepConfig(stage).hpRatio) return false;
+  boss.delLaneSweep = { stage, phase: "warning", startedAt: time, previousInvincibleUntil: boss.invincibleUntil,
     sealedCells: [], parts: [], summons: 0 };
   boss.invincibleUntil = Infinity;
   return true;
@@ -19,11 +22,11 @@ export function startDelLaneSweep(boss: CubeBoss, time: number) {
 export function advanceDelLaneSweep(boss: CubeBoss, time: number, callbacks: {
   createEcho: (x: number, y: number) => CubeBoss;
   sealCell: (lane: number, column: number, durationMs: number) => void;
-  summon: (lane: number) => void;
+  summon: (lane: number, kind: EnemyKind) => void;
 }) {
   const state = boss.delLaneSweep;
   if (!state || state.phase === "complete") return;
-  const { warningMs, speed, sealMs, lanes, summonCount, summonIntervalMs } = DEL_LANE_SWEEP;
+  const { warningMs, speed, sealMs, lanes, summonCount, summonIntervalMs, summonKind } = delLaneSweepConfig(state.stage);
   const startsMovingAt = state.startedAt + warningMs;
   if (time < startsMovingAt) return;
   const entryX = BOARD_X + BOARD_WIDTH + CELL_WIDTH / 2;
@@ -56,7 +59,7 @@ export function advanceDelLaneSweep(boss: CubeBoss, time: number, callbacks: {
   }
   // Use simulation timestamps, so pausing and save/restore preserve the one-second cadence.
   while (state.summons < summonCount && time >= exitedAt + state.summons * summonIntervalMs) {
-    for (const lane of lanes) callbacks.summon(lane);
+    for (const lane of lanes) callbacks.summon(lane, summonKind);
     state.summons++;
   }
   if (time >= exitedAt + summonCount * summonIntervalMs) state.phase = "complete";

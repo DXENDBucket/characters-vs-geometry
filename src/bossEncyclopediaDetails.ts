@@ -51,6 +51,8 @@ export function bossDetailSections(icon: BossIcon, level: number): DetailSection
       l(`在自身前方一列的每行召唤一个 ${rank} 级正方形。`, `Summons a rank ${rank} Square in each lane of the column ahead.`), column);
   }
   if (icon === "del") {
+    passive("25% 生命机制", "25% HP event", l("首次降至 25% 生命：沿用半血扫荡机制，改为第 1、7 行预警和清场。预警 3 秒后，无敌的 1×1 DEL 字样以速度 600 向左扫过，阻挡弹幕并封禁经过格子 40 秒，本体不动并保持无敌。字样离场后解除本次无敌，本体绿色闪烁，在这两行各召唤一个心形 I。",
+      "First reaching 25% HP: repeats the half-health sweep in lanes 1 and 7. After a 3s warning, invincible 1x1 DEL glyphs move left at speed 600, block projectiles and seal touched cells for 40s. The main Boss stays still and invincible until both leave, then flashes green and summons one Heart I in each lane."), [battlefieldRange]);
     passive("50% 生命机制", "50% HP event", l("首次降至 50% 生命：本体留在原位并无敌，第 2、6 行红色预警 3 秒。随后各出现一个无敌的 DEL 字样，以速度 600 向左移动，碰撞箱为 1×1，可阻挡弹幕，经过的格子封禁 40 秒。两者完全离场后解除本次无敌，本体绿色闪烁，在第 2、6 行各召唤 3 个三角攻城锤 V，每批间隔 1 秒。",
       "First reaching 50% HP: remains stationary and invincible; warns lanes 2 and 6 in red for 3s. An invincible DEL glyph sweeps each lane leftward at speed 600 with a 1x1 Boss hitbox that blocks projectiles and seals touched cells for 40s. Once both leave, this invulnerability ends; DEL flashes green and summons 3 Triangle Rams V per lane, one pair every second."), [battlefieldRange]);
     passive("75% 生命机制", "75% HP event", l("首次降至 75% 生命：中间三行红色预警 3 秒，本体金色故障闪动并无敌。随后以速度 600 向左完全离场，再从右侧向左回到原位停止，全程不触发底线且保持无敌。移动时碰撞箱经过的格子擦除并封禁 40 秒。限时封格的 × 按剩余时间从原尺寸缩至 50%，永久封格不缩小。",

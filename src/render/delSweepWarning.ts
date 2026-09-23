@@ -1,14 +1,15 @@
 import type Phaser from "phaser";
 import { BOARD_X, BOARD_Y, BOARD_WIDTH, CELL_HEIGHT, LANES, palette } from "../config";
-import { DEL_SWEEP, DEL_LANE_SWEEP } from "../data/delBoss";
+import { DEL_SWEEP, delLaneSweepConfig } from "../data/delBoss";
 import type { CubeBoss } from "../types";
 
 const warnings = new WeakMap<CubeBoss, Phaser.GameObjects.Graphics>();
 
 export function syncDelSweepWarning(boss: CubeBoss, time: number) {
   const laneSweep = boss.delLaneSweep?.phase === "warning";
+  const config = delLaneSweepConfig(boss.delLaneSweep?.stage);
   const state = laneSweep ? boss.delLaneSweep : boss.delSweep;
-  const warningMs = laneSweep ? DEL_LANE_SWEEP.warningMs : DEL_SWEEP.warningMs;
+  const warningMs = laneSweep ? config.warningMs : DEL_SWEEP.warningMs;
   if (state?.phase !== "warning" || time >= state.startedAt + warningMs) {
     warnings.get(boss)?.destroy(); warnings.delete(boss); return;
   }
@@ -21,7 +22,7 @@ export function syncDelSweepWarning(boss: CubeBoss, time: number) {
   const progress = Math.max(0, Math.min(1, (time - state.startedAt) / warningMs));
   const pulse = .6 + .3 * Math.sin((time - state.startedAt) / 110);
   const center = Math.floor(LANES / 2);
-  const lanes = laneSweep ? DEL_LANE_SWEEP.lanes : [center - 1, center, center + 1];
+  const lanes = laneSweep ? config.lanes : [center - 1, center, center + 1];
   for (const lane of lanes) {
     const y = lane * CELL_HEIGHT;
     graphic.fillStyle(palette.enemyShot, .06 + pulse * .06).fillRect(0, y, BOARD_WIDTH, CELL_HEIGHT);

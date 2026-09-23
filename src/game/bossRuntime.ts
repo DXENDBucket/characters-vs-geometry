@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { DEL_DELETE_STACK, DEL_LANE_SWEEP } from "../data/delBoss";
+import { DEL_DELETE_STACK } from "../data/delBoss";
 import { advanceDelLaneSweep, startDelLaneSweep } from "./delLaneSweep";
 import { advanceDelSweep, delSweepActive, startDelSweep } from "./delSweep";
 import { syncDelSweepWarning } from "../render/delSweepWarning";
@@ -281,8 +281,8 @@ export function updateBossRuntime(runtime: BossRuntime, seconds: number) {
       return echo;
     },
     sealCell: runtime.sealCell,
-    summon: lane => {
-      spawnEnemyAt(runtime, { kind: DEL_LANE_SWEEP.summonKind, lane,
+    summon: (lane, kind) => {
+      spawnEnemyAt(runtime, { kind, lane,
         x: BOARD_X + BOARD_WIDTH + CELL_WIDTH / 2, time: runtime.battleTime,
         waveNumber: runtime.wave || 0, waveWeight: 0, finalDamageReduction: runtime.finalDamageReduction });
     }

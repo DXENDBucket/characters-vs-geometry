@@ -186,6 +186,45 @@ test("DEL half-health sweep shields once, covers only lanes 2/6 and summons thre
   advanceDelLaneSweep(boss,exitAt+5000,callbacks); assert.equal(summons.length,6);
 });
 
+test("DEL quarter-health sweep follows the half event, seals outer lanes and summons one Heart I per lane", () => {
+  const load = createTypeScriptLoader();
+  const { startDelLaneSweep, advanceDelLaneSweep } = load("src/game/delLaneSweep.ts");
+  const c = load("src/config.ts");
+  const boss = { kind: "del", hp: 30001, maxHp: 120000, x: 1100, y: 411, invincibleUntil: 0,
+    delLaneSweep: { phase: "complete" } }; // Legacy half-health save, no stage tag.
+  assert.equal(startDelLaneSweep(boss, 100), false);
+  boss.hp = 30000;
+  assert.equal(startDelLaneSweep(boss, 100), true);
+  assert.equal(boss.delLaneSweep.stage, "quarter");
+  assert.equal(boss.invincibleUntil, Infinity);
+  const cells = [], summons = [], echoes = [];
+  let destroyed = 0;
+  const callbacks = {
+    createEcho: (x,y) => { const echo = { x,y,body: { destroy: () => destroyed++ } }; echoes.push(echo); return echo; },
+    sealCell: (lane,col,ms) => { assert.equal(ms,40000); cells.push(`${lane}:${col}`); },
+    summon: (lane,kind) => summons.push([lane,kind])
+  };
+  advanceDelLaneSweep(boss, 3099, callbacks); assert.equal(echoes.length,0);
+  advanceDelLaneSweep(boss, 3600, callbacks);
+  assert.deepEqual(echoes.map(p => p.y), [0,6].map(lane => c.BOARD_Y+(lane+.5)*c.CELL_HEIGHT));
+  assert.equal(echoes[0].x,c.BOARD_X+c.BOARD_WIDTH+c.CELL_WIDTH/2-300);
+  assert.equal(summons.length,0);
+  advanceDelLaneSweep(boss, 10000, callbacks);
+  assert.equal(destroyed,2); assert.equal(cells.length,26); assert.equal(new Set(cells).size,26);
+  assert.ok(cells.every(key => key.startsWith("0:") || key.startsWith("6:")));
+  assert.deepEqual(summons,[[0,"heart"],[6,"heart"]]);
+  assert.equal(boss.invincibleUntil,0); assert.equal(boss.x,1100); assert.equal(boss.y,411);
+  assert.equal(boss.delLaneSweep.phase,"complete");
+  boss.hp = 1; assert.equal(startDelLaneSweep(boss,11000),false);
+  const resumed = structuredClone(boss);
+  assert.equal(startDelLaneSweep(resumed,12000),false);
+  advanceDelLaneSweep(resumed,12000,callbacks); assert.equal(summons.length,2);
+  const pending = { ...boss, delLaneSweep: { phase: "summoning", stage: "half" } };
+  assert.equal(startDelLaneSweep(pending,12000),false,"Earlier summons must finish before the quarter event");
+  pending.delLaneSweep.phase = "complete";
+  assert.equal(startDelLaneSweep(pending,12000),true);
+});
+
 test("O specializes in magic resistance without changing its cost, health or cooldown", () => {
   const { cardDefinitions } = createTypeScriptLoader()("src/data/cards.ts");
   const card = cardDefinitions.find(card => card.id === "O");

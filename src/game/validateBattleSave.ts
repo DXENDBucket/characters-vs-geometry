@@ -9,6 +9,7 @@ import { canRestoreBattleVersion, validBattleClock } from "./battleSimulation";
 import { BUNDLE_SHOTS, PIPELINE_RATE } from "./pipelineRules";
 import { isTowerShellType } from "./towerOccupancy";
 import { CHEVRON_LEADER } from "../data/chevronLeader";
+import { delLaneSweepConfig } from "../data/delBoss";
 import { LANES, COLUMNS, CELL_WIDTH, CELL_HEIGHT } from "../config";
 
 export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossKind?: BossKind) {
@@ -120,9 +121,11 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
     if (boss.delLaneSweep !== undefined) {
       const sweep = boss.delLaneSweep;
       require(family === "del" && !boss.delEcho && record(sweep) &&
+        (sweep.stage === undefined || sweep.stage === "half" || sweep.stage === "quarter") &&
         ["warning", "sweeping", "summoning", "complete"].includes(sweep.phase as string) &&
         finite(sweep.startedAt) && sweep.startedAt >= 0 && finite(sweep.previousInvincibleUntil) &&
-        Number.isInteger(sweep.summons) && (sweep.summons as number) >= 0 && (sweep.summons as number) <= 3 &&
+        Number.isInteger(sweep.summons) && (sweep.summons as number) >= 0 &&
+        (sweep.summons as number) <= delLaneSweepConfig(sweep.stage as "half" | "quarter" | undefined).summonCount &&
         array(sweep.sealedCells, key => typeof key === "string") && Array.isArray(sweep.parts) &&
         sweep.parts.length === (sweep.phase === "sweeping" ? 2 : 0) &&
         new Set(sweep.parts).size === sweep.parts.length && sweep.parts.every(part =>

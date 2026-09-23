@@ -299,6 +299,43 @@ try {
         check(boss.x === home[0] && boss.y === home[1], "Main moved during half sweep");
       }
     };
+    let quarterStartedAt;
+    const outerTowers = [];
+    window.__quarterFrame = step => {
+      if (step === "warning") {
+        scene.battleTime += 1100; updateBossRuntime(scene.bossRuntime(),0);
+        check(boss.delLaneSweep.phase === "complete", "Half summons did not finish");
+        for (const lane of [0,6]) {
+          scene.cardStatesById.get("B").readyAt = 0;
+          check(scene.deployment.useCard(scene.getDefinition("B"),lane,1) === "deployed", "Cannot prepare outer-lane tower");
+          outerTowers.push(scene.towers.find(t => t.lane === lane && t.column === 1));
+        }
+        scene.combatRuntime().damageBoss(boss.hp-30001,"true");
+        check(boss.delLaneSweep.stage === "half", "Quarter sweep triggered early");
+        scene.combatRuntime().damageBoss(1,"true");
+        quarterStartedAt = scene.battleTime;
+        check(boss.delLaneSweep.stage === "quarter" && boss.delLaneSweep.phase === "warning" && boss.invincibleUntil === Infinity,
+          "Quarter threshold did not immediately shield");
+        scene.battleTime += 160; updateBossRuntime(scene.bossRuntime(),0); roundTrip();
+      } else if (step === "sweep") {
+        scene.battleTime = quarterStartedAt+4000; updateBossRuntime(scene.bossRuntime(),0);
+        check(bossParts(boss).length === 3 && boss.delLaneSweep.parts.every((p,i) => p.y === c.BOARD_Y+([0,6][i]+.5)*c.CELL_HEIGHT),
+          "Quarter echoes in wrong lanes");
+        roundTrip();
+      } else {
+        const exitAt = quarterStartedAt+3000+(c.BOARD_WIDTH+c.CELL_WIDTH+33)/600*1000;
+        scene.battleTime = exitAt+160; updateBossRuntime(scene.bossRuntime(),0);
+        check(boss.delLaneSweep.phase === "summoning" && bossParts(boss).length === 1 && boss.invincibleUntil !== Infinity,
+          "Quarter sweep failed to finish");
+        const hearts = scene.enemies.filter(e => e.kind === "heart");
+        check(hearts.length === 2 && [0,6].every(lane => hearts.filter(e => e.lane === lane).length === 1), "Wrong Heart I summon count/lanes");
+        check(boss.delLaneSweep.sealedCells.length === 26 && boss.delLaneSweep.sealedCells.every(k => k.startsWith("0:") || k.startsWith("6:")),
+          "Quarter sweep sealed wrong cells");
+        check(outerTowers.every(t => !t.inPlay) && [0,6].every(lane => !scene.cellIsDeployable(lane,1)), "Outer towers survived or cells not sealed");
+        check(boss.x === home[0] && boss.y === home[1] && scene.baseIntegrity === 6 && !scene.gameOver,"Quarter sweep moved main or breached base");
+        roundTrip();
+      }
+    };
     game.loop.start(game.step.bind(game));
   });
   for (const step of ["warning", "sweep", "summon"]) {
@@ -306,7 +343,13 @@ try {
     await page.waitForTimeout(100);
     await page.screenshot({path:`logs/del-half-${step}.png`});
   }
+  for (const step of ["warning", "sweep", "summon"]) {
+    await page.evaluate(step => window.__quarterFrame(step), step);
+    await page.waitForTimeout(100);
+    await page.screenshot({path:`logs/del-quarter-${step}.png`});
+  }
   assert.deepEqual(errors, []);
+  console.log("DEL quarter-health sweep, outer cell erasure, Heart I summons and snapshots passed");
   console.log("DEL half-health sweep, projectile collision, summons and snapshot checks passed");
   console.log("DEL sweep checks passed", sweepResult, swept);
   console.log("DEL browser checks passed", result);
