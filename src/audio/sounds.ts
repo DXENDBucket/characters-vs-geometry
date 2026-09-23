@@ -30,6 +30,11 @@ export const soundDefinitions = {
     { hz: 0, duration: .16, gain: .18, tone: "noise" }, { hz: 300, endHz: 120, duration: .12, gain: .12 }] },
   move: { channel: "battle", cooldown: 160, priority: 2, voices: [
     { hz: 220, endHz: 660, duration: .14, gain: .18 }, { hz: 440, duration: .08, delay: .12, gain: .16 }] },
+  ionImpact: { channel: "battle", cooldown: 140, priority: 3, voices: [
+    { hz: 130, endHz: 45, duration: .3, gain: .38, tone: "soft", attack: .002 },
+    { hz: 1450, endHz: 240, duration: .14, gain: .16, attack: .001 },
+    { hz: 0, duration: .12, gain: .28, tone: "noise", attack: .001 },
+    { hz: 380, endHz: 90, duration: .22, delay: .045, gain: .09 }] },
   wave: { channel: "battle", cooldown: 700, priority: 2, voices: [
     { hz: 392, duration: .14, gain: .14 }, { hz: 523.25, duration: .18, delay: .11, gain: .14 }] },
   flag: { channel: "battle", cooldown: 900, priority: 3, voices: [

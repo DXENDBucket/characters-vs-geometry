@@ -138,8 +138,35 @@ try {
   });
   await page.waitForTimeout(300);
   await page.screenshot({ path: "logs/chevron-leader-desktop.png" });
+  await page.evaluate(async () => {
+    const moduleFor = path => import(performance.getEntriesByType("resource").map(r => r.name)
+      .find(url => new URL(url).pathname === path) ?? path);
+    const { createIonProjectile } = await moduleFor("/src/game/projectiles.ts");
+    const { updateEnemyProjectiles } = await moduleFor("/src/game/projectileRuntime.ts");
+    const scene = window.__testGame.scene.getScene("GameScene");
+    const target = scene.towers.find(tower => tower.type === "O");
+    const before = new Set(scene.tweens.getTweens());
+    const shot = createIonProjectile(scene, scene.enemies[0], scene.battleTime);
+    shot.x = target.x; shot.y = target.y;
+    scene.enemyProjectiles.push(shot);
+    let cues = 0; scene.events.once("ion-impact", () => cues++);
+    updateEnemyProjectiles(scene.projectileRuntime(), 0);
+    const impactTweens = scene.tweens.getTweens().filter(tween => !before.has(tween));
+    if (cues !== 1 || impactTweens.length !== 4) throw Error("Ion hit lost its dedicated audio/visual feedback");
+    for (const tween of impactTweens) {
+      tween.update(0); tween.update(0); tween.update(60); tween.pause();
+      if (!tween.targets.every(target => target.visible && target.alpha > 0)) throw Error("Impact animation is blank");
+    }
+    window.__impactTweens = impactTweens;
+  });
+  await page.waitForTimeout(60);
+  await page.screenshot({ path: "logs/ion-impact-desktop.png" });
   await page.setViewportSize({ width: 800, height: 600 }); await page.waitForTimeout(200);
   await page.screenshot({ path: "logs/chevron-leader-small.png" });
+  await page.screenshot({ path: "logs/ion-impact-small.png" });
+  await page.evaluate(() => { for (const tween of window.__impactTweens) tween.resume(); });
+  await page.waitForTimeout(600);
+  assert.equal(await page.evaluate(() => window.__impactTweens.every(tween => tween.isDestroyed())), true);
   assert.deepEqual(errors, []);
   console.log("Chevron leader browser checks passed", result);
 } finally { await browser.close(); }

@@ -5,6 +5,7 @@
 - `music.ts`: one looping media element streamed through the same master output. Tracks are not decoded into large in-memory buffers.
 - `battleAudio.ts`: scene lifecycle binding, separate from deterministic battle state and replay/save data. Game speed does not affect music pitch or tempo.
 - Preferences persist in the existing settings store and are included in save export/import.
+- Greater-Than Sign ion impacts emit a short synthesized bass/zap cue through the battle channel, with stereo positioning, a 140ms rate limit, and the same volume/mute controls. The scene removes its impact listener on shutdown.
 
 ## Music
 

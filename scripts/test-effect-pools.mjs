@@ -81,6 +81,23 @@ test("all four effect pools reuse live objects within a battle, including pause/
   assert.equal(f.scene.events.listenerCount("destroy"), 1);
 });
 
+test("ion impacts reuse four objects, emit one audio cue, and clear after scene restart", () => {
+  const f = fixture();
+  const positions = [];
+  f.scene.events.on("ion-impact", x => positions.push(x));
+  for (let i = 0; i < 30; i++) {
+    effects.makeIonImpact(f.scene, 400 + i, 300, 180, 0xafffcb);
+    f.complete();
+  }
+  assert.equal(f.objects.length, 4);
+  assert.equal(positions.length, 30);
+  assert.equal(positions.at(-1), 429);
+  f.end();
+  effects.makeIonImpact(f.scene, 400, 300, 180, 0xafffcb);
+  f.complete();
+  assert.equal(f.objects.length, 8);
+});
+
 test("projectile trails keep bounded same-color samples and clean up on body destruction", () => {
   const body = new EventEmitter();
   let segments = [];

@@ -11,6 +11,7 @@ import {
   damageEffectColor,
   damageEffectTextColor,
   makeEnemyHitShards,
+  makeIonImpact,
   makeHitShards,
   makeReflectFlash,
   makeShellBurst,
@@ -238,14 +239,14 @@ export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: numb
         return;
       }
 
-      makeEnemyHitShards(runtime.scene, projectile.x, projectile.y);
+      if (projectile.appearance !== "ion") makeEnemyHitShards(runtime.scene, projectile.x, projectile.y);
       const receiver = towerDamageReceiver(hit);
       const reflectsProjectile = receiver.reflectProjectiles;
       const routedReflection = reflectsProjectile && runtime.onTowerAction?.(receiver, { kind: "reflection", projectile });
       if (projectile.splashRadius) {
         const x = hit.x, y = hit.y, radius = projectile.splashRadius;
-        makeShellBurst(runtime.scene, x, y, radius, projectile.damageType,
-          projectile.appearance === "ion" ? CHEVRON_LEADER.color : undefined);
+        if (projectile.appearance === "ion") makeIonImpact(runtime.scene, x, y, radius, CHEVRON_LEADER.color);
+        else makeShellBurst(runtime.scene, x, y, radius, projectile.damageType);
         const targets = towerAreaTargets(runtime.towers);
         for (const tower of targets) {
           const dx = tower.x - x, dy = tower.y - y;

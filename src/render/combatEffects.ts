@@ -475,6 +475,32 @@ export function makeShellBurst(scene: Phaser.Scene, x: number, y: number, radius
   });
 }
 
+export function makeIonImpact(scene: Phaser.Scene, x: number, y: number, radius: number, color: number) {
+  const core = acquireEffectCircle(scene, x, y, 17, 0xeefff5, .95, 0, color, 0, 112);
+  const ring = acquireEffectCircle(scene, x, y, radius, color, .035, 3, color, 1, 110).setScale(.1);
+  const rays = acquireEffectGraphics(scene, 111).setPosition(x, y).setScale(.25);
+  const flash = acquireEffectGraphics(scene, 113).setPosition(x, y);
+  flash.lineStyle(3, 0xeefff5, .95).lineBetween(-45, 0, 45, 0);
+  flash.lineStyle(1, color, .9).lineBetween(0, -28, 0, 28);
+  for (let i = 0; i < 12; i++) {
+    const angle = i * Math.PI / 6 + .12;
+    const inner = radius * (i % 2 ? .32 : .2), outer = radius * (i % 2 ? .58 : .85);
+    rays.lineStyle(i % 2 ? 1 : 2, color, .9);
+    rays.lineBetween(Math.cos(angle) * inner, Math.sin(angle) * inner,
+      Math.cos(angle) * outer, Math.sin(angle) * outer);
+    if (i % 2 === 0) rays.beginPath().arc(0, 0, radius * .65, angle + .08, angle + .22).strokePath();
+  }
+  scene.tweens.add({ targets: core, scale: 1.8, alpha: { value: 0, ease: "Quad.easeIn" }, duration: 110, ease: "Cubic.easeOut",
+    onComplete: () => releaseEffectCircle(scene, core) });
+  scene.tweens.add({ targets: ring, scale: 1, alpha: { value: 0, ease: "Quad.easeIn" }, duration: 340, ease: "Cubic.easeOut",
+    onComplete: () => releaseEffectCircle(scene, ring) });
+  scene.tweens.add({ targets: rays, scale: 1, alpha: { value: 0, ease: "Quad.easeIn" }, duration: 260, ease: "Cubic.easeOut",
+    onComplete: () => releaseEffectGraphics(scene, rays) });
+  scene.tweens.add({ targets: flash, scaleX: 1.4, scaleY: .5, alpha: { value: 0, ease: "Quad.easeIn" }, duration: 140, ease: "Quad.easeOut",
+    onComplete: () => releaseEffectGraphics(scene, flash) });
+  scene.events.emit("ion-impact", x);
+}
+
 export function makeSpellMortarShot(
   scene: Phaser.Scene,
   fromX: number,

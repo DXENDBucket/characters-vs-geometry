@@ -1,11 +1,34 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { EventEmitter } from "node:events";
 import { createTypeScriptLoader } from "./helpers/load-typescript.mjs";
 
 const load = createTypeScriptLoader();
 const { soundDefinitions, synthesizeSound } = load("src/audio/sounds.ts");
 const { normalizeAudioSettings, validAudioSettings, DEFAULT_AUDIO_SETTINGS } = load("src/audio/settings.ts");
 const KEY = "characters-vs-geometry-preferences";
+
+test("ion impact audio follows battle pause state and cleans up its listener on restart", () => {
+  const calls = [];
+  const audioLoad = createTypeScriptLoader({ "src/audio/player.ts": { soundPlayer: {
+    play: (...args) => calls.push(args), setMusic() {}, pauseMusic() {}
+  } } });
+  const { bindBattleAudio } = audioLoad("src/audio/battleAudio.ts");
+  const { BOARD_X, BOARD_WIDTH } = audioLoad("src/config.ts");
+  const state = { paused: false, finished: false };
+  const scene = { events: new EventEmitter(), scene: { isPaused: () => false } };
+  for (let run = 0; run < 3; run++) {
+    bindBattleAudio(scene, false, () => state);
+    assert.equal(scene.events.listenerCount("ion-impact"), 1);
+    scene.events.emit("ion-impact", BOARD_X + BOARD_WIDTH / 2);
+    state.paused = true; scene.events.emit("ion-impact", BOARD_X);
+    state.paused = false; state.finished = true; scene.events.emit("ion-impact", BOARD_X);
+    state.finished = false;
+    scene.events.emit("shutdown");
+    assert.equal(scene.events.listenerCount("ion-impact"), 0);
+  }
+  assert.deepEqual(calls, Array.from({ length: 3 }, () => ["ionImpact", 0]));
+});
 const fixture = () => {
   const values = new Map();
   return { get length() { return values.size; }, key: i => [...values.keys()][i] ?? null,
