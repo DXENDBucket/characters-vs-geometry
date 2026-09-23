@@ -129,7 +129,7 @@ test("Symbol Domain Capital follows Symbol Domain and unlocks AE-EX-1 after DEL"
   assert.equal(level.startingChars, 2000);
   assert.deepEqual([level.firstWaveWeight, level.waveWeightIncrement, level.waveWeightIncrementGrowth], [30, 35, 5]);
   assert.deepEqual(level.enemyKinds, ["circle", "tilde", "tilde2", "tilde3", "triangleRam", "triangleRam2", "triangleRam3"]);
-  assert.deepEqual(level.extraWaveSpawns, [{ kind: "chevronLeader3", lane: 3 }]);
+  assert.deepEqual(level.extraWaveSpawns, [{ kind: "chevronLeader", lane: 3 }]);
   assert.equal(level.waveWeightCap, undefined);
   for (const id of ["4-10", ...chapters.levelNodesForChapter("AE").slice(0, -1).map(node => node.id)]) progress.completeLevel(id);
   assert.equal(progress.isChapterUnlocked("AE2"), false);
@@ -138,7 +138,8 @@ test("Symbol Domain Capital follows Symbol Domain and unlocks AE-EX-1 after DEL"
   assert.equal(progress.isChapterUnlocked("AE2"), true);
   assert.equal(progress.isChapterCompleted("AE2"), false);
   assert.equal(progress.isLevelUnlocked("AE-EX-1"), true);
-  assert.equal(progress.discoveredEnemies().enemies.has("chevronLeader3"), true);
+  assert.equal(progress.discoveredEnemies().enemies.has("chevronLeader"), true);
+  assert.equal(progress.discoveredEnemies().enemies.has("chevronLeader3"), false);
   assert.equal(progress.isChapterCompleted("AE"), true);
   progress.completeLevel("AE-EX-1");
   assert.equal(progress.isChapterCompleted("AE2"), true);

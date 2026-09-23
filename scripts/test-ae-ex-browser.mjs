@@ -35,6 +35,15 @@ try {
       return game.scene.getScene(key);
     };
     const level = getLevelConfig("AE-EX-1");
+    window.__previewExLevel = () => {
+      const map = start("LevelSelectScene", { chapterId: "AE2", difficulty: 1 });
+      const node = map.chapterNodes().find(node => node.id === level.id);
+      const label = map.mapContainer.list.find(item => item.text === level.id);
+      check(label && label.x === node.x && label.y === node.y - 3, "Long ordinary level label is not centered");
+      check(label.width < c.LEVEL_NODE_WIDTH - 12, "Level label overflows frame");
+      game.loop.start(game.step.bind(game));
+    };
+    window.__previewExLevel();
     const scene = start("GameScene", { levelId: level.id, seed: 771, difficulty: 1, selectedCards: ["A", "B"] });
     check(scene.chars === 2000, "Wrong initial funds");
     const budgets = [30, 65, 105, 150, 200, 255, 315, 380, 450, 1050];
@@ -42,10 +51,10 @@ try {
       for (const enemy of scene.enemies) enemy.body.destroy();
       scene.enemies.length = 0;
       scene.spawnWave(wave * 30000, wave * 30000);
-      const extra = scene.enemies.filter(enemy => enemy.kind === "chevronLeader3");
+      const extra = scene.enemies.filter(enemy => enemy.kind === "chevronLeader");
       check(extra.length === 1 && extra[0].lane === 3 && extra[0].y === c.BOARD_Y + 3.5 * c.CELL_HEIGHT,
         `Wave ${wave}: extra leader count/lane`);
-      check(extra[0].maxHp === 64000 && extra[0].weight === 0 && extra[0].waveNumber === wave,
+      check(extra[0].maxHp === 32000 && extra[0].weight === 0 && extra[0].waveNumber === wave,
         `Wave ${wave}: wrong leader rank or weight`);
       const ordinary = scene.enemies.filter(enemy => enemy !== extra[0]);
       check(ordinary.every(enemy => level.enemyKinds.includes(enemy.kind)), "Unexpected ordinary enemy");
@@ -58,7 +67,7 @@ try {
     const graph = captureBattleSnapshot(scene.battleState());
     validateBattleSave(graph, 10);
     const restored = restoreBattleSnapshot(scene, graph);
-    check(restored.enemies.filter(enemy => enemy.kind === "chevronLeader3").length === 1, "Snapshot lost extra leader");
+    check(restored.enemies.filter(enemy => enemy.kind === "chevronLeader").length === 1, "Snapshot lost extra leader");
     for (const enemy of restored.enemies) enemy.body.destroy();
     window.__previewEnvironment = (levelId, language, boss = false) => {
       setLanguage(language);
@@ -77,7 +86,7 @@ try {
         const bossLink = preview.enemyPreviewLinks.find(link => link.bossKind);
         check(bossLink && text.y >= bossLink.bottom, "Environment must follow Boss display");
       }
-      if (levelId === level.id) check(preview.enemyPreviewLinks.some(link => link.enemyKind === "chevronLeader3"), "Missing extra enemy preview");
+      if (levelId === level.id) check(preview.enemyPreviewLinks.some(link => link.enemyKind === "chevronLeader"), "Missing extra enemy preview");
       game.loop.start(game.step.bind(game));
       return text.text;
     };
@@ -92,5 +101,10 @@ try {
     }
   }
   assert.deepEqual(errors, []);
-  console.log("AE-EX-1 ten waves, fixed rank-III leader, weights, completion, save and environment previews passed");
+  await page.evaluate(() => window.__previewExLevel());
+  for (const [width, height] of [[1440, 900], [800, 600]]) {
+    await page.setViewportSize({ width, height }); await page.waitForTimeout(100);
+    await page.screenshot({ path: `logs/ae-ex-level-label-${width}.png` });
+  }
+  console.log("AE-EX-1 ten waves, fixed rank-I leader, weights, completion, save, environment previews and label centering passed");
 } finally { await browser.close(); }

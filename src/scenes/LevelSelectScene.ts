@@ -304,6 +304,7 @@ export class LevelSelectScene extends Phaser.Scene {
   }
 
   private createLevelNode(node: LevelNode) {
+    const level = getLevelConfig(node.id);
     const unlocked = isLevelUnlocked(node.id);
     const completed = isLevelCompleted(node.id);
     const flawlessDifficulty = bestFlawlessDifficulty(node.id);
@@ -314,7 +315,7 @@ export class LevelSelectScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: unlocked })
       .setAlpha(alpha);
     const label = this.add
-      .text(node.x, node.y - (node.id.length > 6 ? 14 : 3), node.id, {
+      .text(node.x, node.y - (level.bossKind && node.id.length > 6 ? 14 : 3), node.id, {
         color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: node.id.length > 6 ? "22px" : "26px",
@@ -324,7 +325,6 @@ export class LevelSelectScene extends Phaser.Scene {
       .setAlpha(alpha);
 
     this.mapContainer.add([frame, label]);
-    const level = getLevelConfig(node.id);
     if (level.survival) {
       this.mapContainer.add(this.add.text(node.x, node.y + LEVEL_NODE_HEIGHT / 2 + 28,
         unlocked ? level.bossEndless ? t("label.bestBossRank", { count: bestBossRankForLevel(node.id) })

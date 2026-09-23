@@ -105,7 +105,7 @@ export const levelConfigs: Record<string, LevelConfig> = {
     ...EX_LEVEL_DEFAULTS,
     id: "AE-EX-1", unlockAfter: "AE-10", totalWaves: 10,
     enemyKinds: ["circle", "tilde", "tilde2", "tilde3", "triangleRam", "triangleRam2", "triangleRam3"],
-    extraWaveSpawns: [{ kind: "chevronLeader3", lane: 3 }]
+    extraWaveSpawns: [{ kind: "chevronLeader", lane: 3 }]
   },
   "AE-10": {
     id: "AE-10", unlockAfter: "AE-9",
