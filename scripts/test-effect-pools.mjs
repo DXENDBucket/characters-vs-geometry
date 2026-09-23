@@ -139,6 +139,27 @@ test("DEL name stays between rear and front glyphs, with opaque local occlusion"
   }
 });
 
+test("DEL error flashes affect its name but leave both binary rings unchanged", () => {
+  let paths, path, style;
+  const graphics = {
+    clear() { paths = []; }, lineStyle(...args) { style = args; },
+    beginPath() { path = { points: [], style }; paths.push(path); },
+    moveTo(x, y) { path.points.push([x, y]); },
+    lineTo(x, y) { path.points.push([x, y]); }, strokePath() {}, lineBetween() {}
+  };
+  const rings = () => paths.filter(p => [5, 25].includes(p.points.length));
+  for (const invincible of [false, true]) {
+    for (const time of [160, 240]) {
+      del.drawDelBoss(graphics, 111, time, invincible, false);
+      const normalRings = structuredClone(rings());
+      del.drawDelBoss(graphics, 111, time, invincible, true);
+      assert.deepEqual(rings(), normalRings);
+      const name = paths.filter(p => p.points.length === 7 && p.style[1] !== 0x050505).at(-1);
+      assert.equal(name.style[1], time === 160 ? 0xff4d4d : invincible ? 0xffd75a : 0xf5f5f5);
+    }
+  }
+});
+
 test("all four effect pools reuse live objects within a battle, including pause/resume", () => {
   const f = fixture();
   emitAll(f.scene);

@@ -29,7 +29,7 @@ export function drawDelBoss(graphics: Phaser.GameObjects.Graphics, radius: numbe
   graphics.clear();
   const seconds = time / 1000;
   const errorFlash = errorActive && Math.floor(time / 80) % 2 === 0;
-  const color = errorFlash ? 0xff4d4d : invincible ? 0xffd75a : 0xf5f5f5;
+  const color = invincible ? 0xffd75a : 0xf5f5f5;
   const count = radius < 40 ? 32 : 56;
   const digitSize = radius * .09;
   const glitchPhase = (time % 4100 + 4100) % 4100;
@@ -79,7 +79,7 @@ export function drawDelBoss(graphics: Phaser.GameObjects.Graphics, radius: numbe
     drawName(-offset, -radius * .022, errorActive ? 0xff4d4d : 0x9fdcff, .65);
     drawName(offset, radius * .022, 0xff6464, .5);
   }
-  drawName(offset, 0, color, 1);
+  drawName(offset, 0, errorFlash ? 0xff4d4d : color, 1);
   if (glitch) {
     graphics.lineStyle(Math.max(1, radius * .015), errorActive ? 0xff4d4d : 0x9fdcff, .9);
     for (let i = 0; i < 3; i++) {
