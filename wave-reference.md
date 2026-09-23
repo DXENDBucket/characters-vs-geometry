@@ -3051,9 +3051,15 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 - Unlocks after AE-7; 30 waves, 500 starting characters. Chapter 4 weights: initial 25, increment +18, extra increment +3; one flag every 10 waves.
 - Enemy pool: Circle I, Tilde I/II, Parentheses I/II/III, Dollar I (`$`), Square II, Trapezoid II, Triangle Mortar I/II/III, Pentagon I/II/III, Hex Spell Bulwark I.
 
+## ASCII Expansion: AE-9
+
+- Unlocks after AE-8; 20 waves, 500 starting characters. Chapter 4 weights: initial 25, increment +18, extra increment +3; one flag every 10 waves.
+- Enemy pool: Circle I, Tilde I/II/III, Equals I/II/III, Parentheses I/II/III, Dollar I (`$`), Greater-Than Sign I (`>`).
+- Greater-Than Sign I is a leader, appearing on flag waves without consuming regular wave weight. Unlocking AE-9 also reveals its encyclopedia entry.
+
 ## Recent Enemy Additions
 
-- Chevron leader (`>` / `<`): HP `32000`, +`16000` per additional rank, armor `100`, MR `50`, ATK `450` magic, fixed speed `15`. No stage pool assigned yet.
+- Greater-Than Sign leader (`>` / `<`): HP `32000`, +`16000` per additional rank, armor `100`, MR `50`, ATK `450` magic, fixed speed `15`. Rank I first appears in AE-9.
 - Cannon form charges for `12s`, then fires a light-green ion ball along its facing: `1000% ATK`, radius `2.4` cells, linear damage falloff. No ordinary melee; freezing and High Flight pause charging.
 - At half maximum HP it permanently switches to `<`, cancels unfinished charging, sets armor to `260` and base speed to `30`, and uses Hex Mace acceleration/bounce mechanics. Collisions deal **magic** damage equal to ATK times actual speed divided by 10. Facing is unchanged and healing cannot revert the form.
 

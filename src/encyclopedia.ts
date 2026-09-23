@@ -118,7 +118,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
 
   return [
     {
-      title: zh ? "尖括号系列" : "Chevron Series",
+      title: zh ? "大于号系列" : "Greater-Than Sign Series",
       enemyKind: "chevronLeader",
       chapterGroupId: "ascii",
       lines: [statLine([[t("label.hp"), chevron.hp], [t("label.armor"), chevron.armor],
