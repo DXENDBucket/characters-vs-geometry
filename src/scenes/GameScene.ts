@@ -141,7 +141,7 @@ import { waveScheduleAction } from "../game/waves";
 import { attackIntervalMs } from "../game/attackSpeed";
 import { t } from "../i18n";
 import { completeLevel, isCardUnlocked, isLevelCompleted, recordBossSeen, recordCompletedWaves, recordDefeatedBossRank, unlockedCardSlotCount } from "../progress";
-import { makeEraseMark, makeProductionPulse, makeShellBurst, makeShockPulse, makeTowerMagicShield } from "../render/combatEffects";
+import { makeEraseMark, makeProductionPulse, makeShellBurst, makeShockPulse, makeTowerPipelineShield } from "../render/combatEffects";
 import { createUnitBorder } from "../render/unitShapes";
 import {
   updateReselectButtonState,
@@ -451,7 +451,7 @@ export class GameScene extends Phaser.Scene {
     this.numbers = new ProjectileCircuitController(() => ({ towers: this.towers, edges: this.edgeTowers,
       battleTime: this.battleTime, getDefinition: id => this.getDefinition(id),
       heal: (tower, amount) => healPipelineArea(tower, amount, this.combatRuntime()),
-      shielded: tower => makeTowerMagicShield(this, tower),
+      shielded: (tower, damageType) => makeTowerPipelineShield(this, tower, damageType),
       changed: tower => { syncTowerLevelText(tower); syncTowerAutoUpgradeVisual(tower, this.autoUpgradeEnabled); },
       intercepted: (tower, target) => {
         const flash = this.add.graphics().setDepth(121);
@@ -1811,7 +1811,7 @@ export class GameScene extends Phaser.Scene {
         this.enemiesDefeated += 1;
       },
       onTowerDamaged: (tower) => this.handleTowerDamaged(tower),
-      absorbTowerMagicDamage: (tower, damage) => this.numbers.absorbMagicDamage(tower, damage),
+      absorbTowerDamage: (tower, damage, damageType) => this.numbers.absorbDamage(tower, damage, damageType),
       onTowerRemoved: (tower) => {
         syncTowerTopology(this.towers);
         this.mirrors.handleTowerRemoved(tower, (linkedTower) => removeTower(this.unitLifecycleRuntime(), linkedTower));

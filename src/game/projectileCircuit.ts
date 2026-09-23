@@ -1,11 +1,11 @@
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, COLUMNS, LANES } from "../config";
-import type { CardDefinition, CardId, EdgeTower, EnemyProjectile, MortarProjectile, Projectile, StoredTowerShot, Tower } from "../types";
+import type { CardDefinition, CardId, DamageType, EdgeTower, EnemyProjectile, MortarProjectile, Projectile, StoredTowerShot, Tower } from "../types";
 import { consumeProjectileDamage, projectileDamageBudget, projectileVisualScale, segmentInInterceptionRange } from "./projectileIntegrity";
 import { isLiteralNumberType, numberTowerValue, towerFormType, towerActionContext } from "./towerIdentity";
 import type { TowerActionEvent } from "./towerActions";
 import { storeTowerAction } from "./pipelineActionPayload";
 import { projectileBankCapacity } from "./projectileBank";
-import { HEALING_RATE, isDamageOutlet, nodeOccupancy } from "./pipelineRules";
+import { HEALING_RATE, isDamageOutlet, nodeOccupancy, pipelineShieldDamageType } from "./pipelineRules";
 import { PipelineRouting } from "./pipelineRouting";
 import { inFriendlyRange } from "./towerTopology";
 
@@ -13,7 +13,7 @@ export { PROJECTILE_BANK_CAPACITY } from "./projectileBank";
 export const INTERCEPTION_RADIUS = 2.6;
 export const INTERCEPTION_INTERVAL = 100;
 export const INTERCEPTION_DAMAGE_COST = 5;
-export const MAGIC_SHIELD_DAMAGE_COST = 3;
+export const SHIELD_DAMAGE_COST = 3;
 export { BUNDLE_SHOTS, edgeCells } from "./pipelineRules";
 
 export function edgeKey(edge: EdgeTower) { return `${edge.axis}:${edge.lane}:${edge.column}`; }
@@ -43,7 +43,7 @@ interface CircuitRuntime {
   heal?: (tower: Tower, amount: number) => boolean;
   changed: (tower: Tower) => void;
   intercepted?: (tower: Tower, target: EnemyProjectile | MortarProjectile) => void;
-  shielded?: (target: Tower) => void;
+  shielded?: (target: Tower, damageType: DamageType) => void;
 }
 
 export class ProjectileCircuitController {
@@ -78,7 +78,7 @@ export class ProjectileCircuitController {
         }
         this.nodes.push(tower); runtime.changed(tower);
         if (type === "-") this.interceptors.push(tower);
-        if (type === "*") this.shields.push(tower);
+        if (pipelineShieldDamageType(type)) this.shields.push(tower);
       }
     }
     this.nodes.sort((a, b) => a.placedOrder - b.placedOrder);
@@ -88,12 +88,10 @@ export class ProjectileCircuitController {
   }
 
   private capacity(tower: Tower) {
+    if (isDamageOutlet(towerFormType(tower))) return projectileBankCapacity(tower);
     switch (towerFormType(tower)) {
       case "0": return projectileBankCapacity(tower);
       case "1": return Math.max(1, numberTowerValue(tower));
-      case "+":
-      case "*":
-      case "-": return projectileBankCapacity(tower);
       default: return 0;
     }
   }
@@ -165,20 +163,20 @@ export class ProjectileCircuitController {
     return false;
   }
 
-  absorbMagicDamage(target: Tower, damage: number) {
-    if (!target.inPlay || damage <= 0 || !this.shields.length) return damage;
+  absorbDamage(target: Tower, damage: number, damageType: DamageType) {
+    if (!target.inPlay || damage <= 0 || damageType === "true" || !this.shields.length) return damage;
     const runtime = this.runtime();
     let remaining = damage;
     for (const tower of this.shields) {
-      if (!tower.inPlay || towerFormType(tower) !== "*" || !inFriendlyRange(tower, target, 2, true)) continue;
+      if (!tower.inPlay || pipelineShieldDamageType(towerFormType(tower)) !== damageType || !inFriendlyRange(tower, target, 2, true)) continue;
       const shots = tower.projectileNode?.input;
       if (!shots?.length) continue;
       const before = remaining;
       let exhausted = 0;
       for (const shot of shots) {
         const budget = projectileDamageBudget(shot);
-        const spent = consumeProjectileDamage(shot, Math.min(budget, remaining * MAGIC_SHIELD_DAMAGE_COST));
-        remaining = Math.max(0, remaining - spent / MAGIC_SHIELD_DAMAGE_COST);
+        const spent = consumeProjectileDamage(shot, Math.min(budget, remaining * SHIELD_DAMAGE_COST));
+        remaining = Math.max(0, remaining - spent / SHIELD_DAMAGE_COST);
         if (projectileDamageBudget(shot) <= 0) exhausted++;
         if (remaining <= 0) break;
       }
@@ -186,7 +184,7 @@ export class ProjectileCircuitController {
       if (before > remaining) runtime.changed(tower);
       if (remaining <= 0) break;
     }
-    if (remaining < damage) runtime.shielded?.(target);
+    if (remaining < damage) runtime.shielded?.(target, damageType);
     return remaining;
   }
 

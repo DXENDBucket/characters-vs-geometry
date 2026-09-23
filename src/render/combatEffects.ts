@@ -847,19 +847,21 @@ export function makeBossInvincibleFlash(scene: Phaser.Scene, x: number, y: numbe
   });
 }
 
-const towerMagicShields = new WeakMap<Tower, Phaser.GameObjects.Arc>();
+const towerPipelineShields = new WeakMap<Tower, Phaser.GameObjects.Arc>();
 
-export function makeTowerMagicShield(scene: Phaser.Scene, tower: Tower) {
+export function makeTowerPipelineShield(scene: Phaser.Scene, tower: Tower, damageType: DamageType) {
   // Refresh one ring per protected tower, even under a dense multi-hit volley.
-  let shield = towerMagicShields.get(tower);
+  const color = damageEffectColor(damageType);
+  let shield = towerPipelineShields.get(tower);
   if (shield?.active) scene.tweens.killTweensOf(shield);
-  else shield = acquireEffectCircle(scene, tower.body.x, tower.body.y, 31, palette.magic, .06, 2, palette.magic, .95, 110);
+  else shield = acquireEffectCircle(scene, tower.body.x, tower.body.y, 31, color, .06, 2, color, .95, 110);
   const ring = shield;
-  towerMagicShields.set(tower, ring);
+  towerPipelineShields.set(tower, ring);
+  ring.setFillStyle(color, .06).setStrokeStyle(2, color, .95);
   ring.setPosition(tower.body.x, tower.body.y).setAlpha(1).setScale(1);
   scene.tweens.add({ targets: ring, alpha: 0, scale: 1.12, duration: 280, ease: "Quad.easeOut",
     onUpdate: () => { if (tower.inPlay) ring.setPosition(tower.body.x, tower.body.y); },
-    onComplete: () => { towerMagicShields.delete(tower); releaseEffectCircle(scene, ring); } });
+    onComplete: () => { towerPipelineShields.delete(tower); releaseEffectCircle(scene, ring); } });
 }
 
 export function makeEnemyInvincibleFlash(scene: Phaser.Scene, x: number, y: number) {

@@ -344,7 +344,10 @@ function unyieldingFixture() {
 test("magic shield receives post-MR damage at the actual receiver and ignores physical and true damage", () => {
   const f = unyieldingFixture(), calls = [];
   const target = f.place("O", 1, 3, 5);
-  f.runtime.absorbTowerMagicDamage = (tower, damage) => { calls.push([tower, damage]); return Math.max(0, damage - 200); };
+  f.runtime.absorbTowerDamage = (tower, damage, type) => {
+    if (type !== "magic") return damage;
+    calls.push([tower, damage]); return Math.max(0, damage - 200);
+  };
   lifecycle.damageTower(f.runtime, target, 1000, "magic");
   assert.ok(Math.abs(calls[0][1] - 300) < 1e-9);
   assert.equal(target.hp, 2900);
@@ -359,6 +362,34 @@ test("magic shield receives post-MR damage at the actual receiver and ignores ph
   assert.equal(calls[1][1], 600);
   assert.equal(shell.hp, 2600);
   assert.equal(target.hp, 2700);
+});
+
+test("physical pipeline shields spend post-armor damage, including parentheses, without affecting magic or true damage", () => {
+  const f = unyieldingFixture();
+  const outlet = f.place("/", 1, 3, 4), target = f.place("O", 1, 3, 5);
+  const { ProjectileCircuitController } = load("src/game/projectileCircuit.ts");
+  const { projectileDamageBudget } = load("src/game/projectileIntegrity.ts");
+  const controller = new ProjectileCircuitController(() => ({ ...f.runtime, edges: [], battleTime: 0, changed: noop, emit: noop }));
+  controller.sync();
+  f.runtime.absorbTowerDamage = (tower, amount, type) => controller.absorbDamage(tower, amount, type);
+  outlet.projectileNode.input.push({ damage: 300, hitCount: 10 });
+  lifecycle.damageTower(f.runtime, target, 1000, "physical");
+  assert.equal(target.hp, 3000);
+  assert.equal(projectileDamageBudget(outlet.projectileNode.input[0]), 900);
+  lifecycle.damageTower(f.runtime, target, 1000, "magic");
+  lifecycle.damageTower(f.runtime, target, 100, "true");
+  assert.equal(target.hp, 2600);
+  assert.equal(projectileDamageBudget(outlet.projectileNode.input[0]), 900);
+  lifecycle.damageTower(f.runtime, target, 1000, "physical");
+  assert.equal(target.hp, 2200);
+  assert.equal(outlet.projectileNode.input.length, 0);
+  const shell = f.place("()", 1, 3, 5);
+  load("src/game/towerOccupancy.ts").syncTowerOccupancy(f.state.towers, f.state.occupied);
+  outlet.projectileNode.input.push({ damage: 3000 });
+  lifecycle.damageTower(f.runtime, target, 1000, "physical");
+  assert.equal(shell.hp, 3000);
+  assert.equal(target.hp, 2200);
+  assert.equal(projectileDamageBudget(outlet.projectileNode.input[0]), 1500);
 });
 
 function gatheringFixture() {

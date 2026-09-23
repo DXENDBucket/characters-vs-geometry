@@ -8,6 +8,7 @@ export const INITIAL_CARD_IDS = ["A", "B", "D", "X", "F", "G"] as const satisfie
 export const cardUnlockRequirements: Record<CardId, string | null> = {
   "?": "AE-6",
   "*": "AE-7",
+  "/": "AE-7",
   "()": "AE-5",
   "!": "AE-5",
   "0": "AE-3",

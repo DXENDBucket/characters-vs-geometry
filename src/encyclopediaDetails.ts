@@ -136,12 +136,13 @@ export function towerDetailSections(card: CardDefinition, level: number, descrip
     sections.push({ title: name, tag: l("常驻光环", "Persistent aura"), tone: "aura", ranges: ranges.aura ? [detailRange(ranges.aura)] : [], fields: [
       field("作用对象", "Recipients", id === "U" ? l("基础费用 ≤999 的其他塔", "Other towers costing <=999") : id === "T" ? l("普通单位与弹幕，Boss 除外", "Ordinary units and projectiles, excluding Bosses") : l("友方塔，包含自身", "Friendly towers, including self")),
       field("效果", "Effect", effect), field("叠加规则", "Stacking", id === "U" ? l("加算叠加", "Additive") : id === "g" ? l("取最高值", "Strongest only") : l("同名不叠加", "Does not stack"))] });
-  } else if (id === "*") {
-    sections.push({ title: l("法术护盾", "Magic Shield"), tag: l("管道输出 · 受击触发", "Pipeline output · On hit"), tone: "passive",
+  } else if (id === "*" || id === "/") {
+    const physical = id === "/";
+    sections.push({ title: physical ? l("物理护盾", "Physical Shield") : l("法术护盾", "Magic Shield"), tag: l("管道输出 · 受击触发", "Pipeline output · On hit"), tone: "passive",
       ranges: ranges.passive ? [detailRange(ranges.passive)] : [], fields: [
         field("保护对象", "Recipients", l("范围内友方塔，含自身", "Friendly towers in range, including self")),
-        field("抵消比例", "Absorption", l("3 点库存伤害 → 1 点法术伤害", "3 stored damage → 1 magic damage")),
-        field("结算顺序", "Resolution", l("目标法抗结算后；不影响物理和真伤", "After target MR; not physical or true damage")),
+        field("抵消比例", "Absorption", physical ? l("3 点库存伤害 → 1 点物理伤害", "3 stored damage → 1 physical damage") : l("3 点库存伤害 → 1 点法术伤害", "3 stored damage → 1 magic damage")),
+        field("结算顺序", "Resolution", physical ? l("目标护甲结算后；不影响法术和真伤", "After target armor; not magic or true damage") : l("目标法抗结算后；不影响物理和真伤", "After target MR; not physical or true damage")),
         field("缓存容量", "Capacity", `${128 * level}`),
         field("不足与重叠", "Shortage / overlap", l("部分抵消；多个出口依次补足", "Partial absorption; outlets contribute in order"))], description });
   } else if (card.attackSpeed === undefined) {

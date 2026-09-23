@@ -23,7 +23,7 @@ try {
     const game = window.__testGame;
     game.loop.stop(); progress.unlockAllCards(); progress.completeAllLevels();
     const check = (ok, text) => { if (!ok) throw Error(text); };
-    const selectedCards = ["A", "*", "=", "O", "()", "u"];
+    const selectedCards = ["A", "*", "/", "=", "O", "()", "u"];
     let scene;
     const start = () => {
       for (const active of game.scene.getScenes(true)) game.scene.stop(active.sys.settings.key);
@@ -70,10 +70,35 @@ try {
     scene.combatRuntime().damageTower(ally, 100, "magic");
     check(ally.healthPool === link.healthPool && ally.healthPool.hp === before, "Shared HP shield resolution failed");
     check(projectileDamageBudget(restored.projectileNode.input[0]) === 1500, "Shared HP consumed reserve more than once");
+    const physicalSource = place("A", 3, 5), physicalShield = place("/", 4, 5), physicalTarget = place("O", 5, 5);
+    scene.edgeTowers.push({ type: "=", axis: "horizontal", column: 3, lane: 5, level: 1, mode: "=" });
+    scene.numbers.sync();
+    const ammunition = createTowerProjectile(scene, { type: "bolt", x: physicalSource.x + 26, y: physicalSource.y, lane: 5,
+      speed: 500, damage: 300, hitCount: 10, damageType: "magic", splashRadius: 0,
+      angleDegrees: 0, maxX: physicalSource.x + 326, sourceTower: physicalSource });
+    check(scene.numbers.capture(ammunition), "Pipeline did not deliver ammunition to /");
+    scene.combatRuntime().damageTower(physicalTarget, 1000, "physical");
+    check(physicalTarget.hp === 3000, "Physical shield did not absorb post-armor damage");
+    check(projectileDamageBudget(physicalShield.projectileNode.input[0]) === 900, "Physical shield cost was not post-armor 3:1");
+    check(projectileDamageBudget(restored.projectileNode.input[0]) === 1500, "Physical attack spent magic reserves");
+    scene.combatRuntime().damageTower(physicalTarget, 100, "true");
+    check(physicalTarget.hp === 2900, "Physical shield blocked true damage");
+    scene.combatRuntime().damageTower(physicalTarget, 500, "magic");
+    check(projectileDamageBudget(physicalShield.projectileNode.input[0]) === 900, "Magic attack spent physical reserves");
+    const bothSnapshot = JSON.parse(JSON.stringify(captureBattleSnapshot(scene.battleState())));
+    validateSurvivalSave({ version: 1, levelId: "IF-1", wave: scene.wave, savedAt: 1,
+      difficulty: scene.difficulty, unlimitedFirepower: false, selectedCards, graph: bothSnapshot });
+    start(); scene.applyBattleSave(restoreBattleSnapshot(scene, bothSnapshot));
+    const savedPhysical = scene.towers.find(t => t.type === "/");
+    check(projectileDamageBudget(savedPhysical.projectileNode.input[0]) === 900, "Physical reserves lost on restore");
+    const savedTarget = scene.towers.find(t => t.type === "O" && t.lane === 5), hp = savedTarget.hp;
+    scene.combatRuntime().damageTower(savedTarget, 400, "physical");
+    check(savedTarget.hp === hp && projectileDamageBudget(savedPhysical.projectileNode.input[0]) === 600,
+      "Physical shield failed after restore");
     scene.battlePaused = true; scene.updateHud(); scene.updateCards();
     window.__shieldScene = scene;
     game.loop.start(game.step.bind(game));
-    return { storedDamage: 1500, shieldHp: restored.hp, shellHp: scene.towers.find(t => t.type === "()").hp };
+    return { physicalStoredDamage: 600, shieldHp: savedPhysical.hp };
   });
   await page.waitForTimeout(650);
   for (const [name, width, height] of [["desktop", 1440, 900], ["small", 800, 600]]) {
@@ -81,9 +106,10 @@ try {
     await page.evaluate(() => {
       const scene = window.__shieldScene, target = scene.towers.find(t => t.type === "O");
       scene.combatRuntime().damageTower(target, 10, "magic");
+      scene.combatRuntime().damageTower(scene.towers.find(t => t.type === "O" && t.lane === 5), 310, "physical");
     });
     await page.screenshot({ path: `logs/magic-shield-${name}.png` });
   }
   assert.deepEqual(errors, []);
-  console.log("Magic shield browser checks passed", result);
+  console.log("Pipeline shield browser checks passed", result);
 } finally { await browser.close(); }

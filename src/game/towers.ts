@@ -4,7 +4,7 @@ import { topologyKey } from "./towerTopology";
 import { drawLogicalTowerRange } from "../render/towerLogicalRange";
 import { towerBehaviorType, towerActionContext, towerFormType, isLiteralNumberType, isNumberTower, isNumericOperatorType, numberTowerStoredCount, numberTowerValue, numberTowerMultiplier, numberTowerActionLevel, supportsTowerAutoUpgrade } from "./towerIdentity";
 import { projectileBankCapacity } from "./projectileBank";
-import { nodeOccupancy } from "./pipelineRules";
+import { isDamageOutlet, nodeOccupancy } from "./pipelineRules";
 import { syncHealthBar } from "./towerHealth";
 import { facingWithEffects } from "./rules/reversal";
 import { AIR_PATROL_INITIAL_SP, BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
@@ -254,7 +254,7 @@ export function syncTowerLevelText(tower: Tower) {
     return;
   }
   const pipeType = towerFormType(tower);
-  if (tower.projectileNode && ["1", "+", "-", "*"].includes(pipeType)) {
+  if (tower.projectileNode && (pipeType === "1" || isDamageOutlet(pipeType))) {
     const capacity = pipeType === "1" ? Math.max(1, numberTowerValue(tower)) : projectileBankCapacity(tower);
     if (tower.type === "1") tower.label.setText(String(numberTowerValue(tower)));
     tower.label.setY(tower.type === "*" ? 1 : -7).setFontSize(Math.min(34, 48 / Math.max(1, tower.label.text.length)));
