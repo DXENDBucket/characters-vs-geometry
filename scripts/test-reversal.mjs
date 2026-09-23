@@ -341,6 +341,26 @@ function unyieldingFixture() {
   return { ...f, runtime, refresh: () => lifecycle.settleTowerHealth(runtime) };
 }
 
+test("magic shield receives post-MR damage at the actual receiver and ignores physical and true damage", () => {
+  const f = unyieldingFixture(), calls = [];
+  const target = f.place("O", 1, 3, 5);
+  f.runtime.absorbTowerMagicDamage = (tower, damage) => { calls.push([tower, damage]); return Math.max(0, damage - 200); };
+  lifecycle.damageTower(f.runtime, target, 1000, "magic");
+  assert.ok(Math.abs(calls[0][1] - 300) < 1e-9);
+  assert.equal(target.hp, 2900);
+  lifecycle.damageTower(f.runtime, target, 400, "physical");
+  lifecycle.damageTower(f.runtime, target, 100, "true");
+  assert.equal(target.hp, 2700);
+  assert.equal(calls.length, 1);
+  const shell = f.place("()", 1, 3, 5);
+  load("src/game/towerOccupancy.ts").syncTowerOccupancy(f.state.towers, f.state.occupied);
+  lifecycle.damageTower(f.runtime, target, 1000, "magic");
+  assert.equal(calls[1][0], shell);
+  assert.equal(calls[1][1], 600);
+  assert.equal(shell.hp, 2600);
+  assert.equal(target.hp, 2700);
+});
+
 function gatheringFixture() {
   const f = unyieldingFixture();
   const j = f.place("j", 1, 3, 4);

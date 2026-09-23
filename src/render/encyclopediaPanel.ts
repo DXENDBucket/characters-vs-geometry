@@ -889,7 +889,7 @@ export class EncyclopediaPanel {
       const border = createUnitBorder(this.scene, entry.card.category, 25 * scale, entry.card.category === "defense" ? 3 : 2)
         .setPosition(x, y);
       const label = this.scene.add
-        .text(x, y - 2, entry.card.id, {
+        .text(x, y - 2 + (entry.card.id === "*" ? 7 * scale : 0), entry.card.id, {
           color: uiTextColors.primary,
           fontFamily: "monospace",
           fontSize: `${Math.round(30 * scale)}px`,

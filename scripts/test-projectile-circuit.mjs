@@ -40,10 +40,82 @@ const hostile = (tower, damage = 900, hitCount = 1) => ({ x: tower.x, y: tower.y
   body: { setScale(value) { this.scale = value; } } });
 
 test("pipeline component prices and cooldowns match their individual panels", () => {
-  for (const [id, cost, cooldown] of [["=", 50, 1000], ["0", 50, 3000], ["1", 50, 3000], ["+", 500, 10000], ["-", 500, 10000]]) {
+  for (const [id, cost, cooldown] of [["=", 50, 1000], ["0", 50, 3000], ["1", 50, 3000], ["+", 500, 10000], ["-", 500, 10000], ["*", 500, 10000]]) {
     const card = cardDefinitions.find(card => card.id === id);
     assert.deepEqual([card.cost, card.cooldown], [cost, cooldown], id);
   }
+});
+
+test("magic shield spends multi-hit reserves at 3:1, retaining partial shots and never forwarding", () => {
+  const f = fixture(["A", "*", "1"]), flashes = [];
+  f.state.shielded = tower => flashes.push(tower);
+  assert.equal(load("src/data/cardUnlocks.ts").cardUnlockRequirement("*"), "AE-7");
+  assert.equal(f.controller.capture(f.shot({ damage: 300, hitCount: 4 })), true);
+  f.tick(); assert.equal(f.state.output.length, 0);
+  assert.equal(f.controller.absorbMagicDamage(f.bank, 150), 0);
+  const stored = f.bank.projectileNode.input[0];
+  assert.equal(projectileDamageBudget(stored), 750);
+  assert.equal(stored.hitCount, 3);
+  assert.equal(stored.partialHitDamage, 150);
+  assert.equal(f.controller.absorbMagicDamage(f.source, 300), 50);
+  assert.equal(f.bank.projectileNode.input.length, 0);
+  assert.equal(f.controller.absorbMagicDamage(f.bank, 100), 100);
+  assert.deepEqual(flashes, [f.bank, f.source]);
+});
+
+test("magic shield covers 21 logical cells including itself but excludes four corners", () => {
+  const f = fixture(["A"]), shield = f.place("*", 5);
+  f.controller.sync();
+  shield.projectileNode.input.push(f.shot({ damage: 30000 }));
+  for (let dl = -3; dl <= 3; dl++) for (let dc = -3; dc <= 3; dc++) {
+    const target = f.place("B", 5 + dc, 3 + dl);
+    const inside = Math.abs(dl) <= 2 && Math.abs(dc) <= 2 && !(Math.abs(dl) === 2 && Math.abs(dc) === 2);
+    assert.equal(f.controller.absorbMagicDamage(target, 10), inside ? 0 : 10, `${dl},${dc}`);
+  }
+  const remote = f.place("B", 12, 0), swap = f.place("&", 6, 3);
+  swap.topologyTarget = { column: 12, lane: 0 };
+  syncTowerTopology(f.state.towers);
+  assert.equal(f.controller.absorbMagicDamage(remote, 10), 0);
+  assert.equal(f.controller.absorbMagicDamage(swap, 10), 10);
+});
+
+test("overlapping magic shields spend in placement order, only once per absorbed damage", () => {
+  const f = fixture(["*", "*", "B"]), [first, second, target] = f.state.towers;
+  let flashes = 0; f.state.shielded = () => flashes++;
+  first.projectileNode.input.push(f.shot({ damage: 90 }), f.shot({ damage: 210 }));
+  second.projectileNode.input.push(f.shot({ damage: 600 }));
+  assert.equal(f.controller.absorbMagicDamage(target, 150), 0);
+  assert.equal(first.projectileNode.input.length, 0);
+  assert.equal(projectileDamageBudget(second.projectileNode.input[0]), 450);
+  assert.equal(flashes, 1);
+  second.inPlay = false;
+  assert.equal(f.controller.absorbMagicDamage(target, 20), 20);
+  assert.equal(flashes, 1);
+});
+
+test("shield capacity upgrades preserve stock; copied shields use the same input-only behavior", () => {
+  const f = fixture(["A", "*"]);
+  f.state.edges[0].level = 100;
+  for (let i = 0; i < 128; i++) assert.equal(f.controller.capture(f.shot()), true);
+  assert.equal(f.controller.capture(f.shot()), false);
+  f.bank.level = 2; f.controller.sync();
+  assert.equal(f.controller.capture(f.shot()), true);
+  assert.equal(f.bank.projectileNode.input.length, 129);
+  assert.equal(supportsTowerAutoUpgrade(f.bank), true);
+  f.bank.type = "@"; f.bank.copiedType = "*"; f.controller.sync();
+  assert.equal(f.controller.absorbMagicDamage(f.bank, 100), 0);
+  assert.equal(projectileDamageBudget(f.bank.projectileNode.input[0]), 100);
+  f.bank.copiedType = "B";
+  assert.equal(f.controller.absorbMagicDamage(f.bank, 100), 100);
+});
+
+test("shield rejects zero-damage payloads and survives fractional exhaustion without losing later shots", () => {
+  const f = fixture(["A", "*"]);
+  assert.equal(f.controller.capture(f.shot({ damage: 0 })), false);
+  for (const damage of [1, 2, 300]) f.controller.capture(f.shot({ damage }));
+  assert.ok(Math.abs(f.controller.absorbMagicDamage(f.bank, 1)) < 1e-12);
+  const total = f.bank.projectileNode.input.reduce((sum, shot) => sum + projectileDamageBudget(shot), 0);
+  assert.ok(Math.abs(total - 300) < 1e-12);
 });
 
 test("edge placement is internal-only; zero upgrades normally, numeric outlet does not auto-upgrade", () => {

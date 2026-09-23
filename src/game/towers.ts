@@ -254,10 +254,10 @@ export function syncTowerLevelText(tower: Tower) {
     return;
   }
   const pipeType = towerFormType(tower);
-  if (tower.projectileNode && ["1", "+", "-"].includes(pipeType)) {
+  if (tower.projectileNode && ["1", "+", "-", "*"].includes(pipeType)) {
     const capacity = pipeType === "1" ? Math.max(1, numberTowerValue(tower)) : projectileBankCapacity(tower);
     if (tower.type === "1") tower.label.setText(String(numberTowerValue(tower)));
-    tower.label.setY(-7).setFontSize(Math.min(34, 48 / Math.max(1, tower.label.text.length)));
+    tower.label.setY(tower.type === "*" ? 1 : -7).setFontSize(Math.min(34, 48 / Math.max(1, tower.label.text.length)));
     const text = `${nodeOccupancy(tower)}/${capacity}`;
     tower.levelText.setVisible(true).setY(12).setText(text).setFontSize(Math.min(9, 60 / text.length))
       .setColor(tower.projectileNode.processing ? "#ffd75a" : "#9fdcff");

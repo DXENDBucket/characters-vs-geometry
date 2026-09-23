@@ -515,7 +515,7 @@ export class CardSelectScene extends Phaser.Scene {
         .setInteractive({ useHandCursor: true });
       const border = createUnitBorder(this, definition.category, 22, 2).setPosition(x - 55, y - 6);
       const label = this.add
-        .text(x - 55, y - 9, definition.id, {
+        .text(x - 55, y - (definition.id === "*" ? 2 : 9), definition.id, {
           color: uiTextColors.primary,
           fontFamily: "monospace",
           fontSize: "29px",

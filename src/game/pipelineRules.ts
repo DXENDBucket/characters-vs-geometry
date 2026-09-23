@@ -1,8 +1,10 @@
-import type { EdgeTower, Tower } from "../types";
+import type { CardId, EdgeTower, Tower } from "../types";
 
 export const PIPELINE_RATE = 25;
 export const HEALING_RATE = 25;
 export const BUNDLE_SHOTS = 5;
+
+export function isDamageOutlet(type: CardId) { return type === "+" || type === "-" || type === "*"; }
 
 export function edgeCells(edge: EdgeTower) {
   return [{ lane: edge.lane, column: edge.column },

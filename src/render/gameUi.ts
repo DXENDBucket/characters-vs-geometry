@@ -398,7 +398,7 @@ export function createCardStates(scene: Phaser.Scene, selectedCardIds: CardId[])
 
     const previewBorder = createUnitBorder(scene, definition.category, 19, 2).setPosition(x + 37, y + 34);
     const label = scene.add
-      .text(x + 37, y + 31, definition.id, {
+      .text(x + 37, y + (definition.id === "*" ? 37 : 31), definition.id, {
         color: uiTextColors.primary,
         fontFamily: "monospace",
         fontSize: definition.id.startsWith("?") ? (definition.id.length > 2 ? "17px" : "23px") : "27px",

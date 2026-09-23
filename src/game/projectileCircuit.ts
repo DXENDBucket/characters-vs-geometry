@@ -5,13 +5,15 @@ import { isLiteralNumberType, numberTowerValue, towerFormType, towerActionContex
 import type { TowerActionEvent } from "./towerActions";
 import { storeTowerAction } from "./pipelineActionPayload";
 import { projectileBankCapacity } from "./projectileBank";
-import { HEALING_RATE, nodeOccupancy } from "./pipelineRules";
+import { HEALING_RATE, isDamageOutlet, nodeOccupancy } from "./pipelineRules";
 import { PipelineRouting } from "./pipelineRouting";
+import { inFriendlyRange } from "./towerTopology";
 
 export { PROJECTILE_BANK_CAPACITY } from "./projectileBank";
 export const INTERCEPTION_RADIUS = 2.6;
 export const INTERCEPTION_INTERVAL = 100;
 export const INTERCEPTION_DAMAGE_COST = 5;
+export const MAGIC_SHIELD_DAMAGE_COST = 3;
 export { BUNDLE_SHOTS, edgeCells } from "./pipelineRules";
 
 export function edgeKey(edge: EdgeTower) { return `${edge.axis}:${edge.lane}:${edge.column}`; }
@@ -41,31 +43,33 @@ interface CircuitRuntime {
   heal?: (tower: Tower, amount: number) => boolean;
   changed: (tower: Tower) => void;
   intercepted?: (tower: Tower, target: EnemyProjectile | MortarProjectile) => void;
+  shielded?: (target: Tower) => void;
 }
 
 export class ProjectileCircuitController {
   private routing = new PipelineRouting();
   private nodes: Tower[] = [];
   private interceptors: Tower[] = [];
+  private shields: Tower[] = [];
   constructor(private readonly runtime: () => CircuitRuntime) {}
 
   isEdgeActive(edge: EdgeTower) { return this.routing.isActive(edge); }
 
   sync() {
     const runtime = this.runtime();
-    this.nodes = []; this.interceptors = [];
+    this.nodes = []; this.interceptors = []; this.shields = [];
     const sources: Tower[] = [];
     for (const tower of runtime.towers) {
       if (!tower.inPlay) continue;
       const type = towerFormType(tower);
-      if (type === "=" || (type !== "+" && type !== "-" && runtime.getDefinition(tower.type).cost > 999)) continue;
-      if (type !== "1" && type !== "-" && type !== "+") sources.push(tower);
+      if (type === "=" || (!isDamageOutlet(type) && runtime.getDefinition(tower.type).cost > 999)) continue;
+      if (type !== "1" && !isDamageOutlet(type)) sources.push(tower);
       if (tower.transient) continue;
       if (type === "0") {
         tower.projectileBank ??= { shots: [], remaining: 0, nextAt: 0, outletIndex: 0 };
         tower.projectileBank.remaining = 0;
       }
-      if (["0", "1", "+", "-"].includes(type)) {
+      if (isLiteralNumberType(type) || isDamageOutlet(type)) {
         tower.projectileNode ??= { input: [], output: [] };
         if (type === "+") {
           // Preserve ammunition in saves from the old bundler without executing the old recipe.
@@ -74,10 +78,12 @@ export class ProjectileCircuitController {
         }
         this.nodes.push(tower); runtime.changed(tower);
         if (type === "-") this.interceptors.push(tower);
+        if (type === "*") this.shields.push(tower);
       }
     }
     this.nodes.sort((a, b) => a.placedOrder - b.placedOrder);
     this.interceptors.sort((a, b) => a.placedOrder - b.placedOrder);
+    this.shields.sort((a, b) => a.placedOrder - b.placedOrder);
     this.routing.rebuild(runtime.edges, sources, this.nodes);
   }
 
@@ -86,6 +92,7 @@ export class ProjectileCircuitController {
       case "0": return projectileBankCapacity(tower);
       case "1": return Math.max(1, numberTowerValue(tower));
       case "+":
+      case "*":
       case "-": return projectileBankCapacity(tower);
       default: return 0;
     }
@@ -101,7 +108,7 @@ export class ProjectileCircuitController {
     for (let offset = 0; offset < this.nodes.length; offset++) {
       const index = (start + offset) % this.nodes.length, target = this.nodes[index], path = paths.get(target);
       if (!path || !target.inPlay || this.occupancy(target) >= this.capacity(target)) continue;
-      if (["+", "-"].includes(towerFormType(target)) && projectileDamageBudget(shot) <= 0) continue;
+      if (isDamageOutlet(towerFormType(target)) && projectileDamageBudget(shot) <= 0) continue;
       const queue = towerFormType(target) === "0" ? target.projectileBank?.shots : target.projectileNode?.input;
       if (!queue) continue;
       this.routing.consume(path);
@@ -118,7 +125,7 @@ export class ProjectileCircuitController {
     projectile.circuitChecked = true;
     const source = projectile.sourceTower;
     if (!source?.inPlay || projectile.type === "chevron" || projectile.targetEnemy || projectile.targetBossPart ||
-      isLiteralNumberType(towerFormType(source)) || ["+", "-"].includes(towerFormType(source)) || Math.abs(projectile.vx) < .001) return false;
+      isLiteralNumberType(towerFormType(source)) || isDamageOutlet(towerFormType(source)) || Math.abs(projectile.vx) < .001) return false;
     const shot: StoredTowerShot = { type: projectile.type, sourceTower: source,
       sourceBehaviorType: projectile.sourceBehaviorType, hitCount: projectile.hitCount ?? 1,
       partialHitDamage: projectile.partialHitDamage, initialDamageBudget: projectile.initialDamageBudget,
@@ -132,7 +139,7 @@ export class ProjectileCircuitController {
 
   captureAction(source: Tower, event: TowerActionEvent) {
     if (!this.nodes.length || !source.inPlay || towerActionContext(source) || event.kind === "combined" ||
-      ["0", "1", "+", "-", "="].includes(towerFormType(source))) return false;
+      isLiteralNumberType(towerFormType(source)) || isDamageOutlet(towerFormType(source)) || towerFormType(source) === "=") return false;
     if (!this.routing.pathsFrom(source, this.runtime().battleTime).size) return false;
     return this.transfer(source, storeTowerAction(source, this.runtime().getDefinition(towerFormType(source)), event, this.runtime().battleTime));
   }
@@ -156,6 +163,31 @@ export class ProjectileCircuitController {
       if (projectileDamageBudget(target) <= 0) return true;
     }
     return false;
+  }
+
+  absorbMagicDamage(target: Tower, damage: number) {
+    if (!target.inPlay || damage <= 0 || !this.shields.length) return damage;
+    const runtime = this.runtime();
+    let remaining = damage;
+    for (const tower of this.shields) {
+      if (!tower.inPlay || towerFormType(tower) !== "*" || !inFriendlyRange(tower, target, 2, true)) continue;
+      const shots = tower.projectileNode?.input;
+      if (!shots?.length) continue;
+      const before = remaining;
+      let exhausted = 0;
+      for (const shot of shots) {
+        const budget = projectileDamageBudget(shot);
+        const spent = consumeProjectileDamage(shot, Math.min(budget, remaining * MAGIC_SHIELD_DAMAGE_COST));
+        remaining = Math.max(0, remaining - spent / MAGIC_SHIELD_DAMAGE_COST);
+        if (projectileDamageBudget(shot) <= 0) exhausted++;
+        if (remaining <= 0) break;
+      }
+      if (exhausted) shots.splice(0, exhausted);
+      if (before > remaining) runtime.changed(tower);
+      if (remaining <= 0) break;
+    }
+    if (remaining < damage) runtime.shielded?.(target);
+    return remaining;
   }
 
   // Zero is now an automatic buffer; clicking it never flushes an incomplete outlet batch.

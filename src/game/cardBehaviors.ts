@@ -203,6 +203,7 @@ export const cardBehaviorsById: Record<CardId, CardBehavior> = {
   "!": idleCardBehavior,
   "0": idleCardBehavior,
   "-": idleCardBehavior,
+  "*": idleCardBehavior,
   "+": idleCardBehavior,
   "&": idleCardBehavior,
   "=": idleCardBehavior,

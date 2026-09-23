@@ -27,7 +27,7 @@ export function createUnlockedCardDetails(
     container.add(row);
     const icon = createUnitBorder(scene, card.category, 25, 2).setPosition(202, y + 40);
     container.add(icon);
-    const glyph = text(202, y + 38, card.id, 24).setOrigin(.5);
+    const glyph = text(202, y + (card.id === "*" ? 44 : 38), card.id, 24).setOrigin(.5);
     if (id === "()") { drawParenthesisBorder(icon, palette.white, 3); icon.setScale(25 / 34); glyph.setVisible(false); }
     const title = text(250, y + 12, entry.title, 20);
     const link = text(1096, y + 14, t("overlay.cardDetails"), 14, uiTextColors.secondary).setOrigin(1, 0);

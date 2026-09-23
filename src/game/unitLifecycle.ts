@@ -53,6 +53,7 @@ export interface UnitLifecycleRuntime {
   finalDamageReduction: number;
   onEnemyDefeated: () => void;
   onTowerDamaged: (tower: Tower) => void;
+  absorbTowerMagicDamage?: (tower: Tower, damage: number) => number;
   onTowerRemoved?: (tower: Tower) => void;
   onBossDefeated?: (boss: CubeBoss) => boolean;
   endLevel: () => void;
@@ -95,7 +96,9 @@ export function damageTower(runtime: UnitLifecycleRuntime, tower: Tower, damage:
 
   tower = towerDamageReceiver(tower);
   const stats = towerFinalStats(tower);
-  const actualDamage = calculateDamage(damage, damageType, stats.armor, stats.magicResistance);
+  const mitigatedDamage = calculateDamage(damage, damageType, stats.armor, stats.magicResistance);
+  const actualDamage = damageType === "magic"
+    ? runtime.absorbTowerMagicDamage?.(tower, mitigatedDamage) ?? mitigatedDamage : mitigatedDamage;
   changeTowerHealth(tower, -actualDamage);
   const defeated = towerHealthDepleted(tower) ? [...(tower.healthPool?.members ?? [tower])] : undefined;
   runtime.onTowerDamaged(tower);

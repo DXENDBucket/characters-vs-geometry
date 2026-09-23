@@ -847,6 +847,21 @@ export function makeBossInvincibleFlash(scene: Phaser.Scene, x: number, y: numbe
   });
 }
 
+const towerMagicShields = new WeakMap<Tower, Phaser.GameObjects.Arc>();
+
+export function makeTowerMagicShield(scene: Phaser.Scene, tower: Tower) {
+  // Refresh one ring per protected tower, even under a dense multi-hit volley.
+  let shield = towerMagicShields.get(tower);
+  if (shield?.active) scene.tweens.killTweensOf(shield);
+  else shield = acquireEffectCircle(scene, tower.body.x, tower.body.y, 31, palette.magic, .06, 2, palette.magic, .95, 110);
+  const ring = shield;
+  towerMagicShields.set(tower, ring);
+  ring.setPosition(tower.body.x, tower.body.y).setAlpha(1).setScale(1);
+  scene.tweens.add({ targets: ring, alpha: 0, scale: 1.12, duration: 280, ease: "Quad.easeOut",
+    onUpdate: () => { if (tower.inPlay) ring.setPosition(tower.body.x, tower.body.y); },
+    onComplete: () => { towerMagicShields.delete(tower); releaseEffectCircle(scene, ring); } });
+}
+
 export function makeEnemyInvincibleFlash(scene: Phaser.Scene, x: number, y: number) {
   const shield = acquireEffectCircle(scene, x, y, 28, palette.black, 0, 3, palette.gold, 0.9, 110);
   scene.tweens.add({

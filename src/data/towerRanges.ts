@@ -37,7 +37,7 @@ export const towerRangeDefinitions: Partial<Record<CardId, TowerRanges>> = {
   s: { attack: { shape: { kind: "lane", start: 1 }, label: { zh: "前方本行，最近的可部署空格", en: "Nearest deployable empty cell ahead" } } },
   x: { attack: global }, S: { skill: global, impact: area3 },
   c: { skill: { shape: { kind: "nonSpatial" }, label: { zh: "符合条件的卡槽，不受距离限制", en: "Eligible card slots, no distance limit" } } },
-  "+": { passive: centered5 }, "-": { passive: { shape: { kind: "circle", radius: 2.6 } } },
+  "+": { passive: centered5 }, "*": { passive: centered5 }, "-": { passive: { shape: { kind: "circle", radius: 2.6 } } },
   "()": { passive: self }, "&": { passive: global }
 };
 
