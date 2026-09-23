@@ -10,6 +10,8 @@ import {
   GAME_SPEED_MAX,
   GAME_SPEED_MIN,
   PROGRESS_BAR_WIDTH,
+  BATTLE_STATUS_Y,
+  BATTLE_PROGRESS_Y,
   palette,
   uiTextColors
 } from "../config";
@@ -145,7 +147,7 @@ export function createGameHud(
     color: "#ffd75a", fontFamily: "monospace", fontSize: "13px"
   }).setOrigin(0.5).setVisible(false);
 
-  const statusText = scene.add.text(240, 92, "", {
+  const statusText = scene.add.text(240, BATTLE_STATUS_Y, "", {
     color: uiTextColors.secondary,
     fontFamily: "monospace",
     fontSize: "16px"
@@ -187,7 +189,7 @@ export function createGameHud(
   bindButtonHover(speedKnob, [speedHit]);
 
   const progressText = scene.add
-    .text(GAME_WIDTH - 28, GAME_HEIGHT - 50, "", {
+    .text(GAME_WIDTH - 28, BATTLE_PROGRESS_Y, "", {
       color: uiTextColors.primary,
       fontFamily: "monospace",
       fontSize: "15px"

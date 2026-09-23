@@ -1,9 +1,11 @@
 import Phaser from "phaser";
-import { BOARD_X, BOARD_Y, BOARD_WIDTH, BOARD_HEIGHT } from "../config";
+import { BOARD_X, BOARD_Y, BOARD_WIDTH, BOARD_HEIGHT, BATTLE_STATUS_Y, BATTLE_PROGRESS_Y } from "../config";
+
+const VERTICAL_MARGIN = Math.max(BOARD_Y - BATTLE_STATUS_Y, BATTLE_PROGRESS_Y - (BOARD_Y + BOARD_HEIGHT));
 
 export const BATTLEFIELD_VIEWPORT = {
   // The baseline is 20px left of the grid; keep 12px beyond it, up to the card rail.
-  x: BOARD_X - 32, y: BOARD_Y, width: BOARD_WIDTH + 32, height: BOARD_HEIGHT
+  x: BOARD_X - 32, y: BOARD_Y - VERTICAL_MARGIN, width: BOARD_WIDTH + 32, height: BOARD_HEIGHT + VERTICAL_MARGIN * 2
 } as const;
 
 /** New battle visuals default to the clipped world; UI factories explicitly opt out. */

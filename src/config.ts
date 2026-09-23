@@ -2,6 +2,8 @@ import type { BossKind, DifficultyConfig } from "./types";
 
 export const GAME_WIDTH = 1280;
 export const GAME_HEIGHT = 760;
+export const BATTLE_STATUS_Y = 92;
+export const BATTLE_PROGRESS_Y = GAME_HEIGHT - 50;
 export const FLYING_DISPLAY_OFFSET_Y = -14;
 export const LANES = 7;
 export const COLUMNS = 13;

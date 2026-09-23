@@ -4,6 +4,19 @@ import { test } from "node:test";
 import ts from "typescript";
 import { createTypeScriptLoader } from "./helpers/load-typescript.mjs";
 
+test("battlefield clipping extends symmetrically to both wave labels without exposing the card rail", () => {
+  const load = createTypeScriptLoader({ phaser: {} });
+  const c = load("src/config.ts");
+  const { BATTLEFIELD_VIEWPORT: view } = load("src/render/battlefieldLayer.ts");
+  assert.ok(view.y <= c.BATTLE_STATUS_Y);
+  assert.ok(view.y + view.height >= c.BATTLE_PROGRESS_Y);
+  assert.equal(c.BOARD_Y - view.y, view.y + view.height - c.BOARD_Y - c.BOARD_HEIGHT);
+  assert.ok(view.y < c.BOARD_Y);
+  assert.ok(view.y + view.height > c.BOARD_Y + c.BOARD_HEIGHT);
+  assert.equal(view.x, c.BOARD_X - 32);
+  assert.equal(view.x + view.width, c.BOARD_X + c.BOARD_WIDTH);
+});
+
 test("timed seals wait for a 1s cue and 5s warning, erase once, and last 90s", () => {
   const { TimedCellSeals } = createTypeScriptLoader()("src/game/timedCellSeals.ts");
   const seals = new TimedCellSeals(), erased = [];
