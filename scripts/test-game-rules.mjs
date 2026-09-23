@@ -74,7 +74,17 @@ test("immediate seals preserve longer bans and shrink at a duration-relative rat
 });
 
 test("timed seal crosses and warnings draw on separate layers", () => {
-  const { drawTimedCellSeals } = createTypeScriptLoader()("src/render/timedCellSeals.ts");
+  const load = createTypeScriptLoader();
+  const { drawTimedCellSeals } = load("src/render/timedCellSeals.ts");
+  const { createCellSealMark } = load("src/render/cellSealMark.ts");
+  const created = [];
+  const scene = { children: {}, add: { text: (x,y,text,style) => {
+    const mark = { x,y,text,style, destroy() { this.destroyed = true; } };
+    for (const name of ["Origin","Depth","Alpha","Stroke","Scale"]) mark[`set${name}`] = (...args) => {
+      mark[name] = args; return mark;
+    };
+    created.push(mark); return mark;
+  } } };
   const mock = () => {
     const calls = [];
     const graphics = Object.fromEntries(["clear", "lineStyle", "lineBetween", "fillStyle", "fillRect", "strokeRect"]
@@ -82,14 +92,27 @@ test("timed seal crosses and warnings draw on separate layers", () => {
     return { calls, graphics };
   };
   const marks = mock(), warnings = mock();
+  marks.graphics.scene = scene; marks.graphics.depth = 1; marks.graphics.displayList = scene.children;
+  marks.graphics.once = (_event, callback) => { marks.destroy = callback; };
   drawTimedCellSeals(marks.graphics, [
     { lane: 2, column: 3, active: true, warnedAt: 0, sealsAt: 0, expiresAt: 40000 },
     { lane: 2, column: 4, active: false, warnedAt: 19000, sealsAt: 24000, expiresAt: 114000 }
   ], 20000, warnings.graphics);
-  assert.ok(marks.calls.some(([name, width]) => name === "lineStyle" && width === 2.25));
+  const timed = created[0], permanent = createCellSealMark(scene, 2, 3);
+  assert.equal(timed.text, "×"); assert.deepEqual(timed.style, permanent.style);
+  for (const key of ["x","y","Origin","Depth","Alpha","Stroke"]) assert.deepEqual(timed[key],permanent[key]);
+  assert.deepEqual(timed.Scale,[.75]);
   assert.ok(marks.calls.every(([name]) => name !== "fillRect" && name !== "strokeRect"));
   assert.ok(warnings.calls.some(([name]) => name === "strokeRect"));
   assert.ok(warnings.calls.every(([name]) => name !== "lineBetween"));
+  const seal = { lane:2,column:3,active:true,warnedAt:0,sealsAt:0,expiresAt:40000 };
+  drawTimedCellSeals(marks.graphics,[seal,seal],30000,warnings.graphics);
+  assert.equal(created.length,2,"Reuse one glyph for the same cell, including overlapping seals");
+  assert.deepEqual(timed.Scale,[.625]);
+  drawTimedCellSeals(marks.graphics,[],40000,warnings.graphics);
+  assert.equal(timed.destroyed,true,"Expired glyph leaked");
+  drawTimedCellSeals(marks.graphics,[seal],0,warnings.graphics);
+  marks.destroy(); assert.equal(created.at(-1).destroyed,true,"Scene teardown leaked a glyph");
 });
 
 test("DEL sweep warns, sweeps only three lanes, wraps without crossing the board, and returns once", () => {

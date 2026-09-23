@@ -4,7 +4,7 @@ export const DEL_DELETE_STACK = {
   cost: 40,
   warningMs: 5000,
   sealMs: 90000,
-  glitchMs: 1000
+  glitchMs: 2000
 } as const;
 
 export const DEL_SWEEP = { hpRatio: .75, warningMs: 3000, speed: 600, sealMs: 40000 } as const;

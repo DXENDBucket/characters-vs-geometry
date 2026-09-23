@@ -58,8 +58,8 @@ export function bossDetailSections(icon: BossIcon, level: number): DetailSection
     passive("75% 生命机制", "75% HP event", l("首次降至 75% 生命：中间三行红色预警 3 秒，本体金色故障闪动并无敌。随后以速度 600 向左完全离场，再从右侧向左回到原位停止，全程不触发底线且保持无敌。移动时碰撞箱经过的格子擦除并封禁 40 秒。限时封格的 × 按剩余时间从原尺寸缩至 50%，永久封格不缩小。",
       "First reaching 75% HP: warns the middle three lanes in red for 3s; DEL glitches gold and becomes invincible. Moves left at speed 600 until fully off-board, then returns from the right to its original position. Remains invincible and cannot breach the base throughout. Cells touched by its moving hitbox are erased and sealed for 40s. Timed seal marks shrink from full size to 50%; permanent marks do not shrink."), [battlefieldRange]);
     skill("删除：栈", "Delete: Stack", DEL_DELETE_STACK.maxSp, DEL_DELETE_STACK.cost, DEL_DELETE_STACK.initialSp,
-      l("本体红色故障闪动 1 秒后，锁定此时最后放置的塔所在格；若此时无塔则结束，不返还技力。格子预警 5 秒后擦除格内的塔，并封禁 90 秒。锁格后目标移动或消失不改变预警位置。",
-        "DEL glitches red for 1s, then locks the cell of the most recently placed tower at that moment. If no tower remains, the skill ends without an SP refund. After a 5s cell warning, erases towers there and seals the cell for 90s; the warning no longer follows the target."),
+      l("本体红色故障闪动 2 秒后，锁定此时最后放置的塔所在格；若此时无塔则结束，不返还技力。格子预警 5 秒后擦除格内的塔，并封禁 90 秒。锁格后目标移动或消失不改变预警位置。",
+        "DEL glitches red for 2s, then locks the cell of the most recently placed tower at that moment. If no tower remains, the skill ends without an SP refund. After a 5s cell warning, erases towers there and seals the cell for 90s; the warning no longer follows the target."),
       battlefieldRange, DEL_DELETE_STACK.sealMs, l("满技力且场上有塔时自动释放；无塔时保留技力", "Automatically at full SP when a tower exists; holds SP otherwise"));
   }
   if (ico && level === 1) {

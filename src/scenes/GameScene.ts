@@ -12,6 +12,7 @@ import { validateReplay, type BattleCommand, type BattlePointer, type BattleRepl
 import { BattleActionQueue, type BattleAction, type ScheduleBattleAction } from "../game/battleActions";
 import { TimedCellSeals } from "../game/timedCellSeals";
 import { drawTimedCellSeals } from "../render/timedCellSeals";
+import { createCellSealMark } from "../render/cellSealMark";
 import type { BattleSaveState } from "../game/battleSaveState";
 import { captureBattleSnapshot, restoreBattleSnapshot } from "../game/battleSnapshot";
 import { deleteSurvivalSave, readSurvivalSave, writeSurvivalSave, type SurvivalSave } from "../survivalSaves";
@@ -2213,18 +2214,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.sealedCells.add(key);
-    const center = this.cellCenter(lane, column);
-    const mark = this.add
-      .text(center.x, center.y - 2, "×", {
-        color: "#ff4d4d",
-        fontFamily: "monospace",
-        fontSize: "58px",
-        fontStyle: "700"
-      })
-      .setOrigin(0.5)
-      .setDepth(1)
-      .setAlpha(0.82);
-    mark.setStroke("#2a0000", 4);
+    const mark = createCellSealMark(this, lane, column);
     this.sealedCellMarks.set(key, mark);
   }
 

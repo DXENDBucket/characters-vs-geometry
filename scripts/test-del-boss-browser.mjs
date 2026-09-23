@@ -32,6 +32,7 @@ try {
     for (const active of game.scene.getScenes(true)) game.scene.stop(active.sys.settings.key);
     game.scene.start("GameScene", { levelId: "AE-10", seed: 512, difficulty: 1, selectedCards: ["A", "B", "O", "()"] });
     const scene = game.scene.getScene("GameScene"), boss = scene.boss;
+    const cueMs = 2000, sealAt = cueMs+5000, expiresAt = sealAt+90000;
     const check = (ok, message) => { if (!ok) throw Error(message); };
     check(boss?.kind === "del", "DEL did not spawn");
     check(boss.hp === 500000 && boss.baseStats.armor === 150 && boss.baseStats.magicResistance === 20, "Wrong panel");
@@ -63,33 +64,33 @@ try {
     const cueGraph = JSON.parse(JSON.stringify(captureBattleSnapshot(scene.battleState())));
     validateBattleSave(cueGraph, scene.wave, "del");
     const cueState = restoreBattleSnapshot(scene, cueGraph);
-    check(cueState.boss.deleteStackPending && cueState.boss.skills.deleteStack.activeUntil === 1000, "Pending cue lost in save");
+    check(cueState.boss.deleteStackPending && cueState.boss.skills.deleteStack.activeUntil === cueMs, "Pending cue lost in save");
     for (const tower of cueState.towers) tower.body.destroy();
     cueState.boss.body.destroy();
     const newest = place("B", 3, 5), shell = place("()", 3, 5);
-    scene.battleTime = 999; updateBossRuntime(scene.bossRuntime(), 0);
+    scene.battleTime = cueMs-1; updateBossRuntime(scene.bossRuntime(), 0);
     check(!scene.timedCellSeals.entries.length, "Target locked before cue ended");
-    scene.battleTime = 1000; updateBossRuntime(scene.bossRuntime(), 0);
+    scene.battleTime = cueMs; updateBossRuntime(scene.bossRuntime(), 0);
     const seal = scene.timedCellSeals.entries[0];
-    check(seal.lane === 3 && seal.column === 5 && seal.warnedAt === 1000 && seal.sealsAt === 6000 &&
-      seal.expiresAt === 96000 && boss.skills.deleteStack.sp === 0, "Wrong target, SP cost or timing");
-    drawTimedCellSeals(scene.timedCellSealGraphics, scene.timedCellSeals.entries, 999, scene.timedCellWarningGraphics);
+    check(seal.lane === 3 && seal.column === 5 && seal.warnedAt === cueMs && seal.sealsAt === sealAt &&
+      seal.expiresAt === expiresAt && boss.skills.deleteStack.sp === 0, "Wrong target, SP cost or timing");
+    drawTimedCellSeals(scene.timedCellSealGraphics, scene.timedCellSeals.entries, cueMs-1, scene.timedCellWarningGraphics);
     check(scene.timedCellWarningGraphics.commandBuffer.length === 0, "Cell warning appeared during initial cue");
-    drawTimedCellSeals(scene.timedCellSealGraphics, scene.timedCellSeals.entries, 1000, scene.timedCellWarningGraphics);
+    drawTimedCellSeals(scene.timedCellSealGraphics, scene.timedCellSeals.entries, cueMs, scene.timedCellWarningGraphics);
     check(scene.timedCellWarningGraphics.commandBuffer.length > 0, "Cell warning missing after cue");
     check(scene.shifter.executeMove({ type: "moveTowers", sources: [newest, shell].map(t => ({ towerId: t.id, lane: t.lane, column: t.column })),
       destination: { lane: 3, column: 6 } }) === "moved", "Cannot escape warning with shifter");
     const replacement = place("O", 3, 5), replacementShell = place("()", 3, 5);
-    scene.battleTime = 2000;
+    scene.battleTime = cueMs+1000;
     const warningGraph = JSON.parse(JSON.stringify(captureBattleSnapshot(scene.battleState())));
     validateBattleSave(warningGraph, scene.wave, "del");
     const warningState = restoreBattleSnapshot(scene, warningGraph);
-    check(warningState.timedCellSeals[0].sealsAt === 6000, "Warning lost in snapshot");
+    check(warningState.timedCellSeals[0].sealsAt === sealAt, "Warning lost in snapshot");
     for (const tower of warningState.towers) tower.body.destroy();
     warningState.boss.body.destroy();
-    scene.battleTime = 5999 - 1000 / 60; scene.stepBattle();
-    check(replacement.inPlay && scene.cellIsDeployable(3, 5), "Sealed before 6s");
-    scene.battleTime = 6000 - 1000 / 60; scene.stepBattle();
+    scene.battleTime = sealAt-1 - 1000 / 60; scene.stepBattle();
+    check(replacement.inPlay && scene.cellIsDeployable(3, 5), "Sealed before 7s");
+    scene.battleTime = sealAt - 1000 / 60; scene.stepBattle();
     check(!replacement.inPlay && !replacementShell.inPlay && newest.inPlay && shell.inPlay && older.inPlay,
       "Seal followed moved target or failed to erase both layers");
     check(!scene.cellIsDeployable(3, 5), "Active seal allows placement");
@@ -100,25 +101,25 @@ try {
       destination: { lane: 3, column: 5 } }) === "invalid", "Shifter bypassed seal");
     scene.sealCell(0, 0);
     scene.timedCellSeals.warn(0, 0, 0, 5000, 90000, 1000);
-    scene.battleTime = 95999 - 1000 / 60; scene.stepBattle();
+    scene.battleTime = expiresAt-1 - 1000 / 60; scene.stepBattle();
     check(!scene.cellIsDeployable(3, 5), "Seal expired before 90s");
-    scene.battleTime = 96000 - 1000 / 60; scene.stepBattle();
+    scene.battleTime = expiresAt - 1000 / 60; scene.stepBattle();
     check(scene.cellIsDeployable(3, 5) && !scene.cellIsDeployable(0, 0), "Expiry removed permanent seal or failed to restore cell");
     boss.skills.deleteStack.sp = 39; boss.skills.deleteStack.spBuffer = 0;
     updateBossRuntime(scene.bossRuntime(), 1);
     check(boss.skills.deleteStack.sp === 0 && boss.deleteStackPending && !scene.timedCellSeals.entries.length,
       "SP did not recharge and recast");
     for (const tower of [...scene.towers]) removeTower(scene.unitLifecycleRuntime(), tower);
-    scene.battleTime = 97000; updateBossRuntime(scene.bossRuntime(), 0);
+    scene.battleTime = expiresAt+cueMs; updateBossRuntime(scene.bossRuntime(), 0);
     check(!boss.deleteStackPending && boss.skills.deleteStack.sp === 0 && !scene.timedCellSeals.entries.length,
       "No-target cue did not cancel or refunded SP");
     place("B", 3, 5);
     boss.skills.deleteStack.sp = 40;
     updateBossRuntime(scene.bossRuntime(), 0);
-    scene.battleTime = 98000; updateBossRuntime(scene.bossRuntime(), 0);
+    scene.battleTime = expiresAt+cueMs*2; updateBossRuntime(scene.bossRuntime(), 0);
     const visualSeal = scene.timedCellSeals.entries[0];
     window.__delSkillFrame = lead => {
-      const time = 97000 + lead;
+      const time = expiresAt+cueMs + lead;
       updateCubeBossMotion(boss, 0, 1, time);
       drawTimedCellSeals(scene.timedCellSealGraphics, [visualSeal], time, scene.timedCellWarningGraphics);
     };
@@ -159,7 +160,7 @@ try {
     }
     assert.notDeepEqual(images[0], images[1], `${name}: animation is static`);
   }
-  for (const [phase, time] of [["cue", 400], ["warning", 1800]]) {
+  for (const [phase, time] of [["cue", 1400], ["warning", 2800]]) {
     await page.evaluate(time => window.__delSkillFrame(time), time);
     await page.waitForTimeout(100);
     await page.screenshot({ path: `logs/del-stack-${phase}.png` });
@@ -348,6 +349,15 @@ try {
     await page.waitForTimeout(100);
     await page.screenshot({path:`logs/del-quarter-${step}.png`});
   }
+  await page.evaluate(() => {
+    const scene = window.__testGame.scene.getScene("GameScene");
+    const permanent = [...scene.sealedCellMarks.values()];
+    const timed = scene.battlefield.worldLayer.list.filter(o => o.type === "Text" && o.text === "×" && !permanent.includes(o));
+    if (!timed.length || timed.some(o => o.style.fontSize !== "58px" || o.depth !== 1)) throw Error("Wrong timed cross style/layer");
+    scene.timedCellSealGraphics.destroy();
+    if (timed.some(o => o.scene) || permanent.some(o => !o.scene)) throw Error("Timed mark cleanup affected permanent marks or leaked");
+    window.__testGame.scene.stop("GameScene");
+  });
   assert.deepEqual(errors, []);
   console.log("DEL quarter-health sweep, outer cell erasure, Heart I summons and snapshots passed");
   console.log("DEL half-health sweep, projectile collision, summons and snapshot checks passed");
