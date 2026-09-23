@@ -5,6 +5,7 @@ import { enemyFamily } from "./registry/enemies";
 import type { BossKind } from "./types";
 
 const BOSS_ICONS: Record<BossKind, NonNullable<EncyclopediaEntry["icon"]>> = {
+  del: "del",
   cube: "cube",
   cube2: "cube",
   tetrahedron: "tetrahedron",

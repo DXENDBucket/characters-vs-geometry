@@ -33,7 +33,7 @@ export function captureBattleSnapshot(state: BattleSaveState) {
     if (typeof value.id === "string" && value.id.startsWith("tower:")) return { kind: "tower", omit: towerVisuals };
     if ("kind" in value && "waveNumber" in value) return { kind: "enemy", omit: enemyVisuals };
     if ("advanceMinionKind" in value && "rank" in value) {
-      if (!rankedBossFamily(value.kind) && value.kind !== "icosahedron") throw new Error("Unsupported boss save");
+      if (!rankedBossFamily(value.kind) && value.kind !== "icosahedron" && value.kind !== "del") throw new Error("Unsupported boss save");
       return { kind: "boss", omit: bossVisuals };
     }
     if ("body" in value) {

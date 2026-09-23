@@ -51,6 +51,7 @@ export const CUBE_BOSS_STATS: Record<
   BossKind,
   { hp: number; armor: number; magicResistance: number; speed: number; hitboxCells?: number }
 > = {
+  del: { hp: 120_000, armor: 150, magicResistance: 20, speed: 0, hitboxCells: 3 },
   cube: { hp: 150_000, armor: 300, magicResistance: 20, speed: 0.6 },
   cube2: { hp: 200_000, armor: 600, magicResistance: 20, speed: 0.6 },
   tetrahedron: { hp: 120_000, armor: 150, magicResistance: 20, speed: 1.2 },

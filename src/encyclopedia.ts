@@ -47,7 +47,7 @@ export interface EncyclopediaEntry {
   card?: CardDefinition;
   mechanicId?: EncyclopediaMechanicId;
   mechanicIcon?: string;
-  icon?: "cube" | "tetrahedron" | "dodecahedron" | "smallStellatedDodecahedron" | "octahedron" | "icosahedron";
+  icon?: "cube" | "tetrahedron" | "dodecahedron" | "smallStellatedDodecahedron" | "octahedron" | "icosahedron" | "del";
 }
 
 export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
@@ -117,6 +117,13 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
   const chevron = getEnemyDefinition("chevronLeader");
 
   return [
+    {
+      title: "DEL", icon: "del", chapterGroupId: "ascii",
+      lines: [statLine([[t("label.hp"), CUBE_BOSS_STATS.del.hp], [t("label.armor"), CUBE_BOSS_STATS.del.armor],
+        [t("label.mr"), CUBE_BOSS_STATS.del.magicResistance], [t("label.speed"), CUBE_BOSS_STATS.del.speed]])],
+      description: zh ? "ASCII 扩展 AE-10 的 Boss。碰撞体为 3×3 格，静止。双重二进制环围绕 DEL 快速旋转，字形偶尔出现错位干扰。当前没有专属技能，保留 Boss 的常规接触伤害。"
+        : "Boss of ASCII Expansion AE-10. Stationary with a 3x3-cell hitbox. Two fast binary rings surround DEL, with occasional glyph glitches. No unique skills yet; retains standard Boss contact damage."
+    },
     {
       title: zh ? "大于号系列" : "Greater-Than Sign Series",
       enemyKind: "chevronLeader",

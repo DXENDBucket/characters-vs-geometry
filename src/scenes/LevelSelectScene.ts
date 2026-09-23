@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { drawDelBoss } from "../render/delBoss";
 import { bindButtonHover } from "../render/buttonHover";
 import { bindSliderInput } from "../render/sliderInput";
 import { createPageHeading, createHeaderNavigation } from "../render/pageHeader";
@@ -399,6 +400,11 @@ export class LevelSelectScene extends Phaser.Scene {
   }
 
   private drawBossNodePreview(preview: BossNodePreview) {
+    if (preview.kind === "del") {
+      preview.label.setVisible(false);
+      drawDelBoss(preview.frame, 22, this.time.now);
+      return;
+    }
     if (isTetrahedronBossKind(preview.kind)) {
       this.drawTetrahedronNodePreview(preview);
       return;

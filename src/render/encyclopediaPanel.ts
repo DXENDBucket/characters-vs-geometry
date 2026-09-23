@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { createDelIcon } from "./delBoss";
 import { playUiClick } from "../audio/player";
 import { drawTowerShellBorder } from "./parenthesisTower";
 import { isTowerShellType } from "../game/towerOccupancy";
@@ -914,6 +915,7 @@ export class EncyclopediaPanel {
   }
 
   private createBossIcon(icon: NonNullable<EncyclopediaEntry["icon"]>) {
+    if (icon === "del") return createDelIcon(this.scene);
     if (icon === "cube") {
       return createCubeIcon(this.scene);
     }

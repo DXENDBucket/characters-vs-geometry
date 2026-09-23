@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { drawDelBoss } from "../render/delBoss";
 import { bossMovementDirection, expireReversalEffect } from "../game/rules/reversal";
 import {
   BOARD_HEIGHT,
@@ -269,7 +270,7 @@ export function createCubeBoss(
   const boss: CubeBoss = {
     kind,
     rank,
-    label: toRomanNumeral(rank),
+    label: kind === "del" ? "DEL" : toRomanNumeral(rank),
     x,
     y,
     hitboxWidth,
@@ -388,6 +389,11 @@ export function updateCubeBossMotion(boss: CubeBoss, seconds: number, movementMu
   }
   boss.body.setPosition(boss.x, boss.y);
 
+  if (boss.kind === "del") {
+    drawCubeBoss(boss, time);
+    return;
+  }
+
   boss.nextTurnIn -= seconds;
   if (boss.nextTurnIn <= 0) {
     if (isTetrahedronBoss(boss)) {
@@ -455,6 +461,11 @@ export function bossAdvanceSpawnPoints(boss: CubeBoss) {
 }
 
 function drawCubeBoss(boss: CubeBoss, time: number) {
+  if (boss.kind === "del") {
+    boss.labelText.setVisible(false);
+    drawDelBoss(boss.frame, Math.min(boss.hitboxWidth!, boss.hitboxHeight!) / 2 - 6, time, boss.invincibleUntil > time);
+    return;
+  }
   if (isTetrahedronBoss(boss)) {
     drawTetrahedronBoss(boss, time);
     return;
@@ -560,6 +571,7 @@ export function isIcosahedronBoss(boss: CubeBoss) {
 
 function isSkilllessBossKind(kind: BossKind) {
   return (
+    kind === "del" ||
     isDodecahedronBossKind(kind) ||
     isSmallStellatedDodecahedronBossKind(kind) ||
     isOctahedronBossKind(kind)

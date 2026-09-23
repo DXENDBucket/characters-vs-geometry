@@ -3057,6 +3057,13 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 - Enemy pool: Circle I, Tilde I/II/III, Equals I/II/III, Parentheses I/II/III, Dollar I (`$`), Greater-Than Sign I (`>`).
 - Greater-Than Sign I is a leader, appearing on flag waves without consuming regular wave weight. Unlocking AE-9 also reveals its encyclopedia entry.
 
+## ASCII Expansion: AE-10
+
+- Unlocks after AE-9. Boss battle: waves continue until DEL is defeated; not an Infinite Front operation.
+- Same enemy pool as AE-9. Starting characters 500; initial weight 25, increment +18, extra increment +3, provisional weight cap 800 (same as 2-10).
+- DEL: 120000 HP, 150 armor, 20 MR, speed 0, fixed 3-by-3-cell hitbox. Other base stats follow Tetrahedron I. No unique skills yet; standard Boss contact damage remains.
+- Visual: intermittent DEL glitches and two rapidly rotating, tilting rings of alternating binary digits, with rounded zero glyphs. Battle, map preview and encyclopedia share the same renderer.
+
 ## Recent Enemy Additions
 
 - Greater-Than Sign leader (`>` / `<`): HP `32000`, +`16000` per additional rank, armor `100`, MR `50`, ATK `450` magic, fixed speed `15`. Rank I first appears in AE-9.

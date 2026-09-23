@@ -102,6 +102,7 @@ export type EnemyFamily =
 export type RankedEnemyFamily = Exclude<EnemyFamily, "solarBomb">;
 export type EnemyKind = EnemyFamily | `${RankedEnemyFamily}${number}`;
 export type BossKind =
+  | "del"
   | "cube"
   | "cube2"
   | "tetrahedron"

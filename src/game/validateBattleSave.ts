@@ -99,8 +99,9 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
   require(expectedBossKind ? member("boss")(state.boss) && state.boss!.hp > 0 : !state.boss);
   for (const object of units.get("boss") ?? []) {
     const boss = object as Record<string, unknown>;
-    const family = rankedBossFamily(boss.kind);
-    require(expectedBossKind && family && family === rankedBossFamily(expectedBossKind));
+    const family = rankedBossFamily(boss.kind) ?? (boss.kind === "del" ? "del" : undefined);
+    const expectedFamily = rankedBossFamily(expectedBossKind) ?? (expectedBossKind === "del" ? "del" : undefined);
+    require(expectedBossKind && family && family === expectedFamily);
     require(Number.isSafeInteger(boss.rank) && (boss.rank as number) >= 1);
     require(finite(boss.hp) && boss.hp >= 0 && finite(boss.maxHp) && boss.maxHp > 0 && boss.hp <= boss.maxHp);
     if (!record(boss.baseStats) || !record(boss.finalStats) || !record(boss.skills)) throw new Error("Invalid boss state");

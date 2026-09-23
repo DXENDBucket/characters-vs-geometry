@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { drawDelBoss } from "./delBoss";
 import { attachProjectileTrail, removeProjectileTrail, updateProjectileTrail } from "./projectileTrail";
 import {
   DODECAHEDRON_EDGES,
@@ -934,6 +935,14 @@ export function makeCubeCollapse(
   _activeTowers: Tower[] = []
 ) {
   makePolyhedronCollapse(scene, x, y, "cube", followTarget);
+}
+
+export function makeDelCollapse(scene: Phaser.Scene, x: number, y: number, followTarget?: Enemy | Tower) {
+  const effect = acquireEffectGraphics(scene, 108).setPosition(x, y);
+  drawDelBoss(effect, 34, 3330);
+  scene.tweens.add({ targets: effect, scale: .15, alpha: 0, duration: 380, ease: "Quad.easeIn",
+    onUpdate: () => { if (followTarget?.inPlay) effect.setPosition(followTarget.x, followTarget.y); },
+    onComplete: () => releaseEffectGraphics(scene, effect) });
 }
 
 export function makeTetrahedronCollapse(

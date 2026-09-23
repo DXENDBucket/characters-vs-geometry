@@ -40,6 +40,7 @@ import {
 import {
   makeBossHasteTrail,
   makeCubeCollapse,
+  makeDelCollapse,
   makeDodecahedronCollapse,
   makeEnemyHitShards,
   makeEnemyInvincibleFlash,
@@ -1563,6 +1564,11 @@ function makeBossCollapse(
   y: number,
   followTarget?: Enemy | Tower
 ) {
+  if (boss.kind === "del") {
+    makeDelCollapse(runtime.scene, x, y, followTarget);
+    return;
+  }
+
   if (isTetrahedronBoss(boss)) {
     makeTetrahedronCollapse(runtime.scene, x, y, followTarget, runtime.enemies, runtime.towers);
     return;

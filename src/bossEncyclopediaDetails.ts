@@ -23,8 +23,9 @@ export function bossPreviewLimit(icon: BossIcon) {
 
 export function bossDetailSections(icon: BossIcon, level: number): DetailSection[] {
   const ico = icon === "icosahedron", rank = ico ? 3 : level;
-  const contact: RangeDefinition = { shape: { kind: "rectangle", halfWidth: (ico ? config.CUBE_BOSS_STATS.icosahedron.hitboxCells! : config.BOSS_HITBOX_WIDTH / config.CELL_WIDTH) / 2,
-    halfHeight: (ico ? config.CUBE_BOSS_STATS.icosahedron.hitboxCells! : config.BOSS_HITBOX_HEIGHT / config.CELL_HEIGHT) / 2 },
+  const hitboxCells = config.CUBE_BOSS_STATS[icon].hitboxCells;
+  const contact: RangeDefinition = { shape: { kind: "rectangle", halfWidth: (hitboxCells ?? config.BOSS_HITBOX_WIDTH / config.CELL_WIDTH) / 2,
+    halfHeight: (hitboxCells ?? config.BOSS_HITBOX_HEIGHT / config.CELL_HEIGHT) / 2 },
     label: { zh: "接触 Boss 碰撞体", en: "Contact with the Boss hitbox" } };
   const column: RangeDefinition = { shape: { kind: "column", halfWidth: .5 } };
   const sections: DetailSection[] = [{ title: l("常规攻击", "Regular attack"), tag: l("接触伤害", "Contact damage"), tone: "attack",

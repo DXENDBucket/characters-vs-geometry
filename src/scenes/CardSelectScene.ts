@@ -402,6 +402,7 @@ export class CardSelectScene extends Phaser.Scene {
   }
 
   private bossDisplayName(kind: BossKind) {
+    if (kind === "del") return "DEL";
     if (isTetrahedronBossKind(kind)) {
       return `${t("enemy.bossTetrahedron")} ${toRomanNumeral(bossRank(kind))}`;
     }

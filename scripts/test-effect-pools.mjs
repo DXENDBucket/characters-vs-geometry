@@ -14,6 +14,12 @@ const trailModule = ts.transpileModule(
 );
 const trails = {};
 new Function("exports", trailModule.outputText)(trails);
+const delModule = ts.transpileModule(
+  fs.readFileSync(new URL("../src/render/delBoss.ts", import.meta.url), "utf8"),
+  { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }
+);
+const del = {};
+new Function("exports", delModule.outputText)(del);
 const effects = {};
 new Function("require", "exports", outputText)(name => {
   if (name === "phaser") return { default: {} };
@@ -21,6 +27,7 @@ new Function("require", "exports", outputText)(name => {
   if (name === "../i18n") return { EFFECT_SYMBOLS: { chars: "Aa" } };
   if (name === "../bosses/cubeBoss") return {};
   if (name === "./projectileTrail") return trails;
+  if (name === "./delBoss") return del;
   throw new Error(`Unexpected import: ${name}`);
 }, effects);
 
@@ -68,6 +75,69 @@ function emitAll(scene, amount = 25) {
   effects.makeAutoUpgradePulse(scene, 400, 300);
   effects.makeProductionPulse(scene, 400, 300, amount);
 }
+
+test("DEL orbits have rounded zero glyphs and deterministic animation", () => {
+  let paths = [], path;
+  const graphics = {
+    clear() { paths = []; }, lineStyle() {},
+    beginPath() { path = []; paths.push(path); },
+    moveTo(x, y) { path.push([x, y]); },
+    lineTo(x, y) { path.push([x, y]); },
+    strokePath() {}, lineBetween() {}
+  };
+  for (const radius of [22, 111]) {
+    del.drawDelBoss(graphics, radius, 1200);
+    const initial = structuredClone(paths);
+    const zeros = paths.filter(points => points.length === 25);
+    assert.equal(zeros.length, radius < 40 ? 64 : 112);
+    assert.ok(paths.flat(2).every(Number.isFinite));
+    assert.ok(paths.flat(2).every(value => Math.abs(value) < radius * 1.1));
+    for (const points of zeros) {
+      assert.ok(Math.hypot(points[0][0] - points.at(-1)[0], points[0][1] - points.at(-1)[1]) < 1e-8);
+    }
+    del.drawDelBoss(graphics, radius, 1200);
+    assert.deepEqual(paths, initial);
+    del.drawDelBoss(graphics, radius, 1400);
+    assert.notDeepEqual(paths, initial);
+  }
+});
+
+test("DEL contact effects reuse one graphics object", () => {
+  const f = fixture();
+  for (let i = 0; i < 20; i++) {
+    effects.makeDelCollapse(f.scene, 400, 300);
+    f.complete();
+  }
+  assert.equal(f.objects.length, 1);
+  f.end();
+});
+
+test("DEL name stays between rear and front glyphs, with opaque local occlusion", () => {
+  let paths, path, style;
+  const graphics = {
+    clear() { paths = []; }, lineStyle(...args) { style = args; },
+    beginPath() { path = { points: [], style }; paths.push(path); },
+    moveTo(x, y) { path.points.push([x, y]); },
+    lineTo(x, y) { path.points.push([x, y]); }, strokePath() {}, lineBetween() {}
+  };
+  for (const time of [0, 500, 1200, 3300, 7000]) {
+    del.drawDelBoss(graphics, 111, time);
+    const nameStart = paths.findIndex(p => p.points.length === 7);
+    const nameEnd = paths.findLastIndex(p => ![5, 25].includes(p.points.length));
+    const rear = paths.slice(0, nameStart).filter(p => p.style[1] === 0xf5f5f5);
+    const front = paths.slice(nameEnd + 1).filter(p => p.style[1] === 0xf5f5f5);
+    assert.ok(rear.length && front.length);
+    assert.ok(rear.every(p => p.style[2] <= .73 + 1e-12));
+    assert.ok(front.every(p => p.style[2] >= .73 - 1e-12));
+    for (const p of [...rear, ...front]) {
+      const underlay = paths[paths.indexOf(p) - 1];
+      assert.equal(underlay.style[1], 0x050505);
+      assert.equal(underlay.style[2], 1);
+      assert.ok(underlay.style[0] > p.style[0]);
+      assert.deepEqual(underlay.points, p.points);
+    }
+  }
+});
 
 test("all four effect pools reuse live objects within a battle, including pause/resume", () => {
   const f = fixture();

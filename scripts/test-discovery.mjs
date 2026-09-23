@@ -114,6 +114,26 @@ function fixture(saved) {
   };
 }
 
+test("AE-10 unlocks DEL after AE-9 and uses its enemy pool in a finite Boss battle", () => {
+  const { progress, levels, visibility } = fixture();
+  const level = levels.getLevelConfig("AE-10");
+  assert.equal(level.bossKind, "del");
+  assert.equal(level.endless, true);
+  assert.equal(level.survival, undefined);
+  assert.equal(level.startingChars, 500);
+  assert.equal(level.waveWeightCap, 800);
+  assert.deepEqual(level.enemyKinds, levels.getLevelConfig("AE-9").enemyKinds);
+  for (const id of ["4-10", "AE-1", "AE-2", "AE-3", "AE-4", "AE-5", "AE-6", "AE-7", "AE-8"])
+    progress.completeLevel(id);
+  assert.equal(progress.isLevelUnlocked("AE-10"), false);
+  assert.equal(progress.discoveredEnemies().bosses.has("del"), false);
+  progress.completeLevel("AE-9");
+  assert.equal(progress.isLevelUnlocked("AE-10"), true);
+  assert.deepEqual(visibility.visibleEncyclopediaEntries([{ icon: "del" }]), [{ icon: "del" }]);
+  progress.completeLevel("AE-10");
+  assert.equal(progress.isLevelCompleted("AE-10"), true);
+});
+
 test("the first ASCII character unlocks only after clearing AE-1", () => {
   const { progress } = fixture();
   assert.equal(progress.isCardUnlocked("#"), false);
