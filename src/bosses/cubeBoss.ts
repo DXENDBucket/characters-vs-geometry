@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { drawDelBoss, drawDelEcho } from "../render/delBoss";
-import { DEL_DELETE_STACK } from "../data/delBoss";
+import { DEL_DELETE_STACK, DEL_FORMAT } from "../data/delBoss";
 import { delSweepActive } from "../game/delSweep";
 import { delLaneSweepInvincible } from "../game/delLaneSweep";
 import { bossMovementDirection, expireReversalEffect } from "../game/rules/reversal";
@@ -78,7 +78,7 @@ interface CreateCubeBossOptions {
   movementDirection?: -1 | 1;
 }
 
-function createBossSkill<Name extends BossSkillName>(
+export function createBossSkill<Name extends BossSkillName>(
   name: Name,
   maxSp: number,
   cost: number,
@@ -293,7 +293,8 @@ export function createCubeBoss(
     hasSkills: !isSkilllessBossKind(kind),
     skills: {
       ...(kind === "del" ? { deleteStack: createBossSkill("deleteStack", DEL_DELETE_STACK.maxSp,
-        DEL_DELETE_STACK.cost, DEL_DELETE_STACK.initialSp) } : {}),
+        DEL_DELETE_STACK.cost, DEL_DELETE_STACK.initialSp),
+        deleteFormat: createBossSkill("deleteFormat", DEL_FORMAT.maxSp, DEL_FORMAT.cost, DEL_FORMAT.initialSp) } : {}),
       promotion: createBossSkill("promotion", CUBE_BOSS_PROMOTION_SKILL_MAX, CUBE_BOSS_PROMOTION_SKILL_COST),
       advance: createBossSkill("advance", CUBE_BOSS_ADVANCE_SKILL_MAX, CUBE_BOSS_ADVANCE_SKILL_COST),
       ...(isTetrahedronBossKind(kind) || isIcosahedronBossKind(kind)
@@ -474,7 +475,7 @@ function drawCubeBoss(boss: CubeBoss, time: number) {
     }
     drawDelBoss(boss.frame, Math.min(boss.hitboxWidth!, boss.hitboxHeight!) / 2 - 6, time, boss.invincibleUntil > time,
       (boss.skills.deleteStack?.activeUntil ?? 0) > time, delSweepActive(boss) || delLaneSweepInvincible(boss),
-      boss.delLaneSweep?.phase === "summoning");
+      boss.delLaneSweep?.phase === "summoning", (boss.deleteFormatReadyAt ?? 0) > time);
     return;
   }
   if (isTetrahedronBoss(boss)) {

@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { DEL_DELETE_STACK } from "../data/delBoss";
+import { DEL_DELETE_STACK, DEL_FORMAT } from "../data/delBoss";
 import { advanceDelLaneSweep, startDelLaneSweep } from "./delLaneSweep";
 import { advanceDelSweep, delSweepActive, startDelSweep } from "./delSweep";
 import { syncDelSweepWarning } from "../render/delSweepWarning";
@@ -152,6 +152,7 @@ const ICOSAHEDRON_FINAL_REINFORCEMENTS: Array<{
 ];
 
 export interface BossRuntime {
+  nullifyTowers: (durationMs: number) => void;
   enemyHpMultiplier?: () => number;
   scheduleBattleAction?: ScheduleBattleAction;
   warnCellSeal: (lane: number, column: number, warningMs: number, durationMs: number, leadInMs: number) => void;
@@ -174,6 +175,14 @@ export interface BossRuntime {
 
 const bossSkillRegistry = createBossSkillRegistry<BossRuntime>({
   del: [{
+    skillKey: "deleteFormat",
+    chargeSeconds: (_runtime, boss, _skill, seconds) => boss.hp < boss.maxHp * .5 ? seconds : 0,
+    canUse: (runtime, boss, skill) => !boss.deleteFormatReadyAt && runtime.battleTime >= skill.activeUntil,
+    use: (runtime, boss, skill) => {
+      boss.deleteFormatReadyAt = runtime.battleTime + DEL_FORMAT.warningMs;
+      skill.activeUntil = boss.deleteFormatReadyAt + DEL_FORMAT.durationMs;
+    }
+  }, {
     skillKey: "deleteStack",
     canUse: runtime => runtime.towers.some(tower => tower.inPlay),
     use: (runtime, boss, skill) => {
@@ -258,6 +267,11 @@ export function updateBossRuntime(runtime: BossRuntime, seconds: number) {
   const boss = runtime.getBoss();
   if (!boss) {
     return;
+  }
+
+  if (boss.kind === "del" && boss.deleteFormatReadyAt !== undefined && runtime.battleTime >= boss.deleteFormatReadyAt) {
+    delete boss.deleteFormatReadyAt;
+    runtime.nullifyTowers(DEL_FORMAT.durationMs);
   }
 
   if (boss.kind === "del" && boss.deleteStackPending && runtime.battleTime >= boss.skills.deleteStack!.activeUntil) {

@@ -25,6 +25,10 @@ export class TowerStorageController {
   constructor(private readonly runtime: () => StorageRuntime) {}
 
   snapshot() { return this.stored.slice(); }
+  delayCarriers(towers: readonly Tower[], durationMs: number) {
+    const paused = new Set(towers);
+    for (const entry of this.stored) if (paused.has(entry.carrier)) entry.releaseAt += durationMs;
+  }
   restore(entries: StoredEnemy[]) { this.stored.splice(0, this.stored.length, ...entries); }
 
   get count() {
@@ -69,7 +73,7 @@ export class TowerStorageController {
     const runtime = this.runtime();
     for (let index = 0; index < this.stored.length;) {
       const entry = this.stored[index];
-      if (entry.releaseAt > runtime.battleTime) {
+      if (entry.carrier.nullified || entry.releaseAt > runtime.battleTime) {
         index += 1;
         continue;
       }

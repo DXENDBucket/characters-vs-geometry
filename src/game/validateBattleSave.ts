@@ -1,7 +1,7 @@
 import type { BattleSaveState } from "./battleSaveState";
 import { decodeSaveGraph, type NodeKind, type SaveGraph } from "./saveGraph";
 import { rankedBossFamily } from "../bosses/bossRanks";
-import type { BossKind, Enemy } from "../types";
+import type { BossKind, Enemy, Tower } from "../types";
 import { cardDefinitions } from "../data/cards";
 import { parseEnemyKind } from "./enemyIdentity";
 import { getEnemyDefinition } from "../registry/enemies";
@@ -109,6 +109,8 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
     if (!record(boss.baseStats) || !record(boss.finalStats) || !record(boss.skills)) throw new Error("Invalid boss state");
     if (family === "del") require((boss.deleteStackPending === undefined || typeof boss.deleteStackPending === "boolean") &&
       (!boss.deleteStackPending || record(boss.skills.deleteStack)));
+    if (boss.deleteFormatReadyAt !== undefined) require(family === "del" && finite(boss.deleteFormatReadyAt) &&
+      boss.deleteFormatReadyAt >= 0 && record(boss.skills.deleteFormat));
     if (boss.delSweep !== undefined) {
       const sweep = boss.delSweep;
       require(family === "del" && record(sweep) && ["warning", "outbound", "returning", "complete"].includes(sweep.phase as string) &&
@@ -136,7 +138,8 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
     }
     const skillKeys = ["promotion", "advance", ...(family === "tetrahedron"
       ? ["charge", "impact", "suppression", "desperation"] : family === "dodecahedron" ? ["endlessWings"] :
-        family === "del" && boss.skills.deleteStack !== undefined ? ["deleteStack"] : [])];
+        family === "del" ? [...(boss.skills.deleteStack !== undefined ? ["deleteStack"] : []),
+          ...(boss.skills.deleteFormat !== undefined ? ["deleteFormat"] : [])] : [])];
     for (const key of skillKeys) {
       const skill = boss.skills[key];
       require(record(skill) && [skill.sp, skill.spBuffer, skill.activeUntil, skill.maxSp, skill.cost].every(finite));
@@ -179,9 +182,16 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
   }
   require(array(state.towers, member("tower")) && array(state.enemies, member("enemy")) &&
     array(state.projectiles, member("projectile")) && array(state.enemyProjectiles, member("enemyProjectile")) && array(state.mortarProjectiles, member("mortar")));
+  if (state.nullifiedTowers !== undefined) {
+    const nul = state.nullifiedTowers;
+    require(record(nul) && finite(nul.startedAt) && nul.startedAt >= 0 && finite(nul.expiresAt) && nul.expiresAt > nul.startedAt &&
+      array(nul.towers, member("tower")) && new Set(nul.towers).size === nul.towers.length &&
+      nul.towers.every(tower => tower.nullified === true && !tower.inPlay && !state.towers.includes(tower)));
+  }
+  const nullified = new Set(state.nullifiedTowers?.towers ?? []);
   const towerCells = new Set<string>();
-  for (const tower of state.towers) {
-    if (!tower.inPlay || tower.transient) continue;
+  for (const tower of [...state.towers, ...nullified]) {
+    if ((!tower.inPlay && !nullified.has(tower)) || tower.transient) continue;
     const key = `${tower.lane}:${tower.column}:${isTowerShellType(tower.type) ? "shell" : "main"}`;
     require(!towerCells.has(key)); towerCells.add(key);
   }
@@ -236,6 +246,7 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
         require(["laser", "mortar", "wings"].includes(value.bossCompanionActionPhase as string));
       }
       if (kind === "tower") {
+        require(value.nullified === undefined || value.nullified === true && nullified.has(object as Tower));
         if (value.parenthesisGuard !== undefined) {
           const guard = value.parenthesisGuard;
           require(member("tower")(guard) && record(guard) && isTowerShellType(guard.type) && !isTowerShellType(value.type) &&

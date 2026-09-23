@@ -40,5 +40,11 @@ export class BattleActionQueue {
   }
 
   snapshot() { return this.pending.slice(); }
+  delayTowerActions(towers: readonly Tower[], durationMs: number) {
+    const paused = new Set(towers);
+    for (const entry of this.pending) {
+      if ("tower" in entry.action && paused.has(entry.action.tower)) entry.at += durationMs;
+    }
+  }
   restore(entries: ScheduledBattleAction[]) { this.pending = entries.slice(); }
 }

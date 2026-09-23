@@ -125,7 +125,8 @@ export type BossSkillName =
   | "heartbeatAlpha"
   | "heartbeatBeta"
   | "leap"
-  | "deleteStack";
+  | "deleteStack"
+  | "deleteFormat";
 export type ProjectileKind = "bolt" | "shell" | "star" | "hash" | "dollar" | "chevron";
 export type UnitCategory = "production" | "attack" | "defense" | "function" | "healing" | "special";
 export type DamageType = "physical" | "magic" | "true";
@@ -270,6 +271,7 @@ export interface NumberTowerState {
 }
 
 export interface Tower extends NumberTowerState {
+  nullified?: boolean;
   parenthesisGuard?: Tower;
   parenthesisInner?: Tower;
   projectileBank?: { shots: StoredTowerShot[]; remaining: number; nextAt: number; outletIndex: number };
@@ -637,6 +639,7 @@ export interface DelLaneSweepState {
 }
 
 export interface CubeBoss {
+  deleteFormatReadyAt?: number;
   delLaneSweep?: DelLaneSweepState;
   delEcho?: boolean;
   delSweep?: DelSweepState;
@@ -674,6 +677,7 @@ export interface CubeBoss {
     heartbeatBeta?: BossSkill<"heartbeatBeta">;
     leap?: BossSkill<"leap">;
     deleteStack?: BossSkill<"deleteStack">;
+    deleteFormat?: BossSkill<"deleteFormat">;
   };
   contactAttackBuffer: number;
   chargeExpiresAt: number;

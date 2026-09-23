@@ -2,7 +2,8 @@ import type Phaser from "phaser";
 import { TETRAHEDRON_BOSS_HASTE_MULTIPLIER } from "../config";
 import { refreshStatusEffect } from "./rules/statusEffectRules";
 import type { CubeBoss, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower } from "../types";
-import { createCubeBoss, updateCubeBossMotion } from "../bosses/cubeBoss";
+import { createBossSkill, createCubeBoss, updateCubeBossMotion } from "../bosses/cubeBoss";
+import { DEL_FORMAT } from "../data/delBoss";
 import { syncBossCopyWarnings } from "../render/bossCopyWarnings";
 import { syncDelSweepWarning } from "../render/delSweepWarning";
 import { secondaryBossParts } from "./targeting";
@@ -98,15 +99,18 @@ export function restoreBattleSnapshot(scene: Phaser.Scene, graph: SaveGraph): Ba
     if (!Array.isArray(state.towers) || !Array.isArray(state.enemies) || !Number.isFinite(state.battleTime) || state.baseIntegrity <= 0) {
       throw new Error("Invalid battle state");
     }
+    const nullified = new Set(state.nullifiedTowers?.towers ?? []);
     for (const tower of towers) {
       if (tower.type === "@") syncTowerFormVisual(scene, tower, getCardDefinition(towerBehaviorType(tower)), state.battleTime);
       tower.body.setVisible(tower.inPlay);
       syncTowerFacingVisual(tower); syncTowerFlyingVisual(tower, state.battleTime);
       syncTowerLevelText(tower); syncTowerHpBar(tower); syncTowerTrueDamageVisual(tower, state.battleTime);
       syncTowerAttachmentVisual(scene, tower);
-      if (!tower.inPlay) tower.body.destroy();
+      if (!tower.inPlay && !nullified.has(tower)) tower.body.destroy();
     }
     for (const boss of bosses) {
+      if (boss.kind === "del" && !boss.delEcho) boss.skills.deleteFormat ??=
+        createBossSkill("deleteFormat", DEL_FORMAT.maxSp, DEL_FORMAT.cost, DEL_FORMAT.initialSp);
       if (rankedBossFamily(boss.kind) === "tetrahedron" && boss.bossHasteUntil > state.battleTime) {
         refreshStatusEffect(boss, "haste", boss.bossHasteUntil, TETRAHEDRON_BOSS_HASTE_MULTIPLIER);
       }

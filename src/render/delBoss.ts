@@ -11,6 +11,11 @@ const LETTERS: readonly (readonly Stroke[])[] = [
   [[[.35, -.5], [-.35, -.5], [-.35, .5], [.35, .5]], [[-.35, 0], [.22, 0]]],
   [[[-.35, -.5], [-.35, .5], [.35, .5]]]
 ];
+const NUL_LETTERS: readonly (readonly Stroke[])[] = [
+  [[[-.35,.5],[-.35,-.5],[.35,.5],[.35,-.5]]],
+  [[[-.35,-.5],[-.35,.3],[-.15,.5],[.15,.5],[.35,.3],[.35,-.5]]],
+  LETTERS[2]
+];
 
 function stroke(graphics: Phaser.GameObjects.Graphics, points: Stroke, x: number, y: number, size: number, angle = 0) {
   const cos = Math.cos(angle), sin = Math.sin(angle);
@@ -25,11 +30,13 @@ function stroke(graphics: Phaser.GameObjects.Graphics, points: Stroke, x: number
 }
 
 // Animated 2D glyph orbits: one graphics object, no per-frame Text objects or gameplay RNG.
-export function drawDelBoss(graphics: Phaser.GameObjects.Graphics, radius: number, time: number, invincible = false, errorActive = false, goldActive = false, greenActive = false) {
+export function drawDelBoss(graphics: Phaser.GameObjects.Graphics, radius: number, time: number, invincible = false, errorActive = false, goldActive = false, greenActive = false, formatActive = false) {
   graphics.clear();
   const seconds = time / 1000;
-  const alertActive = goldActive || greenActive || errorActive;
-  const alertColor = goldActive ? 0xffd75a : greenActive ? 0x65f599 : 0xff4d4d;
+  const alertActive = formatActive || goldActive || greenActive || errorActive;
+  const alertColor = formatActive ? 0xa0a0a0 : goldActive ? 0xffd75a : greenActive ? 0x65f599 : 0xff4d4d;
+  const nul = formatActive && Math.floor(time / 160) % 2 === 1;
+  const letters = nul ? NUL_LETTERS : LETTERS;
   const errorFlash = alertActive && Math.floor(time / 80) % 2 === 0;
   const color = invincible && !goldActive ? 0xffd75a : 0xf5f5f5;
   const count = radius < 40 ? 32 : 56;
@@ -72,16 +79,16 @@ export function drawDelBoss(graphics: Phaser.GameObjects.Graphics, radius: numbe
     for (const underlay of [true, false]) {
       graphics.lineStyle(Math.max(1.5, radius * .034) + (underlay ? Math.max(1.5, radius * .022) : 0),
         underlay ? 0x050505 : nameColor, underlay ? 1 : alpha);
-      for (let i = 0; i < LETTERS.length; i++) {
-        for (const path of LETTERS[i]) stroke(graphics, path, (i - 1) * radius * .32 + xOffset, yOffset, radius * .34);
+      for (let i = 0; i < letters.length; i++) {
+        for (const path of letters[i]) stroke(graphics, path, (i - 1) * radius * .32 + xOffset, yOffset, radius * .34);
       }
     }
   };
   if (glitch) {
     drawName(-offset, -radius * .022, alertActive ? alertColor : 0x9fdcff, .65);
-    drawName(offset, radius * .022, goldActive || greenActive ? alertColor : 0xff6464, .5);
+    drawName(offset, radius * .022, formatActive || goldActive || greenActive ? alertColor : 0xff6464, .5);
   }
-  drawName(offset, 0, errorFlash ? alertColor : color, 1);
+  drawName(offset, 0, nul ? 0xa0a0a0 : errorFlash ? alertColor : color, 1);
   if (glitch) {
     graphics.lineStyle(Math.max(1, radius * .015), alertActive ? alertColor : 0x9fdcff, .9);
     for (let i = 0; i < 3; i++) {
@@ -102,5 +109,18 @@ export function drawDelEcho(graphics: Phaser.GameObjects.Graphics, size: number,
   graphics.clear().lineStyle(2, Math.floor(time / 120) % 2 ? 0xffd75a : 0xf5f5f5);
   for (let i = 0; i < LETTERS.length; i++) {
     for (const path of LETTERS[i]) stroke(graphics, path, (i - 1) * size * .3, 0, size * .31);
+  }
+}
+
+export function drawNulGlyph(graphics: Phaser.GameObjects.Graphics, x: number, y: number, time: number) {
+  const frame = Math.floor(time / 160), offset = frame % 3 === 0 ? 2 : frame % 3 === 1 ? -1 : 0;
+  graphics.lineStyle(2, frame % 2 ? 0xb5b5b5 : 0x777777, 1);
+  for (let i = 0; i < NUL_LETTERS.length; i++) {
+    for (const path of NUL_LETTERS[i]) stroke(graphics, path, x + (i-1)*19 + offset, y, 22);
+  }
+  if (frame % 3 !== 2) {
+    graphics.lineStyle(1, 0x888888, .65);
+    graphics.lineBetween(x-31, y+offset*3, x+29, y+offset*3);
+    graphics.lineBetween(x-20-offset, y-9, x+18+offset, y-9);
   }
 }

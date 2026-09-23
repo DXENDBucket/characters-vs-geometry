@@ -248,6 +248,46 @@ test("DEL quarter-health sweep follows the half event, seals outer lanes and sum
   assert.equal(startDelLaneSweep(pending,12000),true);
 });
 
+test("NUL suspends whole cells without removal events, pauses timers and restores original networks", () => {
+  const load = createTypeScriptLoader();
+  const { TowerNullificationController } = load("src/game/towerNullification.ts");
+  const { BattleActionQueue } = load("src/game/battleActions.ts");
+  const makeTower = (type,order,column) => ({ type,id:`tower:${order}`,placedOrder:order,lane:1,column,inPlay:true,
+    transient:false,hp:1234,level:3,lastFire:100,nextProduceAt:4000,armedAt:0,trueDamageUntil:6000,flyingUntil:0,
+    skills:{ test:{sp:7,spBuffer:.4,activeUntil:5000} },statusEffects:[],body:{ visible:true,setVisible(v){this.visible=v;} } });
+  const a = makeTower("A",1,1), shell=makeTower("()",2,1), m=makeTower("m",3,2), b=makeTower("A",4,3);
+  a.mirrorGroupId=b.mirrorGroupId=5;
+  const pool={members:[a,b],hp:2468,maxHp:6000}; a.healthPool=b.healthPool=pool;
+  const towers=[a,shell,m,b], occupied=new Map();
+  const queue=new BattleActionQueue(); queue.schedule(0,1500,{type:"volley",tower:a,hitCount:1});
+  let changes=0;
+  const controller=new TowerNullificationController(()=>({towers,occupied,changed:()=>changes++,
+    suspended:(paused,ms)=>queue.delayTowerActions(paused,ms)}));
+  assert.equal(controller.start(1000,8000),true); assert.equal(towers.length,0);
+  assert.ok([a,shell,m,b].every(t=>t.nullified && !t.inPlay && !t.body.visible));
+  assert.equal(controller.isOccupied(1,1),true); assert.equal(controller.isOccupied(1,4),false);
+  assert.equal(a.hp,1234); assert.equal(a.level,3); assert.equal(a.healthPool,pool);
+  assert.equal(a.nextProduceAt,12000); assert.equal(a.skills.test.sp,7); assert.equal(a.skills.test.activeUntil,13000);
+  assert.equal(queue.snapshot()[0].at,9500);
+  const newTower=makeTower("B",5,4); towers.push(newTower);
+  assert.equal(controller.start(2000,8000),false,"Do not capture new towers during an active effect");
+  controller.update(8999); assert.deepEqual(towers,[newTower]);
+  controller.update(9000); assert.deepEqual(towers,[a,shell,m,b,newTower]);
+  assert.ok(towers.every(t=>t.inPlay && !t.nullified && t.body.visible));
+  assert.equal(occupied.get("1:1"),a); assert.equal(a.parenthesisGuard,shell);
+  assert.equal(a.healthPool,pool); assert.equal(b.mirrorGroupId,5);
+  assert.equal(controller.isOccupied(1,1),false); assert.equal(changes,2);
+  controller.update(10000); assert.equal(towers.length,5);
+});
+
+test("NUL renders once per occupied cell, not once per tower layer", () => {
+  const drawn=[];
+  const load=createTypeScriptLoader({"src/render/delBoss.ts":{drawNulGlyph:(_g,x,y,time)=>drawn.push([x,y,time])}});
+  const { drawNullifiedTowers }=load("src/render/nullifiedTowers.ts");
+  drawNullifiedTowers({clear(){}},{towers:[{lane:1,column:2},{lane:1,column:2},{lane:3,column:4}]},1500);
+  assert.equal(drawn.length,2); assert.notDeepEqual(drawn[0],drawn[1]);
+});
+
 test("O specializes in magic resistance without changing its cost, health or cooldown", () => {
   const { cardDefinitions } = createTypeScriptLoader()("src/data/cards.ts");
   const card = cardDefinitions.find(card => card.id === "O");

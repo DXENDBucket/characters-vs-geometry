@@ -6,8 +6,10 @@ import type { TowerStorageController } from "./towerStorage";
 import type { SpellMortarFlight } from "./towerSkills";
 import type { BattleClockState } from "./battleSimulation";
 import type { TimedCellSeal } from "./timedCellSeals";
+import type { NullifiedTowers } from "./towerNullification";
 
 export interface BattleSaveState {
+  nullifiedTowers?: NullifiedTowers;
   edgeTowers?: EdgeTower[];
   simulation?: { version: number; clock: BattleClockState; randomState: number; mirrorNextGroupId: number };
   bossPhaseIndex?: number;

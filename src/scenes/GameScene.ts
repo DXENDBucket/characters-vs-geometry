@@ -13,6 +13,8 @@ import { BattleActionQueue, type BattleAction, type ScheduleBattleAction } from 
 import { TimedCellSeals } from "../game/timedCellSeals";
 import { drawTimedCellSeals } from "../render/timedCellSeals";
 import { createCellSealMark } from "../render/cellSealMark";
+import { TowerNullificationController } from "../game/towerNullification";
+import { drawNullifiedTowers } from "../render/nullifiedTowers";
 import type { BattleSaveState } from "../game/battleSaveState";
 import { captureBattleSnapshot, restoreBattleSnapshot } from "../game/battleSnapshot";
 import { deleteSurvivalSave, readSurvivalSave, writeSurvivalSave, type SurvivalSave } from "../survivalSaves";
@@ -279,6 +281,8 @@ export class GameScene extends Phaser.Scene {
   private sealedCells = new Set<string>();
   private timedCellSeals = new TimedCellSeals();
   private timedCellSealGraphics!: Phaser.GameObjects.Graphics;
+  private nullification!: TowerNullificationController;
+  private nullifiedTowerGraphics!: Phaser.GameObjects.Graphics;
   private timedCellWarningGraphics!: Phaser.GameObjects.Graphics;
   private sealedCellMarks = new Map<string, Phaser.GameObjects.Text>();
   // Stored as raw resources; affordability and spending use the softcapped effective value.
@@ -496,6 +500,26 @@ export class GameScene extends Phaser.Scene {
     }));
     this.mirrors = new TowerMirrorController(() => this.towerMirrorRuntime());
     this.storage = new TowerStorageController(() => this.combatRuntime());
+    this.nullification = new TowerNullificationController(() => ({
+      towers: this.towers, occupied: this.occupied,
+      suspended: (towers, durationMs) => {
+        this.actionQueue.delayTowerActions(towers, durationMs);
+        this.storage.delayCarriers(towers, durationMs);
+        this.shifter.clearSelection();
+        this.cancelSpellMortarTargeting();
+        this.towerPush.cancel();
+        this.topology.cancel();
+      },
+      changed: () => {
+        syncTowerTopology(this.towers);
+        this.updateLevelAuras();
+        this.numbers.sync();
+        this.topology.update();
+        this.towerSkills.update(0, this.battleTime);
+        this.clearPlacementGhosts();
+        drawNullifiedTowers(this.nullifiedTowerGraphics, this.nullification.snapshot(), this.battleTime);
+      }
+    }));
     this.deployment = new TowerDeploymentController(() => this.towerDeploymentRuntime());
     this.towerSkillRuntimeCache = this.createTowerSkillRuntime();
     this.targetedEffectCardRuntimeCache = this.createTargetedEffectCardRuntime();
@@ -523,6 +547,7 @@ export class GameScene extends Phaser.Scene {
     this.drawBoard();
     this.battlefield = new BattlefieldLayer(this);
     this.timedCellSealGraphics = this.add.graphics().setDepth(1);
+    this.nullifiedTowerGraphics = this.add.graphics().setDepth(28);
     this.timedCellWarningGraphics = this.add.graphics().setDepth(115);
     this.toolPreview = new BoardToolPreview(this);
     this.previewCtrlKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.CTRL, false);
@@ -683,6 +708,8 @@ export class GameScene extends Phaser.Scene {
     const seconds = scaledDelta / 1000;
     this.levelElapsed += scaledDelta;
     this.battleTime += scaledDelta;
+    this.nullification.update(this.battleTime);
+    drawNullifiedTowers(this.nullifiedTowerGraphics, this.nullification.snapshot(), this.battleTime);
     if (this.timedCellSeals.update(this.battleTime, (lane, column) => {
       if (this.eraseTowersInCell(lane, column)) this.updateLevelAuras();
     })) this.syncPlacementGhost(this.input.activePointer);
@@ -1735,6 +1762,7 @@ export class GameScene extends Phaser.Scene {
 
   private createBossRuntime(): BossRuntime {
     return {
+      nullifyTowers: durationMs => { this.nullification.start(this.battleTime, durationMs); },
       sealCell: (lane, column, durationMs) => {
         this.timedCellSeals.seal(lane, column, this.battleTime, durationMs, (row, col) => {
           if (this.eraseTowersInCell(row, col)) this.updateLevelAuras();
@@ -2857,6 +2885,7 @@ export class GameScene extends Phaser.Scene {
 
   private battleState(): BattleSaveState {
     return {
+      nullifiedTowers: this.nullification.snapshot(),
       edgeTowers: this.edgeTowers,
       simulation: { version: BATTLE_RULES_VERSION, clock: this.simulation.snapshot(), randomState: this.random.state,
         mirrorNextGroupId: this.mirrors.snapshotNextGroupId() },
@@ -2918,6 +2947,8 @@ export class GameScene extends Phaser.Scene {
     this.autoUpgradeEnabled = state.autoUpgradeEnabled;
     this.autoUpgradeReserveChars = state.autoUpgradeReserveChars;
     this.towers = state.towers;
+    this.nullification.restore(state.nullifiedTowers);
+    drawNullifiedTowers(this.nullifiedTowerGraphics, this.nullification.snapshot(), this.battleTime);
     this.edgeTowers = state.edgeTowers ?? [];
     // Grid-based equals from old saves cannot remain attackable special towers.
     this.towers = this.towers.filter(tower => {
@@ -3058,6 +3089,7 @@ export class GameScene extends Phaser.Scene {
 
   private cellIsDeployable(lane: number, column: number) {
     return lane >= 0 && lane < LANES && column >= 0 && column < COLUMNS &&
+      !this.nullification.isOccupied(lane, column) &&
       !this.sealedCells.has(gridCellKey(lane, column)) && !this.timedCellSeals.isSealed(lane, column);
   }
 
