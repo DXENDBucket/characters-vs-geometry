@@ -73,8 +73,8 @@ test("old saves and one-click completion do not invent flawless records", () => 
 });
 
 test("chapter and group flawless ratings require every operation and use the weakest best clear", () => {
-  const { progress, levels } = fixture();
-  const nodes = levels.levelNodes.filter(node => node.id.startsWith("AE-"));
+  const { progress, chapters } = fixture();
+  const nodes = chapters.levelNodesForChapter("AE");
   for (const node of nodes.slice(1)) progress.completeLevel(node.id, { difficulty: 9, flawless: true });
   assert.deepEqual(progress.flawlessSummaryForChapters(["AE"]), { count: nodes.length - 1, total: nodes.length, difficulty: undefined });
   progress.completeLevel(nodes[0].id, { difficulty: 0, flawless: true });
@@ -115,19 +115,33 @@ function fixture(saved) {
   };
 }
 
-test("Symbol Domain Capital follows Symbol Domain as an empty ASCII chapter", () => {
-  const { progress, chapters, chapterGroups } = fixture();
+test("Symbol Domain Capital follows Symbol Domain and unlocks AE-EX-1 after DEL", () => {
+  const { progress, chapters, chapterGroups, levels } = fixture();
   assert.deepEqual(chapterGroups.chaptersInGroup("ascii").map(chapter => chapter.id), ["AE", "AE2"]);
   assert.equal(chapters.getChapterDefinition("AE2").parentId, "AE");
   assert.equal(chapterGroups.groupForChapter("AE2").id, "ascii");
   assert.equal(chapters.chapterIdForLevelId("AE-10"), "AE");
-  assert.equal(chapters.chapterIdForLevelId("AE2-1"), "AE2");
-  assert.deepEqual(chapters.levelNodesForChapter("AE2"), []);
-  progress.completeAllLevels();
+  assert.equal(chapters.chapterIdForLevelId("AE-EX-1"), "AE2");
+  assert.deepEqual(chapters.levelNodesForChapter("AE2").map(node => node.id), ["AE-EX-1"]);
+  assert.equal(chapters.levelNodesForChapter("AE").length, 10);
+  const level = levels.getLevelConfig("AE-EX-1");
+  assert.equal(level.totalWaves, 10);
+  assert.equal(level.startingChars, 2000);
+  assert.deepEqual([level.firstWaveWeight, level.waveWeightIncrement, level.waveWeightIncrementGrowth], [30, 35, 5]);
+  assert.deepEqual(level.enemyKinds, ["circle", "tilde", "tilde2", "tilde3", "triangleRam", "triangleRam2", "triangleRam3"]);
+  assert.deepEqual(level.extraWaveSpawns, [{ kind: "chevronLeader3", lane: 3 }]);
+  assert.equal(level.waveWeightCap, undefined);
+  for (const id of ["4-10", ...chapters.levelNodesForChapter("AE").slice(0, -1).map(node => node.id)]) progress.completeLevel(id);
   assert.equal(progress.isChapterUnlocked("AE2"), false);
+  assert.equal(progress.discoveredEnemies().enemies.has("chevronLeader3"), false);
+  progress.completeLevel("AE-10");
+  assert.equal(progress.isChapterUnlocked("AE2"), true);
   assert.equal(progress.isChapterCompleted("AE2"), false);
-  assert.equal(progress.isLevelUnlocked("AE2-1"), false);
+  assert.equal(progress.isLevelUnlocked("AE-EX-1"), true);
+  assert.equal(progress.discoveredEnemies().enemies.has("chevronLeader3"), true);
   assert.equal(progress.isChapterCompleted("AE"), true);
+  progress.completeLevel("AE-EX-1");
+  assert.equal(progress.isChapterCompleted("AE2"), true);
 });
 
 test("AE-10 unlocks DEL after AE-9 and adds mortar, pentagon and diamond ranks to its Boss battle pool", () => {

@@ -572,6 +572,7 @@ export interface LevelConfig {
   bossEndless?: boolean;
   unlimitedRankFamilies?: EnemyFamily[];
   enemyKinds: EnemyKind[];
+  extraWaveSpawns?: { kind: EnemyKind; lane: number }[];
   firstWaveWeight: number;
   waveWeightIncrement: number;
   waveWeightIncrementGrowth?: number;

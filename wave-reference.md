@@ -3057,6 +3057,14 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 - Enemy pool: Circle I, Tilde I/II/III, Equals I/II/III, Parentheses I/II/III, Dollar I (`$`), Greater-Than Sign I (`>`).
 - Greater-Than Sign I is a leader, appearing on flag waves without consuming regular wave weight. Unlocking AE-9 also reveals its encyclopedia entry.
 
+## ASCII Expansion: Symbol Domain Capital / AE-EX-1
+
+- Unlocks after AE-10; 10 waves. EX defaults: 2000 starting characters, initial weight 30, increment +35, extra increment +5, a flag every 10 waves, no weight cap.
+- Regular enemy pool: Circle I, Tilde I/II/III, Triangle Ram I/II/III. Existing minimum-wave restrictions still apply.
+- Environment: every wave additionally spawns exactly one Greater-Than Sign III in row 4, including the flag wave. It consumes no wave weight and does not add another random-lane flag leader. All surviving enemies must be defeated to finish the operation.
+- Base weight budgets before difficulty: 30, 65, 105, 150, 200, 255, 315, 380, 450, 1050 (wave 10 doubled).
+- Pre-battle previews include the extra enemy and a one-line environment description above ordinary enemies, below the Boss name if present. 5-9 also describes its permanent right-to-left column seal every four waves.
+
 ## ASCII Expansion: AE-10
 
 - Unlocks after AE-9. Boss battle: waves continue until DEL is defeated; not an Infinite Front operation.

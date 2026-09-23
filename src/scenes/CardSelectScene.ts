@@ -23,7 +23,7 @@ import {
 } from "../bosses/cubeBoss";
 import { cardSlotUnlockChapter } from "../data/cardSlotUnlocks";
 import { chapterIdForLevelId } from "../data/chapters";
-import { getLevelConfig } from "../data/levels";
+import { getLevelConfig, levelPreviewEnemyKinds } from "../data/levels";
 import { toRomanNumeral } from "../format";
 import { DAMAGE_SYMBOLS, getLanguage, t } from "../i18n";
 import { isImitatorCard, uniqueLoadout } from "../game/cardIdentity";
@@ -224,7 +224,19 @@ export class CardSelectScene extends Phaser.Scene {
       contentY += 50;
     }
 
-    const enemyGroups = this.enemyPreviewGroups(levelConfig.enemyKinds);
+    const environmentDescriptions = (levelConfig.extraWaveSpawns ?? []).map(spawn => t("label.extraWaveSpawn", {
+      enemy: getEnemyDisplayName(spawn.kind), lane: spawn.lane + 1
+    }));
+    if (levelConfig.specialMechanic === "rightColumnSeal") environmentDescriptions.push(t("label.rightColumnSeal"));
+    for (const text of environmentDescriptions) {
+      const description = this.add.text(0, contentY - 16, text, {
+        color: "#9fdcff", fontFamily: "monospace", fontSize: "14px"
+      }).setName("level-environment-description");
+      if (description.width > viewportWidth - 12) description.setFontSize(Math.floor(14 * (viewportWidth - 12) / description.width));
+      this.enemyPreviewList.add(description);
+      contentY += description.height + 32;
+    }
+    const enemyGroups = this.enemyPreviewGroups(levelPreviewEnemyKinds(levelConfig));
     enemyGroups.forEach((group, index) => {
       const y = contentY + index * rowSpacing;
       this.drawEnemyPreviewRow(group, this.enemyPreviewList, y);

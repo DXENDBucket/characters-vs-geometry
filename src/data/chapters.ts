@@ -21,7 +21,7 @@ export const chapterDefinitions: ChapterDefinition[] = [
   { id: "IF", labelKey: "chapter.IF", x: 420, y: 350, levelPrefix: "IF-", survival: true },
   { id: "IFB", labelKey: "chapter.IFB", x: 820, y: 350, levelPrefix: "IF-BE-", survival: true },
   { id: "AE", labelKey: "chapter.AE", x: 420, y: 350, levelPrefix: "AE-" },
-  { id: "AE2", labelKey: "chapter.AE2", x: 820, y: 350, levelPrefix: "AE2-", parentId: "AE" }
+  { id: "AE2", labelKey: "chapter.AE2", x: 820, y: 350, levelPrefix: "AE-EX-", parentId: "AE" }
 ];
 
 export function defaultChapterId() {

@@ -25,12 +25,20 @@ const enemyRegistrations = Object.keys(enemyRegistry.allEnemyRegistrations);
 const cardBehaviorIds = parseObjectKeys(files.cardBehaviors, "cardBehaviorsById");
 const cardUnlockRequirements = parseCardUnlockRequirements(files.cardUnlocks);
 const initialCardIds = parseStringArray(files.cardUnlocks, "INITIAL_CARD_IDS");
-const { levelConfigs, levelNodes } = load("src/data/levels.ts");
+const { levelConfigs, levelNodes, levelPreviewEnemyKinds } = load("src/data/levels.ts");
+const { LANES } = load("src/config.ts");
 const levelConfigIds = Object.keys(levelConfigs);
 const levelNodeIds = levelNodes.map(node => node.id);
 const levelEnemyKinds = unique(Object.values(levelConfigs).flatMap(level => [
-  ...level.enemyKinds, ...(level.bossPhases ?? []).flatMap(phase => phase.enemyKinds)
+  ...levelPreviewEnemyKinds(level), ...(level.bossPhases ?? []).flatMap(phase => phase.enemyKinds)
 ]));
+for (const level of Object.values(levelConfigs)) {
+  for (const spawn of level.extraWaveSpawns ?? []) {
+    if (!Number.isInteger(spawn.lane) || spawn.lane < 0 || spawn.lane >= LANES) {
+      errors.push(`Level "${level.id}" has an invalid extra wave spawn lane.`);
+    }
+  }
+}
 const levelBossKinds = unique(Object.values(levelConfigs).map(level => level.bossKind).filter(Boolean));
 const cardRows = parseWaveReferenceCards(files.waveReference);
 

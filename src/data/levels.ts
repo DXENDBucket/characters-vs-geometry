@@ -12,6 +12,14 @@ const CHAPTER_FIVE_FIRST_WAVE_WEIGHT = 50;
 const CHAPTER_FIVE_WAVE_WEIGHT_INCREMENT = 50;
 const CHAPTER_FIVE_WAVE_WEIGHT_INCREMENT_GROWTH = 7;
 
+export const EX_LEVEL_DEFAULTS = {
+  firstWaveWeight: 30,
+  waveWeightIncrement: 35,
+  waveWeightIncrementGrowth: 5,
+  startingChars: 2000,
+  wavesPerFlag: WAVES_PER_FLAG
+} as const;
+
 export const levelNodes: LevelNode[] = [
   { id: "0-1", x: 500, y: 410 },
   { id: "0-2", x: 820, y: 320 },
@@ -86,12 +94,19 @@ export const levelNodes: LevelNode[] = [
   { id: "AE-8", x: 2740, y: 380 },
   { id: "AE-9", x: 3060, y: 320 },
   { id: "AE-10", x: 3380, y: 380 },
+  { id: "AE-EX-1", x: 500, y: 380 },
   ...Array.from({ length: 8 }, (_, index) => ({
     id: `IF-${index + 5}`, x: 1840 + index * 340, y: index % 2 === 0 ? 430 : 320
   }))
 ];
 
 export const levelConfigs: Record<string, LevelConfig> = {
+  "AE-EX-1": {
+    ...EX_LEVEL_DEFAULTS,
+    id: "AE-EX-1", unlockAfter: "AE-10", totalWaves: 10,
+    enemyKinds: ["circle", "tilde", "tilde2", "tilde3", "triangleRam", "triangleRam2", "triangleRam3"],
+    extraWaveSpawns: [{ kind: "chevronLeader3", lane: 3 }]
+  },
   "AE-10": {
     id: "AE-10", unlockAfter: "AE-9",
     enemyKinds: ["circle", "tilde", "tilde2", "tilde3", "equals", "equals2", "equals3",
@@ -1194,4 +1209,8 @@ for (const [index, [sourceId, bossKind]] of ([["1-10", "cube"], ["2-10", "tetrah
 
 export function getLevelConfig(levelId: string) {
   return levelConfigs[levelId] ?? levelConfigs["1-1"];
+}
+
+export function levelPreviewEnemyKinds(level: LevelConfig) {
+  return [...new Set([...level.enemyKinds, ...(level.extraWaveSpawns ?? []).map(spawn => spawn.kind)])];
 }

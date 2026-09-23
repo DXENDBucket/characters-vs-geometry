@@ -183,6 +183,17 @@ export function spawnWaveEnemies(runtime: EnemySpawnRuntime, options: SpawnWaveO
     });
   });
 
+  for (const [index, spawn] of (options.levelConfig.extraWaveSpawns ?? []).entries()) {
+    spawnEnemyAt(runtime, {
+      ...spawn,
+      waveNumber: options.waveNumber,
+      time: options.gameTime,
+      x: BOARD_X + BOARD_WIDTH + 58 + index * 8,
+      waveWeight: 0,
+      finalDamageReduction: options.difficultyConfig.finalDamageReduction
+    });
+  }
+
   return {
     number: options.waveNumber,
     totalWeight,

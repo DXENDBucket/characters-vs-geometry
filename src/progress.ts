@@ -5,7 +5,7 @@ import { chapterDefinitions, chapterIdForLevelId, getChapterDefinition, levelNod
 import { chapterGroups, groupForChapter } from "./data/chapterGroups";
 import { cardUnlockRequirement, cardUnlockRequirements } from "./data/cardUnlocks";
 import { CARD_SLOT_UNLOCK_CHAPTER_IDS, INITIAL_CARD_SLOT_COUNT } from "./data/cardSlotUnlocks";
-import { getLevelConfig, levelNodes } from "./data/levels";
+import { getLevelConfig, levelNodes, levelPreviewEnemyKinds } from "./data/levels";
 import { isEnemyKind } from "./game/enemyIdentity";
 import { clearSurvivalSaves } from "./survivalSaves";
 import type { BossKind, CardId, EnemyKind } from "./types";
@@ -206,7 +206,7 @@ export function discoveredEnemies() {
   for (const node of levelNodes) {
     if (!isLevelUnlocked(node.id) && !isLevelCompleted(node.id)) continue;
     const level = getLevelConfig(node.id);
-    for (const kind of level.enemyKinds) enemies.add(kind);
+    for (const kind of levelPreviewEnemyKinds(level)) enemies.add(kind);
     for (const phase of level.bossPhases ?? []) {
       for (const kind of phase.enemyKinds) enemies.add(kind);
     }
