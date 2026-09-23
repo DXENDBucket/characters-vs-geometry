@@ -53,6 +53,95 @@ test("timed seals restore both cue and active phases and retain overlapping seal
   assert.deepEqual(seals.snapshot(), []);
 });
 
+test("immediate seals preserve longer bans and shrink at a duration-relative rate", () => {
+  const { TimedCellSeals, timedCellSealScale } = createTypeScriptLoader()("src/game/timedCellSeals.ts");
+  const seals = new TimedCellSeals();
+  let erasures = 0;
+  seals.seal(2, 3, 1000, 90000, () => erasures++);
+  seals.seal(2, 3, 2000, 40000, () => erasures++);
+  assert.equal(erasures, 1);
+  assert.equal(seals.entries[0].expiresAt, 91000);
+  seals.seal(2, 3, 60000, 40000, () => erasures++);
+  assert.equal(seals.entries[0].expiresAt, 100000);
+  assert.equal(erasures, 1);
+  for (const duration of [40000, 90000]) {
+    const seal = { active: true, lane: 0, column: 0, warnedAt: 100, sealsAt: 100, expiresAt: 100 + duration };
+    assert.equal(timedCellSealScale(seal, 100), 1);
+    assert.equal(timedCellSealScale(seal, 100 + duration / 2), .75);
+    assert.equal(timedCellSealScale(seal, 100 + duration), .5);
+    assert.equal(timedCellSealScale(seal, 100 + duration * 2), .5);
+  }
+});
+
+test("timed seal crosses and warnings draw on separate layers", () => {
+  const { drawTimedCellSeals } = createTypeScriptLoader()("src/render/timedCellSeals.ts");
+  const mock = () => {
+    const calls = [];
+    const graphics = Object.fromEntries(["clear", "lineStyle", "lineBetween", "fillStyle", "fillRect", "strokeRect"]
+      .map(name => [name, (...args) => calls.push([name, ...args])]));
+    return { calls, graphics };
+  };
+  const marks = mock(), warnings = mock();
+  drawTimedCellSeals(marks.graphics, [
+    { lane: 2, column: 3, active: true, warnedAt: 0, sealsAt: 0, expiresAt: 40000 },
+    { lane: 2, column: 4, active: false, warnedAt: 19000, sealsAt: 24000, expiresAt: 114000 }
+  ], 20000, warnings.graphics);
+  assert.ok(marks.calls.some(([name, width]) => name === "lineStyle" && width === 2.25));
+  assert.ok(marks.calls.every(([name]) => name !== "fillRect" && name !== "strokeRect"));
+  assert.ok(warnings.calls.some(([name]) => name === "strokeRect"));
+  assert.ok(warnings.calls.every(([name]) => name !== "lineBetween"));
+});
+
+test("DEL sweep warns, sweeps only three lanes, wraps without crossing the board, and returns once", () => {
+  const load = createTypeScriptLoader();
+  const { startDelSweep, advanceDelSweep, delSweepActive } = load("src/game/delSweep.ts");
+  const c = load("src/config.ts");
+  const makeBoss = () => ({ kind: "del", hp: 90000, maxHp: 120000, x: c.BOARD_X + c.BOARD_WIDTH - 117,
+    y: c.BOARD_Y + 3.5 * c.CELL_HEIGHT, hitboxWidth: 234, hitboxHeight: 234, invincibleUntil: 0,
+    baseStats: { speed: 0 }, finalStats: { speed: 0 } });
+  const boss = makeBoss();
+  boss.hp++;
+  assert.equal(startDelSweep(boss, 0), false);
+  boss.hp--;
+  assert.equal(startDelSweep(boss, 0), true);
+  assert.equal(boss.invincibleUntil, Infinity);
+  assert.equal(startDelSweep(boss, 100), false);
+  const home = boss.x, touched = [];
+  const seal = (lane, col, duration) => { touched.push([lane, col]); assert.equal(duration, 40000); };
+  advanceDelSweep(boss, 2999, seal);
+  assert.equal(boss.x, home); assert.equal(touched.length, 0);
+  advanceDelSweep(boss, 4000, seal);
+  assert.equal(boss.x, home - 50);
+  assert.equal(boss.finalStats.speed, 50);
+  assert.ok(touched.every(([lane]) => lane >= 2 && lane <= 4));
+  advanceDelSweep(boss, 4000, seal);
+  assert.equal(touched.length, new Set(touched.map(String)).size);
+  const exitX = c.BOARD_X - 20 - 117 - 1;
+  const exitAt = 3000 + (home - exitX) / 50 * 1000;
+  advanceDelSweep(boss, exitAt, seal);
+  assert.equal(boss.delSweep.phase, "returning");
+  assert.equal(boss.x, c.BOARD_X + c.BOARD_WIDTH + 118);
+  assert.equal(touched.length, c.COLUMNS * 3, "Teleport must not touch any new cells");
+  const entryX = boss.x;
+  const endAt = exitAt + (entryX - home) / 50 * 1000;
+  advanceDelSweep(boss, endAt + .01, seal);
+  assert.equal(boss.x, home); assert.equal(boss.finalStats.speed, 0);
+  assert.equal(boss.invincibleUntil, 0); assert.equal(delSweepActive(boss), false);
+  assert.equal(startDelSweep(boss, endAt), false);
+  const count = touched.length;
+  advanceDelSweep(boss, endAt + 10000, seal);
+  assert.equal(touched.length, count);
+  // Absolute-time motion gives identical saved state after fine/coarse ticking and resume.
+  const a = makeBoss(), b = makeBoss(); startDelSweep(a, 0); startDelSweep(b, 0);
+  for (let time = 0; time <= 4000; time += 10) advanceDelSweep(a, time, () => {});
+  advanceDelSweep(b, 4000, () => {});
+  a.delSweep.sealedCells.sort(); b.delSweep.sealedCells.sort();
+  assert.deepEqual(a, b);
+  const resumed = structuredClone(a);
+  advanceDelSweep(a, endAt + 1, () => {}); advanceDelSweep(resumed, endAt + 1, () => {});
+  assert.deepEqual(a, resumed);
+});
+
 test("O specializes in magic resistance without changing its cost, health or cooldown", () => {
   const { cardDefinitions } = createTypeScriptLoader()("src/data/cards.ts");
   const card = cardDefinitions.find(card => card.id === "O");

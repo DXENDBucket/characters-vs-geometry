@@ -108,6 +108,12 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
     if (!record(boss.baseStats) || !record(boss.finalStats) || !record(boss.skills)) throw new Error("Invalid boss state");
     if (family === "del") require((boss.deleteStackPending === undefined || typeof boss.deleteStackPending === "boolean") &&
       (!boss.deleteStackPending || record(boss.skills.deleteStack)));
+    if (boss.delSweep !== undefined) {
+      const sweep = boss.delSweep;
+      require(family === "del" && record(sweep) && ["warning", "outbound", "returning", "complete"].includes(sweep.phase as string) &&
+        finite(sweep.startedAt) && sweep.startedAt >= 0 && finite(sweep.homeX) && finite(sweep.homeY) &&
+        finite(sweep.previousInvincibleUntil) && array(sweep.sealedCells, key => typeof key === "string"));
+    }
     for (const key of ["maxHp", "armor", "magicResistance", "speed", "finalDamageReduction"]) {
       require(finite(boss.baseStats[key]) && finite(boss.finalStats[key]));
     }
@@ -141,7 +147,8 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
     require(boss.advanceMinionKind === ((boss.rank as number) === 1 ? "square" : `square${boss.rank}`));
     for (const key of ["hitboxWidth", "hitboxHeight", "rotationX", "rotationY", "rotationZ", "velocityX", "velocityY", "velocityZ",
       "targetVelocityX", "targetVelocityY", "targetVelocityZ", "nextTurnIn", "contactAttackBuffer"]) require(finite(boss[key]));
-    require(finite(boss.invincibleUntil) || (family === "octahedron" && boss.invincibleUntil === Infinity));
+    require(finite(boss.invincibleUntil) || ((family === "octahedron" ||
+      family === "del" && record(boss.delSweep) && boss.delSweep.phase !== "complete") && boss.invincibleUntil === Infinity));
     if (family === "tetrahedron") {
       for (const key of ["halfHpTriggered", "criticalHpTriggered", "pendingCriticalSummon"]) require(typeof boss[key] === "boolean");
       for (const key of ["chargeExpiresAt", "bossHasteUntil", "nextBossHasteTrailAt"]) require(finite(boss[key]));
@@ -301,7 +308,8 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
   if (state.timedCellSeals !== undefined) require(array(state.timedCellSeals, seal => record(seal) &&
     Number.isInteger(seal.lane) && (seal.lane as number) >= 0 && (seal.lane as number) < LANES &&
     Number.isInteger(seal.column) && (seal.column as number) >= 0 && (seal.column as number) < COLUMNS &&
-    finite(seal.warnedAt) && seal.warnedAt >= 0 && finite(seal.sealsAt) && seal.sealsAt > seal.warnedAt &&
+    finite(seal.warnedAt) && seal.warnedAt >= 0 && finite(seal.sealsAt) &&
+    (seal.active ? seal.sealsAt >= seal.warnedAt : seal.sealsAt > seal.warnedAt) &&
     finite(seal.expiresAt) && seal.expiresAt > seal.sealsAt && typeof seal.active === "boolean"));
   require(record(state.shifter) && [state.shifter.readyAt, state.shifter.cooldownStartedAt, state.shifter.cooldownDuration].every(finite));
   require(record(state.reselection) && finite(state.reselection.readyAt) && array(state.reselection.cards,

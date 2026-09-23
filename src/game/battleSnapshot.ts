@@ -4,6 +4,7 @@ import { refreshStatusEffect } from "./rules/statusEffectRules";
 import type { CubeBoss, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower } from "../types";
 import { createCubeBoss, updateCubeBossMotion } from "../bosses/cubeBoss";
 import { syncBossCopyWarnings } from "../render/bossCopyWarnings";
+import { syncDelSweepWarning } from "../render/delSweepWarning";
 import { rankedBossFamily } from "../bosses/bossRanks";
 import { getCardDefinition } from "../registry/cards";
 import { towerBehaviorType } from "./towerIdentity";
@@ -114,6 +115,7 @@ export function restoreBattleSnapshot(scene: Phaser.Scene, graph: SaveGraph): Ba
         if (boss !== state.boss) boss.body.setDepth(87);
         updateCubeBossMotion(boss, 0, 0, state.battleTime);
         syncBossCopyWarnings(boss, state.battleTime);
+        syncDelSweepWarning(boss, state.battleTime);
       }
     }
     const storedEnemies = new Set(state.storage.map(entry => entry.enemy));

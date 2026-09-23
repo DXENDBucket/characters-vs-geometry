@@ -160,6 +160,24 @@ test("DEL error flashes affect its name but leave both binary rings unchanged", 
   }
 });
 
+test("DEL sweep uses gold name flashes instead of coloring the rings or red skill flashes", () => {
+  let paths, path, style;
+  const graphics = {
+    clear() { paths = []; }, lineStyle(...args) { style = args; },
+    beginPath() { path = { points: [], style }; paths.push(path); },
+    moveTo(x, y) { path.points.push([x, y]); },
+    lineTo(x, y) { path.points.push([x, y]); }, strokePath() {}, lineBetween() {}
+  };
+  for (const time of [160, 240]) {
+    del.drawDelBoss(graphics, 111, time, true, true, true);
+    const rings = paths.filter(p => [5, 25].includes(p.points.length) && p.style[1] !== 0x050505);
+    assert.ok(rings.every(p => p.style[1] === 0xf5f5f5));
+    assert.ok(paths.every(p => p.style[1] !== 0xff4d4d && p.style[1] !== 0xff6464));
+    const name = paths.filter(p => p.points.length === 7 && p.style[1] !== 0x050505).at(-1);
+    assert.equal(name.style[1], time === 160 ? 0xffd75a : 0xf5f5f5);
+  }
+});
+
 test("all four effect pools reuse live objects within a battle, including pause/resume", () => {
   const f = fixture();
   emitAll(f.scene);

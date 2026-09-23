@@ -10,6 +10,7 @@ import {
 import { movementSpeedMultiplier, type SlowAuraSources } from "./slowAura";
 import { statusMultipliers, type StatusMultipliers } from "./statusEffects";
 import { movementHasteMultiplier, setMovementHasteEffect } from "./rules/statusEffectRules";
+import { delSweepSpeed } from "./delSweep";
 
 const DODECAHEDRON_COMPANION_DAMAGE_REDUCTION = 0.95;
 
@@ -161,7 +162,7 @@ export function bossFinalStats(boss: CubeBoss, enemies: Enemy[], rootBoss: CubeB
   finalStats.maxHp = boss.baseStats.maxHp;
   finalStats.armor = boss.baseStats.armor + hexBossArmorBonus(enemies, boss);
   finalStats.magicResistance = boss.baseStats.magicResistance;
-  finalStats.speed = boss.baseStats.speed;
+  finalStats.speed = delSweepSpeed(boss);
   finalStats.finalDamageReduction = combineDamageReduction(
     combineDamageReduction(boss.baseStats.finalDamageReduction, bodyCountReduction),
     companionReduction

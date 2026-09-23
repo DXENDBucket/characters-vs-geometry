@@ -73,10 +73,10 @@ try {
     const seal = scene.timedCellSeals.entries[0];
     check(seal.lane === 3 && seal.column === 5 && seal.warnedAt === 1000 && seal.sealsAt === 6000 &&
       seal.expiresAt === 96000 && boss.skills.deleteStack.sp === 0, "Wrong target, SP cost or timing");
-    drawTimedCellSeals(scene.timedCellSealGraphics, scene.timedCellSeals.entries, 999);
-    check(scene.timedCellSealGraphics.commandBuffer.length === 0, "Cell warning appeared during initial cue");
-    drawTimedCellSeals(scene.timedCellSealGraphics, scene.timedCellSeals.entries, 1000);
-    check(scene.timedCellSealGraphics.commandBuffer.length > 0, "Cell warning missing after cue");
+    drawTimedCellSeals(scene.timedCellSealGraphics, scene.timedCellSeals.entries, 999, scene.timedCellWarningGraphics);
+    check(scene.timedCellWarningGraphics.commandBuffer.length === 0, "Cell warning appeared during initial cue");
+    drawTimedCellSeals(scene.timedCellSealGraphics, scene.timedCellSeals.entries, 1000, scene.timedCellWarningGraphics);
+    check(scene.timedCellWarningGraphics.commandBuffer.length > 0, "Cell warning missing after cue");
     check(scene.shifter.executeMove({ type: "moveTowers", sources: [newest, shell].map(t => ({ towerId: t.id, lane: t.lane, column: t.column })),
       destination: { lane: 3, column: 6 } }) === "moved", "Cannot escape warning with shifter");
     const replacement = place("O", 3, 5), replacementShell = place("()", 3, 5);
@@ -120,7 +120,7 @@ try {
     window.__delSkillFrame = lead => {
       const time = 97000 + lead;
       updateCubeBossMotion(boss, 0, 1, time);
-      drawTimedCellSeals(scene.timedCellSealGraphics, [visualSeal], time);
+      drawTimedCellSeals(scene.timedCellSealGraphics, [visualSeal], time, scene.timedCellWarningGraphics);
     };
     scene.battlePaused = true;
     window.__drawDelAt = time => updateCubeBossMotion(boss, 0, 1, 200000 + time);
@@ -164,7 +164,77 @@ try {
     await page.waitForTimeout(100);
     await page.screenshot({ path: `logs/del-stack-${phase}.png` });
   }
+  const sweepResult = await page.evaluate(async () => {
+    const moduleFor = path => import(performance.getEntriesByType("resource").map(r => r.name)
+      .find(url => new URL(url).pathname === path) ?? path);
+    const config = await moduleFor("/src/config.ts");
+    const { updateBossRuntime } = await moduleFor("/src/game/bossRuntime.ts");
+    const { captureBattleSnapshot, restoreBattleSnapshot } = await moduleFor("/src/game/battleSnapshot.ts");
+    const { validateBattleSave } = await moduleFor("/src/game/validateBattleSave.ts");
+    const game = window.__testGame; game.loop.stop();
+    const scene = game.scene.getScene("GameScene"), boss = scene.boss;
+    const check = (ok, message) => { if (!ok) throw Error(message); };
+    const startedAt = scene.battleTime, homeX = boss.x;
+    const { drawTimedCellSeals } = await moduleFor("/src/render/timedCellSeals.ts");
+    check(scene.timedCellSealGraphics.depth === 1 && scene.timedCellWarningGraphics.depth > boss.body.depth,
+      "Seals and warnings do not use separate layers");
+    check([...scene.sealedCellMarks.values()].every(mark => mark.depth === 1), "Permanent seal is not at the bottom");
+    scene.combatRuntime().damageBoss(boss.hp - 90001, "true");
+    check(!boss.delSweep, "Sweep triggered above 75%");
+    scene.combatRuntime().damageBoss(1, "true");
+    check(boss.hp === 90000 && boss.invincibleUntil === Infinity && boss.delSweep.phase === "warning", "Threshold did not shield immediately");
+    check(boss.body.list.some(child => child.name === "del-sweep-warning"), "Three-lane warning missing");
+    const children = scene.children.list.length;
+    scene.combatRuntime().damageBoss(1000000, "true");
+    check(boss.hp === 90000 && scene.children.list.length === children, "Invulnerability failed or spawned conventional invulnerability VFX");
+    const graph = JSON.parse(JSON.stringify(captureBattleSnapshot(scene.battleState())));
+    validateBattleSave(graph, scene.wave, "del");
+    const restored = restoreBattleSnapshot(scene, graph);
+    check(restored.boss.invincibleUntil === Infinity && restored.boss.delSweep.phase === "warning" &&
+      restored.boss.body.list.some(child => child.name === "del-sweep-warning"), "Sweep warning did not restore");
+    for (const tower of restored.towers) tower.body.destroy();
+    restored.boss.body.destroy();
+    window.__sweepWarningShot = () => {
+      scene.battleTime = startedAt + 160;
+      updateBossRuntime(scene.bossRuntime(), 0);
+    };
+    window.__finishSweepCheck = () => {
+      scene.battleTime = startedAt + 2999; updateBossRuntime(scene.bossRuntime(), 0);
+      check(boss.x === homeX, "Sweep moved during warning");
+      const expected = 3 * config.COLUMNS;
+      let wrapped = false;
+      for (let elapsed = 3000; elapsed < 40000; elapsed += 20) {
+        scene.battleTime = startedAt + elapsed;
+        scene.timedCellSeals.update(scene.battleTime, (lane, column) => scene.eraseTowersInCell(lane, column));
+        updateBossRuntime(scene.bossRuntime(), .02);
+        if (boss.delSweep.phase === "returning") wrapped = true;
+        check(!scene.gameOver && scene.baseIntegrity === 6, "Sweep breached the base");
+        if (boss.delSweep.phase === "complete") break;
+      }
+      check(wrapped && boss.delSweep.phase === "complete" && boss.x === homeX, "Sweep did not wrap and return");
+      check(boss.invincibleUntil !== Infinity && boss.finalStats.speed === 0, "Return did not remove shield or stop");
+      const seals = scene.timedCellSeals.entries.filter(s => s.active);
+      check(new Set(seals.map(s => `${s.lane}:${s.column}`)).size === expected, "Wrong number of swept cells");
+      check(seals.every(s => s.lane >= 2 && s.lane <= 4), "Sweep hit outside the middle three lanes");
+      check(!scene.towers.some(t => t.lane === 3 && t.column === 5), "Swept tower survived erasure");
+      check(!boss.body.list.some(child => child.name === "del-sweep-warning"), "Warning leaked after sweep");
+      scene.combatRuntime().damageBoss(1000, "true");
+      check(boss.hp === 89000 && boss.delSweep.phase === "complete", "Return retained invulnerability or retriggered");
+      drawTimedCellSeals(scene.timedCellSealGraphics, scene.timedCellSeals.entries, scene.battleTime, scene.timedCellWarningGraphics);
+      return { cells: expected, phase: boss.delSweep.phase };
+    };
+    window.__sweepWarningShot();
+    game.loop.start(game.step.bind(game));
+    return { hp: boss.hp };
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.waitForTimeout(200);
+  await page.screenshot({ path: "logs/del-sweep-warning.png" });
+  const swept = await page.evaluate(() => window.__finishSweepCheck());
+  await page.waitForTimeout(100);
+  await page.screenshot({ path: "logs/del-sweep-return.png" });
   assert.deepEqual(errors, []);
+  console.log("DEL sweep checks passed", sweepResult, swept);
   console.log("DEL browser checks passed", result);
 } finally {
   await browser.close();

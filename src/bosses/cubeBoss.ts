@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { drawDelBoss } from "../render/delBoss";
 import { DEL_DELETE_STACK } from "../data/delBoss";
+import { delSweepActive } from "../game/delSweep";
 import { bossMovementDirection, expireReversalEffect } from "../game/rules/reversal";
 import {
   BOARD_HEIGHT,
@@ -467,7 +468,7 @@ function drawCubeBoss(boss: CubeBoss, time: number) {
   if (boss.kind === "del") {
     boss.labelText.setVisible(false);
     drawDelBoss(boss.frame, Math.min(boss.hitboxWidth!, boss.hitboxHeight!) / 2 - 6, time, boss.invincibleUntil > time,
-      (boss.skills.deleteStack?.activeUntil ?? 0) > time);
+      (boss.skills.deleteStack?.activeUntil ?? 0) > time, delSweepActive(boss));
     return;
   }
   if (isTetrahedronBoss(boss)) {

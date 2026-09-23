@@ -1,5 +1,7 @@
 import Phaser from "phaser";
 import { DEL_DELETE_STACK } from "../data/delBoss";
+import { advanceDelSweep, delSweepActive, startDelSweep } from "./delSweep";
+import { syncDelSweepWarning } from "../render/delSweepWarning";
 import { towerAreaTargets, towerDamageReceiver } from "./towerOccupancy";
 import { towerBehaviorType } from "./towerIdentity";
 import { bossMovementDirection } from "./rules/reversal";
@@ -152,6 +154,7 @@ export interface BossRuntime {
   enemyHpMultiplier?: () => number;
   scheduleBattleAction?: ScheduleBattleAction;
   warnCellSeal: (lane: number, column: number, warningMs: number, durationMs: number, leadInMs: number) => void;
+  sealCell: (lane: number, column: number, durationMs: number) => void;
   scene: Phaser.Scene;
   enemies: Enemy[];
   towers: Tower[];
@@ -263,7 +266,9 @@ export function updateBossRuntime(runtime: BossRuntime, seconds: number) {
   }
 
   initializeOctahedronSolarBombs(runtime, boss);
+  startDelSweep(boss, runtime.battleTime);
   updateBossPartsMotion(runtime, boss, seconds);
+  syncDelSweepWarning(boss, runtime.battleTime);
   triggerOctahedronSplits(runtime, boss);
   triggerIcosahedronFinalSplits(runtime, boss);
   syncOctahedronSharedHp(boss);
@@ -298,12 +303,17 @@ export function updateBossRuntime(runtime: BossRuntime, seconds: number) {
 }
 
 function updateBossPartsMotion(runtime: BossRuntime, boss: CubeBoss, seconds: number) {
+  if (advanceDelSweep(boss, runtime.battleTime, runtime.sealCell)) {
+    updateCubeBossMotion(boss, 0, 0, runtime.battleTime);
+    return;
+  }
   forEachBossPart(boss, (part) => {
     updateCubeBossMotion(part, seconds, bossMovementMultiplier(part, runtime.battleTime), runtime.battleTime);
   });
 }
 
 function bossPartReachesBase(boss: CubeBoss) {
+  if (delSweepActive(boss)) return false;
   return (boss.movementAxis ?? "x") === "x" && bossMovementDirection(boss) < 0 && bossBounds(boss).left <= BOARD_X - 20;
 }
 

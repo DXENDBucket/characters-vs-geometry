@@ -9,7 +9,9 @@ import {
   TETRAHEDRON_BOSS_HASTE_MULTIPLIER,
   TETRAHEDRON_BOSS_INVINCIBLE_DURATION
 } from "../config";
-import { isIcosahedronBoss, isTetrahedronBoss } from "../bosses/cubeBoss";
+import { isIcosahedronBoss, isTetrahedronBoss, updateCubeBossMotion } from "../bosses/cubeBoss";
+import { startDelSweep, delSweepActive } from "./delSweep";
+import { syncDelSweepWarning } from "../render/delSweepWarning";
 import { makeBossHitFlash, makeBossInvincibleFlash, makeEnemyInvincibleFlash, makeShockPulse } from "../render/combatEffects";
 import type { CubeBoss, DamageType, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower, WaveTracker } from "../types";
 import { bossFinalStats, enemyDefenseStats } from "./combatStats";
@@ -123,7 +125,9 @@ export function damageBoss(
   const damagedPart = targetPart ?? boss;
   if (damagedPart !== boss && !boss.octahedronCopies?.includes(damagedPart)) return false;
   if (damagedPart.invincibleUntil > runtime.battleTime) {
-    makeBossInvincibleFlash(runtime.scene, damagedPart.x, damagedPart.y, damagedPart.hitboxWidth, damagedPart.hitboxHeight);
+    if (!delSweepActive(damagedPart)) {
+      makeBossInvincibleFlash(runtime.scene, damagedPart.x, damagedPart.y, damagedPart.hitboxWidth, damagedPart.hitboxHeight);
+    }
     return false;
   }
 
@@ -160,6 +164,10 @@ export function damageBoss(
   }
 
   boss.hp = nextHp;
+  if (startDelSweep(boss, runtime.battleTime)) {
+    updateCubeBossMotion(boss, 0, 0, runtime.battleTime);
+    syncDelSweepWarning(boss, runtime.battleTime);
+  }
   syncBossCopyHp(boss);
   makeBossHitFlash(runtime.scene, damagedPart.x, damagedPart.y, damageType, damagedPart.hitboxWidth, damagedPart.hitboxHeight);
 

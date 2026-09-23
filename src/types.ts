@@ -617,7 +617,17 @@ export interface PendingBossCopy {
   triggerReinforcements?: boolean;
 }
 
+export interface DelSweepState {
+  phase: "warning" | "outbound" | "returning" | "complete";
+  startedAt: number;
+  homeX: number;
+  homeY: number;
+  previousInvincibleUntil: number;
+  sealedCells: string[];
+}
+
 export interface CubeBoss {
+  delSweep?: DelSweepState;
   deleteStackPending?: boolean;
   statusEffects: StatusEffect[];
   kind: BossKind;

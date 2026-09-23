@@ -276,6 +276,7 @@ export class GameScene extends Phaser.Scene {
   private sealedCells = new Set<string>();
   private timedCellSeals = new TimedCellSeals();
   private timedCellSealGraphics!: Phaser.GameObjects.Graphics;
+  private timedCellWarningGraphics!: Phaser.GameObjects.Graphics;
   private sealedCellMarks = new Map<string, Phaser.GameObjects.Text>();
   // Stored as raw resources; affordability and spending use the softcapped effective value.
   private chars = STARTING_CHARS;
@@ -517,7 +518,8 @@ export class GameScene extends Phaser.Scene {
     this.events.once("shutdown", () => this.cleanupSceneHandlers());
     this.cameras.main.setBackgroundColor(palette.black);
     this.drawBoard();
-    this.timedCellSealGraphics = this.add.graphics().setDepth(115);
+    this.timedCellSealGraphics = this.add.graphics().setDepth(1);
+    this.timedCellWarningGraphics = this.add.graphics().setDepth(115);
     this.toolPreview = new BoardToolPreview(this);
     this.previewCtrlKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.CTRL, false);
     this.previewShiftKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT, false);
@@ -680,7 +682,7 @@ export class GameScene extends Phaser.Scene {
     if (this.timedCellSeals.update(this.battleTime, (lane, column) => {
       if (this.eraseTowersInCell(lane, column)) this.updateLevelAuras();
     })) this.syncPlacementGhost(this.input.activePointer);
-    drawTimedCellSeals(this.timedCellSealGraphics, this.timedCellSeals.entries, this.battleTime);
+    drawTimedCellSeals(this.timedCellSealGraphics, this.timedCellSeals.entries, this.battleTime, this.timedCellWarningGraphics);
     this.syncCopiedTowers();
     this.actionQueue.update(this.battleTime, action => this.executeBattleAction(action));
     this.towerSkills.update(seconds, this.battleTime);
@@ -1729,9 +1731,16 @@ export class GameScene extends Phaser.Scene {
 
   private createBossRuntime(): BossRuntime {
     return {
+      sealCell: (lane, column, durationMs) => {
+        this.timedCellSeals.seal(lane, column, this.battleTime, durationMs, (row, col) => {
+          if (this.eraseTowersInCell(row, col)) this.updateLevelAuras();
+        });
+        drawTimedCellSeals(this.timedCellSealGraphics, this.timedCellSeals.entries, this.battleTime, this.timedCellWarningGraphics);
+        this.syncPlacementGhost(this.input.activePointer);
+      },
       warnCellSeal: (lane, column, warningMs, durationMs, leadInMs) => {
         this.timedCellSeals.warn(lane, column, this.battleTime, warningMs, durationMs, leadInMs);
-        drawTimedCellSeals(this.timedCellSealGraphics, this.timedCellSeals.entries, this.battleTime);
+        drawTimedCellSeals(this.timedCellSealGraphics, this.timedCellSeals.entries, this.battleTime, this.timedCellWarningGraphics);
       },
       enemyHpMultiplier: () => endlessEnemyHpMultiplier(this.levelConfig, this.wave),
       scheduleBattleAction: this.scheduleBattleAction,
@@ -2210,7 +2219,7 @@ export class GameScene extends Phaser.Scene {
         fontStyle: "700"
       })
       .setOrigin(0.5)
-      .setDepth(19)
+      .setDepth(1)
       .setAlpha(0.82);
     mark.setStroke("#2a0000", 4);
     this.sealedCellMarks.set(key, mark);
@@ -2942,7 +2951,7 @@ export class GameScene extends Phaser.Scene {
     syncTowerOccupancy(this.towers, this.occupied);
     this.sealedCells = new Set(state.sealedCells);
     this.timedCellSeals.restore(state.timedCellSeals);
-    drawTimedCellSeals(this.timedCellSealGraphics, this.timedCellSeals.entries, this.battleTime);
+    drawTimedCellSeals(this.timedCellSealGraphics, this.timedCellSeals.entries, this.battleTime, this.timedCellWarningGraphics);
     this.storage.restore(state.storage);
     this.shifter.restore(state.shifter);
     this.reselection.restore(state.reselection);
