@@ -51,6 +51,15 @@ function validateEntry(key: string, raw: string) {
       if (records !== undefined && (!object(records) || Object.entries(records).some(([id, count]) =>
         !levelId(id) || !Number.isSafeInteger(count) || (count as number) < 0))) throw new Error("Invalid endless records");
     }
+    for (const field of ["bestWavesByDifficulty", "bestBossRanksByDifficulty"]) {
+      const records = value[field];
+      if (records !== undefined && (!object(records) || Object.entries(records).some(([id, difficulties]) =>
+        !levelId(id) || !levelConfigs[id].survival || Boolean(levelConfigs[id].bossEndless) !== (field === "bestBossRanksByDifficulty") ||
+        !object(difficulties) || Object.entries(difficulties).some(([difficulty, count]) =>
+          String(Number(difficulty)) !== difficulty || !Number.isInteger(Number(difficulty)) ||
+          Number(difficulty) < DIFFICULTY_MIN || Number(difficulty) > DIFFICULTY_MAX ||
+          !Number.isSafeInteger(count) || (count as number) < 0)))) throw new Error("Invalid endless difficulty records");
+    }
   } else if (key === PREFERENCES_KEY) {
     if (Object.keys(value).some(key => key !== "debugMode" && key !== "audio") ||
         (value.debugMode !== undefined && typeof value.debugMode !== "boolean") ||

@@ -21,6 +21,24 @@ test("flawless difficulty records survive archives and malformed claims are reje
     assert.throws(() => archive.parseSaveArchive(envelope({ [PROGRESS]: JSON.stringify({ ...progress, flawlessDifficulties: records }) })));
   }
 });
+test("endless per-difficulty records round-trip and reject invalid difficulties or record types", () => {
+  const progress = { version: 1, completedLevelIds: [], allCardsUnlocked: false,
+    bestWaves: { "IF-1": 100 }, bestBossRanks: { "IF-BE-1": 20 },
+    bestWavesByDifficulty: { "IF-1": { 0: 90, 3: 30, 9: 10 } },
+    bestBossRanksByDifficulty: { "IF-BE-1": { 0: 12, 3: 5, 9: 2 } } };
+  const storage = fixture({ [PROGRESS]: JSON.stringify(progress) }), restored = fixture();
+  archive.importSaveArchive(archive.exportSaveArchive(storage), restored);
+  assert.deepEqual(JSON.parse(restored.getItem(PROGRESS)), progress);
+  for (const [field, id, wrongId] of [["bestWavesByDifficulty", "IF-1", "IF-BE-1"],
+    ["bestBossRanksByDifficulty", "IF-BE-1", "IF-1"]]) {
+    for (const records of [[], null, { [wrongId]: { 3: 5 } }, { "1-1": { 3: 5 } },
+      { [id]: [] }, { [id]: { 10: 2 } }, { [id]: { "03": 2 } }, { [id]: { "1.5": 2 } },
+      { [id]: { 3: -1 } }, { [id]: { 3: "2" } }, { [id]: { 3: 1.5 } }]) {
+      assert.throws(() => archive.parseSaveArchive(envelope({ [PROGRESS]: JSON.stringify({ ...progress, [field]: records }) })));
+    }
+  }
+});
+
 function fixture(entries = {}) {
   const values = new Map(Object.entries(entries));
   return { values, get length() { return values.size; }, key: i => [...values.keys()][i] ?? null,

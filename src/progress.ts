@@ -1,4 +1,4 @@
-import { CARD_SLOT_COUNT, CUBE_BOSS_STATS, DIFFICULTY_MIN, DIFFICULTY_MAX } from "./config";
+import { CARD_SLOT_COUNT, CUBE_BOSS_STATS, DEFAULT_DIFFICULTY, DIFFICULTY_MIN, DIFFICULTY_MAX } from "./config";
 import { imitatedCardId } from "./game/cardIdentity";
 import { isLoadoutCardId } from "./game/cardEligibility";
 import { chapterDefinitions, chapterIdForLevelId, getChapterDefinition, levelNodesForChapter } from "./data/chapters";
@@ -21,6 +21,8 @@ interface StoredProgress {
   seenBossKinds: BossKind[];
   bestWaves: Record<string, number>;
   bestBossRanks: Record<string, number>;
+  bestWavesByDifficulty: Record<string, Record<string, number>>;
+  bestBossRanksByDifficulty: Record<string, Record<string, number>>;
   flawlessDifficulties: Record<string, number[]>;
 }
 
@@ -79,26 +81,29 @@ export function isChapterGroupUnlocked(groupId: string) {
   return !!group && (!group.unlockAfter || isLevelCompleted(group.unlockAfter));
 }
 
-export function bestWaveForLevel(levelId: string) {
-  return progress().bestWaves[levelId] ?? 0;
+export function bestWaveForLevel(levelId: string, difficulty = DEFAULT_DIFFICULTY) {
+  return progress().bestWavesByDifficulty[levelId]?.[difficulty] ?? 0;
 }
 
-export function recordCompletedWaves(levelId: string, count: number) {
+export function recordCompletedWaves(levelId: string, count: number, difficulty = DEFAULT_DIFFICULTY) {
   if (!levelNodes.some(node => node.id === levelId) || !getLevelConfig(levelId).survival ||
       getLevelConfig(levelId).bossEndless ||
-      !Number.isSafeInteger(count) || count <= bestWaveForLevel(levelId)) return;
+      !validDifficulty(difficulty) || !Number.isSafeInteger(count) || count <= bestWaveForLevel(levelId, difficulty)) return;
   const state = progress();
-  writeProgress({ ...state, bestWaves: { ...state.bestWaves, [levelId]: count } });
+  writeProgress({ ...state, bestWavesByDifficulty: { ...state.bestWavesByDifficulty,
+    [levelId]: { ...state.bestWavesByDifficulty[levelId], [difficulty]: count } } });
 }
 
-export function bestBossRankForLevel(levelId: string) {
-  return progress().bestBossRanks[levelId] ?? 0;
+export function bestBossRankForLevel(levelId: string, difficulty = DEFAULT_DIFFICULTY) {
+  return progress().bestBossRanksByDifficulty[levelId]?.[difficulty] ?? 0;
 }
 
-export function recordDefeatedBossRank(levelId: string, rank: number) {
-  if (!getLevelConfig(levelId).bossEndless || !Number.isSafeInteger(rank) || rank <= bestBossRankForLevel(levelId)) return;
+export function recordDefeatedBossRank(levelId: string, rank: number, difficulty = DEFAULT_DIFFICULTY) {
+  if (!levelNodes.some(node => node.id === levelId) || !getLevelConfig(levelId).bossEndless ||
+      !validDifficulty(difficulty) || !Number.isSafeInteger(rank) || rank <= bestBossRankForLevel(levelId, difficulty)) return;
   const state = progress();
-  writeProgress({ ...state, bestBossRanks: { ...state.bestBossRanks, [levelId]: rank } });
+  writeProgress({ ...state, bestBossRanksByDifficulty: { ...state.bestBossRanksByDifficulty,
+    [levelId]: { ...state.bestBossRanksByDifficulty[levelId], [difficulty]: rank } } });
 }
 
 export function isChapterUnlocked(chapterId: string) {
@@ -245,7 +250,7 @@ function progress() {
 }
 
 function emptyProgress(): StoredProgress {
-  return { version: SAVE_VERSION, completedLevelIds: [], allCardsUnlocked: false, seenEnemyKinds: [], seenBossKinds: [], bestWaves: {}, bestBossRanks: {}, flawlessDifficulties: {} };
+  return { version: SAVE_VERSION, completedLevelIds: [], allCardsUnlocked: false, seenEnemyKinds: [], seenBossKinds: [], bestWaves: {}, bestBossRanks: {}, bestWavesByDifficulty: {}, bestBossRanksByDifficulty: {}, flawlessDifficulties: {} };
 }
 
 function readProgress(): StoredProgress {
@@ -285,6 +290,9 @@ function readProgress(): StoredProgress {
       })),
       seenEnemyKinds: Array.isArray(parsed.seenEnemyKinds) ? [...new Set(parsed.seenEnemyKinds.filter(isEnemyKind))] : [],
       seenBossKinds: validStoredKinds(parsed.seenBossKinds, CUBE_BOSS_STATS),
+      // Legacy totals have no difficulty metadata; retain them without inventing per-difficulty results.
+      bestWavesByDifficulty: readEndlessRecords(parsed.bestWavesByDifficulty, false),
+      bestBossRanksByDifficulty: readEndlessRecords(parsed.bestBossRanksByDifficulty, true),
       bestWaves: Object.fromEntries(levelNodes.filter(node => getLevelConfig(node.id).survival).map(node => {
         const value = parsed.bestWaves?.[node.id];
         return [node.id, typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : 0];
@@ -297,6 +305,24 @@ function readProgress(): StoredProgress {
   } catch {
     return emptyProgress();
   }
+}
+
+function validDifficulty(value: number) {
+  return Number.isInteger(value) && value >= DIFFICULTY_MIN && value <= DIFFICULTY_MAX;
+}
+
+function readEndlessRecords(value: unknown, boss: boolean): Record<string, Record<string, number>> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(levelNodes.flatMap(node => {
+    const level = getLevelConfig(node.id);
+    if (!level.survival || Boolean(level.bossEndless) !== boss) return [];
+    const records = (value as Record<string, unknown>)[node.id];
+    if (!records || typeof records !== "object" || Array.isArray(records)) return [];
+    const valid = Object.entries(records).filter(([difficulty, count]) =>
+      String(Number(difficulty)) === difficulty && validDifficulty(Number(difficulty)) &&
+      typeof count === "number" && Number.isSafeInteger(count) && count >= 0);
+    return valid.length ? [[node.id, Object.fromEntries(valid)]] : [];
+  }));
 }
 
 function validStoredKinds<T extends string>(value: unknown, definitions: Record<T, unknown>): T[] {

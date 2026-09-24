@@ -2016,7 +2016,7 @@ export class GameScene extends Phaser.Scene {
       for (const enemy of enemiesWithPassengers(this.enemies)) {
         if (enemyIsActive(enemy)) earliestWave = Math.min(earliestWave, enemy.waveNumber);
       }
-      if (!this.playback) recordCompletedWaves(this.levelId, Math.max(0, earliestWave - 1));
+      if (!this.playback) recordCompletedWaves(this.levelId, Math.max(0, earliestWave - 1), this.difficulty);
     }
     const action = waveScheduleAction(
       activeLevelConfig,
@@ -2104,7 +2104,7 @@ export class GameScene extends Phaser.Scene {
 
   private handleBossDefeated(boss: CubeBoss) {
     if (this.levelConfig.bossEndless) {
-      if (!this.playback) recordDefeatedBossRank(this.levelId, boss.rank);
+      if (!this.playback) recordDefeatedBossRank(this.levelId, boss.rank, this.difficulty);
       if (isOctahedronBoss(boss)) {
         forEachSnapshot(this.enemies, enemy => {
           if (enemy.kind === "solarBomb") removeEnemy(this.unitLifecycleRuntime(), enemy, false);

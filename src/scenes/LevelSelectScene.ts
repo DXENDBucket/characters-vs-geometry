@@ -74,6 +74,7 @@ export class LevelSelectScene extends Phaser.Scene {
   private mapStartY = 0;
   private suppressNodeClickUntil = 0;
   private bossNodePreviews: BossNodePreview[] = [];
+  private endlessRecordLabels = new Map<string, Phaser.GameObjects.Text>();
   private lockGraphics!: Phaser.GameObjects.Graphics;
   private startButton!: Phaser.GameObjects.Rectangle;
   private startText!: Phaser.GameObjects.Text;
@@ -110,6 +111,7 @@ export class LevelSelectScene extends Phaser.Scene {
 
   create() {
     this.bossNodePreviews = [];
+    this.endlessRecordLabels.clear();
     this.cameras.main.setBackgroundColor(palette.black);
     this.drawBackdrop();
     this.createMapContainer();
@@ -326,12 +328,12 @@ export class LevelSelectScene extends Phaser.Scene {
 
     this.mapContainer.add([frame, label]);
     if (level.survival) {
-      this.mapContainer.add(this.add.text(node.x, node.y + LEVEL_NODE_HEIGHT / 2 + 28,
-        unlocked ? level.bossEndless ? t("label.bestBossRank", { count: bestBossRankForLevel(node.id) })
-          : t("label.bestWave", { count: bestWaveForLevel(node.id) })
-          : t("label.unlockAfter", { level: level.unlockAfter ?? "" }), {
+      const recordLabel = this.add.text(node.x, node.y + LEVEL_NODE_HEIGHT / 2 + 28,
+        unlocked ? "" : t("label.unlockAfter", { level: level.unlockAfter ?? "" }), {
           color: uiTextColors.secondary, fontFamily: "monospace", fontSize: "17px"
-        }).setOrigin(0.5));
+        }).setOrigin(0.5);
+      this.mapContainer.add(recordLabel);
+      if (unlocked) this.endlessRecordLabels.set(node.id, recordLabel);
     }
     this.mapContainer.add(createCompletionMarks(this, node.x + LEVEL_NODE_WIDTH / 2 - 12,
       node.y - LEVEL_NODE_HEIGHT / 2 + 10, completed, flawlessDifficulty));
@@ -710,6 +712,11 @@ export class LevelSelectScene extends Phaser.Scene {
   private updateDifficultySlider(trackX: number, trackWidth: number) {
     this.difficultyKnob.x = trackX + (this.difficulty / DIFFICULTY_MAX) * trackWidth;
     this.difficultyText.setText(`${this.difficulty} ${t(`difficulty.${this.difficulty}`)}`);
+    for (const [levelId, label] of this.endlessRecordLabels) {
+      label.setText(getLevelConfig(levelId).bossEndless
+        ? t("label.bestBossRank", { count: bestBossRankForLevel(levelId, this.difficulty) })
+        : t("label.bestWave", { count: bestWaveForLevel(levelId, this.difficulty) }));
+    }
   }
 
   private updateSelection() {

@@ -394,6 +394,46 @@ test("Boss Endless records highest defeated rank independently of waves and surv
   assert.equal(reloaded.progress.bestBossRankForLevel("IF-BE-1"), 0);
 });
 
+test("endless records are isolated by difficulty, persisted and monotonic", () => {
+  const f = fixture();
+  for (const [difficulty, count] of [[0, 80], [3, 40], [9, 12]]) {
+    f.progress.recordCompletedWaves("IF-1", count, difficulty);
+    f.progress.recordDefeatedBossRank("IF-BE-1", count, difficulty);
+    f.progress.recordCompletedWaves("IF-1", count - 1, difficulty);
+    f.progress.recordDefeatedBossRank("IF-BE-1", count - 1, difficulty);
+  }
+  const writes = f.writes();
+  for (const difficulty of [-1, 10, 1.5, NaN, Infinity]) {
+    f.progress.recordCompletedWaves("IF-1", 999, difficulty);
+    f.progress.recordDefeatedBossRank("IF-BE-1", 999, difficulty);
+  }
+  assert.equal(f.writes(), writes);
+  const p = fixture(JSON.parse(f.storage.get(storageKey))).progress;
+  for (const [difficulty, count] of [[0, 80], [3, 40], [9, 12], [1, 0]]) {
+    assert.equal(p.bestWaveForLevel("IF-1", difficulty), count);
+    assert.equal(p.bestBossRankForLevel("IF-BE-1", difficulty), count);
+    assert.equal(p.bestWaveForLevel("IF-2", difficulty), 0);
+  }
+  p.resetProgress();
+  assert.equal(p.bestWaveForLevel("IF-1", 0), 0);
+  assert.equal(p.bestBossRankForLevel("IF-BE-1", 9), 0);
+});
+
+test("legacy endless totals are retained without assigning an unknown difficulty", () => {
+  const f = fixture({ version: 1, completedLevelIds: [], allCardsUnlocked: false,
+    bestWaves: { "IF-1": 100 }, bestBossRanks: { "IF-BE-1": 20 },
+    bestWavesByDifficulty: { "IF-1": { 0: 12, 3: -1, 4: "50", 10: 20, "03": 30 }, "1-1": { 3: 100 } },
+    bestBossRanksByDifficulty: { "IF-BE-1": { 9: 5 }, "IF-1": { 3: 100 } } });
+  assert.equal(f.progress.bestWaveForLevel("IF-1", 3), 0);
+  assert.equal(f.progress.bestBossRankForLevel("IF-BE-1", 3), 0);
+  f.progress.recordCompletedWaves("IF-1", 4, 3);
+  const saved = JSON.parse(f.storage.get(storageKey));
+  assert.equal(saved.bestWaves["IF-1"], 100);
+  assert.equal(saved.bestBossRanks["IF-BE-1"], 20);
+  assert.deepEqual(saved.bestWavesByDifficulty, { "IF-1": { 0: 12, 3: 4 } });
+  assert.deepEqual(saved.bestBossRanksByDifficulty, { "IF-BE-1": { 9: 5 } });
+});
+
 test("ASCII Expansion opens after 4-10 independently of the main finale", () => {
   const { progress } = fixture();
   assert.equal(progress.isChapterGroupUnlocked("ascii"), false);
