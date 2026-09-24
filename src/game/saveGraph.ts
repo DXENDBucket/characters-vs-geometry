@@ -5,7 +5,9 @@ export interface SaveGraph { root: Value; nodes: GraphNode[] }
 const forbidden = new Set(["__proto__", "prototype", "constructor"]);
 
 // References preserve shared health pools, targets and removed sources without copying Phaser objects.
-export function encodeSaveGraph(root: unknown, classify: (object: object) => { kind: NodeKind; omit?: ReadonlySet<string> }): SaveGraph {
+export function encodeSaveGraph(root: unknown, classify: (object: object) => {
+  kind: NodeKind; omit?: ReadonlySet<string>; include?: ReadonlySet<string>
+}): SaveGraph {
   const nodes: GraphNode[] = [];
   const ids = new Map<object, number>();
   function encode(value: unknown): Value {
@@ -18,11 +20,11 @@ export function encodeSaveGraph(root: unknown, classify: (object: object) => { k
     if (existing !== undefined) return { ref: existing };
     const id = nodes.length;
     ids.set(value, id);
-    const { kind, omit } = classify(value);
+    const { kind, omit, include } = classify(value);
     const node: GraphNode = { kind, data: {} };
     nodes.push(node);
     for (const [key, child] of Object.entries(value)) {
-      if (child === undefined || omit?.has(key)) continue;
+      if (child === undefined || omit?.has(key) || (include && !include.has(key))) continue;
       if (forbidden.has(key)) throw new Error("Invalid save property");
       node.data[key] = encode(child);
     }

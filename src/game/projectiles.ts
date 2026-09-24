@@ -1,7 +1,6 @@
 import Phaser from "phaser";
 import { CHEVRON_LEADER } from "../data/chevronLeader";
 import { drawIonOrb } from "../render/chevronLeader";
-import { towerActionContext, towerBehaviorType } from "./towerIdentity";
 import { attachProjectileTrail } from "../render/projectileTrail";
 import { enemyFacingDirection, enemyMovementDirection } from "./rules/reversal";
 import { BOARD_HEIGHT, BOARD_WIDTH, BOARD_X, BOARD_Y, CELL_WIDTH, palette } from "../config";
@@ -9,52 +8,29 @@ import { enemyFamily } from "../registry/enemies";
 import { damageEffectColor, damageEffectTextColor } from "../render/combatEffects";
 import type {
   DamageType,
-  CubeBoss,
   Enemy,
   EnemyProjectile,
   MortarProjectile,
   Projectile,
   ProjectileKind,
-  StatusEffectName,
   Tower
 } from "../types";
 import { enemyAttackDamage } from "./combatStats";
-import { projectileVisualScale, type ProjectileIntegrity } from "./projectileIntegrity";
+import { projectileVisualScale } from "./projectileIntegrity";
+import { createTowerProjectileState, createHomingTowerProjectileState, createMortarProjectileState,
+  homingProjectileAngleDegrees, reflectedProjectileSpec,
+  type TowerProjectileSpec, type HomingTowerProjectileSpec, type MortarProjectileSpec,
+  type ProjectileState, type EnemyProjectileState } from "./projectileState";
 
-export interface TowerProjectileSpec extends ProjectileIntegrity {
-  hitCount?: number;
-  type: ProjectileKind;
-  x: number;
-  y: number;
-  lane: number;
-  speed: number;
-  damage: number;
-  damageType: DamageType;
-  debuff?: StatusEffectName;
-  debuffDuration?: number;
-  splashRadius: number;
-  angleDegrees: number;
-  maxX: number;
-  limitDirection?: -1 | 1;
-  sourceTower?: Tower;
-}
-
-export interface HomingTowerProjectileSpec {
-  x: number;
-  y: number;
-  lane: number;
-  speed: number;
-  acceleration: number;
-  maxSpeed: number;
-  damage: number;
-  damageType: DamageType;
-  targetEnemy?: Enemy;
-  targetBossPart?: CubeBoss;
-  sourceTower?: Tower;
-}
+export type { TowerProjectileSpec, HomingTowerProjectileSpec, MortarProjectileSpec } from "./projectileState";
 
 export function createTowerProjectile(scene: Phaser.Scene, spec: TowerProjectileSpec): Projectile {
-  const angle = Phaser.Math.DegToRad(spec.angleDegrees);
+  const state = createTowerProjectileState(spec);
+  return Object.assign(state, { body: createTowerProjectileBody(scene, state, spec.angleDegrees) });
+}
+
+function createTowerProjectileBody(scene: Phaser.Scene, spec: ProjectileState, angleDegrees: number) {
+  const angle = Phaser.Math.DegToRad(angleDegrees);
   const projectileColor = damageEffectColor(spec.damageType);
   let body: Phaser.GameObjects.Shape | Phaser.GameObjects.Text;
   if (spec.type === "bolt") {
@@ -75,53 +51,12 @@ export function createTowerProjectile(scene: Phaser.Scene, spec: TowerProjectile
   body.setScale(projectileVisualScale(spec));
   body.rotation = angle;
 
-  return {
-    type: spec.type,
-    hitCount: spec.hitCount ?? 1,
-    partialHitDamage: spec.partialHitDamage,
-    initialDamageBudget: spec.initialDamageBudget,
-    lane: spec.lane,
-    x: spec.x,
-    y: spec.y,
-    vx: Math.cos(angle) * spec.speed,
-    vy: Math.sin(angle) * spec.speed,
-    damage: spec.damage,
-    damageType: spec.damageType,
-    debuff: spec.debuff,
-    debuffDuration: spec.debuffDuration,
-    splashRadius: spec.splashRadius,
-    maxX: spec.maxX,
-    limitDirection: spec.limitDirection ?? (Math.cos(angle) < 0 ? -1 : 1),
-    sourceTower: spec.sourceTower,
-    sourceBehaviorType: spec.sourceTower && (spec.sourceTower.type === "@" || towerActionContext(spec.sourceTower))
-      ? towerBehaviorType(spec.sourceTower) : undefined,
-    body
-  };
+  return body;
 }
 
 export function createHomingTowerProjectile(scene: Phaser.Scene, spec: HomingTowerProjectileSpec): Projectile {
-  const target = spec.targetEnemy ?? spec.targetBossPart;
-  const angle = target ? Math.atan2(target.y - spec.y, target.x - spec.x) : 0;
-  const projectile = createTowerProjectile(scene, {
-    type: "chevron",
-    x: spec.x,
-    y: spec.y,
-    lane: spec.lane,
-    speed: spec.speed,
-    damage: spec.damage,
-    damageType: spec.damageType,
-    splashRadius: 0,
-    angleDegrees: Phaser.Math.RadToDeg(angle),
-    maxX: Number.POSITIVE_INFINITY,
-    limitDirection: 1,
-    sourceTower: spec.sourceTower
-  });
-  projectile.targetEnemy = spec.targetEnemy;
-  projectile.targetBossPart = spec.targetBossPart;
-  projectile.speed = spec.speed;
-  projectile.acceleration = spec.acceleration;
-  projectile.maxSpeed = spec.maxSpeed;
-  return projectile;
+  const state = createHomingTowerProjectileState(spec);
+  return Object.assign(state, { body: createTowerProjectileBody(scene, state, homingProjectileAngleDegrees(spec)) });
 }
 
 export function createEnemyProjectile(scene: Phaser.Scene, enemy: Enemy, time: number, hitCount = 1): EnemyProjectile {
@@ -133,7 +68,7 @@ export function createEnemyProjectile(scene: Phaser.Scene, enemy: Enemy, time: n
     appearance: isDiamondShot ? "star" : "bolt" });
 }
 
-export function restoreEnemyProjectile(scene: Phaser.Scene, state: Omit<EnemyProjectile, "body">): EnemyProjectile {
+export function restoreEnemyProjectile(scene: Phaser.Scene, state: EnemyProjectileState): EnemyProjectile {
   const isDiamondShot = state.appearance === "star";
   const body = state.appearance === "ion" ? scene.add.graphics().setPosition(state.x, state.y).setDepth(91) : isDiamondShot
     ? scene.add
@@ -165,32 +100,6 @@ export function createIonProjectile(scene: Phaser.Scene, enemy: Enemy, time: num
   });
 }
 
-export interface MortarProjectileSpec extends ProjectileIntegrity {
-  hitCount?: number;
-  owner: "enemy" | "tower";
-  fromX: number;
-  fromY: number;
-  targetX: number;
-  targetY: number;
-  damage: number;
-  damageType: DamageType;
-  rangeX: number;
-  rangeY: number;
-  marker?: "shell" | "text";
-  markerText?: string;
-  markerTextColor?: string;
-  sourceEnemy?: Enemy;
-  sourceTower?: Tower;
-  targetEnemy?: Enemy;
-  targetTower?: Tower;
-  duration?: number;
-  singleTarget?: boolean;
-  hitRadius?: number;
-  radialFalloff?: boolean;
-  debuff?: StatusEffectName;
-  debuffDuration?: number;
-}
-
 export function createMortarProjectile(scene: Phaser.Scene, spec: MortarProjectileSpec): MortarProjectile {
   const projectileColor = spec.owner === "enemy" ? palette.enemyShot : damageEffectColor(spec.damageType);
   const body =
@@ -212,37 +121,7 @@ export function createMortarProjectile(scene: Phaser.Scene, spec: MortarProjecti
   attachProjectileTrail(scene, body, trailColor, 119);
   body.setScale(projectileVisualScale(spec));
 
-  return {
-    owner: spec.owner,
-    hitCount: spec.hitCount ?? 1,
-    partialHitDamage: spec.partialHitDamage,
-    initialDamageBudget: spec.initialDamageBudget,
-    x: spec.fromX,
-    y: spec.fromY,
-    fromX: spec.fromX,
-    fromY: spec.fromY,
-    targetX: spec.targetX,
-    targetY: spec.targetY,
-    progress: 0,
-    duration: spec.duration ?? 3_240,
-    damage: spec.damage,
-    damageType: spec.damageType,
-    rangeX: spec.rangeX,
-    rangeY: spec.rangeY,
-    marker: spec.marker,
-    markerText: spec.markerText,
-    markerTextColor: spec.markerTextColor,
-    sourceEnemy: spec.sourceEnemy,
-    sourceTower: spec.sourceTower,
-    targetEnemy: spec.targetEnemy,
-    targetTower: spec.targetTower,
-    singleTarget: spec.singleTarget,
-    hitRadius: spec.hitRadius,
-    radialFalloff: spec.radialFalloff,
-    debuff: spec.debuff,
-    debuffDuration: spec.debuffDuration,
-    body
-  };
+  return Object.assign(createMortarProjectileState(spec), { body });
 }
 
 export function createReflectedProjectile(
@@ -251,24 +130,7 @@ export function createReflectedProjectile(
   damageType: DamageType = projectile.damageType,
   sourceTower?: Tower
 ): Projectile {
-  const reflectedAngle = projectile.vx < 0 ? 0 : 180;
-  return createTowerProjectile(scene, {
-    type: projectile.splashRadius ? "shell" : "bolt",
-    hitCount: projectile.hitCount,
-    partialHitDamage: projectile.partialHitDamage,
-    initialDamageBudget: projectile.initialDamageBudget,
-    x: projectile.x,
-    y: projectile.y,
-    lane: projectile.sourceLane,
-    speed: Math.abs(projectile.vx),
-    damage: projectile.damage,
-    damageType,
-    splashRadius: projectile.splashRadius ?? 0,
-    angleDegrees: reflectedAngle,
-    maxX: reflectedAngle === 180 ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY,
-    limitDirection: reflectedAngle === 180 ? -1 : 1,
-    sourceTower
-  });
+  return createTowerProjectile(scene, reflectedProjectileSpec(projectile, damageType, sourceTower));
 }
 
 export function isTowerProjectileOutOfBounds(projectile: Projectile, reachedLimitX: boolean) {

@@ -18,37 +18,15 @@ import { createMortarProjectile, createTowerProjectile, restoreEnemyProjectile }
 import { syncEnemyFacingVisual, syncEnemyVisualScale } from "./enemyBehaviors";
 import { syncChevronVisual } from "../render/chevronLeader";
 import { statusMultipliers, syncEnemyBodyPosition } from "./statusEffects";
-import { decodeSaveGraph, encodeSaveGraph, type GraphNode, type NodeKind, type SaveGraph } from "./saveGraph";
+import { decodeSaveGraph, type GraphNode, type SaveGraph } from "./saveGraph";
 import type { BattleSaveState } from "./battleSaveState";
+import type { EnemyProjectileState } from "./projectileState";
 import { containedEnemies, syncPassengerPositions } from "./enemyContainers";
 import { projectileVisualScale } from "./projectileIntegrity";
 import { syncTowerAttachmentVisual } from "../render/towerAttachments";
 import { migrateAttackStats } from "./attackStatsMigration";
 
-const towerVisuals = new Set<string>(["body", "border", "label", "facingIcon", "autoUpgradeBorder", "trueDamageBorder",
-  "flyingHalo", "hpFill", "negativeHpBack", "negativeHpFill", "rangeBorder", "levelText"] satisfies (keyof Tower)[]);
-const enemyVisuals = new Set<string>(["body", "shape", "statusBorder", "frozenBorder", "powerIcon", "sunderIcon",
-  "armorIcon", "magicResistanceIcon", "flyingHalo", "statusMultiplierCache"] satisfies (keyof Enemy)[]);
-const shotVisuals = new Set(["body"]);
-const bossVisuals = new Set<string>(["body", "frame", "labelText"] satisfies (keyof CubeBoss)[]);
-
-export function captureBattleSnapshot(state: BattleSaveState) {
-  return encodeSaveGraph(state, object => {
-    const value = object as Record<string, unknown>;
-    if (typeof value.id === "string" && value.id.startsWith("tower:")) return { kind: "tower", omit: towerVisuals };
-    if ("kind" in value && "waveNumber" in value) return { kind: "enemy", omit: enemyVisuals };
-    if ("advanceMinionKind" in value && "rank" in value) {
-      if (!rankedBossFamily(value.kind) && value.kind !== "icosahedron" && value.kind !== "del") throw new Error("Unsupported boss save");
-      return { kind: "boss", omit: bossVisuals };
-    }
-    if ("body" in value) {
-      const kind: NodeKind = "owner" in value ? "mortar" : "sourceLane" in value ? "enemyProjectile" : "projectile";
-      return { kind, omit: shotVisuals };
-    }
-    if (!Array.isArray(object) && Object.getPrototypeOf(object) !== Object.prototype) throw new Error("Non-data object in save");
-    return { kind: Array.isArray(object) ? "array" : "object" };
-  });
-}
+export { captureBattleSnapshot } from "./captureBattleSnapshot";
 
 export function restoreBattleSnapshot(scene: Phaser.Scene, graph: SaveGraph): BattleSaveState {
   const towers: Tower[] = [];
@@ -88,7 +66,7 @@ export function restoreBattleSnapshot(scene: Phaser.Scene, graph: SaveGraph): Ba
       }
       const data = node.data as unknown as Projectile;
       if (node.kind === "enemyProjectile") {
-        const projectile = restoreEnemyProjectile(scene, node.data as unknown as Omit<EnemyProjectile, "body">);
+        const projectile = restoreEnemyProjectile(scene, node.data as unknown as EnemyProjectileState);
         bodies.push(projectile.body); shots.push(projectile);
         return projectile;
       }

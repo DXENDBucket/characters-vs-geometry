@@ -1,0 +1,215 @@
+import type { CardId, CubeBoss, DamageType, Enemy, ProjectileKind, StatusEffectName, Tower } from "../types";
+import type { ProjectileIntegrity } from "./projectileIntegrity";
+import { towerActionContext, towerBehaviorType } from "./towerIdentity";
+
+export interface ProjectileState extends ProjectileIntegrity {
+  circuitChecked?: boolean;
+  sourceBehaviorType?: CardId;
+  lastGatheredAt?: number;
+  type: ProjectileKind;
+  lane: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  damageType: DamageType;
+  debuff?: StatusEffectName;
+  debuffDuration?: number;
+  splashRadius: number;
+  maxX: number;
+  limitDirection: -1 | 1;
+  targetEnemy?: Enemy;
+  targetBossPart?: CubeBoss;
+  sourceTower?: Tower;
+  speed?: number;
+  acceleration?: number;
+  maxSpeed?: number;
+}
+
+export interface EnemyProjectileState extends ProjectileIntegrity {
+  lastGatheredAt?: number;
+  appearance?: "bolt" | "star" | "ion";
+  splashRadius?: number;
+  x: number;
+  y: number;
+  vx: number;
+  damageType: DamageType;
+  sourceLane: number;
+}
+
+export interface MortarProjectileState extends ProjectileIntegrity {
+  owner: "enemy" | "tower";
+  x: number;
+  y: number;
+  fromX: number;
+  fromY: number;
+  targetX: number;
+  targetY: number;
+  progress: number;
+  duration: number;
+  damageType: DamageType;
+  rangeX: number;
+  rangeY: number;
+  marker?: "shell" | "text";
+  markerText?: string;
+  markerTextColor?: string;
+  sourceEnemy?: Enemy;
+  sourceTower?: Tower;
+  targetEnemy?: Enemy;
+  targetTower?: Tower;
+  singleTarget?: boolean;
+  hitRadius?: number;
+  radialFalloff?: boolean;
+  debuff?: StatusEffectName;
+  debuffDuration?: number;
+  shiftSelfDamageApplied?: boolean;
+}
+
+export interface TowerProjectileSpec extends ProjectileIntegrity {
+  type: ProjectileKind;
+  x: number;
+  y: number;
+  lane: number;
+  speed: number;
+  damageType: DamageType;
+  debuff?: StatusEffectName;
+  debuffDuration?: number;
+  splashRadius: number;
+  angleDegrees: number;
+  maxX: number;
+  limitDirection?: -1 | 1;
+  sourceTower?: Tower;
+}
+
+export interface HomingTowerProjectileSpec {
+  x: number;
+  y: number;
+  lane: number;
+  speed: number;
+  acceleration: number;
+  maxSpeed: number;
+  damage: number;
+  damageType: DamageType;
+  targetEnemy?: Enemy;
+  targetBossPart?: CubeBoss;
+  sourceTower?: Tower;
+}
+
+export interface MortarProjectileSpec extends ProjectileIntegrity {
+  owner: "enemy" | "tower";
+  fromX: number;
+  fromY: number;
+  targetX: number;
+  targetY: number;
+  damageType: DamageType;
+  rangeX: number;
+  rangeY: number;
+  marker?: "shell" | "text";
+  markerText?: string;
+  markerTextColor?: string;
+  sourceEnemy?: Enemy;
+  sourceTower?: Tower;
+  targetEnemy?: Enemy;
+  targetTower?: Tower;
+  duration?: number;
+  singleTarget?: boolean;
+  hitRadius?: number;
+  radialFalloff?: boolean;
+  debuff?: StatusEffectName;
+  debuffDuration?: number;
+}
+
+export function createTowerProjectileState(spec: TowerProjectileSpec): ProjectileState {
+  // Match the original degree conversion and field order for replay checkpoints.
+  const angle = spec.angleDegrees * (Math.PI / 180);
+  return {
+    type: spec.type,
+    hitCount: spec.hitCount ?? 1,
+    partialHitDamage: spec.partialHitDamage,
+    initialDamageBudget: spec.initialDamageBudget,
+    lane: spec.lane,
+    x: spec.x,
+    y: spec.y,
+    vx: Math.cos(angle) * spec.speed,
+    vy: Math.sin(angle) * spec.speed,
+    damage: spec.damage,
+    damageType: spec.damageType,
+    debuff: spec.debuff,
+    debuffDuration: spec.debuffDuration,
+    splashRadius: spec.splashRadius,
+    maxX: spec.maxX,
+    limitDirection: spec.limitDirection ?? (Math.cos(angle) < 0 ? -1 : 1),
+    sourceTower: spec.sourceTower,
+    sourceBehaviorType: spec.sourceTower && (spec.sourceTower.type === "@" || towerActionContext(spec.sourceTower))
+      ? towerBehaviorType(spec.sourceTower) : undefined
+  };
+}
+
+export function homingProjectileAngleDegrees(spec: HomingTowerProjectileSpec) {
+  const target = spec.targetEnemy ?? spec.targetBossPart;
+  return (target ? Math.atan2(target.y - spec.y, target.x - spec.x) : 0) * (180 / Math.PI);
+}
+
+export function createHomingTowerProjectileState(spec: HomingTowerProjectileSpec): ProjectileState {
+  const projectile = createTowerProjectileState({
+    type: "chevron", x: spec.x, y: spec.y, lane: spec.lane, speed: spec.speed,
+    damage: spec.damage, damageType: spec.damageType, splashRadius: 0,
+    angleDegrees: homingProjectileAngleDegrees(spec), maxX: Infinity, limitDirection: 1,
+    sourceTower: spec.sourceTower
+  });
+  projectile.targetEnemy = spec.targetEnemy;
+  projectile.targetBossPart = spec.targetBossPart;
+  projectile.speed = spec.speed;
+  projectile.acceleration = spec.acceleration;
+  projectile.maxSpeed = spec.maxSpeed;
+  return projectile;
+}
+
+export function createMortarProjectileState(spec: MortarProjectileSpec): MortarProjectileState {
+  return {
+    owner: spec.owner,
+    hitCount: spec.hitCount ?? 1,
+    partialHitDamage: spec.partialHitDamage,
+    initialDamageBudget: spec.initialDamageBudget,
+    x: spec.fromX,
+    y: spec.fromY,
+    fromX: spec.fromX,
+    fromY: spec.fromY,
+    targetX: spec.targetX,
+    targetY: spec.targetY,
+    progress: 0,
+    duration: spec.duration ?? 3_240,
+    damage: spec.damage,
+    damageType: spec.damageType,
+    rangeX: spec.rangeX,
+    rangeY: spec.rangeY,
+    marker: spec.marker,
+    markerText: spec.markerText,
+    markerTextColor: spec.markerTextColor,
+    sourceEnemy: spec.sourceEnemy,
+    sourceTower: spec.sourceTower,
+    targetEnemy: spec.targetEnemy,
+    targetTower: spec.targetTower,
+    singleTarget: spec.singleTarget,
+    hitRadius: spec.hitRadius,
+    radialFalloff: spec.radialFalloff,
+    debuff: spec.debuff,
+    debuffDuration: spec.debuffDuration
+  };
+}
+
+export function reflectedProjectileSpec(projectile: EnemyProjectileState,
+  damageType: DamageType = projectile.damageType, sourceTower?: Tower): TowerProjectileSpec {
+  const reflectedAngle = projectile.vx < 0 ? 0 : 180;
+  return {
+    type: projectile.splashRadius ? "shell" : "bolt",
+    hitCount: projectile.hitCount,
+    partialHitDamage: projectile.partialHitDamage,
+    initialDamageBudget: projectile.initialDamageBudget,
+    x: projectile.x, y: projectile.y, lane: projectile.sourceLane,
+    speed: Math.abs(projectile.vx), damage: projectile.damage, damageType,
+    splashRadius: projectile.splashRadius ?? 0, angleDegrees: reflectedAngle,
+    maxX: reflectedAngle === 180 ? -Infinity : Infinity,
+    limitDirection: reflectedAngle === 180 ? -1 : 1, sourceTower
+  };
+}

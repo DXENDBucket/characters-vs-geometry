@@ -1,6 +1,7 @@
 import type Phaser from "phaser";
 import type { TowerActionEvent } from "./game/towerActions";
 import type { ProjectileIntegrity } from "./game/projectileIntegrity";
+import type { EnemyProjectileState, MortarProjectileState, ProjectileState } from "./game/projectileState";
 
 export type CardId =
   | "?"
@@ -441,30 +442,7 @@ export interface Enemy {
   bossCompanionActionPhase?: BossCompanionActionPhase;
 }
 
-export interface Projectile extends ProjectileIntegrity {
-  circuitChecked?: boolean;
-  sourceBehaviorType?: CardId;
-  lastGatheredAt?: number;
-  hitCount?: number;
-  type: ProjectileKind;
-  lane: number;
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  damage: number;
-  damageType: DamageType;
-  debuff?: StatusEffectName;
-  debuffDuration?: number;
-  splashRadius: number;
-  maxX: number;
-  limitDirection: -1 | 1;
-  targetEnemy?: Enemy;
-  targetBossPart?: CubeBoss;
-  sourceTower?: Tower;
-  speed?: number;
-  acceleration?: number;
-  maxSpeed?: number;
+export interface Projectile extends ProjectileState {
   body: Phaser.GameObjects.Shape | Phaser.GameObjects.Text;
 }
 
@@ -497,48 +475,11 @@ export interface StoredTowerShot extends ProjectileIntegrity {
   remainingRange: number;
 }
 
-export interface EnemyProjectile extends ProjectileIntegrity {
-  lastGatheredAt?: number;
-  appearance?: "bolt" | "star" | "ion";
-  splashRadius?: number;
-  hitCount?: number;
-  x: number;
-  y: number;
-  vx: number;
-  damage: number;
-  damageType: DamageType;
-  sourceLane: number;
+export interface EnemyProjectile extends EnemyProjectileState {
   body: Phaser.GameObjects.Shape | Phaser.GameObjects.Text | Phaser.GameObjects.Graphics;
 }
 
-export interface MortarProjectile extends ProjectileIntegrity {
-  hitCount?: number;
-  owner: "enemy" | "tower";
-  x: number;
-  y: number;
-  fromX: number;
-  fromY: number;
-  targetX: number;
-  targetY: number;
-  progress: number;
-  duration: number;
-  damage: number;
-  damageType: DamageType;
-  rangeX: number;
-  rangeY: number;
-  marker?: "shell" | "text";
-  markerText?: string;
-  markerTextColor?: string;
-  sourceEnemy?: Enemy;
-  sourceTower?: Tower;
-  targetEnemy?: Enemy;
-  targetTower?: Tower;
-  singleTarget?: boolean;
-  hitRadius?: number;
-  radialFalloff?: boolean;
-  debuff?: StatusEffectName;
-  debuffDuration?: number;
-  shiftSelfDamageApplied?: boolean;
+export interface MortarProjectile extends MortarProjectileState {
   body: Phaser.GameObjects.Shape | Phaser.GameObjects.Text;
 }
 

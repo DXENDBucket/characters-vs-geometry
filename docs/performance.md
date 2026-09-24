@@ -92,10 +92,16 @@ rules, and decoupled charge/dispatch from model rendering. Idle Boss skill updat
 no longer allocate an empty readiness array. See [Boss Skill Definitions](boss-abilities.md).
 This is a dependency and allocation improvement, not a measured full-battle FPS gain.
 
+The fifth pass separated projectile data/construction from display bodies and
+made snapshot capture importable without Phaser. Projectile snapshots now include
+explicit, type-checked state fields; old graph order and references are preserved.
+See [Projectile State Boundary](projectile-state.md). This prepares a data boundary
+for replay/headless work, not a measured full-battle FPS gain.
+
 1. Move remaining pure visual updates to a frame-level rendering adapter while
    preserving simulation-owned positions, deadlines and random streams.
-2. Define explicit battle snapshot DTOs and stable entity IDs instead of walking
-   runtime object graphs with a visual-field exclusion list.
+2. Extend explicit snapshot contracts from projectiles to towers, enemies and
+   Bosses, then introduce stable entity IDs instead of live object references.
 3. Continue consolidating tower aura, Boss events, scaling and encyclopedia metadata;
    named enemy, tower and Boss SP skills now share their numeric definitions.
 4. Split oversized scene/runtime responsibilities along those boundaries, with
