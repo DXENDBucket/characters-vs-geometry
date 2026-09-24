@@ -20,7 +20,7 @@ try {
     const progressUrl = performance.getEntriesByType("resource").map(entry => entry.name)
       .find(url => new URL(url).pathname === "/src/progress.ts");
     const progress = window.__testProgress = await import(progressUrl ?? "/src/progress.ts"); progress.resetProgress();
-    for (const id of ["0-1", "0-2", "0-3", "0-4"]) progress.completeLevel(id);
+    for (const id of ["0-1", "0-2", "0-3", "0-4", "0-5"]) progress.completeLevel(id);
     window.__tutorialStart = levelId => {
       const g = window.__testGame;
       for (const s of g.scene.getScenes(true)) g.scene.stop(s.sys.settings.key);
@@ -45,7 +45,7 @@ try {
       const b = window.__testGame.scene.getScene("GameScene").ui[name]; return { x: b.x, y: b.y };
     }, name); await click(p.x, p.y);
   };
-  await start("0-5");
+  await start("0-6");
   await advance();
   for (let i = 0; i < 5; i++) {
     await page.waitForFunction(i => window.__testGame.scene.getScene("GameScene").tutorial.index === i, i);
@@ -59,11 +59,11 @@ try {
     await advance();
   }
   await advance();
-  assert(await page.evaluate(() => window.__testProgress.isLevelCompleted("0-5")));
+  assert(await page.evaluate(() => window.__testProgress.isLevelCompleted("0-6")));
   assert.equal(await page.evaluate(() => window.__testProgress.isCardUnlocked("I")), false);
 
   await page.setViewportSize({ width: 1280, height: 760 });
-  await start("0-3"); await advance(); await step("deploy");
+  await start("0-4"); await advance(); await step("deploy");
   await click(240 + 4.5 * 78, 138 + 3.5 * 78);
   await page.waitForTimeout(1100);
   await click(240 + 4.5 * 78, 138 + 4.5 * 78);

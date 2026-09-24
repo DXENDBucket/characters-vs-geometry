@@ -529,10 +529,33 @@ test("old saves migrate without losing progress and malformed discovery values a
     seenEnemyKinds: ["circle", "circle", "missing", "__proto__", 42], seenBossKinds: "octahedron" });
   assert.equal(progress.isLevelCompleted("0-4"), true);
   assert.equal(progress.isLevelCompleted("0-5"), true);
+  assert.equal(progress.isLevelCompleted("0-6"), true);
   assert.equal(progress.isCardUnlocked("I"), true);
   assert.equal(progress.discoveredEnemies().enemies.has("square"), true);
   assert.equal(progress.discoveredEnemies().enemies.has("missing"), false);
   assert.equal(progress.discoveredEnemies().bosses.size, 0);
+});
+
+test("inserting practice shifts old tutorial clears and flawless records exactly once", () => {
+  const f = fixture({ version: 1, completedLevelIds: ["0-1", "0-2", "0-3"], allCardsUnlocked: false,
+    flawlessDifficulties: { "0-2": [1], "0-3": [3] } });
+  assert.equal(f.progress.isLevelCompleted("0-2"), true);
+  assert.equal(f.progress.isLevelCompleted("0-4"), true);
+  assert.equal(f.progress.isLevelCompleted("0-5"), false);
+  assert.equal(f.progress.bestFlawlessDifficulty("0-2"), undefined);
+  assert.equal(f.progress.bestFlawlessDifficulty("0-3"), 1);
+  assert.equal(f.progress.bestFlawlessDifficulty("0-4"), 3);
+  assert.equal(f.progress.isLevelUnlocked("0-5"), true);
+  f.progress.completeLevel("0-5");
+  const stored = JSON.parse(f.storage.get(storageKey));
+  assert.equal(stored.tutorialOrderVersion, 2);
+  const reloaded = fixture(stored).progress;
+  assert.equal(reloaded.isLevelCompleted("0-6"), false);
+  assert.equal(reloaded.bestFlawlessDifficulty("0-4"), 3);
+  const fresh = fixture().progress;
+  fresh.completeLevel("0-1");
+  assert.equal(fresh.isLevelUnlocked("0-2"), true);
+  assert.equal(fresh.isLevelUnlocked("0-3"), false);
 });
 
 test("unregistered enemy ranks survive save reload and reveal their family entry", () => {

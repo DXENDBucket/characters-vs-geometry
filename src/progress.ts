@@ -15,6 +15,7 @@ const SAVE_VERSION = 1;
 
 interface StoredProgress {
   version: typeof SAVE_VERSION;
+  tutorialOrderVersion: 2;
   completedLevelIds: string[];
   allCardsUnlocked: boolean;
   seenEnemyKinds: EnemyKind[];
@@ -250,7 +251,7 @@ function progress() {
 }
 
 function emptyProgress(): StoredProgress {
-  return { version: SAVE_VERSION, completedLevelIds: [], allCardsUnlocked: false, seenEnemyKinds: [], seenBossKinds: [], bestWaves: {}, bestBossRanks: {}, bestWavesByDifficulty: {}, bestBossRanksByDifficulty: {}, flawlessDifficulties: {} };
+  return { version: SAVE_VERSION, tutorialOrderVersion: 2, completedLevelIds: [], allCardsUnlocked: false, seenEnemyKinds: [], seenBossKinds: [], bestWaves: {}, bestBossRanks: {}, bestWavesByDifficulty: {}, bestBossRanksByDifficulty: {}, flawlessDifficulties: {} };
 }
 
 function readProgress(): StoredProgress {
@@ -265,6 +266,17 @@ function readProgress(): StoredProgress {
       return emptyProgress();
     }
 
+    if (parsed.tutorialOrderVersion !== 2) {
+      const renumber = (id: string) => /^0-[2-5]$/.test(id) ? `0-${Number(id.slice(2)) + 1}` : id;
+      const previous = Array.isArray(parsed.completedLevelIds)
+        ? parsed.completedLevelIds.filter((id): id is string => typeof id === "string") : [];
+      parsed.completedLevelIds = previous.map(renumber);
+      // Players already past the introductory lesson keep access to their next operation.
+      if (previous.some(id => /^0-[2-5]$/.test(id))) parsed.completedLevelIds.push("0-2");
+      parsed.flawlessDifficulties = Object.fromEntries(Object.entries(parsed.flawlessDifficulties ?? {})
+        .map(([id, values]) => [renumber(id), values]));
+    }
+
     const completed = new Set(
       Array.isArray(parsed.completedLevelIds)
         ? parsed.completedLevelIds.filter((id): id is string => typeof id === "string" && knownLevelIds.has(id))
@@ -277,9 +289,11 @@ function readProgress(): StoredProgress {
       completed.add("0-3");
       completed.add("0-4");
       completed.add("0-5");
+      completed.add("0-6");
     }
     return {
       version: SAVE_VERSION,
+      tutorialOrderVersion: 2,
       completedLevelIds: levelNodes.map((node) => node.id).filter((id) => completed.has(id)),
       allCardsUnlocked: parsed.allCardsUnlocked === true,
       flawlessDifficulties: Object.fromEntries(completableNodes.filter(node => completed.has(node.id)).flatMap(node => {

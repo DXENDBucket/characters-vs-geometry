@@ -33,6 +33,16 @@ const levelEnemyKinds = unique(Object.values(levelConfigs).flatMap(level => [
   ...levelPreviewEnemyKinds(level), ...(level.bossPhases ?? []).flatMap(phase => phase.enemyKinds)
 ]));
 for (const level of Object.values(levelConfigs)) {
+  for (const field of ["spawnLanes", "deployableLanes"]) {
+    const lanes = level[field];
+    if (lanes && (!lanes.length || new Set(lanes).size !== lanes.length ||
+        lanes.some(lane => !Number.isInteger(lane) || lane < 0 || lane >= LANES))) {
+      errors.push(`Level "${level.id}" has invalid ${field}.`);
+    }
+  }
+  if (level.flagWeightMultiplier !== undefined && (!Number.isFinite(level.flagWeightMultiplier) || level.flagWeightMultiplier < 0)) {
+    errors.push(`Level "${level.id}" has invalid flag weight multiplier.`);
+  }
   const nul = level.periodicTowerNullification;
   if (nul && (!Number.isFinite(nul.intervalMs) || !Number.isFinite(nul.durationMs) ||
       nul.durationMs <= 0 || nul.intervalMs <= nul.durationMs)) {

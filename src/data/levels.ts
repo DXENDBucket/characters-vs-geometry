@@ -26,6 +26,7 @@ export const levelNodes: LevelNode[] = [
   { id: "0-3", x: 1140, y: 410 },
   { id: "0-4", x: 1460, y: 320 },
   { id: "0-5", x: 1780, y: 410 },
+  { id: "0-6", x: 2100, y: 320 },
   { id: "1-1", x: 230, y: 405 },
   { id: "1-2", x: 450, y: 310 },
   { id: "1-3", x: 670, y: 430 },
@@ -287,6 +288,19 @@ export const levelConfigs: Record<string, LevelConfig> = {
   },
   "0-2": {
     id: "0-2",
+    enemyKinds: ["circle", "triangle"],
+    spawnLanes: [3],
+    deployableLanes: [3],
+    firstWaveWeight: 10,
+    waveWeightIncrement: 5,
+    flagWeightMultiplier: 1,
+    totalWaves: 5,
+    wavesPerFlag: 5,
+    startingChars: 350,
+    specialMechanic: "tutorialPractice"
+  },
+  "0-3": {
+    id: "0-3",
     enemyKinds: ["circle"],
     firstWaveWeight: 10,
     waveWeightIncrement: 0,
@@ -295,8 +309,8 @@ export const levelConfigs: Record<string, LevelConfig> = {
     startingChars: 500,
     specialMechanic: "tutorialTowerTypes"
   },
-  "0-3": {
-    id: "0-3",
+  "0-4": {
+    id: "0-4",
     enemyKinds: ["circle"],
     firstWaveWeight: 10,
     waveWeightIncrement: 0,
@@ -305,8 +319,8 @@ export const levelConfigs: Record<string, LevelConfig> = {
     startingChars: 150,
     specialMechanic: "tutorialAutoUpgrade"
   },
-  "0-4": {
-    id: "0-4",
+  "0-5": {
+    id: "0-5",
     enemyKinds: ["circle"],
     firstWaveWeight: 10,
     waveWeightIncrement: 0,
@@ -315,8 +329,8 @@ export const levelConfigs: Record<string, LevelConfig> = {
     startingChars: 500,
     specialMechanic: "tutorialShifter"
   },
-  "0-5": {
-    id: "0-5",
+  "0-6": {
+    id: "0-6",
     enemyKinds: [],
     firstWaveWeight: 10,
     waveWeightIncrement: 0,

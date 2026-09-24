@@ -38,6 +38,7 @@ function validateEntry(key: string, raw: string) {
   if (!object(value)) throw new Error("Invalid save entry");
   if (key === PROGRESS_KEY) {
     if (value.version !== 1 || !validList(value.completedLevelIds, levelId) || typeof value.allCardsUnlocked !== "boolean") throw new Error("Invalid progress");
+    if (value.tutorialOrderVersion !== undefined && value.tutorialOrderVersion !== 2) throw new Error("Invalid tutorial order");
     if (value.seenEnemyKinds !== undefined && !validList(value.seenEnemyKinds, isEnemyKind)) throw new Error("Invalid enemies");
     if (value.seenBossKinds !== undefined && !validList(value.seenBossKinds, kind => typeof kind === "string" && Object.hasOwn(CUBE_BOSS_STATS, kind))) throw new Error("Invalid bosses");
     if (value.flawlessDifficulties !== undefined && (!object(value.flawlessDifficulties) ||

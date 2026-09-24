@@ -153,7 +153,9 @@ export function spawnWaveEnemies(runtime: EnemySpawnRuntime, options: SpawnWaveO
   let totalWeight = 0;
 
   kinds.forEach((kind, index) => {
-    const lane = random.between(0, LANES - (enemyFamily(kind) === "tilde" ? 2 : 1));
+    const lanes = options.levelConfig.spawnLanes;
+    const lane = lanes?.length ? lanes[random.between(0, lanes.length - 1)]
+      : random.between(0, LANES - (enemyFamily(kind) === "tilde" ? 2 : 1));
     const x = BOARD_X + BOARD_WIDTH + 46 + random.between(0, 18) + (index % 3) * 5;
     totalWeight += spawnEnemyAt(runtime, {
       kind,
@@ -170,7 +172,8 @@ export function spawnWaveEnemies(runtime: EnemySpawnRuntime, options: SpawnWaveO
     ? infiniteLeaderKinds(options.levelConfig.enemyKinds.filter(enemyIsLeader), options.waveNumber, options.levelConfig.wavesPerFlag)
     : flagLeaderKinds(options.levelConfig.enemyKinds, options.waveNumber, options.levelConfig.wavesPerFlag);
   leaders.forEach((kind, index) => {
-    const lane = random.between(0, LANES - 1);
+    const lanes = options.levelConfig.spawnLanes;
+    const lane = lanes?.length ? lanes[random.between(0, lanes.length - 1)] : random.between(0, LANES - 1);
     const x = BOARD_X + BOARD_WIDTH + 58 + random.between(0, 16) + index * 8;
     spawnEnemyAt(runtime, {
       kind,

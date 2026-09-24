@@ -579,6 +579,9 @@ export interface LevelConfig {
   bossEndless?: boolean;
   unlimitedRankFamilies?: EnemyFamily[];
   enemyKinds: EnemyKind[];
+  spawnLanes?: number[];
+  deployableLanes?: number[];
+  flagWeightMultiplier?: number;
   extraWaveSpawns?: { kind: EnemyKind; lane?: number }[];
   periodicTowerNullification?: { intervalMs: number; durationMs: number };
   firstWaveWeight: number;
@@ -595,6 +598,7 @@ export interface LevelConfig {
   specialMechanic?:
     | "rightColumnSeal"
     | "tutorialBasics"
+    | "tutorialPractice"
     | "tutorialTowerTypes"
     | "tutorialAutoUpgrade"
     | "tutorialShifter"

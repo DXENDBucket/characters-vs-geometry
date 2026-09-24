@@ -8,7 +8,7 @@ export function waveWeightLimit(levelConfig: LevelConfig, difficultyConfig: Diff
     levelConfig.firstWaveWeight +
     increments * levelConfig.waveWeightIncrement +
     (incrementGrowth * increments * (increments - 1)) / 2;
-  const flagWeight = waveNumber % levelConfig.wavesPerFlag === 0 ? baseWeight * 2 : baseWeight;
+  const flagWeight = waveNumber % levelConfig.wavesPerFlag === 0 ? baseWeight * (levelConfig.flagWeightMultiplier ?? 2) : baseWeight;
   const cappedWeight = levelConfig.waveWeightCap ? Math.min(flagWeight, levelConfig.waveWeightCap) : flagWeight;
   return Math.max(10, Math.floor(cappedWeight * difficultyConfig.weightMultiplier));
 }

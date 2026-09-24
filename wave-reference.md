@@ -4,7 +4,7 @@
 
 Enemy rank weight now uses the same actual-level breakpoints as tower upgrades: `20, 60, 140, 300, 620, ...` (`next = current * 2 + 20`). Reaching the breakpoint uses the previous band; only levels beyond it use the new slope. Each family's base per-rank weight increment is multiplied by `1/2/4/8/16/...` in successive bands (these are growth multipliers, not fractions). Total weight remains continuous: `baseWeight + growthWeight * weightedUpgradeCount(rank)`. Levels 1-20 are unchanged; HP, attack, speed, skills and zero-weight leaders are unchanged. For Triangle, ranks 20/21/60/61 have weights `1170/1290/5970/6210`.
 
-Both IF and IF-BE invert this piecewise weight curve by bands when counting affordable ranks, without enumerating an unlimited catalog. Every affordable rank still participates in the original sampling distribution; Circle's rank-IV natural-spawn cap remains. Battle rules version is now 5: version-1/2/3/4 snapshots remain loadable, with attack-panel migration before version 4 (including buffered pipeline actions). Old replays are rejected rather than played with different attack or automatic-skill rules.
+Both IF and IF-BE invert this piecewise weight curve by bands when counting affordable ranks, without enumerating an unlimited catalog. Every affordable rank still participates in the original sampling distribution; Circle's rank-IV natural-spawn cap remains. Battle rules version is now 6: version-1/2/3/4/5 snapshots remain loadable, with attack-panel migration before version 4 (including buffered pipeline actions). Old replays are rejected rather than played with different attack, automatic-skill or tutorial-order rules.
 
 In Unlimited Firepower, targeted effect cards (b, t, ! and y, including imitator variants) apply to eligible cells throughout the selected column with one cost and cooldown. Empty, inactive and NUL targets are skipped. The ordinary occupant takes priority over its shell except when the shell itself is explicitly selected. ! also automatically activates ready skills that do not require choosing a position or direction; S and # remain manual. Air Patrol now lasts 10 seconds.
 
@@ -291,25 +291,32 @@ Debug Mode is disabled by default and persists locally from Settings. When disab
 
 ## Level 0-2 Tutorial
 
+- Five-wave practice with fixed `A / X / B` slots and `350` starting characters.
+- Only row 4 is open; all 78 cells in the other six rows have permanent deployment bans. Circles I and Triangles I spawn only in row 4.
+- Wave budgets are `10 / 15 / 20 / 25 / 30`, without difficulty scaling or final-flag doubling. A brief introduction precedes the start button, then normal wave timing and victory rules apply.
+- Previous tutorial operations 0-2 through 0-5 move to 0-3 through 0-6. Existing clears and flawless ratings move with their lessons; players already past the insertion keep their unlocked progress.
+
+## Level 0-3 Tutorial
+
 - Introduces the five tower categories and their circle, diamond, square, triangle, and hexagon frames.
 - Uses a fixed `F / G` loadout and `500` starting characters.
 - Demonstrates F's manual area burst, G's `15s` arming time, and G's automatic contact trigger with two scripted Circle 1 targets.
 - Existing saves with progress in a formal chapter automatically count all Chapter 0 tutorials as completed.
 
-## Level 0-3 Tutorial
+## Level 0-4 Tutorial
 
 - Uses a fixed `A` loadout and `150` starting characters.
 - Deploys two A towers, marks the upper tower for Auto Upgrade, and waits for a real automatic level purchase; introduces the global Run toggle and character Floor reserve.
 - Practices `Shift + click` in Auto Upgrade mode to mark/unmark all currently deployed towers of the same type, using the clicked tower's next state.
 - Finishes by selecting Eraser and removing the marked tower with no refund.
 
-## Level 0-4 Tutorial
+## Level 0-5 Tutorial
 
 - Uses a fixed `A / B` loadout and `500` starting characters.
 - Demonstrates a single-tower shift, the `15s` base cooldown, placement ghosts, and invalid-destination behavior.
 - Demonstrates `Ctrl + left-click` multi-selection, the upper-left anchor, preserved relative positions, and compounded cooldown growth.
 
-## Level 0-5 Tutorial
+## Level 0-6 Tutorial
 
 - A safe, interactive damage lab using the same armor/resistance calculation as combat; no borrowed cards or permanent unlock changes.
 - Explains attack power times attack multiplier, physical damage and its 10% armor floor, magic damage and its 5% resistance floor, and true damage.

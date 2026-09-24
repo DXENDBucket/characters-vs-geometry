@@ -109,7 +109,7 @@ try {
   await page.evaluate(() => {
     const game = window.__testGame;
     const listeners = game.scene.getScene("GameScene").events.listenerCount("addedtoscene");
-    for (const levelId of ["0-1", "0-5", "AE-10"]) {
+    for (const levelId of ["0-1", "0-6", "AE-10"]) {
       game.scene.stop("GameScene"); game.scene.start("GameScene", { levelId, selectedCards: ["A", "B"] });
       const scene = game.scene.getScene("GameScene"); scene.battlePaused = true;
       if (game.scale.width !== 1410) throw Error("Battle width accumulated across restarts");

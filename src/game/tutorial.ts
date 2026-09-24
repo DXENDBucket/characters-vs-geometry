@@ -52,12 +52,14 @@ export interface TutorialRuntime {
 }
 
 export interface TutorialController {
+  usesWaveSchedule?: boolean;
   update: () => void;
   destroy: () => void;
 }
 
 export function isTutorialMechanic(mechanic: LevelConfig["specialMechanic"]) {
   return mechanic === "tutorialBasics" ||
+    mechanic === "tutorialPractice" ||
     mechanic === "tutorialTowerTypes" ||
     mechanic === "tutorialAutoUpgrade" ||
     mechanic === "tutorialShifter" ||

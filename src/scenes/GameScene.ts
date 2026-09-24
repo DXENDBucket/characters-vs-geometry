@@ -405,6 +405,7 @@ export class GameScene extends Phaser.Scene {
     this.unlimitedFirepower = isTutorial ? false : Boolean(data.unlimitedFirepower);
     this.debugModeEnabled = this.playback?.debug ?? isDebugModeEnabled();
     this.difficultyConfig = this.adjustDifficultyForUnlimitedFirepower(getDifficultyConfig(this.difficulty));
+    if (isTutorial) this.difficultyConfig = getDifficultyConfig(1);
     this.selectedCardIds = this.sanitizeLoadout(tutorialLoadout(tutorialMechanic, data.selectedCards));
     this.replay = { version: BATTLE_RULES_VERSION, levelId: this.levelId, difficulty: this.difficulty,
       difficultyVersion: DIFFICULTY_VERSION,
@@ -546,6 +547,12 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(palette.black);
     this.drawBoard();
     this.battlefield = new BattlefieldLayer(this);
+    if (this.levelConfig.deployableLanes) {
+      for (let lane = 0; lane < LANES; lane++) {
+        if (this.levelConfig.deployableLanes.includes(lane)) continue;
+        for (let column = 0; column < COLUMNS; column++) this.sealCell(lane, column);
+      }
+    }
     this.timedCellSealGraphics = this.add.graphics().setDepth(1);
     this.nullifiedTowerGraphics = this.add.graphics().setDepth(28);
     this.timedCellWarningGraphics = this.add.graphics().setDepth(115);
@@ -741,7 +748,8 @@ export class GameScene extends Phaser.Scene {
     updateMortarProjectiles(projectileRuntime, seconds);
     if (this.tutorial) {
       this.battlefield.ui(() => this.tutorial!.update());
-    } else {
+    }
+    if (!this.tutorial || this.tutorial.usesWaveSchedule) {
       this.updateWaveSchedule(this.levelElapsed, this.battleTime);
     }
     this.attemptAutoUpgrades();

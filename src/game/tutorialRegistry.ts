@@ -2,6 +2,7 @@ import type { CardId, LevelConfig } from "../types";
 import { AUTO_UPGRADE_TUTORIAL_LOADOUT, AutoUpgradeTutorialController } from "./autoUpgradeTutorial";
 import { BASIC_TUTORIAL_LOADOUT, BasicTutorialController } from "./basicTutorial";
 import { DamageTutorialController } from "./damageTutorial";
+import { PRACTICE_TUTORIAL_LOADOUT, PracticeTutorialController } from "./practiceTutorial";
 import { SHIFTER_TUTORIAL_LOADOUT, ShifterTutorialController } from "./shifterTutorial";
 import { TOWER_TYPE_TUTORIAL_LOADOUT, TowerTypeTutorialController } from "./towerTypeTutorial";
 import type { TutorialController, TutorialRuntime } from "./tutorial";
@@ -13,6 +14,8 @@ export function tutorialLoadout(
   switch (mechanic) {
     case "tutorialBasics":
       return [...BASIC_TUTORIAL_LOADOUT];
+    case "tutorialPractice":
+      return [...PRACTICE_TUTORIAL_LOADOUT];
     case "tutorialTowerTypes":
       return [...TOWER_TYPE_TUTORIAL_LOADOUT];
     case "tutorialAutoUpgrade":
@@ -33,6 +36,8 @@ export function createTutorialController(
   switch (mechanic) {
     case "tutorialBasics":
       return new BasicTutorialController(runtime);
+    case "tutorialPractice":
+      return new PracticeTutorialController(runtime);
     case "tutorialTowerTypes":
       return new TowerTypeTutorialController(runtime);
     case "tutorialAutoUpgrade":
