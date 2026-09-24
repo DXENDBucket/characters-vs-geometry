@@ -62,6 +62,27 @@ try {
     panel.openBoss("cube2"); check(panel.previewLevel === 2 && text().includes("200000"), "Boss rank preview failed");
     panel.openBoss("icosahedron"); panel.changePreviewLevel(1);
     check(text().includes("飞跃") && text().includes("200000") && !text().includes("心跳 α"), "Boss phase preview mixed phases");
+    for (const language of ["en", "zh-CN"]) {
+      setLanguage(language);
+      const headings = language === "en" ? ["MINIONS", "LEADERS", "BOSSES"] : ["小怪", "领袖", "Boss"];
+      for (const kind of ["triangle6", "heart3", "chevronLeader3", "parentheses3"]) {
+        panel.openEnemy(kind);
+        check(JSON.stringify(panel.grid.list.filter(item => item.name === "enemy-section-heading").map(item => item.text))
+          === JSON.stringify(headings), `${kind}: wrong section order`);
+        const tile = panel.tiles.find(tile => tile.id === panel.selectedEntryId);
+        check(tile.y >= panel.gridScrollY && tile.y + 120 <= panel.gridScrollY + panel.gridViewport.height,
+          `${kind}: deep-linked tile is not visible`);
+        for (let index = 1; index < panel.tiles.length; index++) {
+          check(panel.tiles[index].y >= panel.tiles[index - 1].y, "Tile rows overlap or run backwards");
+        }
+      }
+      for (const kind of ["cube2", "del"]) {
+        panel.openBoss(kind);
+        const tile = panel.tiles.find(tile => tile.id === panel.selectedEntryId);
+        check(tile.y >= panel.gridScrollY && tile.y + 120 <= panel.gridScrollY + panel.gridViewport.height,
+          `${kind}: Boss deep link ignores section offsets`);
+      }
+    }
     panel.setTab("towers"); panel.setCardCase("lowercase"); panel.selectEntry(towerEncyclopediaEntries().find(entry => entry.card.id === "e"));
     check(text().includes("常驻光环") && text().includes("攻击速度 +35%"), "Aura fields missing");
     panel.setGridScroll(200);
@@ -95,6 +116,16 @@ try {
   await page.screenshot({ path: "logs/encyclopedia-header-desktop.png" });
   await page.setViewportSize({ width: 960, height: 640 }); await page.waitForTimeout(150);
   await page.screenshot({ path: "logs/encyclopedia-skill-small.png" });
+  for (const width of [1440, 800]) {
+    await page.setViewportSize({ width, height: width === 1440 ? 960 : 600 });
+    await page.evaluate(() => {
+      const panel = window.__testGame.scene.getScene("EncyclopediaScene").panel;
+      panel.openEnemy("chevronLeader3"); panel.setDetailScroll(0);
+    });
+    await page.waitForTimeout(100);
+    await page.screenshot({ path: `logs/encyclopedia-enemy-sections-${width}.png` });
+  }
+  await page.evaluate(() => window.__testGame.scene.getScene("EncyclopediaScene").panel.setTab("towers"));
   for (const width of [1440, 960]) {
     await page.setViewportSize({ width, height: width === 1440 ? 960 : 640 });
     for (const [id, heading] of [["e", "热忱"], ["i", "一次性效果"], ["l", "一次性效果"], ["A", "常规攻击"], ["S", "术法迫击"], ["M", "常规攻击"], ["E", "常规攻击"]]) {

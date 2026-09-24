@@ -29,6 +29,7 @@ import {
 import { towerDetailSections, towerDetailRange, towerPreviewStats, type DetailField, type DetailSection } from "../encyclopediaDetails";
 import { enemyDetailSections, enemyPreviewAttackSpeed } from "../enemyEncyclopediaDetails";
 import { bossDetailSections, bossPreviewLimit, bossPreviewStats } from "../bossEncyclopediaDetails";
+import { enemyEncyclopediaSections } from "../enemyEncyclopediaCatalog";
 import { enemyKindAtRank } from "../game/enemyIdentity";
 import { DAMAGE_SYMBOLS, getLanguage, t } from "../i18n";
 import { bossEncyclopediaIcon, enemyEncyclopediaGroup, visibleEnemyEncyclopediaGroups, visibleEncyclopediaEntries } from "../encyclopediaVisibility";
@@ -67,6 +68,7 @@ interface EncyclopediaStatModeButton {
 interface EncyclopediaTile {
   id: string;
   frame: Phaser.GameObjects.Rectangle;
+  y: number;
 }
 
 interface DetailTableRow {
@@ -174,7 +176,7 @@ export class EncyclopediaPanel {
     const index = entries.findIndex(entry => entry.card?.id === id);
     if (index < 0) return;
     this.selectEntry(entries[index]);
-    this.setGridScroll(Math.floor(index / GRID_COLUMNS) * (TILE_SIZE + TILE_GAP));
+    this.scrollToEntry(entries[index]);
   }
 
   openBoss(kind: BossKind) {
@@ -193,7 +195,7 @@ export class EncyclopediaPanel {
     const index = entries.findIndex(matches);
     if (index < 0) return;
     this.selectEntry(entries[index]);
-    this.setGridScroll(Math.floor(index / GRID_COLUMNS) * (TILE_SIZE + TILE_GAP));
+    this.scrollToEntry(entries[index]);
     return entries[index];
   }
 
@@ -548,9 +550,24 @@ export class EncyclopediaPanel {
     if (nextId !== this.selectedEntryId) this.previewLevel = 1;
     this.selectedEntryId = nextId;
     this.selectionMemory.set(this.listKey(), nextId);
-    entries.forEach((entry, index) => this.drawTile(entry, index));
-    const rows = Math.ceil(entries.length / GRID_COLUMNS);
-    this.gridContentHeight = rows * TILE_SIZE + Math.max(0, rows - 1) * TILE_GAP + 4;
+    let offsetY = 0;
+    const sections = this.tab === "enemies"
+      ? enemyEncyclopediaSections(entries)
+      : [{ labelKey: "", entries }];
+    for (const section of sections) {
+      if (section.labelKey) {
+        if (offsetY > 0) offsetY += 12;
+        const heading = this.scene.add.text(2, offsetY + 2, t(section.labelKey), {
+          color: uiTextColors.primary, fontFamily: "monospace", fontSize: "14px", fontStyle: "700"
+        }).setName("enemy-section-heading");
+        this.grid.add(heading);
+        offsetY += 30;
+      }
+      section.entries.forEach((entry, index) => this.drawTile(entry, index, offsetY));
+      const rows = Math.ceil(section.entries.length / GRID_COLUMNS);
+      offsetY += rows * TILE_SIZE + Math.max(0, rows - 1) * TILE_GAP;
+    }
+    this.gridContentHeight = offsetY + 4;
     this.setGridScroll(this.scrollMemory.get(this.listKey()) ?? 0);
     this.updateTileSelection();
     if (selectedEntry) {
@@ -560,11 +577,16 @@ export class EncyclopediaPanel {
     }
   }
 
-  private drawTile(entry: EncyclopediaEntry, index: number) {
+  private scrollToEntry(entry: EncyclopediaEntry) {
+    const tile = this.tiles.find(tile => tile.id === this.entryId(entry));
+    if (tile) this.setGridScroll(tile.y);
+  }
+
+  private drawTile(entry: EncyclopediaEntry, index: number, offsetY: number) {
     const column = index % GRID_COLUMNS;
     const row = Math.floor(index / GRID_COLUMNS);
     const x = column * (TILE_SIZE + TILE_GAP);
-    const y = row * (TILE_SIZE + TILE_GAP);
+    const y = offsetY + row * (TILE_SIZE + TILE_GAP);
     const id = this.entryId(entry);
     const container = this.scene.add.container(x, y);
     const frame = this.scene.add
@@ -604,7 +626,7 @@ export class EncyclopediaPanel {
     });
 
     this.grid.add(container);
-    this.tiles.push({ id, frame });
+    this.tiles.push({ id, frame, y });
   }
 
   private selectEntry(entry: EncyclopediaEntry) {

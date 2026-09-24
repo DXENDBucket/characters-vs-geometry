@@ -13,6 +13,49 @@ const card = id => cardDefinitions.find(card => card.id === id);
 const sections = (id, level = 1) => towerDetailSections(card(id), level, towerEncyclopediaEntry(id).description);
 const values = section => section.fields.map(field => field.value).join("\n");
 
+test("enemy catalog sorts every chapter group into minions, leaders and bosses without losing entries", () => {
+  const { enemyEncyclopediaEntries } = load("src/encyclopedia.ts");
+  const { enemyEncyclopediaGroup, enemyEncyclopediaRole, enemyEncyclopediaSections } = load("src/enemyEncyclopediaCatalog.ts");
+  const { enemyIsLeader } = load("src/registry/enemies.ts");
+  const { chapterGroups } = load("src/data/chapterGroups.ts");
+  let previousIds;
+  for (const language of ["en", "zh-CN"]) {
+    setLanguage(language);
+    const entries = enemyEncyclopediaEntries();
+    const ids = entries.map(entry => entry.enemyKind ?? entry.icon);
+    assert.equal(new Set(ids).size, ids.length);
+    if (previousIds) assert.deepEqual(ids, previousIds, "translation must not change ordering");
+    previousIds = ids;
+    assert.deepEqual(entries.map(enemyEncyclopediaGroup),
+      chapterGroups.flatMap(group => entries.filter(entry => enemyEncyclopediaGroup(entry) === group.id).map(() => group.id)));
+    for (const group of chapterGroups) {
+      const category = entries.filter(entry => enemyEncyclopediaGroup(entry) === group.id);
+      const sections = enemyEncyclopediaSections(category);
+      assert.deepEqual(sections.flatMap(section => section.entries), category);
+      assert.deepEqual(sections.map(section => section.role), category.length ? ["minion", "leader", "boss"] : []);
+      for (const entry of category) {
+        assert.equal(enemyEncyclopediaRole(entry), entry.enemyKind ? (enemyIsLeader(entry.enemyKind) ? "leader" : "minion") : "boss");
+      }
+    }
+  }
+});
+
+test("catalog sorting is stable, non-mutating and handles generated ranks without separate classification", () => {
+  const { sortEnemyEncyclopediaEntries, enemyEncyclopediaSections, enemyEncyclopediaRole } = load("src/enemyEncyclopediaCatalog.ts");
+  const boss = { icon: "del", chapterGroupId: "ascii" };
+  const leader = { enemyKind: "chevronLeader99", chapterGroupId: "ascii" };
+  const first = { enemyKind: "dollar", chapterGroupId: "ascii" };
+  const second = { enemyKind: "tilde99", chapterGroupId: "ascii" };
+  const main = { enemyKind: "circle" };
+  const input = Object.freeze([boss, leader, first, second, main]);
+  assert.deepEqual(sortEnemyEncyclopediaEntries(input), [main, first, second, leader, boss]);
+  assert.deepEqual(input, [boss, leader, first, second, main]);
+  assert.equal(enemyEncyclopediaRole(leader), "leader");
+  assert.deepEqual(enemyEncyclopediaSections([]), []);
+  assert.deepEqual(enemyEncyclopediaSections([boss]).map(section => section.role), ["boss"]);
+  assert.deepEqual(enemyEncyclopediaSections([first, second]).map(section => section.role), ["minion"]);
+});
+
 test("every combat effect has a mechanism entry and relevant units link to newly documented mechanics", () => {
   const { mechanicEncyclopediaEntries, mechanicLinksForEntry, enemyEncyclopediaEntries } = load("src/encyclopedia.ts");
   const { statusEffectDefinitions } = load("src/data/statusEffects.ts");

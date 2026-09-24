@@ -10,6 +10,7 @@ import { DAMAGE_SYMBOLS, EFFECT_SYMBOLS, getLanguage, t } from "./i18n";
 import { allCardDefinitions, getCardDefinition } from "./registry/cards";
 import { enemyFamily, getEnemyDefinition } from "./registry/enemies";
 import { statusEffectDefinitions } from "./data/statusEffects";
+import { sortEnemyEncyclopediaEntries } from "./enemyEncyclopediaCatalog";
 import type { CardDefinition, CardId, DamageType, EnemyKind, UnitCategory } from "./types";
 
 export type EncyclopediaTab = "enemies" | "towers" | "mechanics";
@@ -116,7 +117,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
   const dollar = getEnemyDefinition("dollar");
   const chevron = getEnemyDefinition("chevronLeader");
 
-  return [
+  return sortEnemyEncyclopediaEntries([
     {
       title: "DEL", icon: "del", chapterGroupId: "ascii",
       lines: [statLine([[t("label.hp"), CUBE_BOSS_STATS.del.hp], [t("label.armor"), CUBE_BOSS_STATS.del.armor],
@@ -729,7 +730,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
         ? "Boss 不会被阻挡，也不会随血量缩小；到达底线会失败，死亡会直接胜利。"
         : "Boss cannot be blocked and does not shrink with HP. Reaching the base is defeat; killing it clears the stage."
     }
-  ];
+  ]);
 }
 
 export function towerEncyclopediaEntries(): EncyclopediaEntry[] {
