@@ -422,10 +422,10 @@ export interface Enemy {
   };
   statusBorder: Phaser.GameObjects.Arc;
   frozenBorder: Phaser.GameObjects.Rectangle;
-  powerIcon: Phaser.GameObjects.Text;
-  sunderIcon: Phaser.GameObjects.Text;
-  armorIcon: Phaser.GameObjects.Text;
-  magicResistanceIcon: Phaser.GameObjects.Text;
+  powerIcon: Phaser.GameObjects.Image;
+  sunderIcon: Phaser.GameObjects.Image;
+  armorIcon: Phaser.GameObjects.Image;
+  magicResistanceIcon: Phaser.GameObjects.Image;
   flyingHalo: Phaser.GameObjects.Ellipse;
   nextHasteTrailAt: number;
   inPlay: boolean;

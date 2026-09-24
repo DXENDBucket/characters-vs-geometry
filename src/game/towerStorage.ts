@@ -1,4 +1,5 @@
 import { CELL_WIDTH } from "../config";
+import { addEnemyToField, removeEnemyAt } from "./enemyRoster";
 import { makeShiftEffect } from "../render/combatEffects";
 import type { CardDefinition, Enemy, Tower } from "../types";
 import type { CombatRuntime } from "./combatRuntime";
@@ -52,7 +53,7 @@ export class TowerStorageController {
         continue;
       }
       detachEnemyHealth(enemy);
-      runtime.enemies.splice(index, 1);
+      removeEnemyAt(runtime.enemies, index);
       enemy.inPlay = false;
       enemy.blockedByTowerId = undefined;
       enemy.blockedSince = undefined;
@@ -91,7 +92,7 @@ export class TowerStorageController {
       enemy.body.setDepth(60 + enemy.lane);
       statusMultipliers(enemy, runtime.battleTime);
       syncEnemyBodyPosition(enemy);
-      runtime.enemies.push(enemy);
+      addEnemyToField(runtime.enemies, enemy);
       makeShiftEffect(runtime.scene, carrier.x, carrier.y, enemy.x, enemy.y);
     }
   }

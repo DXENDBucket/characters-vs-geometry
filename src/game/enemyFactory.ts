@@ -1,7 +1,8 @@
 import type Phaser from "phaser";
 import { battleRandom, isBattlePlayback } from "./battleSimulation";
 import { recordEnemySeen } from "../progress";
-import { BOARD_Y, CELL_HEIGHT, LANES, palette } from "../config";
+import { BOARD_Y, CELL_HEIGHT, LANES } from "../config";
+import { createEnemyStatusVisuals } from "../render/enemyStatusVisuals";
 import { enemyFamily, enemyIsMace, getEnemyDefinition } from "../registry/enemies";
 import { createEnemyShape } from "../render/unitShapes";
 import type { Enemy, EnemyKind } from "../types";
@@ -45,50 +46,10 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
   const maxHp = baseStats.maxHp * environmentHpMultiplier;
   const movementDirection = options.movementDirection ?? -1;
   const body = scene.add.container(options.x, y).setDepth(60 + options.lane);
-  const statusBorder = scene.add.circle(0, 0, 28, palette.black, 0).setStrokeStyle(2, palette.magic, 0.92);
-  const frozenBorder = scene.add.rectangle(0, 0, 56, 56, palette.black, 0).setStrokeStyle(3, palette.magic, 0.92);
-  const powerIcon = scene.add
-    .text(0, -38, "!", {
-      color: "#ff6464",
-      fontFamily: "monospace",
-      fontSize: "22px",
-      fontStyle: "700"
-    })
-    .setOrigin(0.5);
-  const sunderIcon = scene.add
-    .text(0, -56, "▣", {
-      color: "#f5f5f5",
-      fontFamily: "monospace",
-      fontSize: "20px",
-      fontStyle: "700"
-    })
-    .setOrigin(0.5);
-  const armorIcon = scene.add
-    .text(0, -38, "⬡", {
-      color: "#f5f5f5",
-      fontFamily: "monospace",
-      fontSize: "22px",
-      fontStyle: "700"
-    })
-    .setOrigin(0.5);
-  const magicResistanceIcon = scene.add
-    .text(0, -38, "⬡", {
-      color: "#9fdcff",
-      fontFamily: "monospace",
-      fontSize: "22px",
-      fontStyle: "700"
-    })
-    .setOrigin(0.5);
-  const flyingHalo = scene.add.ellipse(0, -42, 30, 8, palette.black, 0).setStrokeStyle(2, palette.white, 0.94);
+  const { statusBorder, frozenBorder, powerIcon, sunderIcon, armorIcon, magicResistanceIcon, flyingHalo } =
+    createEnemyStatusVisuals(scene);
   const shape = createEnemyShape(scene, options.kind, { squareSize: 42, shootingNoseX: -24 });
 
-  statusBorder.setVisible(false);
-  frozenBorder.setVisible(false);
-  powerIcon.setVisible(false);
-  sunderIcon.setVisible(false);
-  armorIcon.setVisible(false);
-  magicResistanceIcon.setVisible(false);
-  flyingHalo.setVisible(false);
   body.add([frozenBorder, statusBorder, flyingHalo, shape, powerIcon, sunderIcon, armorIcon, magicResistanceIcon]);
 
   const skills = initialEnemySkillStates(options.kind);

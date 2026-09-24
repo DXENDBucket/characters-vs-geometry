@@ -8,7 +8,8 @@ import { battleRandom, isBattlePlayback } from "./battleSimulation";
 import { cubePromotionKind } from "../bosses/bossRanks";
 import { recordEnemySeen } from "../progress";
 import { enemyFacingDirection } from "./rules/reversal";
-import { ANGEL_WINGS_SKILL_MAX, ATTACK_INTERVAL, CELL_WIDTH, ENEMY_SPEED, ENEMY_SPEED_VARIANCE, LANES, palette } from "../config";
+import { ANGEL_WINGS_SKILL_MAX, ATTACK_INTERVAL, CELL_WIDTH, ENEMY_SPEED, ENEMY_SPEED_VARIANCE, LANES } from "../config";
+import { createEnemyStatusVisuals } from "../render/enemyStatusVisuals";
 import {
   enemyFamily,
   enemyIsBlockedDetonator,
@@ -246,48 +247,7 @@ export function applyEnemyPromotion(scene: Phaser.Scene, enemy: Enemy, kind: Ene
   enemy.highFlightPeakHeight = undefined;
   enemy.angelRamWingsTriggered = false;
   enemy.body.removeAll(true);
-  enemy.statusBorder = scene.add.circle(0, 0, 28, palette.black, 0).setStrokeStyle(2, palette.magic, 0.92);
-  enemy.frozenBorder = scene.add.rectangle(0, 0, 56, 56, palette.black, 0).setStrokeStyle(3, palette.magic, 0.92);
-  enemy.statusBorder.setVisible(false);
-  enemy.frozenBorder.setVisible(false);
-  enemy.powerIcon = scene.add
-    .text(0, -38, "!", {
-      color: "#ff6464",
-      fontFamily: "monospace",
-      fontSize: "22px",
-      fontStyle: "700"
-    })
-    .setOrigin(0.5);
-  enemy.powerIcon.setVisible(false);
-  enemy.sunderIcon = scene.add
-    .text(0, -56, "▣", {
-      color: "#f5f5f5",
-      fontFamily: "monospace",
-      fontSize: "20px",
-      fontStyle: "700"
-    })
-    .setOrigin(0.5);
-  enemy.sunderIcon.setVisible(false);
-  enemy.armorIcon = scene.add
-    .text(0, -38, "⬡", {
-      color: "#f5f5f5",
-      fontFamily: "monospace",
-      fontSize: "22px",
-      fontStyle: "700"
-    })
-    .setOrigin(0.5);
-  enemy.armorIcon.setVisible(false);
-  enemy.magicResistanceIcon = scene.add
-    .text(0, -38, "⬡", {
-      color: "#9fdcff",
-      fontFamily: "monospace",
-      fontSize: "22px",
-      fontStyle: "700"
-    })
-    .setOrigin(0.5);
-  enemy.magicResistanceIcon.setVisible(false);
-  enemy.flyingHalo = scene.add.ellipse(0, -42, 30, 8, palette.black, 0).setStrokeStyle(2, palette.white, 0.94);
-  enemy.flyingHalo.setVisible(false);
+  Object.assign(enemy, createEnemyStatusVisuals(scene));
   enemy.shape = createEnemyShape(scene, kind, { squareSize: 42, shootingNoseX: -24 });
   enemy.skills = initialEnemySkillStates(kind);
   enemy.body.add([

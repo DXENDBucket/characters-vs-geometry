@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { invalidateEnemyRoster } from "./enemyRoster";
 import { DEL_DELETE_STACK, DEL_FORMAT, DEL_ECHO_HITBOX_CELLS } from "../data/delBoss";
 import { advanceDelLaneSweep, startDelLaneSweep } from "./delLaneSweep";
 import { advanceDelSweep, delSweepActive, startDelSweep } from "./delSweep";
@@ -1543,6 +1544,7 @@ function promoteEnemy(runtime: BossRuntime, enemy: Enemy, maxRank: number) {
   }
 
   applyEnemyPromotion(runtime.scene, enemy, nextKind, runtime.battleTime);
+  invalidateEnemyRoster(runtime.enemies);
   makeCubeCollapse(runtime.scene, enemy.x, enemy.y, enemy, runtime.enemies, runtime.towers);
 }
 

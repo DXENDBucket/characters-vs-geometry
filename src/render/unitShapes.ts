@@ -11,6 +11,7 @@ import {
   SMALL_STELLATED_DODECAHEDRON_SPIKES
 } from "../bosses/cubeBoss";
 import { palette } from "../config";
+import { createSharedGlyph } from "./sharedGlyphs";
 import { romanLabel, toRomanNumeral } from "../format";
 import { enemyFamily, enemyRank, getEnemyDefinition } from "../registry/enemies";
 import type { EnemyKind, UnitCategory } from "../types";
@@ -921,18 +922,16 @@ function createEnemyLabel(scene: Phaser.Scene, x: number, y: number, kind: Enemy
     : ["triangle", "invertedTriangle", "shootingTriangle", "mortarTriangle"].includes(family) ? 22
     : family === "slopeTriangle" ? 26 : 30;
 
-  const text = scene.add
-    .text(x, y, label, {
-      color,
-      fontFamily: "Georgia, 'Times New Roman', serif",
-      fontSize: `${size}px`,
-      fontStyle: "bold"
-    })
-    .setOrigin(0.5)
-    .setScale(0.64, 1);
-  const fit = Math.min(1, maxWidth / Math.max(1, text.displayWidth));
-  text.setScale(0.64 * fit, fit);
-  return text;
+  const glyph = createSharedGlyph(scene, x, y, label, {
+    color,
+    fontFamily: "Georgia, 'Times New Roman', serif",
+    fontSize: `${size}px`,
+    fontStyle: "bold"
+  });
+  glyph.setScale(glyph.scaleX * 0.64, glyph.scaleY);
+  const fit = Math.min(1, maxWidth / Math.max(1, glyph.displayWidth));
+  glyph.setScale(glyph.scaleX * fit, glyph.scaleY * fit);
+  return glyph;
 }
 
 function drawPentagonPath(

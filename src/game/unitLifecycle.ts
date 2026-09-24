@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { removeEnemyFromField } from "./enemyRoster";
 import { syncTowerTopology } from "./towerTopology";
 import type { TowerActionListener } from "./towerActions";
 import { towerBehaviorType } from "./towerIdentity";
@@ -298,7 +299,7 @@ export function removeBoss(runtime: UnitLifecycleRuntime, animate = true) {
 export function removeEnemy(runtime: UnitLifecycleRuntime, enemy: Enemy, animate: boolean) {
   detachEnemyHealth(enemy);
   enemy.inPlay = false;
-  Phaser.Utils.Array.Remove(runtime.enemies, enemy);
+  removeEnemyFromField(runtime.enemies, enemy);
   destroyContainedEnemies(enemy);
   if (animate) {
     runtime.scene.tweens.add({

@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { clearEnemyField } from "../game/enemyRoster";
 import { playSound, soundPlayer } from "../audio/player";
 import { bindBattleAudio } from "../audio/battleAudio";
 import { canUpgradeTowerWithCard, supportsTowerAutoUpgrade, towerBehaviorType, towerFormType } from "../game/towerIdentity";
@@ -689,6 +690,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.battlePaused) {
+      this.syncBattleOverlays();
       this.shifter.syncSelectionVisuals();
       this.syncPlacementGhost(this.input.activePointer);
       this.updateCards();
@@ -704,6 +706,7 @@ export class GameScene extends Phaser.Scene {
       return !this.gameOver && !this.battlePaused && !this.menuOpen && !this.reselectOpen &&
         (!this.playback || this.simulation.tick < this.playback.endTick);
     });
+    this.syncBattleOverlays();
     this.shifter.syncSelectionVisuals();
     this.syncPlacementGhost(this.input.activePointer);
     this.updateCards();
@@ -716,11 +719,9 @@ export class GameScene extends Phaser.Scene {
     this.levelElapsed += scaledDelta;
     this.battleTime += scaledDelta;
     this.nullification.update(this.battleTime, this.levelConfig.periodicTowerNullification);
-    drawNullifiedTowers(this.nullifiedTowerGraphics, this.nullification.snapshot(), this.battleTime);
     if (this.timedCellSeals.update(this.battleTime, (lane, column) => {
       if (this.eraseTowersInCell(lane, column)) this.updateLevelAuras();
     })) this.syncPlacementGhost(this.input.activePointer);
-    drawTimedCellSeals(this.timedCellSealGraphics, this.timedCellSeals.entries, this.battleTime, this.timedCellWarningGraphics);
     this.syncCopiedTowers();
     this.actionQueue.update(this.battleTime, action => this.executeBattleAction(action));
     this.towerSkills.update(seconds, this.battleTime);
@@ -753,6 +754,12 @@ export class GameScene extends Phaser.Scene {
       this.updateWaveSchedule(this.levelElapsed, this.battleTime);
     }
     this.attemptAutoUpgrades();
+  }
+
+  private syncBattleOverlays() {
+    // Catch-up ticks mutate battle state; redraw these overlays only once per displayed frame.
+    drawNullifiedTowers(this.nullifiedTowerGraphics, this.nullification.snapshot(), this.battleTime);
+    drawTimedCellSeals(this.timedCellSealGraphics, this.timedCellSeals.entries, this.battleTime, this.timedCellWarningGraphics);
     drawEnemyHealthLinks(this.enemyHealthLinks, this.enemies, this.battleTime);
   }
 
@@ -2163,7 +2170,7 @@ export class GameScene extends Phaser.Scene {
       destroyContainedEnemies(enemy);
     });
 
-    this.enemies.length = 0;
+    clearEnemyField(this.enemies);
     if (bodies.length === 0) {
       return;
     }

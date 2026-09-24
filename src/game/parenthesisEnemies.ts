@@ -1,4 +1,5 @@
 import type { Enemy } from "../types";
+import { addEnemyToField, removeEnemyAt } from "./enemyRoster";
 import { enemyFamily, enemyRank } from "../registry/enemies";
 import { canJoinEnemyGroup, enemyMaximumHp, parenthesisHalfSpan, PASSENGER_STAT_RATIO, syncPassengerPositions } from "./enemyContainers";
 import { enemyIsBurrowed, enemyIsHighFlying } from "./enemyBehaviors";
@@ -37,7 +38,7 @@ export function collectParenthesisPassengers(carrier: Enemy, enemies: Enemy[], t
     target.inPlay = false;
     target.parenthesisCarrier = carrier;
     target.blockedByTowerId = undefined; target.blockedSince = undefined;
-    cargo.push(target); enemies.splice(index, 1);
+    cargo.push(target); removeEnemyAt(enemies, index);
     const flying = target.statusEffects.find(effect => effect.name === "flying" && effect.expiresAt > time);
     if (flying) {
       applyStatusEffect(carrier, "flying", flying.expiresAt - time, time, flying.speedMultiplier, true);
@@ -70,7 +71,7 @@ export function releaseParenthesisPassengers(carrier: Enemy, enemies: Enemy[], t
     }
     passenger.body.setVisible(true).setAlpha(1);
     syncEnemyBodyPosition(passenger);
-    enemies.push(passenger);
+    addEnemyToField(enemies, passenger);
   }
 }
 

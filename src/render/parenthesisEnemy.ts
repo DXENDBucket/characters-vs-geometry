@@ -25,7 +25,7 @@ export function syncParenthesisVisual(enemy: Enemy, scale?: number) {
   frame.setData("width", width);
   frame.setData("hpScale", scale);
   drawParentheses(frame, width, scale);
-  const label = enemy.shape.getData("parenthesisLabel") as Phaser.GameObjects.Text | undefined;
+  const label = enemy.shape.getData("parenthesisLabel") as Phaser.GameObjects.Image | undefined;
   label?.setY(enemy.parenthesisCargo?.length ? -62 : -42);
   enemy.frozenBorder.setSize(width * 2 + 8, 64);
 }

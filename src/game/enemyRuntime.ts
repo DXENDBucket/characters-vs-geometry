@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { addEnemyToField, removeEnemyFromField } from "./enemyRoster";
 import { advanceIonCharge, enemyUsesMaceMovement, updateChevronPhase } from "./chevronLeader";
 import { syncChevronVisual } from "../render/chevronLeader";
 import { HEART_ATTACK_RADIUS, ENEMY_MORTAR_RANGE_X, ENEMY_MORTAR_RANGE_Y } from "../data/enemyCombatConfig";
@@ -129,7 +130,7 @@ const enemyLaserHitTowersBuffer: Tower[] = [];
 
 export function spawnEnemyAt(runtime: EnemySpawnRuntime, options: SpawnEnemyOptions) {
   const enemy = createEnemy(runtime.scene, { ...options, environmentHpMultiplier: runtime.enemyHpMultiplier?.() });
-  runtime.enemies.push(enemy);
+  addEnemyToField(runtime.enemies, enemy);
   initializeEnemyHealthLinks(enemy, runtime.enemies);
   for (const member of enemy.healthPool?.members ?? []) syncEnemyVisualScale(member);
   return options.waveWeight;
@@ -595,7 +596,7 @@ function solarBombBreaksOctahedronShield(enemy: Enemy, boss: CubeBoss, time: num
 
 function removeSolarBomb(runtime: EnemyAdvanceRuntime, enemy: Enemy) {
   enemy.inPlay = false;
-  Phaser.Utils.Array.Remove(runtime.enemies, enemy);
+  removeEnemyFromField(runtime.enemies, enemy);
   enemy.body.destroy();
 }
 
@@ -827,7 +828,7 @@ function loadTouchingBurrowCargo(runtime: EnemyAdvanceRuntime, carrier: Enemy) {
     }
 
     detachEnemyHealth(target);
-    Phaser.Utils.Array.Remove(runtime.enemies, target);
+    removeEnemyFromField(runtime.enemies, target);
     target.inPlay = false;
     carrier.burrowCargo ??= [];
     carrier.burrowCargo.push(target);
@@ -1006,7 +1007,7 @@ export function releaseBurrowCargo(
     enemy.body.setAlpha(1);
     enemy.body.setDepth(60 + enemy.lane);
     syncEnemyBodyPosition(enemy);
-    runtime.enemies.push(enemy);
+    addEnemyToField(runtime.enemies, enemy);
     makeShiftEffect(runtime.scene, carrier.x, carrier.y, enemy.x, enemy.y);
   });
 }
@@ -1037,7 +1038,7 @@ function burrowCargoRank(enemy: Enemy) {
 function removeEscapedReverseEnemy(runtime: EnemyAdvanceRuntime, enemy: Enemy) {
   detachEnemyHealth(enemy);
   enemy.inPlay = false;
-  Phaser.Utils.Array.Remove(runtime.enemies, enemy);
+  removeEnemyFromField(runtime.enemies, enemy);
   destroyContainedEnemies(enemy);
   enemy.body.destroy();
 }

@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { updateIncitement } from "./incitement";
+import { enemySupportCandidates } from "./enemySupportIndex";
 import { changeEnemyHealth } from "./enemyHealth";
 import { relocateEnemyToLane } from "./oscillatingMovement";
 import { enemiesWithPassengers, enemyIsActive, enemyMaximumHp } from "./enemyContainers";
@@ -155,7 +156,7 @@ export function enemySupportBonuses(
   let hasChargingHexBuff = false;
   let hasLeaderBuff = false;
 
-  for (const enemy of enemiesWithPassengers(enemies)) {
+  for (const enemy of enemySupportCandidates(enemies)) {
     if (!supportSourceIsActive(enemy)) {
       continue;
     }
@@ -281,7 +282,7 @@ export function hexBossArmorBonus(enemies: Enemy[], boss: CubeBoss | null) {
   }
 
   let bonus = 0;
-  for (const enemy of enemiesWithPassengers(enemies)) {
+  for (const enemy of enemySupportCandidates(enemies)) {
     if (!enemyIsHighFlying(enemy) && isHexagon(enemy) && bossBodyInRadius(boss, enemy.x, enemy.y, HEX_ARMOR_RADIUS_SQ)) {
       bonus += hexArmorAuraBonus(enemy);
     }
@@ -330,7 +331,7 @@ export function syncHexArmorAuras(enemies: Enemy[], time: number, sources = enem
 export function chargingHexSpeedMultiplier(enemies: Enemy[], target: Enemy) {
   let hasChargingHexBuff = false;
   let hasLeaderBuff = false;
-  for (const enemy of enemiesWithPassengers(enemies)) {
+  for (const enemy of enemySupportCandidates(enemies)) {
     if (enemyIsHighFlying(enemy) || enemy.lane !== target.lane || enemy.x >= target.x) {
       continue;
     }
@@ -421,7 +422,7 @@ export function enemySupportSources(enemies: Enemy[]): EnemySupportSources {
   let magicResistanceLaneMask = 0;
   let chargingHexLaneMask = 0;
   let leaderLaneMask = 0;
-  for (const enemy of enemiesWithPassengers(enemies)) {
+  for (const enemy of enemySupportCandidates(enemies)) {
     if (enemyIsHighFlying(enemy)) {
       continue;
     }
