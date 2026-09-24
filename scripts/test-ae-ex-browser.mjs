@@ -69,6 +69,37 @@ try {
     const restored = restoreBattleSnapshot(scene, graph);
     check(restored.enemies.filter(enemy => enemy.kind === "chevronLeader").length === 1, "Snapshot lost extra leader");
     for (const enemy of restored.enemies) enemy.body.destroy();
+    const ex3 = getLevelConfig("AE-EX-3");
+    const runEx3 = () => {
+      const battle = start("GameScene", { levelId: ex3.id, seed: 772, difficulty: 3, selectedCards: [] });
+      const results = [], seen = new Set();
+      check(battle.chars === 2000 && ex3.totalWaves === 30, "EX-3 template mismatch");
+      for (let wave = 1; wave <= 30; wave++) {
+        for (const enemy of battle.enemies) enemy.body.destroy();
+        battle.enemies.length = 0;
+        battle.spawnWave(wave * 30000, wave * 30000);
+        const extra = battle.enemies.filter(enemy => enemy.kind === "archangelHeptagon");
+        check(extra.length === 1 && extra[0].weight === 0 && extra[0].maxHp === 4000,
+          `EX-3 wave ${wave}: missing or duplicate rank-I archangel`);
+        check(extra[0].lane >= 0 && extra[0].lane < c.LANES, "Extra leader lane out of bounds");
+        const ordinary = battle.enemies.filter(enemy => enemy !== extra[0]);
+        check(ordinary.every(enemy => ex3.enemyKinds.includes(enemy.kind)), "EX-3 wrong enemy pool");
+        check(ordinary.filter(enemy => enemy.kind === "chevronLeader").length === (wave % 10 === 0 ? 1 : 0),
+          "EX-3 greater-than leader did not follow flag rules");
+        if (wave <= 4) check(!ordinary.some(enemy => enemy.kind.startsWith("triangleRam")), "EX-3 early siege ram");
+        check(battle.waveTracker.totalWeight === ordinary.reduce((sum, enemy) => sum + enemy.weight, 0),
+          "EX-3 extra spawn consumed wave budget");
+        for (const enemy of ordinary) seen.add(enemy.kind);
+        results.push(battle.enemies.map(enemy => [enemy.kind, enemy.lane, enemy.x]));
+      }
+      for (const kind of ["tilde4", "tilde5", "triangleRam4", "triangleRam5"]) check(seen.has(kind), `Missing ${kind}`);
+      check(new Set(results.map(wave => wave.at(-1)[1])).size > 1, "Extra archangel always uses the same row");
+      check(waveScheduleAction(ex3, 30, battle.waveTracker, 1, 1000000) === "wait", "EX-3 ends with enemies alive");
+      check(waveScheduleAction(ex3, 30, battle.waveTracker, 0, 1000000) === "complete", "EX-3 fails to end after wave 30");
+      validateBattleSave(captureBattleSnapshot(battle.battleState()), 30);
+      return JSON.stringify(results);
+    };
+    check(runEx3() === runEx3(), "Extra-spawn row selection is not deterministic");
     window.__previewEnvironment = (levelId, language, boss = false) => {
       setLanguage(language);
       const config = getLevelConfig(levelId), previousBoss = config.bossKind;
@@ -87,12 +118,17 @@ try {
         check(bossLink && text.y >= bossLink.bottom, "Environment must follow Boss display");
       }
       if (levelId === level.id) check(preview.enemyPreviewLinks.some(link => link.enemyKind === "chevronLeader"), "Missing extra enemy preview");
+      if (levelId === ex3.id) {
+        for (const kind of ["tilde3", "triangleRam3", "archangelHeptagon"]) {
+          check(preview.enemyPreviewLinks.some(link => link.enemyKind === kind), `Missing EX-3 preview: ${kind}`);
+        }
+      }
       game.loop.start(game.step.bind(game));
       return text.text;
     };
   });
   for (const language of ["zh-CN", "en"]) {
-    for (const [levelId, boss] of [["AE-EX-1", false], ["5-9", false], ["AE-EX-1", true]]) {
+    for (const [levelId, boss] of [["AE-EX-1", false], ["AE-EX-3", false], ["5-9", false], ["AE-EX-1", true]]) {
       console.log(await page.evaluate(({ levelId, language, boss }) => window.__previewEnvironment(levelId, language, boss), { levelId, language, boss }));
       for (const [width, height] of [[1440, 900], [800, 600]]) {
         await page.setViewportSize({ width, height }); await page.waitForTimeout(100);
@@ -106,5 +142,5 @@ try {
     await page.setViewportSize({ width, height }); await page.waitForTimeout(100);
     await page.screenshot({ path: `logs/ae-ex-level-label-${width}.png` });
   }
-  console.log("AE-EX-1 ten waves, fixed rank-I leader, weights, completion, save, environment previews and label centering passed");
+  console.log("AE-EX-1/3 wave counts, fixed/random extra leaders, ranks, determinism, weights, completion, save and previews passed");
 } finally { await browser.close(); }

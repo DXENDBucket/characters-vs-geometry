@@ -224,8 +224,9 @@ export class CardSelectScene extends Phaser.Scene {
       contentY += 50;
     }
 
-    const environmentDescriptions = (levelConfig.extraWaveSpawns ?? []).map(spawn => t("label.extraWaveSpawn", {
-      enemy: getEnemyDisplayName(spawn.kind), lane: spawn.lane + 1
+    const environmentDescriptions = (levelConfig.extraWaveSpawns ?? []).map(spawn => t(
+      spawn.lane === undefined ? "label.extraWaveSpawnRandom" : "label.extraWaveSpawn", {
+      enemy: getEnemyDisplayName(spawn.kind), lane: (spawn.lane ?? 0) + 1
     }));
     if (levelConfig.specialMechanic === "rightColumnSeal") environmentDescriptions.push(t("label.rightColumnSeal"));
     if (levelConfig.periodicTowerNullification) environmentDescriptions.push(t("label.periodicTowerNullification", {

@@ -3077,6 +3077,12 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 - Environment: each grid tower enters NUL for 10 seconds every 60 seconds from its own deployment (at ages 60, 120, 180 seconds, etc.). Upgrading, copying forms or moving does not reset the cycle. Newly generated or mirrored towers start their own cycle. Edge connectors remain exempt, as with DEL's Format.
 - Reuses NUL suspension, gray glitch rendering, blocked operations/deployment, paused actions and recovery without removal events. Towers recover independently; overlapping NUL layers keep their cell reserved until the last recovers. Individual deadlines and deployment clocks survive snapshots. The effect is listed above the enemy preview.
 
+## ASCII Expansion: Symbol Domain Capital / AE-EX-3
+
+- Unlocks after AE-EX-2; 30 waves. Uses EX defaults: 2000 starting characters, initial weight 30, increment +35, extra increment +5, one flag every 10 waves, no weight cap.
+- Enemy pool: Circle I, Tilde III/IV/V, Triangle Ram III/IV/V, Angel Pentagon III, Greater-Than Sign I. Ranks IV/V use the existing rank growth rules; natural Triangle Ram spawns remain excluded from waves 1-4. Greater-Than Sign follows normal flag-wave leader spawning.
+- Environment: every wave, including flag waves, additionally spawns exactly one Archangel Heptagon I in a battle-seeded random row without consuming wave weight. The extra archangel is not in the regular pool and does not receive a duplicate flag spawn. Preview/discovery includes the extra leader and the environment description; victory requires clearing the remaining enemies after wave 30.
+
 ## ASCII Expansion: AE-10
 
 - Unlocks after AE-9. Boss battle: waves continue until DEL is defeated; not an Infinite Front operation.

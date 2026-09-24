@@ -39,7 +39,7 @@ for (const level of Object.values(levelConfigs)) {
     errors.push(`Level "${level.id}" has an invalid periodic NUL duration or interval.`);
   }
   for (const spawn of level.extraWaveSpawns ?? []) {
-    if (!Number.isInteger(spawn.lane) || spawn.lane < 0 || spawn.lane >= LANES) {
+    if (spawn.lane !== undefined && (!Number.isInteger(spawn.lane) || spawn.lane < 0 || spawn.lane >= LANES)) {
       errors.push(`Level "${level.id}" has an invalid extra wave spawn lane.`);
     }
   }

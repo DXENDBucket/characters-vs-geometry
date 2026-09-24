@@ -186,6 +186,7 @@ export function spawnWaveEnemies(runtime: EnemySpawnRuntime, options: SpawnWaveO
   for (const [index, spawn] of (options.levelConfig.extraWaveSpawns ?? []).entries()) {
     spawnEnemyAt(runtime, {
       ...spawn,
+      lane: spawn.lane ?? random.between(0, LANES - (enemyFamily(spawn.kind) === "tilde" ? 2 : 1)),
       waveNumber: options.waveNumber,
       time: options.gameTime,
       x: BOARD_X + BOARD_WIDTH + 58 + index * 8,
