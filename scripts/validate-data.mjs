@@ -20,6 +20,35 @@ const enemyRegistry = load("src/registry/enemies.ts");
 const { enemyArchetypes } = load("src/data/enemyArchetypes.ts");
 const { ENEMY_SKILLS, ENEMY_AURAS } = load("src/data/enemyAbilities.ts");
 const { TOWER_SKILLS } = load("src/data/towerAbilities.ts");
+const { BOSS_SKILLS, ICOSAHEDRON_PHASE_SKILL_SP } = load("src/data/bossAbilities.ts");
+const bossSkillNames = parseUnionLiterals(files.types, "BossSkillName");
+expectSameSet("BossSkillName union", bossSkillNames, "BOSS_SKILLS", Object.keys(BOSS_SKILLS));
+for (const [id, skill] of Object.entries(BOSS_SKILLS)) {
+  for (const field of ["initialSp", "maxSp", "cost", "regen", "duration"]) {
+    if (!Number.isFinite(skill[field]) || skill[field] < 0) errors.push(`Boss skill "${id}" has invalid ${field}.`);
+  }
+  if (skill.maxSp <= 0 || skill.cost <= 0 || skill.cost > skill.maxSp || skill.initialSp > skill.maxSp) {
+    errors.push(`Boss skill "${id}" has inconsistent SP limits.`);
+  }
+  if (!skill.name.zh || !skill.name.en) errors.push(`Boss skill "${id}" is missing a localized name.`);
+  if (skill.recoveryHp && (!Number.isFinite(skill.recoveryHp.ratio) || skill.recoveryHp.ratio < 0 || skill.recoveryHp.ratio > 1)) {
+    errors.push(`Boss skill "${id}" has an invalid recovery HP threshold.`);
+  }
+  if (skill.criticalRegenMultiplier !== undefined && (!Number.isFinite(skill.criticalRegenMultiplier) || skill.criticalRegenMultiplier < 0)) {
+    errors.push(`Boss skill "${id}" has invalid critical recovery.`);
+  }
+  if (skill.grantsSp && (!bossSkillNames.includes(skill.grantsSp.skill) || !Number.isFinite(skill.grantsSp.amount) || skill.grantsSp.amount < 0)) {
+    errors.push(`Boss skill "${id}" has an invalid SP grant.`);
+  }
+}
+for (const [phase, skills] of Object.entries(ICOSAHEDRON_PHASE_SKILL_SP)) {
+  if (!Number.isInteger(Number(phase)) || Number(phase) < 0) errors.push(`Invalid Boss skill phase "${phase}".`);
+  for (const [name, sp] of Object.entries(skills)) {
+    if (!BOSS_SKILLS[name] || !Number.isFinite(sp) || sp < 0 || sp > BOSS_SKILLS[name].maxSp) {
+      errors.push(`Invalid phase ${phase} initial SP for "${name}".`);
+    }
+  }
+}
 const towerSkillKeys = new Set();
 for (const [id, skill] of Object.entries(TOWER_SKILLS)) {
   if (!cardIds.includes(id)) errors.push(`Skill "${id}" has an unknown tower.`);

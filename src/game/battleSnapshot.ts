@@ -2,8 +2,9 @@ import type Phaser from "phaser";
 import { TETRAHEDRON_BOSS_HASTE_MULTIPLIER, CELL_WIDTH, CELL_HEIGHT, CUBE_BOSS_STATS } from "../config";
 import { refreshStatusEffect } from "./rules/statusEffectRules";
 import type { CubeBoss, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower } from "../types";
-import { createBossSkill, createCubeBoss, updateCubeBossMotion } from "../bosses/cubeBoss";
-import { DEL_FORMAT, DEL_ECHO_HITBOX_CELLS } from "../data/delBoss";
+import { createCubeBoss, updateCubeBossMotion } from "../bosses/cubeBoss";
+import { createConfiguredBossSkill } from "./bossSkillRules";
+import { DEL_ECHO_HITBOX_CELLS } from "../data/delBoss";
 import { syncBossCopyWarnings } from "../render/bossCopyWarnings";
 import { syncDelSweepWarning } from "../render/delSweepWarning";
 import { secondaryBossParts } from "./targeting";
@@ -117,7 +118,7 @@ export function restoreBattleSnapshot(scene: Phaser.Scene, graph: SaveGraph): Ba
         boss.hitboxHeight = CELL_HEIGHT * size;
       }
       if (boss.kind === "del" && !boss.delEcho) boss.skills.deleteFormat ??=
-        createBossSkill("deleteFormat", DEL_FORMAT.maxSp, DEL_FORMAT.cost, DEL_FORMAT.initialSp);
+        createConfiguredBossSkill("deleteFormat");
       if (rankedBossFamily(boss.kind) === "tetrahedron" && boss.bossHasteUntil > state.battleTime) {
         refreshStatusEffect(boss, "haste", boss.bossHasteUntil, TETRAHEDRON_BOSS_HASTE_MULTIPLIER);
       }

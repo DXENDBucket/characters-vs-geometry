@@ -1,6 +1,8 @@
 import Phaser from "phaser";
 import { invalidateEnemyRoster } from "./enemyRoster";
 import { DEL_DELETE_STACK, DEL_FORMAT, DEL_ECHO_HITBOX_CELLS } from "../data/delBoss";
+import { ENDLESS_WINGS_EFFECT } from "../data/bossAbilities";
+import { bossSkillRecoverySeconds, chargeBossSkill, isBossSkillReady, spendBossSkill, grantBossSkillSp } from "./bossSkillRules";
 import { advanceDelLaneSweep, startDelLaneSweep } from "./delLaneSweep";
 import { advanceDelSweep, delSweepActive, startDelSweep } from "./delSweep";
 import { syncDelSweepWarning } from "../render/delSweepWarning";
@@ -23,23 +25,16 @@ import {
   CUBE_BOSS_CONTACT_DAMAGE,
   CUBE_BOSS_CONTACT_INTERVAL,
   LANES,
-  TETRAHEDRON_BOSS_CHARGE_DURATION,
-  TETRAHEDRON_BOSS_CHARGE_SUPPRESSION_SP_GAIN,
-  TETRAHEDRON_BOSS_DESPERATION_CHARGE_SP_GAIN,
-  TETRAHEDRON_BOSS_IMPACT_CHARGE_SP_GAIN,
-  TETRAHEDRON_BOSS_SUPPRESSION_IMPACT_SP_GAIN
+  TETRAHEDRON_BOSS_CHARGE_DURATION
 } from "../config";
 import {
   bossAdvanceSpawnPoints,
-  chargeBossSkill,
   createCubeBoss,
   isDodecahedronBoss,
   isIcosahedronBoss,
   isOctahedronBoss,
   isSmallStellatedDodecahedronBoss,
   isTetrahedronBoss,
-  isBossSkillReady,
-  spendBossSkill,
   updateCubeBossMotion
 } from "../bosses/cubeBoss";
 import {
@@ -116,8 +111,6 @@ const ALL_BOARD_LANES: readonly number[] = (() => {
   }
   return lanes;
 })();
-const DODECAHEDRON_BOSS_ENDLESS_WINGS_DURATION = 7_000;
-const DODECAHEDRON_BOSS_ENDLESS_WINGS_SPEED_MULTIPLIER = 2;
 const dodecahedronCompanionBuffer: Enemy[] = [];
 const bossContactTowerBuffer: Tower[] = [];
 const dodecahedronLaserTargetsBuffer: Tower[] = [];
@@ -178,7 +171,7 @@ export interface BossRuntime {
 const bossSkillRegistry = createBossSkillRegistry<BossRuntime>({
   del: [{
     skillKey: "deleteFormat",
-    chargeSeconds: (_runtime, boss, _skill, seconds) => boss.hp < boss.maxHp * .5 ? seconds : 0,
+    chargeSeconds: (_runtime, boss, skill, seconds) => bossSkillRecoverySeconds(boss, skill, seconds),
     canUse: (runtime, boss, skill) => !boss.deleteFormatReadyAt && runtime.battleTime >= skill.activeUntil,
     use: (runtime, boss, skill) => {
       boss.deleteFormatReadyAt = runtime.battleTime + DEL_FORMAT.warningMs;
@@ -209,7 +202,7 @@ const bossSkillRegistry = createBossSkillRegistry<BossRuntime>({
       chargeSeconds: tetrahedronSkillChargeSeconds,
       use: (runtime, boss) => {
         boss.chargeExpiresAt = runtime.battleTime + TETRAHEDRON_BOSS_CHARGE_DURATION;
-        gainBossSkillSp(boss.skills.suppression, TETRAHEDRON_BOSS_CHARGE_SUPPRESSION_SP_GAIN);
+        grantBossSkillSp(boss, "charge");
       }
     },
     {
@@ -217,7 +210,7 @@ const bossSkillRegistry = createBossSkillRegistry<BossRuntime>({
       chargeSeconds: tetrahedronSkillChargeSeconds,
       use: (runtime, boss) => {
         summonTetrahedronImpactMinions(runtime, boss);
-        gainBossSkillSp(boss.skills.charge, TETRAHEDRON_BOSS_IMPACT_CHARGE_SP_GAIN);
+        grantBossSkillSp(boss, "impact");
       }
     },
     {
@@ -225,7 +218,7 @@ const bossSkillRegistry = createBossSkillRegistry<BossRuntime>({
       chargeSeconds: tetrahedronSkillChargeSeconds,
       use: (runtime, boss) => {
         summonTetrahedronSuppressionMinions(runtime, boss);
-        gainBossSkillSp(boss.skills.impact, TETRAHEDRON_BOSS_SUPPRESSION_IMPACT_SP_GAIN);
+        grantBossSkillSp(boss, "suppression");
       }
     },
     {
@@ -233,7 +226,7 @@ const bossSkillRegistry = createBossSkillRegistry<BossRuntime>({
       chargeSeconds: tetrahedronSkillChargeSeconds,
       use: (runtime, boss) => {
         empowerEnemiesTouchingBoss(runtime, boss);
-        gainBossSkillSp(boss.skills.charge, TETRAHEDRON_BOSS_DESPERATION_CHARGE_SP_GAIN);
+        grantBossSkillSp(boss, "desperation");
       }
     }
   ],
@@ -1236,9 +1229,9 @@ function updateDodecahedronEndlessWings(
     applyStatusEffect(
       target,
       "flying",
-      DODECAHEDRON_BOSS_ENDLESS_WINGS_DURATION,
+      ENDLESS_WINGS_EFFECT.duration,
       runtime.battleTime,
-      DODECAHEDRON_BOSS_ENDLESS_WINGS_SPEED_MULTIPLIER,
+      ENDLESS_WINGS_EFFECT.speedMultiplier,
       true
     );
     makeWingPulse(runtime.scene, target.x, target.y);
@@ -1431,15 +1424,7 @@ function updateTetrahedronSkills(runtime: BossRuntime, boss: CubeBoss, seconds: 
 }
 
 function tetrahedronSkillChargeSeconds(_runtime: BossRuntime, boss: CubeBoss, skill: BossSkill, seconds: number) {
-  if (skill.name === "desperation" && boss.hp > boss.maxHp * 0.5) {
-    return 0;
-  }
-
-  return seconds * tetrahedronNaturalSkillRegenMultiplier(boss);
-}
-
-function tetrahedronNaturalSkillRegenMultiplier(boss: CubeBoss) {
-  return boss.criticalHpTriggered ? 2 : 1;
+  return bossSkillRecoverySeconds(boss, skill, seconds);
 }
 
 function bossUsesTetrahedronKit(runtime: BossRuntime, boss: CubeBoss) {
@@ -1470,14 +1455,6 @@ function tetrahedronShootingKind(runtime: BossRuntime, boss: CubeBoss): Enemy["k
     return "shootingTriangle3";
   }
   return enemyKindAtRank("shootingTriangle", boss.rank);
-}
-
-function gainBossSkillSp(skill: BossSkill | undefined, amount: number) {
-  if (!skill) {
-    return;
-  }
-
-  skill.sp = Math.min(skill.maxSp, skill.sp + amount);
 }
 
 function empowerEnemiesTouchingBoss(runtime: BossRuntime, boss: CubeBoss) {

@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { drawDelBoss, drawDelEcho } from "../render/delBoss";
-import { DEL_DELETE_STACK, DEL_FORMAT } from "../data/delBoss";
+import { initialBossSkillStates } from "../game/bossSkillRules";
+export { createBossSkill, chargeBossSkill, isBossSkillReady, spendBossSkill } from "../game/bossSkillRules";
 import { delSweepActive } from "../game/delSweep";
 import { delLaneSweepInvincible } from "../game/delLaneSweep";
 import { bossMovementDirection, expireReversalEffect } from "../game/rules/reversal";
@@ -13,41 +14,14 @@ import {
   BOSS_HITBOX_WIDTH,
   CELL_HEIGHT,
   CELL_WIDTH,
-  CUBE_BOSS_ADVANCE_SKILL_COST,
-  CUBE_BOSS_ADVANCE_SKILL_MAX,
-  CUBE_BOSS_PROMOTION_SKILL_COST,
-  CUBE_BOSS_PROMOTION_SKILL_MAX,
   CUBE_BOSS_STATS,
-  DODECAHEDRON_BOSS_ENDLESS_WINGS_SKILL_COST,
-  DODECAHEDRON_BOSS_ENDLESS_WINGS_SKILL_MAX,
-  ICOSAHEDRON_BOSS_HEARTBEAT_ALPHA_INITIAL_SP,
-  ICOSAHEDRON_BOSS_HEARTBEAT_ALPHA_SKILL_COST,
-  ICOSAHEDRON_BOSS_HEARTBEAT_ALPHA_SKILL_MAX,
-  ICOSAHEDRON_BOSS_HEARTBEAT_BETA_INITIAL_SP,
-  ICOSAHEDRON_BOSS_HEARTBEAT_BETA_SKILL_COST,
-  ICOSAHEDRON_BOSS_HEARTBEAT_BETA_SKILL_MAX,
-  ICOSAHEDRON_BOSS_LEAP_INITIAL_SP,
-  ICOSAHEDRON_BOSS_LEAP_SKILL_COST,
-  ICOSAHEDRON_BOSS_LEAP_SKILL_MAX,
-  ICOSAHEDRON_BOSS_ULTIMATE_ADVANCE_INITIAL_SP,
-  ICOSAHEDRON_BOSS_ULTIMATE_ADVANCE_SKILL_COST,
-  ICOSAHEDRON_BOSS_ULTIMATE_ADVANCE_SKILL_MAX,
-  TETRAHEDRON_BOSS_CHARGE_SKILL_COST,
-  TETRAHEDRON_BOSS_CHARGE_SKILL_MAX,
-  TETRAHEDRON_BOSS_DESPERATION_SKILL_COST,
-  TETRAHEDRON_BOSS_DESPERATION_SKILL_MAX,
-  TETRAHEDRON_BOSS_IMPACT_SKILL_COST,
-  TETRAHEDRON_BOSS_IMPACT_SKILL_MAX,
-  TETRAHEDRON_BOSS_SUPPRESSION_SKILL_COST,
-  TETRAHEDRON_BOSS_SUPPRESSION_SKILL_MAX,
   LANES,
   palette
 } from "../config";
 import { toRomanNumeral } from "../format";
-import { gainSkillSp, isSkillReady, spendSkillSp } from "../game/skillState";
 import { bossRect } from "../game/targeting";
 import { bossBaseStatsFromValues } from "../game/unitStats";
-import type { BossKind, BossSkill, BossSkillName, CubeBoss } from "../types";
+import type { BossKind, CubeBoss } from "../types";
 import { bossStatsAtRank, rankedBossFamily } from "./bossRanks";
 import { enemyKindAtRank } from "../game/enemyIdentity";
 
@@ -76,22 +50,6 @@ interface CreateCubeBossOptions {
   y?: number;
   movementAxis?: "x" | "y";
   movementDirection?: -1 | 1;
-}
-
-export function createBossSkill<Name extends BossSkillName>(
-  name: Name,
-  maxSp: number,
-  cost: number,
-  initialSp = 0
-): BossSkill<Name> {
-  return {
-    name,
-    sp: Math.min(maxSp, Math.max(0, initialSp)),
-    spBuffer: 0,
-    activeUntil: 0,
-    maxSp,
-    cost
-  };
 }
 
 export const DODECAHEDRON_UNIT_VERTICES = [
@@ -291,66 +249,7 @@ export function createCubeBoss(
     statusEffects: [],
     advanceMinionKind: enemyKindAtRank("square", rank),
     hasSkills: !isSkilllessBossKind(kind),
-    skills: {
-      ...(kind === "del" ? { deleteStack: createBossSkill("deleteStack", DEL_DELETE_STACK.maxSp,
-        DEL_DELETE_STACK.cost, DEL_DELETE_STACK.initialSp),
-        deleteFormat: createBossSkill("deleteFormat", DEL_FORMAT.maxSp, DEL_FORMAT.cost, DEL_FORMAT.initialSp) } : {}),
-      promotion: createBossSkill("promotion", CUBE_BOSS_PROMOTION_SKILL_MAX, CUBE_BOSS_PROMOTION_SKILL_COST),
-      advance: createBossSkill("advance", CUBE_BOSS_ADVANCE_SKILL_MAX, CUBE_BOSS_ADVANCE_SKILL_COST),
-      ...(isTetrahedronBossKind(kind) || isIcosahedronBossKind(kind)
-        ? {
-            charge: createBossSkill("charge", TETRAHEDRON_BOSS_CHARGE_SKILL_MAX, TETRAHEDRON_BOSS_CHARGE_SKILL_COST),
-            impact: createBossSkill("impact", TETRAHEDRON_BOSS_IMPACT_SKILL_MAX, TETRAHEDRON_BOSS_IMPACT_SKILL_COST),
-            suppression: createBossSkill(
-              "suppression",
-              TETRAHEDRON_BOSS_SUPPRESSION_SKILL_MAX,
-              TETRAHEDRON_BOSS_SUPPRESSION_SKILL_COST
-            ),
-            desperation: createBossSkill(
-              "desperation",
-              TETRAHEDRON_BOSS_DESPERATION_SKILL_MAX,
-              TETRAHEDRON_BOSS_DESPERATION_SKILL_COST
-            )
-          }
-        : {}),
-      ...(isDodecahedronBossKind(kind) || isIcosahedronBossKind(kind)
-        ? {
-            endlessWings: createBossSkill(
-              "endlessWings",
-              DODECAHEDRON_BOSS_ENDLESS_WINGS_SKILL_MAX,
-              DODECAHEDRON_BOSS_ENDLESS_WINGS_SKILL_COST
-            )
-          }
-        : {}),
-      ...(isIcosahedronBossKind(kind)
-        ? {
-            ultimateAdvance: createBossSkill(
-              "ultimateAdvance",
-              ICOSAHEDRON_BOSS_ULTIMATE_ADVANCE_SKILL_MAX,
-              ICOSAHEDRON_BOSS_ULTIMATE_ADVANCE_SKILL_COST,
-              ICOSAHEDRON_BOSS_ULTIMATE_ADVANCE_INITIAL_SP
-            ),
-            heartbeatAlpha: createBossSkill(
-              "heartbeatAlpha",
-              ICOSAHEDRON_BOSS_HEARTBEAT_ALPHA_SKILL_MAX,
-              ICOSAHEDRON_BOSS_HEARTBEAT_ALPHA_SKILL_COST,
-              ICOSAHEDRON_BOSS_HEARTBEAT_ALPHA_INITIAL_SP
-            ),
-            heartbeatBeta: createBossSkill(
-              "heartbeatBeta",
-              ICOSAHEDRON_BOSS_HEARTBEAT_BETA_SKILL_MAX,
-              ICOSAHEDRON_BOSS_HEARTBEAT_BETA_SKILL_COST,
-              ICOSAHEDRON_BOSS_HEARTBEAT_BETA_INITIAL_SP
-            ),
-            leap: createBossSkill(
-              "leap",
-              ICOSAHEDRON_BOSS_LEAP_SKILL_MAX,
-              ICOSAHEDRON_BOSS_LEAP_SKILL_COST,
-              ICOSAHEDRON_BOSS_LEAP_INITIAL_SP
-            )
-          }
-        : {})
-    },
+    skills: initialBossSkillStates(kind),
     contactAttackBuffer: 0,
     chargeExpiresAt: 0,
     halfHpTriggered: false,
@@ -443,18 +342,6 @@ function initialBossRotationSpeed(kind: BossKind) {
 
 function randomSignedRotationSpeed(min: number, max: number) {
   return Phaser.Math.FloatBetween(min, max) * (Phaser.Math.Between(0, 1) === 0 ? -1 : 1);
-}
-
-export function chargeBossSkill(skill: BossSkill, seconds: number) {
-  gainSkillSp(skill, seconds, skill.maxSp);
-}
-
-export function isBossSkillReady(skill: BossSkill) {
-  return isSkillReady(skill, skill.maxSp);
-}
-
-export function spendBossSkill(skill: BossSkill) {
-  spendSkillSp(skill, skill.cost);
 }
 
 export function bossAdvanceSpawnPoints(boss: CubeBoss) {

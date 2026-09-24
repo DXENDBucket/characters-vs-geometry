@@ -1,5 +1,7 @@
 import * as config from "./config";
-import { DEL_DELETE_STACK, DEL_FORMAT } from "./data/delBoss";
+import { DEL_FORMAT } from "./data/delBoss";
+import { BOSS_SKILLS, ENDLESS_WINGS_EFFECT } from "./data/bossAbilities";
+import { bossSkillCharge } from "./game/bossSkillRules";
 import { getLevelConfig } from "./data/levels";
 import { bossStatsAtRank, rankedBossFamily, tetrahedronChargeSpeedAtRank, dodecahedronAttacksAtRank } from "./bosses/bossRanks";
 import { getEnemyDefinition } from "./registry/enemies";
@@ -9,6 +11,7 @@ import { detailRange } from "./encyclopediaRanges";
 import { battlefieldRange, enemyContactRange, enemyMortarRange, enemyForwardRange } from "./enemyEncyclopediaDetails";
 import type { RangeDefinition } from "./rangeGeometry";
 import type { EncyclopediaEntry } from "./encyclopedia";
+import type { BossSkillName } from "./types";
 
 type BossIcon = NonNullable<EncyclopediaEntry["icon"]>;
 export function bossPreviewStats(icon: BossIcon, level: number) {
@@ -34,9 +37,10 @@ export function bossDetailSections(icon: BossIcon, level: number): DetailSection
       f("单次伤害", "Per hit", `${config.CUBE_BOSS_CONTACT_DAMAGE} ` + l("物理", "physical")),
       f("目标规则", "Targeting", l("接触碰撞体的塔；本体不可阻挡", "Towers touching the hitbox; the Boss cannot be blocked"))], ranges: [detailRange(contact)] }];
   const passive = (zh: string, en: string, description: string, ranges: RangeDefinition[] = []) => sections.push({ title: l(zh, en), tag: l("被动／事件", "Passive / event"), tone: "passive", fields: [], description, ranges: ranges.map(range => detailRange(range)) });
-  const skill = (zh: string, en: string, max: number, cost: number, initial: number, description: string, range: RangeDefinition, duration = 0, condition?: string) => {
-    sections.push({ title: l(zh, en), tag: l("技力技能 · 自动", "SP skill · Automatic"), tone: "skill",
-      fields: [...skillChargeFields({ initial, max, cost, regen: 1, duration, pause: false }),
+  const skill = (name: BossSkillName, description: string, range: RangeDefinition, condition?: string) => {
+    const data = BOSS_SKILLS[name];
+    sections.push({ title: l(data.name.zh, data.name.en), tag: l("技力技能 · 自动", "SP skill · Automatic"), tone: "skill",
+      fields: [...skillChargeFields(bossSkillCharge(name, icon, ico ? level - 1 : 0)),
         f("触发／回复条件", "Trigger / recovery", condition ?? l("满技力自动触发", "Automatically at full SP"))], description, ranges: [detailRange(range)] });
   };
   if (ico) {
@@ -44,17 +48,17 @@ export function bossDetailSections(icon: BossIcon, level: number): DetailSection
       `P${level} · Baseline damage reduction ${n(bossPreviewStats(icon, level).reduction * 100)}%. Transitions clear enemies and return the Boss to its entry position without resetting waves or weight growth. P4 is the final gold bar.`));
   }
   if (icon === "cube") {
-    skill("晋升", "Promotion", config.CUBE_BOSS_PROMOTION_SKILL_MAX, config.CUBE_BOSS_PROMOTION_SKILL_COST, 0,
-      l(`将 3 个不高于 ${rank} 级的可晋升小怪提升一级，优先高等级，再取最近。圆最高晋升到 IV。`, `Promotes 3 eligible minions of rank ${rank} or lower; highest rank first, then nearest. Circles cap at IV.`), battlefieldRange, 0,
+    skill("promotion",
+      l(`将 3 个不高于 ${rank} 级的可晋升小怪提升一级，优先高等级，再取最近。圆最高晋升到 IV。`, `Promotes 3 eligible minions of rank ${rank} or lower; highest rank first, then nearest. Circles cap at IV.`), battlefieldRange,
       l("满技力且至少有 3 个合法目标", "Full SP and at least 3 eligible targets"));
-    skill("推进", "Advance", config.CUBE_BOSS_ADVANCE_SKILL_MAX, config.CUBE_BOSS_ADVANCE_SKILL_COST, 0,
+    skill("advance",
       l(`在自身前方一列的每行召唤一个 ${rank} 级正方形。`, `Summons a rank ${rank} Square in each lane of the column ahead.`), column);
   }
   if (icon === "del") {
-    skill("删除：格式化", "Delete: Format", DEL_FORMAT.maxSp, DEL_FORMAT.cost, DEL_FORMAT.initialSp,
+    skill("deleteFormat",
       l(`预警 3 秒，本体在 DEL 和灰色 NUL 字样之间故障闪烁。随后场上所有格子塔变为 NUL，持续 ${DEL_FORMAT.durationMs / 1000} 秒，每格只显示一个。期间攻击、技能、光环、阻挡和其他功能全部暂停，不会被敌方选中或命中，也不能擦除、升级或移动；NUL 格不能部署新塔，其他空格不受影响。结束后恢复原塔及其状态。边上的 = 不受影响。`,
         `Warns for 3s, glitching between DEL and gray NUL. Then nullifies all grid towers for ${DEL_FORMAT.durationMs / 1000}s, displaying one NUL per occupied cell. All functions, blocking and targeting are suspended; towers cannot be attacked, erased, upgraded or moved, and their cells cannot receive new towers. Other empty cells remain usable. Original towers and state return afterward. Edge connectors (=) are unaffected.`),
-      battlefieldRange, DEL_FORMAT.durationMs,
+      battlefieldRange,
       l("仅在生命严格低于 50% 时每秒恢复 1 技力，满技力自动释放。", "Recovers 1 SP/s only below 50% HP; casts automatically at full SP."));
     passive("25% 生命机制", "25% HP event", l("首次降至 25% 生命：沿用半血扫荡机制，改为第 1、7 行预警和清场。预警 3 秒后，无敌的 1×1 DEL 字样以速度 600 向左扫过，阻挡弹幕并封禁经过格子 40 秒，本体不动并保持无敌。字样离场后解除本次无敌，本体绿色闪烁，在这两行各召唤一个心形 I。",
       "First reaching 25% HP: repeats the half-health sweep in lanes 1 and 7. After a 3s warning, invincible 1x1 DEL glyphs move left at speed 600, block projectiles and seal touched cells for 40s. The main Boss stays still and invincible until both leave, then flashes green and summons one Heart I in each lane."), [battlefieldRange]);
@@ -62,35 +66,32 @@ export function bossDetailSections(icon: BossIcon, level: number): DetailSection
       "First reaching 50% HP: remains stationary and invincible; warns lanes 2 and 6 in red for 3s. An invincible DEL glyph sweeps each lane leftward at speed 600 with a 1x1 Boss hitbox that blocks projectiles and seals touched cells for 40s. Once both leave, this invulnerability ends; DEL flashes green and summons 3 Triangle Rams V per lane, one pair every second."), [battlefieldRange]);
     passive("75% 生命机制", "75% HP event", l("首次降至 75% 生命：中间三行红色预警 3 秒，本体金色故障闪动并无敌。随后以速度 600 向左完全离场，再从右侧向左回到原位停止，全程不触发底线且保持无敌。移动时碰撞箱经过的格子擦除并封禁 40 秒。限时封格的 × 按剩余时间从原尺寸缩至 50%，永久封格不缩小。",
       "First reaching 75% HP: warns the middle three lanes in red for 3s; DEL glitches gold and becomes invincible. Moves left at speed 600 until fully off-board, then returns from the right to its original position. Remains invincible and cannot breach the base throughout. Cells touched by its moving hitbox are erased and sealed for 40s. Timed seal marks shrink from full size to 50%; permanent marks do not shrink."), [battlefieldRange]);
-    skill("删除：栈", "Delete: Stack", DEL_DELETE_STACK.maxSp, DEL_DELETE_STACK.cost, DEL_DELETE_STACK.initialSp,
+    skill("deleteStack",
       l("本体红色故障闪动 2 秒后，锁定此时最后放置的塔所在格；若此时无塔则结束，不返还技力。格子预警 5 秒后擦除格内的塔，并封禁 90 秒。锁格后目标移动或消失不改变预警位置。",
         "DEL glitches red for 2s, then locks the cell of the most recently placed tower at that moment. If no tower remains, the skill ends without an SP refund. After a 5s cell warning, erases towers there and seals the cell for 90s; the warning no longer follows the target."),
-      battlefieldRange, DEL_DELETE_STACK.sealMs, l("满技力且场上有塔时自动释放；无塔时保留技力", "Automatically at full SP when a tower exists; holds SP otherwise"));
+      battlefieldRange, l("满技力且场上有塔时自动释放；无塔时保留技力", "Automatically at full SP when a tower exists; holds SP otherwise"));
   }
   if (ico && level === 1) {
-    skill("终极推进", "Ultimate Advance", config.ICOSAHEDRON_BOSS_ULTIMATE_ADVANCE_SKILL_MAX, config.ICOSAHEDRON_BOSS_ULTIMATE_ADVANCE_SKILL_COST, config.ICOSAHEDRON_BOSS_ULTIMATE_ADVANCE_INITIAL_SP,
+    skill("ultimateAdvance",
       l("在前方一列及该列右侧一列，每格召唤正方形 III。", "Summons Square III in every cell of the front column and the column to its right."), { shape: { kind: "column", halfWidth: 1 } });
-    for (const alpha of [true, false]) skill(alpha ? "心跳 α" : "心跳 β", alpha ? "Heartbeat Alpha" : "Heartbeat Beta",
-      alpha ? config.ICOSAHEDRON_BOSS_HEARTBEAT_ALPHA_SKILL_MAX : config.ICOSAHEDRON_BOSS_HEARTBEAT_BETA_SKILL_MAX,
-      alpha ? config.ICOSAHEDRON_BOSS_HEARTBEAT_ALPHA_SKILL_COST : config.ICOSAHEDRON_BOSS_HEARTBEAT_BETA_SKILL_COST,
-      alpha ? config.ICOSAHEDRON_BOSS_HEARTBEAT_ALPHA_INITIAL_SP : config.ICOSAHEDRON_BOSS_HEARTBEAT_BETA_INITIAL_SP,
+    for (const alpha of [true, false]) skill(alpha ? "heartbeatAlpha" : "heartbeatBeta",
       l(`在最右列的第 ${alpha ? "2、4、6" : "1、3、5、7"} 行各召唤心形 III。`, `Summons Heart III in lanes ${alpha ? "2, 4, 6" : "1, 3, 5, 7"} of the rightmost column.`), column);
   }
   if (icon === "tetrahedron" || ico && level === 2) {
     const condition = l("满技力触发；触发濒危效果后自然回技永久翻倍", "At full SP; natural recovery permanently doubles after the critical-HP event");
-    skill("冲锋", "Charge", config.TETRAHEDRON_BOSS_CHARGE_SKILL_MAX, config.TETRAHEDRON_BOSS_CHARGE_SKILL_COST, 0,
+    skill("charge",
       l(`场上敌怪获得 ${ico ? 2.5 : tetrahedronChargeSpeedAtRank(rank)} 倍移速；压制技力 +${config.TETRAHEDRON_BOSS_CHARGE_SUPPRESSION_SP_GAIN}。`,
-        `Enemies gain ${ico ? 2.5 : tetrahedronChargeSpeedAtRank(rank)}x speed; Suppression gains ${config.TETRAHEDRON_BOSS_CHARGE_SUPPRESSION_SP_GAIN} SP.`), battlefieldRange, config.TETRAHEDRON_BOSS_CHARGE_DURATION, condition);
-    skill("冲击", "Impact", config.TETRAHEDRON_BOSS_IMPACT_SKILL_MAX, config.TETRAHEDRON_BOSS_IMPACT_SKILL_COST, ico ? 75 : 0,
-      l(`前方两列每行召唤 ${rank} 级倒三角；冲锋技力 +${config.TETRAHEDRON_BOSS_IMPACT_CHARGE_SP_GAIN}。`, `Summons rank ${rank} Inverted Triangles across two columns; Charge gains ${config.TETRAHEDRON_BOSS_IMPACT_CHARGE_SP_GAIN} SP.`), { shape: { kind: "column", halfWidth: 1 } }, 0, condition);
-    skill("压制", "Suppression", config.TETRAHEDRON_BOSS_SUPPRESSION_SKILL_MAX, config.TETRAHEDRON_BOSS_SUPPRESSION_SKILL_COST, ico ? 75 : 0,
-      l(`出怪线每行召唤 ${rank} 级射击三角；冲击技力 +${config.TETRAHEDRON_BOSS_SUPPRESSION_IMPACT_SP_GAIN}。`, `Summons rank ${rank} Shooting Triangles in each lane at the spawn line; Impact gains ${config.TETRAHEDRON_BOSS_SUPPRESSION_IMPACT_SP_GAIN} SP.`), column, 0, condition);
-    skill("孤注一掷", "Last Stand", config.TETRAHEDRON_BOSS_DESPERATION_SKILL_MAX, config.TETRAHEDRON_BOSS_DESPERATION_SKILL_COST, 0,
-      l(`接触 Boss 的敌怪获得永久力量；冲锋技力 +${config.TETRAHEDRON_BOSS_DESPERATION_CHARGE_SP_GAIN}。`, `Enemies touching the Boss gain permanent Power; Charge gains ${config.TETRAHEDRON_BOSS_DESPERATION_CHARGE_SP_GAIN} SP.`), contact, 0,
+        `Enemies gain ${ico ? 2.5 : tetrahedronChargeSpeedAtRank(rank)}x speed; Suppression gains ${config.TETRAHEDRON_BOSS_CHARGE_SUPPRESSION_SP_GAIN} SP.`), battlefieldRange, condition);
+    skill("impact",
+      l(`前方两列每行召唤 ${rank} 级倒三角；冲锋技力 +${config.TETRAHEDRON_BOSS_IMPACT_CHARGE_SP_GAIN}。`, `Summons rank ${rank} Inverted Triangles across two columns; Charge gains ${config.TETRAHEDRON_BOSS_IMPACT_CHARGE_SP_GAIN} SP.`), { shape: { kind: "column", halfWidth: 1 } }, condition);
+    skill("suppression",
+      l(`出怪线每行召唤 ${rank} 级射击三角；冲击技力 +${config.TETRAHEDRON_BOSS_SUPPRESSION_IMPACT_SP_GAIN}。`, `Summons rank ${rank} Shooting Triangles in each lane at the spawn line; Impact gains ${config.TETRAHEDRON_BOSS_SUPPRESSION_IMPACT_SP_GAIN} SP.`), column, condition);
+    skill("desperation",
+      l(`接触 Boss 的敌怪获得永久力量；冲锋技力 +${config.TETRAHEDRON_BOSS_DESPERATION_CHARGE_SP_GAIN}。`, `Enemies touching the Boss gain permanent Power; Charge gains ${config.TETRAHEDRON_BOSS_DESPERATION_CHARGE_SP_GAIN} SP.`), contact,
       l("生命不高于 50% 才回复技力；濒危后回复翻倍", "Recovers only at 50% HP or lower; recovery doubles after the critical event"));
     passive("半血与濒危", "Half HP & critical HP", l(`首次降至 50%：最右 ${ico ? 5 : 2} 列召唤 ${rank} 级倒三角，填满冲锋技力。首次降至 10%：无敌 15s、移速 3 倍持续 60s，并在${ico ? "每个格子" : "最右五列"}召唤 ${rank} 级倒三角。若提前受到致命伤害则锁 1 血触发濒危效果。`,
       `First reaching 50% HP: summon rank ${rank} Inverted Triangles in the rightmost ${ico ? 5 : 2} columns and fill Charge SP. First reaching 10%: 15s Invincible, 3x speed for 60s, and rank ${rank} Inverted Triangles in ${ico ? "every cell" : "the rightmost five columns"}. An earlier lethal hit locks HP at 1 and triggers this event.`));
-    if (ico) skill("飞跃", "Leap", config.ICOSAHEDRON_BOSS_LEAP_SKILL_MAX, config.ICOSAHEDRON_BOSS_LEAP_SKILL_COST, config.ICOSAHEDRON_BOSS_LEAP_INITIAL_SP,
+    if (ico) skill("leap",
       l("在最远离底线的一列，每行召唤斜坡三角形 III。", "Summons Ramp Triangle III in each lane of the column farthest from the base."), column);
   }
   if (icon === "dodecahedron" || ico && level === 3) {
@@ -104,8 +105,8 @@ export function bossDetailSections(icon: BossIcon, level: number): DetailSection
       ? l("第 1、3、5、7 个眷属死亡：自身所在五行发射激光，10 秒内 15 次。第 2、4、6 个死亡：向最后放置的最多 6 座塔各发射一颗法术迫击弹。", "Deaths 1/3/5/7: lasers across five lanes, 15 times over 10s. Deaths 2/4/6: one magic mortar at each of up to 6 most recently placed towers.")
       : l(`第一个死亡：自身所在三行发射激光，共 ${dodecahedronAttacksAtRank(rank).deathLaserHits} 次独立判定。第二个死亡：向最后放置的最多 4 座塔各发射一颗法术迫击弹。`, `First death: lasers across three lanes, ${dodecahedronAttacksAtRank(rank).deathLaserHits} independent hits. Second death: one magic mortar at each of up to 4 most recently placed towers.`),
       [{ shape: { kind: "lane", start: 0, direction: -1, halfHeight: ico ? 2.5 : 1.5 } }, enemyMortarRange]);
-    skill("无尽羽翼", "Endless Wings", config.DODECAHEDRON_BOSS_ENDLESS_WINGS_SKILL_MAX, config.DODECAHEDRON_BOSS_ENDLESS_WINGS_SKILL_COST, 0,
-      l("接触 Boss 且尚未飞行的敌怪获得 7s 飞行和 2 倍移速。", "Non-flying enemies touching the Boss gain 7s Flying and 2x speed."), contact, 0,
+    skill("endlessWings",
+      l(`接触 Boss 且尚未飞行的敌怪获得 ${ENDLESS_WINGS_EFFECT.duration / 1000}s 飞行和 ${ENDLESS_WINGS_EFFECT.speedMultiplier} 倍移速。`, `Non-flying enemies touching the Boss gain ${ENDLESS_WINGS_EFFECT.duration / 1000}s Flying and ${ENDLESS_WINGS_EFFECT.speedMultiplier}x speed.`), contact,
       l("全部眷属死亡后开始回技，满技力自动发动", "Starts recovering after all companions die; activates at full SP"));
   }
   if (icon === "octahedron" || ico && level === 4) {

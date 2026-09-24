@@ -1,4 +1,4 @@
-import { chargeBossSkill, isBossSkillReady, spendBossSkill } from "../bosses/cubeBoss";
+import { chargeBossSkill, isBossSkillReady, spendBossSkill } from "./bossSkillRules";
 import type { BossSkill, BossSkillName, CubeBoss } from "../types";
 
 export interface BossSkillDefinition<Runtime, Name extends BossSkillName = BossSkillName> {
@@ -25,7 +25,7 @@ export function runRegisteredBossSkills<Runtime>(
   definitions: readonly BossSkillDefinition<Runtime>[],
   seconds: number
 ) {
-  const readySkills: Array<{ definition: BossSkillDefinition<Runtime>; skill: BossSkill }> = [];
+  let readySkills: Array<{ definition: BossSkillDefinition<Runtime>; skill: BossSkill }> | undefined;
 
   for (const definition of definitions) {
     const skill = getBossSkill(boss, definition.skillKey);
@@ -44,9 +44,11 @@ export function runRegisteredBossSkills<Runtime>(
     if (!skill || !isBossSkillReady(skill) || definition.canUse?.(runtime, boss, skill) === false) {
       continue;
     }
-    readySkills.push({ definition, skill });
+    (readySkills ??= []).push({ definition, skill });
   }
 
+  if (!readySkills) return;
+  // Snapshot readiness and spend all costs before effects grant SP to other skills.
   for (const { skill } of readySkills) {
     spendBossSkill(skill);
   }

@@ -87,11 +87,16 @@ rules, manual targeting flags and encyclopedia fields. Original and copied tower
 share the same initial-state factory. See [Tower Skill Definitions](tower-abilities.md).
 This pass reduces maintenance duplication; it does not claim a measured FPS gain.
 
+The fourth pass consolidated all 13 Boss SP definitions and phase-entry charge
+rules, and decoupled charge/dispatch from model rendering. Idle Boss skill updates
+no longer allocate an empty readiness array. See [Boss Skill Definitions](boss-abilities.md).
+This is a dependency and allocation improvement, not a measured full-battle FPS gain.
+
 1. Move remaining pure visual updates to a frame-level rendering adapter while
    preserving simulation-owned positions, deadlines and random streams.
 2. Define explicit battle snapshot DTOs and stable entity IDs instead of walking
    runtime object graphs with a visual-field exclusion list.
-3. Continue consolidating tower aura, Boss skill, scaling and encyclopedia metadata;
-   the migrated enemy and tower SP skills now share their numeric definitions.
+3. Continue consolidating tower aura, Boss events, scaling and encyclopedia metadata;
+   named enemy, tower and Boss SP skills now share their numeric definitions.
 4. Split oversized scene/runtime responsibilities along those boundaries, with
    replay checks at each step, before introducing multiplayer authority rules.

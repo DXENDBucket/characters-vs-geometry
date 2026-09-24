@@ -61,5 +61,6 @@ behavior. It runs with `npm run test:rules`. Browser checks for copies, pipeline
 and deterministic save/replay cover integration with real scene objects.
 
 The action controller still owns Phaser visuals and runtime references. Explicit
-snapshot DTOs, full simulation/render separation, common aura catalogs and Boss
-skill data are separate work, not automatically solved by this migration.
+snapshot DTOs, full simulation/render separation and common aura catalogs remain
+separate work. Boss SP data now has its own catalog; see
+[Boss Skill Definitions](boss-abilities.md).

@@ -62,7 +62,6 @@ import {
   GAME_HEIGHT,
   GAME_SPEED_MAX,
   GAME_SPEED_MIN,
-  ICOSAHEDRON_BOSS_LEAP_INITIAL_SP,
   LANES,
   NATURAL_PRODUCE_AMOUNT,
   NATURAL_PRODUCE_INTERVAL,
@@ -73,6 +72,7 @@ import {
   palette
 } from "../config";
 import { createCubeBoss, isDodecahedronBoss, isOctahedronBoss } from "../bosses/cubeBoss";
+import { applyBossPhaseSkillState } from "../game/bossSkillRules";
 import { clearBossCopyWarnings } from "../render/bossCopyWarnings";
 import { enemyIsBossCompanion } from "../registry/enemies";
 import { chapterIdForLevelId } from "../data/chapters";
@@ -221,7 +221,6 @@ type DebugDamageMode = "normal" | "super" | null;
 const BOSS_PHASE_BAR_COLORS = [palette.heart, 0xff9f43, palette.magic, palette.gold];
 const BOSS_PHASE_BAR_BACK = palette.magic;
 const BOSS_PHASE_FINAL_BAR_BACK = palette.dim;
-const ICOSAHEDRON_PHASE_TWO_INITIAL_SP = 75;
 const HAS_TIMED_PRODUCER_CARDS = allCardDefinitions.some((definition) =>
   Boolean(definition.produceEvery && definition.produceAmount)
 );
@@ -1545,34 +1544,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private applyBossPhaseSkillState(boss: CubeBoss) {
-    if (boss.kind !== "icosahedron") {
-      return;
-    }
-
-    if (this.bossPhaseIndex === 2) {
-      this.setBossSkillSp(boss.skills.endlessWings, 0);
-      return;
-    }
-
-    if (this.bossPhaseIndex !== 1) {
-      return;
-    }
-
-    this.setBossSkillSp(boss.skills.charge, 0);
-    this.setBossSkillSp(boss.skills.impact, ICOSAHEDRON_PHASE_TWO_INITIAL_SP);
-    this.setBossSkillSp(boss.skills.suppression, ICOSAHEDRON_PHASE_TWO_INITIAL_SP);
-    this.setBossSkillSp(boss.skills.desperation, 0);
-    this.setBossSkillSp(boss.skills.leap, ICOSAHEDRON_BOSS_LEAP_INITIAL_SP);
-  }
-
-  private setBossSkillSp(skill: { sp: number; spBuffer: number; activeUntil: number; maxSp: number } | undefined, sp: number) {
-    if (!skill) {
-      return;
-    }
-
-    skill.sp = Phaser.Math.Clamp(sp, 0, skill.maxSp);
-    skill.spBuffer = 0;
-    skill.activeUntil = 0;
+    applyBossPhaseSkillState(boss, this.bossPhaseIndex);
   }
 
   private towerSkillRuntime(): TowerSkillRuntime {
