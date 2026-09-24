@@ -1,4 +1,5 @@
-import { CELL_HEIGHT, CELL_WIDTH, SPELL_MORTAR_AOE_RANGE_X, SPELL_MORTAR_AOE_RANGE_Y } from "../config";
+import { CELL_HEIGHT, CELL_WIDTH } from "../config";
+import { TOWER_SKILLS } from "./towerAbilities";
 import { getCardAttackArea } from "../game/cardAttackConfigs";
 import type { CardDefinition, CardId } from "../types";
 import type { RangeDefinition } from "../rangeGeometry";
@@ -17,26 +18,25 @@ const adjacent: RangeDefinition = { shape: { kind: "cells", cells: [[-1, 0], [1,
 const centered3 = { shape: { kind: "grid", left: -1, right: 1, top: -1, bottom: 1 } } satisfies RangeDefinition;
 const centered5: RangeDefinition = { shape: { kind: "grid", left: -2, right: 2, top: -2, bottom: 2, cutCorners: true } };
 const global: RangeDefinition = { shape: { kind: "global" } };
-const area3 = { shape: { kind: "rectangle", halfWidth: SPELL_MORTAR_AOE_RANGE_X / CELL_WIDTH, halfHeight: SPELL_MORTAR_AOE_RANGE_Y / CELL_HEIGHT }, origin: "impact" } satisfies RangeDefinition;
 
 // Roles are separate: an aura is not a regular attack and a splash is not a targeting range.
 export const towerRangeDefinitions: Partial<Record<CardId, TowerRanges>> = {
   e: { attack: centered5, aura: centered5 }, g: { attack: centered3, aura: centered3 },
-  H: { attack: centered3 }, p: { attack: centered3 }, h: { skill: centered3 },
-  T: { attack: self, aura: centered5 }, o: { skill: centered5 },
+  H: { attack: centered3 }, p: { attack: centered3 }, h: { skill: TOWER_SKILLS.h.range },
+  T: { attack: self, aura: centered5 }, o: { skill: TOWER_SKILLS.o.range },
   U: { aura: { shape: { ...centered3.shape, excludeSelf: true } } },
   P: { attack: { shape: { kind: "grid", left: -3, right: 4, top: -1, bottom: 1 } } },
   k: { attack: { shape: { kind: "cells", cells: [[0, -1], [1, -1], [0, 0], [1, 0], [2, 0], [0, 1], [1, 1]] }, label: { zh: "前方七格区域", en: "Seven-cell forward area" } } },
-  m: { passive: adjacent }, u: { passive: adjacent }, "#": { skill: adjacent },
+  m: { passive: adjacent }, u: { passive: adjacent }, "#": { skill: TOWER_SKILLS["#"].range },
   "@": { passive: { shape: { kind: "cells", cells: [[1, 0]] }, label: { zh: "朝向前方一格", en: "One cell ahead" } } },
-  X: { attack: self }, Y: { passive: self }, w: { skill: self },
+  X: { attack: self }, Y: { passive: self }, w: { skill: TOWER_SKILLS.w.range },
   B: { passive: contact }, G: { skill: contact }, N: { attack: contact }, q: { attack: contact },
-  j: { skill: { shape: { kind: "cells", cells: [[0, -1], [0, 1]] }, label: { zh: "上下相邻行的同列格", en: "Same column in adjacent lanes" } } },
+  j: { skill: TOWER_SKILLS.j.range },
   L: { attack: { shape: { kind: "cells", cells: [[0, -1], [1, -1], [0, 1], [1, 1]] }, label: { zh: "上下相邻行，自身列与前方一列", en: "Adjacent lanes, own column and next column" } } },
   n: { attack: { shape: { kind: "cells", cells: [[0, 0], [1, 0]] }, label: { zh: "本行自身格与前方一格", en: "Own cell and one cell ahead" } } },
   s: { attack: { shape: { kind: "lane", start: 1 }, label: { zh: "前方本行，最近的可部署空格", en: "Nearest deployable empty cell ahead" } } },
-  x: { attack: global }, S: { skill: global, impact: area3 },
-  c: { skill: { shape: { kind: "nonSpatial" }, label: { zh: "符合条件的卡槽，不受距离限制", en: "Eligible card slots, no distance limit" } } },
+  x: { attack: global }, S: { skill: TOWER_SKILLS.S.range, impact: TOWER_SKILLS.S.impact },
+  c: { skill: TOWER_SKILLS.c.range },
   "+": { passive: centered5 }, "*": { passive: centered5 }, "/": { passive: centered5 },
   "-": { passive: { shape: { kind: "circle", radius: 2.6 } } },
   "()": { passive: self }, "[]": { passive: self }, "&": { passive: global }

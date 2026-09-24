@@ -19,6 +19,24 @@ const load = createTypeScriptLoader();
 const enemyRegistry = load("src/registry/enemies.ts");
 const { enemyArchetypes } = load("src/data/enemyArchetypes.ts");
 const { ENEMY_SKILLS, ENEMY_AURAS } = load("src/data/enemyAbilities.ts");
+const { TOWER_SKILLS } = load("src/data/towerAbilities.ts");
+const towerSkillKeys = new Set();
+for (const [id, skill] of Object.entries(TOWER_SKILLS)) {
+  if (!cardIds.includes(id)) errors.push(`Skill "${id}" has an unknown tower.`);
+  if (!skill.stateKey || towerSkillKeys.has(skill.stateKey)) errors.push(`Skill "${id}" has a missing or duplicate state key.`);
+  towerSkillKeys.add(skill.stateKey);
+  for (const field of ["initialSp", "maxSp", "cost", "regen", "duration", "regenPerLevel"]) {
+    const value = skill[field] ?? 0;
+    if (!Number.isFinite(value) || value < 0) errors.push(`Tower skill "${id}" has invalid ${field}.`);
+  }
+  if (skill.maxSp <= 0 || skill.cost <= 0 || skill.cost > skill.maxSp || skill.initialSp > skill.maxSp) {
+    errors.push(`Tower skill "${id}" has inconsistent SP limits.`);
+  }
+  if (!skill.name.zh || !skill.name.en) errors.push(`Tower skill "${id}" is missing a localized name.`);
+  if (skill.activation === "automatic" && (skill.requiresTarget || skill.supportsGroup)) {
+    errors.push(`Tower skill "${id}" combines automatic activation with manual controls.`);
+  }
+}
 for (const [id, skill] of Object.entries(ENEMY_SKILLS)) {
   if (!enemyFamilies.includes(skill.family)) errors.push(`Skill "${id}" has an unknown enemy family.`);
   for (const field of ["initialSp", "maxSp", "cost", "regen", "duration", "initialSpPerRank", "regenPerRank"]) {

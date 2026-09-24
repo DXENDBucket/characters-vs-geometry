@@ -20,6 +20,7 @@ try {
     const progress = await import("/src/progress.ts");
     const { getCardDefinition, allCardDefinitions, getCardBehavior } = await import("/src/registry/cards.ts");
     const { isCopyableDefinition } = await import("/src/game/towerCopy.ts");
+    const { initialTowerSkillStates } = await import("/src/game/towerSkillRules.ts");
     const { setTowerFacing } = await import("/src/game/towers.ts");
     const { createEnemy } = await import("/src/game/enemyFactory.ts");
     const { captureBattleSnapshot, restoreBattleSnapshot } = await import("/src/game/battleSnapshot.ts");
@@ -34,7 +35,8 @@ try {
     };
     const click = (scene, tower) => scene.submitBattleCommand({ type: "pointer", pointer: { x: tower.x, y: tower.y, ctrl: false, shift: false, right: false } });
     let tested = 0;
-    for (const definition of allCardDefinitions.filter(isCopyableDefinition)) {
+    // Edge connectors and the unconfigured ? placeholder cannot be generated as cell towers.
+    for (const definition of allCardDefinitions.filter(card => card.category !== "special" && isCopyableDefinition(card))) {
       const scene = start();
       const target = scene.spawnGeneratedTower(definition.id, 3, 4, 20);
       const copy = scene.spawnGeneratedTower("@", 3, 3, 3);
@@ -42,6 +44,11 @@ try {
       check(copy.level === 3, `Level ${definition.id}`);
       check(JSON.stringify(copy.border.commandBuffer) === JSON.stringify(target.border.commandBuffer), `Border ${definition.id}`);
       check(!!copy.rangeBorder === !!target.rangeBorder, `Range ${definition.id}`);
+      const initialSkills = JSON.stringify(initialTowerSkillStates(definition.id));
+      check(JSON.stringify(target.skills) === initialSkills && JSON.stringify(copy.skills) === initialSkills,
+        `Initial skill state ${definition.id}`);
+      check(target.skills !== copy.skills && Object.keys(target.skills).every(key => target.skills[key] !== copy.skills[key]),
+        `Shared skill state ${definition.id}`);
       tested++;
     }
     let scene = start();

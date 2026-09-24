@@ -71,6 +71,6 @@ catalog/registry/encyclopedia consistency, compares charge state tick-by-tick wi
 the pre-migration rules, and exercises the actual skill handlers. The browser
 determinism and Incitement checks cover scene integration and saved battles.
 
-Legacy catalog summary prose, most tower skills, Boss phases and several triggered
-enemy mechanics remain outside this migration. They are follow-up work, not
-implicitly covered by the new catalog.
+Legacy catalog summary prose, Boss phases and several triggered enemy mechanics
+remain outside this migration. The seven tower SP skills use a separate catalog;
+see [Tower Skill Definitions](tower-abilities.md).

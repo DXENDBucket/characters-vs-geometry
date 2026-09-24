@@ -8,10 +8,11 @@ import { projectileBankCapacity } from "./projectileBank";
 import { isDamageOutlet, nodeOccupancy } from "./pipelineRules";
 import { syncHealthBar } from "./towerHealth";
 import { facingWithEffects } from "./rules/reversal";
-import { AIR_PATROL_INITIAL_SP, BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
+import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
+import { initialTowerSkillStates } from "./towerSkillRules";
 import { createUnitBorder } from "../render/unitShapes";
 import { drawTowerShellBorder } from "../render/parenthesisTower";
-import type { CardDefinition, CardId, CardState, SkillState, Tower } from "../types";
+import type { CardDefinition, CardId, CardState, Tower } from "../types";
 import { syncTowerFinalStats, towerBaseStatsFromDefinition, towerFinalStats } from "./unitStats";
 import type { TowerAuraSources } from "./towerAuras";
 import {
@@ -100,14 +101,7 @@ export function createTower(
     border.setVisible(false);
   }
 
-  const skills: Record<string, SkillState> = {};
-  if (definition.id === "w") {
-    skills.airPatrol = {
-      sp: AIR_PATROL_INITIAL_SP,
-      spBuffer: 0,
-      activeUntil: 0
-    };
-  }
+  const skills = initialTowerSkillStates(definition.id);
 
   return {
     id: `tower:${placedOrder}`,

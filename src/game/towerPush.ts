@@ -5,8 +5,9 @@ import type { TowerActionListener } from "./towerActions";
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, COLUMNS, LANES, palette } from "../config";
 import type { Tower } from "../types";
 import { gridCellKey } from "./targeting";
-import { getTowerSkillState, spendSkillSp } from "./skillState";
-import { PUSH_DURATION, PUSH_MAX_SP, pushIsReady } from "./pushSkill";
+import { getTowerSkillState } from "./skillState";
+import { spendTowerSkill } from "./towerSkillRules";
+import { PUSH_DURATION, pushIsReady } from "./pushSkill";
 import { planTowerPush } from "./rules/towerPush";
 import type { TowerShifterRuntime } from "./towerShifter";
 import { syncTowerFlyingVisual } from "./towers";
@@ -92,7 +93,7 @@ export class TowerPushController {
       const companion = move.tower.parenthesisGuard ?? parenthesisInner(move.tower);
       if (companion && !moves.some(item => item.tower === companion)) moves.push({ ...move, towerId: companion.id, tower: companion });
     }
-    if (!free) spendSkillSp(getTowerSkillState(source, "push"), PUSH_MAX_SP);
+    if (!free) spendTowerSkill("#", getTowerSkillState(source, "push"));
     if (!free && runtime.onTowerAction?.(source, { kind: "skill", laneOffset: target.lane - origin.lane, columnOffset: target.column - origin.column })) return true;
     source.border.setAlpha(1);
     // Commit all cells before any removal callback can rebuild mirror/health networks.

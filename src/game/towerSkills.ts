@@ -9,18 +9,15 @@ import { activateGathering, gatheringIsReady } from "./gathering";
 import {
   CELL_WIDTH,
   AIR_PATROL_SKILL_MAX,
-  AIR_PATROL_SKILL_COST,
   AIR_PATROL_SKILL_DURATION,
   CLOCK_TOWER_SKILL_DURATION,
   CLOCK_TOWER_SKILL_MAX,
   GUARDIAN_TOWER_HEAL_RATIO,
-  GUARDIAN_TOWER_SKILL_COST,
   GUARDIAN_TOWER_SKILL_MAX,
   SPELL_MORTAR_AOE_RANGE_X,
   SPELL_MORTAR_AOE_RANGE_Y,
   SPELL_MORTAR_SHOT_COUNT,
   SPELL_MORTAR_SHOT_INTERVAL,
-  SPELL_MORTAR_SKILL_COST,
   SPELL_MORTAR_SKILL_MAX,
   palette
 } from "../config";
@@ -28,7 +25,9 @@ import { makeHealParticles, makeSpellMortarImpact, makeSpellMortarShot } from ".
 import type { CardDefinition, CardId, CubeBoss, DamageType, Enemy, SkillState, Tower } from "../types";
 import { enemyIsHighFlying } from "./enemyBehaviors";
 import { forEachSnapshot } from "./iteration";
-import { gainSkillSp, getTowerSkillState, resetSkillCharge, spendSkillSp } from "./skillState";
+import { getTowerSkillState } from "./skillState";
+import { TOWER_SKILLS } from "../data/towerAbilities";
+import { chargeTowerSkill, resetTowerSkillCharge, spendTowerSkill, towerSkillIsReady } from "./towerSkillRules";
 import { createTowerSkillRegistry, type TowerSkillActivation, type TowerSkillDefinition } from "./towerSkillRegistry";
 import { bossPartInRect } from "./targeting";
 import {
@@ -183,7 +182,7 @@ export class TowerSkillController {
   isClockTowerReady(tower: Tower) {
     const runtime = this.runtime();
     const state = getTowerSkillState(tower, "clock");
-    return towerBehaviorType(tower) === "c" && runtime.battleTime >= state.activeUntil && state.sp >= CLOCK_TOWER_SKILL_MAX;
+    return towerBehaviorType(tower) === "c" && towerSkillIsReady("c", state, runtime.battleTime);
   }
 
   tryActivateManualSkill(tower: Tower, input: TowerSkillActivation) {
@@ -204,7 +203,7 @@ export class TowerSkillController {
 
   activateClockTower(tower: Tower) {
     const state = getTowerSkillState(tower, "clock");
-    resetSkillCharge(state);
+    spendTowerSkill("c", state);
     state.activeUntil = this.runtime().battleTime + CLOCK_TOWER_SKILL_DURATION;
     this.routeActiveSkill(tower);
     setTowerBorderVisible(tower, true);
@@ -213,7 +212,7 @@ export class TowerSkillController {
   isAirPatrolReady(tower: Tower) {
     const runtime = this.runtime();
     const state = getTowerSkillState(tower, "airPatrol");
-    return towerBehaviorType(tower) === "w" && runtime.battleTime >= state.activeUntil && state.sp >= AIR_PATROL_SKILL_MAX;
+    return towerBehaviorType(tower) === "w" && towerSkillIsReady("w", state, runtime.battleTime);
   }
 
   isOrientationReady(tower: Tower) {
@@ -238,7 +237,7 @@ export class TowerSkillController {
     }
     const runtime = this.runtime();
     const state = getTowerSkillState(tower, "airPatrol");
-    spendSkillSp(state, AIR_PATROL_SKILL_COST);
+    spendTowerSkill("w", state);
     state.activeUntil = runtime.battleTime + AIR_PATROL_SKILL_DURATION;
     if (this.routeActiveSkill(tower)) return;
     setTowerFlyingUntil(tower, state.activeUntil);
@@ -250,7 +249,7 @@ export class TowerSkillController {
   isSpellMortarReady(tower: Tower) {
     const runtime = this.runtime();
     const state = getTowerSkillState(tower, "spellMortar");
-    return towerBehaviorType(tower) === "S" && runtime.battleTime >= state.activeUntil && state.sp >= SPELL_MORTAR_SKILL_MAX;
+    return towerBehaviorType(tower) === "S" && towerSkillIsReady("S", state, runtime.battleTime);
   }
 
   activateSpellMortarTargeting(towers: Tower[], x: number, y: number) {
@@ -330,7 +329,7 @@ export class TowerSkillController {
     }
 
     setTowerBorderVisible(tower, false);
-    gainSkillSp(state, seconds, CLOCK_TOWER_SKILL_MAX);
+    chargeTowerSkill("c", state, seconds, time);
     if (state.sp >= CLOCK_TOWER_SKILL_MAX) {
       setTowerBorderVisible(tower, true);
     }
@@ -339,7 +338,7 @@ export class TowerSkillController {
   private updateGuardianTower(tower: Tower, state: SkillState, seconds: number, time: number) {
     if (state.sp < GUARDIAN_TOWER_SKILL_MAX) {
       setTowerBorderAlpha(tower, 1);
-      gainSkillSp(state, seconds, GUARDIAN_TOWER_SKILL_MAX);
+      chargeTowerSkill("h", state, seconds, time);
     }
 
     if (state.sp < GUARDIAN_TOWER_SKILL_MAX) {
@@ -372,7 +371,7 @@ export class TowerSkillController {
 
     if (state.sp < AIR_PATROL_SKILL_MAX) {
       setTowerBorderAlpha(tower, 1);
-      gainSkillSp(state, seconds, AIR_PATROL_SKILL_MAX);
+      chargeTowerSkill("w", state, seconds, time);
     }
 
     if (state.sp >= AIR_PATROL_SKILL_MAX) {
@@ -394,7 +393,7 @@ export class TowerSkillController {
     let ally: Tower | undefined;
     let allyHpRatio = Number.POSITIVE_INFINITY;
     for (const candidate of this.runtime().towers) {
-      if (candidate === tower || !inFriendlyRange(tower, candidate, 1)) {
+      if (candidate === tower || !inFriendlyRange(tower, candidate, TOWER_SKILLS.h.range.shape.right)) {
         continue;
       }
 
@@ -417,8 +416,7 @@ export class TowerSkillController {
   }
 
   private triggerGuardianSkill(tower: Tower, state: SkillState, targets: Tower[]) {
-    state.sp = Math.max(0, state.sp - GUARDIAN_TOWER_SKILL_COST);
-    state.spBuffer = 0;
+    spendTowerSkill("h", state);
     setTowerBorderAlpha(tower, 1);
     if (this.runtime().onTowerAction?.(tower, { kind: "skill" })) { targets.length = 0; return; }
 
@@ -464,7 +462,7 @@ export class TowerSkillController {
     }
 
     setTowerBorderVisible(tower, false);
-    gainSkillSp(state, seconds, SPELL_MORTAR_SKILL_MAX);
+    chargeTowerSkill("S", state, seconds, time);
     if (state.sp >= SPELL_MORTAR_SKILL_MAX) {
       setTowerBorderVisible(tower, true);
     }
@@ -476,9 +474,8 @@ export class TowerSkillController {
     const damage = towerAttackAmount(tower, definition);
     const damageType = towerDamageType(tower, definition.damageType ?? "magic", runtime.battleTime);
     const state = getTowerSkillState(tower, "spellMortar");
-    state.sp = Math.max(0, state.sp - SPELL_MORTAR_SKILL_COST);
-    state.spBuffer = 0;
-    state.activeUntil = runtime.battleTime + (SPELL_MORTAR_SHOT_COUNT - 1) * SPELL_MORTAR_SHOT_INTERVAL;
+    spendTowerSkill("S", state);
+    state.activeUntil = runtime.battleTime + TOWER_SKILLS.S.duration;
     setTowerBorderVisible(tower, true);
 
     if (runtime.onTowerAction?.(tower, { kind: "skill", x: targetX, y: targetY })) return;
@@ -577,15 +574,13 @@ export class TowerSkillController {
   }
 
   private resetClockTower(tower: Tower, state: SkillState) {
-    resetSkillCharge(state);
-    state.activeUntil = 0;
+    resetTowerSkillCharge("c", state);
     setTowerBorderVisible(tower, false);
     setTowerBorderAlpha(tower, 1);
   }
 
   private resetSpellMortarTower(tower: Tower, state: SkillState) {
-    resetSkillCharge(state);
-    state.activeUntil = 0;
+    resetTowerSkillCharge("S", state);
     setTowerBorderVisible(tower, false);
     setTowerBorderAlpha(tower, 1);
     if (this.spellMortarTargetingTowerSet.delete(tower)) {
@@ -597,8 +592,7 @@ export class TowerSkillController {
   }
 
   private resetAirPatrolTower(tower: Tower, state: SkillState) {
-    resetSkillCharge(state);
-    state.activeUntil = 0;
+    resetTowerSkillCharge("w", state);
     setTowerFlyingUntil(tower, 0);
     syncTowerFlyingVisual(tower, 0);
     setTowerBorderVisible(tower, true);

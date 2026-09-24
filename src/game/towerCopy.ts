@@ -4,6 +4,7 @@ import { towerAtCell, towerCell } from "./towerTopology";
 import { facingWithEffects } from "./rules/reversal";
 import { isTargetedEffectCardId } from "./targetedEffectCards";
 import { calculateTowerFinalStats, towerBaseStatsFromDefinition } from "./unitStats";
+import { initialTowerSkillStates } from "./towerSkillRules";
 
 export function isCopyableDefinition(definition: CardDefinition) {
   return definition.cost <= 999 && !isTowerShellType(definition.id) && !isTargetedEffectCardId(definition.id);
@@ -46,7 +47,7 @@ export function syncTowerCopies(runtime: TowerCopyRuntime) {
       pool.maxHp += (tower.maxHp - previousMax) / pool.linkCount;
       pool.hp = ratio * pool.maxHp;
     }
-    tower.skills = copiedType === "w" ? { airPatrol: { sp: 8, spBuffer: 0, activeUntil: 0 } } : {};
+    tower.skills = initialTowerSkillStates(copiedType ?? "@");
     tower.flyingUntil = 0;
     tower.reflectProjectiles = !!definition.reflectProjectiles;
     // Switching forms starts a fresh attack/arming cycle, never a free immediate attack.

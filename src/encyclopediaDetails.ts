@@ -1,10 +1,7 @@
 import type { CardDefinition } from "./types";
 import { getLanguage } from "./i18n";
 import {
-  AIR_PATROL_INITIAL_SP, AIR_PATROL_SKILL_MAX, AIR_PATROL_SKILL_COST, AIR_PATROL_SKILL_DURATION,
-  CELL_WIDTH, CLOCK_TOWER_SKILL_MAX, CLOCK_TOWER_SKILL_DURATION,
-  GUARDIAN_TOWER_SKILL_MAX, GUARDIAN_TOWER_SKILL_COST, GUARDIAN_TOWER_HEAL_RATIO,
-  SPELL_MORTAR_SKILL_MAX, SPELL_MORTAR_SKILL_COST, SPELL_MORTAR_SHOT_COUNT, SPELL_MORTAR_SHOT_INTERVAL
+  CELL_WIDTH, GUARDIAN_TOWER_HEAL_RATIO, SPELL_MORTAR_SHOT_COUNT, SPELL_MORTAR_SHOT_INTERVAL
 } from "./config";
 import { attackIntervalMs } from "./game/attackSpeed";
 import { getProjectilePattern } from "./game/cardAttackConfigs";
@@ -14,9 +11,8 @@ import { skillChargeFields, type DetailField, type DetailSection } from "./encyc
 export type { DetailField, DetailSection } from "./encyclopediaSections";
 import { isMaxHpUpgradeable, scaledByEffectiveUpgrades, upgradedAttackMultiplier, volleyShotCount } from "./game/upgrades";
 import { volleyHitsAt, volleyTimingCount } from "./game/volley";
-import { ORIENTATION_MAX_SP, ORIENTATION_DURATION } from "./game/orientation";
-import { GATHERING_MAX_SP, GATHERING_DURATION } from "./game/gathering";
-import { PUSH_MAX_SP, PUSH_DURATION } from "./game/pushSkill";
+import { towerSkillData } from "./data/towerAbilities";
+import { towerSkillCharge } from "./game/towerSkillRules";
 import { UNYIELDING_PERCENT_PER_LEVEL, ZEAL_ATTACK_SPEED_MULTIPLIER } from "./game/towerAuras";
 
 const l = (zh: string, en: string) => getLanguage() === "zh-CN" ? zh : en;
@@ -47,7 +43,7 @@ export function towerDetailSections(card: CardDefinition, level: number, descrip
   const ranges = towerRanges(card);
   const regular: DetailSection = { title: l("常规攻击", "Regular attack"), tag: l("自动", "Automatic"), tone: "attack", fields: [] };
   const sections: DetailSection[] = [regular];
-  const skillIds = ["w", "o", "j", "c", "h", "S", "#"];
+  const skill = towerSkillData(id);
   const trigger = ["F", "f", "i", "l", "r", "G"].includes(id);
   if (card.attackSpeed !== undefined) {
     const healing = card.category === "healing", production = id === "X", utility = ["L", "N", "n", "q", "T", "s"].includes(id);
@@ -98,18 +94,10 @@ export function towerDetailSections(card: CardDefinition, level: number, descrip
       field("卡牌冷却", "Card cooldown", l("目标的 2 倍，独立冷却", "2x target cooldown, independent")),
       field("部署行为", "Deployment", l("立即生效，沿用目标规则", "Immediate, uses target rules"))], description });
 
-  if (skillIds.includes(id)) {
-    let name = "", initial = 0, max = 10, cost = 10, duration = 0, regen = 1, automatic = false;
-    let pause = true;
-    if (id === "w") { name = l("巡空", "Air Patrol"); initial = AIR_PATROL_INITIAL_SP; max = AIR_PATROL_SKILL_MAX; cost = AIR_PATROL_SKILL_COST; duration = AIR_PATROL_SKILL_DURATION; }
-    if (id === "o") { name = l("导向", "Orientation"); max = cost = ORIENTATION_MAX_SP; duration = ORIENTATION_DURATION; }
-    if (id === "j") { name = l("汇聚", "Gathering"); max = cost = GATHERING_MAX_SP; duration = GATHERING_DURATION; }
-    if (id === "c") { name = l("极速钟", "Speed Clock"); max = cost = CLOCK_TOWER_SKILL_MAX; duration = CLOCK_TOWER_SKILL_DURATION; }
-    if (id === "h") { name = l("守护", "Guardian"); max = GUARDIAN_TOWER_SKILL_MAX; cost = GUARDIAN_TOWER_SKILL_COST; automatic = true; pause = false; }
-    if (id === "S") { name = l("术法迫击", "Spell Mortar"); max = SPELL_MORTAR_SKILL_MAX; cost = SPELL_MORTAR_SKILL_COST; duration = (SPELL_MORTAR_SHOT_COUNT - 1) * SPELL_MORTAR_SHOT_INTERVAL; }
-    if (id === "#") { name = l("推箱子", "Box Push"); max = cost = PUSH_MAX_SP; duration = PUSH_DURATION; regen = 1 + .5 * (level - 1); pause = false; }
-    const fields = [...skillChargeFields({ initial, max, cost, regen, duration, pause }),
-      field("选定目标", "Target selection", ["S", "#"].includes(id) ? l("手动选定", "Manual targeting") : l("无需手动选定", "No manual targeting"))];
+  if (skill) {
+    const name = l(skill.name.zh, skill.name.en), automatic = skill.activation === "automatic";
+    const fields = [...skillChargeFields(towerSkillCharge(skill, level)),
+      field("选定目标", "Target selection", skill.requiresTarget ? l("手动选定", "Manual targeting") : l("无需手动选定", "No manual targeting"))];
     if (id === "S") fields.push(field("每发伤害", "Per shell", damageValue), field("连发", "Volley", `${SPELL_MORTAR_SHOT_COUNT} · ${seconds(SPELL_MORTAR_SHOT_INTERVAL)}`));
     if (id === "h") fields.push(field("每目标治疗量", "Healing per target", `${Math.round(stats.maxHp * GUARDIAN_TOWER_HEAL_RATIO)} HP · ` + l(`小 h 生命上限的 ${GUARDIAN_TOWER_HEAL_RATIO * 100}%`, `${GUARDIAN_TOWER_HEAL_RATIO * 100}% of h's max HP`)));
     const effects: Partial<Record<typeof id, string>> = {

@@ -82,11 +82,16 @@ shared catalog, split SP execution from continuous support, and removed runtime
 rendering dependencies from their encyclopedia detail queries. See
 [Enemy Ability Definitions](enemy-abilities.md) for ownership and extension rules.
 
+The third pass consolidated seven tower SP skills, their initialization/reset
+rules, manual targeting flags and encyclopedia fields. Original and copied towers
+share the same initial-state factory. See [Tower Skill Definitions](tower-abilities.md).
+This pass reduces maintenance duplication; it does not claim a measured FPS gain.
+
 1. Move remaining pure visual updates to a frame-level rendering adapter while
    preserving simulation-owned positions, deadlines and random streams.
 2. Define explicit battle snapshot DTOs and stable entity IDs instead of walking
    runtime object graphs with a visual-field exclusion list.
-3. Continue consolidating tower/Boss skill, scaling and encyclopedia metadata;
-   the migrated non-Boss enemy skills now share their numeric definitions.
+3. Continue consolidating tower aura, Boss skill, scaling and encyclopedia metadata;
+   the migrated enemy and tower SP skills now share their numeric definitions.
 4. Split oversized scene/runtime responsibilities along those boundaries, with
    replay checks at each step, before introducing multiplayer authority rules.

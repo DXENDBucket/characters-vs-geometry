@@ -4,10 +4,12 @@ import { getCardDefinition } from "../registry/cards";
 import { makeShiftEffect } from "../render/combatEffects";
 import type { EnemyProjectile, Projectile, SkillState, Tower } from "../types";
 import type { ProjectileRuntime } from "./projectileRuntime";
-import { gainSkillSp, getTowerSkillState, resetSkillCharge, spendSkillSp } from "./skillState";
+import { getTowerSkillState } from "./skillState";
+import { TOWER_SKILLS } from "../data/towerAbilities";
+import { chargeTowerSkill, resetTowerSkillCharge, spendTowerSkill, towerSkillIsReady } from "./towerSkillRules";
 
-export const GATHERING_MAX_SP = 10;
-export const GATHERING_DURATION = 10_000;
+export const GATHERING_MAX_SP = TOWER_SKILLS.j.maxSp;
+export const GATHERING_DURATION = TOWER_SKILLS.j.duration;
 export const GATHERING_TRANSFER_INTERVAL = 100;
 
 export function gatheringIsActive(tower: Tower, time: number) {
@@ -16,29 +18,25 @@ export function gatheringIsActive(tower: Tower, time: number) {
 
 export function gatheringIsReady(tower: Tower, time: number) {
   const state = getTowerSkillState(tower, "gathering");
-  return tower.inPlay && towerBehaviorType(tower) === "j" && time >= state.activeUntil && state.sp >= GATHERING_MAX_SP;
+  return tower.inPlay && towerBehaviorType(tower) === "j" && towerSkillIsReady("j", state, time);
 }
 
 export function activateGathering(tower: Tower, time: number) {
   if (!gatheringIsReady(tower, time)) return false;
   const state = getTowerSkillState(tower, "gathering");
-  spendSkillSp(state, GATHERING_MAX_SP);
+  spendTowerSkill("j", state);
   state.activeUntil = time + GATHERING_DURATION;
   syncGatheringVisual(tower, state, time);
   return true;
 }
 
 export function updateGathering(tower: Tower, state: SkillState, seconds: number, time: number) {
-  if (time >= state.activeUntil) {
-    const recoverySeconds = Math.min(seconds, Math.max(0, (time - state.activeUntil) / 1_000));
-    gainSkillSp(state, recoverySeconds, GATHERING_MAX_SP);
-  }
+  chargeTowerSkill("j", state, seconds, time);
   syncGatheringVisual(tower, state, time);
 }
 
 export function resetGathering(tower: Tower, state: SkillState) {
-  resetSkillCharge(state);
-  state.activeUntil = 0;
+  resetTowerSkillCharge("j", state);
   syncGatheringVisual(tower, state, 0);
 }
 

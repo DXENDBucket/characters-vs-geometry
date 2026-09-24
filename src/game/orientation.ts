@@ -1,10 +1,12 @@
 import type { SkillState, Tower } from "../types";
 import { towerBehaviorType, towerHasSkillBehavior } from "./towerIdentity";
-import { gainSkillSp, getTowerSkillState, resetSkillCharge, spendSkillSp } from "./skillState";
+import { getTowerSkillState } from "./skillState";
+import { TOWER_SKILLS } from "../data/towerAbilities";
+import { chargeTowerSkill, resetTowerSkillCharge, spendTowerSkill, towerSkillIsReady } from "./towerSkillRules";
 import { inFriendlyRange } from "./towerTopology";
 
-export const ORIENTATION_MAX_SP = 10;
-export const ORIENTATION_DURATION = 6_000;
+export const ORIENTATION_MAX_SP = TOWER_SKILLS.o.maxSp;
+export const ORIENTATION_DURATION = TOWER_SKILLS.o.duration;
 
 export function redirectOrientedTarget(towers: Tower[], target: Tower | undefined, time: number) {
   if (!target?.inPlay) return target;
@@ -13,7 +15,7 @@ export function redirectOrientedTarget(towers: Tower[], target: Tower | undefine
     if (!tower.inPlay || tower.transient || !towerHasSkillBehavior(tower, "o") || time >= (tower.skills.orientation?.activeUntil ?? 0)) continue;
     // Already redirected attacks stay locked instead of bouncing between overlapping o towers.
     if (tower === target) return target;
-    if (!inFriendlyRange(tower, target, 2, true)) continue;
+    if (!inFriendlyRange(tower, target, TOWER_SKILLS.o.range.shape.right, TOWER_SKILLS.o.range.shape.cutCorners)) continue;
     if (!redirect || tower.skills.orientation.activeUntil > redirect.skills.orientation.activeUntil ||
       (tower.skills.orientation.activeUntil === redirect.skills.orientation.activeUntil && tower.placedOrder > redirect.placedOrder)) {
       redirect = tower;
@@ -24,29 +26,25 @@ export function redirectOrientedTarget(towers: Tower[], target: Tower | undefine
 
 export function orientationIsReady(tower: Tower, time: number) {
   const state = getTowerSkillState(tower, "orientation");
-  return tower.inPlay && towerBehaviorType(tower) === "o" && time >= state.activeUntil && state.sp >= ORIENTATION_MAX_SP;
+  return tower.inPlay && towerBehaviorType(tower) === "o" && towerSkillIsReady("o", state, time);
 }
 
 export function activateOrientation(tower: Tower, time: number) {
   if (!orientationIsReady(tower, time)) return false;
   const state = getTowerSkillState(tower, "orientation");
-  spendSkillSp(state, ORIENTATION_MAX_SP);
+  spendTowerSkill("o", state);
   state.activeUntil = time + ORIENTATION_DURATION;
   syncOrientationVisual(tower, state, time);
   return true;
 }
 
 export function updateOrientation(tower: Tower, state: SkillState, seconds: number, time: number) {
-  if (time >= state.activeUntil) {
-    const recoverySeconds = Math.min(seconds, Math.max(0, (time - state.activeUntil) / 1_000));
-    gainSkillSp(state, recoverySeconds, ORIENTATION_MAX_SP);
-  }
+  chargeTowerSkill("o", state, seconds, time);
   syncOrientationVisual(tower, state, time);
 }
 
 export function resetOrientation(tower: Tower, state: SkillState) {
-  resetSkillCharge(state);
-  state.activeUntil = 0;
+  resetTowerSkillCharge("o", state);
   syncOrientationVisual(tower, state, 0);
 }
 
