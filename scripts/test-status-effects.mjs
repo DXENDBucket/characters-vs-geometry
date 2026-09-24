@@ -109,7 +109,7 @@ test("Dollar ranks keep combat stats and grow weight plus Incitement target capa
   for (const rank of [1, 2, 3, 100]) {
     const kind = enemyKindAtRank("dollar", rank), panel = getEnemyDefinition(kind);
     assert.deepEqual([panel.hp, panel.armor, panel.magicResistance, panel.damage, panel.speedMultiplier], [20000, 200, 50, 800, 1]);
-    assert.equal(panel.weight, 240 + 200 * (rank - 1));
+    assert.equal(panel.weight, 240 + 200 * load("src/game/enemyWeight.ts").enemyWeightUpgradeCount(rank));
     assert.equal(enemyAttackSpeed(kind), 60);
     assert.deepEqual(initialEnemySkillStates(kind).incitement, { sp: 20, spBuffer: 0, activeUntil: 0 });
   }

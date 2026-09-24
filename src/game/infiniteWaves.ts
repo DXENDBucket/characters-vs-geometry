@@ -2,6 +2,7 @@ import { enemyArchetypes } from "../data/enemyArchetypes";
 import { enemyKindAtRank, parseEnemyKind } from "./enemyIdentity";
 import type { EnemyFamily, EnemyKind } from "../types";
 import { enemyAvailableInWave } from "./waves";
+import { affordableEnemyRank, enemyWeightAtRank } from "./enemyWeight";
 
 export function infiniteLeaderKinds(leaderKinds: readonly EnemyKind[], waveNumber: number, wavesPerFlag: number): EnemyKind[] {
   if (waveNumber < wavesPerFlag || waveNumber % wavesPerFlag !== 0) return [];
@@ -29,8 +30,8 @@ export function buildInfiniteWaveKinds(
   let remaining = weightLimit;
   while (true) {
     // Count affordable ranks arithmetically; never materialize an unbounded catalog.
-    const counts = pool.map(entry => Math.min(entry.spawnRankCap ?? Infinity, Math.max(0,
-      Math.floor((remaining - entry.base.weight) / entry.growth.weight!) + 1)));
+    const counts = pool.map(entry => Math.min(entry.spawnRankCap ?? Infinity,
+      affordableEnemyRank(entry.base.weight, entry.growth.weight!, remaining)));
     const count = counts.reduce((sum, value) => sum + value, 0);
     if (count === 0) return kinds;
     let index = randomIndex(count);
@@ -42,7 +43,7 @@ export function buildInfiniteWaveKinds(
       }
       const entry = pool[i];
       kinds.push(enemyKindAtRank(entry.family, index + 1));
-      remaining -= entry.base.weight + entry.growth.weight! * index;
+      remaining -= enemyWeightAtRank(entry.base.weight, entry.growth.weight!, index + 1);
       break;
     }
   }

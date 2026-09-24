@@ -2,6 +2,10 @@
 
 ## Enemy Weights
 
+Enemy rank weight now uses the same actual-level breakpoints as tower upgrades: `20, 60, 140, 300, 620, ...` (`next = current * 2 + 20`). Reaching the breakpoint uses the previous band; only levels beyond it use the new slope. Each family's base per-rank weight increment is multiplied by `1/2/4/8/16/...` in successive bands (these are growth multipliers, not fractions). Total weight remains continuous: `baseWeight + growthWeight * weightedUpgradeCount(rank)`. Levels 1-20 are unchanged; HP, attack, speed, skills and zero-weight leaders are unchanged. For Triangle, ranks 20/21/60/61 have weights `1170/1290/5970/6210`.
+
+Both IF and IF-BE invert this piecewise weight curve by bands when counting affordable ranks, without enumerating an unlimited catalog. Every affordable rank still participates in the original sampling distribution; Circle's rank-IV natural-spawn cap remains. Battle rules version is now 3: version-1/2 snapshots remain loadable and future waves use new weights, while old replays are rejected rather than played with different outcomes.
+
 Triangle Ram of every rank is excluded from natural wave pools during waves 1-4 and becomes eligible from wave 5. This applies to story, ASCII Expansion and both endless modes, including stages that ignore flag restrictions. Scripted Boss summons are unaffected.
 
 All endless stages (IF and IF-BE) apply an environment HP multiplier to newly created non-Boss enemies: `1 + 0.35 * floor(max(0, currentWave - 1) / wavesPerFlag)`. Waves 1-10 use x1, 11-20 use x1.35, 21-30 use x1.70, with no cap. It does not wait for the flag wave to be cleared. Existing enemies retain their spawn multiplier, including after promotion, storage and save/resume. Summoned and split enemies use the current multiplier; Boss HP is unchanged. The multiplier is applied last, after native health bonuses; health-sharing uses each member's final capacity.
@@ -246,13 +250,14 @@ Combat grid: `7` lanes x `13` columns.
 
 Current loadout slots: `9`.
 
-Upgrade scaling:
+Upgrade scaling (actual tower levels, starting at level 1):
 
-- Up to `+20`, every level grants one effective upgrade.
-- Above `+20`, every `2` levels grant one effective upgrade until `+60`.
-- Above `+60`, every `4` levels grant one effective upgrade until `+140`.
-- Above `+140`, every `8` levels grant one effective upgrade until `+300`.
-- Above `+300`, every `16` levels grant one effective upgrade, and the softcap positions keep following `next = current * 2 + 20`.
+- Through level `20`, every level gained grants one effective upgrade.
+- Above level `20`, every `2` levels grant one effective upgrade through level `60`.
+- Above level `60`, every `4` levels grant one effective upgrade through level `140`.
+- Above level `140`, every `8` levels grant one effective upgrade through level `300`.
+- Above level `300`, every `16` levels grant one effective upgrade through level `620`; later breakpoints follow `next = current * 2 + 20`, doubling levels per effective upgrade again.
+- Effective levels at actual levels `20/21/22/60/61/64/140/300` are `20/20/21/40/40/41/60/80`. Attack, HP and volley upgrades share this rule; raw levels are not rounded down or removed.
 
 ## Tools
 

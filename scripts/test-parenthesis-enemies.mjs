@@ -55,7 +55,7 @@ test("Parentheses ranks scale capacity and weight only, retaining Triangle I att
     assert.deepEqual([definition.hp, definition.armor, definition.magicResistance, definition.speedMultiplier], [5000, 100, 40, 1.5]);
     assert.equal(definition.damage, getEnemyDefinition("triangle").damage);
     assert.equal(enemyAttackSpeed(kind), 60);
-    assert.equal(definition.weight, 80 + (rank - 1) * 120);
+    assert.equal(definition.weight, 80 + load("src/game/enemyWeight.ts").enemyWeightUpgradeCount(rank) * 120);
     assert.equal(enemyCanBeLoaded(enemy(kind)), false);
   }
 });

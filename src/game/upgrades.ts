@@ -1,4 +1,5 @@
 import type { CardId } from "../types";
+import { LEVEL_GROWTH_FIRST_BAND, LEVEL_GROWTH_SECOND_BAND, LEVEL_GROWTH_BAND_FACTOR } from "./levelGrowth";
 
 const VOLLEY_UPGRADEABLE_CARDS = new Set<CardId>([
   "A",
@@ -20,16 +21,15 @@ const VOLLEY_UPGRADEABLE_CARDS = new Set<CardId>([
 const MAX_HP_UPGRADEABLE_CARDS = new Set<CardId>(["()", "[]", "B", "D", "O", "o", "R", "h", "L", "j", "N", "q", "n", "T", "u", "&"]);
 const ATTACK_POWER_UPGRADEABLE_CARDS = new Set<CardId>(["d", "z", "x", "Q", "k", "S", "V", "v", "l", "G"]);
 const UPGRADE_SCALE = 0.8;
-const UPGRADE_SOFTCAP_START = 20;
 
 export function effectiveUpgradeCountForLevel(level: number) {
   let remainingLevels = Math.max(0, Math.floor(level) - 1);
   let effectiveUpgrades = 0;
   let levelsPerUpgrade = 1;
-  let effectiveBandSize = UPGRADE_SOFTCAP_START;
+  let levelsInBand = LEVEL_GROWTH_FIRST_BAND;
+  let nextBandSize = LEVEL_GROWTH_SECOND_BAND;
 
   while (remainingLevels > 0) {
-    const levelsInBand = effectiveBandSize * levelsPerUpgrade;
     const consumed = Math.min(remainingLevels, levelsInBand);
     effectiveUpgrades += Math.floor(consumed / levelsPerUpgrade);
     remainingLevels -= consumed;
@@ -39,7 +39,8 @@ export function effectiveUpgradeCountForLevel(level: number) {
     }
 
     levelsPerUpgrade *= 2;
-    effectiveBandSize *= 2;
+    levelsInBand = nextBandSize;
+    nextBandSize *= LEVEL_GROWTH_BAND_FACTOR;
   }
 
   return effectiveUpgrades;

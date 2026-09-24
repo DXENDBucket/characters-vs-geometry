@@ -80,7 +80,7 @@ test("equals ranks only grow weight and link capacity; attack matches Square I e
     assert.equal(panel.damage, getEnemyDefinition("square").damage);
     assert.equal(panel.damageType, "physical");
     assert.equal(enemyAttackSpeed(kind), 60);
-    assert.equal(panel.weight, 80 + (rank - 1) * 120);
+    assert.equal(panel.weight, 80 + load("src/game/enemyWeight.ts").enemyWeightUpgradeCount(rank) * 120);
     assert.equal(panel.healthLinkCapacity, rank);
   }
   const kinds = ["circle", "equals", "equals2", "equals3"];

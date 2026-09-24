@@ -12,7 +12,76 @@ const load = createTypeScriptLoader({
 const registry = load("src/registry/enemies.ts");
 const { enemyKindAtRank, isEnemyKind } = registry;
 const { enemyArchetypes } = load("src/data/enemyArchetypes.ts");
+const { enemyWeightUpgradeCount, enemyWeightAtRank, affordableEnemyRank } = load("src/game/enemyWeight.ts");
 const legacy = JSON.parse(fs.readFileSync(new URL("./fixtures/enemy-legacy.json", import.meta.url), "utf8"));
+
+test("tower upgrade cadence and enemy weight slopes change after actual levels 20, 60, 140, 300", () => {
+  const { effectiveUpgradeCountForLevel, effectiveLevelForLevel, effectiveUpgradeDelta } = load("src/game/upgrades.ts");
+  const cases = [
+    [1, 0, 0], [19, 18, 18], [20, 19, 19], [21, 19, 21], [22, 20, 23],
+    [59, 38, 97], [60, 39, 99], [61, 39, 103], [64, 40, 115],
+    [140, 59, 419], [141, 59, 427], [148, 60, 483],
+    [300, 79, 1699], [301, 79, 1715], [316, 80, 1955]
+  ];
+  for (const [level, upgrades, weightUnits] of cases) {
+    assert.equal(effectiveUpgradeCountForLevel(level), upgrades, `Tower level ${level}`);
+    assert.equal(effectiveLevelForLevel(level), upgrades + 1);
+    assert.equal(enemyWeightUpgradeCount(level), weightUnits, `Enemy rank ${level}`);
+  }
+  let node = 20, cadence = 2;
+  for (let band = 0; band < 10; band++) {
+    assert.equal(effectiveUpgradeDelta(node, node + cadence - 1), 0);
+    assert.equal(effectiveUpgradeDelta(node, node + cadence), 1);
+    assert.equal(enemyWeightUpgradeCount(node + 1) - enemyWeightUpgradeCount(node), cadence);
+    assert.equal(enemyWeightUpgradeCount(node) - enemyWeightUpgradeCount(node - 1), cadence / 2);
+    node = node * 2 + 20;
+    cadence *= 2;
+  }
+  assert.deepEqual([19, 20, 21, 60, 61, 140, 141].map(rank => registry.getEnemyDefinition(enemyKindAtRank("triangle", rank)).weight),
+    [1110, 1170, 1290, 5970, 6210, 25170, 25650]);
+});
+
+test("weight budget inversion is exact at boundaries, preserves low ranks and remains bounded at huge ranks", () => {
+  for (const [base, growth] of [[30, 60], [80, 120], [240, 200]]) {
+    assert.equal(affordableEnemyRank(base, growth, base - 1), 0);
+    for (let rank = 1; rank <= 2000; rank++) {
+      const weight = enemyWeightAtRank(base, growth, rank);
+      if (rank <= 20) assert.equal(weight, base + growth * (rank - 1));
+      assert.equal(affordableEnemyRank(base, growth, weight), rank);
+      assert.equal(affordableEnemyRank(base, growth, weight - 1), rank - 1);
+      assert.equal(affordableEnemyRank(base, growth, weight + .5), rank);
+    }
+    for (const rank of [1000001, 1000000001]) {
+      const weight = enemyWeightAtRank(base, growth, rank);
+      assert.equal(affordableEnemyRank(base, growth, weight), rank);
+    }
+  }
+  for (const rank of [0, -1, 1.5, NaN, Infinity]) assert.throws(() => enemyWeightUpgradeCount(rank), RangeError);
+  for (const growth of [0, -1, NaN, Infinity]) assert.throws(() => affordableEnemyRank(30, growth, 100), RangeError);
+  assert.throws(() => affordableEnemyRank(30, 60, Infinity), RangeError);
+});
+
+test("endless selection matches a fully enumerated affordable pool under nonlinear weights", () => {
+  const { buildInfiniteWaveKinds } = load("src/game/infiniteWaves.ts");
+  const { buildWaveKinds } = load("src/game/waves.ts");
+  const { BattleRandom } = load("src/game/battleSimulation.ts");
+  const families = ["triangle", "square", "tilde", "dollar"];
+  for (const budget of [1169, 1170, 1289, 1290, 5970, 6210, 25170, 25650, 150000]) {
+    const pool = families.flatMap(family => {
+      const kinds = [];
+      for (let rank = 1; ; rank++) {
+        const kind = enemyKindAtRank(family, rank);
+        if (registry.getEnemyDefinition(kind).weight > budget) return kinds;
+        kinds.push(kind);
+      }
+    });
+    for (const seed of [1, 17, 998]) {
+      const a = new BattleRandom(seed), b = new BattleRandom(seed);
+      assert.deepEqual(buildInfiniteWaveKinds(families, budget, 100, 10, count => a.between(0, count - 1)),
+        buildWaveKinds(pool, registry.getEnemyDefinition, budget, 100, 10, count => b.between(0, count - 1)));
+    }
+  }
+});
 
 test("chevron leader gains additive 50% base HP per rank, with unchanged magic ATK and defenses", () => {
   const behavior = load("src/game/enemyBehaviors.ts");
@@ -152,7 +221,7 @@ test("infinite wave sampling supports every affordable rank without enumerating 
     assert.ok(spent <= weight);
     assert.ok(weight - spent < 10);
   }
-  assert.deepEqual(buildInfiniteWaveKinds(["triangle"], 60000030, 1, 10, length => length - 1), ["triangle1000001"]);
+  assert.deepEqual(buildInfiniteWaveKinds(["triangle"], registry.getEnemyDefinition("triangle1000001").weight, 1, 10, length => length - 1), ["triangle1000001"]);
   assert.deepEqual(buildInfiniteWaveKinds(["circle"], 130, 1, 10, length => length - 1), ["circle4"]);
   const circles = buildInfiniteWaveKinds(["circle"], 1300, 1, 10, length => length - 1);
   assert.deepEqual(circles, Array(10).fill("circle4"));
@@ -349,7 +418,7 @@ test("every minion and leader supports unregistered ranks through the same famil
       const two = legacy[`${family}2`].definition;
       for (const [field, value] of Object.entries(one)) {
         if (typeof value !== "number") continue;
-        assert.equal(definition[field], value + (two[field] - value) * (rank - 1), `${kind}.${field}`);
+        assert.equal(definition[field], value + (two[field] - value) * (field === "weight" ? enemyWeightUpgradeCount(rank) : rank - 1), `${kind}.${field}`);
       }
       assert.equal(definition.label, String(rank));
       assert.equal(registry.enemyIsLeader(kind), !!legacy[family].leader || legacy[family].attackMode === "leader");
