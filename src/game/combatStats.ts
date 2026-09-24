@@ -88,13 +88,19 @@ export function syncEnemyFinalStats(enemy: Enemy, context: EnemyFinalStatsContex
     : finalStats.speed;
   const passengerAttack = includeAttack ? (enemy.parenthesisCargo ?? []).reduce((sum, passenger) =>
     sum + enemyAttackDamage(passenger, context.time ?? 0), 0) * PASSENGER_STAT_RATIO : 0;
-  const damage = includeAttack ? (baseStats.damage + passengerAttack) * attackMultiplier : finalStats.damage;
+  const hitMultiplier = baseStats.attackMultiplier ?? 1;
+  const attackPower = includeAttack
+    ? ((baseStats.attackPower ?? baseStats.damage) + passengerAttack / hitMultiplier) * attackMultiplier
+    : finalStats.attackPower;
+  const damage = includeAttack ? attackPower * hitMultiplier : finalStats.damage;
 
   finalStats.maxHp = enemyMaximumHp(enemy);
   finalStats.armor = armor;
   finalStats.magicResistance = magicResistance;
   finalStats.speed = speed;
   finalStats.damage = damage;
+  finalStats.attackPower = attackPower;
+  finalStats.attackMultiplier = hitMultiplier;
   finalStats.damageType = baseStats.damageType;
   finalStats.finalDamageReduction = baseStats.finalDamageReduction;
   finalStats.attackSpeed = baseStats.attackSpeed;

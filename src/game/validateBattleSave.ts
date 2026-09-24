@@ -212,6 +212,11 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
       require(array(value.statusEffects, effect => record(effect) && typeof effect.name === "string" && timestamp(effect.expiresAt)));
       require(Number.isInteger(value.lane) && (value.lane as number) >= 0 && (value.lane as number) < 7);
       if (kind === "enemy") {
+        for (const panel of [value.baseStats, value.finalStats] as Record<string, unknown>[]) {
+          for (const key of ["attackPower", "attackMultiplier"]) {
+            require(panel[key] === undefined || finite(panel[key]) && (panel[key] as number) >= 0);
+          }
+        }
         require(value.chevronAssault === undefined || typeof value.chevronAssault === "boolean");
         require(value.ionChargeMs === undefined || finite(value.ionChargeMs) && value.ionChargeMs >= 0 && value.ionChargeMs < CHEVRON_LEADER.chargeMs);
         require(value.environmentHpMultiplier === undefined || finite(value.environmentHpMultiplier) && value.environmentHpMultiplier >= 1);

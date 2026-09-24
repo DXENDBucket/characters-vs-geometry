@@ -32,7 +32,7 @@ export function enemyPreviewAttackSpeed(kind: EnemyKind) {
 export function enemyDetailSections(kind: EnemyKind, description: string): DetailSection[] {
   const { definition: stats, family, rank, attackMode: mode, blockedDetonation, leader } = getEnemyRegistration(kind);
   const damageType = l(stats.damageType === "true" ? "真实" : stats.damageType === "magic" ? "法术" : "物理", stats.damageType);
-  const damage = `${n(stats.damage)} ${damageType} · 100% ATK`;
+  const damage = `${n(stats.damage)} ${damageType} · ${n(stats.attackMultiplier * 100)}% ATK`;
   const speed = enemyPreviewAttackSpeed(kind);
   const ranged = ["ranged", "laser", "mortar"].includes(mode);
   const hits = ranged ? rank : 1, shots = volleyTimingCount(hits);
@@ -132,7 +132,7 @@ export function enemyDetailSections(kind: EnemyKind, description: string): Detai
   if (mode === "siegeRam") passive("冲撞与分裂", "Ram & Split", description, enemyContactRange,
     [f("冲撞伤害", "Ram damage", damage), f("移动加速", "Acceleration", l("经过 7 格达到 4 倍基础移速", "4x base speed after 7 cells"))]);
   if (mode === "mace") passive("反弹冲撞", "Rebounding Ram", description, enemyContactRange,
-    [f("伤害倍率", "Damage multiplier", l("实际移速 / 10 × 攻击力", "Actual speed / 10 x ATK")), f("分裂等级", "Split rank", `${rank}`),
+    [f("伤害倍率", "Damage multiplier", l(`实际移速 / 10 × ${n(stats.attackMultiplier * 100)}% 攻击力`, `Actual speed / 10 x ${n(stats.attackMultiplier * 100)}% ATK`)), f("分裂等级", "Split rank", `${rank}`),
       f("移动加速", "Acceleration", l("从静止朝面向方向加速，7 格达到 4 倍基础移速", "Accelerates from rest toward its facing; 4x base speed after 7 cells"))]);
   if (family === "slopeTriangle") passive("斜坡起飞", "Ramp Launch", description, enemyContactRange,
     [f("生效条件", "Condition", l("自身正被阻挡；接触小怪的速度方向与自身朝向一致", "Currently blocked; contacting minion velocity matches ramp facing")), f("飞行距离", "Flight distance", l("每 10 实际速度飞 1.5 格", "1.5 cells per 10 actual speed"))]);
@@ -152,7 +152,9 @@ export function enemyDetailSections(kind: EnemyKind, description: string): Detai
     ...(minFlag ? [l(`第 ${minFlag} 旗起；关卡可覆盖旗帜限制`, `From flag ${minFlag}; stages may override the flag restriction`)] : [])
   ];
   const growth = enemyArchetypes[family].growth;
-  const changes = Object.entries(growth).map(([key, value]) => `${l(({ hp: "生命", armor: "护甲", magicResistance: "法抗", damage: "攻击", speedMultiplier: "移速倍率", weight: "权重", healthLinkCapacity: "连接数" } as Record<string, string>)[key] ?? key, key)} +${n(value!)}`);
+  const changes = Object.entries(growth).map(([key, value]) => key === "damage"
+    ? `${l("攻击倍率", "Attack multiplier")} +${n(value! / stats.attackPower * 100)}% ATK`
+    : `${l(({ hp: "生命", armor: "护甲", magicResistance: "法抗", speedMultiplier: "移速倍率", weight: "权重", healthLinkCapacity: "连接数" } as Record<string, string>)[key] ?? key, key)} +${n(value!)}`);
   sections.push({ title: l("等级与出场", "Rank & spawn"), tag: l("基础规则", "Base rules"), tone: "passive", fields: [
     f("每级面板增量", "Panel growth per rank", changes.join(" · ") || l("面板不增长", "No panel growth")),
     f("常规出场限制", "Regular spawn restriction", leader ? l("旗帜波固定领袖，不占常规权重；关卡可指定额外召唤", "Fixed flag-wave leader, outside regular weight; stages may add summons")

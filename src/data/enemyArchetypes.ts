@@ -1,7 +1,8 @@
 import type { EnemyDefinition, EnemyFamily } from "../types";
 
 export type EnemyAttackMode = "melee" | "ranged" | "chargedRanged" | "mortar" | "laser" | "blockedDetonator" | "siegeRam" | "mace" | "special" | "leader" | "companion";
-type EnemyPanel = Omit<EnemyDefinition, "kind" | "label">;
+// Damage is the per-hit balance curve; panel ATK stays fixed and ranks scale its multiplier.
+type EnemyPanel = Omit<EnemyDefinition, "kind" | "label" | "attackPower" | "attackMultiplier">;
 type GrowthField = "hp" | "armor" | "magicResistance" | "damage" | "speedMultiplier" | "weight" | "healthLinkCapacity";
 
 export interface EnemyArchetype {

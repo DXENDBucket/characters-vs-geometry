@@ -960,7 +960,7 @@ export class EncyclopediaPanel {
         row(t("label.hp"), this.statValue(enemy.hp, "hp")),
         row(t("label.armor"), this.statValue(enemy.armor, "armor")),
         row(t("label.mr"), this.statValue(enemy.magicResistance, "mr")),
-        row(t("label.atk"), this.damageValue(enemy.damage, enemy.damageType)),
+        row(t("label.atk"), this.damageValue(enemy.attackPower, enemy.damageType)),
         row(isZhLabel("攻速", "AS"), this.statValue(enemyPreviewAttackSpeed(entry.enemyKind), "attackSpeed")),
         row(t("label.speed"), this.statValue(speed, "moveSpeed")),
         row(isZhLabel("范围", "RANGE"), EMPTY_TABLE_VALUE),

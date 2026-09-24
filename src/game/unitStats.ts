@@ -12,7 +12,7 @@ import { enemyMaximumHp } from "./enemyContainers";
 import {
   effectiveUpgradeCountForLevel,
   isMaxHpUpgradeable,
-  upgradedAttackPower,
+  upgradedAttackMultiplier,
   maxHpGainForEffectiveUpgrades
 } from "./upgrades";
 import { attackIntervalMs } from "./attackSpeed";
@@ -63,7 +63,7 @@ export function calculateTowerFinalStats(tower: Tower, towers?: Tower[], towerAu
   finalStats.armor = baseStats.armor;
   finalStats.magicResistance = baseStats.magicResistance;
   finalStats.attackSpeed = attackSpeed;
-  finalStats.attackPower = upgradedAttackPower(towerFormType(tower), baseStats.attackPower, effectiveTowerStatLevel(tower));
+  finalStats.attackPower = baseStats.attackPower;
   finalStats.damageType = baseStats.damageType;
   return finalStats;
 }
@@ -84,7 +84,8 @@ export function withTowerBehavior<T>(tower: Tower, definition: CardDefinition, l
 }
 
 export function towerAttackAmount(tower: Tower, definition: CardDefinition, multiplier = definition.attackMultiplier ?? 1) {
-  return towerFinalStats(tower).attackPower * multiplier;
+  const level = towerActionContext(tower)?.level ?? effectiveTowerStatLevel(tower);
+  return towerFinalStats(tower).attackPower * upgradedAttackMultiplier(definition.id, multiplier, level);
 }
 
 export function towerBaseStats(tower: Tower) {
@@ -105,6 +106,8 @@ export function enemyBaseStatsFromDefinition(
     magicResistance: definition.magicResistance,
     speed: options.speed,
     damage: definition.damage,
+    attackPower: definition.attackPower,
+    attackMultiplier: definition.attackMultiplier,
     damageType: definition.damageType,
     finalDamageReduction: options.finalDamageReduction,
     attackSpeed: options.attackSpeed,

@@ -1,4 +1,5 @@
 import type { CardId } from "../types";
+import { deploymentCardId } from "./cardIdentity";
 import { LEVEL_GROWTH_FIRST_BAND, LEVEL_GROWTH_SECOND_BAND, LEVEL_GROWTH_BAND_FACTOR } from "./levelGrowth";
 
 const VOLLEY_UPGRADEABLE_CARDS = new Set<CardId>([
@@ -19,7 +20,7 @@ const VOLLEY_UPGRADEABLE_CARDS = new Set<CardId>([
   "Z"
 ]);
 const MAX_HP_UPGRADEABLE_CARDS = new Set<CardId>(["()", "[]", "B", "D", "O", "o", "R", "h", "L", "j", "N", "q", "n", "T", "u", "&"]);
-const ATTACK_POWER_UPGRADEABLE_CARDS = new Set<CardId>(["d", "z", "x", "Q", "k", "S", "V", "v", "l", "G"]);
+const ATTACK_MULTIPLIER_UPGRADEABLE_CARDS = new Set<CardId>(["d", "z", "x", "Q", "k", "S", "V", "v", "l", "G"]);
 const UPGRADE_SCALE = 0.8;
 
 export function effectiveUpgradeCountForLevel(level: number) {
@@ -62,10 +63,10 @@ export function isMaxHpUpgradeable(type: CardId) {
   return MAX_HP_UPGRADEABLE_CARDS.has(type);
 }
 
-export function upgradedAttackPower(type: CardId, baseAttackPower: number, level: number) {
-  return ATTACK_POWER_UPGRADEABLE_CARDS.has(type)
-    ? scaledByEffectiveUpgrades(baseAttackPower, level)
-    : baseAttackPower;
+export function upgradedAttackMultiplier(type: CardId, baseMultiplier: number, level: number) {
+  return ATTACK_MULTIPLIER_UPGRADEABLE_CARDS.has(deploymentCardId(type))
+    ? baseMultiplier * (1 + effectiveUpgradeCountForLevel(level) * UPGRADE_SCALE)
+    : baseMultiplier;
 }
 
 export function volleyShotCount(type: CardId, level: number) {

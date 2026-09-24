@@ -4,7 +4,9 @@
 
 Enemy rank weight now uses the same actual-level breakpoints as tower upgrades: `20, 60, 140, 300, 620, ...` (`next = current * 2 + 20`). Reaching the breakpoint uses the previous band; only levels beyond it use the new slope. Each family's base per-rank weight increment is multiplied by `1/2/4/8/16/...` in successive bands (these are growth multipliers, not fractions). Total weight remains continuous: `baseWeight + growthWeight * weightedUpgradeCount(rank)`. Levels 1-20 are unchanged; HP, attack, speed, skills and zero-weight leaders are unchanged. For Triangle, ranks 20/21/60/61 have weights `1170/1290/5970/6210`.
 
-Both IF and IF-BE invert this piecewise weight curve by bands when counting affordable ranks, without enumerating an unlimited catalog. Every affordable rank still participates in the original sampling distribution; Circle's rank-IV natural-spawn cap remains. Battle rules version is now 3: version-1/2 snapshots remain loadable and future waves use new weights, while old replays are rejected rather than played with different outcomes.
+Both IF and IF-BE invert this piecewise weight curve by bands when counting affordable ranks, without enumerating an unlimited catalog. Every affordable rank still participates in the original sampling distribution; Circle's rank-IV natural-spawn cap remains. Battle rules version is now 4: version-1/2/3 snapshots remain loadable with attack-panel migration (including buffered pipeline actions), while old replays are rejected rather than played with different outcomes.
+
+Nonzero base ATK for towers and enemies is now within 250-800; zero ATK remains zero. Damage and healing are ATK multiplied by the action coefficient, preserving previous output. Damage-upgrade towers now increase that coefficient by 80% of its initial value per effective upgrade, not panel ATK; volley and HP upgrades are unchanged. Enemy rank damage growth likewise increases the coefficient while family base ATK remains constant. Power still increases final ATK. The enemy table below lists per-hit base damage, not the normalized ATK panel; speed-dependent collisions apply their additional speed factor. Boss fixed-damage skills are unchanged.
 
 Triangle Ram of every rank is excluded from natural wave pools during waves 1-4 and becomes eligible from wave 5. This applies to story, ASCII Expansion and both endless modes, including stages that ignore flag restrictions. Scripted Boss summons are unaffected.
 
@@ -12,7 +14,7 @@ All endless stages (IF and IF-BE) apply an environment HP multiplier to newly cr
 
 Dollar `$` ranks I/II/III have weights `240/440/640` (`240 + 200 * (rank - 1)`), HP `20000`, armor `200`, MR `50`, physical ATK `800`, attack speed `60`, movement speed `10`. Incitement: initial `20/25` SP, `1 SP/s`, automatically spends `20` at full SP with eligible targets. Grants the closest `4 * rank` other minions `+30% Power` and `+100% Haste` for `15s`; SP recovery continues. Excludes self, leaders, Bosses, Boss companions and Solar Bombs. Power supports source-defined multipliers and independent deadlines for different strengths; only the strongest active value applies. Rank I first appears in AE-7.
 
-| Enemy | Weight | HP | Armor | Attack | DMG | Notes |
+| Enemy | Weight | HP | Armor | Base Hit Damage | DMG | Notes |
 | --- | ---: | ---: | ---: | ---: | --- | --- |
 | Circle 1 | 10 | 3000 | 100 | 400 | ◆ | Body label `I`; average speed `10` |
 | Circle 2 | 50 | 3000 | 100 | 400 | ◆ | Body label `II`; on death summons Circle 1 in upper/current/lower lanes at the same x, skipping missing lanes |

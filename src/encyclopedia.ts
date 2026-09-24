@@ -129,7 +129,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
       enemyKind: "chevronLeader",
       chapterGroupId: "ascii",
       lines: [statLine([[t("label.hp"), chevron.hp], [t("label.armor"), chevron.armor],
-        [t("label.mr"), chevron.magicResistance], [t("label.atk"), damageText(chevron.damage, chevron.damageType)]])],
+        [t("label.mr"), chevron.magicResistance], [t("label.atk"), damageText(chevron.attackPower, chevron.damageType)]])],
       description: zh ? "领袖。> 形态每 12 秒蓄满一发浅绿色离子炮，朝面向方向平射，造成攻击力 1000% 的法术伤害，半径 2.4 格，随距离线性衰减；不进行近战。半血时永久变为 <，取消蓄能，护甲变为 260、基础移速变为 30，改为六边形重锤式加速与反弹冲撞，碰撞同样造成法术伤害。变形不反转朝向。每额外等级增加 16000 基础生命。"
         : "Leader. The > form charges a light-green ion shot every 12s, firing along its facing for 1000% ATK magic damage within 2.4 cells with linear falloff; no melee. At half HP it permanently becomes <, cancels charging, gains 260 armor and 30 base speed, and uses Hex Mace acceleration and rebounding magic collisions without reversing facing. Each extra rank adds 16000 base HP."
     },
@@ -139,7 +139,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
       chapterGroupId: "ascii",
       lines: [statLine([
         [t("label.hp"), dollar.hp], [t("label.armor"), dollar.armor],
-        [t("label.mr"), dollar.magicResistance], [t("label.atk"), damageText(dollar.damage, dollar.damageType)]]),
+        [t("label.mr"), dollar.magicResistance], [t("label.atk"), damageText(dollar.attackPower, dollar.damageType)]]),
         zh ? "权重 I/II/III：240 / 440 / 640；移速 10；攻速 60。" : "Weight I/II/III: 240 / 440 / 640; speed 10; attack speed 60."],
       description: zh ? "煽动：初始 20 技力，上限 25，每秒恢复 1；满技力消耗 20，为最近的 4 × 等级个其他小怪赋予 +30% 力量和 +100% 加速，均持续 15 秒。施放后继续回技，目标不足时作用于全部可选目标。不选择自己、领袖、Boss、Boss 眷属或阳炎爆弹。"
         : "Incitement: starts at 20/25 SP, regenerates 1 SP/s. At full SP, spends 20 to grant +30% Power and +100% Haste to the nearest 4 x rank other minions for 15s. Recovery continues after casting. Excludes self, leaders, Bosses, Boss companions and Solar Bombs."
@@ -150,10 +150,10 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
       chapterGroupId: "ascii",
       lines: [statLine([
         [t("label.hp"), parentheses.hp], [t("label.armor"), parentheses.armor],
-        [t("label.mr"), parentheses.magicResistance], [t("label.atk"), damageText(parentheses.damage, parentheses.damageType)]]),
+        [t("label.mr"), parentheses.magicResistance], [t("label.atk"), damageText(parentheses.attackPower, parentheses.damageType)]]),
         zh ? "权重 I/II/III：80 / 200 / 320；移速 15；每秒攻击一次；可装载 2 / 3 / 4 个敌怪。"
           : "Weight I/II/III: 80 / 200 / 320; speed 15; attacks once per second; carries 2 / 3 / 4 enemies."],
-      description: zh ? "接触合格敌怪时装入括号，先装入者靠后。获得乘客总生命上限及攻击力的 35%，生命上限变化时保留血量比例；移速取自身与乘客的最高值。乘客不可被攻击，但仍可使用技能和远程攻击，飞行效果作用于整体；被阻挡时仅括号近战。摧毁后在各乘客显示位置释放。不装载领袖、Boss、等号、括号、已连接或已装载的敌怪。括号自身不能被任何装载或收纳机制带走。"
+      description: zh ? "接触合格敌怪时装入括号，先装入者靠后。获得乘客总生命上限及单次攻击伤害的 35%，生命上限变化时保留血量比例；移速取自身与乘客的最高值。乘客不可被攻击，但仍可使用技能和远程攻击，飞行效果作用于整体；被阻挡时仅括号近战。摧毁后在各乘客显示位置释放。不装载领袖、Boss、等号、括号、已连接或已装载的敌怪。括号自身不能被任何装载或收纳机制带走。"
         : "Collects eligible enemies on contact, oldest at the rear. Gains 35% of passengers' total maximum HP and attack, preserving HP ratio on capacity changes. Uses the fastest member's speed. Passengers are protected but retain skills and ranged attacks; flight affects the whole group. Only the carrier deals blocked melee damage. Destruction releases passengers at their seats. Excludes leaders, bosses, Equals, Parentheses, linked and carried units. Parentheses cannot be loaded or stored."
     },
     {
@@ -162,7 +162,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
       chapterGroupId: "ascii",
       lines: [statLine([
         [t("label.hp"), equals.hp], [t("label.armor"), equals.armor],
-        [t("label.mr"), equals.magicResistance], [t("label.atk"), damageText(equals.damage, equals.damageType)]]),
+        [t("label.mr"), equals.magicResistance], [t("label.atk"), damageText(equals.attackPower, equals.damageType)]]),
         zh ? "权重 I/II/III：80 / 200 / 320；移速 15；每秒攻击一次，各等级攻击数值不变。"
           : "Weight I/II/III: 80 / 200 / 320; speed 15; attacks once per second with the same damage at every rank."],
       description: zh ? "首个旗帜波起出现。出场时仅连接一次，选取最近的最多 1/2/3 个合格敌怪，共享生命池及血量比例；不连接领袖、Boss、其他等号、括号、已装载或已经连接的敌怪。不换目标、不补连接；成员离场时断开。伤害按被命中者抗性计算后扣除共享生命，生命耗尽时全组死亡。"
@@ -174,7 +174,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
       chapterGroupId: "ascii",
       lines: [statLine([
         [t("label.hp"), triangle.hp], [t("label.armor"), triangle.armor],
-        [t("label.mr"), triangle.magicResistance], [t("label.atk"), damageText(triangle.damage, triangle.damageType)]]),
+        [t("label.mr"), triangle.magicResistance], [t("label.atk"), damageText(triangle.attackPower, triangle.damageType)]]),
         zh ? "权重 I/II/III：30 / 90 / 150；移速：15 / 20 / 25；攻击间隔：1s / 0.5s / 0.33s。"
           : "Weight I/II/III: 30 / 90 / 150; speed: 15 / 20 / 25; attack interval: 1s / 0.5s / 0.33s."],
       description: zh ? "从随机两行之间入场，以行间隙为中心正弦振荡前进，周期 4 秒，最大偏移 0.6 格。阻挡和冻结会暂停移动，按实际位置判定命中。"
@@ -188,7 +188,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.hp"), circle.hp],
           [t("label.armor"), circle.armor],
           [t("label.mr"), circle.magicResistance],
-          [t("label.atk"), damageText(circle.damage, circle.damageType)],
+          [t("label.atk"), damageText(circle.attackPower, circle.damageType)],
           [t("label.speed"), speedText("circle")]
         ]),
         zh
@@ -207,7 +207,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.hp"), triangle.hp],
           [t("label.armor"), triangle.armor],
           [t("label.mr"), triangle.magicResistance],
-          [t("label.atk"), damageText(triangle.damage, triangle.damageType)]
+          [t("label.atk"), damageText(triangle.attackPower, triangle.damageType)]
         ]),
         zh
           ? "权重 I/II/III：30 / 90 / 150，速度：15 / 20 / 25，攻击间隔：1s / 0.5s / 0.33s"
@@ -225,7 +225,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.hp"), triangleRam.hp],
           [t("label.armor"), triangleRam.armor],
           [t("label.mr"), triangleRam.magicResistance],
-          [t("label.atk"), damageText(triangleRam.damage, triangleRam.damageType)],
+          [t("label.atk"), damageText(triangleRam.attackPower, triangleRam.damageType)],
           [t("label.speed"), `I ${speedText("triangleRam")} -> ${ENEMY_SPEED * 1.5 * 4} / II ${speedText("triangleRam2")} -> ${ENEMY_SPEED * 2 * 4} / III ${speedText("triangleRam3")} -> ${ENEMY_SPEED * 2.5 * 4}`],
           [t("label.weight"), `I ${triangleRam.weight} / II ${triangleRam2.weight} / III ${triangleRam3.weight}`]
         ]),
@@ -243,7 +243,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.hp"), angelPentagonRam.hp],
           [t("label.armor"), angelPentagonRam.armor],
           [t("label.mr"), angelPentagonRam.magicResistance],
-          [t("label.atk"), damageText(angelPentagonRam.damage, angelPentagonRam.damageType)],
+          [t("label.atk"), damageText(angelPentagonRam.attackPower, angelPentagonRam.damageType)],
           [
             t("label.speed"),
             `I ${speedText("angelPentagonRam")} -> ${ENEMY_SPEED * 1.5 * 4} / II ${speedText("angelPentagonRam2")} -> ${ENEMY_SPEED * 2 * 4} / III ${speedText("angelPentagonRam3")} -> ${ENEMY_SPEED * 2.5 * 4}`
@@ -266,7 +266,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.mr"), invertedTriangle.magicResistance],
           [
             t("label.atk"),
-            `I ${damageText(invertedTriangle.damage, invertedTriangle.damageType)} / II ${damageText(invertedTriangle2.damage, invertedTriangle2.damageType)} / III ${damageText(invertedTriangle3.damage, invertedTriangle3.damageType)}`
+            `I ${damageText(invertedTriangle.attackPower, invertedTriangle.damageType)} / II ${damageText(invertedTriangle2.attackPower, invertedTriangle2.damageType)} / III ${damageText(invertedTriangle3.attackPower, invertedTriangle3.damageType)}`
           ],
           [t("label.speed"), `I ${speedText("invertedTriangle")} / II ${speedText("invertedTriangle2")} / III ${speedText("invertedTriangle3")}`]
         ]),
@@ -287,7 +287,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.hp"), trapezoid.hp],
           [t("label.armor"), trapezoid.armor],
           [t("label.mr"), `I ${trapezoid.magicResistance} / II ${trapezoid2.magicResistance} / III ${trapezoid3.magicResistance}`],
-          [t("label.atk"), damageText(trapezoid.damage, trapezoid.damageType)],
+          [t("label.atk"), damageText(trapezoid.attackPower, trapezoid.damageType)],
           [t("label.speed"), speedText("trapezoid")],
           [t("label.weight"), `I ${trapezoid.weight} / II ${trapezoid2.weight} / III ${trapezoid3.weight}`]
         ]),
@@ -304,7 +304,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
         statLine([
           [t("label.hp"), square.hp],
           [t("label.mr"), square.magicResistance],
-          [t("label.atk"), damageText(square.damage, square.damageType)],
+          [t("label.atk"), damageText(square.attackPower, square.damageType)],
           [t("label.speed"), speedText("square")]
         ]),
         zh
@@ -323,7 +323,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.hp"), mortarTriangle.hp],
           [t("label.armor"), mortarTriangle.armor],
           [t("label.mr"), mortarTriangle.magicResistance],
-          [t("label.atk"), damageText(mortarTriangle.damage, mortarTriangle.damageType)],
+          [t("label.atk"), damageText(mortarTriangle.attackPower, mortarTriangle.damageType)],
           [t("label.speed"), speedText("mortarTriangle")],
           [t("label.weight"), `I ${mortarTriangle.weight} / II ${mortarTriangle2.weight} / III ${mortarTriangle3.weight}`]
         ]),
@@ -341,7 +341,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.hp"), pentagon.hp],
           [t("label.armor"), pentagon.armor],
           [t("label.mr"), pentagon.magicResistance],
-          [t("label.atk"), damageText(pentagon.damage, pentagon.damageType)],
+          [t("label.atk"), damageText(pentagon.attackPower, pentagon.damageType)],
           [t("label.speed"), speedText("pentagon")],
           [t("label.weight"), `I ${pentagon.weight} / II ${pentagon2.weight} / III ${pentagon3.weight}`]
         ]),
@@ -359,7 +359,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.hp"), angelPentagon.hp],
           [t("label.armor"), angelPentagon.armor],
           [t("label.mr"), angelPentagon.magicResistance],
-          [t("label.atk"), damageText(angelPentagon.damage, angelPentagon.damageType)],
+          [t("label.atk"), damageText(angelPentagon.attackPower, angelPentagon.damageType)],
           [t("label.speed"), speedText("angelPentagon")],
           [t("label.weight"), `I ${angelPentagon.weight} / II ${angelPentagon2.weight} / III ${angelPentagon3.weight}`]
         ]),
@@ -377,7 +377,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.hp"), `I ${archangelHeptagon.hp} / II ${archangelHeptagon2.hp} / III ${archangelHeptagon3.hp}`],
           [t("label.armor"), archangelHeptagon.armor],
           [t("label.mr"), archangelHeptagon.magicResistance],
-          [t("label.atk"), `${damageText(archangelHeptagon.damage, archangelHeptagon.damageType)} / 2s`],
+          [t("label.atk"), `${damageText(archangelHeptagon.attackPower, archangelHeptagon.damageType)} / 2s`],
           [t("label.speed"), `I ${speedText("archangelHeptagon")} / II ${speedText("archangelHeptagon2")} / III ${speedText("archangelHeptagon3")}`],
           [t("label.weight"), zh ? "固定领袖" : "fixed leader spawn"]
         ]),
@@ -386,8 +386,8 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           : `Leader enemy with permanent Flying and a two-layer halo. For 3s after spawning, gains +150% movement speed and High Flight. Ascension: starts at 10 SP; at 15 SP, gives itself and enemies within a 2.5-cell radius Flying and +100% movement speed for 6s; I/II/III regenerate 1 SP/s, with linearly increasing HP`
       ],
       description: zh
-        ? "大天使七边形会每 2 秒对阻挡者造成一次 100% 攻击力的法术伤害。若出现在关卡出怪池中，会在旗帜波固定刷新 1 个且不计入常规波次权重。它不会因其他技能或小怪获得额外飞行光环；收到飞行效果时改为高空飞行，高空飞行期间自身两层光环变为金色，且不会被阻挡、锁定、直接命中或受到塔 AOE。"
-        : "Archangel Heptagon attacks its blocker every 2s for 100% attack as magic damage. If present in a level pool, one fixed spawn appears on flag waves and it does not consume regular wave weight. It does not gain extra Flying halos from other skills or minions; incoming Flying effects become High Flight instead, turning its own two halos gold while it cannot be blocked, targeted, directly hit, or damaged by tower AOE."
+        ? "大天使七边形会每 2 秒对阻挡者造成一次 175% 攻击力的法术伤害。若出现在关卡出怪池中，会在旗帜波固定刷新 1 个且不计入常规波次权重。它不会因其他技能或小怪获得额外飞行光环；收到飞行效果时改为高空飞行，高空飞行期间自身两层光环变为金色，且不会被阻挡、锁定、直接命中或受到塔 AOE。"
+        : "Archangel Heptagon attacks its blocker every 2s for 175% ATK as magic damage. If present in a level pool, one fixed spawn appears on flag waves and it does not consume regular wave weight. It does not gain extra Flying halos from other skills or minions; incoming Flying effects become High Flight instead, turning its own two halos gold while it cannot be blocked, targeted, directly hit, or damaged by tower AOE."
     },
     {
       title: zh ? "射击三角系列" : "Shooting Triangle Series",
@@ -397,7 +397,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.hp"), shootingTriangle.hp],
           [t("label.armor"), shootingTriangle.armor],
           [t("label.mr"), shootingTriangle.magicResistance],
-          [t("label.atk"), damageText(shootingTriangle.damage, shootingTriangle.damageType)],
+          [t("label.atk"), damageText(shootingTriangle.attackPower, shootingTriangle.damageType)],
           [t("label.speed"), speedText("shootingTriangle")],
           [t("label.weight"), `I ${shootingTriangle.weight} / II ${shootingTriangle2.weight} / III ${shootingTriangle3.weight}`]
         ]),
@@ -418,7 +418,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.hp"), shootingPentagon.hp],
           [t("label.armor"), shootingPentagon.armor],
           [t("label.mr"), shootingPentagon.magicResistance],
-          [t("label.atk"), damageText(shootingPentagon.damage, shootingPentagon.damageType)],
+          [t("label.atk"), damageText(shootingPentagon.attackPower, shootingPentagon.damageType)],
           [t("label.speed"), speedText("shootingPentagon")],
           [t("label.weight"), `I ${shootingPentagon.weight} / II ${shootingPentagon2.weight} / III ${shootingPentagon3.weight}`]
         ]),
@@ -436,7 +436,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.hp"), diamond.hp],
           [t("label.armor"), diamond.armor],
           [t("label.mr"), diamond.magicResistance],
-          [t("label.atk"), damageText(diamond.damage, diamond.damageType)],
+          [t("label.atk"), damageText(diamond.attackPower, diamond.damageType)],
           [t("label.speed"), speedText("diamond")],
           [t("label.weight"), `I ${diamond.weight} / II ${diamond2.weight} / III ${diamond3.weight}`]
         ]),
@@ -455,7 +455,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.hp"), hexagon.hp],
           [t("label.armor"), hexagon.armor],
           [t("label.mr"), hexagon.magicResistance],
-          [t("label.atk"), damageText(hexagon.damage, hexagon.damageType)],
+          [t("label.atk"), damageText(hexagon.attackPower, hexagon.damageType)],
           [t("label.speed"), speedText("hexagon")],
           [t("label.weight"), `I ${hexagon.weight} / II ${hexagon2.weight} / III ${hexagon3.weight}`]
         ]),
@@ -473,7 +473,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.hp"), chargingHexagon.hp],
           [t("label.armor"), chargingHexagon.armor],
           [t("label.mr"), chargingHexagon.magicResistance],
-          [t("label.atk"), `I ${damageText(chargingHexagon.damage, chargingHexagon.damageType)} / 2s; II ${damageText(chargingHexagon2.damage, chargingHexagon2.damageType)} / 1s; III ${damageText(chargingHexagon3.damage, chargingHexagon3.damageType)} / 0.67s`],
+          [t("label.atk"), `I ${damageText(chargingHexagon.attackPower, chargingHexagon.damageType)} / 2s; II ${damageText(chargingHexagon2.attackPower, chargingHexagon2.damageType)} / 1s; III ${damageText(chargingHexagon3.attackPower, chargingHexagon3.damageType)} / 0.67s`],
           [t("label.speed"), speedText("chargingHexagon")],
           [t("label.weight"), `I ${chargingHexagon.weight} / II ${chargingHexagon2.weight} / III ${chargingHexagon3.weight}`]
         ]),
@@ -491,7 +491,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.hp"), hexMace.hp],
           [t("label.armor"), hexMace.armor],
           [t("label.mr"), hexMace.magicResistance],
-          [t("label.atk"), `I ${damageText(hexMace.damage, hexMace.damageType)} / II ${damageText(hexMace2.damage, hexMace2.damageType)} / III ${damageText(hexMace3.damage, hexMace3.damageType)}`],
+          [t("label.atk"), `I ${damageText(hexMace.attackPower, hexMace.damageType)} / II ${damageText(hexMace2.attackPower, hexMace2.damageType)} / III ${damageText(hexMace3.attackPower, hexMace3.damageType)}`],
           [t("label.speed"), speedText("hexMace")],
           [t("label.weight"), `I ${hexMace.weight} / II ${hexMace2.weight} / III ${hexMace3.weight}`]
         ]),
@@ -500,8 +500,8 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           : "Does not naturally appear before Flag 1; starts at 0 velocity and continuously accelerates toward its facing direction, reaching 4x base speed after 7 cells"
       ],
       description: zh
-        ? "冲撞型小怪，外观为两个共边六边形。被塔阻挡时不会自毁，而是按当前实际移速造成伤害：10 速度为 100% 基础攻击，20 速度为 200%，以此类推；随后反弹当前速度，但面朝方向不变，并继续朝面朝方向加速。死亡时会在面朝方向前方生成同等级冲锋六边形，后方生成同等级普通六边形。"
-        : "Ramming minion drawn as two edge-linked hexagons. When blocked, it does not self-destruct; it deals damage based on current actual speed: 10 speed is 100% base attack, 20 speed is 200%, and so on. It then reflects its current velocity while keeping its facing direction, and keeps accelerating toward that facing direction. On death, it spawns same-rank Charging Hexagon ahead of its facing direction and same-rank Hexagon behind."
+        ? "冲撞型小怪，外观为两个共边六边形。被塔阻挡时不会自毁，而是按当前实际移速造成伤害：每 10 速度造成一次当前等级的基础伤害，详见伤害倍率；随后反弹当前速度，但面朝方向不变，并继续朝面朝方向加速。死亡时会在面朝方向前方生成同等级冲锋六边形，后方生成同等级普通六边形。"
+        : "Ramming minion drawn as two edge-linked hexagons. When blocked, it does not self-destruct; it deals damage based on current actual speed: each 10 speed contributes one rank-scaled base hit; see the damage multiplier. It then reflects its current velocity while keeping its facing direction, and keeps accelerating toward that facing direction. On death, it spawns same-rank Charging Hexagon ahead of its facing direction and same-rank Hexagon behind."
     },
     {
       title: zh ? "六边形术战壁垒领袖系列" : "Hex Spell Bulwark Leader Series",
@@ -511,7 +511,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.hp"), `I ${hexSpellBulwark.hp} / II ${hexSpellBulwark2.hp} / III ${hexSpellBulwark3.hp}`],
           [t("label.armor"), hexSpellBulwark.armor],
           [t("label.mr"), hexSpellBulwark.magicResistance],
-          [t("label.atk"), damageText(hexSpellBulwark.damage, hexSpellBulwark.damageType)],
+          [t("label.atk"), damageText(hexSpellBulwark.attackPower, hexSpellBulwark.damageType)],
           [t("label.speed"), speedText("hexSpellBulwark")],
           [t("label.weight"), zh ? "固定领袖" : "fixed leader spawn"]
         ]),
@@ -520,8 +520,8 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           : "Leader enemy; does not count toward regular wave weight. Grants enemies in its lane additive MR, including itself: rank I/II/III +40/+50/+60"
       ],
       description: zh
-        ? "外观为竖起来的六边形重锤。每秒攻击一次，造成攻击力 100% 的法术伤害；同一行的敌怪获得法抗加成，多个六边形术战壁垒可以叠加。获得加成的敌怪会显示浅蓝色六边形标识。"
-        : "Drawn as a vertical Hex Mace. Attacks once per second, dealing 100% ATK as magic damage. Enemies in the same lane gain additive magic resistance, and multiple Hex Spell Bulwarks stack. Affected enemies show a light-blue hexagon icon."
+        ? "外观为竖起来的六边形重锤。每秒攻击一次，造成攻击力 150% 的法术伤害；同一行的敌怪获得法抗加成，多个六边形术战壁垒可以叠加。获得加成的敌怪会显示浅蓝色六边形标识。"
+        : "Drawn as a vertical Hex Mace. Attacks once per second, dealing 150% ATK as magic damage. Enemies in the same lane gain additive magic resistance, and multiple Hex Spell Bulwarks stack. Affected enemies show a light-blue hexagon icon."
     },
     {
       title: zh ? "潜地箭头领袖系列" : "Burrow Arrow Leader Series",
@@ -531,7 +531,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.hp"), burrowArrow.hp],
           [t("label.armor"), burrowArrow.armor],
           [t("label.mr"), burrowArrow.magicResistance],
-          [t("label.atk"), `I ${damageText(burrowArrow.damage, burrowArrow.damageType)} / II ${damageText(burrowArrow2.damage, burrowArrow2.damageType)} / III ${damageText(burrowArrow3.damage, burrowArrow3.damageType)}`],
+          [t("label.atk"), `I ${damageText(burrowArrow.attackPower, burrowArrow.damageType)} / II ${damageText(burrowArrow2.attackPower, burrowArrow2.damageType)} / III ${damageText(burrowArrow3.attackPower, burrowArrow3.damageType)}`],
           [t("label.speed"), speedText("burrowArrow")],
           [t("label.weight"), zh ? "固定领袖" : "fixed leader spawn"]
         ]),
@@ -551,7 +551,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.hp"), `I ${slopeTriangle.hp} / II ${slopeTriangle2.hp} / III ${slopeTriangle3.hp}`],
           [t("label.armor"), slopeTriangle.armor],
           [t("label.mr"), slopeTriangle.magicResistance],
-          [t("label.atk"), damageText(slopeTriangle.damage, slopeTriangle.damageType)],
+          [t("label.atk"), damageText(slopeTriangle.attackPower, slopeTriangle.damageType)],
           [t("label.speed"), `I ${speedText("slopeTriangle")} / II ${speedText("slopeTriangle2")} / III ${speedText("slopeTriangle3")}`],
           [t("label.weight"), zh ? "固定领袖" : "fixed leader spawn"]
         ]),
@@ -571,7 +571,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
           [t("label.hp"), heart.hp],
           [t("label.armor"), heart.armor],
           [t("label.mr"), heart.magicResistance],
-          [t("label.atk"), `I ${damageText(heart.damage, heart.damageType)} / II ${damageText(heart2.damage, heart2.damageType)} / III ${damageText(heart3.damage, heart3.damageType)} / 5s`],
+          [t("label.atk"), `I ${damageText(heart.attackPower, heart.damageType)} / II ${damageText(heart2.attackPower, heart2.damageType)} / III ${damageText(heart3.attackPower, heart3.damageType)} / 5s`],
           [t("label.speed"), speedText("heart")],
           [t("label.weight"), zh ? "固定领袖" : "fixed leader spawn"]
         ]),
@@ -823,7 +823,7 @@ function towerDescription(id: CardId) {
     g: zh ? "不屈治疗塔。红框范围为以自身为中心的 3x3，包含自身；每 2 秒治疗范围内所有受伤塔各 90 生命，包括负血量的塔。范围内塔获得基础生命 15% × 小 g 有效等级的不屈，受益塔升级加血不增加额度。多个小 g 取最高值，不叠加，不提供热忱。" : "Unyielding healer. Its red-bordered range covers a centered 3x3 area, including itself. Every 2s it heals every damaged tower in range for 90 HP, including towers with negative HP. Grants Unyielding equal to 15% of each target's base HP per effective g level, unaffected by the target's HP upgrades. Only the strongest source applies. Does not grant Zeal.",
     M: zh ? "下向三连物理射手。攻击方向朝下，出弹点保持在列中心。" : "Downward triple physical shooter. Fires downward from the column center.",
     m: zh ? "镜像塔。若小 m 的左右或上下相邻格一边有可镜像塔、另一边为空且可部署，会在空格生成同种类、同朝向、同等级的镜像。小 b / 小 t 这类短暂效果塔也可被镜像；若对面已有塔，会在对面塔上生成对应效果。基础费用 999 以上的塔不能被镜像。镜像关系会组成网络；网络内任一塔消失会让全网以同一事件消失。小 m 消失时，会擦除自己周围镜像状态塔所属的整个镜像网络。" : "Mirror tower. If one side of m has a mirrorable tower and the opposite side is an empty deployable cell, m creates a same-type, same-facing, same-level mirror there. Transient effect towers like b / t can also be mirrored; if the opposite side already has a tower, the mirrored effect applies to that tower. Towers with base cost above 999 cannot be mirrored. Mirror links form networks; if any tower in a network disappears, the whole network disappears through the same event. When m disappears, it erases the full mirror networks adjacent to it.",
-    V: zh ? "预判术法炮。沿本行投掷 * 炮弹，优先锁定远程敌怪（含射击、激光和迫击炮），其次选择最终攻击力最高的目标，攻击力相同则选择最近的目标。按锁定瞬间的移速预判落点；落点没有命中目标时会打空。" : "Predictive magic cannon. Lobs * shells along its lane. Prioritizes ranged enemies (including shooters, lasers and mortars), then highest final attack, then nearest target. Predicts the landing point from target speed at lock time; it can miss.",
+    V: zh ? "预判术法炮。沿本行投掷 * 炮弹，优先锁定远程敌怪（含射击、激光和迫击炮），其次选择单次攻击伤害最高的目标，伤害相同则选择最近的目标。按锁定瞬间的移速预判落点；落点没有命中目标时会打空。" : "Predictive magic cannon. Lobs * shells along its lane. Prioritizes ranged enemies (including shooters, lasers and mortars), then highest per-hit attack damage, then nearest target. Predicts the landing point from target speed at lock time; it can miss.",
     v: zh ? "预判凝滞炮。沿本行投掷 * 炮弹，锁定自身前方第一个敌怪并按锁定瞬间的移速预判落点；落地造成 1.75 格半径衰减法术范围伤害，并对命中的普通敌怪施加 2 秒凝滞。" : "Predictive Stasis cannon. Lobs * shells along its lane, targeting the first enemy ahead and predicting the landing point from target speed at lock time. On impact, it deals 1.75-cell falloff magic AOE and applies 2s Stasis to ordinary enemies hit.",
     W: zh ? "上向三连物理射手。攻击方向朝上，出弹点保持在列中心。" : "Upward triple physical shooter. Fires upward from the column center.",
     w: zh ? "巡空防御塔。数值和 B 相同；初始 8 技力，每秒回复 1 技力，上限 10。满技力时外框闪烁；点击消耗 10 技力，获得 6 秒飞行和光环。飞行期间不阻挡地面敌人，但可以阻挡普通飞行敌人；高空飞行不会被阻挡。技能结束后才重新回技，升级会重置技力。" : "Air patrol defender. Same baseline stats as B; starts at 8 SP, gains 1 SP/s up to 10. At full SP its border flashes; click to spend 10 SP and gain 6s Flying with a halo. While flying it no longer blocks ground enemies, but can block regular Flying enemies; High Flight is never blocked. SP regeneration resumes only after the skill ends, and upgrades reset SP.",
@@ -831,7 +831,7 @@ function towerDescription(id: CardId) {
     f: zh ? "全场凝滞触发器。机制和 F 类似，可被点击主动触发；触发时消失，不造成伤害，而是让全场普通敌怪获得凝滞。" : "Global Stasis trigger. Similar trigger rules to F and can be clicked manually; disappears on trigger and deals no damage, applying Stasis to all ordinary enemies on the field.",
     i: zh ? "冻结触发器。机制和 f 类似，可被点击主动引爆；触发时消失，冻结半径 2.6 格内的所有敌怪。冻结期间敌怪无法移动，攻击和技能不会触发；冻结期间累计受到的实际物理伤害达到最大生命值一半时，会提前解除冻结。" : "Freeze trigger. Similar trigger rules to f and can be clicked manually; disappears on trigger and freezes all enemies in a 2.6-cell radius. Frozen enemies cannot move, attack, or use skills; accumulated physical damage taken during Freeze breaks it early once it reaches half max HP.",
     l: zh ? "列式法术触发器。机制和 F 类似，可被点击主动引爆；触发时消失，对整列横向 0.75 格范围造成一次法术伤害。" : "Column magic trigger. Similar to F and can be clicked to detonate manually; disappears on trigger and deals one magic hit to a full-column area with 0.75-cell horizontal range.",
-    r: zh ? "反转触发器。点击或阻挡敌怪时消耗自身，以粉色脉冲对半径 1.8 格内造成一次攻击力 500% 的法术伤害（基础 1000），命中后赋予反转，每个有效等级持续 5 秒。对高空飞行、潜地和无敌目标无效。反转期间左右朝向相反，到期恢复；重复命中延长持续时间，不叠加翻转。" : "Reversal trigger. Consumed on click or contact, releasing a pink pulse that deals 500% ATK magic damage (1000 base) once within a 1.8-cell radius. Successful hits apply Reversal for 5 seconds per effective level. High Flight, burrowed and invincible targets are unaffected. Temporarily reverses horizontal facing; repeated hits extend duration without stacking flips.",
+    r: zh ? "反转触发器。点击或阻挡敌怪时消耗自身，以粉色脉冲对半径 1.8 格内造成一次攻击力 250% 的法术伤害（基础 1000），命中后赋予反转，每个有效等级持续 5 秒。对高空飞行、潜地和无敌目标无效。反转期间左右朝向相反，到期恢复；重复命中延长持续时间，不叠加翻转。" : "Reversal trigger. Consumed on click or contact, releasing a pink pulse that deals 250% ATK magic damage (1000 base) once within a 1.8-cell radius. Successful hits apply Reversal for 5 seconds per effective level. High Flight, burrowed and invincible targets are unaffected. Temporarily reverses horizontal facing; repeated hits extend duration without stacking flips.",
     G: zh ? "延迟触发器。放置 15 秒后准备完成，接触敌怪时消失并造成高额法术伤害。" : "Delayed trigger. Arms after 15s, then disappears on contact to deal heavy magic damage.",
     H: zh ? "治疗塔。治疗以自身为中心 3x3 范围内生命百分比最低的一座塔。" : "Healer. Heals the lowest-HP-percent tower in a centered 3x3 area.",
     h: zh ? "守护者。每秒回复 1 技力，20 技力满后若自己或 3x3 范围内有缺血塔，会自动消耗 20 技力治疗自己，并治疗范围内生命百分比最低的一座缺血塔。" : "Guardian. Gains 1 SP/s up to 20; when full, if itself or a tower in its 3x3 area is damaged, it spends 20 SP to heal itself and the lowest-HP-percent damaged tower in that area.",
@@ -891,7 +891,7 @@ export function towerUpgradeText(id: CardId) {
     return zh ? "每个有效等级提供 12 秒真实伤害持续时间；生效后冷却返还方式与 b 相同。" : "Each effective level grants 12 seconds of true-damage duration; after it resolves, cooldown refund works like b.";
   }
   if (id === "x") {
-    return zh ? "每级攻击力增加基础值的 80%，每颗追踪弹造成 100% 攻击力的伤害；对非飞行目标伤害降低 35%。" : "Each level adds 80% of base attack; each homing shot deals 100% ATK damage, reduced by 35% against non-Flying targets.";
+    return zh ? "每级伤害倍率增加初始倍率的 80%，不增加攻击力面板；对非飞行目标伤害降低 35%。" : "Each level adds 80% of the initial damage multiplier without raising panel ATK; damage is reduced by 35% against non-Flying targets.";
   }
   if (id === "m") {
     return zh ? "每级提高小 m 自身等级；2 级小 m 会持续为周围镜像状态塔所属的整个镜像网络提供 +1 有效等级，3 级提供 +2，以此类推。" : "Each level raises m's own level; a level 2 m continuously grants +1 effective level to the full mirror networks adjacent to it, level 3 grants +2, and so on.";
@@ -909,7 +909,7 @@ export function towerUpgradeText(id: CardId) {
     return zh ? "技能倍率按当前激活的 c 的等级和计算。" : "Skill multiplier uses the sum of active c tower levels.";
   }
   if (id === "S") {
-    return zh ? "每级攻击力增加基础值的 80%（4000），每发迫击弹造成 100% 攻击力的伤害，并重置技力。" : "Each level adds 80% of base attack (+4000) and resets SP; each mortar deals 100% ATK damage.";
+    return zh ? "每级伤害倍率增加初始倍率的 80%，不增加攻击力面板，并重置技力。" : "Each level adds 80% of the initial damage multiplier without raising panel ATK, and resets SP.";
   }
   if (id === "s") {
     return zh ? "每级提高自身等级；生成的小 a 等级等于小 s 当前有效等级。" : "Each level raises s's own level; created a towers use s's current effective level.";
@@ -927,19 +927,19 @@ export function towerUpgradeText(id: CardId) {
     return zh ? "每个有效等级提供 5 秒反转持续时间。" : "Each effective level grants 5 seconds of Reversal.";
   }
   if (id === "l") {
-    return zh ? "每级攻击力增加基础值的 80%。" : "Each level adds 80% of base attack.";
+    return zh ? "每级伤害倍率增加初始倍率的 80%，不增加攻击力面板。" : "Each level adds 80% of the initial damage multiplier without raising panel ATK.";
   }
   if (id === "Q" || id === "v") {
-    return zh ? "每级攻击力增加基础值的 80%。" : "Each level adds 80% of base attack.";
+    return zh ? "每级伤害倍率增加初始倍率的 80%，不增加攻击力面板。" : "Each level adds 80% of the initial damage multiplier without raising panel ATK.";
   }
   if (id === "d" || id === "k" || id === "V") {
-    return zh ? "每级攻击力增加基础值的 80%。" : "Each level adds 80% of base attack.";
+    return zh ? "每级伤害倍率增加初始倍率的 80%，不增加攻击力面板。" : "Each level adds 80% of the initial damage multiplier without raising panel ATK.";
   }
   if (id === "z") {
-    return zh ? "每级攻击力增加基础值的 80%（320）；每次命中扣除的技力固定为 1。" : "Each level adds 80% of base attack (320); SP drain stays at 1 per hit.";
+    return zh ? "每级伤害倍率增加初始倍率的 80%，不增加攻击力面板；每次命中扣除的技力固定为 1。" : "Each level adds 80% of the initial damage multiplier without raising panel ATK; SP drain stays at 1 per hit.";
   }
   if (id === "G") {
-    return zh ? "每级攻击力增加基础值的 80%，并重置准备倒计时。" : "Each level adds 80% of base attack and resets arming.";
+    return zh ? "每级伤害倍率增加初始倍率的 80%，不增加攻击力面板，并重置准备倒计时。" : "Each level adds 80% of the initial damage multiplier without raising panel ATK, and resets arming.";
   }
   if (id === "w") {
     return zh ? "每级最大生命增加基础值的 80%，当前生命同步补充，并重置巡空技力。" : "Each level adds 80% of base max HP, heals by the same amount, and resets Air Patrol SP.";
@@ -1042,8 +1042,8 @@ export function mechanicEncyclopediaEntries(): EncyclopediaEntry[] {
       id: "transport", icon: "()", titleZh: "装载与保护", titleEn: "Transport & Protection",
       linesZh: ["敌方括号：先击破载具，才能攻击乘客", "我方括号：优先承受内部塔的伤害"],
       linesEn: ["Enemy parentheses: destroy the carrier to reach passengers", "Friendly parentheses: intercept damage to the occupant"],
-      descriptionZh: "敌方括号最多容纳等级 +1 个合格小怪，速度取自身与乘客最高值，并获得乘客总生命与攻击的 35% 加成；乘客可使用技能，阻挡时仅载具近战。载具摧毁后在显示位置释放乘客，括号本身不能被装载。我方括号与塔共用一格，按自身防御优先承伤，击破该层的单次判定不向内部溢出；内外分别升级、治疗和移位。潜地箭头与小 q 有各自的装载／释放规则。",
-      descriptionEn: "Enemy parentheses carry rank +1 eligible minions, use the highest movement speed and gain 35% of passenger HP and attack. Passengers may cast skills; only the carrier melees when blocked. Destroying it releases passengers at their displayed positions; parentheses cannot themselves be loaded. Friendly parentheses share a cell and take damage first using their own defenses, without breaking-hit overflow. Shell and occupant upgrade, heal and move separately. Burrow Arrow and q have their own storage and release rules."
+      descriptionZh: "敌方括号最多容纳等级 +1 个合格小怪，速度取自身与乘客最高值，并获得乘客总生命与单次攻击伤害的 35% 加成；乘客可使用技能，阻挡时仅载具近战。载具摧毁后在显示位置释放乘客，括号本身不能被装载。我方括号与塔共用一格，按自身防御优先承伤，击破该层的单次判定不向内部溢出；内外分别升级、治疗和移位。潜地箭头与小 q 有各自的装载／释放规则。",
+      descriptionEn: "Enemy parentheses carry rank +1 eligible minions, use the highest movement speed and gain 35% of passenger HP and per-hit attack damage. Passengers may cast skills; only the carrier melees when blocked. Destroying it releases passengers at their displayed positions; parentheses cannot themselves be loaded. Friendly parentheses share a cell and take damage first using their own defenses, without breaking-hit overflow. Shell and occupant upgrade, heal and move separately. Burrow Arrow and q have their own storage and release rules."
     },
     {
       id: "pipeline", icon: "=", titleZh: "管道", titleEn: "Pipeline",

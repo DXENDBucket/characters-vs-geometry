@@ -4,20 +4,21 @@ import { towerActionContext, towerFormType } from "./towerIdentity";
 import { SPELL_MORTAR_SHOT_COUNT } from "../config";
 import { projectileDamageBudget } from "./projectileIntegrity";
 import { scaledByEffectiveUpgrades } from "./upgrades";
+import { towerAttackAmount } from "./unitStats";
 
 export function storeTowerAction(source: Tower, definition: CardDefinition, event: NativeTowerActionEvent, time: number): StoredTowerShot {
   const context = towerActionContext(source);
   const stats = { ...(context?.stats ?? source.finalStats) };
   const level = context?.level ?? Math.max(1, source.level + source.levelBonus + source.mirrorLevelBonus);
   const type = context?.type ?? towerFormType(source);
-  const attack = stats.attackPower * (definition.attackMultiplier ?? 1);
+  const attack = towerAttackAmount(source, definition);
   let damage = 0;
   if (event.kind === "attack" && definition.category === "attack" || event.kind === "shock" || event.kind === "trap") damage = attack;
   if (event.kind === "attack" && type === "x") damage *= 4;
   if (event.kind === "shock" && !definition.triggerDebuff && type !== "l") {
     damage *= scaledByEffectiveUpgrades(definition.triggerCount ?? 10, level);
   }
-  if (event.kind === "retaliation") damage = stats.attackPower * (definition.reflectAttackMultiplier ?? 1);
+  if (event.kind === "retaliation") damage = towerAttackAmount(source, definition, definition.reflectAttackMultiplier ?? 1);
   if (event.kind === "reflection") damage = projectileDamageBudget(event.projectile);
   if (event.kind === "skill" && type === "S") damage = attack * SPELL_MORTAR_SHOT_COUNT;
   const damageType = time < source.trueDamageUntil ? "true" :

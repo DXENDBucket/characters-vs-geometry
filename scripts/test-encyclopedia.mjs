@@ -141,12 +141,12 @@ test("every tower has structured, localized regular-action details at base and h
 
 test("attack previews retain actual multipliers, simultaneous shots, volley hit counts and upgrade rules", () => {
   setLanguage("zh-CN");
-  assert.equal(towerPreviewStats(card("V"), 2).attackPower, 3060);
-  assert.match(values(sections("V", 2)[0]), /3060.*100% ATK/);
+  assert.equal(towerPreviewStats(card("V"), 2).attackPower, 680);
+  assert.match(values(sections("V", 2)[0]), /3060.*450% ATK/);
   assert.match(values(sections("E", 6)[0]), /5 连发 × 3 发／次 · 各发判定 2\/1\/1\/1\/1/);
   assert.match(values(sections("x")[0]), /4 发／次/);
   assert.match(values(sections("x")[0]), /130/);
-  assert.match(values(sections("r")[1]), /1000.*500% ATK/);
+  assert.match(values(sections("r")[1]), /1000.*250% ATK/);
   assert.match(values(sections("r", 3)[1]), /15s/);
   assert.match(values(sections("X", 2)[0]), /45 字符/);
   assert.equal(towerPreviewStats(card("B"), 2).maxHp, 5400);

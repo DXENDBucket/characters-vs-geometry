@@ -12,7 +12,7 @@ import { towerRanges } from "./data/towerRanges";
 import { detailRange, type DetailRange } from "./encyclopediaRanges";
 import { skillChargeFields, type DetailField, type DetailSection } from "./encyclopediaSections";
 export type { DetailField, DetailSection } from "./encyclopediaSections";
-import { isMaxHpUpgradeable, scaledByEffectiveUpgrades, upgradedAttackPower, volleyShotCount } from "./game/upgrades";
+import { isMaxHpUpgradeable, scaledByEffectiveUpgrades, upgradedAttackMultiplier, volleyShotCount } from "./game/upgrades";
 import { volleyHitsAt, volleyTimingCount } from "./game/volley";
 import { ORIENTATION_MAX_SP, ORIENTATION_DURATION } from "./game/orientation";
 import { GATHERING_MAX_SP, GATHERING_DURATION } from "./game/gathering";
@@ -27,7 +27,8 @@ const seconds = (ms: number) => `${n(ms / 1000)}s`;
 export function towerPreviewStats(card: CardDefinition, level: number) {
   return {
     maxHp: isMaxHpUpgradeable(card.id) ? scaledByEffectiveUpgrades(card.maxHp, level) : card.maxHp,
-    attackPower: upgradedAttackPower(card.id, card.attackPower, level),
+    attackPower: card.attackPower,
+    attackMultiplier: upgradedAttackMultiplier(card.id, card.attackMultiplier ?? 1, level),
     armor: card.armor ?? 0, magicResistance: card.magicResistance ?? 0, attackSpeed: card.attackSpeed
   };
 }
@@ -40,9 +41,9 @@ export function towerDetailRange(card: CardDefinition): DetailRange | undefined 
 
 export function towerDetailSections(card: CardDefinition, level: number, description: string): DetailSection[] {
   const id = card.id, stats = towerPreviewStats(card, level);
-  const damage = stats.attackPower * (card.attackMultiplier ?? 1);
+  const damage = stats.attackPower * stats.attackMultiplier;
   const damageType = card.damageType === "physical" ? l("物理", "physical") : card.damageType === "true" ? l("真实", "true") : l("法术", "magic");
-  const damageValue = `${n(damage)} ${damageType} · ${n((card.attackMultiplier ?? 1) * 100)}% ATK`;
+  const damageValue = `${n(damage)} ${damageType} · ${n(stats.attackMultiplier * 100)}% ATK`;
   const ranges = towerRanges(card);
   const regular: DetailSection = { title: l("常规攻击", "Regular attack"), tag: l("自动", "Automatic"), tone: "attack", fields: [] };
   const sections: DetailSection[] = [regular];
@@ -62,7 +63,7 @@ export function towerDetailSections(card: CardDefinition, level: number, descrip
     if (production || id === "T") targeting = l("不需要目标", "No target required");
     if (id === "s") targeting = l("自身前方最近的可部署空格", "Nearest deployable empty cell ahead");
     if (id === "N" || id === "q") targeting = l("自身阻挡的敌怪", "Enemies blocked by this tower");
-    let effect = healing ? `${n(damage)} HP · ${n((card.attackMultiplier ?? 1) * 100)}% ATK` : damageValue;
+    let effect = healing ? `${n(damage)} HP · ${n(stats.attackMultiplier * 100)}% ATK` : damageValue;
     if (production) effect = `${scaledByEffectiveUpgrades(card.produceAmount ?? 0, level)} ` + l("字符", "characters");
     if (utility) effect = id === "s" ? l(`生成等级 ${level} 的小 a`, `Create level ${level} a`) : id === "T" ? l(`自损 ${card.selfDamage} 真实伤害`, `${card.selfDamage} true self-damage`) : l("位移／存储，不造成攻击伤害", "Displacement / storage, no attack damage");
     let hitMode = card.splashRadius ? l(`半径 ${n(card.splashRadius / CELL_WIDTH)} 格范围，距离衰减`, `${n(card.splashRadius / CELL_WIDTH)}-cell radius, distance falloff`) : l("单体", "Single target");

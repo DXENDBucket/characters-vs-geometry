@@ -6,7 +6,8 @@ import { enemyArchetypes } from "./enemyArchetypes";
 export function enemyDefinitionAtRank(family: EnemyFamily, rank: number = 1): EnemyDefinition {
   const kind = enemyKindAtRank(family, rank);
   const { base, growth } = enemyArchetypes[family];
-  const definition: EnemyDefinition = { kind, ...base };
+  const attackPower = base.damage > 0 ? Math.min(800, Math.max(250, base.damage)) : 0;
+  const definition: EnemyDefinition = { kind, ...base, attackPower, attackMultiplier: 1 };
   if (family !== "solarBomb") definition.label = String(rank);
   for (const field of Object.keys(growth) as Array<keyof typeof growth>) {
     const upgrades = field === "weight" ? enemyWeightUpgradeCount(rank) : rank - 1;
@@ -14,6 +15,7 @@ export function enemyDefinitionAtRank(family: EnemyFamily, rank: number = 1): En
     if (!Number.isFinite(value)) throw new RangeError(`Enemy stat overflow: ${kind}.${field}`);
     definition[field] = value;
   }
+  definition.attackMultiplier = attackPower > 0 ? definition.damage / attackPower : 1;
   return definition;
 }
 

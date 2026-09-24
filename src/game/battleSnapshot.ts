@@ -22,6 +22,7 @@ import type { BattleSaveState } from "./battleSaveState";
 import { containedEnemies, syncPassengerPositions } from "./enemyContainers";
 import { projectileVisualScale } from "./projectileIntegrity";
 import { syncTowerAttachmentVisual } from "../render/towerAttachments";
+import { migrateAttackStats } from "./attackStatsMigration";
 
 const towerVisuals = new Set<string>(["body", "border", "label", "facingIcon", "autoUpgradeBorder", "trueDamageBorder",
   "flyingHalo", "hpFill", "negativeHpBack", "negativeHpFill", "rangeBorder", "levelText"] satisfies (keyof Tower)[]);
@@ -99,6 +100,7 @@ export function restoreBattleSnapshot(scene: Phaser.Scene, graph: SaveGraph): Ba
     if (!Array.isArray(state.towers) || !Array.isArray(state.enemies) || !Number.isFinite(state.battleTime) || state.baseIntegrity <= 0) {
       throw new Error("Invalid battle state");
     }
+    migrateAttackStats(state.simulation?.version, towers, enemies);
     const nullified = new Set(state.nullifiedTowers?.towers ?? []);
     for (const tower of towers) {
       if (tower.type === "@") syncTowerFormVisual(scene, tower, getCardDefinition(towerBehaviorType(tower)), state.battleTime);

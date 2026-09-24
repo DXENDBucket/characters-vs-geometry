@@ -1361,8 +1361,8 @@ test("d sunder halves armor, refreshes for ten seconds and does not stack", () =
 test("r uses the requested panel and l cooldown; duration is linear including aura levels", () => {
   assert.equal(definition.cost, 275);
   assert.equal(definition.cooldown, cardDefinitions.find((card) => card.id === "l").cooldown);
-  assert.equal(definition.attackPower, 200);
-  assert.equal(definition.attackMultiplier, 5);
+  assert.equal(definition.attackPower, 400);
+  assert.equal(definition.attackMultiplier, 2.5);
   for (const level of [1, 2, 3, 25]) {
     assert.equal(towers.getTriggerDebuffDuration(tower({ level }), definition), level * 5000);
   }
@@ -1397,7 +1397,7 @@ test("one circular magic attack affects only hit targets, never invincible or un
 
 test("damage uses final attack and upgrades do not independently multiply it", () => {
   const target = enemy();
-  triggers.triggerShockTower(runtime([target]), tower({ level: 3, finalStats: { attackPower: 300 } }));
+  triggers.triggerShockTower(runtime([target]), tower({ level: 3, finalStats: { attackPower: 600 } }));
   assert.equal(target.hp, 3800);
   assert.equal(target.statusEffects[0].expiresAt, 16000);
 });
@@ -1466,7 +1466,7 @@ function towerForCard(card, level = 1) {
   return unit;
 }
 
-test("all cards preserve baseline attack and upgrade modes, including softcap and level bonuses", () => {
+test("bounded attack panels stay constant while multipliers preserve damage, softcaps and aura levels", () => {
   const baseline = {
     A: 400, a: 400, B: 400, C: 500, d: 400, z: 400, x: 200, E: 400, e: 90, g: 90, M: 400, W: 400,
     w: 400, F: 1400, l: 15000, r: 200, G: 15000, H: 700, I: 400, Q: 400, J: 600,
@@ -1475,18 +1475,19 @@ test("all cards preserve baseline attack and upgrade modes, including softcap an
   const attackUpgrades = new Set(["d", "z", "x", "Q", "k", "S", "V", "v", "l", "G"]);
   for (const card of cardDefinitions) {
     const base = baseline[card.id] ?? 0;
-    assert.equal(card.attackPower, base, card.id);
-    for (const level of [1, 2, 3, 20, 21, 22, 60]) {
+    assert.ok(base === 0 ? card.attackPower === 0 : card.attackPower >= 250 && card.attackPower <= 800, card.id);
+    for (const level of [1, 2, 3, 20, 21, 22, 60, 61, 140, 141, 300, 301]) {
       const unit = towerForCard(card, level);
       const expected = attackUpgrades.has(card.id) ? upgrades.scaledByEffectiveUpgrades(base, level) : base;
-      assert.equal(unit.baseStats.attackPower, base);
-      assert.equal(unit.finalStats.attackPower, expected, `${card.id} level ${level}`);
-      assert.equal(stats.towerAttackAmount(unit, card), expected * (card.id === "r" ? 5 : 1));
+      assert.equal(unit.baseStats.attackPower, card.attackPower);
+      assert.equal(unit.finalStats.attackPower, card.attackPower, `${card.id} level ${level}`);
+      assert.ok(Math.abs(stats.towerAttackAmount(unit, card) - expected * (card.id === "r" ? 5 : 1)) < 1e-7, `${card.id} level ${level}`);
       unit.levelBonus = 2;
       unit.mirrorLevelBonus = 3;
       stats.calculateTowerFinalStats(unit);
-      assert.equal(unit.finalStats.attackPower, attackUpgrades.has(card.id)
-        ? upgrades.scaledByEffectiveUpgrades(base, level + 5) : base);
+      assert.equal(unit.finalStats.attackPower, card.attackPower);
+      const bonusDamage = attackUpgrades.has(card.id) ? upgrades.scaledByEffectiveUpgrades(base, level + 5) : base;
+      assert.ok(Math.abs(stats.towerAttackAmount(unit, card) - bonusDamage * (card.id === "r" ? 5 : 1)) < 1e-7);
     }
   }
   assert.equal(upgrades.volleyShotCount("A", 2), 2);
@@ -1620,7 +1621,7 @@ test("projectiles and mortars snapshot final attack times the multiplier, withou
     const card = { ...cardDefinitions.find((candidate) => candidate.id === id), attackMultiplier: 1.5 };
     const caster = towerForCard(card, 3);
     caster.finalStats.attackPower += 37;
-    const expected = caster.finalStats.attackPower * 1.5;
+    const expected = caster.finalStats.attackPower * upgrades.upgradedAttackMultiplier(id, 1.5, 3);
     const target = enemy({ x: caster.x + 100, y: caster.y, lane: caster.lane });
     const state = {
       enemies: [target], boss: null, battleTime: 1000, occupied: new Map(), towers: [caster],
@@ -1631,6 +1632,29 @@ test("projectiles and mortars snapshot final attack times the multiplier, withou
     assert.ok(shots.length > 0, id);
     caster.finalStats.attackPower = 999999;
     for (const shot of shots) assert.equal(shot.damage, expected, id);
+  }
+});
+
+test("pipeline attacks preserve upgraded damage, captured levels, partial budgets and independent judgments", () => {
+  const { storeTowerAction } = load("src/game/pipelineActionPayload.ts");
+  const { executePipelineAction } = load("src/game/pipelineActionEffects.ts");
+  for (const id of ["Q", "x", "v", "V"]) {
+    const card = cardDefinitions.find(card => card.id === id);
+    const source = towerForCard(card, 3);
+    source.levelBonus = 2;
+    const expected = stats.towerAttackAmount(source, card);
+    const shot = storeTowerAction(source, card, { kind: "attack", hitCount: 3 }, 1000);
+    shot.damage /= 2;
+    source.level = 100;
+    const outlet = towerForCard(cardDefinitions.find(card => card.id === "1"), 9);
+    const target = enemy({ x: outlet.x + 100, y: outlet.y, lane: outlet.lane });
+    const combat = { enemies: [target], boss: null, battleTime: 1000, occupied: new Map(), towers: [outlet],
+      scene: {}, projectiles: [], mortarProjectiles: [] };
+    executePipelineAction(shot, outlet, { combat, getDefinition: () => card });
+    const projectiles = [...combat.projectiles, ...combat.mortarProjectiles];
+    assert.equal(projectiles.length, id === "x" ? 12 : 3, id);
+    for (const projectile of projectiles) assert.ok(Math.abs(projectile.damage - expected / 2) < 1e-8, id);
+    assert.equal(outlet.finalStats.attackPower, 0);
   }
 });
 
@@ -1709,7 +1733,7 @@ test("z damages vulnerable Boss parts normally but never drains Boss SP", () => 
   }
 });
 
-test("lasers, slashes and arc waves use final attack with no extra level scaling", () => {
+test("lasers, slashes and arc waves apply the upgraded multiplier exactly once", () => {
   const { cardBehaviorsById } = load("src/game/cardBehaviors.ts");
   for (const id of ["d", "z", "K", "Z", "k"]) {
     const card = { ...cardDefinitions.find((candidate) => candidate.id === id), attackMultiplier: 1.5 };
@@ -1721,7 +1745,7 @@ test("lasers, slashes and arc waves use final attack with no extra level scaling
       scene: {}, enemies: [target], boss: null, battleTime: 1000,
       damageEnemy: (_target, damage) => hits.push(damage), gainChars: noop
     });
-    assert.deepEqual(hits, [1851], id);
+    assert.deepEqual(hits, [1234 * upgrades.upgradedAttackMultiplier(id, 1.5, 3)], id);
   }
 });
 

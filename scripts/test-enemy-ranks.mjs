@@ -164,7 +164,8 @@ test("V prioritizes ranged attack modes, then final attack, then distance within
   const { getRangedHighestAttackTarget } = targetingLoad("src/game/targeting.ts");
   const { BOARD_X, BOARD_Y, CELL_WIDTH, CELL_HEIGHT } = targetingLoad("src/config.ts");
   const card = targetingLoad("src/data/cards.ts").cardDefinitions.find(card => card.id === "V");
-  assert.equal(card.attackPower, 1700);
+  assert.equal(card.attackPower, 680);
+  assert.equal(card.attackMultiplier, 2.5);
   assert.equal(card.mortarTargeting, "rangedHighestAttack");
   const tower = { type: "V", lane: 2, column: 3, x: BOARD_X + 3.5 * CELL_WIDTH, y: BOARD_Y + 2.5 * CELL_HEIGHT };
   const enemy = (kind, damage, offset = 100, extra = {}) => ({
@@ -402,8 +403,81 @@ test("all 66 existing enemy panels and registrations exactly match the pre-refac
   for (const [kind, expected] of Object.entries(legacy)) {
     const currentExpected = expected.family === "triangleRam"
       ? { ...expected, definition: { ...expected.definition, minWave: 5 } } : expected;
-    assert.deepEqual(registry.getEnemyRegistration(kind), currentExpected, kind);
+    const registration = registry.getEnemyRegistration(kind);
+    const { attackPower, attackMultiplier, ...definition } = registration.definition;
+    assert.ok(attackPower === 0 || attackPower >= 250 && attackPower <= 800, kind);
+    assert.ok(Math.abs(attackPower * attackMultiplier - definition.damage) < 1e-8, kind);
+    assert.deepEqual({ ...registration, definition }, currentExpected, kind);
   }
+});
+
+test("enemy ranks keep bounded family ATK and preserve the original damage growth through multipliers", () => {
+  for (const [family, archetype] of Object.entries(enemyArchetypes)) {
+    for (const rank of family === "solarBomb" ? [1] : [1, 2, 3, 20, 60, 140, 300, 10000]) {
+      const definition = registry.getEnemyDefinition(enemyKindAtRank(family, rank));
+      const expected = archetype.base.damage + (archetype.growth.damage ?? 0) * (rank - 1);
+      assert.equal(definition.attackPower, registry.getEnemyDefinition(family).attackPower);
+      assert.ok(definition.attackPower === 0 || definition.attackPower >= 250 && definition.attackPower <= 800);
+      assert.ok(Math.abs(definition.attackPower * definition.attackMultiplier - expected) <= Math.max(1, expected) * 1e-12, definition.kind);
+    }
+  }
+});
+
+test("old attack panels and buffered pipeline contexts migrate once without changing their output", () => {
+  const real = createTypeScriptLoader({ phaser: { default: {} }, "src/render/unitShapes.ts": {} });
+  const { getCardDefinition } = real("src/registry/cards.ts");
+  const { migrateAttackStats } = real("src/game/attackStatsMigration.ts");
+  const { towerAttackAmount } = real("src/game/unitStats.ts");
+  const { withTowerActionContext } = real("src/game/towerIdentity.ts");
+  const { upgradedAttackMultiplier } = real("src/game/upgrades.ts");
+  const legacy = { x: 200, e: 90, g: 90, F: 1400, l: 15000, r: 200, G: 15000, K: 1800, S: 5000, V: 1700, d: 400 };
+  for (const version of [undefined, 1, 2, 3]) {
+    for (const [type, base] of Object.entries(legacy)) {
+      const card = getCardDefinition(type), level = 22;
+      const previousAttack = base * upgradedAttackMultiplier(type, 1, level);
+      const expected = previousAttack * (type === "r" ? 5 : 1);
+      const action = { type, level, stats: { attackPower: previousAttack / 2 } };
+      const tower = { type: "@", copiedType: type, level: 17, levelBonus: 2, mirrorLevelBonus: 3,
+        baseStats: { attackPower: base }, finalStats: { attackPower: previousAttack },
+        projectileBank: { shots: [{ action, damage: expected / 2 }] },
+        projectileNode: { input: [{ action }], output: [] },
+        pipelineSkillContexts: { [type]: action } };
+      const enemy = { kind: "heart2", baseStats: { damage: 3000 }, finalStats: { damage: 3900 } };
+      migrateAttackStats(version, [tower], [enemy]);
+      assert.ok(Math.abs(tower.finalStats.attackPower - card.attackPower) < 1e-8, type);
+      assert.ok(Math.abs(towerAttackAmount(tower, card) - expected) < 1e-7, type);
+      const stored = withTowerActionContext(tower, action, () => towerAttackAmount(tower, card));
+      assert.ok(Math.abs(stored - expected / 2) < 1e-7, type);
+      assert.equal(tower.projectileBank.shots[0].damage, expected / 2);
+      assert.equal(enemy.baseStats.attackPower, 800);
+      assert.equal(enemy.baseStats.attackMultiplier, 3.75);
+      assert.equal(enemy.finalStats.attackPower, 1040);
+      const checkpoint = structuredClone({ tower, enemy });
+      migrateAttackStats(4, [tower], [enemy]);
+      assert.deepEqual({ tower, enemy }, checkpoint);
+    }
+  }
+});
+
+test("normalized enemy ATK retains Power and passenger damage contributions", () => {
+  const real = createTypeScriptLoader({ phaser: { default: {} }, "src/render/unitShapes.ts": {},
+    "src/game/statusEffects.ts": { statusMultipliers: enemy => ({ attack: enemy.power ?? 1 }) } });
+  const { enemyBaseStatsFromDefinition } = real("src/game/unitStats.ts");
+  const { syncEnemyFinalStats } = real("src/game/combatStats.ts");
+  const definition = registry.getEnemyDefinition("heart2");
+  const baseStats = enemyBaseStatsFromDefinition(definition, { speed: 10, attackSpeed: 60, finalDamageReduction: 0 });
+  const enemy = { kind: "heart2", hp: baseStats.maxHp, maxHp: baseStats.maxHp, baseStats, finalStats: { ...baseStats } };
+  const final = syncEnemyFinalStats(enemy, { includeAttack: true, status: { attack: 1.3 } });
+  assert.equal(final.attackPower, 1040);
+  assert.equal(final.damage, 3900);
+  assert.equal(baseStats.attackPower, 800);
+  enemy.power = 1.3;
+  const carrierBase = enemyBaseStatsFromDefinition(registry.getEnemyDefinition("parentheses"),
+    { speed: 15, attackSpeed: 60, finalDamageReduction: 0 });
+  const carrier = { kind: "parentheses", baseStats: carrierBase, finalStats: { ...carrierBase },
+    parenthesisCargo: [enemy], power: 1.3 };
+  const cargoStats = syncEnemyFinalStats(carrier, { includeAttack: true, status: { attack: 1.3 } });
+  assert.equal(cargoStats.damage, (600 + 3900 * .35) * 1.3);
 });
 
 test("every minion and leader supports unregistered ranks through the same family growth rules", () => {

@@ -165,6 +165,8 @@ export interface EnemyBaseStats {
   magicResistance: number;
   speed: number;
   damage: number;
+  attackPower: number;
+  attackMultiplier: number;
   damageType: DamageType;
   finalDamageReduction: number;
   attackSpeed: number;
@@ -548,6 +550,8 @@ export interface EnemyDefinition {
   armor: number;
   magicResistance: number;
   damage: number;
+  attackPower: number;
+  attackMultiplier: number;
   damageType: DamageType;
   speedMultiplier?: number;
   weight: number;

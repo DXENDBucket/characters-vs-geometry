@@ -384,7 +384,7 @@ export class CardSelectScene extends Phaser.Scene {
       .text(
         textX,
         y + (name.height > 24 ? 20 : 2),
-        `${t("label.hp")} ${definition.hp}  ${t("label.atk")} ${definition.damage}${DAMAGE_SYMBOLS[definition.damageType]}  ${t("label.weight")} ${definition.weight}`,
+        `${t("label.hp")} ${definition.hp}  ${t("label.atk")} ${definition.attackPower}${DAMAGE_SYMBOLS[definition.damageType]}  ${t("label.weight")} ${definition.weight}`,
         {
           color: uiTextColors.secondary,
           fontFamily: "monospace",
