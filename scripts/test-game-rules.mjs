@@ -7,14 +7,29 @@ import { createTypeScriptLoader } from "./helpers/load-typescript.mjs";
 test("battlefield clipping extends symmetrically to both wave labels without exposing the card rail", () => {
   const load = createTypeScriptLoader({ phaser: {} });
   const c = load("src/config.ts");
-  const { BATTLEFIELD_VIEWPORT: view } = load("src/render/battlefieldLayer.ts");
+  const { BATTLEFIELD_VIEWPORT: view, BATTLE_CANVAS_WIDTH, BATTLEFIELD_RIGHT_MARGIN } = load("src/render/battlefieldLayer.ts");
   assert.ok(view.y <= c.BATTLE_STATUS_Y);
   assert.ok(view.y + view.height >= c.BATTLE_PROGRESS_Y);
   assert.equal(c.BOARD_Y - view.y, view.y + view.height - c.BOARD_Y - c.BOARD_HEIGHT);
   assert.ok(view.y < c.BOARD_Y);
   assert.ok(view.y + view.height > c.BOARD_Y + c.BOARD_HEIGHT);
   assert.equal(view.x, c.BOARD_X - 32);
-  assert.equal(view.x + view.width, c.BOARD_X + c.BOARD_WIDTH);
+  assert.equal(BATTLEFIELD_RIGHT_MARGIN, c.CELL_WIDTH * 2);
+  assert.equal(view.x + view.width, c.BOARD_X + c.BOARD_WIDTH + BATTLEFIELD_RIGHT_MARGIN);
+  assert.ok(BATTLE_CANVAS_WIDTH >= view.x + view.width);
+  assert.ok(BATTLE_CANVAS_WIDTH > c.GAME_WIDTH);
+});
+
+test("battle canvas widening restores the previous page size on scene shutdown", () => {
+  const load = createTypeScriptLoader({ phaser: { default: { Scenes: { Events: { SHUTDOWN: "shutdown" } } } } });
+  const { useBattlefieldCanvas, BATTLE_CANVAS_WIDTH } = load("src/render/battlefieldLayer.ts");
+  const calls = [], events = new Map();
+  const scene = { scale: { width: 1280, height: 760, setGameSize(w, h) { calls.push([w, h]); } },
+    events: { once: (event, fn) => events.set(event, fn) } };
+  useBattlefieldCanvas(scene);
+  assert.deepEqual(calls, [[BATTLE_CANVAS_WIDTH, 760]]);
+  events.get("shutdown")();
+  assert.deepEqual(calls.at(-1), [1280, 760]);
 });
 
 test("timed seals wait for a 1s cue and 5s warning, erase once, and last 90s", () => {

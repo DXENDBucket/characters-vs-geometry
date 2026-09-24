@@ -1,12 +1,24 @@
 import Phaser from "phaser";
-import { BOARD_X, BOARD_Y, BOARD_WIDTH, BOARD_HEIGHT, BATTLE_STATUS_Y, BATTLE_PROGRESS_Y } from "../config";
+import { BOARD_X, BOARD_Y, BOARD_WIDTH, BOARD_HEIGHT, CELL_WIDTH, GAME_WIDTH, GAME_HEIGHT, BATTLE_STATUS_Y, BATTLE_PROGRESS_Y } from "../config";
 
 const VERTICAL_MARGIN = Math.max(BOARD_Y - BATTLE_STATUS_Y, BATTLE_PROGRESS_Y - (BOARD_Y + BOARD_HEIGHT));
+export const BATTLEFIELD_RIGHT_MARGIN = CELL_WIDTH * 2;
+export const BATTLE_CANVAS_WIDTH = Math.max(GAME_WIDTH, BOARD_X + BOARD_WIDTH + BATTLEFIELD_RIGHT_MARGIN);
 
 export const BATTLEFIELD_VIEWPORT = {
   // The baseline is 20px left of the grid; keep 12px beyond it, up to the card rail.
-  x: BOARD_X - 32, y: BOARD_Y - VERTICAL_MARGIN, width: BOARD_WIDTH + 32, height: BOARD_HEIGHT + VERTICAL_MARGIN * 2
+  x: BOARD_X - 32, y: BOARD_Y - VERTICAL_MARGIN,
+  width: BOARD_WIDTH + 32 + BATTLEFIELD_RIGHT_MARGIN, height: BOARD_HEIGHT + VERTICAL_MARGIN * 2
 } as const;
+
+export function useBattlefieldCanvas(scene: Phaser.Scene) {
+  const previous = { width: scene.scale.width, height: scene.scale.height };
+  // FIT keeps input in unchanged board coordinates while making room for enemy entry.
+  scene.scale.setGameSize(BATTLE_CANVAS_WIDTH, GAME_HEIGHT);
+  scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+    scene.scale.setGameSize(previous.width, previous.height);
+  });
+}
 
 /** New battle visuals default to the clipped world; UI factories explicitly opt out. */
 export class BattlefieldLayer {

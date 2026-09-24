@@ -39,7 +39,7 @@ import { drawEnemyHealthLinks } from "../render/enemyHealthLinks";
 import { PauseMenu } from "../render/pauseMenu";
 import { EncyclopediaPanel } from "../render/encyclopediaPanel";
 import { BattleCardList } from "../render/battleCardList";
-import { BattlefieldLayer } from "../render/battlefieldLayer";
+import { BattlefieldLayer, useBattlefieldCanvas } from "../render/battlefieldLayer";
 import { TowerExtractionPool } from "../game/towerExtraction";
 import { LoadoutReselection, RESELECT_UNLOCK_LEVEL } from "../game/loadoutReselection";
 import { TowerStorageController } from "../game/towerStorage";
@@ -59,7 +59,6 @@ import {
   DIFFICULTY_VERSION,
   DEFAULT_GAME_SPEED,
   GAME_HEIGHT,
-  GAME_WIDTH,
   GAME_SPEED_MAX,
   GAME_SPEED_MIN,
   ICOSAHEDRON_BOSS_LEAP_INITIAL_SP,
@@ -543,6 +542,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     this.events.once("shutdown", () => this.cleanupSceneHandlers());
+    useBattlefieldCanvas(this);
     this.cameras.main.setBackgroundColor(palette.black);
     this.drawBoard();
     this.battlefield = new BattlefieldLayer(this);
@@ -751,7 +751,7 @@ export class GameScene extends Phaser.Scene {
   private drawBoard() {
     const graphics = this.add.graphics();
     graphics.fillStyle(palette.black, 1);
-    graphics.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    graphics.fillRect(0, 0, this.scale.width, GAME_HEIGHT);
 
     graphics.fillStyle(palette.nearBlack, 1);
     graphics.fillRect(BOARD_X - 14, BOARD_Y - 14, BOARD_WIDTH + 28, BOARD_HEIGHT + 28);
@@ -2323,7 +2323,7 @@ export class GameScene extends Phaser.Scene {
     this.autoUpgradeReserveInputFocused = false;
     this.cancelSpellMortarTargeting();
     this.clearPlacementGhosts();
-    this.reselectShade = this.battlefield.ui(() => this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, palette.black, 0.4)
+    this.reselectShade = this.battlefield.ui(() => this.add.rectangle(this.scale.width / 2, GAME_HEIGHT / 2, this.scale.width, GAME_HEIGHT, palette.black, 0.4)
       .setDepth(1000));
     this.scene.pause();
     this.scene.launch("CardSelectScene", {
