@@ -1,4 +1,5 @@
 import type Phaser from "phaser";
+import { ARCHANGEL_ENTRY } from "../data/enemyAbilities";
 import { battleRandom, isBattlePlayback } from "./battleSimulation";
 import { recordEnemySeen } from "../progress";
 import { BOARD_Y, CELL_HEIGHT, LANES } from "../config";
@@ -6,13 +7,12 @@ import { createEnemyStatusVisuals } from "../render/enemyStatusVisuals";
 import { enemyFamily, enemyIsMace, getEnemyDefinition } from "../registry/enemies";
 import { createEnemyShape } from "../render/unitShapes";
 import type { Enemy, EnemyKind } from "../types";
-import { enemyAttackSpeed, initialEnemySkillStates, randomizedEnemySpeed, syncEnemyFacingVisual } from "./enemyBehaviors";
+import { randomizedEnemySpeed, syncEnemyFacingVisual } from "./enemyBehaviors";
+import { enemyAttackSpeed } from "./enemyCombatRules";
+import { initialEnemySkillStates } from "./enemySkillRules";
 import { enemyIsSolarBomb, syncSolarBombVisual } from "./solarBomb";
 import { applyStatusEffect, statusSpeedMultiplier } from "./statusEffects";
 import { enemyBaseStatsFromDefinition } from "./unitStats";
-
-export const ARCHANGEL_SPAWN_HIGH_FLIGHT_DURATION = 3_000;
-export const ARCHANGEL_SPAWN_SPEED_MULTIPLIER = 2.5;
 
 interface CreateEnemyOptions {
   environmentHpMultiplier?: number;
@@ -124,9 +124,9 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
     applyStatusEffect(
       enemy,
       "highFlying",
-      ARCHANGEL_SPAWN_HIGH_FLIGHT_DURATION,
+      ARCHANGEL_ENTRY.highFlightDuration,
       options.time,
-      ARCHANGEL_SPAWN_SPEED_MULTIPLIER,
+      ARCHANGEL_ENTRY.speedMultiplier,
       false
     );
     statusSpeedMultiplier(enemy, options.time);

@@ -16,7 +16,7 @@ try {
   await page.evaluate(async () => {
     const { unlockAllCards, completeAllLevels } = await import("/src/progress.ts");
     const { spawnEnemyAt, spawnSplitEnemies } = await import("/src/game/enemyRuntime.ts");
-    const { updateEnemySkills } = await import("/src/game/enemySupport.ts");
+    const { updateEnemySkills } = await import("/src/game/enemySkills.ts");
     const { statusMultipliers } = await import("/src/game/statusEffects.ts");
     const { applyEnemyPromotion } = await import("/src/game/enemyBehaviors.ts");
     const { enemyMaximumHp } = await import("/src/game/enemyContainers.ts");

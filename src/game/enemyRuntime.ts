@@ -59,11 +59,11 @@ import { enemyAttackDamage, enemyAttackMultiplier, enemyMovementMultiplier, enem
 import {
   enemySupportBonuses,
   enemySupportSources,
-  makeWingPulse,
   syncHexArmorAuras,
-  updateEnemySkills,
   type EnemySupportSources
 } from "./enemySupport";
+import { updateEnemySkills } from "./enemySkills";
+import { makeWingPulse } from "../render/enemySkillEffects";
 import { forEachInitial, forEachSnapshot } from "./iteration";
 import { advanceHighFlyingEnemy, advanceSlopeTriangle } from "./slopeTriangle";
 import {

@@ -1,10 +1,12 @@
 import { INCITEMENT } from "../data/incitement";
+import { ENEMY_SKILLS } from "../data/enemyAbilities";
 import { enemyIsBossCompanion, enemyRank } from "../registry/enemies";
 import type { Enemy } from "../types";
 import { enemyIsActive } from "./enemyContainers";
 import { enemyIgnoresLeaderRestrictedMechanics } from "./enemyBehaviors";
 import type { EnemySkillDefinition } from "./enemySkillRegistry";
-import { gainSkillSp, isSkillReady, spendSkillSp } from "./skillState";
+import { spendSkillSp } from "./skillState";
+import { chargeEnemySkill } from "./enemySkillRules";
 import { applyStatusEffect } from "./statusEffects";
 
 export function incitementTargets(caster: Enemy, enemies: readonly Enemy[]) {
@@ -17,11 +19,10 @@ export function incitementTargets(caster: Enemy, enemies: readonly Enemy[]) {
 
 export const updateIncitement: EnemySkillDefinition["update"] = (caster, state, seconds, time, runtime) => {
   if (!enemyIsActive(caster) || caster.hp <= 0) return;
-  gainSkillSp(state, seconds * INCITEMENT.regen, INCITEMENT.maxSp);
-  if (!isSkillReady(state, INCITEMENT.maxSp)) return;
+  if (!chargeEnemySkill("incitement", state, seconds, time)) return;
   const targets = incitementTargets(caster, runtime.enemies);
   if (!targets.length) return;
-  spendSkillSp(state, INCITEMENT.cost);
+  spendSkillSp(state, ENEMY_SKILLS.incitement.cost);
   for (const target of targets) {
     applyStatusEffect(target, "power", INCITEMENT.duration, time, { attackMultiplier: INCITEMENT.attackMultiplier });
     applyStatusEffect(target, "haste", INCITEMENT.duration, time, INCITEMENT.speedMultiplier);

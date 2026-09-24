@@ -928,6 +928,7 @@ function createEnemyLabel(scene: Phaser.Scene, x: number, y: number, kind: Enemy
     fontSize: `${size}px`,
     fontStyle: "bold"
   });
+  glyph.setData("enemyRankLabel", true);
   glyph.setScale(glyph.scaleX * 0.64, glyph.scaleY);
   const fit = Math.min(1, maxWidth / Math.max(1, glyph.displayWidth));
   glyph.setScale(glyph.scaleX * fit, glyph.scaleY * fit);

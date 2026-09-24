@@ -1,4 +1,5 @@
 import type Phaser from "phaser";
+import { ENEMY_SKILLS, ENEMY_SKILL_IDS, type EnemySkillId } from "../data/enemyAbilities";
 import { enemyFamily, type EnemyFamily } from "../registry/enemies";
 import type { Enemy } from "../types";
 import type { RegisteredSkillDefinition } from "./skillRegistry";
@@ -11,44 +12,16 @@ export interface EnemySkillRuntime {
 export type EnemySkillDefinition = RegisteredSkillDefinition<Enemy, EnemySkillRuntime>;
 const EMPTY_ENEMY_SKILL_DEFINITIONS: readonly EnemySkillDefinition[] = [];
 
-export interface EnemySkillActions {
-  updateHexHeal: EnemySkillDefinition["update"];
-  updateAngelWings: EnemySkillDefinition["update"];
-  updateArchangelAscension: EnemySkillDefinition["update"];
-  updateHeartLead: EnemySkillDefinition["update"];
-  updateIncitement: EnemySkillDefinition["update"];
-}
+export type EnemySkillActions = Record<EnemySkillId, EnemySkillDefinition["update"]>;
 
 export function createEnemySkillRegistry(
   actions: EnemySkillActions
 ): Partial<Record<EnemyFamily, EnemySkillDefinition[]>> {
-  return {
-    dollar: [{ stateKey: "incitement", update: actions.updateIncitement }],
-    hexagon: [
-      {
-        stateKey: "heal",
-        update: actions.updateHexHeal
-      }
-    ],
-    angelPentagon: [
-      {
-        stateKey: "wings",
-        update: actions.updateAngelWings
-      }
-    ],
-    archangelHeptagon: [
-      {
-        stateKey: "ascension",
-        update: actions.updateArchangelAscension
-      }
-    ],
-    heart: [
-      {
-        stateKey: "lead",
-        update: actions.updateHeartLead
-      }
-    ]
-  };
+  const registry: Partial<Record<EnemyFamily, EnemySkillDefinition[]>> = {};
+  for (const id of ENEMY_SKILL_IDS) {
+    (registry[ENEMY_SKILLS[id].family] ??= []).push({ stateKey: id, update: actions[id] });
+  }
+  return registry;
 }
 
 export function enemySkillDefinitions(

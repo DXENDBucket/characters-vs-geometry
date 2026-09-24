@@ -20,7 +20,6 @@ export const BASE_INTEGRITY = 6;
 export const ENEMY_SPEED = 10;
 export const ENEMY_SPEED_VARIANCE = 0.1;
 export const ATTACK_INTERVAL = 1_000;
-export const ANGEL_WINGS_SKILL_MAX = 15;
 export const AIR_PATROL_INITIAL_SP = 8;
 export const AIR_PATROL_SKILL_MAX = 10;
 export const AIR_PATROL_SKILL_COST = 10;

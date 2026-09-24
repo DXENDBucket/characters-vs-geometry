@@ -3,6 +3,27 @@ import { EventEmitter } from "node:events";
 import { test } from "node:test";
 import { createTypeScriptLoader } from "./helpers/load-typescript.mjs";
 
+test("enemy reversal moves shared rank labels without mirroring their pixels", () => {
+  class TextLabel {}
+  const load = createTypeScriptLoader({ phaser: { default: { GameObjects: { Text: TextLabel } } },
+    "src/render/unitShapes.ts": {} });
+  const { syncEnemyFacingVisual } = load("src/game/enemyBehaviors.ts");
+  const object = (x, rankLabel = false) => {
+    const data = new Map([["enemyRankLabel", rankLabel]]);
+    return { x, scaleX: .32, scaleY: .5,
+      getData: key => data.get(key), setData: (key, value) => data.set(key, value),
+      setX(value) { this.x = value; }, setScale(x, y) { this.scaleX = x; this.scaleY = y; } };
+  };
+  const rank = object(-9, true), legacy = Object.assign(new TextLabel(), object(9)), frame = object(0);
+  const enemy = { kind: "triangleRam14", movementDirection: -1, statusEffects: [], shape: { list: [rank, legacy, frame] } };
+  for (const direction of [1, -1, 1, -1]) {
+    enemy.movementDirection = direction;
+    syncEnemyFacingVisual(enemy);
+    assert.deepEqual([rank.x, rank.scaleX, legacy.x, legacy.scaleX], [9 * direction, .32, -9 * direction, .32]);
+    assert.equal(frame.scaleX, -.32 * direction);
+  }
+});
+
 function fixture() {
   let rasterizations = 0;
   const textures = new Map(), images = [];

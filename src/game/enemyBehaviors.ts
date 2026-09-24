@@ -1,14 +1,12 @@
 import Phaser from "phaser";
-import { CHEVRON_LEADER } from "../data/chevronLeader";
 import { enemyMaximumHp } from "./enemyContainers";
-import { INCITEMENT } from "../data/incitement";
 import { syncParenthesisVisual } from "../render/parenthesisEnemy";
 import { syncChevronVisual } from "../render/chevronLeader";
 import { battleRandom, isBattlePlayback } from "./battleSimulation";
 import { cubePromotionKind } from "../bosses/bossRanks";
 import { recordEnemySeen } from "../progress";
 import { enemyFacingDirection } from "./rules/reversal";
-import { ANGEL_WINGS_SKILL_MAX, ATTACK_INTERVAL, CELL_WIDTH, ENEMY_SPEED, ENEMY_SPEED_VARIANCE, LANES } from "../config";
+import { CELL_WIDTH, ENEMY_SPEED, ENEMY_SPEED_VARIANCE, LANES } from "../config";
 import { createEnemyStatusVisuals } from "../render/enemyStatusVisuals";
 import {
   enemyFamily,
@@ -26,16 +24,17 @@ import {
   getEnemyDefinition
 } from "../registry/enemies";
 import { createEnemyShape } from "../render/unitShapes";
-import type { CubeBoss, Enemy, EnemyKind, SkillState } from "../types";
-import { attackIntervalMs, attackSpeedForIntervalMs } from "./attackSpeed";
+import type { CubeBoss, Enemy, EnemyKind } from "../types";
+import { enemyAttackSpeed } from "./enemyCombatRules";
+import { initialEnemySkillStates } from "./enemySkillRules";
 import { enemyIsSolarBomb, isSolarBombKind } from "./solarBomb";
 import { hasStatusEffectName } from "./statusEffects";
 import { applyEnemyBaseStats, enemyBaseStatsFromDefinition } from "./unitStats";
 import { setScaleIfChanged } from "./visualGuards";
 
-const ANGEL_PENTAGON_INITIAL_WINGS_SP_PER_EXTRA_RANK = 2;
-const ARCHANGEL_INITIAL_ASCENSION_SP = 10;
-const ANGEL_PENTAGON_SKILL_REGEN_MULTIPLIER_PER_EXTRA_RANK = 0.2;
+export { enemyAttackSpeed, enemyAttackInterval } from "./enemyCombatRules";
+export { initialEnemySkillStates } from "./enemySkillRules";
+
 const SPLIT_SPAWN_LANES: number[][] = [];
 for (let lane = 0; lane < LANES; lane += 1) {
   const lanes: number[] = [];
@@ -45,75 +44,6 @@ for (let lane = 0; lane < LANES; lane += 1) {
     }
   }
   SPLIT_SPAWN_LANES.push(lanes);
-}
-
-export function enemyAttackSpeed(kind: EnemyKind) {
-  if (enemyIsLaser(kind)) {
-    return attackSpeedFromInterval(4_000);
-  }
-
-  if (enemyIsMortar(kind)) {
-    return attackSpeedFromInterval(15_000);
-  }
-
-  if (enemyIsRanged(kind)) {
-    return attackSpeedFromInterval(2_000);
-  }
-
-  const family = enemyFamily(kind);
-  if (family === "chevronLeader") return attackSpeedFromInterval(CHEVRON_LEADER.chargeMs);
-  if (family === "heart") {
-    return attackSpeedFromInterval(5_000);
-  }
-
-  if (family === "chargingHexagon") {
-    return attackSpeedFromInterval(2_000 / enemyRank(kind));
-  }
-
-  if (family === "archangelHeptagon") {
-    return attackSpeedFromInterval(2_000);
-  }
-
-  if (family === "triangle" || family === "tilde") {
-    return attackSpeedFromInterval(ATTACK_INTERVAL / enemyRank(kind));
-  }
-
-  return attackSpeedFromInterval(ATTACK_INTERVAL);
-}
-
-export function enemyAttackInterval(kind: EnemyKind) {
-  return attackIntervalMs(enemyAttackSpeed(kind));
-}
-
-export function initialEnemySkillStates(kind: EnemyKind): Record<string, SkillState> {
-  const family = enemyFamily(kind);
-  if (family === "dollar") return { incitement: { sp: INCITEMENT.initialSp, spBuffer: 0, activeUntil: 0 } };
-  if (family === "angelPentagon") {
-    const rank = enemyRank(kind);
-    if (rank >= 2) {
-      const extraRanks = rank - 1;
-      return {
-        wings: {
-          sp: Math.min(ANGEL_WINGS_SKILL_MAX, extraRanks * ANGEL_PENTAGON_INITIAL_WINGS_SP_PER_EXTRA_RANK),
-          spBuffer: 0,
-          activeUntil: 0,
-          regenMultiplier: 1 + extraRanks * ANGEL_PENTAGON_SKILL_REGEN_MULTIPLIER_PER_EXTRA_RANK
-        }
-      };
-    }
-  }
-
-  if (family === "archangelHeptagon") {
-    return {
-      ascension: {
-        sp: ARCHANGEL_INITIAL_ASCENSION_SP,
-        spBuffer: 0,
-        activeUntil: 0
-      }
-    };
-  }
-
-  return {};
 }
 
 export function enemyScaleFromHp(hpRatio: number) {
@@ -142,13 +72,14 @@ export function syncEnemyFacingVisual(enemy: Enemy) {
   const facingScale = enemyFacingDirection(enemy) > 0 ? -1 : 1;
   const shape = enemy.shape as Phaser.GameObjects.GameObject & { list?: Phaser.GameObjects.GameObject[] };
   for (const child of shape.list ?? []) {
-    if (child instanceof Phaser.GameObjects.Text) {
-      const baseX = child.getData("facingBaseX") as number | undefined;
-      const x = baseX ?? child.x;
+    if (child instanceof Phaser.GameObjects.Text || child.getData("enemyRankLabel") === true) {
+      const label = child as Phaser.GameObjects.Text | Phaser.GameObjects.Image;
+      const baseX = label.getData("facingBaseX") as number | undefined;
+      const x = baseX ?? label.x;
       if (baseX === undefined) {
-        child.setData("facingBaseX", x);
+        label.setData("facingBaseX", x);
       }
-      child.setX(x * facingScale);
+      label.setX(x * facingScale);
       continue;
     }
 
@@ -327,8 +258,4 @@ export function siegeRamSpeed(enemy: Enemy) {
   const progress = Phaser.Math.Clamp(traveled / accelerationDistance, 0, 1);
   const multiplier = Math.sqrt(1 + 15 * progress);
   return enemy.baseStats.speed * multiplier;
-}
-
-function attackSpeedFromInterval(intervalMs: number) {
-  return attackSpeedForIntervalMs(intervalMs) ?? 0;
 }

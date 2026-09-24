@@ -17,8 +17,9 @@ individually. Damage, armor thresholds, wave data and attack counts are unchange
 - `enemySupportIndex.ts` caches only candidate membership in field/passenger
   order. Position, lane, rank, alive state and high flight are read live for each
   hit. It never caches a target's final defense or a resolved damage result.
-- Adding a new support-provider family requires adding it to this index and to
-  support evaluation. Add a regression that changes its state between hits.
+- Support-provider membership comes from `data/enemyAbilities.ts`. Add a new
+  source family there and implement its support evaluation. Add a regression
+  that changes its state between hits.
 - Movement's existing lane buckets remain a synchronous, reusable view. Do not
   retain them across ticks or request another view before finishing with one.
 
@@ -76,11 +77,16 @@ measurements before claiming their bottlenecks are resolved.
 
 ## Remaining Work
 
+The second pass consolidated five enemy SP skills and three support auras into a
+shared catalog, split SP execution from continuous support, and removed runtime
+rendering dependencies from their encyclopedia detail queries. See
+[Enemy Ability Definitions](enemy-abilities.md) for ownership and extension rules.
+
 1. Move remaining pure visual updates to a frame-level rendering adapter while
    preserving simulation-owned positions, deadlines and random streams.
 2. Define explicit battle snapshot DTOs and stable entity IDs instead of walking
    runtime object graphs with a visual-field exclusion list.
-3. Consolidate skill, scaling and encyclopedia metadata so content additions do
-   not require synchronized edits to multiple independent switches.
+3. Continue consolidating tower/Boss skill, scaling and encyclopedia metadata;
+   the migrated non-Boss enemy skills now share their numeric definitions.
 4. Split oversized scene/runtime responsibilities along those boundaries, with
    replay checks at each step, before introducing multiplayer authority rules.

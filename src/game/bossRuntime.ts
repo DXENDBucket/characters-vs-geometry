@@ -68,7 +68,8 @@ import { spawnEnemyAt } from "./enemyRuntime";
 import { forEachSnapshot } from "./iteration";
 import { createMortarProjectile } from "./projectiles";
 import { SOLAR_BOMB_KIND } from "./solarBomb";
-import { makeWingPulse, triggerAngelWings } from "./enemySupport";
+import { triggerAngelWings } from "./enemySkills";
+import { makeWingPulse } from "../render/enemySkillEffects";
 import { applyStatusEffect, hasStatusEffect } from "./statusEffects";
 import { activeStatusSpeedMultiplier } from "./rules/statusEffectRules";
 import {

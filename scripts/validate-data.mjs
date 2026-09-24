@@ -18,6 +18,23 @@ const enemyFamilies = parseUnionLiterals(files.types, "EnemyFamily");
 const load = createTypeScriptLoader();
 const enemyRegistry = load("src/registry/enemies.ts");
 const { enemyArchetypes } = load("src/data/enemyArchetypes.ts");
+const { ENEMY_SKILLS, ENEMY_AURAS } = load("src/data/enemyAbilities.ts");
+for (const [id, skill] of Object.entries(ENEMY_SKILLS)) {
+  if (!enemyFamilies.includes(skill.family)) errors.push(`Skill "${id}" has an unknown enemy family.`);
+  for (const field of ["initialSp", "maxSp", "cost", "regen", "duration", "initialSpPerRank", "regenPerRank"]) {
+    const value = skill[field] ?? 0;
+    if (!Number.isFinite(value) || value < 0) errors.push(`Skill "${id}" has invalid ${field}.`);
+  }
+  if (skill.maxSp <= 0 || skill.cost <= 0 || skill.cost > skill.maxSp || skill.initialSp > skill.maxSp) {
+    errors.push(`Skill "${id}" has inconsistent SP limits.`);
+  }
+  if (!skill.name.zh || !skill.name.en) errors.push(`Skill "${id}" is missing a localized name.`);
+}
+for (const [id, aura] of Object.entries(ENEMY_AURAS)) {
+  if (!aura.families.length || aura.families.some(family => !enemyFamilies.includes(family))) {
+    errors.push(`Aura "${id}" has an invalid source family.`);
+  }
+}
 const bossKinds = parseUnionLiterals(files.types, "BossKind");
 const cardDefinitions = parseCardDefinitions(files.cards);
 const enemyDefinitions = Object.keys(enemyRegistry.allEnemyDefinitions);

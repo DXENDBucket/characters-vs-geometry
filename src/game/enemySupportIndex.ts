@@ -1,5 +1,6 @@
 import type { Enemy } from "../types";
 import { enemyFamily } from "../registry/enemies";
+import { enemyFamilyProvidesSupport } from "../data/enemyAbilities";
 import { enemyRosterRevision } from "./enemyRoster";
 
 interface SupportIndex {
@@ -18,7 +19,7 @@ export function enemySupportCandidates(enemies: Enemy[]): readonly Enemy[] {
   const candidates: Enemy[] = [];
   const include = (enemy: Enemy) => {
     const family = enemyFamily(enemy.kind);
-    if (family === "hexagon" || family === "hexSpellBulwark" || family === "chargingHexagon" || family === "heart") {
+    if (enemyFamilyProvidesSupport(family)) {
       candidates.push(enemy);
     }
   };

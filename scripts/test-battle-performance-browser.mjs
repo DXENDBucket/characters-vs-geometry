@@ -25,7 +25,7 @@ try {
     const { enemyDefenseStats } = await mod("/src/game/combatStats.ts");
     const { createSharedGlyph } = await mod("/src/render/sharedGlyphs.ts");
     const { createEnemyShape } = await mod("/src/render/unitShapes.ts");
-    const { applyEnemyPromotion } = await mod("/src/game/enemyBehaviors.ts");
+    const { applyEnemyPromotion, syncEnemyFacingVisual } = await mod("/src/game/enemyBehaviors.ts");
     const { enemyKindAtRank } = await mod("/src/registry/enemies.ts");
     const { BOARD_X, CELL_WIDTH } = await mod("/src/config.ts");
     const game = window.__testGame;
@@ -90,6 +90,17 @@ try {
     for (let i = 0; i < 100; i++) applyEnemyPromotion(scene, target, i % 2 ? "hexagon2" : "hexagon", scene.battleTime);
     check(target.body.list.includes(target.armorIcon) && target.armorIcon.texture.source[0].width > 0, "Promotion lost its shared glyph");
 
+    const reversed = spawn(scene, "triangleRam14", 2, BOARD_X + CELL_WIDTH * 9);
+    const labels = reversed.shape.list.filter(child => child.getData("enemyRankLabel"));
+    check(labels.length === 2, "Reversal fixture needs both rank labels");
+    const positions = labels.map(label => label.x);
+    for (const direction of [1, -1, 1, -1]) {
+      reversed.movementDirection = direction;
+      syncEnemyFacingVisual(reversed);
+      check(labels.every((label, i) => label.scaleX > 0 && label.x === -direction * positions[i]),
+        "Turning must move rank labels with the shape without mirroring the glyphs");
+    }
+
     const counts = [0, 0, 0];
     const layers = [scene.nullifiedTowerGraphics, scene.timedCellSealGraphics, scene.enemyHealthLinks];
     const clears = layers.map(g => g.clear);
@@ -102,7 +113,7 @@ try {
 
     for (let rank = 1; rank <= 300; rank++) createEnemyShape(scene, enemyKindAtRank("triangle", rank)).destroy();
     const glyphCount = Object.keys(game.textures.list).filter(key => key.startsWith("shared-glyph-")).length;
-    check(glyphCount <= 128 + 5, `Unused rank glyphs are unbounded: ${glyphCount}`);
+    check(glyphCount <= 128 + 6, `Unused rank glyphs are unbounded: ${glyphCount}`);
 
     const gallery = start();
     const kinds = ["circle", "triangle2", "triangleRam3", "hexMace2", "hexSpellBulwark3", "heart3",

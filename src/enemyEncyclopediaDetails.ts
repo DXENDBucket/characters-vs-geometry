@@ -1,14 +1,14 @@
-import { ANGEL_WINGS_SKILL_MAX, CELL_HEIGHT, CELL_WIDTH } from "./config";
+import { CELL_HEIGHT, CELL_WIDTH } from "./config";
+import { ARCHANGEL_ENTRY, ENEMY_AURAS, ENEMY_SKILLS, type EnemySkillId } from "./data/enemyAbilities";
 import { enemyArchetypes } from "./data/enemyArchetypes";
 import { INCITEMENT } from "./data/incitement";
 import { CHEVRON_LEADER } from "./data/chevronLeader";
 import { HEART_ATTACK_RADIUS, ENEMY_MORTAR_RANGE_X, ENEMY_MORTAR_RANGE_Y } from "./data/enemyCombatConfig";
 import { getEnemyRegistration } from "./registry/enemies";
-import { enemyAttackSpeed, initialEnemySkillStates } from "./game/enemyBehaviors";
+import { enemyAttackSpeed } from "./game/enemyCombatRules";
+import { enemySkillCharge } from "./game/enemySkillRules";
 import { attackIntervalMs } from "./game/attackSpeed";
 import { volleyHitsAt, volleyTimingCount } from "./game/volley";
-import * as support from "./game/enemySupport";
-import { ARCHANGEL_SPAWN_HIGH_FLIGHT_DURATION, ARCHANGEL_SPAWN_SPEED_MULTIPLIER } from "./game/enemyFactory";
 import { PASSENGER_STAT_RATIO } from "./game/enemyContainers";
 import { detailRange } from "./encyclopediaRanges";
 import { detailText as l, detailField as f, detailNumber as n, detailSeconds as s, skillChargeFields, type DetailSection } from "./encyclopediaSections";
@@ -19,7 +19,6 @@ export const enemyContactRange: RangeDefinition = { shape: { kind: "cells", cell
 export const enemyForwardRange: RangeDefinition = { shape: { kind: "lane", start: 0, direction: -1 }, label: { zh: "面朝方向本行，至场地边界", en: "Facing direction, own lane to the board edge" } };
 export const battlefieldRange: RangeDefinition = { shape: { kind: "global" } };
 export const enemyMortarRange: RangeDefinition = { shape: { kind: "rectangle", halfWidth: ENEMY_MORTAR_RANGE_X / CELL_WIDTH, halfHeight: ENEMY_MORTAR_RANGE_Y / CELL_HEIGHT }, origin: "impact" };
-const behindRange: RangeDefinition = { shape: { kind: "lane", start: 1 }, label: { zh: "同行右侧，远离底线方向", en: "Same lane to the right, away from the base" } };
 const circle = (radius: number): RangeDefinition => ({ shape: { kind: "circle", radius: radius / CELL_WIDTH } });
 const noRegularModes = new Set(["siegeRam", "mace", "blockedDetonator", "companion", "special"]);
 
@@ -83,47 +82,46 @@ export function enemyDetailSections(kind: EnemyKind, description: string): Detai
       "At half maximum HP, permanently changes to <, cancels charging and keeps facing. Accelerates from rest to 4x base speed over 7 cells; contact deals magic damage and bounces. Healing does not restore cannon form."), enemyContactRange,
     [f("护甲", "Armor", n(CHEVRON_LEADER.assaultArmor)), f("基础移速", "Base speed", n(CHEVRON_LEADER.assaultSpeed)),
       f("碰撞伤害", "Collision damage", l("攻击力 × 实际移速 / 10，法术伤害", "ATK x actual speed / 10, magic damage"))]);
-  const skill = (key: string, zh: string, en: string, max: number, cost: number, regen: number, duration: number, range: RangeDefinition, text: string, condition?: string) => {
-    const state = initialEnemySkillStates(kind)[key];
-    const fields = skillChargeFields({ initial: state?.sp ?? 0, max, cost, regen: regen * (state?.regenMultiplier ?? 1), duration, pause: duration > 0 });
+  const skill = (key: EnemySkillId, text: string, condition?: string) => {
+    const definition = ENEMY_SKILLS[key];
+    const fields = skillChargeFields(enemySkillCharge(definition, rank));
     fields.push(f("触发条件", "Trigger", condition ?? l("技力达到上限自动发动", "Automatically at full SP")));
-    sections.push({ title: l(zh, en), tag: l("技力技能 · 自动触发", "SP skill · Automatic"), tone: "skill", fields, ranges: [detailRange(range)], description: text });
+    sections.push({ title: l(definition.name.zh, definition.name.en), tag: l("技力技能 · 自动触发", "SP skill · Automatic"), tone: "skill", fields,
+      ranges: [detailRange(definition.range)], description: text });
   };
   if (family === "dollar") {
-    skill("incitement", "煽动", "Incitement", INCITEMENT.maxSp, INCITEMENT.cost, INCITEMENT.regen, 0, battlefieldRange,
-      l(`选取距离自身最近的 ${INCITEMENT.targetsPerRank * rank} 个其他小怪，赋予 +30% 力量和 +100% 加速，均持续 15 秒；施放后技力继续恢复。排除领袖、Boss、眷属及阳炎爆弹。`,
-        `Grants +30% Power and +100% Haste to the nearest ${INCITEMENT.targetsPerRank * rank} other minions for 15s. SP recovery continues. Excludes leaders, Bosses, companions and Solar Bombs.`),
+    const power = n((INCITEMENT.attackMultiplier - 1) * 100), haste = n((INCITEMENT.speedMultiplier - 1) * 100);
+    skill("incitement",
+      l(`选取距离自身最近的 ${INCITEMENT.targetsPerRank * rank} 个其他小怪，赋予 +${power}% 力量和 +${haste}% 加速，均持续 ${s(INCITEMENT.duration)}；施放后技力继续恢复。排除领袖、Boss、眷属及阳炎爆弹。`,
+        `Grants +${power}% Power and +${haste}% Haste to the nearest ${INCITEMENT.targetsPerRank * rank} other minions for ${s(INCITEMENT.duration)}. SP recovery continues. Excludes leaders, Bosses, companions and Solar Bombs.`),
       l("满技力，且有合格的其他小怪", "Full SP with another eligible minion"));
   } else if (family === "hexagon") {
-    const range = circle(support.HEX_ARMOR_RADIUS);
-    aura("装甲光环", "Armor Aura", range, `+${support.HEX_ARMOR_RANK_ONE_BONUS + (rank - 1) * support.HEX_ARMOR_BONUS_PER_EXTRA_RANK} ` + l("护甲", "armor"),
+    const armor = ENEMY_AURAS.armor, heal = ENEMY_SKILLS.heal;
+    aura("装甲光环", "Armor Aura", armor.range, `+${armor.base + (rank - 1) * armor.perRank} ` + l("护甲", "armor"),
       l("范围内敌怪，含自身；接触光环的 Boss", "Enemies including self; Boss hitboxes touching the aura"), l("加算叠加", "Additive"));
-    skill("heal", "治愈", "Heal", support.HEX_HEAL_SKILL_MAX, support.HEX_HEAL_SKILL_COST, support.HEX_HEAL_SKILL_REGEN_PER_SECOND, 0, range,
-      l(`治疗范围内生命比例最低的受伤敌怪，恢复施法者生命上限的 ${support.HEX_HEAL_RATIO * 100}%（基础面板 ${n(stats.hp * support.HEX_HEAL_RATIO)} 生命）。不选高空飞行目标。`,
-        `Heals the injured enemy with the lowest HP ratio for ${support.HEX_HEAL_RATIO * 100}% of the caster's max HP (${n(stats.hp * support.HEX_HEAL_RATIO)} base HP). Excludes High Flight.`),
+    skill("heal",
+      l(`治疗范围内生命比例最低的受伤敌怪，恢复施法者生命上限的 ${heal.healRatio * 100}%（基础面板 ${n(stats.hp * heal.healRatio)} 生命）。不选高空飞行目标。`,
+        `Heals the injured enemy with the lowest HP ratio for ${heal.healRatio * 100}% of the caster's max HP (${n(stats.hp * heal.healRatio)} base HP). Excludes High Flight.`),
       l("满技力且存在可治疗目标", "Full SP and an injured target in range"));
   } else if (family === "angelPentagon" || family === "archangelHeptagon") {
     const arch = family === "archangelHeptagon";
-    const range: RangeDefinition = arch ? circle(support.ARCHANGEL_ASCENSION_RADIUS) : { shape: { kind: "rectangle", halfWidth: support.ANGEL_WINGS_RANGE_X / CELL_WIDTH, halfHeight: support.ANGEL_WINGS_RANGE_Y / CELL_HEIGHT } };
-    skill(arch ? "ascension" : "wings", arch ? "升华" : "羽翼", arch ? "Ascension" : "Wings",
-      arch ? support.ARCHANGEL_ASCENSION_SKILL_MAX : ANGEL_WINGS_SKILL_MAX, arch ? support.ARCHANGEL_ASCENSION_SKILL_COST : support.ANGEL_WINGS_SKILL_COST,
-      arch ? support.ARCHANGEL_ASCENSION_REGEN_PER_SECOND : support.ANGEL_WINGS_REGEN_PER_SECOND,
-      arch ? support.ARCHANGEL_ASCENSION_DURATION : support.ANGEL_WINGS_DURATION, range,
-      l(`范围内非高空飞行敌怪获得飞行与 ${support.ANGEL_WINGS_SPEED_MULTIPLIER} 倍移速；对括号乘客的效果作用于整个括号。`,
-        `Non-High-Flight enemies gain Flying and ${support.ANGEL_WINGS_SPEED_MULTIPLIER}x speed; passengers apply the effect to their whole carrier.`));
+    const id = arch ? "ascension" : "wings", flight = ENEMY_SKILLS[id];
+    skill(id,
+      l(`范围内非高空飞行敌怪获得飞行与 ${flight.speedMultiplier} 倍移速；对括号乘客的效果作用于整个括号。`,
+        `Non-High-Flight enemies gain Flying and ${flight.speedMultiplier}x speed; passengers apply the effect to their whole carrier.`));
     if (arch) passive("大天使飞行", "Archangel Flight", l("常态飞行；获得额外起飞效果时变为高空飞行，已有双光环变金色，不再增加光环。", "Permanently Flying; extra flight effects grant High Flight and turn its two existing halos gold."), undefined,
-      [f("入场高空飞行", "Entry High Flight", s(ARCHANGEL_SPAWN_HIGH_FLIGHT_DURATION)), f("入场移速", "Entry speed", `${ARCHANGEL_SPAWN_SPEED_MULTIPLIER}x`)]);
+      [f("入场高空飞行", "Entry High Flight", s(ARCHANGEL_ENTRY.highFlightDuration)), f("入场移速", "Entry speed", `${ARCHANGEL_ENTRY.speedMultiplier}x`)]);
   } else if (family === "hexSpellBulwark") {
-    aura("术防光环", "Resistance Aura", { shape: { kind: "row", halfHeight: .5 } }, `+${support.HEX_SPELL_BULWARK_RANK_ONE_MAGIC_RESISTANCE_BONUS + (rank - 1) * support.HEX_SPELL_BULWARK_MAGIC_RESISTANCE_BONUS_PER_EXTRA_RANK} ` + l("法抗", "MR"),
+    const resistance = ENEMY_AURAS.resistance;
+    aura("术防光环", "Resistance Aura", resistance.range, `+${resistance.base + (rank - 1) * resistance.perRank} ` + l("法抗", "MR"),
       l("同行敌怪，包含自身", "Same-lane enemies, including self"), l("加算叠加", "Additive"));
   }
   if (family === "chargingHexagon" || family === "heart") {
-    aura("推进光环", "Advance Aura", behindRange, `+${n((support.LEADER_SPEED_MULTIPLIER - 1) * 100)}% ` + l("移速", "speed"),
+    aura("推进光环", "Advance Aura", ENEMY_AURAS.advance.range, `+${n((ENEMY_AURAS.advance.speedMultiplier - 1) * 100)}% ` + l("移速", "speed"),
       l("同一行且位于右侧的敌怪", "Enemies to the right in the same lane"), l("与同类推进光环取最高值", "Strongest advance aura only"));
   }
   if (family === "heart") {
-    skill("lead", "引领", "Lead", support.HEART_LEAD_SKILL_MAX, support.HEART_LEAD_SKILL_COST, support.HEART_LEAD_REGEN_PER_SECOND, 0,
-      { shape: { kind: "grid", left: 0, right: support.HEART_LEAD_COLUMN_SPAN - 1, top: -support.HEART_LEAD_LANE_RADIUS, bottom: support.HEART_LEAD_LANE_RADIUS }, label: { zh: "本列及右侧四列，上下各一行", en: "Own column and four to the right, one lane up/down" } },
+    skill("lead",
       l("将区域内普通小怪直接拉到自身所在行。排除领袖、Boss 眷属、已装载及高空飞行单位。同一批心形发动时，每个目标只被分配一次。", "Moves ordinary minions directly into the caster's lane. Excludes leaders, Boss companions, passengers and High Flight. Simultaneous casters claim each target only once."),
       l("满技力且区域内有可牵引目标", "Full SP and an eligible target in the area"));
   }
