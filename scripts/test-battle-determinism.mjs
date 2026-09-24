@@ -66,8 +66,9 @@ test("replay commands retain same-tick ordering and reject malformed input or in
   assert.throws(() => validateReplay({ ...replay, version: 1 }), "Old immediate-split replays are incompatible with delayed copies");
   assert.throws(() => validateReplay({ ...replay, version: 2 }), "Old rank-growth rules cannot be replayed under new weights");
   assert.throws(() => validateReplay({ ...replay, version: 3 }), "Old attack panels cannot be replayed under multiplier upgrades");
+  assert.throws(() => validateReplay({ ...replay, version: 4 }), "Old manual-only skills cannot be replayed with automatic attachments");
   const { canRestoreBattleVersion } = load("src/game/battleSimulation.ts");
-  for (const version of [1, 2, 3, BATTLE_RULES_VERSION]) assert.equal(canRestoreBattleVersion(version), true);
+  for (const version of [1, 2, 3, 4, BATTLE_RULES_VERSION]) assert.equal(canRestoreBattleVersion(version), true);
   const { migrateDifficulty } = load("src/config.ts");
   for (let difficulty = 1; difficulty <= 8; difficulty++) {
     assert.doesNotThrow(() => validateReplay({ ...replay, difficulty }));

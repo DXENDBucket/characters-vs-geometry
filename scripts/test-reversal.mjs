@@ -170,6 +170,73 @@ function extractionFixture() {
   return { state, deployment, targeted, place, removed, flush: () => { while (pending.length) pending.shift()(); } };
 }
 
+test("Unlimited Firepower applies targeted attachments down a column for one payment and cooldown", () => {
+  for (const id of ["b", "t", "!", "?b"]) {
+    const f = extractionFixture();
+    f.state.unlimitedFirepower = true;
+    const units = [0, 2, 6].map(lane => f.place("A", 1, lane, 3));
+    const adjacent = f.place("A", 1, 2, 4);
+    const inactive = f.place("A", 1, 1, 3); inactive.inPlay = false; inactive.nullified = true;
+    const shell = f.place("()", 1, 2, 3);
+    const card = id === "?b" ? { ...f.state.getDefinition("b"), id, cooldown: 60000 } : f.state.getDefinition(id);
+    if (id === "?b") { f.state.cardStates.push({ definition: card, readyAt: 0 });
+      const original = f.state.getDefinition; f.state.getDefinition = key => key === id ? card : original(key); }
+    assert.deepEqual(f.targeted.deploymentTargets(4, 3).map(tower => tower.lane), [0, 2, 6]);
+    assert.equal(f.targeted.use(card, 4, 3), "handled");
+    assert.equal(f.state.chars, 10000 - card.cost);
+    assert.equal(f.state.towers.filter(tower => tower.transient && tower.inPlay).length, 3);
+    f.flush();
+    for (const unit of units) {
+      if (id === "b" || id === "?b") assert.equal(unit.facingDirection, -1);
+      if (id === "t") assert.equal(unit.trueDamageUntil, 12000);
+      if (id === "!") assert.equal(unit.continuousAttack, true);
+    }
+    assert.equal(adjacent.facingDirection, 1); assert.equal(shell.facingDirection, 1);
+    assert.equal(inactive.facingDirection, 1);
+    assert.equal(f.state.cardStates.find(state => state.definition.id === id).readyAt, card.cooldown);
+    assert.equal(f.targeted.use(card, 4, 3), "cooldown");
+  }
+});
+
+test("normal attachments remain single-target and empty columns consume nothing", () => {
+  const f = extractionFixture();
+  const first = f.place("A", 1, 0, 3), second = f.place("A", 1, 1, 3);
+  const card = f.state.getDefinition("!");
+  assert.equal(f.targeted.use(card, 0, 3, first), "handled"); f.flush();
+  assert.equal(first.continuousAttack, true); assert.equal(second.continuousAttack, undefined);
+  f.state.unlimitedFirepower = true; f.state.battleTime = 30000;
+  const chars = f.state.chars;
+  assert.equal(f.targeted.use(card, 0, 4), "empty"); assert.equal(f.state.chars, chars);
+});
+
+test("! automatically activates untargeted skills; Air Patrol lasts 10 seconds and recharges afterwards", () => {
+  const f = extractionFixture(), w = f.place("w"), c = f.place("c", 1, 2, 1);
+  const o = f.place("o", 1, 3, 1), j = f.place("j", 1, 4, 1), manualW = f.place("w", 1, 5, 1);
+  const s = f.place("S", 1, 0, 2), push = f.place("#", 1, 1, 2);
+  for (const tower of [w, c, o, j, s, push]) tower.continuousAttack = true;
+  let routed = 0;
+  const runtime = { ...f.state, battleTime: 0, onTowerAction: () => { routed++; return false; },
+    prepareSkillTargeting: () => assert.fail("Automatic skill entered manual targeting"),
+    beginTowerPush: () => assert.fail("Automatic skill entered push targeting") };
+  const controller = new (load("src/game/towerSkills.ts").TowerSkillController)(f.state.scene, () => runtime);
+  for (const [tower, key] of [[c, "clock"], [o, "orientation"], [j, "gathering"], [s, "spellMortar"], [push, "push"]]) {
+    tower.skills[key] = { sp: 100, spBuffer: 0, activeUntil: 0 };
+  }
+  runtime.battleTime = 2000; controller.update(2, 2000);
+  assert.equal(w.skills.airPatrol.activeUntil, 12000); assert.equal(w.flyingUntil, 12000);
+  assert.equal(w.skills.airPatrol.sp, 0); assert.equal(manualW.skills.airPatrol.sp, 10);
+  assert.equal(manualW.skills.airPatrol.activeUntil, 0);
+  for (const [tower, key] of [[c, "clock"], [o, "orientation"], [j, "gathering"]]) assert.ok(tower.skills[key].activeUntil > 2000);
+  assert.equal(routed, 4);
+  runtime.battleTime = 11000; controller.update(9, 11000);
+  assert.equal(w.skills.airPatrol.sp, 0); assert.equal(w.flyingUntil, 12000);
+  runtime.battleTime = 12000; controller.update(0, 12000);
+  assert.equal(w.flyingUntil, 0); assert.equal(w.skills.airPatrol.sp, 0);
+  runtime.battleTime = 22000; controller.update(10, 22000);
+  assert.equal(w.skills.airPatrol.activeUntil, 32000);
+  assert.equal(w.skills.airPatrol.sp, 0);
+});
+
 function copyFixture() {
   const f = extractionFixture();
   const copy = load("src/game/towerCopy.ts");

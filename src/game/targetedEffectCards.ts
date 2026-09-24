@@ -1,5 +1,6 @@
 import type Phaser from "phaser";
 import { deploymentCardId } from "./cardIdentity";
+import { isParenthesisTower } from "./towerOccupancy";
 import type { TowerActionListener } from "./towerActions";
 import type { ScheduleBattleAction } from "./battleActions";
 import { palette } from "../config";
@@ -27,6 +28,7 @@ export interface TargetedEffectCardRuntime {
   towers: Tower[];
   cardStates: CardState[];
   battleTime: number;
+  unlimitedFirepower?: boolean;
   getDefinition: (id: CardId) => CardDefinition;
   cardTimeFor: (id: CardId) => number;
   getChars: () => number;
@@ -93,6 +95,20 @@ export class TargetedEffectCardController {
     targetedEffectDefinitions[id]?.apply(this.runtime(), target, level);
   }
 
+  deploymentTargets(lane: number, column: number, target?: Tower): Tower[] {
+    const eligible = (tower: Tower) => tower.inPlay && !tower.transient && !tower.nullified;
+    const runtime = this.runtime();
+    if (!runtime.unlimitedFirepower) return target && eligible(target) ? [target] : [];
+    const cells = new Map<number, Tower>();
+    for (const tower of runtime.towers) {
+      if (tower.column !== column || !eligible(tower)) continue;
+      const current = cells.get(tower.lane);
+      if (!current || isParenthesisTower(current)) cells.set(tower.lane, tower);
+    }
+    if (target && eligible(target) && target.column === column && target.lane === lane) cells.set(lane, target);
+    return [...cells.values()].sort((a, b) => a.lane - b.lane);
+  }
+
   use(definition: CardDefinition, lane: number, column: number, target?: Tower): TargetedEffectCardResult {
     const runtime = this.runtime();
     const cardState = runtime.cardStates.find((card) => card.definition.id === definition.id);
@@ -105,15 +121,18 @@ export class TargetedEffectCardController {
       return "noChars";
     }
 
-    if (!target?.inPlay) {
+    const targets = this.deploymentTargets(lane, column, target);
+    if (targets.length === 0) {
       return "empty";
     }
 
-    const pendingEffectCard = this.findPendingEffectCard(runtime, definition.id, lane, column);
-    if (pendingEffectCard) {
-      this.upgradePendingEffectCard(pendingEffectCard, definition, batch.levels);
-    } else {
-      this.placePendingEffectCard(definition, lane, column, target, { level: batch.levels });
+    for (const recipient of targets) {
+      const pendingEffectCard = this.findPendingEffectCard(runtime, definition.id, recipient.lane, column);
+      if (pendingEffectCard) {
+        this.upgradePendingEffectCard(pendingEffectCard, definition, batch.levels);
+      } else {
+        this.placePendingEffectCard(definition, recipient.lane, column, recipient, { level: batch.levels });
+      }
     }
 
     runtime.spendChars(batch.cost);
@@ -241,7 +260,7 @@ export class TargetedEffectCardController {
 
   private findPendingEffectCard(runtime: TargetedEffectCardRuntime, type: CardId, lane: number, column: number) {
     return runtime.towers.find((tower) => {
-      return tower.transient && (tower.sourceCardId ?? tower.type) === type && tower.lane === lane && tower.column === column;
+      return tower.inPlay && tower.transient && (tower.sourceCardId ?? tower.type) === type && tower.lane === lane && tower.column === column;
     });
   }
 }

@@ -1125,11 +1125,18 @@ export class GameScene extends Phaser.Scene {
     const cardState = this.cardStatesById.get(definition.id);
     if (
       definition.category === "special" ||
-      this.targetedEffects.canHandle(definition.id) ||
       !cardState ||
       this.cardTimeFor(definition.id) < cardState.readyAt ||
       this.effectiveChars() < this.extraction.plan(definition).cost
     ) {
+      return ghosts;
+    }
+
+    if (this.targetedEffects.canHandle(definition.id)) {
+      const target = this.occupied.get(`${lane}:${column}`);
+      for (const recipient of this.targetedEffects.deploymentTargets(lane, column, target)) {
+        ghosts.push({ type: definition.id, lane: recipient.lane, column });
+      }
       return ghosts;
     }
 
@@ -1594,6 +1601,7 @@ export class GameScene extends Phaser.Scene {
     runtime.towers = this.towers;
     runtime.cardStates = this.cardStates;
     runtime.battleTime = this.battleTime;
+    runtime.unlimitedFirepower = this.unlimitedFirepower;
     return runtime;
   }
 

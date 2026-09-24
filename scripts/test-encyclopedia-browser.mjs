@@ -4,7 +4,8 @@ const option = name => process.argv.find(value => value.startsWith(`--${name}=`)
 const { chromium } = await import(option("playwright") ? pathToFileURL(option("playwright")).href : "playwright");
 const browser = await chromium.launch({ executablePath: option("browser"), headless: true });
 try {
-  const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
+  // Phaser detects touch support at boot, before the later CDP touch gestures.
+  const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, hasTouch: true });
   const errors = []; page.on("pageerror", error => errors.push(error.message));
   await page.route("**/src/main.ts*", async route => {
     const response = await route.fetch();
@@ -52,7 +53,7 @@ try {
     check(text().includes("1700"), "Missing final damage");
     panel.changePreviewLevel(1); check(text().includes("3060"), "Level preview failed");
     panel.setCardCase("lowercase"); panel.selectEntry(towerEncyclopediaEntries().find(entry => entry.card.id === "w"));
-    check(text().includes("巡空") && text().includes("10 / 10") && text().includes("6s"), "Skill fields missing");
+    check(text().includes("巡空") && text().includes("10 / 10") && text().includes("10s"), "Skill fields missing");
     panel.setDetailScroll(240); check(panel.detailScrollY > 0, "Cannot scroll skills");
     panel.setTab("enemies"); panel.openEnemy("parentheses3"); check(panel.selectedEntryId.includes("parentheses"), "Enemy deep link failed");
     check(panel.previewLevel === 3 && panel.levelControls.visible, "Enemy deep link lost rank");

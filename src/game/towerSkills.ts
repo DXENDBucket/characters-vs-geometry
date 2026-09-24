@@ -146,6 +146,10 @@ export class TowerSkillController {
 
       const state = getTowerSkillState(tower, definition.stateKey);
       definition.update(tower, state, seconds, time, undefined);
+      if (tower.continuousAttack && definition.manual && !definition.manual.requiresTarget &&
+          !tower.nullified && !this.runtime().battlePaused && !this.runtime().gameOver) {
+        this.tryActivateManualSkill(tower, { x: tower.x, y: tower.y, allReady: false });
+      }
       if (towerBehaviorType(tower) === "c" && !tower.routedSkills?.c && time < state.activeUntil) {
         activeClockLevelSum += effectiveTowerLevel(tower);
       }

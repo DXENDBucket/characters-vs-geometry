@@ -159,7 +159,7 @@ test("SP skills distinguish initial charge, cost, duration, regeneration and hea
   const w = sections("w").find(section => section.tone === "skill");
   assert.equal(w.fields.find(field => field.label === "初始技力").value, "8");
   assert.equal(w.fields.find(field => field.label === "消耗 / 上限").value, "10 / 10");
-  assert.equal(w.fields.find(field => field.label === "持续时间").value, "6s");
+  assert.equal(w.fields.find(field => field.label === "持续时间").value, "10s");
   assert.equal(w.fields.find(field => field.label === "期间回复").value, "暂停");
   const push = sections("#", 3).find(section => section.tone === "skill");
   assert.match(values(push), /2\/秒/);
