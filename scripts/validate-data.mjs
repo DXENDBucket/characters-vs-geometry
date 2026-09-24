@@ -33,6 +33,11 @@ const levelEnemyKinds = unique(Object.values(levelConfigs).flatMap(level => [
   ...levelPreviewEnemyKinds(level), ...(level.bossPhases ?? []).flatMap(phase => phase.enemyKinds)
 ]));
 for (const level of Object.values(levelConfigs)) {
+  const nul = level.periodicTowerNullification;
+  if (nul && (!Number.isFinite(nul.intervalMs) || !Number.isFinite(nul.durationMs) ||
+      nul.durationMs <= 0 || nul.intervalMs <= nul.durationMs)) {
+    errors.push(`Level "${level.id}" has an invalid periodic NUL duration or interval.`);
+  }
   for (const spawn of level.extraWaveSpawns ?? []) {
     if (!Number.isInteger(spawn.lane) || spawn.lane < 0 || spawn.lane >= LANES) {
       errors.push(`Level "${level.id}" has an invalid extra wave spawn lane.`);

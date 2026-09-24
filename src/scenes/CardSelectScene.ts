@@ -228,6 +228,10 @@ export class CardSelectScene extends Phaser.Scene {
       enemy: getEnemyDisplayName(spawn.kind), lane: spawn.lane + 1
     }));
     if (levelConfig.specialMechanic === "rightColumnSeal") environmentDescriptions.push(t("label.rightColumnSeal"));
+    if (levelConfig.periodicTowerNullification) environmentDescriptions.push(t("label.periodicTowerNullification", {
+      interval: levelConfig.periodicTowerNullification.intervalMs / 1000,
+      duration: levelConfig.periodicTowerNullification.durationMs / 1000
+    }));
     for (const text of environmentDescriptions) {
       const description = this.add.text(0, contentY - 16, text, {
         color: "#9fdcff", fontFamily: "monospace", fontSize: "14px"

@@ -3070,6 +3070,13 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 - Base weight budgets before difficulty: 30, 65, 105, 150, 200, 255, 315, 380, 450, 1050 (wave 10 doubled).
 - Pre-battle previews include the extra enemy and a one-line environment description above ordinary enemies, below the Boss name if present. 5-9 also describes its permanent right-to-left column seal every four waves.
 
+## ASCII Expansion: Symbol Domain Capital / AE-EX-2
+
+- Unlocks after AE-EX-1; 20 waves. Uses EX defaults: 2000 starting characters, initial weight 30, increment +35, extra increment +5, one flag every 10 waves, no weight cap.
+- Enemy pool: Circle I, Tilde I/II/III, Equals I, Dollar I, Angel Pentagon Ram I/II/III, Hex Mace I/II/III. Existing flag restrictions still apply.
+- Environment: each grid tower enters NUL for 10 seconds every 60 seconds from its own deployment (at ages 60, 120, 180 seconds, etc.). Upgrading, copying forms or moving does not reset the cycle. Newly generated or mirrored towers start their own cycle. Edge connectors remain exempt, as with DEL's Format.
+- Reuses NUL suspension, gray glitch rendering, blocked operations/deployment, paused actions and recovery without removal events. Towers recover independently; overlapping NUL layers keep their cell reserved until the last recovers. Individual deadlines and deployment clocks survive snapshots. The effect is listed above the enemy preview.
+
 ## ASCII Expansion: AE-10
 
 - Unlocks after AE-9. Boss battle: waves continue until DEL is defeated; not an Infinite Front operation.

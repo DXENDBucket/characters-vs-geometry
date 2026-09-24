@@ -272,6 +272,9 @@ export interface NumberTowerState {
 
 export interface Tower extends NumberTowerState {
   nullified?: boolean;
+  nullifiedUntil?: number;
+  deployedAt?: number;
+  nextNullificationAt?: number;
   parenthesisGuard?: Tower;
   parenthesisInner?: Tower;
   projectileBank?: { shots: StoredTowerShot[]; remaining: number; nextAt: number; outletIndex: number };
@@ -573,6 +576,7 @@ export interface LevelConfig {
   unlimitedRankFamilies?: EnemyFamily[];
   enemyKinds: EnemyKind[];
   extraWaveSpawns?: { kind: EnemyKind; lane: number }[];
+  periodicTowerNullification?: { intervalMs: number; durationMs: number };
   firstWaveWeight: number;
   waveWeightIncrement: number;
   waveWeightIncrementGrowth?: number;

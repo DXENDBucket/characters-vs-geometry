@@ -293,6 +293,57 @@ test("NUL suspends whole cells without removal events, pauses timers and restore
   controller.update(10000); assert.equal(towers.length,5);
 });
 
+test("periodic NUL tracks deployment times independently and does not reset on upgrades or moves", () => {
+  const { TowerNullificationController } = createTypeScriptLoader()("src/game/towerNullification.ts");
+  const make = (order, deployedAt) => ({ type: "A", placedOrder: order, deployedAt, lane: 1, column: order,
+    inPlay: true, lastFire: 10, skills: {}, statusEffects: [], body: { setVisible() {} } });
+  const a = make(1, 0), b = make(2, 5000), shell = { ...make(3, 7000), type: "()", column: 1 };
+  const transient = { ...make(4, 0), transient: true };
+  const towers = [a, b, shell, transient], occupied = new Map(), paused = [];
+  const runtime = () => ({ towers, occupied, changed() {}, suspended: (items, ms) => paused.push([items, ms]) });
+  let controller = new TowerNullificationController(runtime);
+  const rule = { intervalMs: 60000, durationMs: 10000 };
+  controller.update(59999, rule);
+  assert.equal(controller.snapshot(), undefined);
+  a.level = 8; a.column = 5;
+  controller.update(60000, rule);
+  assert.equal(a.nullified, true); assert.equal(b.inPlay, true); assert.equal(transient.inPlay, true);
+  assert.equal(a.nextNullificationAt, 120000);
+  assert.equal(controller.isOccupied(1, 5), true);
+  assert.equal(controller.isOccupied(1, 1), false);
+  controller.update(65000, rule);
+  controller.update(67000, rule);
+  assert.deepEqual(controller.snapshot().towers, [a, b, shell]);
+  const snapshot = controller.snapshot();
+  controller = new TowerNullificationController(runtime); controller.restore(snapshot);
+  controller.update(69999, rule); assert.equal(a.inPlay, false);
+  controller.update(70000, rule);
+  assert.equal(a.inPlay, true); assert.equal(a.level, 8); assert.equal(a.column, 5);
+  assert.equal(b.inPlay, false); assert.equal(shell.inPlay, false);
+  assert.equal(controller.isOccupied(1, 5), false); assert.equal(controller.isOccupied(1, 1), true);
+  controller.update(75000, rule); assert.equal(b.inPlay, true); assert.equal(shell.inPlay, false);
+  controller.update(77000, rule); assert.equal(controller.snapshot(), undefined);
+  assert.equal(a.lastFire, 10010); assert.equal(paused.length, 3);
+  controller.update(119999, rule); assert.equal(a.inPlay, true);
+  controller.update(120000, rule); assert.equal(a.nullified, true);
+  assert.equal(a.nextNullificationAt, 180000); assert.equal(a.lastFire, 20010);
+});
+
+test("legacy NUL expiry remains independent when a new group joins after restore", () => {
+  const { TowerNullificationController } = createTypeScriptLoader()("src/game/towerNullification.ts");
+  const make = order => ({ type: "A", placedOrder: order, lane: 1, column: 1, inPlay: true,
+    lastFire: 0, skills: {}, statusEffects: [], body: { setVisible() {} } });
+  const a = make(1), b = make(2), towers = [b];
+  const controller = new TowerNullificationController(() => ({ towers, occupied: new Map(), changed() {}, suspended() {} }));
+  controller.restore({ startedAt: 1000, expiresAt: 11000, towers: [a] });
+  controller.start(6000, 10000, [b]);
+  controller.update(11000);
+  assert.equal(a.inPlay, true); assert.equal(b.inPlay, false);
+  assert.equal(controller.isOccupied(1, 1), true);
+  controller.update(16000);
+  assert.equal(b.inPlay, true); assert.equal(controller.isOccupied(1, 1), false);
+});
+
 test("NUL renders once per occupied cell, not once per tower layer", () => {
   const drawn=[];
   const load=createTypeScriptLoader({"src/render/delBoss.ts":{drawNulGlyph:(_g,x,y,time)=>drawn.push([x,y,time])}});

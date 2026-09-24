@@ -708,7 +708,7 @@ export class GameScene extends Phaser.Scene {
     const seconds = scaledDelta / 1000;
     this.levelElapsed += scaledDelta;
     this.battleTime += scaledDelta;
-    this.nullification.update(this.battleTime);
+    this.nullification.update(this.battleTime, this.levelConfig.periodicTowerNullification);
     drawNullifiedTowers(this.nullifiedTowerGraphics, this.nullification.snapshot(), this.battleTime);
     if (this.timedCellSeals.update(this.battleTime, (lane, column) => {
       if (this.eraseTowersInCell(lane, column)) this.updateLevelAuras();

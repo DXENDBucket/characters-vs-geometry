@@ -248,6 +248,11 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
       }
       if (kind === "tower") {
         require(value.nullified === undefined || value.nullified === true && nullified.has(object as Tower));
+        require(value.nullifiedUntil === undefined || value.nullified === true && finite(value.nullifiedUntil) &&
+          value.nullifiedUntil > state.nullifiedTowers!.startedAt && value.nullifiedUntil <= state.nullifiedTowers!.expiresAt);
+        for (const key of ["deployedAt", "nextNullificationAt"]) {
+          require(value[key] === undefined || finite(value[key]) && (value[key] as number) >= 0);
+        }
         if (value.parenthesisGuard !== undefined) {
           const guard = value.parenthesisGuard;
           require(member("tower")(guard) && record(guard) && isTowerShellType(guard.type) && !isTowerShellType(value.type) &&

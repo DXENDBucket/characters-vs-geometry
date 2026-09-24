@@ -122,7 +122,7 @@ test("Symbol Domain Capital follows Symbol Domain and unlocks AE-EX-1 after DEL"
   assert.equal(chapterGroups.groupForChapter("AE2").id, "ascii");
   assert.equal(chapters.chapterIdForLevelId("AE-10"), "AE");
   assert.equal(chapters.chapterIdForLevelId("AE-EX-1"), "AE2");
-  assert.deepEqual(chapters.levelNodesForChapter("AE2").map(node => node.id), ["AE-EX-1"]);
+  assert.deepEqual(chapters.levelNodesForChapter("AE2").map(node => node.id), ["AE-EX-1", "AE-EX-2"]);
   assert.equal(chapters.levelNodesForChapter("AE").length, 10);
   const level = levels.getLevelConfig("AE-EX-1");
   assert.equal(level.totalWaves, 10);
@@ -141,8 +141,24 @@ test("Symbol Domain Capital follows Symbol Domain and unlocks AE-EX-1 after DEL"
   assert.equal(progress.discoveredEnemies().enemies.has("chevronLeader"), true);
   assert.equal(progress.discoveredEnemies().enemies.has("chevronLeader3"), false);
   assert.equal(progress.isChapterCompleted("AE"), true);
+  assert.equal(progress.isLevelUnlocked("AE-EX-2"), false);
   progress.completeLevel("AE-EX-1");
+  assert.equal(progress.isLevelUnlocked("AE-EX-2"), true);
+  assert.equal(progress.isChapterCompleted("AE2"), false);
+  progress.completeLevel("AE-EX-2");
   assert.equal(progress.isChapterCompleted("AE2"), true);
+});
+
+test("AE-EX-2 uses the capital template and periodic per-tower NUL", () => {
+  const { levels } = fixture();
+  const level = levels.getLevelConfig("AE-EX-2");
+  assert.equal(level.totalWaves, 20);
+  assert.equal(level.startingChars, 2000);
+  assert.deepEqual([level.firstWaveWeight, level.waveWeightIncrement, level.waveWeightIncrementGrowth], [30, 35, 5]);
+  assert.equal(level.waveWeightCap, undefined);
+  assert.deepEqual(level.periodicTowerNullification, { intervalMs: 60000, durationMs: 10000 });
+  assert.deepEqual(level.enemyKinds, ["circle", "tilde", "tilde2", "tilde3", "equals", "dollar",
+    "angelPentagonRam", "angelPentagonRam2", "angelPentagonRam3", "hexMace", "hexMace2", "hexMace3"]);
 });
 
 test("AE-10 unlocks DEL after AE-9 and adds mortar, pentagon and diamond ranks to its Boss battle pool", () => {

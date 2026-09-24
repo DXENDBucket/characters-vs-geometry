@@ -143,6 +143,7 @@ export function createTower(
     mirroredEffect: false,
     turnTargetId: options.turnTargetId,
     placedOrder,
+    deployedAt: battleTime,
     inPlay: true,
     body,
     border,

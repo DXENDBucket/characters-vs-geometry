@@ -1,4 +1,4 @@
-import type { Tower } from "../types";
+import type { LevelConfig, Tower } from "../types";
 import { syncTowerOccupancy } from "./towerOccupancy";
 
 export interface NullifiedTowers {
@@ -23,14 +23,20 @@ export class TowerNullificationController {
   snapshot() { return this.state; }
   isOccupied(lane: number, column: number) { return this.cells.has(`${lane}:${column}`); }
 
-  start(time: number, durationMs: number) {
-    if (this.state) return false;
+  start(time: number, durationMs: number, targets?: readonly Tower[]) {
+    if (this.state && !targets) return false;
     const runtime = this.runtime();
-    const towers = runtime.towers.filter(tower => tower.inPlay);
-    this.state = { startedAt: time, expiresAt: time + durationMs, towers };
+    const selected = targets && new Set(targets);
+    const towers = runtime.towers.filter(tower => tower.inPlay && (!selected || selected.has(tower)));
+    if (!towers.length) return false;
+    if (this.state) {
+      this.state.towers.push(...towers);
+      this.state.expiresAt = Math.max(this.state.expiresAt, time + durationMs);
+    } else this.state = { startedAt: time, expiresAt: time + durationMs, towers: [...towers] };
     for (const tower of towers) {
       this.cells.add(`${tower.lane}:${tower.column}`);
       tower.nullified = true;
+      tower.nullifiedUntil = time + durationMs;
       tower.inPlay = false;
       tower.body.setVisible(false);
       pauseTowerTimers(tower, time, durationMs);
@@ -44,18 +50,38 @@ export class TowerNullificationController {
     return true;
   }
 
-  update(time: number) {
-    if (!this.state || time < this.state.expiresAt) return;
+  update(time: number, periodic?: LevelConfig["periodicTowerNullification"]) {
+    this.recover(time);
+    if (!periodic) return;
+    const due: Tower[] = [];
+    for (const tower of this.runtime().towers) {
+      if (!tower.inPlay || tower.transient) continue;
+      tower.nextNullificationAt ??= (tower.deployedAt ?? time) + periodic.intervalMs;
+      if (time < tower.nextNullificationAt) continue;
+      // Keep the deployment-anchored cadence, including time spent in NUL.
+      tower.nextNullificationAt += (Math.floor((time - tower.nextNullificationAt) / periodic.intervalMs) + 1) * periodic.intervalMs;
+      due.push(tower);
+    }
+    if (due.length) this.start(time, periodic.durationMs, due);
+  }
+
+  private recover(time: number) {
+    if (!this.state) return;
+    const expired = this.state.towers.filter(tower => time >= (tower.nullifiedUntil ?? this.state!.expiresAt));
+    if (!expired.length) return;
     const runtime = this.runtime();
-    for (const tower of this.state.towers) {
+    for (const tower of expired) {
       delete tower.nullified;
+      delete tower.nullifiedUntil;
       tower.inPlay = true;
       tower.body.setVisible(true);
       runtime.towers.push(tower);
     }
     runtime.towers.sort((a, b) => a.placedOrder - b.placedOrder);
-    this.state = undefined;
+    this.state.towers = this.state.towers.filter(tower => tower.nullified);
+    if (!this.state.towers.length) this.state = undefined;
     this.cells.clear();
+    for (const tower of this.state?.towers ?? []) this.cells.add(`${tower.lane}:${tower.column}`);
     syncTowerOccupancy(runtime.towers, runtime.occupied);
     runtime.changed();
   }
@@ -64,6 +90,7 @@ export class TowerNullificationController {
     this.state = state;
     this.cells.clear();
     for (const tower of state?.towers ?? []) {
+      tower.nullifiedUntil ??= state!.expiresAt;
       tower.nullified = true;
       tower.inPlay = false;
       tower.body.setVisible(false);
