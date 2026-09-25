@@ -77,7 +77,7 @@ test("source runtime imports and re-exports remain acyclic", () => {
 
 test("combat controllers schedule data actions rather than engine timers or paused callbacks", () => {
   const modules = ["combatRuntime", "towerCombat", "triggerTowers", "triggerTowerRules", "targetedEffectCards",
-    "towerSkills", "towerSkillSimulation", "enemyRuntime", "enemySimulation", "bossRuntime"];
+    "towerSkills", "towerSkillSimulation", "enemyRuntime", "enemySimulation", "bossRuntime", "bossSimulation"];
   for (const name of modules) {
     const source = sources.get(`src/game/${name}.ts`);
     assert.ok(source, name);
@@ -99,7 +99,8 @@ test("data, geometry, support queries and snapshot capture cannot pull in scenes
     "enemySkillExecution", "enemySkillPresentation", "parenthesisRules", "slopeRules",
     "towerTargeting", "cardBehaviorRules", "towerCombat", "towerCombatRuntime", "towerCombatPresentation",
     "triggerTowerRules", "triggerTowerPresentation", "towerSkillSimulation", "towerSkillPresentation",
-    "towerSkillRegistry", "orientationSkillRules", "gatheringSkillRules", "pushSkillRules"];
+    "towerSkillRegistry", "orientationSkillRules", "gatheringSkillRules", "pushSkillRules",
+    "bossSimulation", "bossSimulationRuntime", "bossSimulationPresentation", "bossSkillRegistry", "enemyPromotionRules", "delSweep"];
   for (const entry of [...entries, "../registry/cardDefinitions"]) {
     const seen = new Set();
     const visit = (name, chain) => {

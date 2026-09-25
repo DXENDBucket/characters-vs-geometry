@@ -63,7 +63,8 @@ running, reconnect and terminal checksums.
 
 ## Still Open
 
-Boss and pipeline controllers, targeted attachments, and broader board/network
+Boss combat now also has data-only execution; see [Boss simulation](boss-simulation.md).
+Phase-transition cleanup, pipeline controllers, targeted attachments and broader board/network
 orchestration still have live dependencies. The entire battle cannot yet run
 without Phaser. Relationships still need stable-ID wire records; per-player
 resource/ownership policies and production multiplayer UI/transport lifetime

@@ -1,5 +1,6 @@
 import { chargeBossSkill, isBossSkillReady, spendBossSkill } from "./bossSkillRules";
-import type { BossSkill, BossSkillName, CubeBoss } from "../types";
+import type { BossSkill, BossSkillName } from "../types";
+import type { BossState as CubeBoss } from "./bossState";
 
 export interface BossSkillDefinition<Runtime, Name extends BossSkillName = BossSkillName> {
   skillKey: Name;

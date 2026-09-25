@@ -118,6 +118,13 @@ runtime import cycle. A new rule test checks emitted source dependencies and
 guards headless data/query boundaries. See [Unit Geometry Boundary](unit-geometry.md).
 Selection order, damage rules and replay checksums remain unchanged.
 
+Boss execution now uses a cached data-only runtime on the actual battle path,
+including promotion, copies, companions and DEL skills. Its companion/contact/
+laser buffers are isolated per battlefield. Position integration remains in the
+simulation and polyhedron rotation remains cosmetic. Node integrations and seven
+displayed/detached/restored browser scenarios verify this boundary, not an FPS
+gain. See [Boss simulation](boss-simulation.md).
+
 1. Move remaining pure visual updates to a frame-level rendering adapter while
    preserving simulation-owned positions, deadlines and random streams.
 2. Boss state and explicit snapshot contracts are now extracted as well; see

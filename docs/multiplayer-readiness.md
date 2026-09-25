@@ -44,7 +44,7 @@ transport-neutral authority and synchronization gates above.
   Gathering and Orientation targeting now use data-only rules with explicit
   presentation/factory ports. Bodyless Node tests and actual displayed/detached
   scene continuations match, including cross-world scratch isolation. Tower firing
-  now has its own data-only runtime; Boss/pipeline controllers remain scene-bound.
+  now has its own data-only runtime; pipeline and broader battle orchestration remain scene-bound.
   This does not complete the
   headless simulation gate. See [projectile simulation](projectile-runtime.md).
   Actual damage/removal, shared-health arithmetic, passenger release, death splits
@@ -57,7 +57,7 @@ transport-neutral authority and synchronization gates above.
   carrier boarding now run through data-only rules on the actual live path too.
   Factories and presentation are explicit ports, with per-world targeting and
   heart-plan buffers. No-engine integration and three real displayed/detached/
-  restored scenes agree; Boss and pipeline controllers still need extraction.
+  restored scenes agree; pipeline and broader battle orchestration still need extraction.
   See [enemy simulation](enemy-simulation.md).
   Tower targeting, attack timing, behavior execution, one-shot triggers and SP
   skill simulation now run through data-only rules on the actual scene path.
@@ -65,9 +65,16 @@ transport-neutral authority and synchronization gates above.
   completion remain authoritative with presentation disabled. Ten bodyless
   integration tests and a displayed/detached/restored live comparison verify the
   boundary. A status-refresh snapshot field-order discrepancy was fixed without
-  changing damage values. Targeted attachments, Boss/pipeline and other live
+  changing damage values. Targeted attachments, pipeline and other live
   orchestration still prevent a complete headless battle. See
   [tower simulation](tower-simulation.md).
+  Boss movement, promotion, skill dispatch, copies, companions, contact attacks
+  and DEL sweeps now use the same data-only implementation on the live path.
+  Factories, cell effects and rendering are explicit ports; scratch buffers are
+  per-runtime. Ten no-engine integrations and seven displayed/detached/restored
+  browser scenarios preserve behavior. Boss phase-transition cleanup and other
+  live callbacks still need extraction, so this is not complete headless battle
+  execution. See [Boss simulation](boss-simulation.md).
 - Determinism: the integrated `BattleSession` now owns fixed steps, seeded battle
   RNG, delayed action queue, recording and checkpoint timing. Independent session
   tests and unchanged browser replay checksums verify this extraction. `BattleWorld`

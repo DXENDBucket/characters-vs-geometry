@@ -236,6 +236,10 @@ export function syncCubeBossVisual(boss: CubeBoss, time: number) {
 
 export function updateCubeBossMotion(boss: CubeBoss, seconds: number, movementMultiplier = 1, time = 0) {
   advanceBossPosition(boss, seconds, movementMultiplier, time);
+  syncCubeBossMotionVisual(boss, seconds, time);
+}
+
+export function syncCubeBossMotionVisual(boss: CubeBoss, seconds: number, time: number) {
   boss.body.setPosition(boss.x, boss.y);
 
   if (boss.kind === "del") {

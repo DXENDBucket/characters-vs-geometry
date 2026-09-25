@@ -350,7 +350,7 @@ function createSkillExecutor() {
 }
 
 export function triggerAngelWings(
-  presentation: EnemySkillPresentation,
+  presentation: Pick<EnemySkillPresentation, "wings">,
   enemies: Enemy[],
   caster: Enemy,
   time: number,
@@ -365,7 +365,7 @@ export function triggerAngelWings(
 }
 
 export function triggerArchangelAscension(
-  presentation: EnemySkillPresentation,
+  presentation: Pick<EnemySkillPresentation, "wings">,
   enemies: Enemy[],
   caster: Enemy,
   time: number,
@@ -380,7 +380,7 @@ export function triggerArchangelAscension(
 }
 
 function triggerWingsEffect(
-  presentation: EnemySkillPresentation,
+  presentation: Pick<EnemySkillPresentation, "wings">,
   enemies: Enemy[],
   caster: Enemy,
   time: number,
