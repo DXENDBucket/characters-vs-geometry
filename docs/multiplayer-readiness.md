@@ -98,8 +98,10 @@ Ownership follows deployments, generation, mirrors, suspended and historical
 entities; whole-command preflight protects foreign entities and topology.
 Optional [individual wallets](battle-economy.md) now isolate payment and production,
 including automatic upgrades, pipeline outputs and snapshot/host restoration.
-Loadouts, cooldowns, extraction pools and automatic-upgrade settings are still shared.
-The remaining per-player resources and independently usable player input UI are unfinished.
+Optional [player resources](battle-player-resources.md) now isolate initial/current
+loadouts, card clocks, shifter/reselection cooldowns, extraction pools and automatic
+upgrade settings. Independently usable player input/HUD/tool bindings remain unfinished;
+network tests currently submit semantic requests rather than actual peer UI input.
 
 ### Identity And Synchronization
 
@@ -132,8 +134,8 @@ battle synchronization/storage cost measurements remain unfinished.
 
 ## Next Work
 
-1. Finish per-player loadout/cooldown/extraction/auto-upgrade policies and independent player input routing.
-2. Integrate client input and transport lifetime handling, then broaden fault and
+1. Bind participant-aware HUD, selection and tools to the new player resources and remote input.
+2. Integrate transport lifetime handling, then broaden fault and
    content coverage and profile crowded host/replica execution.
 3. Retain exact cross-engine numeric gates while expanding content/platform coverage.
 

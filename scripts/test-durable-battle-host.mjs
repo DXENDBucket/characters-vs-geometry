@@ -269,6 +269,31 @@ test("individual balances survive host restart without double-charging a retried
   await f.host.close();
 });
 
+test("independent decks, cooldowns and automatic-upgrade settings persist across host replacement", async () => {
+  const config = options();
+  config.policy = { ...LEGACY_BATTLE_POLICY, towerAccess: "owner", walletMode: "individual", resourceMode: "individual" };
+  config.participants = [{ id: "local", permissions: ["build", "debug", "settings"] }, { id: "guest", permissions: ["build"] }];
+  config.playerLoadouts = [{ actorId: "guest", cards: ["B", "X"] }, { actorId: "local", cards: ["B", "A"] }];
+  const f = await fixture(config);
+  await f.send(control({ type: "debugChars" })); await f.send(deploy);
+  await f.send(control({ type: "reserve", value: 400 }));
+  const messages = [], guest = await f.host.connect("guest", message => messages.push(message));
+  await f.host.receiveText(guest, envelope(messages[0].stream, 0, { ...deploy,
+    operation: { ...deploy.operation, cell: { lane: 4, column: 2 } } }));
+  assert.equal(messages.at(-1).receipt.result, "deployed"); await f.pump();
+  const saved = state(f.stored);
+  assert.equal(saved.playerResources.find(player => player.actorId === "local").reserveChars, 400);
+  assert.equal(saved.playerResources.find(player => player.actorId === "guest").reserveChars, 0);
+  await f.restart();
+  assert.deepEqual(state(f.stored).playerResources, saved.playerResources);
+  assert.deepEqual(f.replica.players.get("guest").loadout.ids, ["B", "X"]);
+  await f.host.receiveText(f.peer, envelope(JSON.parse(f.stored).stream, 1, deploy)); await f.pump();
+  assert.deepEqual(state(f.stored).playerResources, saved.playerResources);
+  assert.deepEqual(state(f.stored).wallets, saved.wallets);
+  assert.equal(state(f.stored).towers.length, 2);
+  await f.host.close();
+});
+
 test("a killed Node host restores its real flushed file in a new process with exactly-once deployment", { timeout: 30000 }, async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "charset-host-process-")), filename = path.join(dir, "battle.json");
   const children = [];

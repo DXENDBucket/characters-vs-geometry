@@ -16,9 +16,11 @@ import type { CardDeadline } from "./battleLoadout";
 import type { TutorialCheckpoint } from "./tutorialState";
 import type { BattleLifecycleState } from "./battleLifecycle";
 import type { BattleWallet } from "./battleEconomy";
+import type { BattlePlayerResourceSnapshot } from "./battlePlayerResources";
 
 export interface BattleSaveData {
   wallets?: BattleWallet[];
+  playerResources?: BattlePlayerResourceSnapshot[];
   lifecycle?: BattleLifecycleState;
   tutorial?: TutorialCheckpoint;
   entityIds?: BattleEntityIdState;

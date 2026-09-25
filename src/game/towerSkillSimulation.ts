@@ -38,6 +38,7 @@ export interface TowerSkillSimulationRuntime {
   battleTime: number;
   gameOver: boolean;
   battlePaused: boolean;
+  individualCardClocks?: boolean;
   getDefinition(id: CardId): CardDefinition;
   damageEnemy(enemy: Enemy, damage: number, type: DamageType, source?: Tower): void;
   damageBoss(damage: number, type: DamageType, part?: CubeBoss): void;
@@ -56,6 +57,7 @@ export class TowerSkillSimulation {
   private readonly spellMortarFlights = new Set<SpellMortarFlight>();
   private readonly guardianHealTargetsBuffer: Tower[] = [];
   private cachedCardCooldownMultiplier = 1;
+  private readonly clockLevelsByOwner = new Map<string | undefined, number>();
   private readonly skillDefinitions: Partial<Record<CardId, TowerSkillDefinition>>;
 
   constructor(private readonly runtime: () => TowerSkillSimulationRuntime) {
@@ -90,6 +92,7 @@ export class TowerSkillSimulation {
       }
     }
     this.runtime().presentation.beginTowerUpdates();
+    this.clockLevelsByOwner.clear();
     let activeClockLevelSum = 0;
     for (const tower of this.runtime().towers) {
       for (const [type, until] of Object.entries(tower.routedSkills ?? {})) {
@@ -108,7 +111,10 @@ export class TowerSkillSimulation {
           if (context) withTowerActionContext(tower, { type, ...context }, () => skill.update(tower, state, 0, time, undefined));
           else withTowerBehavior(tower, this.runtime().getDefinition(type), tower.imitatedSkillLevels?.[type] ?? Math.max(1, numberTowerActionLevel(tower)),
             () => skill.update(tower, state, 0, time, undefined), this.runtime().towers);
-          if (type === "c" && time < state.activeUntil) activeClockLevelSum += context?.level ?? tower.imitatedSkillLevels?.c ?? 1;
+          if (type === "c" && time < state.activeUntil) {
+            const level = context?.level ?? tower.imitatedSkillLevels?.c ?? 1;
+            activeClockLevelSum += level; this.recordClockOwner(tower, level);
+          }
           if (state.activeUntil <= time) { state.activeUntil = 0; this.runtime().presentation.borderVisible(tower, true); this.runtime().presentation.borderAlpha(tower, 1); }
         }
         continue;
@@ -125,7 +131,8 @@ export class TowerSkillSimulation {
         this.activateManualSkills([tower], towerBehaviorType(tower), null);
       }
       if (towerBehaviorType(tower) === "c" && !tower.routedSkills?.c && time < state.activeUntil) {
-        activeClockLevelSum += effectiveTowerLevel(tower);
+        const level = effectiveTowerLevel(tower);
+        activeClockLevelSum += level; this.recordClockOwner(tower, level);
       }
     }
     this.cachedCardCooldownMultiplier = activeClockLevelSum + 1;
@@ -146,8 +153,13 @@ export class TowerSkillSimulation {
     return true;
   }
 
-  cardCooldownMultiplier() {
-    return this.cachedCardCooldownMultiplier;
+  private recordClockOwner(tower: Tower, level: number) {
+    if (this.runtime().individualCardClocks) this.clockLevelsByOwner.set(tower.ownerId, (this.clockLevelsByOwner.get(tower.ownerId) ?? 0) + level);
+  }
+
+  cardCooldownMultiplier(actorId?: string) {
+    return actorId === undefined ? this.cachedCardCooldownMultiplier :
+      1 + (this.clockLevelsByOwner.get(actorId) ?? 0) + (this.clockLevelsByOwner.get(undefined) ?? 0);
   }
 
   isClockTowerReady(tower: Tower) {

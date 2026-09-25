@@ -18,7 +18,8 @@ const { DIFFICULTY_VERSION } = load("src/config.ts");
 const { LEGACY_BATTLE_POLICY } = load("src/game/battlePolicy.ts");
 const { BATTLE_PERMISSIONS } = load("src/game/battleParticipants.ts");
 const url = option("url") ?? "http://127.0.0.1:5173";
-const economy = process.argv.includes("--economy");
+const resources = process.argv.includes("--resources");
+const economy = resources || process.argv.includes("--economy");
 const ownership = economy || process.argv.includes("--ownership");
 const roles = ["a", "b"], engines = (option("engines") ?? "firefox,webkit").split(",");
 assert.equal(engines.length, 2);
@@ -145,17 +146,22 @@ try {
     host?.close(); authority?.close();
     runtime = createIndependentBattle({ version: BATTLE_RULES_VERSION, difficultyVersion: DIFFICULTY_VERSION,
       levelId, difficulty: 3, unlimitedFirepower: false, seed: 810, selectedCards: ["A", "B", "X", "m", "u", "S"],
-      debug: true, policy: ownership ? { ...LEGACY_BATTLE_POLICY, towerAccess: "owner", ...(economy ? { walletMode: "individual" } : {}) } : LEGACY_BATTLE_POLICY,
+      debug: true, policy: ownership ? { ...LEGACY_BATTLE_POLICY, towerAccess: "owner", ...(economy ? { walletMode: "individual" } : {}),
+        ...(resources ? { resourceMode: "individual" } : {}) } : LEGACY_BATTLE_POLICY,
+      ...(resources ? { playerLoadouts: [{ actorId: "a", cards: ["A", "B", "S"] }, { actorId: "b", cards: ["A", "B", "X"] },
+        { actorId: "local", cards: ["A", "B", "X", "m", "u", "S"] }] } : {}),
       participants: [{ id: "local", permissions: BATTLE_PERMISSIONS }, { id: "a", permissions: BATTLE_PERMISSIONS },
         { id: "b", permissions: ["build"] }] });
     // A captured mid-battle fixture with reselection ready. No display-specific preparation.
     runtime.world.loadout.reselection.restore({ readyAt: 0, cards: [] });
+    if (resources) runtime.players.get("a").loadout.reselection.restore({ readyAt: 0, cards: [] });
     authority = new BattleAuthority(randomUUID(), runtime.session, {
       available: () => !runtime.world.gameOver, inputTime: () => performance.now(), execute: command => runtime.executeCommand(command)
     });
     authority.submitTrusted("local", control({ type: "debugChars" }));
     if (economy) authority.submitTrusted("a", control({ type: "debugChars" }));
     authority.submitTrusted("local", control({ type: "autoUpgradeEnabled", enabled: false }));
+    if (resources) for (const role of roles) runtime.players.get(role).auto.autoUpgradeEnabled = false;
     host = new BattleSyncHost(runtime.session, authority, {
       checkpoint: () => runtime.session.checkpointReplay(captureBattleSnapshot(runtime.snapshot(runtime.world.loadout.ids[0])), runtime.world.loadout.ids),
       checksum, inputTime: () => performance.now()
@@ -183,7 +189,8 @@ try {
     const tick = runtime.session.clock.tick; advance(20); assert.equal(runtime.session.clock.tick, tick);
     await request("a", control({ type: "reserve", value: 700 }));
     await request("a", control({ type: "reselect", cards: ["B", "A", "S"] }));
-    assert.deepEqual(runtime.world.loadout.ids, ["B", "A", "S"]);
+    assert.deepEqual(runtime.players.get(resources ? "a" : undefined).loadout.ids, ["B", "A", "S"]);
+    if (resources) assert.deepEqual(runtime.players.get("b").loadout.ids, ["A", "B", "X"]);
     loseReceipt = true;
     await request("a", deploy("B", 2, 9));
     assert.ok(await pages.a.evaluate(() => window.headlessTest.client.pendingRequest));
@@ -203,7 +210,7 @@ try {
     results.push({ levelId, tick: runtime.session.clock.tick, checksum: checksum() });
   }
   assert.deepEqual(errors, []);
-  console.log("Independent Node authority and real browser replicas over authenticated HTTP", { engines, ownership, economy, results });
+  console.log("Independent Node authority and real browser replicas over authenticated HTTP", { engines, ownership, economy, resources, results });
 } finally {
   host?.close(); authority?.close();
   for (const browser of browsers) await browser.close();

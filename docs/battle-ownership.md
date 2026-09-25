@@ -3,8 +3,8 @@
 Captured `BattlePolicy.towerAccess` now selects `shared` (default) or `owner`.
 This is configurable host policy, not a chosen cooperative/competitive game mode.
 It does not by itself split resources. Optional [individual wallets](battle-economy.md)
-now isolate currency; loadouts, card cooldowns, shifter/reselection cooldowns,
-extraction pools and automatic-upgrade settings are still shared.
+now isolate currency; optional [player resources](battle-player-resources.md) also
+isolate loadouts/clocks, shifter/reselection cooldowns, extraction and auto settings.
 
 ## Rules
 
@@ -36,11 +36,10 @@ extraction pools and automatic-upgrade settings are still shared.
   player edit permissions. A manually authorized delayed effect can still run
   after battlefield changes, like other already-issued attacks/skills.
 
-Automatic upgrades still use the shared loadout and settings; the owner grants
-participation by marking their tower. Individual-wallet mode visits builders in
-canonical order and spends only their own currency. Players with the global
-settings capability still control its shared reserve and enablement. Independent
-loadouts/cooldowns/settings remain the next boundary.
+The owner grants automatic-upgrade participation by marking their tower.
+Individual-wallet mode visits builders in canonical order and spends only their
+own currency. Individual-resource mode additionally isolates loadouts, cooldowns
+and settings. Both options are independent; ownership alone retains shared resources.
 
 ## State And Validation
 

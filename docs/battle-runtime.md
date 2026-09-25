@@ -48,8 +48,8 @@ must be addressed before calling the full multiplayer goal complete.
   actual GameScene, then runs 3600 ticks with checks every 300 ticks and an
   additional Node wire-checkpoint continuation at tick 1500. Eleven scenarios cover
   1-9, 2-10, 5-5, all four 5-10 phases, AE-5, AE-10, AE-EX-2 and IF-BE-4.
-- The rule suite includes 675 tests plus four math, fourteen durable-host,
-  fifteen ownership and twelve economy tests in its pretest hook.
+- The rule suite includes 675 tests plus four math, fifteen durable-host,
+  fifteen ownership, twelve economy and fourteen player-resource tests in its pretest hook.
   Seven audio tests, data validation and the TypeScript/Vite build also pass;
   the existing large-bundle warning remains.
 
@@ -76,12 +76,14 @@ Only Chromium uses an optional `--browser` executable path. See
 Do not round checksums to conceal numerical divergence or teach the simulation
 cache about a particular test. Relationship serialization/checksums now have a
 canonical contract and approximated math has a pinned deterministic implementation.
-Platform/content coverage still needs expansion. Individual wallets are implemented;
-per-player loadouts/cooldowns/extraction/settings and production transport/player
-UI remain unfinished. These passing fixtures do not complete the multiplayer goal.
+Platform/content coverage still needs expansion. Individual wallets and optional
+per-player loadouts/cooldowns/extraction/settings are implemented; production
+transport/player UI remain unfinished. These passing fixtures do not complete the multiplayer goal.
 Atomic process-restart recovery is now covered by the separate
 [durable host](durable-battle-host.md), not by ordinary single-player save loading.
 Optional [owner-only tower access](battle-ownership.md) now protects semantic
 commands and follows derived units without changing shared single-player defaults.
 Optional [individual wallets](battle-economy.md) isolate currency spending and
 production and persist through the same snapshot/receipt paths.
+Optional [individual resources](battle-player-resources.md) include distinct initial
+decks and preserve each player's current deck, cooldowns and settings on restore.

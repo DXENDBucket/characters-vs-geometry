@@ -1,12 +1,8 @@
 import { rawCharsForSoftcapped, softcapChars } from "./charSoftcap";
-import { DEFAULT_BATTLE_PARTICIPANTS, type BattleOperationActor } from "./battleParticipants";
+import { battleBuilderIds, DEFAULT_BATTLE_PARTICIPANTS, type BattleOperationActor } from "./battleParticipants";
 import type { BattlePolicy } from "./battlePolicy";
 
 export interface BattleWallet { actorId: string; chars: number }
-
-function walletActors(participants: readonly BattleOperationActor[]) {
-  return participants.filter(actor => actor.permissions.includes("build")).map(actor => actor.id).sort();
-}
 
 export function validateBattleWallets(chars: number, wallets: unknown,
   policy?: BattlePolicy, participants: readonly BattleOperationActor[] = DEFAULT_BATTLE_PARTICIPANTS) {
@@ -14,7 +10,7 @@ export function validateBattleWallets(chars: number, wallets: unknown,
     if (wallets !== undefined) throw new Error("Unexpected individual wallets");
     return;
   }
-  const actors = walletActors(participants);
+  const actors = battleBuilderIds(participants);
   if (!actors.length || !Array.isArray(wallets) || wallets.length !== actors.length ||
     !Array.from(wallets).every((wallet, index) => wallet && Object.getPrototypeOf(wallet) === Object.prototype &&
       Object.keys(wallet).length === 2 && Object.hasOwn(wallet, "actorId") && Object.hasOwn(wallet, "chars") &&
@@ -45,7 +41,7 @@ export class BattleEconomy {
 
   initialize(policy: BattlePolicy, participants: readonly BattleOperationActor[]) {
     if (policy.walletMode !== "individual") return;
-    const actors = walletActors(participants);
+    const actors = battleBuilderIds(participants);
     if (!actors.length) throw new Error("Individual economy requires a builder");
     if (this.wallets) return;
     this.wallets = new Map(actors.map(id => [id, 0]));

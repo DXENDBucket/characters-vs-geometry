@@ -7,6 +7,10 @@ export const DEFAULT_BATTLE_PARTICIPANTS = Object.freeze([LOCAL_BATTLE_ACTOR]);
 export const MAX_BATTLE_PARTICIPANTS = 16;
 export const validBattleActorId = (value: unknown): value is string => typeof value === "string" && /^[a-zA-Z0-9_-]{1,64}$/.test(value);
 
+export function battleBuilderIds(participants: readonly BattleOperationActor[]) {
+  return participants.filter(actor => actor.permissions.includes("build")).map(actor => actor.id).sort();
+}
+
 export function validBattleParticipants(value: unknown): value is readonly BattleOperationActor[] {
   return Array.isArray(value) && value.length > 0 && value.length <= MAX_BATTLE_PARTICIPANTS && Array.from(value).every(actor =>
     actor && Object.getPrototypeOf(actor) === Object.prototype && Object.keys(actor).length === 2 &&

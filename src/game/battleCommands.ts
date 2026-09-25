@@ -7,6 +7,7 @@ import { validBattleActorId, validBattleOperation, type BattleOperation } from "
 import { validBattleControl, type BattleControl } from "./battleControls";
 import { validBattleParticipants, type BattleOperationActor } from "./battleParticipants";
 import { validBattlePolicy, type BattlePolicy } from "./battlePolicy";
+import { validateBattlePlayerLoadouts, type BattlePlayerLoadout } from "./battlePlayerConfig";
 
 export interface BattlePointer {
   x: number;
@@ -44,6 +45,7 @@ export interface BattleReplay {
   checkpoint?: SaveGraph;
   participants?: readonly BattleOperationActor[];
   policy?: BattlePolicy;
+  playerLoadouts?: readonly BattlePlayerLoadout[];
 }
 
 export function validateReplay(replay: BattleReplay) {
@@ -57,6 +59,7 @@ export function validateReplay(replay: BattleReplay) {
       !Array.isArray(replay.commands) ||
       (replay.participants !== undefined && !validBattleParticipants(replay.participants)) ||
       (replay.policy !== undefined && !validBattlePolicy(replay.policy))) throw new Error("Unsupported battle replay");
+  validateBattlePlayerLoadouts(replay.playerLoadouts, replay.policy, replay.participants);
   let tick = -1;
   replay.commands.forEach((entry, index) => {
     if (!Number.isSafeInteger(entry.tick) || entry.tick < tick || entry.tick > replay.endTick || entry.sequence !== index)

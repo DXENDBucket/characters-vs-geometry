@@ -16,38 +16,43 @@ export interface TowerMovementRuntime<T extends Tower = Tower> {
 
 export interface TowerShifterRuntime<T extends Tower = Tower> extends TowerMovementRuntime<T> {
   cardTime: number;
+  cooldown?: TowerShifterCooldown;
+}
+
+export interface TowerShifterCooldown { readyAt: number; cooldownStartedAt: number; cooldownDuration: number }
+export function createTowerShifterCooldown(): TowerShifterCooldown {
+  return { readyAt: 0, cooldownStartedAt: 0, cooldownDuration: SHIFTER_BASE_COOLDOWN };
 }
 
 export interface ShifterPresentation { position(tower: Tower, time: number): void }
 export const NO_SHIFTER_PRESENTATION: ShifterPresentation = Object.freeze({ position() {} });
 
 export class TowerShifterSimulation<T extends Tower = Tower> {
-  private readyAt = 0;
-  private cooldownStartedAt = 0;
-  private cooldownDuration = SHIFTER_BASE_COOLDOWN;
+  private readonly localCooldown = createTowerShifterCooldown();
+  private get cooldown() { return this.runtime().cooldown ?? this.localCooldown; }
 
   constructor(private readonly runtime: () => TowerShifterRuntime<T>, public presentation: ShifterPresentation = NO_SHIFTER_PRESENTATION) {}
 
   snapshot() {
-    return { readyAt: this.readyAt, cooldownStartedAt: this.cooldownStartedAt, cooldownDuration: this.cooldownDuration };
+    const state = this.cooldown;
+    return { readyAt: state.readyAt, cooldownStartedAt: state.cooldownStartedAt, cooldownDuration: state.cooldownDuration };
   }
 
   restore(state: ReturnType<TowerShifterSimulation["snapshot"]>) {
-    this.readyAt = state.readyAt;
-    this.cooldownStartedAt = state.cooldownStartedAt;
-    this.cooldownDuration = state.cooldownDuration;
+    const target = this.cooldown;
+    target.readyAt = state.readyAt; target.cooldownStartedAt = state.cooldownStartedAt; target.cooldownDuration = state.cooldownDuration;
   }
 
   reset() {
-    this.readyAt = this.cooldownStartedAt = 0;
-    this.cooldownDuration = SHIFTER_BASE_COOLDOWN;
+    Object.assign(this.cooldown, createTowerShifterCooldown());
   }
 
-  isReady() { return this.runtime().cardTime >= this.readyAt; }
+  isReady() { return this.runtime().cardTime >= this.cooldown.readyAt; }
 
   cooldownRatio() {
     const time = this.runtime().cardTime;
-    return time >= this.readyAt ? 1 : Math.max(0, Math.min(1, (time - this.cooldownStartedAt) / this.cooldownDuration));
+    const state = this.cooldown;
+    return time >= state.readyAt ? 1 : Math.max(0, Math.min(1, (time - state.cooldownStartedAt) / state.cooldownDuration));
   }
 
   plan(command: MoveTowersCommand, towersById = new Map(this.runtime().towers.map(tower => [tower.id, tower]))) {
@@ -62,7 +67,8 @@ export class TowerShifterSimulation<T extends Tower = Tower> {
 
   executeMove(command: MoveTowersCommand): "moved" | "invalid" | "cooldown" {
     const runtime = this.runtime();
-    if (runtime.cardTime < this.readyAt) return "cooldown";
+    const state = this.cooldown;
+    if (runtime.cardTime < state.readyAt) return "cooldown";
     const towersById = new Map(runtime.towers.map(tower => [tower.id, tower]));
     const plan = this.plan(command, towersById);
     if (!plan.valid) return "invalid";
@@ -78,9 +84,9 @@ export class TowerShifterSimulation<T extends Tower = Tower> {
       runtime.occupied.set(gridCellKey(lane, column), tower);
     }
     syncTowerOccupancy(runtime.towers, runtime.occupied);
-    this.cooldownStartedAt = runtime.cardTime;
-    this.cooldownDuration = plan.cooldownMs;
-    this.readyAt = runtime.cardTime + this.cooldownDuration;
+    state.cooldownStartedAt = runtime.cardTime;
+    state.cooldownDuration = plan.cooldownMs;
+    state.readyAt = runtime.cardTime + state.cooldownDuration;
     runtime.onMoved(moves);
     return "moved";
   }

@@ -21,12 +21,13 @@ import { addEnemyToField } from "./enemyRoster";
 import { initializeEnemyHealthLinks } from "./enemyHealth";
 import { ProjectileMotionFrame } from "./projectileMotion";
 import { TowerExtractionPool } from "./towerExtraction";
+import { BattlePlayerResources } from "./battlePlayerResources";
 import { TowerDeploymentSimulation } from "./towerDeploymentRules";
 import { TowerMirrorSimulation } from "./towerMirrorRules";
 import { TargetedEffectSimulation } from "./targetedEffectRules";
 import { ProjectileCircuitSimulation } from "./projectileCircuitRules";
 import { TowerBoardSimulation } from "./towerBoard";
-import { TowerShifterSimulation, type AppliedTowerMove } from "./towerShifterRules";
+import { createTowerShifterCooldown, TowerShifterSimulation, type AppliedTowerMove } from "./towerShifterRules";
 import { TowerPushSimulation } from "./towerPushRules";
 import { TowerStorageSimulation } from "./towerStorageRules";
 import { TowerNullificationSimulation } from "./towerNullificationRules";
@@ -34,7 +35,7 @@ import { TowerSkillSimulation, type TowerSkillSimulationRuntime } from "./towerS
 import { EdgeTowerControls } from "./edgeTowerControls";
 import { BattleEncounter } from "./battleEncounter";
 import { BattlefieldCells } from "./battlefieldCells";
-import { battleCardTime } from "./battleLoadout";
+import { battleCardTime, type BattleCardClocks } from "./battleLoadout";
 import { deploymentCardId } from "./cardIdentity";
 import { towerBehaviorType } from "./towerIdentity";
 import { getHitProductionAmount } from "./towerRules";
@@ -110,7 +111,10 @@ function extendPorts<B extends object, T extends object>(base: B, value: T): B &
 // The full rule graph is assembled once, with live getters so checkpoint roster replacement is safe.
 export class BattleRuntime {
   private actingActor?: string;
-  readonly extraction = new TowerExtractionPool();
+  readonly players: BattlePlayerResources;
+  readonly cardClocks: BattleCardClocks;
+  get currentResources() { return this.players.get(this.actingActor); }
+  get extraction() { return this.currentResources.extraction; }
   readonly projectileMotion = new ProjectileMotionFrame();
   readonly deployment: TowerDeploymentSimulation;
   readonly mirrors: TowerMirrorSimulation;
@@ -150,6 +154,11 @@ export class BattleRuntime {
     factories: Partial<BattleFactories> = {}, readonly observers: BattleRuntimeObservers = {}) {
     if (world.random !== session.random) throw new Error("Battle world and session must share one random stream");
     world.economy.initialize(session.policy, session.participants);
+    this.players = new BattlePlayerResources({ loadout: world.loadout, extraction: new TowerExtractionPool(),
+      shifter: createTowerShifterCooldown(), auto: session.controls, get cardTime() { return world.cardTime; } },
+    session.policy, session.participants, session.initialPlayerLoadouts);
+    const resources = () => this.currentResources;
+    this.cardClocks = { get battleTime() { return world.battleTime; }, get cardTime() { return resources().cardTime; } };
     this.factories = {
       tower: createTowerState, enemy: options => createEnemyState(options, () => world.random.next()),
       boss: createBossState, projectile: createTowerProjectileState, homingProjectile: createHomingTowerProjectileState,
@@ -180,22 +189,23 @@ export class BattleRuntime {
     const movement = ports({
       isCellDeployable: (lane: number, column: number) => this.cellIsDeployable(lane, column),
       onMoved: (moves: AppliedTowerMove[]) => this.towersMoved(moves),
-      get cardTime() { return world.battleTime; }
+      get cardTime() { return world.battleTime; },
+      get cooldown() { return resources().shifter; }
     });
     const placement = ports({
-      get cardStates() { return world.loadout.cards; },
+      get cardStates() { return resources().loadout.cards; },
       get unlimitedFirepower() { return world.options.unlimitedFirepower; },
-      get autoUpgradeEnabled() { return session.controls.autoUpgradeEnabled; },
-      get autoUpgradeReserveChars() { return session.controls.reserveChars; },
-      extraction: this.extraction, getDefinition: getCardDefinition,
-      cardTimeFor: (id: CardId) => battleCardTime(getCardDefinition(id), world),
+      get autoUpgradeEnabled() { return resources().auto.autoUpgradeEnabled; },
+      get autoUpgradeReserveChars() { return resources().auto.reserveChars; },
+      get extraction() { return resources().extraction; }, getDefinition: getCardDefinition,
+      cardTimeFor: (id: CardId) => battleCardTime(getCardDefinition(id), this.cardClocks),
       getChars: () => world.effectiveChars(this.actingActor), spendChars: (amount: number) => world.spendChars(amount, this.actingActor),
       nextTowerOrder: () => world.nextTowerOrder(),
       isCellDeployable: movement.isCellDeployable, createTower,
       updateLevelAuras: () => this.board.refresh()
     });
     const deploymentPorts = extendPorts(placement, {
-      canAutoUpgrade: (tower: TowerState) => !world.economy.individual || tower.ownerId === this.actingActor,
+      canAutoUpgrade: (tower: TowerState) => !world.economy.individual && !this.players.individual || tower.ownerId === this.actingActor,
       executeAutoUpgrade: (definition: CardDefinition, target: TowerState) => this.withActor(target.ownerId, () => {
         if (session.policy.towerAccess === "owner") {
           const affected = deploymentUpgradeTargets({ occupied: world.occupied, unlimitedFirepower: world.options.unlimitedFirepower,
@@ -250,6 +260,7 @@ export class BattleRuntime {
       ...damage, presentation: NO_TOWER_SKILL_PRESENTATION, getDefinition: getCardDefinition,
       scheduleBattleAction: this.schedule, onTowerAction: this.routeTowerAction,
       get gameOver() { return world.gameOver; }, get battlePaused() { return session.controls.paused; },
+      get individualCardClocks() { return session.policy.resourceMode === "individual"; },
       imitateTowerPush: (tower: TowerState, dl: number, dc: number) => {
         const origin = towerCell(tower), target = physicalTowerCell(tower, { lane: origin.lane + dl, column: origin.column + dc });
         this.push.push(tower, target.lane, target.column, true);
@@ -321,7 +332,7 @@ export class BattleRuntime {
     const pipelineActions: PipelineActionRuntime = {
       combat: this.combat, trigger: this.triggers, getDefinition: getCardDefinition,
       skill: (tower, event) => this.skills.imitateSkill(tower, event),
-      targeted: (type, tower, level) => this.targetedEffects.imitate(type, tower, level),
+      targeted: (type, tower, level) => this.withActor(tower.ownerId, () => this.targetedEffects.imitate(type, tower, level)),
       detonate: tower => detonateSlowAuraTower(this.lifecycle, tower),
       reflect: (tower, projectile) => reflectEnemyAttack(this.projectiles, tower, projectile, true)
     };
@@ -332,14 +343,14 @@ export class BattleRuntime {
     });
     this.circuit = new ProjectileCircuitSimulation(() => circuitPorts);
     this.edgeControls = new EdgeTowerControls(() => ({
-      edges: world.edgeTowers, card: world.loadout.byId.get("="),
+      edges: world.edgeTowers, card: resources().loadout.byId.get("="),
       identify: edge => {
         if (session.policy.towerAccess === "owner" && this.actingActor) edge.ownerId = this.actingActor;
         return world.entityIds.identify("edge", edge);
       },
-      time: world.battleTime, cardTime: battleCardTime(getCardDefinition("="), world),
-      chars: world.effectiveChars(this.actingActor), autoEnabled: session.controls.autoUpgradeEnabled, reserve: session.controls.reserveChars,
-      canAutoUpgrade: edge => !world.economy.individual || edge.ownerId === this.actingActor,
+      time: world.battleTime, cardTime: battleCardTime(getCardDefinition("="), this.cardClocks),
+      chars: world.effectiveChars(this.actingActor), autoEnabled: resources().auto.autoUpgradeEnabled, reserve: resources().auto.reserveChars,
+      canAutoUpgrade: edge => !world.economy.individual && !this.players.individual || edge.ownerId === this.actingActor,
       spend: amount => world.spendChars(amount, this.actingActor), changed: () => { this.circuit.sync(); observers.cards?.(); }
     }));
     const boardPorts = ports({
@@ -355,6 +366,7 @@ export class BattleRuntime {
     this.cells = new BattlefieldCells({
       world, removeTower: tower => this.removeTower(tower), updateLevelAuras: () => this.board.refresh()
     });
+    const playerClockMultiplier = (id: string) => this.skills.cardCooldownMultiplier(id);
     this.systems = {
       updateNullification: (time, periodic) => this.nullification.update(time, periodic),
       eraseSealedCell: (lane, column) => this.cells.eraseCell(lane, column),
@@ -365,6 +377,7 @@ export class BattleRuntime {
       updateTowerPush: time => observers.push?.(time), updateTopology: () => observers.topology?.(),
       syncMirrors: () => this.mirrors.syncMirrors(), updateLevelAurasIfNeeded: () => this.board.updateIfNeeded(),
       cardCooldownMultiplier: () => this.skills.cardCooldownMultiplier(),
+      updatePlayerCardClocks: delta => this.players.advanceClocks(delta, playerClockMultiplier),
       gainChars: (amount, x, y, source) => this.gainChars(amount, x, y, source), hasTimedProducers: HAS_TIMED_PRODUCERS,
       getDefinition: getCardDefinition, routeProduction: tower => this.routeTowerAction(tower, { kind: "production" }) ?? false,
       updateArmingTowers: time => {
@@ -408,10 +421,10 @@ export class BattleRuntime {
   operationRuntime(): BattleOperationExecutionRuntime {
     const world = this.world;
     return {
-      towers: world.towers, edges: world.edgeTowers, occupied: world.occupied, cards: world.loadout.cards,
-      unlimitedFirepower: world.options.unlimitedFirepower, autoUpgradeEnabled: this.session.controls.autoUpgradeEnabled,
+      towers: world.towers, edges: world.edgeTowers, occupied: world.occupied, cards: this.currentResources.loadout.cards,
+      unlimitedFirepower: world.options.unlimitedFirepower, autoUpgradeEnabled: this.currentResources.auto.autoUpgradeEnabled,
       ended: world.gameOver, actor: id => this.session.actor(id),
-      authorize: (actor, op, targets) => [...targets.towers, ...targets.edges, ...this.topologyOperationTargets(op, targets.towers)]
+      authorize: (actor, op, targets) => this.players.has(actor.id) && [...targets.towers, ...targets.edges, ...this.topologyOperationTargets(op, targets.towers)]
         .every(target => canControlBattleEntity(this.session.policy, actor.id, target)),
       deployment: this.deployment, targetedEffects: this.targetedEffects, edgeControls: this.edgeControls,
       shifter: this.shifter, skills: this.skills, push: this.push,
@@ -477,14 +490,15 @@ export class BattleRuntime {
     const world = this.world, controls = this.session.controls;
     return {
       ...(world.economy.individual ? { wallets: world.economy.snapshot() } : {}),
+      ...(this.players.individual ? { playerResources: this.players.snapshot() } : {}),
       ...(world.tutorial ? { tutorial: world.tutorialSnapshot() } : {}), nullifiedTowers: this.nullification.snapshot(),
       edgeTowers: world.edgeTowers, simulation: { ...this.session.snapshot(), mirrorNextGroupId: this.mirrors.snapshotNextGroupId() },
       ...world.progressSnapshot(), gameSpeed: controls.speed, selectedCardId, debugModeEnabled: controls.debugEnabled,
       cardDeadlines: world.loadout.deadlines(), autoUpgradeEnabled: controls.autoUpgradeEnabled, autoUpgradeReserveChars: controls.reserveChars,
       towers: world.towers, enemies: world.enemies, boss: world.boss, projectiles: world.projectiles,
       enemyProjectiles: world.enemyProjectiles, mortarProjectiles: world.mortarProjectiles,
-      actions: this.session.actions.snapshot(), storage: this.storage.snapshot(), shifter: this.shifter.snapshot(),
-      reselection: world.loadout.reselection.snapshot(), extraction: this.extraction.value,
+      actions: this.session.actions.snapshot(), storage: this.storage.snapshot(), shifter: { ...this.players.shared.shifter },
+      reselection: world.loadout.reselection.snapshot(), extraction: this.players.shared.extraction.value,
       spellMortarFlights: this.skills.snapshotFlights(), sealedCells: [...world.sealedCells],
       timedCellSeals: world.timedCellSeals.snapshot(), entityIds: world.entityIds.snapshot(), lifecycle: world.lifecycleSnapshot()
     };
@@ -501,6 +515,7 @@ export class BattleRuntime {
       autoUpgradeEnabled: state.autoUpgradeEnabled, reserveChars: state.autoUpgradeReserveChars
     });
     world.economy.restore(state.chars, state.wallets, this.session.policy, this.session.participants);
+    this.players.restore(state.playerResources, this.session.policy, this.session.participants);
     world.restoreProgress(state); world.restoreLifecycle(state.lifecycle, state.battleTime, state.baseIntegrity);
     world.towers = state.towers; this.nullification.restore(state.nullifiedTowers); world.edgeTowers = state.edgeTowers ?? [];
     world.towers = world.towers.filter(tower => {
@@ -576,13 +591,14 @@ export class BattleRuntime {
     this.autoUpgrade();
   }
   autoUpgrade() {
-    if (this.world.economy.individual) {
-      for (const actorId of this.world.economy.actorIds) this.withActor(actorId, () => this.autoUpgradeCurrentActor());
+    if (this.players.individual || this.world.economy.individual) {
+      const actors = this.players.individual ? this.players.actorIds : this.world.economy.actorIds;
+      for (const actorId of actors) this.withActor(actorId, () => this.autoUpgradeCurrentActor());
     } else this.autoUpgradeCurrentActor();
   }
   private autoUpgradeCurrentActor() {
     this.deployment.attemptAutoUpgrades();
-    for (const card of this.world.loadout.cards) if (deploymentCardId(card.definition.id) === "=") this.edgeControls.attemptAutoUpgrade(card);
+    for (const card of this.currentResources.loadout.cards) if (deploymentCardId(card.definition.id) === "=") this.edgeControls.attemptAutoUpgrade(card);
   }
   private towerDamaged(tower: TowerState) {
     const definition = getCardDefinition(towerBehaviorType(tower));
@@ -598,7 +614,7 @@ export class BattleRuntime {
         executeBossAttack(this.boss, action); break;
       case "enemyShot": case "enemyLaser": case "enemyMortar": executeEnemyAttack(this.enemies, action); break;
       case "volley": executeTowerVolley(this.combat, action); break;
-      case "targetedEffect": this.targetedEffects.resolvePendingEffectCard(action.tower); break;
+      case "targetedEffect": this.withActor(action.tower.ownerId, () => this.targetedEffects.resolvePendingEffectCard(action.tower)); break;
       case "shock": executeShockPulse(this.triggers, action); break;
       case "spellMortar": this.skills.launchSpellMortar(action); break;
     }

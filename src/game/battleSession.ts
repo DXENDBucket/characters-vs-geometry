@@ -68,6 +68,7 @@ export class BattleSession {
   get commandEpoch() { return this.epoch; }
   actor(id: string) { return this.actors.find(actor => actor.id === id); }
   get participants() { return this.actors; }
+  get initialPlayerLoadouts() { return structuredClone((this.replay ?? this.recording).playerLoadouts); }
   get policy() { return this.savedPolicy ?? LEGACY_BATTLE_POLICY; }
   get playbackComplete() { return !!this.replay && this.clock.tick >= this.replay.endTick; }
 

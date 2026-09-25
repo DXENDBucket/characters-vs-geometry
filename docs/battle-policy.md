@@ -51,8 +51,9 @@ all use its saved data queue; scene-local paused closures no longer exist. Closi
 a local menu does not mutate pause; explicit single-player Continue can issue an
 authorized resume command. Snapshot-based join/reconnect now use the shared core.
 Optional [owner-only access](battle-ownership.md) and [individual wallets](battle-economy.md)
-are captured policy fields too. Cards, cooldowns, extraction and automatic-upgrade
-settings still remain shared; participant-aware UI and connection handling remain open.
+are captured policy fields too. Optional [individual resources](battle-player-resources.md)
+now isolate cards, cooldowns, extraction and automatic-upgrade settings as well;
+participant-aware UI and connection handling remain open.
 
 ## Compatibility And Verification
 

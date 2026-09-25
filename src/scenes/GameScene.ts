@@ -47,6 +47,7 @@ import {
 } from "../game/battleOperations";
 import type { BattleOperationActor } from "../game/battleParticipants";
 import { LEGACY_BATTLE_POLICY, battleCardAllowed, copyBattlePolicy, type BattlePolicy } from "../game/battlePolicy";
+import type { BattlePlayerLoadout } from "../game/battlePlayerConfig";
 import type { BattleSaveState } from "../game/battleSaveState";
 import { BattleSession, type BattleSessionRuntime } from "../game/battleSession";
 import { BATTLE_RULES_VERSION, setBattlePlayback, setBattleRandom } from "../game/battleSimulation";
@@ -376,7 +377,7 @@ export class GameScene extends Phaser.Scene {
     super(key);
   }
 
-  init(data: { levelId?: string; chapterId?: string; selectedCards?: CardId[]; difficulty?: number; unlimitedFirepower?: boolean; resume?: boolean; seed?: number; replay?: BattleReplay; participants?: readonly BattleOperationActor[]; policy?: BattlePolicy; persistProgress?: boolean; replica?: BattleReplay }) {
+  init(data: { levelId?: string; chapterId?: string; selectedCards?: CardId[]; difficulty?: number; unlimitedFirepower?: boolean; resume?: boolean; seed?: number; replay?: BattleReplay; participants?: readonly BattleOperationActor[]; policy?: BattlePolicy; playerLoadouts?: readonly BattlePlayerLoadout[]; persistProgress?: boolean; replica?: BattleReplay }) {
     const replica = data.replica ? structuredClone(data.replica) : undefined;
     if (replica) {
       validateReplay(replica);
@@ -417,6 +418,7 @@ export class GameScene extends Phaser.Scene {
       difficultyVersion: DIFFICULTY_VERSION,
       unlimitedFirepower: this.unlimitedFirepower, selectedCards,
       seed, debug: debugModeEnabled, ...(data.participants ? { participants: data.participants } : {}),
+      ...(data.playerLoadouts ? { playerLoadouts: data.playerLoadouts } : {}),
       ...(policy ? { policy } : {}) }, playback, Boolean(replica));
     this.session = context.session;
     this.resetCommandAuthority();
@@ -575,7 +577,8 @@ export class GameScene extends Phaser.Scene {
         selectedCards: [...this.selectedCardIds],
         difficulty: this.difficulty,
         unlimitedFirepower: this.unlimitedFirepower,
-        policy: this.session.policy, participants: this.session.snapshot().participants, persistProgress: this.profile.enabled
+        policy: this.session.policy, participants: this.session.snapshot().participants,
+        playerLoadouts: this.session.initialPlayerLoadouts, persistProgress: this.profile.enabled
       }); },
       exit: () => this.handleOverlayAction()
     });

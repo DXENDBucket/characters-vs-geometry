@@ -53,8 +53,8 @@ persisted receipt, without spending again.
 
 ## Remaining Boundaries
 
-Loadouts, card/reselection/shifter cooldowns, extraction pools and automatic-upgrade
-settings are still shared. A shared card cooldown can currently let an earlier
-account consume the opportunity to upgrade; this is not independent player loadouts.
-Splitting those resources and adding participant-aware UI/input are the next work.
+Wallet-only mode still shares card cooldowns and can let an earlier account consume
+the opportunity to upgrade. Optional [individual player resources](battle-player-resources.md)
+now isolate loadouts/clocks, tool cooldowns, extraction and automatic-upgrade settings.
+Participant-aware UI/input and transport lifecycle are still unfinished.
 Neither this module nor passing transport tests constitute a playable multiplayer mode.

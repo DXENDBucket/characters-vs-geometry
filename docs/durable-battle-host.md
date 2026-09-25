@@ -60,7 +60,7 @@ and oversized requests at the transport before allocating/queueing them.
 
 ## Verification
 
-- `npm run test:host` runs fourteen cases with the real independent core and replica:
+- `npm run test:host` runs fifteen cases with the real independent core and replica:
   barrier ordering, lost acknowledgments, continuation, write failures before/after
   persistence, bounded receipt tails, quota preservation, conflicting/expired
   requests, malformed checkpoints, paused and terminal states, participant

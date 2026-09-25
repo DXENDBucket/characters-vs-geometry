@@ -12,16 +12,25 @@ import { damageBoss, damageEnemy } from "./unitLifecycle";
 export function createBattleControlRuntime(runtime: BattleRuntime, actorId: () => string | undefined = () => undefined): BattleControlRuntime {
   const { world, session, observers } = runtime;
   return {
-    state: session.controls,
+    state: {
+      get paused() { return session.controls.paused; }, set paused(value: boolean) { session.controls.paused = value; },
+      get speed() { return session.controls.speed; }, set speed(value: number) { session.controls.speed = value; },
+      get debugEnabled() { return session.controls.debugEnabled; }, set debugEnabled(value: boolean) { session.controls.debugEnabled = value; },
+      get autoUpgradeEnabled() { return runtime.currentResources.auto.autoUpgradeEnabled; },
+      set autoUpgradeEnabled(value: boolean) { runtime.currentResources.auto.autoUpgradeEnabled = value; },
+      get reserveChars() { return runtime.currentResources.auto.reserveChars; },
+      set reserveChars(value: number) { runtime.currentResources.auto.reserveChars = value; }
+    },
     get ended() { return world.gameOver; },
     actor: id => session.actor(id), authorize: (actor, control) =>
-      control.type !== "debugChars" || world.economy.hasWallet(actor.id),
+      (control.type !== "debugChars" || world.economy.hasWallet(actor.id)) &&
+      (!["reselect", "reserve", "autoUpgradeEnabled", "debugChars"].includes(control.type) || runtime.players.has(actor.id)),
     get slotCount() { return session.policy.slotCount; },
     cardAllowed: id => battleCardAllowed(session.policy, id),
     get reselectAvailable() { return !isTutorialMechanic(world.options.level.specialMechanic) && session.policy.reselectEnabled; },
-    get reselectReady() { return world.loadout.reselection.isReady(world.battleTime); },
+    get reselectReady() { return runtime.currentResources.loadout.reselection.isReady(world.battleTime); },
     reselect: cards => {
-      if (!world.loadout.reselect(cards.map(getCardDefinition), world)) return false;
+      if (!runtime.currentResources.loadout.reselect(cards.map(getCardDefinition), runtime.cardClocks)) return false;
       observers.controlChanged?.("reselect");
       return true;
     },
@@ -38,7 +47,7 @@ export function createBattleControlRuntime(runtime: BattleRuntime, actorId: () =
     autoUpgradeChanged: () => { runtime.autoUpgrade(); observers.controlChanged?.("autoUpgradeEnabled"); },
     debugChanged: () => observers.controlChanged?.("debugMode"),
     debugChars: () => {
-      world.loadout.resetCooldowns(world);
+      runtime.currentResources.loadout.resetCooldowns(runtime.cardClocks);
       world.baseIntegrity += 1000;
       world.invalidateFlawless();
       const amount = world.gainChars(10000, actorId());

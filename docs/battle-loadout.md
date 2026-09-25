@@ -53,8 +53,8 @@ did not add a new snapshot or rules version.
 - Dependency tests prevent the model and definition registry from acquiring a
   runtime rendering dependency.
 
-This is a real card-state boundary, not a complete headless game. The scene still
-rebuilds views after a successful reselect, while combat controllers require live
-tower/projectile/render adapters. Independent participant loadouts, wallets and
-ownership policies, plus complete headless execution and synchronization, remain
-part of the unfinished [multiplayer readiness](multiplayer-readiness.md) goal.
+The [independent runtime](independent-battle.md) now uses these same card models
+without display objects. Optional [player resources](battle-player-resources.md)
+give each builder distinct initial/current decks and cooldown history, with
+wire/replay and host-restart verification. Participant-aware views and actual
+peer-input routing remain part of the unfinished [multiplayer readiness](multiplayer-readiness.md) goal.

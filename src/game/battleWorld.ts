@@ -80,6 +80,7 @@ export interface BattleWorldSystems<E extends BattleEntities = BattleEntities> e
   syncMirrors(): void;
   updateLevelAurasIfNeeded(): void;
   cardCooldownMultiplier(): number;
+  updatePlayerCardClocks?(delta: number): void;
   gainChars(amount: number, x: number, y: number, source?: E["tower"]): void;
   hasTimedProducers: boolean;
   getDefinition(id: CardId): CardDefinition;
@@ -189,6 +190,7 @@ export class BattleWorld<E extends BattleEntities = BattleEntities> implements B
       systems.syncMirrors();
       systems.updateLevelAurasIfNeeded();
       this.cardTime += delta * systems.cardCooldownMultiplier();
+      systems.updatePlayerCardClocks?.(delta);
       this.updateNaturalProduction(systems);
       if (systems.hasTimedProducers) this.updateProducers(systems);
       systems.updateArmingTowers(this.battleTime);
