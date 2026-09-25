@@ -36,6 +36,9 @@ rules from browser input and rendering, not a multiplayer implementation.
   Particle and Boss rotation randomness remains cosmetic and separate.
 - All modes now use `BattleActionQueue` for delayed combat. S projectile progress
   and impacts are simulation-owned, not Phaser tween completion callbacks.
+- `BattleSession` owns the clock, RNG, action queue, command ordering and recording
+  for the actual single-player scene. World simulation is still supplied by the
+  scene callback. See [Battle Session Orchestration](battle-session.md).
 - `BattleCommand` records normalized board coordinates, modifiers, card/tool
   selection, skills, erasure, reserve changes, reselection, debug actions and
   tutorial progression. Commands run between ticks, ordered by tick and sequence.

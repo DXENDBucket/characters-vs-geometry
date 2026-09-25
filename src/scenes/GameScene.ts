@@ -9,9 +9,11 @@ import { syncFriendlyRangeVisual, syncTowerAutoUpgradeVisual } from "../game/tow
 import { effectiveTowerLevel, getHitProductionAmount, getProductionAmount, towerFacingDirection } from "../game/towerRules";
 import { syncTowerCopies } from "../game/towerCopy";
 import { syncTowerFormVisual } from "../game/towers";
-import { BattleClock, BattleRandom, BATTLE_STEP_MS, BATTLE_RULES_VERSION, canRestoreBattleVersion, setBattleRandom, setBattlePlayback } from "../game/battleSimulation";
-import { validateReplay, type BattleCommand, type BattlePointer, type BattleReplay, type RecordedBattleCommand } from "../game/battleCommands";
-import { BattleActionQueue, type BattleAction, type ScheduleBattleAction } from "../game/battleActions";
+import { BATTLE_STEP_MS, BATTLE_RULES_VERSION, setBattleRandom, setBattlePlayback } from "../game/battleSimulation";
+import { validateReplay, type BattleCommand, type BattlePointer, type BattleReplay } from "../game/battleCommands";
+import type { BattleAction, ScheduleBattleAction } from "../game/battleActions";
+import { BattleSession, type BattleSessionRuntime } from "../game/battleSession";
+import { battleChecksum } from "../game/battleChecksum";
 import { TimedCellSeals } from "../game/timedCellSeals";
 import { drawTimedCellSeals } from "../render/timedCellSeals";
 import { createCellSealMark } from "../render/cellSealMark";
@@ -237,15 +239,17 @@ export class GameScene extends Phaser.Scene {
   private edgeControls!: EdgeTowerControls;
   private circuitEdges!: Phaser.GameObjects.Graphics;
   private enemyHealthLinks!: Phaser.GameObjects.Graphics;
-  private simulation = new BattleClock();
-  private random = new BattleRandom(0);
-  private replay!: BattleReplay;
-  private playback?: BattleReplay;
-  private replayCursor = 0;
-  private executingCommand = false;
+  private session!: BattleSession;
+  private get simulation() { return this.session.clock; }
+  private get playback() { return this.session?.playback; }
+  private get actionQueue() { return this.session.actions; }
+  private readonly sessionRuntime: BattleSessionRuntime = {
+    step: () => this.stepBattle(),
+    executeCommand: command => this.executeCommand(command),
+    canAdvance: () => !this.gameOver && !this.battlePaused && !this.menuOpen && !this.reselectOpen
+  };
   private tutorialAdvance?: () => void;
   private rewardEncyclopedia?: EncyclopediaPanel;
-  private actionQueue = new BattleActionQueue();
   private resumeSave?: SurvivalSave;
   private resumeRequested = false;
   private readonly saveOnPageHide = () => { this.saveSurvivalBattle(); };
@@ -377,26 +381,20 @@ export class GameScene extends Phaser.Scene {
   }
 
   init(data: { levelId?: string; chapterId?: string; selectedCards?: CardId[]; difficulty?: number; unlimitedFirepower?: boolean; resume?: boolean; seed?: number; replay?: BattleReplay }) {
-    this.playback = data.replay ? structuredClone(data.replay) : undefined;
-    if (this.playback) {
-      validateReplay(this.playback);
-      this.playback.difficulty = migrateDifficulty(this.playback.difficulty, this.playback.difficultyVersion);
-      this.playback.difficultyVersion = DIFFICULTY_VERSION;
-      data = { ...data, ...this.playback, resume: false };
+    const playback = data.replay ? structuredClone(data.replay) : undefined;
+    if (playback) {
+      validateReplay(playback);
+      playback.difficulty = migrateDifficulty(playback.difficulty, playback.difficultyVersion);
+      playback.difficultyVersion = DIFFICULTY_VERSION;
+      data = { ...data, ...playback, resume: false };
     }
-    this.simulation = new BattleClock();
-    this.random = new BattleRandom(data.seed ?? crypto.getRandomValues(new Uint32Array(1))[0]);
-    setBattleRandom(this, this.random);
-    setBattlePlayback(this, Boolean(this.playback));
+    const seed = (data.seed ?? crypto.getRandomValues(new Uint32Array(1))[0]) >>> 0;
     this.tutorialAdvance = undefined;
     this.rewardEncyclopedia = undefined;
-    this.replayCursor = 0;
-    this.executingCommand = false;
     this.resumeRequested = Boolean(data.resume);
     this.resumeSave = data.resume && data.levelId ? readSurvivalSave(data.levelId) : undefined;
     if (this.resumeSave) data = { ...data, difficulty: this.resumeSave.difficulty,
       unlimitedFirepower: this.resumeSave.unlimitedFirepower, selectedCards: this.resumeSave.selectedCards };
-    this.actionQueue = new BattleActionQueue();
     this.levelId = data.levelId ?? "1-1";
     this.chapterId = data.chapterId ?? chapterIdForLevelId(this.levelId);
     this.levelConfig = getLevelConfig(this.levelId);
@@ -404,14 +402,16 @@ export class GameScene extends Phaser.Scene {
     const tutorialMechanic = this.levelConfig.specialMechanic;
     const isTutorial = isTutorialMechanic(tutorialMechanic);
     this.unlimitedFirepower = isTutorial ? false : Boolean(data.unlimitedFirepower);
-    this.debugModeEnabled = this.playback?.debug ?? isDebugModeEnabled();
+    this.debugModeEnabled = playback?.debug ?? isDebugModeEnabled();
     this.difficultyConfig = this.adjustDifficultyForUnlimitedFirepower(getDifficultyConfig(this.difficulty));
     if (isTutorial) this.difficultyConfig = getDifficultyConfig(1);
-    this.selectedCardIds = this.sanitizeLoadout(tutorialLoadout(tutorialMechanic, data.selectedCards));
-    this.replay = { version: BATTLE_RULES_VERSION, levelId: this.levelId, difficulty: this.difficulty,
+    this.selectedCardIds = this.sanitizeLoadout(tutorialLoadout(tutorialMechanic, data.selectedCards), Boolean(playback));
+    this.session = new BattleSession({ version: BATTLE_RULES_VERSION, levelId: this.levelId, difficulty: this.difficulty,
       difficultyVersion: DIFFICULTY_VERSION,
       unlimitedFirepower: this.unlimitedFirepower, selectedCards: [...this.selectedCardIds],
-      seed: this.random.state, debug: this.debugModeEnabled, endTick: 0, commands: [] };
+      seed, debug: this.debugModeEnabled }, playback);
+    setBattleRandom(this, this.session.random);
+    setBattlePlayback(this, Boolean(playback));
     this.setCardStates([]);
     this.selectedCardId = this.selectedCardIds.includes("X") ? "X" : this.selectedCardIds[0];
     this.towers = [];
@@ -698,14 +698,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    this.applyReplayCommands();
-    if (this.playback && this.simulation.tick >= this.playback.endTick) return;
-    this.simulation.advance(delta * this.gameSpeed, () => {
-      this.stepBattle();
-      this.applyReplayCommands();
-      return !this.gameOver && !this.battlePaused && !this.menuOpen && !this.reselectOpen &&
-        (!this.playback || this.simulation.tick < this.playback.endTick);
-    });
+    if (!this.session.advance(delta * this.gameSpeed, this.sessionRuntime)) return;
     this.syncBattleOverlays();
     this.shifter.syncSelectionVisuals();
     this.syncPlacementGhost(this.input.activePointer);
@@ -2614,8 +2607,7 @@ export class GameScene extends Phaser.Scene {
   private refreshBattleSettings() {
     if (!this.playback) {
       const command: BattleCommand = { type: "debugMode", enabled: isDebugModeEnabled() };
-      this.replay.commands.push({ tick: this.simulation.tick, sequence: this.replay.commands.length, command });
-      this.executeCommand(command);
+      this.session.submit(command, this.sessionRuntime.executeCommand);
     }
     refreshGameHudSettings(this.ui, this.levelId, this.difficulty, this.debugModeEnabled);
     this.updateCards();
@@ -2840,10 +2832,10 @@ export class GameScene extends Phaser.Scene {
     return getCardDefinition(id);
   }
 
-  private sanitizeLoadout(selectedCards?: CardId[]) {
-    const slotCount = this.playback ? CARD_SLOT_COUNT : unlockedCardSlotCount();
+  private sanitizeLoadout(selectedCards?: CardId[], playback = Boolean(this.playback)) {
+    const slotCount = playback ? CARD_SLOT_COUNT : unlockedCardSlotCount();
     const validCards = uniqueLoadout((selectedCards ?? defaultCardLoadout).filter((id, index, cards): id is CardId => {
-      return hasCardDefinition(id) && (this.playback || isCardUnlocked(id)) && cards.indexOf(id) === index;
+      return hasCardDefinition(id) && (playback || isCardUnlocked(id)) && cards.indexOf(id) === index;
     }), slotCount);
 
     return validCards.length > 0
@@ -2883,7 +2875,7 @@ export class GameScene extends Phaser.Scene {
     return {
       nullifiedTowers: this.nullification.snapshot(),
       edgeTowers: this.edgeTowers,
-      simulation: { version: BATTLE_RULES_VERSION, clock: this.simulation.snapshot(), randomState: this.random.state,
+      simulation: { ...this.session.snapshot(),
         mirrorNextGroupId: this.mirrors.snapshotNextGroupId() },
       bossPhaseIndex: this.bossPhaseIndex, bossPhaseStartedAt: this.bossPhaseStartedAt, bossHomePosition: this.bossHomePosition,
       levelElapsed: this.levelElapsed, battleTime: this.battleTime, cardTime: this.cardTime,
@@ -2918,15 +2910,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private applyBattleSave(state: BattleSaveState) {
-    if (state.simulation) {
-      if (!canRestoreBattleVersion(state.simulation.version)) throw new Error("Incompatible battle rules");
-      this.simulation.restore(state.simulation.clock);
-      this.random.state = state.simulation.randomState;
-    } else {
-      this.simulation.restore({ tick: Math.floor(state.battleTime / BATTLE_STEP_MS), remainder: 0 });
-    }
-    if (this.playback && (this.playback.endTick < this.simulation.tick ||
-      this.playback.commands.some(entry => entry.tick < this.simulation.tick))) throw new Error("Replay predates checkpoint");
+    this.session.restore(state.simulation, state.battleTime);
     this.bossPhaseIndex = state.bossPhaseIndex ?? 0;
     this.bossPhaseStartedAt = state.bossPhaseStartedAt ?? 0;
     this.levelElapsed = state.levelElapsed;
@@ -2993,13 +2977,12 @@ export class GameScene extends Phaser.Scene {
     this.updateCards();
     this.updateHud();
     drawEnemyHealthLinks(this.enemyHealthLinks, this.enemies, this.battleTime);
-    if (!this.playback) this.replay = { ...this.replay, selectedCards: [...this.selectedCardIds],
-      checkpoint: captureBattleSnapshot(this.battleState()), commands: [] };
+    if (!this.playback) this.session.startRecordingFromCheckpoint(captureBattleSnapshot(this.battleState()), this.selectedCardIds);
   }
 
   /** Commands execute between ticks; sequence preserves multiple operations on the same tick. */
   private command(command: BattleCommand) {
-    if (this.executingCommand) return false;
+    if (this.session.executingCommand) return false;
     if (this.playback || this.gameOver || this.menuOpen || this.reselectOpen) return true;
     this.submitBattleCommand(command);
     return true;
@@ -3007,41 +2990,34 @@ export class GameScene extends Phaser.Scene {
 
   submitBattleCommand(command: BattleCommand) {
     if (this.playback || this.gameOver || this.menuOpen || this.reselectOpen) return;
-    const entry: RecordedBattleCommand = { tick: this.simulation.tick, sequence: this.replay.commands.length,
-      command: structuredClone(command) };
-    validateReplay({ ...this.replay, commands: [ { ...entry, sequence: 0 } ], endTick: entry.tick });
-    this.replay.commands.push(entry);
-    this.executeCommand(entry.command);
+    this.session.submit(command, this.sessionRuntime.executeCommand);
   }
 
   private executeCommand(command: BattleCommand) {
-    this.executingCommand = true;
-    try {
-      switch (command.type) {
-        case "tutorialAdvance": this.battlefield.ui(() => this.tutorialAdvance?.()); break;
-        case "cancelTargeting": this.cancelSpellMortarTargeting(); break;
-        case "debugMode":
-          this.debugModeEnabled = command.enabled;
-          if (!command.enabled) this.debugDamageMode = null;
-          break;
-        case "pointer": this.handlePointerDown(this.replayPointer(command.pointer)); break;
-        case "selectCard": this.selectCard(command.id); break;
-        case "tool": this.runToolControlAction(command.action); break;
-        case "reserve": this.setAutoUpgradeReserve(command.value); break;
-        case "reserveConfirm":
-          this.autoUpgradeReserveInputFocused = false;
-          this.attemptAutoUpgrades(); this.updateCards(); break;
-        case "reselect":
-          this.cancelSpellMortarTargeting();
-          if (command.cards.length && this.reselection.confirm(this.battleTime, this.cardStates)) {
-            this.selectedCardIds = this.sanitizeLoadout(command.cards);
-            this.cardList?.destroy(); this.createCardList();
-            for (const card of this.cardStates) card.readyAt = this.reselection.cardReadyAt(card.definition.id, this.cardTimeFor(card.definition.id), this.battleTime);
-            this.selectCard(this.selectedCardIds.includes(this.selectedCardId) ? this.selectedCardId : this.selectedCardIds[0]);
-          }
-          break;
-      }
-    } finally { this.executingCommand = false; }
+    switch (command.type) {
+      case "tutorialAdvance": this.battlefield.ui(() => this.tutorialAdvance?.()); break;
+      case "cancelTargeting": this.cancelSpellMortarTargeting(); break;
+      case "debugMode":
+        this.debugModeEnabled = command.enabled;
+        if (!command.enabled) this.debugDamageMode = null;
+        break;
+      case "pointer": this.handlePointerDown(this.replayPointer(command.pointer)); break;
+      case "selectCard": this.selectCard(command.id); break;
+      case "tool": this.runToolControlAction(command.action); break;
+      case "reserve": this.setAutoUpgradeReserve(command.value); break;
+      case "reserveConfirm":
+        this.autoUpgradeReserveInputFocused = false;
+        this.attemptAutoUpgrades(); this.updateCards(); break;
+      case "reselect":
+        this.cancelSpellMortarTargeting();
+        if (command.cards.length && this.reselection.confirm(this.battleTime, this.cardStates)) {
+          this.selectedCardIds = this.sanitizeLoadout(command.cards);
+          this.cardList?.destroy(); this.createCardList();
+          for (const card of this.cardStates) card.readyAt = this.reselection.cardReadyAt(card.definition.id, this.cardTimeFor(card.definition.id), this.battleTime);
+          this.selectCard(this.selectedCardIds.includes(this.selectedCardId) ? this.selectedCardId : this.selectedCardIds[0]);
+        }
+        break;
+    }
   }
 
   private replayPointer(pointer: BattlePointer): Phaser.Input.Pointer {
@@ -3049,34 +3025,12 @@ export class GameScene extends Phaser.Scene {
       rightButtonDown: () => pointer.right } as Phaser.Input.Pointer;
   }
 
-  private applyReplayCommands() {
-    if (!this.playback) return;
-    while (this.replayCursor < this.playback.commands.length) {
-      const entry = this.playback.commands[this.replayCursor];
-      if (entry.tick > this.simulation.tick) break;
-      this.replayCursor++;
-      this.executeCommand(entry.command);
-    }
-  }
-
   exportReplay(): BattleReplay {
-    return structuredClone(this.playback ?? { ...this.replay, endTick: this.simulation.tick });
+    return this.session.exportReplay();
   }
 
   battleChecksum() {
-    const state = this.battleState();
-    // Render accumulator and playback speed are not simulation state.
-    state.simulation!.clock.remainder = 0;
-    state.gameSpeed = 1;
-    const graph = captureBattleSnapshot(state);
-    for (const node of graph.nodes) {
-      if (node.kind === "boss") for (const key of ["rotationX", "rotationY", "rotationZ", "velocityX", "velocityY", "velocityZ",
-        "targetVelocityX", "targetVelocityY", "targetVelocityZ", "nextTurnIn"]) delete node.data[key];
-    }
-    let hash = 2166136261;
-    const text = JSON.stringify(graph);
-    for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 16777619);
-    return (hash >>> 0).toString(16).padStart(8, "0");
+    return battleChecksum(this.battleState());
   }
 
   private isInsideBoard(x: number, y: number) {

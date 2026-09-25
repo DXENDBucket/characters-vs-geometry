@@ -37,9 +37,11 @@ transport-neutral authority and synchronization gates above.
 - Data boundaries: pure tower, enemy, projectile and Boss construction, explicit
   snapshot fields, and dependency-boundary tests exist. Battle controllers and
   relationships still contain live references; gate 1 is only partial.
-- Determinism: fixed steps, seeded battle RNG, delayed action queue, recordings,
-  checkpoints and Chromium replay comparisons exist. The scene still owns the
-  simulation, and recordings contain single-player UI intent; gates 2-3 are open.
+- Determinism: the integrated `BattleSession` now owns fixed steps, seeded battle
+  RNG, delayed action queue, recording and checkpoint timing. Independent session
+  tests and unchanged browser replay checksums verify this extraction. World
+  simulation still runs in the scene callback, and recordings contain single-player
+  UI intent; gates 2-3 are open. See [session boundaries](battle-session.md).
 - Identity: tower placement IDs exist, but remaining units and Boss parts need a
   common identity lifecycle. Gate 4 is open.
 - Networking: no authority protocol, participant policy, acknowledgment/resync

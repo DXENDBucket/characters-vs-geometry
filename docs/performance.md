@@ -125,3 +125,8 @@ Selection order, damage rules and replay checksums remain unchanged.
    named enemy, tower and Boss SP skills now share their numeric definitions.
 4. Split oversized scene/runtime responsibilities along those boundaries, with
    replay checks at each step, before introducing multiplayer authority rules.
+
+Session timing, randomness, command recording and checkpoint orchestration have
+now moved from `GameScene` to an integrated `BattleSession`. The actual world tick
+is still a scene callback. See [Battle Session Orchestration](battle-session.md).
+This is an ownership change with unchanged replay checksums, not an FPS claim.

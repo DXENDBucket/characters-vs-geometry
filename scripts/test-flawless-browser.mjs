@@ -60,7 +60,7 @@ try {
     scene.endLevel();
     check(progress.bestFlawlessDifficulty("1-5") === undefined, "Unlimited firepower awarded flawless");
     scene = battle("1-6");
-    const replay = structuredClone(scene.replay);
+    const replay = scene.exportReplay();
     scene = start("GameScene", { replay });
     scene.endLevel();
     check(!progress.isLevelCompleted("1-6"), "Playback wrote progress");

@@ -4,14 +4,14 @@ import type { LoadoutReselection } from "./loadoutReselection";
 import type { TowerShifterController } from "./towerShifter";
 import type { TowerStorageController } from "./towerStorage";
 import type { SpellMortarFlight } from "./towerSkills";
-import type { BattleClockState } from "./battleSimulation";
+import type { BattleSessionSnapshot } from "./battleSession";
 import type { TimedCellSeal } from "./timedCellSeals";
 import type { NullifiedTowers } from "./towerNullification";
 
 export interface BattleSaveState {
   nullifiedTowers?: NullifiedTowers;
   edgeTowers?: EdgeTower[];
-  simulation?: { version: number; clock: BattleClockState; randomState: number; mirrorNextGroupId: number };
+  simulation?: BattleSessionSnapshot & { mirrorNextGroupId: number };
   bossPhaseIndex?: number;
   bossPhaseStartedAt?: number;
   bossHomePosition?: { x: number; y: number } | null;
