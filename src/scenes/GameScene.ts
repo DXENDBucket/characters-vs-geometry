@@ -702,7 +702,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (!this.session.advance(delta, this.sessionRuntime)) return;
-    this.syncHost?.publish(false);
+    this.syncHost?.publish(this.gameOver);
     this.refreshBattleViews();
   }
 

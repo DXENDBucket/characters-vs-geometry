@@ -272,6 +272,39 @@ test("paused states restore without losing authoritative controls", async () => 
   await f.host.close();
 });
 
+test("a lethal tick publishes its terminal frame below the batching threshold, after persistence", async () => {
+  const f = await fixture();
+  const saved = JSON.parse(f.stored), decoded = decodeSyncMessage(saved.snapshot);
+  const runtime = createIndependentBattle(decoded.replay, { checkpoint: decoded.replay.checkpoint });
+  const { BOARD_X } = load("src/config.ts");
+  runtime.world.baseIntegrity = 1;
+  runtime.spawnEnemy({ kind: "circle", lane: 3, x: BOARD_X - 35, time: runtime.world.battleTime,
+    waveNumber: 1, waveWeight: 0, finalDamageReduction: 0 });
+  const data = runtime.snapshot("A");
+  saved.snapshot.replay.checkpoint = encodeBattleWireGraph(captureBattleSnapshot(data));
+  saved.snapshot.checksum = battleChecksum(data);
+  await f.restart(JSON.stringify(saved));
+  const before = f.host.timing.tick, block = gate();
+  f.hook(() => block.promise);
+  const advance = f.host.advance(BATTLE_STEP_MS);
+  await Promise.resolve(); await Promise.resolve();
+  assert.equal(f.outbound.length, 0);
+  assert.equal(f.host.timing.ended, false);
+  block.resolve(); await advance;
+  assert.equal(f.host.timing.ended, true);
+  assert.equal(f.host.timing.tick, before + 1);
+  assert.equal(f.outbound.length, 1, "The final frame must not wait for another five ticks");
+  assert.equal(f.outbound[0].type, "frame");
+  await f.pump();
+  assert.equal(f.replica.world.gameOver, true);
+  assert.equal(f.replica.session.clock.tick, before + 1);
+  assert.equal(battleChecksum(f.replica.snapshot("A")), JSON.parse(f.stored).snapshot.checksum);
+  await f.host.advance(1000); await f.pump();
+  assert.equal(f.outbound.length, 0);
+  assert.equal(f.host.timing.tick, before + 1);
+  await f.host.close();
+});
+
 test("terminal restart still returns prior receipts but rejects new actions without changing the world", async () => {
   const f = await fixture(); await f.send(deploy);
   const saved = JSON.parse(f.stored), decoded = decodeSyncMessage(saved.snapshot);

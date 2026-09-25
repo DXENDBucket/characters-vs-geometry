@@ -173,7 +173,8 @@ export class DurableBattleHost implements ScheduledBattleHost {
     if (!Number.isFinite(delta) || delta < 0 || delta > 1000) return Promise.reject(new Error("Invalid host frame delta"));
     return this.run(() => {
       this.runtime.session.advance(delta, this.runtime.sessionRuntime);
-      this.sync.publish(false);
+      // A terminal tick has no later batch to flush it; retain the same save barrier.
+      this.sync.publish(this.runtime.world.gameOver);
     });
   }
 

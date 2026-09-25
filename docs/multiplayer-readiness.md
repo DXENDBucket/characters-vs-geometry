@@ -222,6 +222,14 @@ or production transport acceptance claim.
 
 ## Next Work
 
+The crowded-to-defeat investigation found a terminal publication gap: a lethal
+tick fewer than six ticks after the previous batch could stop the host before its
+final frame was sent. Durable and scene hosts now force terminal publication;
+the durable path retains its persistence barrier. A regression drives a real
+enemy breach in one tick, verifies no output before saving, and checks the client
+receives the exact terminal state without reconnecting. High-population catch-up
+and input availability remain a separate unresolved load issue.
+
 1. Address full-checkpoint commit overhead without weakening durability and
    remaining crowded-rendering/catch-up hotspots. Rendered saturated pipelines,
    mortars and repeated wall-clock sessions now have regression coverage; retained
