@@ -131,6 +131,13 @@ and oversized requests at the transport before allocating/queueing them.
   settled boundary within a run. Wall-clock runs have different tick counts and
   are not a replacement for the fixed-tick cross-engine checksum gate. Chromium,
   Firefox and WebKit pass this scheduled integration path.
+- `test-network-pressure-browser.mjs --durable` exercises sustained file commits
+  together with live remote rendering, delayed polling, a receive hold and a lost
+  receipt/reconnect. It compares the actual file, committed host and client before
+  closing, then restores a new durable host, retries the same request and checks
+  continued simulation against an independent core. Chromium/Firefox/WebKit pass
+  this moderate-roster fixture; write volume remains high. See
+  [continuous network pressure](performance.md#continuous-network-pressure).
 - These tests are additions to existing cross-engine and command/replay gates,
   not evidence that participant resources, player input UI or every content path
   is already multiplayer-ready.

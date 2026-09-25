@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { randomUUID } from "node:crypto";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import { load, captureBattleSnapshot, battleChecksum } from "./helpers/battle-runtime.mjs";
 import { PRESSURE_CARDS, populatePipelinePressure, pipelinePressureCensus } from "./helpers/pipeline-pressure.mjs";
@@ -8,20 +12,25 @@ import { PRESSURE_CARDS, populatePipelinePressure, pipelinePressureCensus } from
 const option = name => process.argv.find(value => value.startsWith(`--${name}=`))?.slice(name.length + 3);
 const seconds = Number(option("seconds") ?? 60), delay = Number(option("delay") ?? 25);
 const engine = option("engine") ?? "chromium", small = process.argv.includes("--small");
+const durable = process.argv.includes("--durable");
 assert.ok(Number.isSafeInteger(seconds) && seconds >= 15 && seconds <= 600);
 assert.ok(Number.isSafeInteger(delay) && delay >= 0 && delay <= 250);
 assert.ok(["chromium", "firefox", "webkit"].includes(engine));
 const playwright = await import(option("playwright") ? pathToFileURL(option("playwright")).href : "playwright");
 const { createIndependentBattle } = load("src/game/independentBattle.ts");
-const { BattleAuthority } = load("src/game/battleAuthority.ts");
+const { BattleAuthority, BATTLE_PROTOCOL_VERSION } = load("src/game/battleAuthority.ts");
 const { BattleSyncHost } = load("src/game/battleSyncHost.ts");
 const { BattleHostLoop } = load("src/game/battleHostLoop.ts");
+const { DurableBattleHost } = load("src/game/durableBattleHost.ts");
+const { encodeBattleWireGraph } = load("src/game/battleWireGraph.ts");
+const { decodeSyncMessage } = load("src/game/battleSyncProtocol.ts");
+const { createBattleCheckpointStore } = createRequire(import.meta.url)("../electron/battle-checkpoint.cjs");
 const { BATTLE_RULES_VERSION, BATTLE_STEP_MS } = load("src/game/battleSimulation.ts");
 const { LEGACY_BATTLE_POLICY } = load("src/game/battlePolicy.ts");
 const { upgradeTowerLevel, applyTowerUpgradeStats } = load("src/game/towerUpgradeRules.ts");
 const { getCardDefinition } = load("src/registry/cardDefinitions.ts");
 const config = load("src/config.ts"), url = option("url") ?? "http://127.0.0.1:5173";
-const runtime = createIndependentBattle({ version: BATTLE_RULES_VERSION, levelId: "IF-1",
+let runtime = createIndependentBattle({ version: BATTLE_RULES_VERSION, levelId: "IF-1",
   difficultyVersion: config.DIFFICULTY_VERSION, difficulty: 3, seed: 178, debug: false,
   unlimitedFirepower: false, selectedCards: PRESSURE_CARDS, policy: LEGACY_BATTLE_POLICY });
 populatePipelinePressure(runtime, { config, BATTLE_STEP_MS, upgradeTowerLevel, applyTowerUpgradeStats, getCardDefinition }, 35);
@@ -29,15 +38,34 @@ for (let tick = 0; tick < 720; tick++) runtime.session.advance(BATTLE_STEP_MS, r
 const hash = () => battleChecksum(runtime.snapshot(PRESSURE_CARDS[0]));
 const errors = [], outbound = [], token = randomUUID();
 let peer, linkId = 0, bytes = 0, queuedBytes = 0, peakQueue = 0, snapshots = 0, dropReceipt = false, dropped = 0, browser, watchdog;
+let diskHost, store, directory, loop, recovery, storage;
+const writeTimes = [], commitTimes = [];
+let writtenBytes = 0, peakCheckpointBytes = 0, writing = false;
+const ports = { inputTime: () => performance.now(), save: async text => {
+  assert.equal(writing, false, "Concurrent checkpoint writes"); writing = true;
+  const started = performance.now();
+  try { await store.save(text); } finally { writing = false; }
+  writeTimes.push(performance.now() - started);
+  const size = Buffer.byteLength(text); writtenBytes += size; peakCheckpointBytes = Math.max(peakCheckpointBytes, size);
+} };
 const authority = new BattleAuthority("network-pressure", runtime.session, { inputTime: () => performance.now(),
   available: () => !runtime.world.gameOver, execute: command => runtime.executeCommand(command) });
 const host = new BattleSyncHost(runtime.session, authority, { inputTime: () => performance.now(), checksum: hash,
   checkpoint: () => runtime.session.captureCheckpointReplay(() => captureBattleSnapshot(runtime.snapshot(PRESSURE_CARDS[0])), PRESSURE_CARDS) });
-const loop = new BattleHostLoop({ get available() { return true; },
-  get timing() { return { ...runtime.session.clock.snapshot(), speed: runtime.session.controls.speed,
-    paused: runtime.session.controls.paused, ended: runtime.world.gameOver }; },
-  async advance(delta) { runtime.session.advance(delta, runtime.sessionRuntime); host.publish(false); }
-}, { failed: error => errors.push(error.message) });
+const liveHost = () => diskHost ?? host;
+const hostTick = () => diskHost?.timing.tick ?? runtime.session.clock.tick;
+const scheduled = { get available() { return diskHost?.available ?? true; },
+  get timing() { return diskHost?.timing ?? memoryTiming(); },
+  async advance(delta) {
+    if (diskHost) {
+      const started = performance.now(); await diskHost.advance(delta); commitTimes.push(performance.now() - started);
+    } else { runtime.session.advance(delta, runtime.sessionRuntime); host.publish(false); }
+  }
+};
+function memoryTiming() {
+  return { ...runtime.session.clock.snapshot(), speed: runtime.session.controls.speed,
+    paused: runtime.session.controls.paused, ended: runtime.world.gameOver };
+}
 const send = message => {
   if (dropReceipt && message.type === "receipt") { dropReceipt = false; dropped++; return; }
   if (message.type === "snapshot") snapshots++;
@@ -56,13 +84,13 @@ const server = createServer(async (req, res) => {
   if (req.headers.authorization !== `Bearer ${token}`) { res.writeHead(403).end(); return; }
   try {
     if (req.method === "POST" && req.url === "/connect") {
-      if (peer) host.disconnect(peer);
-      outbound.length = 0; queuedBytes = 0; linkId++; peer = host.connect("local", send);
+      if (peer) await liveHost().disconnect(peer);
+      outbound.length = 0; queuedBytes = 0; linkId++; peer = await liveHost().connect("local", send);
       res.end(JSON.stringify({ id: linkId })); return;
     }
     if (req.headers["x-connection"] !== String(linkId)) { res.writeHead(409).end(); return; }
     if (req.method === "POST" && req.url === "/disconnect") {
-      host.disconnect(peer); peer = undefined; outbound.length = 0; queuedBytes = 0; res.writeHead(204).end(); return;
+      await liveHost().disconnect(peer); peer = undefined; outbound.length = 0; queuedBytes = 0; res.writeHead(204).end(); return;
     }
     if (req.method === "GET" && req.url === "/poll") {
       const messages = outbound.splice(0); queuedBytes = 0;
@@ -72,11 +100,24 @@ const server = createServer(async (req, res) => {
     if (req.method !== "POST" || req.url !== "/send") { res.writeHead(404).end(); return; }
     const parts = []; let size = 0;
     for await (const part of req) { size += part.length; if (size > 66000) throw Error("Oversized request"); parts.push(part); }
-    res.writeHead(host.receiveText(peer, Buffer.concat(parts).toString("utf8")) ? 200 : 400).end();
+    res.writeHead(await liveHost().receiveText(peer, Buffer.concat(parts).toString("utf8")) ? 200 : 400).end();
   } catch (error) { errors.push(error.message); res.writeHead(500).end(); }
 });
 await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
 try {
+  if (durable) {
+    directory = await mkdtemp(path.join(tmpdir(), "charset-network-pressure-"));
+    store = createBattleCheckpointStore(path.join(directory, "battle.json"));
+    const ledger = authority.snapshot();
+    const replay = runtime.session.captureCheckpointReplay(() => captureBattleSnapshot(runtime.snapshot(PRESSURE_CARDS[0])), PRESSURE_CARDS);
+    const saved = JSON.stringify({ version: 1, stream: 0, authority: ledger, snapshot: {
+      type: "snapshot", version: BATTLE_PROTOCOL_VERSION, battleId: authority.battleId, stream: 1,
+      cursor: { tick: ledger.tick, sequence: ledger.commandSequence }, nextRequest: 0,
+      replay: { ...replay, checkpoint: encodeBattleWireGraph(replay.checkpoint) }, checksum: hash()
+    } });
+    diskHost = await DurableBattleHost.restore(saved, ports);
+  }
+  loop = new BattleHostLoop(scheduled, { failed: error => errors.push(error.message) });
   browser = await playwright[engine].launch({ headless: true, executablePath: engine === "chromium" ? option("browser") : undefined });
   watchdog = setTimeout(() => void browser.close(), (seconds + 90) * 1000);
   const page = await browser.newPage({ viewport: small ? { width: 800, height: 600 } : { width: 1410, height: 900 } });
@@ -158,6 +199,7 @@ try {
   }, { token, relay: `http://127.0.0.1:${server.address().port}` });
   await page.waitForFunction(() => window.networkPressure.remote.connection.ready);
   const initial = pipelinePressureCensus(runtime), samples = [];
+  writeTimes.length = 0; writtenBytes = 0; peakCheckpointBytes = 0;
   const start = performance.now(); let heldAt, requested = false, disconnectedAt;
   loop.start();
   while (performance.now() - start < seconds * 1000) {
@@ -180,14 +222,24 @@ try {
       const s = window.networkPressure;
       return { tick: s.remote.scene?.runtime.session.clock.tick, status: s.remote.connection.status, catchingUp: s.remote.connection.catchingUp };
     });
-    samples.push({ elapsed, ...sample, hostTick: runtime.session.clock.tick, lag: runtime.session.clock.tick - sample.tick });
+    samples.push({ elapsed, ...sample, hostTick: hostTick(), lag: hostTick() - sample.tick });
     assert.deepEqual(errors, []); assert.equal(loop.status, "running");
   }
-  await loop.stop(); host.publish();
+  await loop.stop();
+  if (diskHost) await diskHost.advance(BATTLE_STEP_MS * 6);
+  else host.publish();
   await page.waitForFunction(tick => {
     const s = window.networkPressure;
     return s.remote.connection.ready && !s.remote.connection.catchingUp && s.completions === 1 && s.remote.scene.runtime.session.clock.tick === tick;
-  }, runtime.session.clock.tick, { timeout: 15000 });
+  }, hostTick(), { timeout: 15000 });
+  let diskText;
+  if (diskHost) {
+    diskText = await store.read(); assert.equal(diskText, diskHost.checkpointText);
+    const snapshot = decodeSyncMessage(JSON.parse(diskText).snapshot);
+    runtime = createIndependentBattle(snapshot.replay, { checkpoint: snapshot.replay.checkpoint });
+    runtime.session.restoreCommandOffset(snapshot.cursor.sequence);
+    assert.equal(hash(), snapshot.checksum);
+  }
   const final = pipelinePressureCensus(runtime);
   const observed = await page.evaluate(() => {
     const s = window.networkPressure;
@@ -212,21 +264,51 @@ try {
   assert.ok(steady.length >= 10);
   const lag = summary(steady.map(s => s.lag));
   assert.ok(lag.p95 <= 30 && lag.max <= 120, `Sustained replica backlog: ${JSON.stringify(lag)}`);
+  if (diskHost) {
+    assert.ok(commitTimes.length > seconds * 5 && writeTimes.length >= commitTimes.length);
+    storage = { writes: writeTimes.length, writtenBytes, peakCheckpointBytes,
+      atomicWriteMs: summary(writeTimes), advancementCommitMs: summary(commitTimes) };
+  }
   if (option("screenshot")) await page.screenshot({ path: option("screenshot") });
   const cleanup = await page.evaluate(async () => {
     const s = window.networkPressure, game = window.__testGame;
     s.remote.close(); await s.tail;
     game.events.off("postrender", s.render); game.loop.stop();
-    return { jobs: s.jobs.size, activeScenes: game.scene.getScenes(true).length,
+    return { errors: s.errors, jobs: s.jobs.size, activeScenes: game.scene.getScenes(true).length,
       liveLinks: s.links.filter(link => !link.closed || link.timer !== undefined).length, resources: s.resources(), baseline: s.baseline };
   });
   assert.equal(cleanup.jobs + cleanup.activeScenes + cleanup.liveLinks, 0);
   assert.deepEqual(cleanup.resources, cleanup.baseline);
-  console.log(JSON.stringify({ diagnostic: "Continuous localhost replica rendering with delayed polling; in-memory host, no disk latency",
-    engine, browser: browser.version(), seconds, delay, small, initial, final, checksum: observed.hash,
+  assert.deepEqual(cleanup.errors, []); assert.deepEqual(errors, []);
+  if (diskHost) {
+    await diskHost.close();
+    diskText = await store.read();
+    recovery = await DurableBattleHost.restore(diskText, ports);
+    const messages = [], recoveredPeer = await recovery.connect("local", message => messages.push(message));
+    const hello = messages[0]; assert.equal(hello.nextRequest, 1);
+    assert.equal(hello.checksum, observed.hash);
+    await recovery.receiveText(recoveredPeer, JSON.stringify({ type: "request", stream: hello.stream, request: {
+      version: BATTLE_PROTOCOL_VERSION, battleId: "network-pressure", sequence: 0,
+      intent: { type: "control", control: { type: "reserve", value: 1234 } }
+    } }));
+    assert.equal(messages.at(-1).receipt.status, "executed");
+    assert.equal(JSON.parse(recovery.checkpointText).snapshot.cursor.sequence, 1);
+    runtime.session.advance(BATTLE_STEP_MS * 6, runtime.sessionRuntime);
+    await recovery.advance(BATTLE_STEP_MS * 6);
+    const restoredText = await store.read(); assert.equal(restoredText, recovery.checkpointText);
+    assert.equal(JSON.parse(restoredText).snapshot.checksum, hash());
+    storage.recovery = "disk restart, receipt retry and continuation matched";
+  }
+  console.log(JSON.stringify({ diagnostic: "Continuous localhost replica rendering with delayed polling; optional atomic file persistence",
+    engine, browser: browser.version(), seconds, delay, small, durable, storage, initial, final, checksum: observed.hash,
     frames: observed.frames, frameIntervalMs: summary(observed.intervals), steadyLagTicks: lag,
     peakMortars: observed.peakMortars, peakTrails: observed.peakTrails, peakQueue, bytes, samples, cleanup: "baseline restored" }));
 } finally {
-  clearTimeout(watchdog); await loop.stop(); host.close(); authority.close();
+  clearTimeout(watchdog); await loop?.stop(); await diskHost?.close(); await recovery?.close(); host.close(); authority.close();
   await browser?.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve));
+  if (directory) {
+    assert.equal(path.dirname(path.resolve(directory)), path.resolve(tmpdir()));
+    assert.ok(path.basename(directory).startsWith("charset-network-pressure-"));
+    await rm(directory, { recursive: true, force: true });
+  }
 }

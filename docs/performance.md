@@ -554,10 +554,23 @@ by 64 messages/16 MiB; client ingress retains its own production bounds. Closing
 must restore texture/canvas/global-listener baselines and leave no connection
 timers, live transport links or active scenes.
 
-This is a localhost, moderate-roster pressure test with an in-memory authority.
-It excludes durable disk-write latency, WAN loss/reordering, retained-heap analysis
-and the separate 800-enemy workload. Frame intervals include snapshot restoration
-and diagnostics, and are not CPU-only render timings.
+The default is a localhost, moderate-roster pressure test with an in-memory
+authority. `--durable` instead advances `DurableBattleHost` through real atomic
+file writes. The same frame/lag/recovery budgets apply, using committed host ticks.
+It reports atomic-write and full advancement-transaction timings separately,
+checkpoint sizes and total bytes written. Concurrent writes are rejected. At the
+end the actual file must equal the committed host checkpoint and reconstruct the
+client's state. After client cleanup and host closure, a new durable host restores
+that file, retries the original request without increasing the command cursor,
+and advances six ticks identically to an independent restored core.
+
+Both variants exclude WAN loss/reordering, retained-heap analysis and the separate
+800-enemy workload. Frame intervals include snapshot restoration and diagnostics,
+and are not CPU-only render timings. Storage statistics exclude initial setup,
+final disconnect and the post-run recovery probe. Write counters include reconnect
+and a final six-tick publication boundary; advancement timings cover scheduled
+calls only. There is no less frequent checkpoint or relaxed
+save-before-publication guarantee in the durable variant.
 
 Local evidence (25 ms added poll delay): Edge 153 passed 60 seconds at 1410x900;
 Firefox 148 passed 30 seconds at 800x600; WebKit 26.4 passed 30 seconds at 1410x900.
@@ -568,3 +581,17 @@ desktop/small screenshots were inspected. Wall-clock end ticks differ across run
 so final hashes are compared within each host/client pair, not between runs.
 Frame-interval p95 was 19/34/24 ms and maxima were 226/319/412 ms, including snapshot
 reconstruction. Successful catch-up does not imply consistently smooth rendering.
+
+The durable variant also passes locally: Edge 153 at 60 seconds/1410x900, Firefox
+148 at 30 seconds/800x600 and WebKit 26.4 at 30 seconds/1410x900. Steady lag p95 is
+7/7/13 ticks. Advancement-commit p95 is 26.25/19.31/18.89 ms, with atomic-write p95
+8.84/7.65/7.28 ms. Every run passes real file reconstruction, restart, duplicate
+receipt recovery and subsequent independent continuation, as well as the unchanged
+network/cleanup gates. Runs have different durations and final states; these are
+observations, not a cross-engine performance ranking.
+
+The 60-second run performs 571 writes totaling 304,808,473 bytes, with a maximum
+checkpoint of 851,073 bytes. This succeeds on the tested local filesystem but
+exposes substantial write volume even at a moderate roster. It does not establish
+slower-storage or long-session readiness. Reducing full-checkpoint write volume
+without weakening recovery is still a concrete storage concern.
