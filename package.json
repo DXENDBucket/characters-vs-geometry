@@ -17,7 +17,7 @@
     "validate": "node scripts/validate-data.mjs",
     "test:audio": "node --test scripts/test-audio.mjs",
     "test:math": "node --test scripts/test-battle-math.mjs",
-    "test:host": "node --test scripts/test-durable-battle-host.mjs",
+    "test:host": "node --test scripts/test-durable-battle-host.mjs scripts/test-battle-checkpoint-store.mjs",
     "test:ownership": "node --test scripts/test-battle-ownership.mjs",
     "test:economy": "node --test scripts/test-battle-economy.mjs",
     "test:player-resources": "node --test scripts/test-battle-player-resources.mjs",

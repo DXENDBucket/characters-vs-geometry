@@ -13,6 +13,8 @@ const option = name => process.argv.find(value => value.startsWith(`--${name}=`)
 const seconds = Number(option("seconds") ?? 60), delay = Number(option("delay") ?? 25);
 const engine = option("engine") ?? "chromium", small = process.argv.includes("--small");
 const durable = process.argv.includes("--durable");
+const uncompressed = process.argv.includes("--uncompressed");
+assert.ok(durable || !uncompressed, "--uncompressed requires --durable");
 assert.ok(Number.isSafeInteger(seconds) && seconds >= 15 && seconds <= 600);
 assert.ok(Number.isSafeInteger(delay) && delay >= 0 && delay <= 250);
 assert.ok(["chromium", "firefox", "webkit"].includes(engine));
@@ -40,13 +42,15 @@ const errors = [], outbound = [], token = randomUUID();
 let peer, linkId = 0, bytes = 0, queuedBytes = 0, peakQueue = 0, snapshots = 0, dropReceipt = false, dropped = 0, browser, watchdog;
 let diskHost, store, directory, loop, recovery, storage;
 const writeTimes = [], commitTimes = [];
-let writtenBytes = 0, peakCheckpointBytes = 0, writing = false;
+let writtenBytes = 0, logicalBytes = 0, peakCheckpointBytes = 0, peakStoredBytes = 0, writing = false;
 const ports = { inputTime: () => performance.now(), save: async text => {
   assert.equal(writing, false, "Concurrent checkpoint writes"); writing = true;
   const started = performance.now();
-  try { await store.save(text); } finally { writing = false; }
+  let storedBytes;
+  try { storedBytes = await store.save(text); } finally { writing = false; }
   writeTimes.push(performance.now() - started);
-  const size = Buffer.byteLength(text); writtenBytes += size; peakCheckpointBytes = Math.max(peakCheckpointBytes, size);
+  const size = Buffer.byteLength(text); writtenBytes += storedBytes; logicalBytes += size;
+  peakCheckpointBytes = Math.max(peakCheckpointBytes, size); peakStoredBytes = Math.max(peakStoredBytes, storedBytes);
 } };
 const authority = new BattleAuthority("network-pressure", runtime.session, { inputTime: () => performance.now(),
   available: () => !runtime.world.gameOver, execute: command => runtime.executeCommand(command) });
@@ -107,7 +111,7 @@ await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
 try {
   if (durable) {
     directory = await mkdtemp(path.join(tmpdir(), "charset-network-pressure-"));
-    store = createBattleCheckpointStore(path.join(directory, "battle.json"));
+    store = createBattleCheckpointStore(path.join(directory, "battle.json"), undefined, { compression: !uncompressed });
     const ledger = authority.snapshot();
     const replay = runtime.session.captureCheckpointReplay(() => captureBattleSnapshot(runtime.snapshot(PRESSURE_CARDS[0])), PRESSURE_CARDS);
     const saved = JSON.stringify({ version: 1, stream: 0, authority: ledger, snapshot: {
@@ -199,7 +203,7 @@ try {
   }, { token, relay: `http://127.0.0.1:${server.address().port}` });
   await page.waitForFunction(() => window.networkPressure.remote.connection.ready);
   const initial = pipelinePressureCensus(runtime), samples = [];
-  writeTimes.length = 0; writtenBytes = 0; peakCheckpointBytes = 0;
+  writeTimes.length = 0; writtenBytes = 0; logicalBytes = 0; peakCheckpointBytes = 0; peakStoredBytes = 0;
   const start = performance.now(); let heldAt, requested = false, disconnectedAt;
   loop.start();
   while (performance.now() - start < seconds * 1000) {
@@ -266,7 +270,9 @@ try {
   assert.ok(lag.p95 <= 30 && lag.max <= 120, `Sustained replica backlog: ${JSON.stringify(lag)}`);
   if (diskHost) {
     assert.ok(commitTimes.length > seconds * 5 && writeTimes.length >= commitTimes.length);
-    storage = { writes: writeTimes.length, writtenBytes, peakCheckpointBytes,
+    if (uncompressed) assert.equal(writtenBytes, logicalBytes);
+    else assert.ok(writtenBytes < logicalBytes / 2, "Pressure checkpoints did not meaningfully compress");
+    storage = { compression: !uncompressed, writes: writeTimes.length, writtenBytes, logicalBytes, peakCheckpointBytes, peakStoredBytes,
       atomicWriteMs: summary(writeTimes), advancementCommitMs: summary(commitTimes) };
   }
   if (option("screenshot")) await page.screenshot({ path: option("screenshot") });

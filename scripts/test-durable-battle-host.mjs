@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
@@ -396,7 +396,7 @@ test("a killed Node host restores its real flushed file in a new process with ex
     const first = worker("crash"), saved = await first.output;
     assert.equal(saved.event, "persisted-unacknowledged");
     const exited = once(first.child, "exit"); first.child.kill(); await exited;
-    const disk = await readFile(filename, "utf8"); assert.equal(state(disk).towers.length, 1);
+    const disk = await createBattleCheckpointStore(filename).read(); assert.equal(state(disk).towers.length, 1);
     const second = worker("restore", saved.request), result = await second.output;
     assert.equal(result.towers, 1); assert.equal(result.sequence, 1); assert.equal(result.receipt.result, "deployed");
     assert.equal(result.chars, state(disk).chars); assert.ok(result.stream > JSON.parse(disk).stream);

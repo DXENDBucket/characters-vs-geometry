@@ -558,7 +558,11 @@ The default is a localhost, moderate-roster pressure test with an in-memory
 authority. `--durable` instead advances `DurableBattleHost` through real atomic
 file writes. The same frame/lag/recovery budgets apply, using committed host ticks.
 It reports atomic-write and full advancement-transaction timings separately,
-checkpoint sizes and total bytes written. Concurrent writes are rejected. At the
+logical checkpoint sizes and actual encoded payload bytes written. The default
+file adapter now compresses; add `--uncompressed` with `--durable` for the old
+plaintext-write path. `atomicWriteMs` times the whole adapter save, including any
+compression, flushing and atomic replacement; it is not just filesystem I/O.
+Concurrent writes are rejected. At the
 end the actual file must equal the committed host checkpoint and reconstruct the
 client's state. After client cleanup and host closure, a new durable host restores
 that file, retries the original request without increasing the command cursor,
@@ -582,7 +586,7 @@ so final hashes are compared within each host/client pair, not between runs.
 Frame-interval p95 was 19/34/24 ms and maxima were 226/319/412 ms, including snapshot
 reconstruction. Successful catch-up does not imply consistently smooth rendering.
 
-The durable variant also passes locally: Edge 153 at 60 seconds/1410x900, Firefox
+Before compressed storage, the durable variant also passed locally: Edge 153 at 60 seconds/1410x900, Firefox
 148 at 30 seconds/800x600 and WebKit 26.4 at 30 seconds/1410x900. Steady lag p95 is
 7/7/13 ticks. Advancement-commit p95 is 26.25/19.31/18.89 ms, with atomic-write p95
 8.84/7.65/7.28 ms. Every run passes real file reconstruction, restart, duplicate
@@ -594,4 +598,19 @@ The 60-second run performs 571 writes totaling 304,808,473 bytes, with a maximum
 checkpoint of 851,073 bytes. This succeeds on the tested local filesystem but
 exposes substantial write volume even at a moderate roster. It does not establish
 slower-storage or long-session readiness. Reducing full-checkpoint write volume
-without weakening recovery is still a concrete storage concern.
+without weakening recovery motivated the compressed adapter below.
+
+With default gzip storage, a 60-second Edge run writes 18,944,337 encoded bytes
+for 302,976,960 logical bytes across 569 commits (about 94% less payload). Maximum
+logical/file sizes are 840,458/49,234 bytes. Advancement-commit p95 is 26.38 ms,
+close to the earlier plaintext run's 26.25 ms, so this is a write-volume reduction,
+not a demonstrated CPU/latency improvement. Lag p95 remains seven ticks and all
+file/restart/receipt/continuation checks pass. These byte totals exclude filesystem
+journaling and device write amplification.
+
+Compressed 30-second Firefox/small and WebKit/desktop runs also pass, each writing
+about 7.46 MB for 110.5 MB of logical checkpoints. Advancement p95 is 19.13/18.95 ms
+and lag p95 is 8/11 ticks. The pressure test asserts that this known compressible
+fixture writes less than half its logical byte count; plaintext mode must write
+exactly that count. Full capture, checksum and JSON conversion still happen every
+transaction; large-roster CPU cost and slow-device flush latency remain open.

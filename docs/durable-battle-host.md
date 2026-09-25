@@ -46,7 +46,22 @@ directory where Node supports it. Windows file contents are flushed before renam
 power-loss durability of directory metadata remains OS/filesystem dependent. Tests
 cover process termination, not sudden loss of power or corrupted storage hardware.
 
-The store has a 32 MiB document limit. Supply a trusted host-owned filename, never
+The adapter now writes asynchronous gzip level 1 for documents of at least 1 KiB
+when it produces fewer bytes; smaller/incompressible documents remain plaintext.
+`read()` recognizes gzip or legacy UTF-8 and always returns the original text.
+Both encoded-file and decoded-document sizes are bounded; malformed UTF-8,
+truncated/corrupt gzip and expansion beyond the limit are rejected. Compression
+does not alter host snapshots, checksums or protocol/rules versions. Read files
+through the adapter, not `readFile(..., "utf8")`: existing filenames may now contain
+gzip data. Older plaintext-only adapters cannot read new compressed files.
+
+`createBattleCheckpointStore(filename, maxBytes, { compression: false })` opts into
+plaintext writes (both formats remain readable). `save(text)` resolves with the
+encoded payload byte count only after the same flush/atomic-replacement barrier.
+No operation is acknowledged early, and compression failures other than an output
+that would exceed the original input size still fail the commit.
+
+The store has a default 32 MiB encoded/decoded limit. Supply a trusted host-owned filename, never
 arbitrary renderer-supplied paths. There is no renderer IPC endpoint for this API.
 One active writer must own a battle. Distributed leases, split-brain prevention,
 cloud backups and failover to another machine remain transport/deployment work.
@@ -86,7 +101,8 @@ across transactions. `captureCheckpointReplay` accepts a fresh capture callback
 without immediately cloning its entire graph a second time. The original
 `checkpointReplay(graph, cards)` still copies borrowed input. Replay headers and
 card lists remain independent, peer delivery still clones messages, and the wire
-encoder still validates the graph. No version or stored/wire bytes change.
+encoder still validates the graph. These caches do not change logical checkpoint
+text, wire bytes or versions; file compression is a separate adapter concern.
 The wire conversion now has the same transaction-local lifetime: the sync host's
 optional `encodeCheckpoint` port lets the durable owner reuse the validated wire
 graph for peer snapshots and persistence. Cache hits require the identical detached
@@ -107,7 +123,7 @@ and oversized requests at the transport before allocating/queueing them.
   retained remainder, pause, terminal state, cancellation, explicit overload and
   clock/storage failures. Real host/replica checks verify committed-only timing,
   restoration and zero idle writes; rejected persistence cannot leak timing.
-- `npm run test:host` runs eighteen cases with the real independent core and replica:
+- `npm run test:host` includes eighteen cases with the real independent core and replica:
   barrier ordering, lost acknowledgments, continuation, write failures before/after
   persistence, bounded receipt tails, quota preservation, conflicting/expired
   requests, malformed checkpoints, paused and terminal states, participant
@@ -117,6 +133,12 @@ and oversized requests at the transport before allocating/queueing them.
   transaction without stale commands, frames, resyncs or reconnects. Additional
   tests mutate delivered snapshots and fail conversion to verify isolation and
   that no uncommitted stream escapes.
+- Six file-codec cases verify exact Unicode/BOM round trips, legacy reads and
+  explicit plaintext writes, corruption, concatenated-member expansion limits,
+  file/document bounds and invalid options. The killed-process recovery test now
+  restores through the same dual-format adapter. These six codec cases also pass
+  under Electron 44.4.3's Node 24.21.0 runtime (run-as-node), in addition to Node
+  22.19.0 used by the full rules suite; no desktop package rebuild is needed.
 - A child-process test kills a Node host after an actual file flush but before
   acknowledgment, starts a new process, and retries deployment. There is one tower,
   one debit, the same receipt and a higher stream ID.

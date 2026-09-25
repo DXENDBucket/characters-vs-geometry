@@ -199,8 +199,11 @@ and lost-receipt reconnect, without extra resync snapshots masking divergence.
 Steady lag p95 is 7-9 ticks in these local runs; final state, exactly-once completion
 and resource cleanup agree. The optional durable variant now includes real file
 commits and post-run host reconstruction/receipt retry/continuation, also passing
-in all three engines. The 60-second run writes roughly 305 MB, so full-checkpoint
-write volume remains a storage concern. These are moderate-roster local runs, not
+in all three engines. The plaintext 60-second run wrote roughly 305 MB; the file
+adapter now uses bounded, lossless gzip with legacy text reads. A new run writes
+18.9 MB for 303 MB of logical checkpoints, with similar commit latency and unchanged
+recovery guarantees. This reduces payload writes, not full-state capture/JSON CPU
+cost. These are moderate-roster local runs, not
 800-enemy, slow-storage or WAN load readiness; see
 [network pressure](performance.md#continuous-network-pressure).
 
