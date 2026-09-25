@@ -339,6 +339,8 @@ try {
       assert.deepEqual(await pages.b.evaluate(() => window.headlessTest.scene.cardList.cards.map(c => c.state.definition.id)), ["A", "B", "X"]);
       await pages.a.keyboard.press("Escape");
       assert.equal(await pages.a.evaluate(() => window.headlessTest.scene.menuOpen), true);
+      // Let Phaser drain the opening key event before another key toggles the DOM modal.
+      await pages.a.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       await pages.a.keyboard.press("Escape");
       assert.equal(await pages.a.evaluate(() => window.headlessTest.scene.menuOpen), false);
       await pages.a.screenshot({ path: "logs/player-input.png" });

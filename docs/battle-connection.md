@@ -57,6 +57,12 @@ Status subscriptions, modal DOM, pointer/key listeners and obsolete completion
 callbacks do not survive replacement. Remote battles do not write local progress
 or loadout preferences. Single-player scenes do not instantiate a connection.
 
+The scene input port delegates transport/status to the connection, while the
+session owner retains completion routing across scene replacement. If an operation
+receipt arrives for a retired view, its old callbacks remain inactive and the
+current view synchronizes any tutorial tool observation. This prevents a moved
+tower from leaving a lesson stuck waiting for the shifter to be deselected.
+
 ## Evidence And Limits
 
 - `npm run test:connection`: actual independent host/replica rules under an
@@ -69,7 +75,14 @@ or loadout preferences. Single-player scenes do not instantiate a connection.
   checkpoint replacement, isolated resources, real reselection, menu exit,
   unexpected scene shutdown and whole-game destruction. Checks scene/menu counts,
   empty timer sets, unchanged profiles and exact host checksums.
+- `test-remote-actions-browser.mjs`: actual clicks complete the 0-5 lesson (including
+  Ctrl selection and a lost group-move receipt/reconnect), then aim/cancel/fire S
+  and activate # with a direction. Aiming stays local, pending input is blocked,
+  skill SP/target coordinates and push results are authoritative, and retrying a
+  lost skill receipt does not fire twice. The same test runs in Chromium, Firefox
+  and WebKit; native mouse-button detection preserves Ctrl+left multi-selection
+  without treating it as Phaser's synthesized macOS right click.
 - The HTTP connector is a test transport, not a production server or account
   service. Steam/lobby integration, reconnect UX before the first snapshot,
-  broader content/fault coverage and crowded host/client/storage profiling remain
+  broader content/fault coverage and crowded host/client/storage readiness remain
   separate integration work. See [readiness](multiplayer-readiness.md).

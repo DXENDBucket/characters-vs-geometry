@@ -1030,6 +1030,9 @@ export class GameScene extends Phaser.Scene {
       if (epoch !== this.inputEpoch) return;
       completed?.(result);
       this.updateCards(); this.syncPlacementGhost(this.input.activePointer);
+      // Tool cleanup may run in the receipt callback. Send its lesson observation
+      // only after the previous remote request is complete, never as a second in-flight request.
+      if (this.session.replica && !(intent.type === "control" && intent.control.type === "tutorialInput")) this.syncTutorialInput();
     };
     if (this.session.executingCommand) {
       finish(intent.type === "control" ? this.applyPlayerControl(LOCAL_BATTLE_ACTOR.id, intent.control) :
@@ -2104,7 +2107,13 @@ export class GameScene extends Phaser.Scene {
   private localInput(action: () => void) {
     if (this.localInputBlocked()) return;
     action();
-    if (!this.tutorial?.usesToolInteraction || this.gameOver) return;
+    this.syncTutorialInput();
+  }
+
+  // Also used by the connection owner after a receipt outlives its original view.
+  syncTutorialInput() {
+    if (!this.tutorial?.usesToolInteraction || this.gameOver || !this.playerView.can("tutorial") ||
+        this.session.replica && (!this.inputPort?.ready || this.inputPort.busy)) return;
     const input: TutorialInteraction = {
       tool: this.eraserMode ? "erase" : this.autoUpgradeMode ? "autoUpgrade" : this.shifter.isActive() ? "shifter" : "none",
       selected: this.shifter.isActive() ? this.shifter.selectedTowers().map(tower => towerOperationRef(tower).id) : []
@@ -2189,7 +2198,8 @@ export class GameScene extends Phaser.Scene {
 
   private isRightPointer(pointer: Phaser.Input.Pointer) {
     const event = pointer.event as MouseEvent | undefined;
-    return Boolean(event?.button === 2 || pointer.rightButtonDown());
+    // Phaser remaps macOS Ctrl+left to right; the native button preserves our multi-select gesture.
+    return typeof event?.button === "number" ? event.button === 2 : pointer.rightButtonDown();
   }
 
 }

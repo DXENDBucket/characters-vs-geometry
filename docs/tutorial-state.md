@@ -22,6 +22,14 @@ time and explicit lesson observations, and supplies wave/finish effects.
   Destroying the tutorial view does not destroy the model.
 - The view's button submits the existing authorized/recorded `tutorialAdvance`
   control. No callback registration through a Phaser widget is required by the model.
+- Remote tool observations wait for the preceding operation's receipt. A successful
+  move first clears local selection, then sends `tutorialInput`; attempting both
+  while the sync client has one pending request would lose the second command.
+  Observation receipts do not recursively send more observations, and viewers
+  without the `tutorial` permission do not submit them.
+- If a pending operation outlives its scene during reconnect, the connection owner
+  asks the replacement view to report its current lesson tools. Retired callbacks
+  remain fenced; no old tower selection is restored and the move is not repeated.
 
 ## Checkpoints
 
@@ -65,8 +73,15 @@ it completes internal checkpoint/replay state needed for future synchronization.
   verify actual input, labels and layout. Seven normal/Boss/endless replay baselines
   retain exactly the same hashes.
 
-These tests establish tutorial model/presentation separation and checkpoint
-continuation, not a complete headless combat host or network join implementation.
-Checkpoint fixtures are captured before terminal finish. Terminal battle-result
-and persistent-reward synchronization still need the wider world lifecycle boundary.
+`test-remote-actions-browser.mjs` drives the whole 0-5 lesson with actual card,
+tool and board clicks against an authenticated independent Node authority. It
+checks single movement, Ctrl multi-selection, relative group placement, a lost
+movement receipt followed by reconnect/scene replacement, exactly one follow-up
+observation, terminal victory and no local profile writes. It exposed both the
+missing post-receipt tool observation and Phaser's macOS Ctrl-click remapping.
+
+The older checkpoint fixtures stop before terminal finish; the remote shifter
+lesson includes it. Remote actual-input coverage does not yet include every lesson
+or a multi-controller tutorial policy. Tutorials share lesson observations;
+the future mode decides which participants receive tutorial control permissions.
 The remaining gates are tracked in [multiplayer readiness](multiplayer-readiness.md).

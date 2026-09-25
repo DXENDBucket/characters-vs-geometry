@@ -95,6 +95,8 @@ Disconnected, resynchronizing or pending-request clients reject new local input.
 The client retains the original request and completion across reconnect, so a
 lost receipt can be retried without a second deployment. Scene shutdown invalidates
 its UI callbacks; old receipts cannot act on a replacement or destroyed scene.
+The session owner can separately ask the current view to synchronize a tutorial
+observation after such a receipt, without reviving an old callback or selection.
 Reselection by a replica does not write the local profile. Checkpoint headers keep
 the common deck instead of accidentally capturing one player's visible deck.
 
@@ -110,3 +112,6 @@ This is an input/presentation adapter, not a finished multiplayer mode. The
 application uses [RemoteBattleSession](battle-connection.md) for connection/scene
 lifetime and connection status. Broader skill/tutorial and crowded-battle transport
 tests, plus outer join navigation and a concrete production transport, remain open.
+The current `test-remote-actions-browser.mjs` coverage adds actual S/# targeting,
+right-click cancellation, skill retry after reconnect and the complete shifter
+tutorial with Ctrl multi-selection; it does not imply all content inputs are covered.

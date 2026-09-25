@@ -104,8 +104,10 @@ upgrade settings. **Gate 3 has configurable policy and actual player UI bindings
 the participant view resolves the correct wallet/deck/clocks/tools, and mouse/key
 operations use the remote intent port. Firefox/WebKit real-input tests cover
 deployment, shifter, erase protection, reselection, settings and pending receipts.
-This does not choose a multiplayer game mode; broader skill/tutorial UI coverage
-is still needed.
+Actual S/# targeting and the full shifter tutorial now have Chromium/Firefox/WebKit
+input coverage, including Ctrl selection and pending move/skill receipts across
+scene replacement. This does not choose a multiplayer game mode or establish
+every skill/tutorial UI path.
 
 ### Identity And Synchronization
 
