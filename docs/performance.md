@@ -470,3 +470,45 @@ maximum calls still exceed 100ms in these runs. Browser render stress, real elap
 catch-up and snapshot/commit cost remain unresolved; no overall FPS improvement is
 claimed. The actual displayed/silent/restored Phaser pipeline integration also
 passes after the short-circuit change.
+
+### Continuous Browser Pressure
+
+`test-pressure-session-browser.mjs` complements the accelerated Node diagnostic
+with actual wall-clock Phaser rendering. It accepts `--seconds=60 --cycles=3`,
+`--mortars=35` (default) or `--mortars=0` (banks), `--engine`, `--small` (800x600),
+and the usual `--playwright`, `--browser`, `--url`, `--screenshot` options.
+
+Preparation uses the same synthetic pressure fixture in the independent core,
+advancing 12 simulated seconds for mortars or 70 for banks. The real scene restores
+that checkpoint, avoiding an artificial backlog of unplayed warm-up animations.
+Each cycle then runs the normal Phaser loop for the requested wall duration. Banks
+receive recorded semantic outlet-opening commands halfway through. After stopping
+the loop, an independent playback of that cycle's recording must produce the exact
+same final state. Different cycles may end at different ticks because browser
+scheduling varies; their hashes need not equal one another.
+
+Samples record nested display objects (including the clipped battlefield layer),
+live mortar trails, tweens, textures and the actual combat census. Nonblank canvas
+pixels, real interception/shield callbacks, progressing ticks and active battles
+are required. The bank variant must actually saturate and then drain. Timings
+measure `prestep` through `postrender`; the subsequent census/pixel diagnostics are
+excluded from that CPU interval but can affect the next frame's scheduling.
+
+After every cycle, shutdown must leave zero scene children, tweens, clock events
+and active scenes. Global texture keys, DOM canvas counts, game/input listeners
+must return exactly to their pre-battle baseline. Retired scene/input/keyboard
+listener counts must also remain equal between cycles. These structural checks do
+not prove all JavaScript/GPU memory is collectible or replace a retained-heap audit.
+
+Initial local evidence: Edge 153 ran three consecutive 60-second desktop mortar
+cycles, each with exact replay agreement and resource cleanup. CPU frame medians
+were 1.8ms and p95 3.3-3.4ms across the three cycles; peak live mortars/trails were
+44. Firefox 148 ran two 30-second small-viewport cycles, with medians 3ms/p95 6ms.
+WebKit 26.4 ran two 30-second desktop cycles, with medians 2ms/p95 4ms. Both passed
+the same lifecycle/replay checks, including retained scene listener counts.
+Edge also ran two 30-second small-viewport bank cycles, passing saturation,
+drainage, replay and all resource/listener checks. Bank-run CPU frame medians were
+1.8-2ms/p95 3.8-4ms; the first cycle peaked at 1,238 tweens and 2,437 nested display
+objects during output/combat bursts, all cleared on shutdown. Desktop and small
+screenshots were reviewed. These are headless, moderate-roster pressure scenes, not the separate
+800-enemy crowd benchmark, network catch-up throughput, or player FPS guarantees.

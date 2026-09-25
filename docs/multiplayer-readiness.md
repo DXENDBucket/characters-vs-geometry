@@ -182,6 +182,11 @@ and seven restores with live mortars. Blocked-route short-circuiting preserves t
 120-second baseline hashes and reduces repeated buffer scans. These are Node
 pressure/recovery checks, not continuous browser/network load or a memory-leak audit.
 See [pipeline pressure](performance.md#pipeline-and-mortar-pressure).
+Continuous-browser pressure now also compares real wall-clock Phaser sessions to
+independent replay, and verifies texture/canvas/listener baselines and empty scene
+timers/tweens after repeated shutdown. This adds actual rendered lifecycle evidence
+to accelerated Node continuation, not a retained-heap audit or sustained network
+load guarantee; see [continuous pressure](performance.md#continuous-browser-pressure).
 
 ## Next Work
 
