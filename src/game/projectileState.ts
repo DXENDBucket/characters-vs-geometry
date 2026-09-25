@@ -3,6 +3,7 @@ import type { ProjectileIntegrity } from "./projectileIntegrity";
 import { towerActionContext, towerBehaviorType } from "./towerIdentity";
 
 export interface ProjectileState extends ProjectileIntegrity {
+  entityId?: string;
   circuitChecked?: boolean;
   sourceBehaviorType?: CardId;
   lastGatheredAt?: number;
@@ -27,6 +28,7 @@ export interface ProjectileState extends ProjectileIntegrity {
 }
 
 export interface EnemyProjectileState extends ProjectileIntegrity {
+  entityId?: string;
   lastGatheredAt?: number;
   appearance?: "bolt" | "star" | "ion";
   splashRadius?: number;
@@ -38,6 +40,7 @@ export interface EnemyProjectileState extends ProjectileIntegrity {
 }
 
 export interface MortarProjectileState extends ProjectileIntegrity {
+  entityId?: string;
   owner: "enemy" | "tower";
   x: number;
   y: number;

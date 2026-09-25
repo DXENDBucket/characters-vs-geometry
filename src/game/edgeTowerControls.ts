@@ -12,6 +12,7 @@ interface EdgeControlRuntime {
   reserve: number;
   reserveFocused: boolean;
   spend: (cost: number) => void;
+  identify: (edge: EdgeTower) => EdgeTower;
   changed: () => void;
 }
 
@@ -38,7 +39,8 @@ export class EdgeTowerControls {
     if (existing) {
       refreshEdgeFlow(existing, runtime.time);
       existing.level = (existing.level ?? 1) + 1;
-    } else runtime.edges.push({ ...position, mode: "=", level: 1, autoUpgrade: false });
+    } else runtime.edges.push(runtime.identify({ type: "=", axis: position.axis, lane: position.lane,
+      column: position.column, mode: "=", level: 1, autoUpgrade: false }));
     runtime.spend(card.definition.cost);
     card.readyAt = runtime.cardTime + card.definition.cooldown;
     runtime.changed();

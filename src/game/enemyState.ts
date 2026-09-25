@@ -9,6 +9,7 @@ import { initialEnemySkillStates } from "./enemySkillRules";
 import { refreshStatusEffect } from "./rules/statusEffectRules";
 
 export interface EnemyState {
+  entityId?: string;
   healthPool?: EnemyHealthPool<EnemyState>;
   healthLinksInitialized?: boolean;
   kind: EnemyKind;

@@ -5,6 +5,7 @@ import { deploymentCardId } from "./cardIdentity";
 import { initialTowerSkillStates } from "./towerSkillRules";
 
 export interface TowerState extends NumberTowerState {
+  entityId?: string;
   nullified?: boolean;
   nullifiedUntil?: number;
   deployedAt?: number;

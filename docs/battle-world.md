@@ -53,7 +53,10 @@ not an independently immutable save. It preserves the existing field order and
 references. No new wrapper node, save migration or rules-version change is added.
 `restoreProgress()` restores trusted decoded scalar progress and supplies legacy
 phase defaults. Entity construction, graph reconnection and controller restoration
-remain in the live snapshot adapter.
+remain in the live snapshot adapter. The subsequent identity pass adds optional
+allocator metadata to the complete battle snapshot, not to `progressSnapshot()`;
+the world's own allocator is bound to live factories and adopted on restore. See
+[entity identity](battle-entity-identity.md).
 
 ## Verification
 
@@ -83,7 +86,8 @@ not all world-owned yet. Input selection and interpretation remain local-scene
 responsibilities. Port implementations must be separated from rendering before a
 complete authoritative headless host can use this world.
 
-Stable entity IDs, semantic per-player commands, authorization, transport and
-reconnect remain open. See [multiplayer readiness](multiplayer-readiness.md). This
+Stable entity IDs are integrated; semantic per-player commands, identity-based
+wire relationships, authorization, transport and reconnect remain open. See
+[multiplayer readiness](multiplayer-readiness.md). This
 pass changes ownership and dependency boundaries; it does not claim a full-battle
 FPS improvement.

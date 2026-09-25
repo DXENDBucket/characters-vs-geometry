@@ -20,6 +20,7 @@ try {
     const config = await import("/src/config.ts");
     const progress = await import("/src/progress.ts");
     const { captureBattleSnapshot, restoreBattleSnapshot } = await import("/src/game/battleSnapshot.ts");
+    const { battleChecksum } = await import("/src/game/battleChecksum.ts");
     const game = window.__testGame;
     game.loop.stop();
     progress.unlockAllCards();
@@ -69,6 +70,7 @@ try {
       go(scene, 3600, [1000 / 60]);
       const replay = scene.exportReplay();
       const expected = scene.battleChecksum();
+      const behaviorHash = battleChecksum(scene.battleState(), { includeEntityIds: false });
       checkReplay(replay, expected);
       const resumed = start({ ...replay, replay: undefined });
       if (resumed.boss) { resumed.boss.body.destroy(); resumed.boss = null; }
@@ -77,7 +79,7 @@ try {
       go(resumed, 3600, [1000 / 60]);
       if (resumed.battleChecksum() !== expected) throw Error(`${levelId}: save continuation diverged ${expected} / ${resumed.battleChecksum()}`);
       checkReplay(resumed.exportReplay(), expected);
-      results.push({ levelId, ticks: replay.endTick, hash: expected, commands: replay.commands.length });
+      results.push({ levelId, ticks: replay.endTick, hash: expected, behaviorHash, commands: replay.commands.length });
     }
     const reselect = start({ levelId: "IF-1", seed: 51 });
     reselect.submitBattleCommand({ type: "debugMode", enabled: true });

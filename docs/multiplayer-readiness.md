@@ -48,15 +48,18 @@ transport-neutral authority and synchronization gates above.
   Its live system ports still depend on scene controllers/rendering, and recordings
   contain single-player UI intent; gates 2-3 remain open. See
   [session boundaries](battle-session.md) and [world ownership](battle-world.md).
-- Identity: tower placement IDs exist, but remaining units and Boss parts need a
-  common identity lifecycle. Gate 4 is open.
+- Identity: common battle-local IDs now cover live towers, enemies, Boss bodies,
+  projectiles and edges. Allocator history and IDs survive snapshots, old saves
+  are adopted, and historical references have live-browser coverage. Semantic
+  commands and wire relationships still need migration; gate 4 remains open. See
+  [entity identity](battle-entity-identity.md).
 - Networking: no authority protocol, participant policy, acknowledgment/resync
   implementation or two-client integration test yet. Gates 5-7 are open.
 
-Implementation order: complete state contracts, extract session orchestration and
-simulation/presentation ports, introduce identities and semantic player commands,
-then implement transport authority and reconnect. Validate each increment against
-the real battle path; green isolated tests are not proof of full readiness.
+Next: migrate UI intent to semantic player commands with explicit entity targets
+and participant policies, complete the simulation/presentation ports, then
+implement transport authority and reconnect. Validate each increment against the
+real battle path; green isolated tests are not proof of full readiness.
 
 See [existing replay contracts](multiplayer-preparation.md),
 [performance measurements](performance.md) and [Boss state](boss-state.md).

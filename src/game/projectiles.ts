@@ -17,6 +17,7 @@ import type {
 } from "../types";
 import { enemyAttackDamage } from "./combatStats";
 import { projectileVisualScale } from "./projectileIntegrity";
+import { identifyBattleEntity } from "./battleEntityIds";
 import { createTowerProjectileState, createHomingTowerProjectileState, createMortarProjectileState,
   homingProjectileAngleDegrees, reflectedProjectileSpec,
   type TowerProjectileSpec, type HomingTowerProjectileSpec, type MortarProjectileSpec,
@@ -26,7 +27,7 @@ export type { TowerProjectileSpec, HomingTowerProjectileSpec, MortarProjectileSp
 
 export function createTowerProjectile(scene: Phaser.Scene, spec: TowerProjectileSpec): Projectile {
   const state = createTowerProjectileState(spec);
-  return Object.assign(state, { body: createTowerProjectileBody(scene, state, spec.angleDegrees) });
+  return identifyBattleEntity(scene, "projectile", Object.assign(state, { body: createTowerProjectileBody(scene, state, spec.angleDegrees) }));
 }
 
 function createTowerProjectileBody(scene: Phaser.Scene, spec: ProjectileState, angleDegrees: number) {
@@ -56,7 +57,7 @@ function createTowerProjectileBody(scene: Phaser.Scene, spec: ProjectileState, a
 
 export function createHomingTowerProjectile(scene: Phaser.Scene, spec: HomingTowerProjectileSpec): Projectile {
   const state = createHomingTowerProjectileState(spec);
-  return Object.assign(state, { body: createTowerProjectileBody(scene, state, homingProjectileAngleDegrees(spec)) });
+  return identifyBattleEntity(scene, "projectile", Object.assign(state, { body: createTowerProjectileBody(scene, state, homingProjectileAngleDegrees(spec)) }));
 }
 
 export function createEnemyProjectile(scene: Phaser.Scene, enemy: Enemy, time: number, hitCount = 1): EnemyProjectile {
@@ -84,10 +85,10 @@ export function restoreEnemyProjectile(scene: Phaser.Scene, state: EnemyProjecti
   if (state.appearance === "ion") drawIonOrb(body as Phaser.GameObjects.Graphics);
   body.rotation = isDiamondShot ? 0 : state.vx < 0 ? Math.PI : 0;
   body.setScale(projectileVisualScale(state));
-  return {
+  return identifyBattleEntity(scene, "enemyProjectile", {
     ...state,
     body
-  };
+  });
 }
 
 export function createIonProjectile(scene: Phaser.Scene, enemy: Enemy, time: number): EnemyProjectile {
@@ -121,7 +122,7 @@ export function createMortarProjectile(scene: Phaser.Scene, spec: MortarProjecti
   attachProjectileTrail(scene, body, trailColor, 119);
   body.setScale(projectileVisualScale(spec));
 
-  return Object.assign(createMortarProjectileState(spec), { body });
+  return identifyBattleEntity(scene, "mortar", Object.assign(createMortarProjectileState(spec), { body }));
 }
 
 export function createReflectedProjectile(

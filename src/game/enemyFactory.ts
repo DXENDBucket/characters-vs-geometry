@@ -7,6 +7,7 @@ import { createEnemyShape } from "../render/unitShapes";
 import { syncEnemyFacingVisual } from "../render/enemyFacing";
 import type { Enemy } from "../types";
 import { createEnemyState, type CreateEnemyOptions } from "./enemyState";
+import { identifyBattleEntity } from "./battleEntityIds";
 import { enemyIsSolarBomb } from "./enemyIdentity";
 import { syncSolarBombVisual } from "./solarBomb";
 import { statusSpeedMultiplier } from "./statusEffects";
@@ -35,5 +36,5 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
   }
   if (enemyIsSolarBomb(enemy)) syncSolarBombVisual(enemy);
   syncEnemyFacingVisual(enemy);
-  return enemy;
+  return identifyBattleEntity(scene, "enemy", enemy);
 }

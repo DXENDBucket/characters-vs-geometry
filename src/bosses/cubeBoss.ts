@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { drawDelBoss, drawDelEcho } from "../render/delBoss";
 import { createBossState, type CreateBossOptions } from "../game/bossState";
+import { identifyBattleEntity } from "../game/battleEntityIds";
 import {
   advanceBossPosition, isTetrahedronBossKind, isTetrahedronBoss, isDodecahedronBoss,
   isSmallStellatedDodecahedronBoss, isOctahedronBoss, isIcosahedronBossKind, isIcosahedronBoss
@@ -225,7 +226,7 @@ export function createCubeBoss(
   } as CubeBoss;
 
   drawCubeBoss(boss, 0);
-  return boss;
+  return identifyBattleEntity(scene, "boss", boss);
 }
 
 export function updateCubeBossMotion(boss: CubeBoss, seconds: number, movementMultiplier = 1, time = 0) {

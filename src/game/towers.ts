@@ -8,6 +8,7 @@ import { isDamageOutlet, nodeOccupancy } from "./pipelineRules";
 import { syncHealthBar } from "./towerHealth";
 import { CELL_HEIGHT, CELL_WIDTH, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
 import { createTowerState } from "./towerState";
+import { identifyBattleEntity } from "./battleEntityIds";
 import { createUnitBorder } from "../render/unitShapes";
 import { drawTowerShellBorder } from "../render/parenthesisTower";
 import type { CardDefinition, Tower } from "../types";
@@ -101,7 +102,7 @@ export function createTower(
     border.setVisible(false);
   }
 
-  return Object.assign(state, {
+  return identifyBattleEntity(scene, "tower", Object.assign(state, {
     body,
     border,
     label,
@@ -114,7 +115,7 @@ export function createTower(
     negativeHpFill,
     levelText,
     rangeBorder: rangeBorder ?? undefined
-  });
+  }));
 }
 
 export function toggleTowerFacing(tower: Tower) {

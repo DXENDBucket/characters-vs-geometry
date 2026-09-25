@@ -23,9 +23,11 @@ export function encodeSaveGraph(root: unknown, classify: (object: object) => {
     const { kind, omit, include } = classify(value);
     const node: GraphNode = { kind, data: {} };
     nodes.push(node);
-    for (const [key, child] of Object.entries(value)) {
-      if (child === undefined || omit?.has(key) || (include && !include.has(key))) continue;
+    for (const key of Object.keys(value)) {
+      if (omit?.has(key) || (include && !include.has(key))) continue;
       if (forbidden.has(key)) throw new Error("Invalid save property");
+      const child = (value as Record<string, unknown>)[key];
+      if (child === undefined) continue;
       node.data[key] = encode(child);
     }
     return { ref: id };

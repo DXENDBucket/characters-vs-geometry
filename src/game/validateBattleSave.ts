@@ -11,6 +11,7 @@ import { isTowerShellType } from "./towerOccupancy";
 import { CHEVRON_LEADER } from "../data/chevronLeader";
 import { delLaneSweepConfig, DEL_ECHO_HITBOX_CELLS } from "../data/delBoss";
 import { LANES, COLUMNS, CELL_WIDTH, CELL_HEIGHT } from "../config";
+import { restoreBattleEntityIds } from "./battleEntityGraph";
 
 export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossKind?: BossKind) {
   const units = new Map<NodeKind, Set<object>>();
@@ -356,4 +357,5 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
     item => Array.isArray(item) && item.length === 2 && typeof item[0] === "string" && timestamp(item[1])));
   if (state.waveTracker) require([state.waveTracker.number, state.waveTracker.totalWeight,
     state.waveTracker.defeatedWeight, state.waveTracker.spawnedAt].every(finite));
+  restoreBattleEntityIds(state);
 }

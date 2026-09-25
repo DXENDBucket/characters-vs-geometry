@@ -13,6 +13,7 @@ import { bossRank, isOctahedronBossKind, isSkilllessBossKind } from "./bossRules
 import { enemyKindAtRank } from "./enemyIdentity";
 
 export interface BossState {
+  entityId?: string;
   deleteFormatReadyAt?: number;
   delLaneSweep?: DelLaneSweepState<BossState>;
   delEcho?: boolean;

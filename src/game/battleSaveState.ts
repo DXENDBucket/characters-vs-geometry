@@ -7,8 +7,10 @@ import type { SpellMortarFlight } from "./towerSkills";
 import type { BattleSessionSnapshot } from "./battleSession";
 import type { TimedCellSeal } from "./timedCellSeals";
 import type { NullifiedTowers } from "./towerNullification";
+import type { BattleEntityIdState } from "./battleEntityIds";
 
 export interface BattleSaveState {
+  entityIds?: BattleEntityIdState;
   nullifiedTowers?: NullifiedTowers;
   edgeTowers?: EdgeTower[];
   simulation?: BattleSessionSnapshot & { mirrorNextGroupId: number };

@@ -26,6 +26,9 @@ import { containedEnemies, syncPassengerPositions } from "./enemyContainers";
 import { projectileVisualScale } from "./projectileIntegrity";
 import { syncTowerAttachmentVisual } from "../render/towerAttachments";
 import { migrateAttackStats } from "./attackStatsMigration";
+import { withoutBattleEntityAllocation } from "./battleEntityIds";
+import { restoreBattleEntityIds } from "./battleEntityGraph";
+import { battleRandom, isBattlePlayback, setBattlePlayback } from "./battleSimulation";
 
 export { captureBattleSnapshot } from "./captureBattleSnapshot";
 
@@ -35,8 +38,11 @@ export function restoreBattleSnapshot(scene: Phaser.Scene, graph: SaveGraph): Ba
   const bosses: CubeBoss[] = [];
   const shots: Array<Projectile | EnemyProjectile | MortarProjectile> = [];
   const bodies: Phaser.GameObjects.GameObject[] = [];
+  const random = battleRandom(scene), randomState = random.state, playback = isBattlePlayback(scene);
+  // Constructing a checkpoint must not consume live RNG or write discovery progress.
+  setBattlePlayback(scene, true);
   try {
-    const state = decodeSaveGraph<BattleSaveState>(graph, (node: GraphNode) => {
+    const state = withoutBattleEntityAllocation(scene, () => decodeSaveGraph<BattleSaveState>(graph, (node: GraphNode) => {
       // References are connected in a second pass; factories only need primitive placement fields.
       if (node.kind === "boss") {
         const data = node.data as unknown as CubeBoss;
@@ -76,10 +82,11 @@ export function restoreBattleSnapshot(scene: Phaser.Scene, graph: SaveGraph): Ba
         splashRadius: 0, angleDegrees: Math.atan2(data.vy ?? 0, data.vx) * 180 / Math.PI, maxX: Infinity });
       bodies.push(projectile.body); shots.push(projectile);
       return projectile;
-    });
+    }));
     if (!Array.isArray(state.towers) || !Array.isArray(state.enemies) || !Number.isFinite(state.battleTime) || state.baseIntegrity <= 0) {
       throw new Error("Invalid battle state");
     }
+    restoreBattleEntityIds(state);
     migrateAttackStats(state.simulation?.version, towers, enemies);
     const nullified = new Set(state.nullifiedTowers?.towers ?? []);
     for (const tower of towers) {
@@ -141,5 +148,8 @@ export function restoreBattleSnapshot(scene: Phaser.Scene, graph: SaveGraph): Ba
   } catch (error) {
     for (const body of bodies) body.destroy();
     throw error;
+  } finally {
+    random.state = randomState;
+    setBattlePlayback(scene, playback);
   }
 }

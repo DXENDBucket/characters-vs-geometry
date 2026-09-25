@@ -14,6 +14,8 @@ import { getProductionAmount } from "./towerRules";
 import { TimedCellSeals } from "./timedCellSeals";
 import { waveScheduleAction } from "./waves";
 import { spawnBattleWave, type EnemySpawnOptions } from "./waveSpawner";
+import { BattleEntityIds } from "./battleEntityIds";
+import { BattleEntityIndex } from "./battleEntityGraph";
 
 export interface BattleEntities {
   tower: TowerState;
@@ -94,6 +96,9 @@ export interface BattleWorldSystems<E extends BattleEntities = BattleEntities> e
 }
 
 export class BattleWorld<E extends BattleEntities = BattleEntities> implements BattleWorldProgress {
+  readonly entityIds = new BattleEntityIds();
+
+  indexEntities(state: unknown) { return new BattleEntityIndex<E>(state); }
   towers: E["tower"][] = [];
   enemies: E["enemy"][] = [];
   boss: E["boss"] | null = null;

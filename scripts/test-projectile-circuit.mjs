@@ -375,7 +375,7 @@ test("homing projectiles bypass per-projectile capture because their complete ac
 test("edge controls cycle four modes, upgrade without inventory and respect automatic upgrade reserves", () => {
   const state = { edges: [], card: { definition: cardDefinitions.find(c => c.id === "="), readyAt: 0 },
     time: 0, cardTime: 0, chars: 10000, autoEnabled: true, reserve: 0, reserveFocused: false,
-    spend: cost => { state.chars -= cost; }, changed() {} };
+    spend: cost => { state.chars -= cost; }, identify: edge => edge, changed() {} };
   const controls = new EdgeTowerControls(() => state), position = { type: "=", axis: "horizontal", column: 1, lane: 2 };
   assert.equal(controls.use(position), "handled");
   const edge = state.edges[0]; assert.equal(edge.mode, "=");

@@ -25,6 +25,8 @@ import { drawNullifiedTowers } from "../render/nullifiedTowers";
 import type { BattleSaveState } from "../game/battleSaveState";
 import { captureBattleSnapshot } from "../game/captureBattleSnapshot";
 import { restoreBattleSnapshot } from "../game/battleSnapshot";
+import { setBattleEntityIds } from "../game/battleEntityIds";
+import { restoreBattleEntityIds } from "../game/battleEntityGraph";
 import { deleteSurvivalSave, readSurvivalSave, writeSurvivalSave, type SurvivalSave } from "../survivalSaves";
 import { endlessEnemyHpMultiplier } from "../game/endlessEnvironment";
 import { syncTowerHealthNetworks } from "../game/towerHealth";
@@ -437,6 +439,7 @@ export class GameScene extends Phaser.Scene {
     setBattlePlayback(this, Boolean(playback));
     this.world = new BattleWorld<LiveBattleEntities>({ levelId: this.levelId, level: this.levelConfig,
       difficulty: this.difficultyConfig, unlimitedFirepower: this.unlimitedFirepower, resumed: !!this.resumeSave }, this.session.random);
+    setBattleEntityIds(this, this.world.entityIds);
     this.worldSystems = this.createWorldSystems();
     this.setCardStates([]);
     this.selectedCardId = this.selectedCardIds.includes("X") ? "X" : this.selectedCardIds[0];
@@ -464,6 +467,7 @@ export class GameScene extends Phaser.Scene {
     this.tutorial = null;
     this.targetedEffects = new TargetedEffectCardController(() => this.targetedEffectCardRuntime());
     this.edgeControls = new EdgeTowerControls(() => ({ edges: this.edgeTowers, card: this.cardStatesById.get("="),
+      identify: edge => this.world.entityIds.identify("edge", edge),
       time: this.battleTime, cardTime: this.cardTimeFor("="), chars: this.effectiveChars(),
       autoEnabled: this.autoUpgradeEnabled, reserve: this.autoUpgradeReserveChars, reserveFocused: this.autoUpgradeReserveInputFocused,
       spend: cost => this.spendChars(cost), changed: () => { this.numbers.sync(); this.updateCards(); } }));
@@ -2729,7 +2733,7 @@ export class GameScene extends Phaser.Scene {
       actions: this.actionQueue.snapshot(), storage: this.storage.snapshot(), shifter: this.shifter.snapshot(),
       reselection: this.reselection.snapshot(), extraction: this.extraction.value,
       spellMortarFlights: this.towerSkills.snapshotFlights(), sealedCells: [...this.sealedCells],
-      timedCellSeals: this.timedCellSeals.snapshot()
+      timedCellSeals: this.timedCellSeals.snapshot(), entityIds: this.world.entityIds.snapshot()
     };
   }
 
@@ -2750,6 +2754,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private applyBattleSave(state: BattleSaveState) {
+    restoreBattleEntityIds(state, this.world.entityIds);
     this.session.restore(state.simulation, state.battleTime);
     this.world.restoreProgress(state);
     this.selectedCardId = state.selectedCardId;

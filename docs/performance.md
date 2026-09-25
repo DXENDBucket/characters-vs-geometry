@@ -121,8 +121,9 @@ Selection order, damage rules and replay checksums remain unchanged.
 1. Move remaining pure visual updates to a frame-level rendering adapter while
    preserving simulation-owned positions, deadlines and random streams.
 2. Boss state and explicit snapshot contracts are now extracted as well; see
-   [Boss State Boundary](boss-state.md). Introduce stable entity IDs instead of
-   live object references next.
+   [Boss State Boundary](boss-state.md). Stable IDs are integrated in live factories
+   and restore; next migrate command/wire references and remaining presentation
+   dependencies. See [Entity Identity](battle-entity-identity.md).
 3. Continue consolidating tower aura, Boss events, scaling and encyclopedia metadata;
    named enemy, tower and Boss SP skills now share their numeric definitions.
 4. Split oversized scene/runtime responsibilities along those boundaries, with
