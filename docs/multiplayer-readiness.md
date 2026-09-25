@@ -138,8 +138,9 @@ replacement and final disposal, with real-browser lifecycle checks.
 now covers atomic file replacement, killed-process restart and real browser
 reconnection. A reproducible [mixed-battle profile](performance.md#mixed-battle-and-durable-host-profile)
 now measures simulation, replicas, rendering and real atomic storage. It exposes
-costly full-state commits and crowded-client stalls; eliminating repeated checksum
-work is only a first improvement. Broader content/fault coverage, distributed
+costly full-state commits and crowded-client stalls. Transaction-local checksum
+reuse and fused wire conversion remove duplicate work with unchanged bytes and
+validation, but do not settle load/latency readiness. Broader content/fault coverage, distributed
 failover and production load/latency readiness remain unfinished.
 
 ## Next Work

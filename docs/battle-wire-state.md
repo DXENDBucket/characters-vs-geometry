@@ -20,6 +20,10 @@ are rejected rather than silently mixed. See [deterministic math](battle-math.md
 - Entity records are emitted in ID order. Sorted breadth-first traversal assigns
   non-entity indices; property insertion history is irrelevant. Array order is
   semantic and is not sorted. Incoming record order is not required to be canonical.
+- Encoding validates the entire input graph, then discovers reachable records in
+  that same sorted breadth-first order directly into wire records. It no longer
+  materializes an intermediate canonical `SaveGraph`. No trusted-input bypass,
+  wire version change, reference-order change or input mutation is involved.
 - The decoder rejects duplicate or wrong-kind identities, missing references,
   entities disguised as ordinary objects, forbidden/unknown entity fields,
   unreachable records, malformed arrays and oversized graphs. Limits are 250,000
@@ -52,6 +56,11 @@ trigonometric discrepancies, without tolerating or rounding numeric differences.
 - Identity tests round-trip all seven kinds, shared health, passengers, Boss copies,
   historical sources and cycles; reorder both object fields and entity records;
   reject malformed records; and traverse a 12,000-record cycle without recursion.
+- A frozen pre-fusion encoder provides byte-for-byte comparison over 40 seeded
+  node/reference/key permutations, integer-looking object keys, cyclic data,
+  unreachable nodes, all entity kinds and tagged numbers. Encoding still rejects
+  malformed unreachable data, forbidden keys, missing references and invalid or
+  duplicate identities. The mixed-combat benchmark checks exact old/new bytes too.
 - Protocol tests remap all non-entity indices and reverse record/field order, then
   join and continue commands without a checksum mismatch.
 - The complete-runtime AE-EX-2 regression compares live, local-save and wire-save
@@ -69,4 +78,11 @@ protocol-2 local run produced a 950,965-byte checkpoint, about 10.0 ms median ch
 (old noncanonical checksum 7.5 ms), 13.3 ms wire conversion and 14.1 ms wire decoding.
 An initial implementation with a second graph traversal took about 16.9 ms for
 the checksum. These figures are diagnostics, not portable performance guarantees;
-browser, mixed-content, queueing and full restore costs still need profiling.
+broader workloads and queueing still need profiling.
+
+The [mixed battle benchmark](performance.md#mixed-battle-and-durable-host-profile)
+now includes a same-process old/new encoder comparison. In a local Node 22.19.0
+Windows run (24 samples), old/new median encoding times for 100 / 400 / 800
+requested enemies were 2.44/1.21, 6.58/3.43 and 13.25/7.09 ms. Wire bytes are
+identical. These are conversion costs, not overall battle FPS or full restore
+latency; snapshot cloning, hashing, client validation and durable storage remain.

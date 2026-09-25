@@ -1,6 +1,6 @@
 import { classifyBattleData } from "./battleDataSchema";
 import { parseBattleEntityId, type BattleEntityKind } from "./battleEntityIds";
-import { canonicalSaveGraph, validateSaveGraph, type GraphNode, type SaveGraph, type Value, type NumberTag } from "./saveGraph";
+import { validateSaveGraph, type GraphNode, type SaveGraph, type Value, type NumberTag } from "./saveGraph";
 
 export const BATTLE_WIRE_VERSION = 2;
 const MAX_NODES = 250000, MAX_FIELDS = 2000000;
@@ -28,30 +28,42 @@ function entityKind(node: GraphNode) {
 // Local saves keep their compatible graph format; network entity references never
 // expose its traversal indices, including removed sources retained by queued actions.
 export function encodeBattleWireGraph(input: SaveGraph): BattleWireGraph {
-  const graph = canonicalSaveGraph(input);
-  const objects: WireObject[] = [], entities: WireEntity[] = [], references: Array<{ entity: string } | { object: number }> = [];
-  const records: Array<WireObject | WireEntity> = [], ids = new Set<string>();
-  for (const node of graph.nodes) {
+  validateSaveGraph(input);
+  const objects: WireObject[] = [], entities: WireEntity[] = [];
+  const references = new Map<number, { entity: string } | { object: number }>();
+  const pending: Array<{ source: number; target: WireObject | WireEntity }> = [], ids = new Set<string>();
+  // Discover records in sorted breadth-first order, just like canonicalSaveGraph,
+  // but write wire records directly instead of allocating an intermediate graph.
+  const encode = (value: Value): WireValue => {
+    if (value === null || typeof value !== "object") return value;
+    if ("number" in value) return { number: value.number };
+    const existing = references.get(value.ref);
+    if (existing) return { ...existing };
+    const node = input.nodes[value.ref];
     const kind = entityKind(node), id = node.data.entityId;
+    let entry: WireObject | WireEntity, reference: { entity: string } | { object: number };
     if (kind) {
       const parsed = parseBattleEntityId(id);
       if (!parsed || parsed.kind !== kind || typeof id !== "string" || ids.has(id)) throw new Error("Invalid battle wire identity");
       ids.add(id);
-      const entry: WireEntity = { id, kind, data: {} };
-      entities.push(entry); records.push(entry); references.push({ entity: id });
+      entry = { id, kind, data: {} };
+      entities.push(entry); reference = { entity: id };
     } else {
       if (id !== undefined) throw new Error("Identity on non-entity battle object");
-      const entry: WireObject = { kind: node.kind as WireObject["kind"], data: {} };
-      references.push({ object: objects.length }); objects.push(entry); records.push(entry);
+      entry = { kind: node.kind as WireObject["kind"], data: {} };
+      reference = { object: objects.length }; objects.push(entry);
     }
+    references.set(value.ref, reference); pending.push({ source: value.ref, target: entry });
+    return { ...reference };
+  };
+  const root = encode(input.root);
+  for (let index = 0; index < pending.length; index++) {
+    const { source, target } = pending[index], node = input.nodes[source];
+    const keys = Object.keys(node.data).sort(node.kind === "array" ? (a, b) => Number(a) - Number(b) : undefined);
+    for (const key of keys) if (key !== "entityId") target.data[key] = encode(node.data[key]);
   }
-  const encode = (value: Value): WireValue => value !== null && typeof value === "object"
-    ? "ref" in value ? { ...references[value.ref] } : { number: value.number } : value;
-  graph.nodes.forEach((node, index) => {
-    for (const [key, value] of Object.entries(node.data)) if (key !== "entityId") records[index].data[key] = encode(value);
-  });
   entities.sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
-  return { version: BATTLE_WIRE_VERSION, root: encode(graph.root), objects, entities };
+  return { version: BATTLE_WIRE_VERSION, root, objects, entities };
 }
 
 // Validate before allocating battle entities or touching an existing world.

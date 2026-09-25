@@ -269,6 +269,17 @@ commands, frames, resync and reconnect. It does not change the wire format or
 commit-before-publication guarantee. Samples are diagnostic, not portable timing
 assertions; GC, JIT, antivirus and storage contention produce large outliers.
 
+A subsequent wire-encoding pass fuses canonical traversal with wire-record
+creation while retaining full input validation. The benchmark now asserts exact
+bytes against a frozen pre-fusion encoder and reports `legacyEncode` alongside
+`encode`. On the same captured states, a 24-sample run measured 2.44 -> 1.21 ms,
+6.58 -> 3.43 ms and 13.25 -> 7.09 ms for 100 / 400 / 800 enemies. This avoids one
+complete intermediate graph allocation. It does not optimize routine command
+frames (which contain no snapshot), rendering or simulation checksums, nor make
+per-tick full durable commits viable. Longer sample windows change the live
+workload as towers die, so compare encoding side by side on the same static graph
+rather than attributing all cross-run commit differences to this change.
+
 At 800 enemies the snapshot was about 1.28 MB and the atomic write portion about
 7.4 ms. Full serialization remains the larger cost. **Do not schedule one durable
 transaction per 60 Hz tick in crowded battles.** Even six-tick commits leave

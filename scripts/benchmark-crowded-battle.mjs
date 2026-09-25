@@ -5,6 +5,7 @@ import path from "node:path";
 import { createRequire } from "node:module";
 import { load, captureBattleSnapshot, battleChecksum } from "./helpers/battle-runtime.mjs";
 import { populateCrowdedBattle, crowdedCensus, CROWDED_CARDS } from "./helpers/crowded-battle.mjs";
+import { legacyEncodeBattleWireGraph } from "./helpers/legacy-battle-wire.mjs";
 
 const { createIndependentBattle } = load("src/game/independentBattle.ts");
 const { BattleAuthority, BATTLE_PROTOCOL_VERSION } = load("src/game/battleAuthority.ts");
@@ -12,6 +13,10 @@ const { BattleSyncHost } = load("src/game/battleSyncHost.ts");
 const { BattleSyncClient } = load("src/game/battleSyncClient.ts");
 const { DurableBattleHost } = load("src/game/durableBattleHost.ts");
 const { encodeBattleWireGraph, decodeBattleWireGraph } = load("src/game/battleWireGraph.ts");
+const { canonicalSaveGraph } = load("src/game/saveGraph.ts");
+const { classifyBattleData } = load("src/game/battleDataSchema.ts");
+const { parseBattleEntityId } = load("src/game/battleEntityIds.ts");
+const legacyWire = graph => legacyEncodeBattleWireGraph(graph, { canonicalSaveGraph, classifyBattleData, parseBattleEntityId });
 const { LEGACY_BATTLE_POLICY } = load("src/game/battlePolicy.ts");
 const { BATTLE_RULES_VERSION, BATTLE_STEP_MS } = load("src/game/battleSimulation.ts");
 const config = load("src/config.ts");
@@ -72,6 +77,7 @@ try {
     for (let i = 0; i < 180; i++) runtime.session.advance(BATTLE_STEP_MS, runtime.sessionRuntime);
     assert.equal(runtime.world.gameOver, false);
     const initial = crowdedCensus(runtime), graph = capture(runtime), wire = encodeBattleWireGraph(graph);
+    assert.equal(JSON.stringify(wire), JSON.stringify(legacyWire(graph)), "Wire bytes changed");
     const checkpoint = replay(runtime);
     const authority = new BattleAuthority("profile", runtime.session, { inputTime: () => 0,
       available: () => !runtime.world.gameOver, execute: command => runtime.executeCommand(command) });
@@ -81,7 +87,8 @@ try {
       cursor: { tick: ledger.tick, sequence: ledger.commandSequence }, nextRequest: 0,
       replay: { ...checkpoint, checkpoint: wire }, checksum: hash(runtime) } });
     const staticCosts = { capture: measure(() => capture(runtime)), checksum: measure(() => hash(runtime)),
-      encode: measure(() => encodeBattleWireGraph(graph)), decode: measure(() => decodeBattleWireGraph(wire)) };
+      legacyEncode: measure(() => legacyWire(graph)), encode: measure(() => encodeBattleWireGraph(graph)),
+      decode: measure(() => decodeBattleWireGraph(wire)) };
     const sync = new BattleSyncHost(runtime.session, authority, { inputTime: () => 0,
       checkpoint: () => replay(runtime), checksum: () => hash(runtime) });
     const replica = attachReplica(send => sync.connect("local", send));

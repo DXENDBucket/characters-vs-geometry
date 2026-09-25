@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createTypeScriptLoader } from "./helpers/load-typescript.mjs";
+import { legacyEncodeBattleWireGraph } from "./helpers/legacy-battle-wire.mjs";
 
 const load = createTypeScriptLoader();
 const { BattleEntityIds, BATTLE_ENTITY_KINDS, parseBattleEntityId, setBattleEntityIds,
@@ -11,6 +12,8 @@ const { battleChecksum } = load("src/game/battleChecksum.ts");
 const { decodeSaveGraph, canonicalSaveGraph } = load("src/game/saveGraph.ts");
 const { encodeBattleWireGraph, decodeBattleWireGraph } = load("src/game/battleWireGraph.ts");
 const { EdgeTowerControls } = load("src/game/edgeTowerControls.ts");
+const { classifyBattleData } = load("src/game/battleDataSchema.ts");
+const legacyWire = graph => legacyEncodeBattleWireGraph(graph, { canonicalSaveGraph, classifyBattleData, parseBattleEntityId });
 
 const shapes = () => [
   { id: "tower:0", type: "A", inPlay: true },
@@ -242,6 +245,62 @@ test("canonical checksums ignore field insertion and traversal history, not iden
   f.projectile.sourceTower = f.tower; assert.notEqual(battleChecksum(f.state), coordinate);
 });
 
+test("fused wire traversal preserves the previous exact bytes across reference and key permutations", () => {
+  const f = fixture();
+  f.state.mixedKeys = { 10: { source: f.removed }, 2: { enemy: f.enemy },
+    z: [f.cargo, null, f.copy, -0, NaN, Infinity, -Infinity], a: f.tower.healthPool };
+  const original = captureBattleSnapshot(f.state), expected = JSON.stringify(legacyWire(original));
+  for (let round = 0; round < 40; round++) {
+    const order = original.nodes.map((_, i) => i);
+    let seed = round + 1;
+    for (let i = order.length - 1; i > 0; i--) {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      const j = seed % (i + 1); [order[i], order[j]] = [order[j], order[i]];
+    }
+    const indices = new Map(order.map((old, index) => [old, index]));
+    const remap = value => value && typeof value === "object" && "ref" in value ? { ref: indices.get(value.ref) } : value;
+    const input = { root: remap(original.root), nodes: order.map(index => ({ kind: original.nodes[index].kind,
+      data: Object.fromEntries(Object.entries(original.nodes[index].data).reverse().map(([key, value]) => [key, remap(value)])) })) };
+    // Valid but unreachable records are removed by canonical traversal, even if not battle entities.
+    input.nodes.push({ kind: "object", data: { ignored: true } });
+    const before = JSON.stringify(input);
+    assert.equal(JSON.stringify(legacyWire(input)), expected);
+    const wire = encodeBattleWireGraph(input);
+    assert.equal(JSON.stringify(wire), expected);
+    assert.equal(JSON.stringify(input), before);
+    assert.equal(battleChecksum(decodeSaveGraph(decodeBattleWireGraph(wire), () => ({}))), battleChecksum(f.state));
+    wire.objects[0].data.changed = true;
+    assert.equal(JSON.stringify(input), before);
+  }
+  for (const root of [null, true, 42, "plain", { number: "-0" }]) {
+    const graph = { root, nodes: [] };
+    assert.equal(JSON.stringify(encodeBattleWireGraph(graph)), JSON.stringify(legacyWire(graph)));
+  }
+});
+
+test("fused wire encoding retains full input validation and entity identity rejection", () => {
+  const original = captureBattleSnapshot(fixture().state);
+  const mutations = [
+    graph => { graph.root = { ref: graph.nodes.length }; },
+    graph => { graph.nodes.find(node => node.kind === "enemy").data.entityId = "tower:5"; },
+    graph => { graph.nodes.find(node => node.kind === "enemy").kind = "tower"; },
+    graph => { graph.nodes[graph.root.ref].data.entityId = "tower:50"; },
+    graph => { graph.nodes.find(node => node.kind === "array").data["-1"] = 0; },
+    graph => { Object.defineProperty(graph.nodes[0].data, "__proto__", { value: null, enumerable: true }); },
+    graph => {
+      const index = graph.nodes.length;
+      graph.nodes.push(structuredClone(graph.nodes.find(node => node.kind === "enemy")));
+      graph.nodes[graph.root.ref].data.duplicate = { ref: index };
+    },
+    graph => { graph.nodes.push({ kind: "object", data: { invalidEvenWhenUnreachable: NaN } }); }
+  ];
+  for (const mutate of mutations) {
+    const input = structuredClone(original); mutate(input);
+    assert.throws(() => legacyWire(input));
+    assert.throws(() => encodeBattleWireGraph(input));
+  }
+});
+
 test("wire references use stable IDs for every entity kind, preserving cycles, detached sources and shared pools", () => {
   const f = fixture(), graph = captureBattleSnapshot(f.state), wire = encodeBattleWireGraph(graph);
   assert.equal(wire.entities.length, 10);
@@ -305,6 +364,7 @@ test("canonical graph traversal handles deep cycles without recursion and retain
   } })) };
   const before = JSON.stringify(graph), canonical = canonicalSaveGraph(graph);
   assert.equal(JSON.stringify(graph), before);
+  assert.equal(JSON.stringify(encodeBattleWireGraph(graph)), JSON.stringify(legacyWire(graph)));
   const restored = decodeSaveGraph(decodeBattleWireGraph(encodeBattleWireGraph(graph)), () => ({}));
   assert.equal(restored.maximum, Infinity); assert.equal(restored.minimum, -Infinity); assert.ok(Number.isNaN(restored.invalid));
   let current = restored; for (let i = 0; i < 12000; i++) current = current.next;
