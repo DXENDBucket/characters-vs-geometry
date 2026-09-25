@@ -1,6 +1,5 @@
 import Phaser from "phaser";
 import { GuidedTutorialView } from "../render/guidedTutorialView";
-import { clearEnemyField } from "../game/enemyRoster";
 import { playSound, soundPlayer } from "../audio/player";
 import { bindBattleAudio } from "../audio/battleAudio";
 import { canUpgradeTowerWithCard, supportsTowerAutoUpgrade, towerBehaviorType, towerFormType } from "../game/towerIdentity";
@@ -21,6 +20,10 @@ import { BattleAuthority } from "../game/battleAuthority";
 import type { BattleOperationActor } from "../game/battleParticipants";
 import { battleCardAllowed, copyBattlePolicy, LEGACY_BATTLE_POLICY, type BattlePolicy } from "../game/battlePolicy";
 import { BattleWorld, type BattleWorldSystems } from "../game/battleWorld";
+import { BattleEncounter } from "../game/battleEncounter";
+import { BattlefieldCells } from "../game/battlefieldCells";
+import { battleEncounterPresentation } from "../render/battleEncounter";
+import { bossSimulationRuntime } from "../render/bossSimulation";
 import { battleCardTime, type BattleCardState } from "../game/battleLoadout";
 import { battleChecksum } from "../game/battleChecksum";
 import { syncEnemyStatusVisuals } from "../render/enemyStatus";
@@ -46,8 +49,7 @@ import type { BattleResult } from "../game/battleLifecycle";
 import { setBattleDiscoveryObserver } from "../game/battleDiscovery";
 import { endlessEnemyHpMultiplier } from "../game/endlessEnvironment";
 import { syncTowerHealthNetworks } from "../game/towerHealth";
-import { detachEnemyHealth } from "../game/enemyHealth";
-import { destroyContainedEnemies, enemiesWithPassengers } from "../game/enemyContainers";
+import { enemiesWithPassengers } from "../game/enemyContainers";
 import { ProjectileCircuitController, edgeAtPoint, edgePosition } from "../game/projectileCircuit";
 import { drawCircuitEdges } from "../render/circuitEdges";
 import { EdgeTowerControls } from "../game/edgeTowerControls";
@@ -93,13 +95,10 @@ import {
   palette
 } from "../config";
 import { createCubeBoss } from "../bosses/cubeBoss";
-import { isDodecahedronBoss, isOctahedronBoss, syncBossBaseStats } from "../game/bossRules";
 import { applyBossPhaseSkillState } from "../game/bossSkillRules";
-import { clearBossCopyWarnings } from "../render/bossCopyWarnings";
-import { enemyIsBossCompanion } from "../registry/enemies";
 import { chapterIdForLevelId } from "../data/chapters";
 import { getLevelConfig } from "../data/levels";
-import { updateBossRuntime, executeBossAttack, initializeDodecahedronCompanions, initializeOctahedronSolarBombs, type BossRuntime } from "../game/bossRuntime";
+import { updateBossRuntime, executeBossAttack, type BossRuntime } from "../game/bossRuntime";
 import { advanceTowerAttacks, executeTowerVolley } from "../game/towerCombat";
 import { towerAttackRuntime } from "../render/towerCombat";
 import type { CombatRuntime } from "../game/combatRuntime";
@@ -144,8 +143,6 @@ import {
   damageBoss,
   damageEnemy,
   damageTower,
-  removeEnemy,
-  removeBoss,
   removeTower,
   settleTowerHealth,
   type UnitLifecycleRuntime
@@ -378,6 +375,8 @@ export class GameScene extends Phaser.Scene {
   private towerDeploymentRuntimeCache!: TowerDeploymentRuntime;
   private combatRuntimeCache!: CombatRuntime;
   private bossRuntimeCache!: BossRuntime;
+  private encounter!: BattleEncounter<LiveBattleEntities>;
+  private battleCells!: BattlefieldCells<Tower>;
   private unitLifecycleRuntimeCache!: LiveUnitLifecycleRuntime;
   private projectileRuntimeCache!: LiveProjectileRuntime;
   private readonly projectileMotion = new ProjectileMotionFrame();
@@ -569,6 +568,31 @@ export class GameScene extends Phaser.Scene {
     this.unitLifecycleRuntimeCache = this.createUnitLifecycleRuntime();
     this.projectileRuntimeCache = this.createProjectileRuntime();
     this.triggerTowerRuntimeCache = this.createTriggerTowerRuntime();
+    this.encounter = new BattleEncounter<LiveBattleEntities>({
+      world: this.world,
+      bossRuntime: () => bossSimulationRuntime(this.bossRuntime()),
+      lifecycle: () => this.unitLifecycleRuntime(),
+      createBoss: (kind, reduction, options) => createCubeBoss(this, kind, reduction, options),
+      clearStorage: () => this.storage.clear(),
+      bossSeen: kind => this.profile.bossSeen(kind),
+      defeatedBoss: rank => this.profile.defeatedBoss(rank),
+      endGame: () => this.endGame()
+    }, battleEncounterPresentation(this, {
+      changed: () => this.updateHud(),
+      phaseChanged: (phase, total) => this.showToast(`PHASE ${phase}/${total}`)
+    }));
+    this.battleCells = new BattlefieldCells({
+      world: this.world,
+      removeTower: tower => removeTower(this.unitLifecycleRuntime(), tower),
+      updateLevelAuras: () => this.updateLevelAuras()
+    }, {
+      erase: tower => makeEraseMark(this, tower.x, tower.y),
+      permanentSeal: (lane, column) => {
+        this.sealedCellMarks.set(gridCellKey(lane, column), createCellSealMark(this, lane, column));
+      },
+      timedSeals: () => drawTimedCellSeals(this.timedCellSealGraphics, this.timedCellSeals.entries, this.battleTime, this.timedCellWarningGraphics),
+      changed: () => this.syncPlacementGhost(this.input.activePointer)
+    });
     const tutorialRuntime: TutorialRuntime = {
       getTowers: () => this.towers, getEnemies: () => this.enemies, getBattleTime: () => this.battleTime,
       getToolState: () => ({
@@ -1602,32 +1626,7 @@ export class GameScene extends Phaser.Scene {
     };
   }
 
-  private spawnBossIfNeeded(rank?: number) {
-    if (!this.levelConfig.bossKind) {
-      return;
-    }
-
-    this.boss = createCubeBoss(this, this.levelConfig.bossKind, this.difficultyConfig.finalDamageReduction, { rank });
-    this.profile.bossSeen(this.levelConfig.bossKind);
-    this.bossHomePosition = { x: this.boss.x, y: this.boss.y };
-    if (this.levelConfig.bossEndless && isDodecahedronBoss(this.boss)) {
-      initializeDodecahedronCompanions(this.bossRuntime(), this.boss);
-    }
-    if (this.levelConfig.bossEndless && isOctahedronBoss(this.boss)) {
-      initializeOctahedronSolarBombs(this.bossRuntime(), this.boss);
-    }
-    if (this.currentBossPhaseConfig()) {
-      this.applyBossPhaseStats(this.boss);
-      this.applyBossPhaseSkillState(this.boss);
-      return;
-    }
-
-    if (this.unlimitedFirepower) {
-      this.boss.baseStats.maxHp *= 10;
-      syncBossBaseStats(this.boss);
-      this.boss.hp = this.boss.finalStats.maxHp;
-    }
-  }
+  private spawnBossIfNeeded(rank?: number) { this.encounter.spawnBoss(rank); }
 
   private applyBossPhaseStats(boss: CubeBoss) { this.world.applyBossPhaseStats(boss); }
 
@@ -1842,17 +1841,9 @@ export class GameScene extends Phaser.Scene {
   private createBossRuntime(): BossRuntime {
     return {
       nullifyTowers: durationMs => { this.nullification.start(this.battleTime, durationMs); },
-      sealCell: (lane, column, durationMs) => {
-        this.timedCellSeals.seal(lane, column, this.battleTime, durationMs, (row, col) => {
-          if (this.eraseTowersInCell(row, col)) this.updateLevelAuras();
-        });
-        drawTimedCellSeals(this.timedCellSealGraphics, this.timedCellSeals.entries, this.battleTime, this.timedCellWarningGraphics);
-        this.syncPlacementGhost(this.input.activePointer);
-      },
-      warnCellSeal: (lane, column, warningMs, durationMs, leadInMs) => {
-        this.timedCellSeals.warn(lane, column, this.battleTime, warningMs, durationMs, leadInMs);
-        drawTimedCellSeals(this.timedCellSealGraphics, this.timedCellSeals.entries, this.battleTime, this.timedCellWarningGraphics);
-      },
+      sealCell: (lane, column, durationMs) => this.battleCells.sealTimedCell(lane, column, durationMs),
+      warnCellSeal: (lane, column, warningMs, durationMs, leadInMs) =>
+        this.battleCells.warnCell(lane, column, warningMs, durationMs, leadInMs),
       enemyHpMultiplier: () => endlessEnemyHpMultiplier(this.levelConfig, this.wave),
       scheduleBattleAction: this.scheduleBattleAction,
       scene: this,
@@ -2026,18 +2017,7 @@ export class GameScene extends Phaser.Scene {
     advanceEnemies(this.combatRuntime(), time, seconds);
   }
 
-  private handleEnemyReachedBase(enemy: Enemy) {
-    this.world.registerBreach();
-    removeEnemy(this.unitLifecycleRuntime(), enemy, false);
-    this.cameras.main.shake(110, 0.004);
-    playSound("breach");
-    if (this.baseIntegrity <= 0) {
-      this.endGame();
-      return true;
-    }
-    return false;
-  }
-
+  private handleEnemyReachedBase(enemy: Enemy) { return this.encounter.enemyReachedBase(enemy); }
 
   private spawnWave(levelElapsed: number, gameTime: number) { this.world.spawnWave(levelElapsed, gameTime, this.worldSystems); }
 
@@ -2056,102 +2036,17 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private handleBossDefeated(boss: CubeBoss) {
-    if (this.levelConfig.bossEndless) {
-      this.profile.defeatedBoss(boss.rank);
-      if (isOctahedronBoss(boss)) {
-        forEachSnapshot(this.enemies, enemy => {
-          if (enemy.kind === "solarBomb") removeEnemy(this.unitLifecycleRuntime(), enemy, false);
-        });
-      }
-      if (isDodecahedronBoss(boss)) {
-        forEachSnapshot(this.enemies, enemy => {
-          if (enemyIsBossCompanion(enemy.kind)) removeEnemy(this.unitLifecycleRuntime(), enemy, false);
-        });
-      }
-      removeBoss(this.unitLifecycleRuntime(), false);
-      this.spawnBossIfNeeded(boss.rank + 1);
-      this.updateHud();
-      return true;
-    }
-    const phases = this.levelConfig.bossPhases;
-    if (!phases || !this.world.beginNextBossPhase()) return false;
-    this.clearEnemiesForBossPhaseTransition();
-    this.resetBossForPhase(boss);
-    this.applyBossPhaseStats(boss);
-    this.applyBossPhaseSkillState(boss);
-    this.showToast(`PHASE ${this.bossPhaseIndex + 1}/${phases.length}`);
-    this.updateHud();
-    return true;
-  }
+  private handleBossDefeated(boss: CubeBoss) { return this.encounter.bossDefeated(boss); }
 
-  private clearEnemiesForBossPhaseTransition() {
-    this.storage.clear();
-    const bodies: Phaser.GameObjects.Container[] = [];
-    forEachSnapshot(this.enemies, (enemy) => {
-      detachEnemyHealth(enemy);
-      enemy.inPlay = false;
-      bodies.push(enemy.body);
-      destroyContainedEnemies(enemy);
-    });
+  private clearEnemiesForBossPhaseTransition() { this.encounter.clearPhaseEnemies(); }
 
-    clearEnemyField(this.enemies);
-    if (bodies.length === 0) {
-      return;
-    }
+  private resetBossForPhase(boss: CubeBoss) { this.encounter.resetBoss(boss); }
 
-    this.tweens.add({
-      targets: bodies,
-      alpha: 0,
-      scale: 0.12,
-      duration: 180,
-      ease: "Quad.easeIn",
-      onComplete: () => bodies.forEach((body) => body.destroy())
-    });
-  }
+  private sealColumn(column: number) { this.battleCells.sealColumn(column); }
 
-  private resetBossForPhase(boss: CubeBoss) {
-    const copies = boss.octahedronCopies ?? [];
-    this.world.resetBossForPhase(boss);
-    boss.body.setPosition(boss.x, boss.y);
-    for (const copy of copies) copy.body.destroy();
-    clearBossCopyWarnings(boss);
-  }
+  private eraseTowersInCell(lane: number, column: number) { return this.battleCells.eraseCell(lane, column); }
 
-  private sealColumn(column: number) {
-    let removedTower = false;
-    for (let lane = 0; lane < LANES; lane += 1) {
-      removedTower = this.eraseTowersInCell(lane, column) || removedTower;
-      this.sealCell(lane, column);
-    }
-
-    if (removedTower) {
-      this.updateLevelAuras();
-    }
-    this.syncPlacementGhost(this.input.activePointer);
-  }
-
-  private eraseTowersInCell(lane: number, column: number) {
-    let removed = false;
-    for (const tower of this.towers.filter(tower => tower.lane === lane && tower.column === column)) {
-      if (!tower.inPlay) continue;
-      makeEraseMark(this, tower.x, tower.y);
-      removeTower(this.unitLifecycleRuntime(), tower);
-      removed = true;
-    }
-    return removed;
-  }
-
-  private sealCell(lane: number, column: number) {
-    const key = gridCellKey(lane, column);
-    if (this.sealedCells.has(key)) {
-      return;
-    }
-
-    this.sealedCells.add(key);
-    const mark = createCellSealMark(this, lane, column);
-    this.sealedCellMarks.set(key, mark);
-  }
+  private sealCell(lane: number, column: number) { this.battleCells.sealCell(lane, column); }
 
   private cellCenter(lane: number, column: number) {
     return {

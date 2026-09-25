@@ -50,7 +50,7 @@ transport-neutral authority and synchronization gates above.
   Actual damage/removal, shared-health arithmetic, passenger release, death splits
   and lethal-lock decisions now also run on data-only states through the same
   live path. Bodyless rules and displayed/detached/restored battle scenes verify
-  their ordering. Gameplay callbacks still connect mirror/pipeline and Boss phase
+  their ordering. Gameplay callbacks still connect mirror/pipeline and other battle
   controllers that need extraction; the whole simulation is not headless yet.
   See [damage and unit lifecycle](unit-lifecycle.md).
   Enemy movement, blocking, ranged/melee attacks, skills, slope flights and
@@ -72,9 +72,14 @@ transport-neutral authority and synchronization gates above.
   and DEL sweeps now use the same data-only implementation on the live path.
   Factories, cell effects and rendering are explicit ports; scratch buffers are
   per-runtime. Ten no-engine integrations and seven displayed/detached/restored
-  browser scenarios preserve behavior. Boss phase-transition cleanup and other
-  live callbacks still need extraction, so this is not complete headless battle
-  execution. See [Boss simulation](boss-simulation.md).
+  browser scenarios preserve behavior. See [Boss simulation](boss-simulation.md).
+  Boss spawning, endless succession, phase cleanup and base breaches now also
+  use data-only encounter rules. Storage, NUL and field-cell operations run the
+  same pure implementations through existing public controllers. Eight no-engine
+  integrations and five displayed/detached/restored browser scenarios verify
+  cleanup, suspended timers and succession ordering. Pipeline, attachments,
+  deployment and network/skill orchestration callbacks remain live, so complete
+  headless battle execution is still open. See [encounter rules](battle-encounter.md).
 - Determinism: the integrated `BattleSession` now owns fixed steps, seeded battle
   RNG, delayed action queue, recording and checkpoint timing. Independent session
   tests and unchanged browser replay checksums verify this extraction. `BattleWorld`

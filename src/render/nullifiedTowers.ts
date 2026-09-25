@@ -1,6 +1,6 @@
 import type Phaser from "phaser";
 import { BOARD_X, BOARD_Y, CELL_WIDTH, CELL_HEIGHT } from "../config";
-import type { NullifiedTowers } from "../game/towerNullification";
+import type { NullifiedTowers } from "../game/towerNullificationRules";
 import { drawNulGlyph } from "./delBoss";
 
 export function drawNullifiedTowers(graphics: Phaser.GameObjects.Graphics, state: NullifiedTowers | undefined, time: number) {

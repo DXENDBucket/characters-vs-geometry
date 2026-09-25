@@ -2,11 +2,11 @@ import type { CardId, CubeBoss, EdgeTower, Enemy, EnemyProjectile, MortarProject
 import type { ScheduledBattleAction } from "./battleActions";
 import type { LoadoutReselection } from "./loadoutReselection";
 import type { TowerShifterController } from "./towerShifter";
-import type { TowerStorageController } from "./towerStorage";
+import type { StoredEnemy } from "./towerStorageRules";
 import type { SpellMortarFlight } from "./towerSkills";
 import type { BattleSessionSnapshot } from "./battleSession";
 import type { TimedCellSeal } from "./timedCellSeals";
-import type { NullifiedTowers } from "./towerNullification";
+import type { NullifiedTowers } from "./towerNullificationRules";
 import type { BattleEntityIdState } from "./battleEntityIds";
 import type { CardDeadline } from "./battleLoadout";
 import type { TutorialCheckpoint } from "./tutorialState";
@@ -16,7 +16,7 @@ export interface BattleSaveState {
   lifecycle?: BattleLifecycleState;
   tutorial?: TutorialCheckpoint;
   entityIds?: BattleEntityIdState;
-  nullifiedTowers?: NullifiedTowers;
+  nullifiedTowers?: NullifiedTowers<Tower>;
   edgeTowers?: EdgeTower[];
   simulation?: BattleSessionSnapshot & { mirrorNextGroupId: number };
   bossPhaseIndex?: number;
@@ -45,7 +45,7 @@ export interface BattleSaveState {
   enemyProjectiles: EnemyProjectile[];
   mortarProjectiles: MortarProjectile[];
   actions: ScheduledBattleAction[];
-  storage: ReturnType<TowerStorageController["snapshot"]>;
+  storage: StoredEnemy<Enemy, Tower>[];
   shifter: ReturnType<TowerShifterController["snapshot"]>;
   reselection: ReturnType<LoadoutReselection["snapshot"]>;
   extraction: number;

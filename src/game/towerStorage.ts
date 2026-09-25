@@ -1,113 +1,14 @@
-import { CELL_WIDTH } from "../config";
-import { addEnemyToField, removeEnemyAt } from "./enemyRoster";
-import { makeShiftEffect } from "../render/combatEffects";
-import type { CardDefinition, Enemy, Tower } from "../types";
+import type { Enemy, Tower } from "../types";
 import type { CombatRuntime } from "./combatRuntime";
-import { expireReversalEffect } from "./rules/reversal";
-import { statusMultipliers } from "./statusEffects";
-import { syncEnemyBodyPosition } from "../render/enemyStatus";
-import { getBlockedEnemies } from "./targeting";
-import { towerFacingDirection } from "./towerRules";
-import { detachEnemyHealth } from "./enemyHealth";
-import { destroyContainedEnemies, enemyCanBeLoaded } from "./enemyContainers";
+import { TowerStorageSimulation } from "./towerStorageRules";
+import { towerStoragePresentation } from "../render/towerStorage";
 
-export const ENEMY_STORAGE_DURATION = 5_000;
+export { ENEMY_STORAGE_DURATION } from "./towerStorageRules";
 
 type StorageRuntime = Pick<CombatRuntime, "scene" | "enemies" | "towers" | "occupied" | "battleTime" | "damageTower">;
 
-interface StoredEnemy {
-  enemy: Enemy;
-  carrier: Tower;
-  releaseAt: number;
-}
-
-export class TowerStorageController {
-  private readonly stored: StoredEnemy[] = [];
-
-  constructor(private readonly runtime: () => StorageRuntime) {}
-
-  snapshot() { return this.stored.slice(); }
-  delayCarriers(towers: readonly Tower[], durationMs: number) {
-    const paused = new Set(towers);
-    for (const entry of this.stored) if (paused.has(entry.carrier)) entry.releaseAt += durationMs;
+export class TowerStorageController extends TowerStorageSimulation<Enemy, Tower> {
+  constructor(runtime: () => StorageRuntime) {
+    super(runtime, towerStoragePresentation(() => runtime().scene));
   }
-  restore(entries: StoredEnemy[]) { this.stored.splice(0, this.stored.length, ...entries); }
-
-  get count() {
-    return this.stored.length;
-  }
-
-  get earliestWaveNumber() {
-    return this.stored.reduce((wave, entry) => Math.min(wave, entry.enemy.waveNumber), Infinity);
-  }
-
-  storeBlockedEnemies(tower: Tower, definition: CardDefinition) {
-    if (!tower.inPlay) {
-      return;
-    }
-    const runtime = this.runtime();
-    const targets = getBlockedEnemies(tower, runtime.towers, runtime.enemies, runtime.occupied);
-    let captured = 0;
-    for (const enemy of targets) {
-      const index = runtime.enemies.indexOf(enemy);
-      if (!enemy.inPlay || index < 0 || !enemyCanBeLoaded(enemy)) {
-        continue;
-      }
-      detachEnemyHealth(enemy);
-      removeEnemyAt(runtime.enemies, index);
-      enemy.inPlay = false;
-      enemy.blockedByTowerId = undefined;
-      enemy.blockedSince = undefined;
-      enemy.body.setVisible(false);
-      this.stored.push({ enemy, carrier: tower, releaseAt: runtime.battleTime + ENEMY_STORAGE_DURATION });
-      makeShiftEffect(runtime.scene, enemy.x, enemy.y, tower.x, tower.y);
-      captured += 1;
-    }
-    for (let index = 0; index < captured && tower.inPlay; index += 1) {
-      runtime.damageTower(tower, definition.selfDamage ?? 400, definition.selfDamageType ?? "true");
-    }
-  }
-
-  update() {
-    if (this.stored.length === 0) {
-      return;
-    }
-    const runtime = this.runtime();
-    for (let index = 0; index < this.stored.length;) {
-      const entry = this.stored[index];
-      if (entry.carrier.nullified || entry.releaseAt > runtime.battleTime) {
-        index += 1;
-        continue;
-      }
-      this.stored.splice(index, 1);
-      const { enemy, carrier } = entry;
-      // A removed tower retains its last grid position; removal never loses its cargo.
-      expireReversalEffect(carrier, runtime.battleTime);
-      enemy.x = carrier.x - towerFacingDirection(carrier) * CELL_WIDTH;
-      enemy.y = carrier.y;
-      enemy.lane = carrier.lane;
-      enemy.blockedByTowerId = undefined;
-      enemy.blockedSince = undefined;
-      enemy.inPlay = true;
-      enemy.body.setVisible(true);
-      enemy.body.setDepth(60 + enemy.lane);
-      statusMultipliers(enemy, runtime.battleTime);
-      syncEnemyBodyPosition(enemy);
-      addEnemyToField(runtime.enemies, enemy);
-      makeShiftEffect(runtime.scene, carrier.x, carrier.y, enemy.x, enemy.y);
-    }
-  }
-
-  clear() {
-    for (const { enemy } of this.stored) {
-      destroyStoredEnemy(enemy);
-    }
-    this.stored.length = 0;
-  }
-}
-
-function destroyStoredEnemy(enemy: Enemy) {
-  destroyContainedEnemies(enemy);
-  enemy.inPlay = false;
-  enemy.body.destroy();
 }

@@ -95,13 +95,16 @@ three local scenes, not networked clients.
 
 The world module has no Phaser/DOM/render imports, but its live ports still call
 scene-owned controllers and runtime modules that coordinate combat with graphics.
-Storage, nullification, skills, pipelines, mirrors and other controller state are
-not all world-owned yet. Input selection and interpretation remain local-scene
+Encounter transitions, field cells, storage and nullification now use pure rule
+systems on the live path; see [encounter rules](battle-encounter.md). Their ports
+still connect live network/skill controllers. Pipelines, mirrors and other state
+are not all independently composed yet. Input selection and interpretation remain local-scene
 responsibilities. Port implementations must be separated from rendering before a
 complete authoritative headless host can use this world.
 
-Stable entity IDs are integrated; semantic per-player commands, identity-based
-wire relationships, authorization, transport and reconnect remain open. See
+Stable entity IDs and semantic commands are integrated; authority and live-host
+sync/reconnect have connected-client coverage. Identity-based wire relationships,
+per-player resources and production connection handling remain open. See
 [multiplayer readiness](multiplayer-readiness.md). This
 pass changes ownership and dependency boundaries; it does not claim a full-battle
 FPS improvement.

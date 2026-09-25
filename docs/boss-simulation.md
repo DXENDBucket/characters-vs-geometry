@@ -65,8 +65,9 @@ clients preserve joining, running, recovery, terminal and content checksums.
 
 ## Still Open
 
-This does not make the complete battle headless. Phase-transition cleanup,
-storage/pipeline orchestration, targeted attachments, deployment and other
+Phase transitions, storage and NUL now also have data-only execution; see
+[encounter rules](battle-encounter.md). This does not make the complete battle
+headless. Pipeline orchestration, targeted attachments, deployment and other
 live callbacks still need data-only ownership. The browser comparison removes
 presentation callbacks, not all live factories; the Node tests establish the
 Boss runtime's bodyless boundary separately. Stable-ID relationship records,
