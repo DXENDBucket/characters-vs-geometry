@@ -12,9 +12,9 @@ import { identifyBattleEntity } from "./battleEntityIds";
 import { createUnitBorder } from "../render/unitShapes";
 import { drawTowerShellBorder } from "../render/parenthesisTower";
 import type { CardDefinition, Tower } from "../types";
-import { syncTowerFinalStats, towerFinalStats } from "./unitStats";
+import { towerFinalStats } from "./unitStats";
 import type { TowerAuraSources } from "./towerAuras";
-import { effectiveUpgradeDelta } from "./upgrades";
+import * as upgradeRules from "./towerUpgradeRules";
 import { setAlphaIfChanged, setPositionIfChanged, setScaleIfChanged, setVisibleIfChanged } from "./visualGuards";
 import { towerIsFlying, towerHasTrueDamage, settleTowerMoveVisual } from "./towerRules";
 import { syncTowerFacingVisual } from "../render/towerFacing";
@@ -144,35 +144,24 @@ export function syncTowerFormVisual(scene: Phaser.Scene, tower: Tower, definitio
   syncTowerHpBar(tower);
 }
 
+export const towerUpgradePresentation: upgradeRules.TowerUpgradePresentation = {
+  level: tower => { syncTowerLevelText(tower as Tower); setAlphaIfChanged((tower as Tower).levelText, 1); },
+  health: tower => syncHealthBar(tower as Tower),
+  trapReset: tower => { (tower as Tower).border.setVisible(false); }
+};
+
 export function upgradeTowerLevel(tower: Tower, levels = 1) {
-  const previousLevel = tower.level;
-  tower.level += Math.max(0, Math.floor(levels));
-  syncTowerLevelText(tower);
-  setAlphaIfChanged(tower.levelText, 1);
-  return effectiveUpgradeDelta(previousLevel, tower.level);
+  return upgradeRules.upgradeTowerLevel(tower, levels, towerUpgradePresentation);
 }
 
-export function applyTowerUpgradeStats(
-  tower: Tower,
-  definition: CardDefinition,
-  gainedEffectiveUpgrades: number,
-  battleTime: number
-) {
-  syncTowerDerivedStats(tower, gainedEffectiveUpgrades > 0);
-
-  if (towerBehaviorType(tower) === "G") {
-    resetTrapArming(tower, definition, battleTime);
-  }
+export function applyTowerUpgradeStats(tower: Tower, definition: CardDefinition,
+  gainedEffectiveUpgrades: number, battleTime: number) {
+  upgradeRules.applyTowerUpgradeStats(tower, definition, gainedEffectiveUpgrades, battleTime, towerUpgradePresentation);
 }
 
-export function syncTowerDerivedStats(
-  tower: Tower,
-  healMaxHpIncrease = false,
-  towers?: Tower[],
-  towerAuraSources?: TowerAuraSources
-) {
-  syncTowerFinalStats(tower, { healMaxHpIncrease, towers, towerAuraSources });
-  syncTowerHpBar(tower);
+export function syncTowerDerivedStats(tower: Tower, healMaxHpIncrease = false,
+  towers?: Tower[], towerAuraSources?: TowerAuraSources) {
+  upgradeRules.syncTowerDerivedStats(tower, healMaxHpIncrease, towers, towerAuraSources, towerUpgradePresentation);
 }
 
 export function syncTowerHpBar(tower: Tower) {
@@ -431,9 +420,4 @@ function createNoCornerRangeBorder(scene: Phaser.Scene, color: number, alpha: nu
   border.closePath();
   border.strokePath();
   return border;
-}
-
-function resetTrapArming(tower: Tower, definition: CardDefinition, battleTime: number) {
-  tower.armedAt = battleTime + (definition.armTime ?? 15_000);
-  tower.border.setVisible(false);
 }

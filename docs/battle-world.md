@@ -99,8 +99,10 @@ Encounter transitions, field cells, storage and nullification now use pure rule
 systems on the live path; see [encounter rules](battle-encounter.md). Their ports
 still connect live network/skill controllers. Pipeline and attachment rules now
 use explicit data/presentation ports too; see [pipeline simulation](pipeline-simulation.md).
-Deployment, mirrors and other state
-are not all independently composed yet. Input selection and interpretation remain local-scene
+Deployment, mirror lifecycle, copied forms, topology connection and board-level
+aura/shared-health refresh now have data-only implementations too; see
+[tower board simulation](tower-board.md). Physical shifter/push execution,
+generated-tower placement and full runtime composition remain live. Input selection and interpretation remain local-scene
 responsibilities. Port implementations must be separated from rendering before a
 complete authoritative headless host can use this world.
 

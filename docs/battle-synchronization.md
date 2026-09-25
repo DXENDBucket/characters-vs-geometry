@@ -82,6 +82,9 @@ or terminating the connection.
   reconnects before the pending action executes, and opens connector edges by ID.
   Both clients retain the host's 600-tick result (`b2d37fe6`), including attachment
   application and the stored explosion. Existing scenario hashes are unchanged.
+- AE-4 adds remote topology connection using a tower ID, a copied w on a distant
+  logical cell and resynchronization after that form change. The three worlds
+  match at `77b5e210` after 600 further ticks; earlier scenario hashes are unchanged.
 - Existing full/checkpoint replay tests retain their combat checksums. Session,
   authority, synchronization and checksum dependencies are guarded against Phaser
   and DOM imports.

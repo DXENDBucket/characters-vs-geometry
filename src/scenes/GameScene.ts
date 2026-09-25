@@ -7,8 +7,8 @@ import { syncTowerTopology, inFriendlyRange, towerCell, physicalTowerCell } from
 import { TowerTopologyController } from "../game/towerTopologyController";
 import { syncFriendlyRangeVisual, syncTowerAutoUpgradeVisual } from "../game/towers";
 import { getHitProductionAmount, towerFacingDirection } from "../game/towerRules";
-import { syncTowerCopies } from "../game/towerCopy";
-import { syncTowerFormVisual } from "../game/towers";
+import { TowerBoardSimulation } from "../game/towerBoard";
+import { towerBoardPresentation } from "../render/towerBoard";
 import { BATTLE_RULES_VERSION, setBattleRandom, setBattlePlayback } from "../game/battleSimulation";
 import { validateReplay, type BattleCommand, type BattlePointer, type BattleReplay, type RecordedBattleCommand } from "../game/battleCommands";
 import type { SaveGraph } from "../game/saveGraph";
@@ -48,7 +48,6 @@ import { BattleProfile, type BattleRewards } from "../battleProfile";
 import type { BattleResult } from "../game/battleLifecycle";
 import { setBattleDiscoveryObserver } from "../game/battleDiscovery";
 import { endlessEnemyHpMultiplier } from "../game/endlessEnvironment";
-import { syncTowerHealthNetworks } from "../game/towerHealth";
 import { enemiesWithPassengers } from "../game/enemyContainers";
 import { ProjectileCircuitController, edgeAtPoint, edgePosition } from "../game/projectileCircuit";
 import { drawCircuitEdges } from "../render/circuitEdges";
@@ -117,7 +116,6 @@ import { isBossInRect } from "../game/unitGeometry";
 import {
   createTower,
   setTowerFacing,
-  syncTowerDerivedStats,
   syncTowerFacingVisual,
   syncTowerLevelText,
   syncTowerTrueDamageVisual
@@ -127,7 +125,7 @@ import {
   type TargetedEffectCardRuntime
 } from "../game/targetedEffectCards";
 import { TowerDeploymentController, type TowerDeploymentRuntime } from "../game/towerDeployment";
-import { MIRROR_COST_LIMIT, TowerMirrorController, type TowerMirrorRuntime } from "../game/towerMirrors";
+import { TowerMirrorController, type TowerMirrorRuntime } from "../game/towerMirrors";
 import { TowerShifterController, type TowerShifterRuntime } from "../game/towerShifter";
 import { TowerPushController } from "../game/towerPush";
 import { TowerSkillController, type TowerSkillRuntime } from "../game/towerSkills";
@@ -137,7 +135,6 @@ import {
   type TutorialToolId
 } from "../game/tutorial";
 import { createTutorialController, tutorialLoadout } from "../game/tutorialRegistry";
-import { towerAuraSources } from "../game/towerAuras";
 import { slowAuraSources, type SlowAuraSources } from "../game/slowAura";
 import { charsAreSoftcapped } from "../game/charSoftcap";
 import {
@@ -211,16 +208,6 @@ interface BossHpBarState {
   backColor: number;
   phase: number;
   totalPhases: number;
-}
-
-interface LevelAuraTowerSignature {
-  id: string;
-  type: CardId;
-  lane: number;
-  column: number;
-  level: number;
-  transient: boolean;
-  mirrorGroupId: number;
 }
 
 type DebugDamageMode = "normal" | "super" | null;
@@ -335,10 +322,7 @@ export class GameScene extends Phaser.Scene {
   private get gameSpeed() { return this.controls.speed; }
   private set gameSpeed(value: number) { this.controls.speed = value; }
   private eraserMode = false;
-  private levelBonusSnapshotTowers: Tower[] = [];
-  private levelBonusSnapshotValues: number[] = [];
-  private levelAuraCachedTowers: Tower[] = [];
-  private levelAuraCachedStates: LevelAuraTowerSignature[] = [];
+  private towerBoard!: TowerBoardSimulation<Tower>;
   private placementGhosts: Phaser.GameObjects.Container[] = [];
   private toolPreview!: BoardToolPreview;
   private readonly toolHintBuffer: BoardToolHint[] = [];
@@ -482,10 +466,6 @@ export class GameScene extends Phaser.Scene {
     this.extraction = new TowerExtractionPool();
     this.reselectShade = undefined;
     this.eraserMode = false;
-    this.levelBonusSnapshotTowers.length = 0;
-    this.levelBonusSnapshotValues.length = 0;
-    this.levelAuraCachedTowers.length = 0;
-    this.levelAuraCachedStates.length = 0;
     this.placementGhosts = [];
     this.placementGhostKey = "";
     this.autoUpgradeMode = false;
@@ -564,6 +544,14 @@ export class GameScene extends Phaser.Scene {
     this.unitLifecycleRuntimeCache = this.createUnitLifecycleRuntime();
     this.projectileRuntimeCache = this.createProjectileRuntime();
     this.triggerTowerRuntimeCache = this.createTriggerTowerRuntime();
+    const towerBoardRuntime: import("../game/towerBoard").TowerBoardRuntime<Tower> = {
+      get towers() { return pipelineScene.towers; }, get occupied() { return pipelineScene.occupied; },
+      get battleTime() { return pipelineScene.battleTime; }, getDefinition: id => this.getDefinition(id),
+      syncMirrorLevelBonuses: () => this.mirrors.syncMirrorLevelBonuses(),
+      settleHealth: () => settleTowerHealth(this.unitLifecycleRuntime()),
+      syncCircuits: () => this.numbers.sync()
+    };
+    this.towerBoard = new TowerBoardSimulation(() => towerBoardRuntime, towerBoardPresentation(this));
     this.encounter = new BattleEncounter<LiveBattleEntities>({
       world: this.world,
       bossRuntime: () => bossSimulationRuntime(this.bossRuntime()),
@@ -1433,135 +1421,9 @@ export class GameScene extends Phaser.Scene {
   }
 
 
-  private updateLevelAurasIfNeeded() {
-    if (syncTowerTopology(this.towers) || this.levelAuraStateChanged()) {
-      this.updateLevelAuras();
-    }
-  }
-
-  private syncCopiedTowers() {
-    syncTowerCopies({ towers: this.towers, occupied: this.occupied, battleTime: this.battleTime,
-      getDefinition: id => this.getDefinition(id),
-      onChanged: (tower, definition) => syncTowerFormVisual(this, tower, definition, this.battleTime) });
-  }
-
-  private updateLevelAuras() {
-    syncTowerOccupancy(this.towers, this.occupied);
-    syncTowerTopology(this.towers);
-    this.syncCopiedTowers();
-    const snapshotTowers = this.levelBonusSnapshotTowers;
-    const snapshotValues = this.levelBonusSnapshotValues;
-    snapshotTowers.length = this.towers.length;
-    snapshotValues.length = this.towers.length;
-
-    for (let index = 0; index < this.towers.length; index += 1) {
-      const tower = this.towers[index];
-      snapshotTowers[index] = tower;
-      snapshotValues[index] = tower.levelBonus + tower.mirrorLevelBonus;
-      tower.levelBonus = 0;
-    }
-
-    for (const auraTower of this.towers) {
-      if (auraTower.type !== "U") {
-        continue;
-      }
-
-      for (const target of this.towers) {
-        if (
-          target === auraTower ||
-          !inFriendlyRange(auraTower, target, 1)
-        ) {
-          continue;
-        }
-
-        const targetDefinition = this.getDefinition(target.type);
-        if (targetDefinition.cost > MIRROR_COST_LIMIT) {
-          continue;
-        }
-
-        target.levelBonus += auraTower.level;
-      }
-    }
-    this.mirrors.syncMirrorLevelBonuses();
-
-    const auraSources = towerAuraSources(this.towers);
-    for (let index = 0; index < this.towers.length; index += 1) {
-      const tower = this.towers[index];
-      if (snapshotTowers[index] !== tower || snapshotValues[index] !== tower.levelBonus + tower.mirrorLevelBonus) {
-        syncTowerLevelText(tower);
-      }
-
-      syncTowerDerivedStats(tower, false, this.towers, auraSources);
-      syncFriendlyRangeVisual(tower);
-    }
-
-    snapshotTowers.length = 0;
-    snapshotValues.length = 0;
-    syncTowerHealthNetworks(this.towers);
-    if (settleTowerHealth(this.unitLifecycleRuntime())) {
-      this.updateLevelAuras();
-      return;
-    }
-    this.cacheLevelAuraState();
-    this.numbers.sync();
-  }
-
-  private levelAuraStateChanged() {
-    if (this.towers.length !== this.levelAuraCachedTowers.length) {
-      return true;
-    }
-
-    for (let index = 0; index < this.towers.length; index += 1) {
-      const tower = this.towers[index];
-      const cached = this.levelAuraCachedStates[index];
-      if (this.levelAuraCachedTowers[index] !== tower || !cached || !this.levelAuraTowerStateMatches(tower, cached)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  private levelAuraTowerStateMatches(tower: Tower, cached: LevelAuraTowerSignature) {
-    return (
-      cached.id === tower.id &&
-      cached.type === towerFormType(tower) &&
-      cached.lane === tower.lane &&
-      cached.column === tower.column &&
-      cached.level === tower.level &&
-      cached.transient === tower.transient &&
-      cached.mirrorGroupId === (tower.mirrorGroupId ?? 0)
-    );
-  }
-
-  private cacheLevelAuraState() {
-    this.levelAuraCachedTowers.length = this.towers.length;
-    this.levelAuraCachedStates.length = this.towers.length;
-    for (let index = 0; index < this.towers.length; index += 1) {
-      const tower = this.towers[index];
-      const cached = this.levelAuraCachedStates[index] ?? this.createLevelAuraTowerState(tower);
-      cached.id = tower.id;
-      cached.type = towerFormType(tower);
-      cached.lane = tower.lane;
-      cached.column = tower.column;
-      cached.level = tower.level;
-      cached.transient = tower.transient;
-      cached.mirrorGroupId = tower.mirrorGroupId ?? 0;
-      this.levelAuraCachedTowers[index] = tower;
-      this.levelAuraCachedStates[index] = cached;
-    }
-  }
-
-  private createLevelAuraTowerState(tower: Tower): LevelAuraTowerSignature {
-    return {
-      id: tower.id,
-      type: towerFormType(tower),
-      lane: tower.lane,
-      column: tower.column,
-      level: tower.level,
-      transient: tower.transient,
-      mirrorGroupId: tower.mirrorGroupId ?? 0
-    };
-  }
+  private updateLevelAurasIfNeeded() { this.towerBoard.updateIfNeeded(); }
+  private syncCopiedTowers() { this.towerBoard.syncCopies(); }
+  private updateLevelAuras() { this.towerBoard.refresh(); }
 
   private cardTimeFor(id: CardId) {
     return battleCardTime(this.getDefinition(id), this.world);

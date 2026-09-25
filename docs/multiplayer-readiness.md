@@ -44,20 +44,20 @@ transport-neutral authority and synchronization gates above.
   Gathering and Orientation targeting now use data-only rules with explicit
   presentation/factory ports. Bodyless Node tests and actual displayed/detached
   scene continuations match, including cross-world scratch isolation. Tower firing
-  now has its own data-only runtime; deployment and broader battle orchestration remain scene-bound.
+  now has its own data-only runtime; physical board movement and broader battle orchestration remain scene-bound.
   This does not complete the
   headless simulation gate. See [projectile simulation](projectile-runtime.md).
   Actual damage/removal, shared-health arithmetic, passenger release, death splits
   and lethal-lock decisions now also run on data-only states through the same
   live path. Bodyless rules and displayed/detached/restored battle scenes verify
-  their ordering. Gameplay callbacks still connect mirror/topology and other battle
+  their ordering. Gameplay callbacks still connect movement/commands and other battle
   controllers that need extraction; the whole simulation is not headless yet.
   See [damage and unit lifecycle](unit-lifecycle.md).
   Enemy movement, blocking, ranged/melee attacks, skills, slope flights and
   carrier boarding now run through data-only rules on the actual live path too.
   Factories and presentation are explicit ports, with per-world targeting and
   heart-plan buffers. No-engine integration and three real displayed/detached/
-  restored scenes agree; deployment and broader battle orchestration still need extraction.
+  restored scenes agree; physical board movement and broader battle orchestration still need extraction.
   See [enemy simulation](enemy-simulation.md).
   Tower targeting, attack timing, behavior execution, one-shot triggers and SP
   skill simulation now run through data-only rules on the actual scene path.
@@ -65,7 +65,7 @@ transport-neutral authority and synchronization gates above.
   completion remain authoritative with presentation disabled. Ten bodyless
   integration tests and a displayed/detached/restored live comparison verify the
   boundary. A status-refresh snapshot field-order discrepancy was fixed without
-  changing damage values. Deployment, mirror/topology and other live
+  changing damage values. Physical shifter/push execution and other live
   orchestration still prevent a complete headless battle. See
   [tower simulation](tower-simulation.md).
   Boss movement, promotion, skill dispatch, copies, companions, contact attacks
@@ -77,7 +77,7 @@ transport-neutral authority and synchronization gates above.
   use data-only encounter rules. Storage, NUL and field-cell operations run the
   same pure implementations through existing public controllers. Eight no-engine
   integrations and five displayed/detached/restored browser scenarios verify
-  cleanup, suspended timers and succession ordering. Deployment and
+  cleanup, suspended timers and succession ordering. Physical movement and
   network/skill orchestration callbacks remain live, so complete
   headless battle execution is still open. See [encounter rules](battle-encounter.md).
   Circuit routing, action payloads, output, interception, shielding and healing
@@ -86,9 +86,16 @@ transport-neutral authority and synchronization gates above.
   factories and presentation. Eight Node integrations and a 900-tick displayed/
   detached/restored browser comparison verify these systems. Connected clients
   additionally exercise stored removed-source effects and pending attachment
-  reconnect. Deployment, copy/mirror/topology orchestration and some callback
+  reconnect. Physical shifter/push execution, generated placement and some callback
   composition still need extraction; this is not a complete headless host.
   See [pipeline and attachment simulation](pipeline-simulation.md).
+  Deployment, upgrades, mirror lifecycle, copied forms, topology connection and
+  board-wide aura/shared-health refresh now use data-only rules on the live path.
+  Ten Node integrations, a 900-tick displayed/detached/restored scenario and a
+  connected-client topology/copy resync scenario verify these boundaries.
+  Physical shifter/push execution, generated-tower placement and full live
+  runtime/command composition remain to be extracted and assembled; gates 1-2
+  are still open. See [tower board simulation](tower-board.md).
 - Determinism: the integrated `BattleSession` now owns fixed steps, seeded battle
   RNG, delayed action queue, recording and checkpoint timing. Independent session
   tests and unchanged browser replay checksums verify this extraction. `BattleWorld`

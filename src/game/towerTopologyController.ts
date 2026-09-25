@@ -1,7 +1,7 @@
 import type Phaser from "phaser";
 import { BOARD_X, BOARD_Y, CELL_WIDTH, CELL_HEIGHT } from "../config";
 import type { Tower } from "../types";
-import { syncTowerTopology, validTowerCell } from "./towerTopology";
+import { connectTowerTopology } from "./towerTopology";
 
 interface TopologyRuntime { towers: Tower[]; battleTime: number; onChanged: () => void }
 export class TowerTopologyController {
@@ -17,12 +17,7 @@ export class TowerTopologyController {
   }
   cancel() { this.source = undefined; this.update(); }
   connect(tower: Tower, lane: number, column: number) {
-    const target = { lane, column };
-    if (!tower.inPlay || tower.transient || tower.nullified || tower.type !== "&" || tower.topologyTarget ||
-        !validTowerCell(target) || (tower.lane === lane && tower.column === column)) return false;
-    tower.topologyTarget = target;
-    tower.topologyOrder = this.runtime().battleTime;
-    syncTowerTopology(this.runtime().towers);
+    if (!connectTowerTopology(tower, { lane, column }, this.runtime().towers, this.runtime().battleTime)) return false;
     this.runtime().onChanged(); this.update(); return true;
   }
   update() {

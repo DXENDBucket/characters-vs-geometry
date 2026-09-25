@@ -164,6 +164,13 @@ partial judgments and processing rates are unchanged. Bodyless integrations,
 900-tick displayed/detached/restored scenes and connected-client continuation agree.
 No full-battle FPS improvement is claimed. See [pipeline simulation](pipeline-simulation.md).
 
+Deployment, mirror lifecycle, copied forms, topology connection and board-wide
+support/shared-health refresh now also use data-only rules. Board caches remain
+per-instance and live runtime getters are retained rather than rebuilt per query.
+Visual upgrades and mirror creation are observer callbacks. Bodyless, actual
+display-disabled/restored and connected-client tests verify behavior, not a measured
+FPS gain. See [tower board simulation](tower-board.md).
+
 Enemy movement/attack/skill rules now share a data-only runtime with the live
 scene. Heart plans, mortar target counts and laser hit buffers are isolated per
 runtime; live adapters are cached. The 800-circle synthetic check still adds only

@@ -1,24 +1,26 @@
-import type { CardDefinition, CardId, Tower } from "../types";
+import type { CardDefinition, CardId } from "../types";
+import type { TowerState as Tower } from "./towerState";
 import { isTowerShellType } from "./towerOccupancy";
 import { towerAtCell, towerCell } from "./towerTopology";
 import { facingWithEffects } from "./rules/reversal";
-import { isTargetedEffectCardId } from "./targetedEffectCards";
-import { calculateTowerFinalStats, towerBaseStatsFromDefinition } from "./unitStats";
+import { isTargetedEffectCardId } from "./targetedEffectRules";
+import { calculateTowerFinalStats, towerBaseStatsFromDefinition } from "./unitStatRules";
 import { initialTowerSkillStates } from "./towerSkillRules";
+import { settleTowerMoveVisual } from "./towerRules";
 
 export function isCopyableDefinition(definition: CardDefinition) {
   return definition.cost <= 999 && !isTowerShellType(definition.id) && !isTargetedEffectCardId(definition.id);
 }
 
-export interface TowerCopyRuntime {
-  towers: Tower[];
-  occupied: Map<string, Tower>;
+export interface TowerCopyRuntime<T extends Tower = Tower> {
+  towers: T[];
+  occupied: Map<string, T>;
   battleTime: number;
   getDefinition: (id: CardId) => CardDefinition;
-  onChanged: (tower: Tower, definition: CardDefinition) => void;
+  onChanged?: (tower: T, definition: CardDefinition) => void;
 }
 
-export function syncTowerCopies(runtime: TowerCopyRuntime) {
+export function syncTowerCopies<T extends Tower>(runtime: TowerCopyRuntime<T>) {
   let changed = false;
   for (const tower of runtime.towers) {
     if (tower.type !== "@" || !tower.inPlay || tower.transient) continue;
@@ -54,7 +56,8 @@ export function syncTowerCopies(runtime: TowerCopyRuntime) {
     tower.lastFire = runtime.battleTime;
     tower.nextProduceAt = definition.produceEvery ? runtime.battleTime + definition.produceEvery : Infinity;
     tower.armedAt = definition.armTime ? runtime.battleTime + definition.armTime : 0;
-    runtime.onChanged(tower, definition);
+    settleTowerMoveVisual(tower, runtime.battleTime);
+    runtime.onChanged?.(tower, definition);
     changed = true;
   }
   return changed;

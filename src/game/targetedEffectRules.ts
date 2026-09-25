@@ -7,8 +7,7 @@ import type { CardDefinition, CardId } from "../types";
 import type { TowerState as Tower } from "./towerState";
 import type { BattleCardState } from "./battleLoadout";
 import type { TowerExtractionPool } from "./towerExtraction";
-import { effectiveUpgradeDelta } from "./upgrades";
-import { syncTowerFinalStats } from "./unitStatRules";
+import { upgradeTowerLevel, syncTowerDerivedStats } from "./towerUpgradeRules";
 import { effectiveTowerLevel, towerFacingDirection } from "./towerRules";
 
 export type TargetedEffectCardResult = "handled" | "cooldown" | "empty" | "noChars";
@@ -199,11 +198,8 @@ export class TargetedEffectSimulation<T extends Tower = Tower> {
 
   private upgradePendingEffectCard(tower: T, levels = 1) {
     const runtime = this.runtime();
-    const previousLevel = tower.level;
-    tower.level += Math.max(0, Math.floor(levels));
-    this.presentation.level(tower);
-    syncTowerFinalStats(tower, { healMaxHpIncrease: effectiveUpgradeDelta(previousLevel, tower.level) > 0 }, this.presentation.health);
-    this.presentation.health(tower);
+    const gained = upgradeTowerLevel(tower, levels, this.presentation);
+    syncTowerDerivedStats(tower, gained > 0, undefined, undefined, this.presentation);
     runtime.updateLevelAuras();
     this.presentation.upgraded(tower);
   }

@@ -200,7 +200,7 @@ try {
   assert.equal(await pages.host.evaluate(() => window.syncTest.scene.exportReplay().commands.length), commandsBeforeForgery);
 
   const content = {};
-  for (const levelId of ["1-9", "2-10", "5-5", "5-10", "AE-5"]) {
+  for (const levelId of ["1-9", "2-10", "5-5", "5-10", "AE-5", "AE-4"]) {
     await pages.host.evaluate(() => window.syncTest.host.close());
     for (const role of roles) mail[role].length = 0;
     for (const role of ["a", "b"]) {
@@ -208,7 +208,8 @@ try {
     }
     await pages.host.evaluate(levelId => {
       const state = window.syncTest, participants = state.scene.session.snapshot().participants;
-      state.start({ levelId, seed: 92, participants, selectedCards: ["A", "B", "m", "u", "x"] });
+      state.start({ levelId, seed: 92, participants,
+        selectedCards: levelId === "AE-4" ? ["A", "B", "m", "u", "x", "@", "&", "w"] : ["A", "B", "m", "u", "x"] });
       state.scene.submitPlayerControl("local", { type: "debugMode", enabled: true });
       state.scene.submitPlayerControl("local", { type: "debugChars" });
       state.scene.submitPlayerControl("local", { type: "autoUpgradeEnabled", enabled: false });
@@ -216,11 +217,27 @@ try {
         const result = state.scene.submitPlayerOperation("local", { type: "deploy", card, cell: { lane, column }, expected: null });
         if (result !== "deployed") throw Error(`Cannot prepare ${levelId}: ${card} ${result}`);
       }
+      if (levelId === "AE-4") state.scene.submitPlayerControl("local", { type: "debugChars" });
+      if (levelId === "AE-4") for (const [card, lane, column] of [["@", 5, 1], ["&", 5, 2], ["w", 0, 8]]) {
+        const result = state.scene.submitPlayerOperation("local", { type: "deploy", card, cell: { lane, column }, expected: null });
+        if (result !== "deployed") throw Error(`Cannot prepare topology fixture: ${card} ${result}`);
+      }
       for (let i = 0; i < 60; i++) state.scene.update(0, 1000 / 60);
       if (state.scene.towers.filter(tower => tower.type === "A").length !== 2) throw Error("Mirror fixture is missing");
       state.host = state.scene.startSynchronization(); state.join("a"); state.join("b");
     }, levelId);
     await pump(); await equal(`${levelId} shared-relationship join`);
+    if (levelId === "AE-4") {
+      const target = await pages.a.evaluate(() => {
+        const t = window.syncTest.scene.towers.find(t => t.type === "&"); return { kind: "tower", id: t.entityId };
+      });
+      assert.equal((await request("a", { type: "operation", operation: {
+        type: "topology", target, cell: { lane: 0, column: 8 }
+      } })).result, "handled");
+      await pages.b.evaluate(() => window.syncTest.client.resync()); await pump(); await equal("copied form resync");
+      for (const role of roles) assert.equal(await pages[role].evaluate(() =>
+        window.syncTest.scene.towers.find(t => t.type === "@").copiedType), "w");
+    }
     await pages.host.evaluate(async () => {
       for (let i = 0; i < 600; i++) window.syncTest.scene.update(0, 1000 / 60);
       window.syncTest.host.publish(); await window.syncTest.tail;

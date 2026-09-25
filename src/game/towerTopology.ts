@@ -11,6 +11,15 @@ export function validTowerCell(cell: TowerCell) {
   return Number.isInteger(cell.lane) && Number.isInteger(cell.column) && cell.lane >= 0 && cell.lane < LANES && cell.column >= 0 && cell.column < COLUMNS;
 }
 
+export function connectTowerTopology(tower: Tower, target: TowerCell, towers: Tower[], battleTime: number) {
+  if (!tower.inPlay || tower.transient || tower.nullified || tower.type !== "&" || tower.topologyTarget ||
+      !validTowerCell(target) || (tower.lane === target.lane && tower.column === target.column)) return false;
+  tower.topologyTarget = { ...target };
+  tower.topologyOrder = battleTime;
+  syncTowerTopology(towers);
+  return true;
+}
+
 export function syncTowerTopology(towers: Tower[]) {
   const swaps = towers.filter(t => t.inPlay && t.type === "&" && t.topologyTarget && validTowerCell(t) && validTowerCell(t.topologyTarget))
     .sort((a, b) => (a.topologyOrder ?? a.placedOrder) - (b.topologyOrder ?? b.placedOrder) || a.placedOrder - b.placedOrder);

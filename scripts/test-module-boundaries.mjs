@@ -103,7 +103,8 @@ test("data, geometry, support queries and snapshot capture cannot pull in scenes
     "bossSimulation", "bossSimulationRuntime", "bossSimulationPresentation", "bossSkillRegistry", "enemyPromotionRules", "delSweep",
     "battleEncounter", "battlefieldCells", "towerStorageRules", "towerNullificationRules",
     "projectileCircuitRules", "pipelineRouting", "pipelineRules", "pipelineActionRules", "pipelineActionPayload",
-    "targetedEffectRules", "towerAttachmentRules"];
+    "targetedEffectRules", "towerAttachmentRules", "towerUpgradeRules", "towerDeploymentRules",
+    "towerMirrorRules", "towerCopy", "towerTopology", "towerBoard"];
   for (const entry of [...entries, "../registry/cardDefinitions"]) {
     const seen = new Set();
     const visit = (name, chain) => {
