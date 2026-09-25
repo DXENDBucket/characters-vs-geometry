@@ -109,12 +109,14 @@ export class ProjectileCircuitSimulation {
     return towerFormType(tower) === "0" ? tower.projectileBank?.shots.length ?? 0 : nodeOccupancy(tower);
   }
 
-  private transfer(source: Tower, shot: StoredTowerShot) {
+  private transfer(source: Tower, shot: StoredTowerShot): "transferred" | "blocked" | "ineligible" {
     const runtime = this.runtime(), paths = this.routing.pathsFrom(source, runtime.battleTime);
     const start = source.projectileRouteIndex ?? 0;
+    let hasCapacity = false;
     for (let offset = 0; offset < this.nodes.length; offset++) {
       const index = (start + offset) % this.nodes.length, target = this.nodes[index], path = paths.get(target);
       if (!path || !target.inPlay || this.occupancy(target) >= this.capacity(target)) continue;
+      hasCapacity = true;
       if (isDamageOutlet(towerFormType(target)) && projectileDamageBudget(shot) <= 0) continue;
       const queue = towerFormType(target) === "0" ? target.projectileBank?.shots : target.projectileNode?.input;
       if (!queue) continue;
@@ -122,9 +124,9 @@ export class ProjectileCircuitSimulation {
       shot.pipelineMovedAt = runtime.battleTime;
       queue.push(shot); source.projectileRouteIndex = (index + 1) % this.nodes.length;
       this.presentation.changed(target);
-      return true;
+      return "transferred";
     }
-    return false;
+    return hasCapacity ? "ineligible" : "blocked";
   }
 
   capture(projectile: Projectile) {
@@ -139,7 +141,7 @@ export class ProjectileCircuitSimulation {
       vx: Math.abs(projectile.vx), vy: projectile.vy, damage: projectile.damage, damageType: projectile.damageType,
       splashRadius: projectile.splashRadius, debuff: projectile.debuff, debuffDuration: projectile.debuffDuration,
       remainingRange: Math.max(0, (projectile.maxX - projectile.x) * projectile.limitDirection) };
-    if (!this.transfer(source, shot)) return false;
+    if (this.transfer(source, shot) !== "transferred") return false;
     this.presentation.captured(projectile);
     return true;
   }
@@ -148,7 +150,7 @@ export class ProjectileCircuitSimulation {
     if (!this.nodes.length || !source.inPlay || towerActionContext(source) || event.kind === "combined" ||
       isLiteralNumberType(towerFormType(source)) || isDamageOutlet(towerFormType(source)) || towerFormType(source) === "=") return false;
     if (!this.routing.pathsFrom(source, this.runtime().battleTime).size) return false;
-    return this.transfer(source, storeTowerAction(source, this.runtime().getDefinition(towerFormType(source)), event, this.runtime().battleTime));
+    return this.transfer(source, storeTowerAction(source, this.runtime().getDefinition(towerFormType(source)), event, this.runtime().battleTime)) === "transferred";
   }
 
   intercept(target: EnemyProjectile | MortarProjectile, from: { x: number; y: number }) {
@@ -202,7 +204,11 @@ export class ProjectileCircuitSimulation {
     let changed = false;
     for (let i = 0; i < shots.length;) {
       // Transparent routes take no storage time; actual nodes forward at most once per tick.
-      if ((shots[i].pipelineMovedAt ?? -Infinity) >= this.runtime().battleTime || !this.transfer(tower, shots[i])) { i++; continue; }
+      if ((shots[i].pipelineMovedAt ?? -Infinity) >= this.runtime().battleTime) { i++; continue; }
+      const result = this.transfer(tower, shots[i]);
+      // No shot can free capacity or edge flow during this queue's turn.
+      if (result === "blocked") break;
+      if (result === "ineligible") { i++; continue; }
       shots.splice(i, 1); changed = true;
     }
     if (changed) this.presentation.changed(tower);

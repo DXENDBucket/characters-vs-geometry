@@ -174,11 +174,20 @@ diagnostic reduces individual sync-task p95 from 59.7ms to 16.2ms, but total bat
 CPU/wall time increases; it does not prove improved FPS or production latency.
 Snapshot/checksum costs and sustained catch-up throughput remain open.
 
+The new pipeline pressure diagnostic actually saturates banks rather than merely
+placing components. Ten simulated minutes retain exact host/replica/restored-core
+state across 21 reconnect snapshots, including full banks, outlet reopening and
+tower deaths. A separate mortar burst exercises real interception/shield spending
+and seven restores with live mortars. Blocked-route short-circuiting preserves the
+120-second baseline hashes and reduces repeated buffer scans. These are Node
+pressure/recovery checks, not continuous browser/network load or a memory-leak audit.
+See [pipeline pressure](performance.md#pipeline-and-mortar-pressure).
+
 ## Next Work
 
 1. Address full-checkpoint commit overhead without weakening durability; isolate
    warmed rendering/allocation and remote-client application hotspots. Broaden
-   mixed profiles to saturated pipelines/mortars and long sessions.
+   mixed profiles to rendered saturated pipelines/mortars and wall-clock long sessions.
 2. Broaden fault and content coverage, especially targeted skill/tutorial input,
    while retaining exact cross-engine numeric gates.
 3. Audit the full acceptance gates against current implementation and evidence.

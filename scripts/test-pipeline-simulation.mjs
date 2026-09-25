@@ -224,3 +224,41 @@ test("logical topology, edge budgets and saved routing remain isolated across wo
   assert.equal(a.f.state.projectiles.length, 21); assert.equal(a.bank.projectileBank.shots.length, 0);
   assert.equal(a.outlet.projectileNode.input.length, 4);
 });
+
+test("a full route stops scanning its bank, then resumes in order when its outlet drains", () => {
+  const f = fixture(), source = f.place(), bank = f.place("0", 2), outlet = f.place("1", 4, 3, 2);
+  f.edge(2); f.edge(3);
+  bank.projectileBank.shots = Array.from({ length: 128 }, (_, index) => ({ ...f.shot(source), damage: 400 + index }));
+  outlet.projectileNode.input = [f.shot(source), f.shot(source)];
+  let searches = 0;
+  const paths = f.circuit.routing.pathsFrom.bind(f.circuit.routing);
+  f.circuit.routing.pathsFrom = (...args) => { searches++; return paths(...args); };
+  f.tick();
+  assert.equal(searches, 1); assert.equal(bank.projectileBank.shots.length, 128);
+  assert.equal(outlet.projectileNode.input.length, 0);
+  f.tick();
+  assert.equal(bank.projectileBank.shots.length, 126);
+  assert.deepEqual(f.state.projectiles.slice(-2).map(p => p.damage), [400, 401]);
+  assert.equal(bank.projectileBank.shots[0].damage, 402);
+});
+
+test("zero-budget actions cannot stop later damaging ammunition from reaching a damage outlet", () => {
+  const f = fixture(), source = f.place(), bank = f.place("0", 2), shield = f.place("*", 4);
+  f.edge(2); f.edge(3);
+  const ineligible = { ...f.shot(source), damage: 0 };
+  bank.projectileBank.shots = [ineligible, { ...f.shot(source), damage: 700 }];
+  f.tick();
+  assert.deepEqual(bank.projectileBank.shots, [ineligible]);
+  assert.equal(shield.projectileNode.input.length, 1);
+  assert.equal(shield.projectileNode.input[0].damage, 700);
+});
+
+test("exhausted edge flow defers a whole bank until credit becomes available again", () => {
+  const f = fixture(), source = f.place(), bank = f.place("0", 2);
+  f.place("1", 3); const edge = f.edge(2);
+  bank.projectileBank.shots = Array.from({ length: 128 }, () => f.shot(source));
+  edge.flowCredit = 0; edge.flowUpdatedAt = 40;
+  f.tick(); assert.equal(bank.projectileBank.shots.length, 128);
+  f.tick(); assert.equal(bank.projectileBank.shots.length, 127);
+  assert.equal(f.state.projectiles.length, 1);
+});

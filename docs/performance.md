@@ -419,3 +419,54 @@ shorter, but total CPU/wall time is not improved; additional view refreshes and
 task yields cost time. Render medians remain about 12.6-12.7ms. Final checksums and
 single ticks can still stall, and these samples do not establish production load
 readiness. Snapshot/full-state commit and crowded rendering remain open work.
+
+### Pipeline And Mortar Pressure
+
+`node scripts/benchmark-pipeline-pressure.mjs --seconds=120` starts a synthetic
+IF-1 board with seven level-60 E sources carrying real `!` attachments, 21 level-1
+banks, seven level-10 outlets, 56 connectors and level-1400 O defenders. Fixture
+funds/cooldowns/initial levels are synthetic; subsequent attacks, flow credits,
+damage, waves, deaths and commands use normal rules. Defenders are not immortal.
+The final connector starts closed; at 75% of the requested duration semantic edge
+commands open it. This is a pressure diagnostic, not a representative player build.
+
+Each simulated second, a sliced replica consumes a JSON frame and agrees exactly
+with the host and an independently advancing checkpoint reference. Every 30 seconds
+the reference is reconstructed and the replica reconnects. The 120-second fixture
+reaches 2,686 stored payloads/19 full banks, then drains to 29 payloads. Before and
+after blocked-route short-circuiting, tick-7,221 checksum is `aa233d9c` and all
+30-second checkpoint hashes, counters and rosters match.
+
+Local Node 22.19 Windows diagnostics (milliseconds, no renderer or network I/O):
+
+| Metric | Before median / p95 | After median / p95 |
+| --- | ---: | ---: |
+| Host tick | 0.307 / 0.780 | 0.046 / 0.127 |
+| Circuit update | 0.272 / 0.657 | 0.017 / 0.034 |
+
+These instrumented consecutive runs are noisy, but remove an identified repeated
+scan: after every reachable destination is full or flow-limited, later shots cannot
+create capacity during that buffer's turn. Retry starts again next tick. A rejected
+zero-damage payload must not prevent later positive-damage ammunition from routing;
+regressions cover this distinction, outlet draining and flow-credit replenishment.
+
+`--seconds=600` extends the simulated duration to ten minutes (not ten minutes of
+wall-clock browser play). It reaches all 21 full banks/2,688 stored payloads, later
+opens/drains them and experiences real tower deaths. All 600 per-second comparisons
+and 21 client restorations agree, ending at tick 36,021/hash `c44c99cd`. This does
+not constitute a heap-leak audit or long-running service capacity guarantee.
+
+`--seconds=120 --mortars=35` instead connects healing, interception and both shield
+outlets near the defenders, and spawns 35 mixed rank-III mortar enemies. It restores
+every five seconds and additionally on the first sampled in-flight mortar. Measured
+peaks are 44 live mortars and 3,449 stored payloads, with 363 interceptions and 603
+shield activations. Seven restorations contain live mortars; 26 total restores and
+all per-second states agree at final hash `5cc36375`. Enemy attrition is normal,
+so this is a dense burst/recovery test, not a continuously replenished mortar swarm.
+
+`syncTask` includes initial/restore snapshot decoding, two-tick continuation calls
+and final checksums, executed synchronously by this Node harness. Snapshot-related
+maximum calls still exceed 100ms in these runs. Browser render stress, real elapsed
+catch-up and snapshot/commit cost remain unresolved; no overall FPS improvement is
+claimed. The actual displayed/silent/restored Phaser pipeline integration also
+passes after the short-circuit change.
