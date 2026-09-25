@@ -1096,13 +1096,7 @@ function fireEnemyVolley(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: numbe
   const interval = volleyInterval(enemy.finalStats.attackInterval, shots);
   for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
     const hitCount = volleyHitsAt(totalHits, shotIndex);
-    if (runtime.scheduleBattleAction) {
-      runtime.scheduleBattleAction(shotIndex * interval, { type: "enemyShot", enemy, time, hitCount });
-      continue;
-    }
-    runtime.scene.time.delayedCall(shotIndex * interval, () => {
-      runtime.runWhenBattleActive(() => fireEnemyShot(runtime, enemy, time, hitCount));
-    });
+    runtime.scheduleBattleAction(shotIndex * interval, { type: "enemyShot", enemy, time, hitCount });
   }
 }
 
@@ -1120,13 +1114,7 @@ function fireEnemyLaserVolley(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: 
   const interval = volleyInterval(enemy.finalStats.attackInterval, shots);
   for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
     const hitCount = volleyHitsAt(totalHits, shotIndex);
-    if (runtime.scheduleBattleAction) {
-      runtime.scheduleBattleAction(shotIndex * interval, { type: "enemyLaser", enemy, time, hitCount });
-      continue;
-    }
-    runtime.scene.time.delayedCall(shotIndex * interval, () => {
-      runtime.runWhenBattleActive(() => fireEnemyLaser(runtime, enemy, time, hitCount));
-    });
+    runtime.scheduleBattleAction(shotIndex * interval, { type: "enemyLaser", enemy, time, hitCount });
   }
 }
 
@@ -1166,13 +1154,7 @@ function fireEnemyMortarVolley(runtime: EnemyAdvanceRuntime, enemy: Enemy, time:
   const interval = volleyInterval(enemy.finalStats.attackInterval, shots);
   for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
     const hitCount = volleyHitsAt(totalHits, shotIndex);
-    if (runtime.scheduleBattleAction) {
-      runtime.scheduleBattleAction(shotIndex * interval, { type: "enemyMortar", enemy, time, hitCount });
-      continue;
-    }
-    runtime.scene.time.delayedCall(shotIndex * interval, () => {
-      runtime.runWhenBattleActive(() => fireEnemyMortarShot(runtime, enemy, time, hitCount));
-    });
+    runtime.scheduleBattleAction(shotIndex * interval, { type: "enemyMortar", enemy, time, hitCount });
   }
   return true;
 }

@@ -23,7 +23,7 @@ export type TargetedEffectCardResult = "handled" | "cooldown" | "empty" | "noCha
 
 export interface TargetedEffectCardRuntime {
   onTowerAction?: TowerActionListener;
-  scheduleBattleAction?: ScheduleBattleAction;
+  scheduleBattleAction: ScheduleBattleAction;
   scene: Phaser.Scene;
   towers: Tower[];
   cardStates: readonly BattleCardState[];
@@ -36,7 +36,6 @@ export interface TargetedEffectCardRuntime {
   nextTowerOrder: () => number;
   removeTower: (tower: Tower) => void;
   runMirrorGroupEvent?: (tower: Tower, action: (tower: Tower) => void) => void;
-  runWhenBattleActive: (action: () => void) => void;
   updateLevelAuras: () => void;
   updateCards: () => void;
   extraction: TowerExtractionPool;
@@ -187,11 +186,7 @@ export class TargetedEffectCardController {
     effectCard.body.setDepth(45 + lane);
     runtime.towers.push(effectCard);
     runtime.updateLevelAuras();
-    if (runtime.scheduleBattleAction) {
-      runtime.scheduleBattleAction(0, { type: "targetedEffect", tower: effectCard });
-    } else runtime.scene.time.delayedCall(0, () => {
-      runtime.runWhenBattleActive(() => this.resolvePendingEffectCard(effectCard));
-    });
+    runtime.scheduleBattleAction(0, { type: "targetedEffect", tower: effectCard });
     return effectCard;
   }
 

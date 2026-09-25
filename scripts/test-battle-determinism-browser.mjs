@@ -70,7 +70,13 @@ try {
       go(scene, 3600, [1000 / 60]);
       const replay = scene.exportReplay();
       const expected = scene.battleChecksum();
-      const prePolicyState = { ...scene.battleState(), simulation: { ...scene.battleState().simulation } };
+      const preControlState = { ...scene.battleState(), simulation: { ...scene.battleState().simulation } };
+      delete preControlState.simulation.controls;
+      const preControlHash = battleChecksum(preControlState);
+      const controlBaselines = { "1-9": "adaf7865", "2-10": "866c6a85", "5-5": "821e8819", "5-10": "f5a1fd95",
+        "AE-1": "8930ca8a", "IF-1": "d5134628", "IF-BE-4": "95442e9b" };
+      if (preControlHash !== controlBaselines[levelId]) throw Error(`${levelId}: combat changed beyond control snapshot`);
+      const prePolicyState = { ...preControlState, simulation: { ...preControlState.simulation } };
       delete prePolicyState.simulation.policy;
       const prePolicyHash = battleChecksum(prePolicyState);
       const baselines = { "1-9": "f565a778", "2-10": "d86b747e", "5-5": "8eb6d943", "5-10": "bcbf8d7f",
@@ -80,9 +86,12 @@ try {
       const previousFormat = { ...prePolicyState, simulation: { ...prePolicyState.simulation, version: 6 } };
       delete previousFormat.debugModeEnabled;
       const v6FormatHash = battleChecksum(previousFormat, { includeLocalUi: true });
+      const legacyState = { ...scene.battleState(), simulation: { ...scene.battleState().simulation } };
+      delete legacyState.simulation.policy;
+      const legacyHash = battleChecksum(legacyState);
       checkReplay(replay, expected);
       const legacy = structuredClone(replay); delete legacy.policy;
-      checkReplay(legacy, prePolicyHash);
+      checkReplay(legacy, legacyHash);
       const resumed = start({ ...replay, replay: undefined });
       if (resumed.boss) { resumed.boss.body.destroy(); resumed.boss = null; }
       resumed.applyBattleSave(restoreBattleSnapshot(resumed, checkpoint));
@@ -90,7 +99,7 @@ try {
       go(resumed, 3600, [1000 / 60]);
       if (resumed.battleChecksum() !== expected) throw Error(`${levelId}: save continuation diverged ${expected} / ${resumed.battleChecksum()}`);
       checkReplay(resumed.exportReplay(), expected);
-      results.push({ levelId, ticks: replay.endTick, hash: expected, prePolicyHash, behaviorHash, v6FormatHash, commands: replay.commands.length });
+      results.push({ levelId, ticks: replay.endTick, hash: expected, preControlHash, prePolicyHash, behaviorHash, v6FormatHash, commands: replay.commands.length });
     }
     const reselect = start({ levelId: "IF-1", seed: 51 });
     reselect.submitBattleCommand({ type: "debugMode", enabled: true });

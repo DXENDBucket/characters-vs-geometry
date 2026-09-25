@@ -75,6 +75,16 @@ test("source runtime imports and re-exports remain acyclic", () => {
   assert.deepEqual(dependencyCycles(graph), [], "Extract a shared lower-level rule instead of introducing a runtime import cycle");
 });
 
+test("combat controllers schedule data actions rather than engine timers or paused callbacks", () => {
+  const modules = ["combatRuntime", "triggerTowers", "targetedEffectCards", "towerSkills", "enemyRuntime", "bossRuntime"];
+  for (const name of modules) {
+    const source = sources.get(`src/game/${name}.ts`);
+    assert.ok(source, name);
+    assert.doesNotMatch(source, /time\.delayedCall|runWhenBattleActive|scheduleBattleAction\?/, name);
+  }
+  assert.doesNotMatch(sources.get("src/scenes/GameScene.ts"), /pausedActions|runWhenBattleActive|flushPausedActions/);
+});
+
 test("data, geometry, support queries and snapshot capture cannot pull in scenes or rendering", () => {
   const entries = ["enemyState", "towerState", "projectileState", "bossState", "bossRules", "bossSkillRules", "enemyCombatRules", "towerRules",
     "captureBattleSnapshot", "battleDataSchema", "battleEntityIds", "battleEntityGraph", "battleOperations", "battleControls", "tutorialInteraction",

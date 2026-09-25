@@ -65,6 +65,11 @@ boundary before tutorial checkpoint synchronization can be claimed.
 Replay drains already-due commands before checking whether ticks can advance.
 This permits a same-tick resume control to release a restored paused session.
 It never advances a tick after processing a pause without a matching resume.
+The session now owns and snapshots the entire `BattleControlState`, applies speed
+to unscaled frame time, and enforces pause independently of the scene's runtime
+predicate. Restored pause is not overwritten by local menu behavior. All deferred
+combat attacks use its data queue, including attacks from already-removed sources.
+See [paused checkpoints](battle-session.md#paused-checkpoints) for legacy defaults.
 
 ## Compatibility And Checks
 
@@ -87,6 +92,9 @@ Old policy-less recordings retain their earlier permissive behavior.
   local-modal input rejection versus explicit host execution, and complete semantic
   replays of the auto-upgrade and shifter lessons without changing local tools or
   persistent progress.
+- `test-battle-pause-browser.mjs`: real paused save/resume with queued tower,
+  enemy and Boss actions, removed-source identity, exactly-once continuation,
+  30/144 Hz replay, legacy settings and local resume-menu isolation.
 - The broader replay suite covers seven normal/Boss/endless/ASCII levels, tutorial
   progression, all finale phases and the older pointer input adapter. Its
   `v6FormatHash` is a diagnostic normalization to separate checksum-format changes

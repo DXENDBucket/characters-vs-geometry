@@ -8,7 +8,7 @@ export interface CombatRuntime {
   enemyHpMultiplier?: () => number;
   onTowerAction?: TowerActionListener;
   projectileMotion?: ProjectileMotionFrame;
-  scheduleBattleAction?: ScheduleBattleAction;
+  scheduleBattleAction: ScheduleBattleAction;
   scene: Phaser.Scene;
   enemies: Enemy[];
   towers: Tower[];
@@ -28,7 +28,6 @@ export interface CombatRuntime {
   triggerTrapTower: (tower: Tower, target: Enemy | CubeBoss | "boss") => void;
   triggerShockTower: (tower: Tower) => void;
   onEnemyReachedBase: (enemy: Enemy) => boolean;
-  runWhenBattleActive: (action: () => void) => void;
 }
 
 export type CardReadinessRuntime = Pick<
@@ -76,5 +75,4 @@ export type EnemyAdvanceRuntime = Pick<
   | "triggerTrapTower"
   | "triggerShockTower"
   | "onEnemyReachedBase"
-  | "runWhenBattleActive"
 >;

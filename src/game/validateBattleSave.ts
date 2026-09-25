@@ -14,6 +14,7 @@ import { LANES, COLUMNS, CELL_WIDTH, CELL_HEIGHT } from "../config";
 import { restoreBattleEntityIds } from "./battleEntityGraph";
 import { validBattleParticipants } from "./battleParticipants";
 import { validBattlePolicy } from "./battlePolicy";
+import { copyBattleControlState } from "./battleControls";
 
 export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossKind?: BossKind) {
   const units = new Map<NodeKind, Set<object>>();
@@ -97,6 +98,7 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
       Number.isSafeInteger(simulation.mirrorNextGroupId) && simulation.mirrorNextGroupId >= 1);
     require(simulation.participants === undefined || validBattleParticipants(simulation.participants));
     require(simulation.policy === undefined || validBattlePolicy(simulation.policy));
+    if (simulation.controls !== undefined) copyBattleControlState(simulation.controls);
   }
   for (const key of ["levelElapsed", "battleTime", "cardTime", "nextNaturalProduceAt", "chars", "baseIntegrity",
     "wave", "enemiesDefeated", "towerOrder", "gameSpeed", "autoUpgradeReserveChars", "extraction"] as const) {

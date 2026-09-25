@@ -35,8 +35,8 @@ IDs are canonically ordered without locale-dependent sorting.
 ## Modal Pause Behavior
 
 The default `pauseOnLocalModal: true` preserves single-player behavior: opening
-the menu or reselection pauses the Phaser scene and battle advancement. Existing
-local save restoration opens in a paused state.
+the menu or reselection pauses the Phaser scene and battle advancement. Local save
+restoration opens a menu, without changing the saved authoritative pause state.
 
 With `false`, the menu, settings and reselection are local overlays. They still
 block local board input, but the scene and fixed-step simulation continue. Closing
@@ -46,9 +46,11 @@ scene shutdown disposes of owned overlays and prevents stale callbacks reopening
 the menu.
 
 This is a configurable modal policy, not a multiplayer pause-voting design. Manual
-pause remains in the existing control state. Exact synchronization of that control
-state and the scene-local `pausedActions` closures still needs work before paused
-mid-battle joins can be claimed. Resources, cards and cooldowns also remain shared;
+pause now belongs to the session and survives control snapshots. Deferred attacks
+all use its saved data queue; scene-local paused closures no longer exist. Closing
+a local menu does not mutate pause; explicit single-player Continue can issue an
+authorized resume command. Network join synchronization is still unfinished.
+Resources, cards and cooldowns also remain shared;
 separate player wallets, ownership and participant-owned UI instances are not added
 by this policy.
 
@@ -61,8 +63,9 @@ saves/recordings. This does not discard their existing towers or selected cards.
 
 New policies contribute to the combat checksum because they affect future command
 outcomes. The replay regression suite compares an explicitly stripped diagnostic
-`prePolicyHash` to all seven previous combat baselines and also plays recordings
-without policy. That diagnostic is not the synchronization checksum.
+`prePolicyHash` (also excluding the newly captured controls) to the historical
+combat baselines and plays recordings without policy. That diagnostic is not the
+synchronization checksum.
 
 - `test-battle-policy.mjs`: bounded schemas, canonical immutable copies, imitation
   eligibility, snapshot/replay restoration, atomic rejection, legacy behavior and

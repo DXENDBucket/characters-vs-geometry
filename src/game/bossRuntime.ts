@@ -138,7 +138,7 @@ const ICOSAHEDRON_FINAL_REINFORCEMENTS: Array<{
 export interface BossRuntime {
   nullifyTowers: (durationMs: number) => void;
   enemyHpMultiplier?: () => number;
-  scheduleBattleAction?: ScheduleBattleAction;
+  scheduleBattleAction: ScheduleBattleAction;
   warnCellSeal: (lane: number, column: number, warningMs: number, durationMs: number, leadInMs: number) => void;
   sealCell: (lane: number, column: number, durationMs: number) => void;
   scene: Phaser.Scene;
@@ -153,7 +153,6 @@ export interface BossRuntime {
   damageTower: (tower: Tower, damage: number, damageType: DamageType) => void;
   triggerTrapTower: (tower: Tower, target: Enemy | CubeBoss | "boss") => void;
   triggerShockTower: (tower: Tower) => void;
-  runWhenBattleActive: (action: () => void) => void;
   endGame: () => void;
 }
 
@@ -1166,8 +1165,7 @@ function findDodecahedronPentagonTargets(runtime: BossRuntime, count: number) {
 }
 
 function scheduleBossAttack(runtime: BossRuntime, delay: number, action: BossAttackAction) {
-  if (runtime.scheduleBattleAction) runtime.scheduleBattleAction(delay, action);
-  else runtime.scene.time.delayedCall(delay, () => runtime.runWhenBattleActive(() => executeBossAttack(runtime, action)));
+  runtime.scheduleBattleAction(delay, action);
 }
 
 export function executeBossAttack(runtime: BossRuntime, action: BossAttackAction) {

@@ -35,7 +35,7 @@ import { restoreBattleEntityIds } from "../game/battleEntityGraph";
 import { LOCAL_BATTLE_ACTOR, towerOperationRef, edgeOperationRef, validBattleActorId, validBattleOperation,
   type BattleOperation, type BattleOperationResult } from "../game/battleOperations";
 import { executeLiveBattleOperation, type LiveBattleOperationRuntime } from "../game/battleOperationRuntime";
-import { createBattleControlState, executeBattleControl, validBattleControl, validReserveChars,
+import { executeBattleControl, validBattleControl, validReserveChars,
   type BattleControl, type BattleControlRuntime } from "../game/battleControls";
 import { deleteSurvivalSave, readSurvivalSave, writeSurvivalSave, type SurvivalSave } from "../survivalSaves";
 import { endlessEnemyHpMultiplier } from "../game/endlessEnvironment";
@@ -76,7 +76,6 @@ import {
   COLUMNS,
   DEFAULT_DIFFICULTY,
   DIFFICULTY_VERSION,
-  DEFAULT_GAME_SPEED,
   GAME_HEIGHT,
   GAME_SPEED_MAX,
   GAME_SPEED_MIN,
@@ -257,7 +256,7 @@ export class GameScene extends Phaser.Scene {
   private readonly sessionRuntime: BattleSessionRuntime = {
     step: () => this.stepBattle(),
     executeCommand: command => this.executeCommand(command),
-    canAdvance: () => !this.gameOver && !this.battlePaused && !this.localModalPausesBattle
+    canAdvance: () => !this.gameOver && !this.localModalPausesBattle
   };
   private tutorialAdvance?: () => void;
   private rewardEncyclopedia?: EncyclopediaPanel;
@@ -333,7 +332,7 @@ export class GameScene extends Phaser.Scene {
   private set towerOrder(value: number) { this.world.towerOrder = value; }
   private get gameOver() { return this.world.gameOver; }
   private set gameOver(value: boolean) { this.world.gameOver = value; }
-  private controls = createBattleControlState();
+  private get controls() { return this.session.controls; }
   private get battlePaused() { return this.controls.paused; }
   private set battlePaused(value: boolean) { this.controls.paused = value; }
   private get gameSpeed() { return this.controls.speed; }
@@ -356,7 +355,6 @@ export class GameScene extends Phaser.Scene {
     phase: 0,
     totalPhases: 0
   };
-  private pausedActions: Array<() => void> = [];
   private autoUpgradeMode = false;
   private debugDamageMode: DebugDamageMode = null;
   private get debugModeEnabled() { return this.controls.debugEnabled; }
@@ -445,7 +443,7 @@ export class GameScene extends Phaser.Scene {
     const tutorialMechanic = this.levelConfig.specialMechanic;
     const isTutorial = isTutorialMechanic(tutorialMechanic);
     this.unlimitedFirepower = isTutorial ? false : Boolean(data.unlimitedFirepower);
-    this.debugModeEnabled = playback?.debug ?? isDebugModeEnabled();
+    const debugModeEnabled = playback?.debug ?? isDebugModeEnabled();
     this.difficultyConfig = this.adjustDifficultyForUnlimitedFirepower(getDifficultyConfig(this.difficulty));
     if (isTutorial) this.difficultyConfig = getDifficultyConfig(1);
     const policy = playback ? playback.policy : copyBattlePolicy(data.policy ?? {
@@ -457,7 +455,7 @@ export class GameScene extends Phaser.Scene {
     this.session = new BattleSession({ version: BATTLE_RULES_VERSION, levelId: this.levelId, difficulty: this.difficulty,
       difficultyVersion: DIFFICULTY_VERSION,
       unlimitedFirepower: this.unlimitedFirepower, selectedCards,
-      seed, debug: this.debugModeEnabled, ...(data.participants ? { participants: data.participants } : {}),
+      seed, debug: debugModeEnabled, ...(data.participants ? { participants: data.participants } : {}),
       ...(policy ? { policy } : {}) }, playback);
     this.resetCommandAuthority();
     setBattleRandom(this, this.session.random);
@@ -474,8 +472,6 @@ export class GameScene extends Phaser.Scene {
     this.reselectOpen = false;
     this.extraction = new TowerExtractionPool();
     this.reselectShade = undefined;
-    this.battlePaused = false;
-    this.gameSpeed = DEFAULT_GAME_SPEED;
     this.eraserMode = false;
     this.levelBonusSnapshotTowers.length = 0;
     this.levelBonusSnapshotValues.length = 0;
@@ -483,11 +479,8 @@ export class GameScene extends Phaser.Scene {
     this.levelAuraCachedStates.length = 0;
     this.placementGhosts = [];
     this.placementGhostKey = "";
-    this.pausedActions = [];
     this.autoUpgradeMode = false;
     this.debugDamageMode = null;
-    this.autoUpgradeEnabled = true;
-    this.autoUpgradeReserveChars = 0;
     this.autoUpgradeReserveInputFocused = false;
     this.autoUpgradeReserveDraft = 0;
     this.tutorial = null;
@@ -608,7 +601,12 @@ export class GameScene extends Phaser.Scene {
       onErase: () => this.localInput(() => this.toggleEraser())
     }, this.debugModeEnabled));
     this.pauseMenu = new PauseMenu({
-      resume: () => this.closePauseMenu(),
+      resume: () => {
+        this.closePauseMenu();
+        if (this.session.policy.pauseOnLocalModal && this.battlePaused && !this.gameOver && !this.playback) {
+          this.requestControl({ type: "pause", paused: false });
+        }
+      },
       settings: () => {
         this.pauseMenu.hide();
         this.battleSettingsOpen = true;
@@ -644,7 +642,6 @@ export class GameScene extends Phaser.Scene {
       this.resumeSave = undefined;
     } else if (this.playback?.checkpoint) {
       this.applyBattleSave(restoreBattleSnapshot(this, this.playback.checkpoint));
-      this.battlePaused = false;
     } else if (this.levelConfig.survival && !this.playback) {
       deleteSurvivalSave(this.levelId);
     }
@@ -681,7 +678,7 @@ export class GameScene extends Phaser.Scene {
     bindBattleAudio(this, !!this.levelConfig.bossKind, () => ({
       paused: this.battlePaused || this.menuOpen || this.reselectOpen, finished: this.gameOver
     }));
-    if (this.levelConfig.survival && this.battlePaused) this.openPauseMenu();
+    if (this.resumeRequested && !this.playback) this.openPauseMenu();
   }
 
   private cleanupSceneHandlers() {
@@ -699,7 +696,6 @@ export class GameScene extends Phaser.Scene {
     this.input.off("pointerdown", this.scenePointerDownHandler);
     this.input.off("pointermove", this.scenePointerMoveHandler);
     this.input.keyboard?.off("keydown", this.sceneKeyDownHandler);
-    this.pausedActions = [];
     this.clearPlacementGhosts();
     this.tutorial?.destroy();
     this.tutorial = null;
@@ -730,7 +726,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    if (!this.session.advance(delta * this.gameSpeed, this.sessionRuntime)) return;
+    if (!this.session.advance(delta, this.sessionRuntime)) return;
     this.syncBattleOverlays();
     this.shifter.syncSelectionVisuals();
     this.syncPlacementGhost(this.input.activePointer);
@@ -1095,7 +1091,6 @@ export class GameScene extends Phaser.Scene {
         return "handled";
       },
       pauseChanged: () => {
-        if (!this.battlePaused) this.flushPausedActions();
         this.updateCards(); this.updateHud();
       },
       speedChanged: () => { this.time.timeScale = this.gameSpeed; this.updateHud(); },
@@ -1646,7 +1641,6 @@ export class GameScene extends Phaser.Scene {
       damageEnemy: (enemy, damage, damageType, sourceTower) =>
         damageEnemy(this.unitLifecycleRuntime(), enemy, damage, damageType, sourceTower),
       damageBoss: (damage, damageType, targetPart) => damageBoss(this.unitLifecycleRuntime(), damage, damageType, targetPart),
-      runWhenBattleActive: (action) => this.runWhenBattleActive(action),
       onTargetingChanged: () => this.updateCards()
     };
   }
@@ -1676,7 +1670,6 @@ export class GameScene extends Phaser.Scene {
       nextTowerOrder: () => this.nextTowerOrder(),
       removeTower: (tower) => removeTower(this.unitLifecycleRuntime(), tower),
       runMirrorGroupEvent: (tower, action) => this.mirrors.runMirrorGroupEvent(tower, action),
-      runWhenBattleActive: (action) => this.runWhenBattleActive(action),
       updateLevelAuras: () => this.updateLevelAuras(),
       updateCards: () => this.updateCards()
     };
@@ -1804,8 +1797,7 @@ export class GameScene extends Phaser.Scene {
       triggerTrapTower: (tower, target) => this.triggerTrapTower(tower, target),
       triggerShockTower: (tower) => this.triggerShockTower(tower),
       onEnemyReachedBase: (enemy) => this.handleEnemyReachedBase(enemy),
-      projectileMotion: this.projectileMotion,
-      runWhenBattleActive: (action) => this.runWhenBattleActive(action)
+      projectileMotion: this.projectileMotion
     };
   }
 
@@ -1849,7 +1841,6 @@ export class GameScene extends Phaser.Scene {
       damageTower: (tower, damage, damageType) => damageTower(this.unitLifecycleRuntime(), tower, damage, damageType),
       triggerTrapTower: (tower, target) => this.triggerTrapTower(tower, target),
       triggerShockTower: (tower) => this.triggerShockTower(tower),
-      runWhenBattleActive: (action) => this.runWhenBattleActive(action),
       endGame: () => this.endGame()
     };
   }
@@ -1960,8 +1951,7 @@ export class GameScene extends Phaser.Scene {
       removeTower: (tower) => removeTower(this.unitLifecycleRuntime(), tower),
       damageEnemy: (enemy, damage, damageType, sourceTower) =>
         damageEnemy(this.unitLifecycleRuntime(), enemy, damage, damageType, sourceTower),
-      damageBoss: (damage, damageType, targetPart) => damageBoss(this.unitLifecycleRuntime(), damage, damageType, targetPart),
-      runWhenBattleActive: (action) => this.runWhenBattleActive(action)
+      damageBoss: (damage, damageType, targetPart) => damageBoss(this.unitLifecycleRuntime(), damage, damageType, targetPart)
     };
   }
 
@@ -2219,19 +2209,6 @@ export class GameScene extends Phaser.Scene {
 
   private triggerShockTower(tower: Tower) {
     this.mirrors.runMirrorGroupEvent(tower, (member) => runTriggerShockTower(this.triggerTowerRuntime(), member));
-  }
-
-  private runWhenBattleActive(action: () => void) {
-    if (this.gameOver) {
-      return;
-    }
-
-    if (this.battlePaused) {
-      this.pausedActions.push(action);
-      return;
-    }
-
-    action();
   }
 
   private triggerTrapTower(tower: Tower, target: Enemy | CubeBoss | "boss") {
@@ -2513,16 +2490,6 @@ export class GameScene extends Phaser.Scene {
     this.updateHud();
   }
 
-  private flushPausedActions() {
-    const actions = this.pausedActions.splice(0);
-    for (const action of actions) {
-      this.runWhenBattleActive(action);
-      if (this.gameOver || this.battlePaused) {
-        return;
-      }
-    }
-  }
-
   private setGameSpeed(speed: number) {
     this.gameSpeed = Math.min(GAME_SPEED_MAX, Math.max(GAME_SPEED_MIN, Math.round(speed * 10) / 10));
     this.time.timeScale = this.gameSpeed;
@@ -2587,10 +2554,7 @@ export class GameScene extends Phaser.Scene {
   private closePauseMenu() {
     this.pauseMenu.hide();
     this.menuOpen = false;
-    if (this.session.policy.pauseOnLocalModal) {
-      this.scene.resume();
-      if (this.battlePaused && !this.gameOver) this.toggleBattlePause();
-    }
+    if (this.session.policy.pauseOnLocalModal) this.scene.resume();
     this.syncPlacementGhost(this.input.activePointer);
   }
 
@@ -2912,12 +2876,12 @@ export class GameScene extends Phaser.Scene {
 
   private applyBattleSave(state: BattleSaveState) {
     restoreBattleEntityIds(state, this.world.entityIds);
-    this.session.restore(state.simulation, state.battleTime);
+    this.session.restore(state.simulation, state.battleTime, {
+      paused: false, speed: state.gameSpeed, debugEnabled: state.debugModeEnabled ?? this.debugModeEnabled,
+      autoUpgradeEnabled: state.autoUpgradeEnabled, reserveChars: state.autoUpgradeReserveChars
+    });
     this.world.restoreProgress(state);
     this.selectedCardId = state.selectedCardId;
-    if (state.debugModeEnabled !== undefined) this.debugModeEnabled = state.debugModeEnabled;
-    this.autoUpgradeEnabled = state.autoUpgradeEnabled;
-    this.autoUpgradeReserveChars = state.autoUpgradeReserveChars;
     this.towers = state.towers;
     this.nullification.restore(state.nullifiedTowers);
     drawNullifiedTowers(this.nullifiedTowerGraphics, this.nullification.snapshot(), this.battleTime);
@@ -2959,9 +2923,8 @@ export class GameScene extends Phaser.Scene {
     for (const tower of this.towers) syncFriendlyRangeVisual(tower);
     this.topology.update();
     this.world.loadout.restoreDeadlines(state.cardDeadlines);
-    this.battlePaused = this.session.policy.pauseOnLocalModal;
     for (const flight of state.spellMortarFlights) this.towerSkills.restoreSpellMortarFlight(flight);
-    this.setGameSpeed(state.gameSpeed);
+    this.setGameSpeed(this.gameSpeed);
     this.syncAutoUpgradeBorders();
     this.updateCards();
     this.updateHud();

@@ -14,6 +14,82 @@ const options = () => ({ version: BATTLE_RULES_VERSION, levelId: "1-10", difficu
 const recording = (commands = [], endTick = 3) => ({ ...options(), commands: commands.map((entry, sequence) => ({ ...entry, sequence })), endTick });
 const idle = { step() {}, executeCommand() {}, canAdvance: () => true };
 
+test("the session owns pause and speed even when the scene runtime always permits ticking", () => {
+  const session = new BattleSession(options()), other = new BattleSession(options());
+  session.controls.speed = 2;
+  session.advance(BATTLE_STEP_MS, idle); other.advance(BATTLE_STEP_MS, idle);
+  assert.equal(session.clock.tick, 2); assert.equal(other.clock.tick, 1);
+  session.controls.paused = true;
+  const before = session.snapshot();
+  for (const delta of [10000, 0, 50]) assert.equal(session.advance(delta, idle), false);
+  assert.deepEqual(session.snapshot(), before);
+  session.controls.paused = false; session.advance(BATTLE_STEP_MS, idle);
+  assert.equal(session.clock.tick, 4, "paused wall time must not become simulation backlog");
+  assert.equal(other.controls.paused, false); assert.equal(other.controls.speed, 1);
+});
+
+test("checkpoint controls are copied, validated atomically and have explicit legacy defaults", () => {
+  const session = new BattleSession({ ...options(), debug: true });
+  assert.equal(session.controls.debugEnabled, true);
+  Object.assign(session.controls, { paused: true, speed: 2.5, autoUpgradeEnabled: false, reserveChars: 500 });
+  const state = session.snapshot(), other = new BattleSession(options());
+  const reference = other.controls;
+  other.restore(state, 0);
+  assert.equal(other.controls, reference); assert.deepEqual(other.controls, session.controls);
+  state.controls.reserveChars = 1; assert.equal(other.controls.reserveChars, 500);
+  const before = other.snapshot();
+  for (const controls of [null, [], false, 0]) {
+    assert.throws(() => other.restore({ ...before, controls }, 0), /controls/);
+    assert.deepEqual(other.snapshot(), before);
+  }
+  for (const mutate of [c => c.paused = 1, c => c.speed = .1, c => c.speed = 2.55,
+    c => c.speed = Infinity, c => c.reserveChars = -1, c => c.reserveChars = 1.5,
+    c => c.autoUpgradeEnabled = 0, c => c.debugEnabled = "yes", c => c.extra = true, c => delete c.paused]) {
+    const invalid = structuredClone(before); mutate(invalid.controls); invalid.clock.tick++;
+    assert.throws(() => other.restore(invalid, 0), /controls/);
+    assert.deepEqual(other.snapshot(), before);
+  }
+  const legacy = structuredClone(before); delete legacy.controls;
+  other.restore(legacy, 0, { ...session.controls, paused: false });
+  assert.equal(other.controls.paused, false); assert.equal(other.controls.speed, 2.5);
+  other.restore(legacy, 0);
+  assert.deepEqual(other.controls, { paused: false, speed: 1, autoUpgradeEnabled: true, reserveChars: 0, debugEnabled: false });
+});
+
+test("paused checkpoint replay drains same-tick commands and executes pending data actions exactly once", () => {
+  const session = new BattleSession(options()), tower = { id: "tower:1" };
+  session.advance(BATTLE_STEP_MS * 4, idle);
+  session.controls.paused = true;
+  const due = session.clock.tick * BATTLE_STEP_MS;
+  session.actions.schedule(due, 0, { type: "volley", tower, hitCount: 2 });
+  session.actions.schedule(due, 2 * BATTLE_STEP_MS, { type: "volley", tower, hitCount: 3 });
+  const checkpoint = session.snapshot(), actions = session.actions.snapshot();
+  session.startRecordingFromCheckpoint(captureBattleSnapshot({ simulation: checkpoint, actions }), ["A"]);
+  const execute = (instance, command) => { instance.controls.paused = command.control.paused; };
+  session.submit({ type: "control", actorId: "local", control: { type: "pause", paused: false } }, c => execute(session, c));
+  const calls = [], runtime = (instance, events) => ({ ...idle, executeCommand: c => execute(instance, c),
+    step: () => instance.actions.update(instance.clock.tick * BATTLE_STEP_MS, a => events.push(a.hitCount)) });
+  session.advance(BATTLE_STEP_MS * 3, runtime(session, calls));
+  assert.deepEqual(calls, [2, 3]);
+  for (const delta of [1000 / 30, 1000 / 144]) {
+    const replay = new BattleSession(options(), session.exportReplay()), played = [];
+    replay.restore(checkpoint, 0); replay.actions.restore(actions);
+    assert.equal(replay.controls.paused, true);
+    for (let i = 0; i < 100 && !replay.playbackComplete; i++) replay.advance(delta, runtime(replay, played));
+    assert.equal(replay.clock.tick, session.clock.tick); assert.deepEqual(played, calls);
+    assert.deepEqual(replay.actions.snapshot(), []); assert.equal(replay.controls.paused, false);
+  }
+});
+
+test("authoritative control snapshots affect checksums without changing caller-owned state", () => {
+  const state = { simulation: new BattleSession(options()).snapshot() }, hash = battleChecksum(state);
+  for (const [key, value] of Object.entries({ paused: true, speed: 2, autoUpgradeEnabled: false, reserveChars: 1, debugEnabled: true })) {
+    const changed = structuredClone(state); changed.simulation.controls[key] = value;
+    assert.notEqual(battleChecksum(changed), hash, key);
+  }
+  assert.equal(battleChecksum(state), hash);
+});
+
 test("session construction, commands and exports do not retain caller-owned mutable data", () => {
   const config = options(), session = new BattleSession(config);
   config.selectedCards.push("X");

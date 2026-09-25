@@ -141,16 +141,17 @@ function extractionFixture() {
   const { TowerDeploymentController } = load("src/game/towerDeployment.ts");
   const { TargetedEffectCardController } = load("src/game/targetedEffectCards.ts");
   let order = 0;
-  const pending = [];
+  const pending = new (load("src/game/battleActions.ts").BattleActionQueue)();
   const removed = [];
   const state = {
-    scene: { add: new Proxy({}, { get: () => () => uiVisual() }), time: { delayedCall: (_delay, action) => pending.push(action) }, tweens: { add: noop } },
+    scene: { add: new Proxy({}, { get: () => () => uiVisual() }), tweens: { add: noop } },
     towers: [], occupied: new Map(), chars: 10_000, battleTime: 0, unlimitedFirepower: false,
     autoUpgradeEnabled: true, autoUpgradeReserveChars: 0, autoUpgradeReserveInputFocused: false,
     extraction: new TowerExtractionPool(), cardStates: cardDefinitions.map(definition => ({ definition, readyAt: 0 })),
     getDefinition: id => cardDefinitions.find(card => card.id === id), cardTimeFor: () => state.battleTime,
     getChars: () => state.chars, spendChars: amount => { state.chars -= amount; }, nextTowerOrder: () => order++,
-    resetTowerSkill: noop, updateLevelAuras: noop, updateCards: noop, runWhenBattleActive: action => action(),
+    resetTowerSkill: noop, updateLevelAuras: noop, updateCards: noop,
+    scheduleBattleAction: (delay, action) => pending.schedule(state.battleTime, delay, action),
     isCellDeployable: (lane, column) => lane >= 0 && lane < 7 && column >= 0 && column < 13,
     removeTower: unit => {
       if (!unit.inPlay) return;
@@ -170,7 +171,8 @@ function extractionFixture() {
     state.occupied.set(`${lane}:${column}`, unit);
     return unit;
   };
-  return { state, deployment, targeted, place, removed, flush: () => { while (pending.length) pending.shift()(); } };
+  return { state, deployment, targeted, place, removed,
+    flush: () => pending.update(state.battleTime, action => targeted.resolvePendingEffectCard(action.tower)) };
 }
 
 test("Unlimited Firepower applies targeted attachments down a column for one payment and cooldown", () => {
@@ -1828,14 +1830,15 @@ test("trigger attacks preserve burst upgrades while G and l scale attack only on
     const caster = towerForCard(card, 2);
     const target = enemy({ x: caster.x, y: caster.y });
     const hits = [];
+    const actions = new (load("src/game/battleActions.ts").BattleActionQueue)();
     const state = {
       ...runtime([target]), getDefinition: () => card,
-      scene: { time: { delayedCall: (_delay, action) => action() } },
-      runWhenBattleActive: (action) => action(),
+      scene: {}, scheduleBattleAction: (delay, action) => actions.schedule(0, delay, action),
       damageEnemy: (_target, damage) => { hits.push(damage); return true; }
     };
     if (id === "G") triggers.triggerTrapTower(state, caster, target);
     else triggers.triggerShockTower(state, caster);
+    actions.update(10000, action => triggers.executeShockPulse(state, action));
     assert.equal(hits.length, id === "F" ? 18 : 1);
     const expected = { F: 1400, l: 27000, G: 27000, r: 1000 }[id];
     for (const damage of hits) assert.equal(damage, expected, id);

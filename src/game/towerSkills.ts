@@ -38,7 +38,7 @@ import { towerAttackAmount, towerFinalStats, withTowerBehavior } from "./unitSta
 export interface TowerSkillRuntime {
   onTowerAction?: TowerActionListener;
   imitateTowerPush?: (tower: Tower, laneOffset: number, columnOffset: number) => void;
-  scheduleBattleAction?: ScheduleBattleAction;
+  scheduleBattleAction: ScheduleBattleAction;
   towers: Tower[];
   enemies: Enemy[];
   boss: CubeBoss | null;
@@ -48,7 +48,6 @@ export interface TowerSkillRuntime {
   getDefinition: (id: CardId) => CardDefinition;
   damageEnemy: (enemy: Enemy, damage: number, damageType: DamageType, sourceTower?: Tower) => void;
   damageBoss: (damage: number, damageType: DamageType, targetPart?: CubeBoss) => void;
-  runWhenBattleActive: (action: () => void) => void;
   onTargetingChanged: () => void;
   prepareSkillTargeting: () => void;
   beginTowerPush: (tower: Tower) => void;
@@ -500,16 +499,8 @@ export class TowerSkillController {
     if (runtime.onTowerAction?.(tower, { kind: "skill", x: targetX, y: targetY })) return;
 
     for (let shotIndex = 0; shotIndex < SPELL_MORTAR_SHOT_COUNT; shotIndex += 1) {
-      if (runtime.scheduleBattleAction) {
-        runtime.scheduleBattleAction(shotIndex * SPELL_MORTAR_SHOT_INTERVAL,
-          { type: "spellMortar", tower, targetX, targetY, damage, damageType });
-        continue;
-      }
-      this.scene.time.delayedCall(shotIndex * SPELL_MORTAR_SHOT_INTERVAL, () => {
-        this.runtime().runWhenBattleActive(() => {
-          this.launchSpellMortar({ type: "spellMortar", tower, targetX, targetY, damage, damageType });
-        });
-      });
+      runtime.scheduleBattleAction(shotIndex * SPELL_MORTAR_SHOT_INTERVAL,
+        { type: "spellMortar", tower, targetX, targetY, damage, damageType });
     }
   }
 

@@ -14,7 +14,7 @@ import { towerAttackAmount } from "./unitStats";
 
 export interface TriggerTowerRuntime {
   onTowerAction?: TowerActionListener;
-  scheduleBattleAction?: ScheduleBattleAction;
+  scheduleBattleAction: ScheduleBattleAction;
   scene: Phaser.Scene;
   enemies: Enemy[];
   boss: CubeBoss | null;
@@ -24,7 +24,6 @@ export interface TriggerTowerRuntime {
   removeTower: (tower: Tower) => void;
   damageEnemy: (enemy: Enemy, damage: number, damageType: DamageType, sourceTower?: Tower) => boolean;
   damageBoss: (damage: number, damageType: DamageType, targetPart?: CubeBoss) => boolean;
-  runWhenBattleActive: (action: () => void) => void;
 }
 
 const SHOCK_TOWER_IDS = new Set<CardId>(["F", "f", "i", "l", "r"]);
@@ -84,15 +83,7 @@ export function triggerShockTower(runtime: TriggerTowerRuntime, tower: Tower) {
 
   const count = getShockCount(tower, definition);
   for (let index = 0; index < count; index += 1) {
-    if (runtime.scheduleBattleAction) {
-      runtime.scheduleBattleAction(index * interval, { type: "shock", tower, x, y, rangeX, rangeY, damage, damageType });
-      continue;
-    }
-    runtime.scene.time.delayedCall(index * interval, () => {
-      runtime.runWhenBattleActive(() => {
-        executeShockPulse(runtime, { type: "shock", tower, x, y, rangeX, rangeY, damage, damageType });
-      });
-    });
+    runtime.scheduleBattleAction(index * interval, { type: "shock", tower, x, y, rangeX, rangeY, damage, damageType });
   }
 }
 

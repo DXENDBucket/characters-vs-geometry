@@ -39,6 +39,15 @@ const fields = (value: Record<string, unknown>, keys: readonly string[]) => Obje
   keys.every(key => Object.hasOwn(value, key));
 export const validReserveChars = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) >= 0;
 
+export function copyBattleControlState(value: unknown): BattleControlState {
+  if (!record(value) || !fields(value, ["paused", "speed", "autoUpgradeEnabled", "reserveChars", "debugEnabled"]) ||
+      typeof value.paused !== "boolean" || typeof value.autoUpgradeEnabled !== "boolean" ||
+      typeof value.debugEnabled !== "boolean" || !validReserveChars(value.reserveChars) ||
+      !validBattleControl({ type: "speed", speed: value.speed })) throw new Error("Invalid battle controls");
+  return { paused: value.paused, speed: value.speed as number, autoUpgradeEnabled: value.autoUpgradeEnabled,
+    reserveChars: value.reserveChars, debugEnabled: value.debugEnabled };
+}
+
 export function validBattleControl(value: unknown): value is BattleControl {
   if (!record(value)) return false;
   switch (value.type) {

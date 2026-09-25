@@ -60,8 +60,12 @@ transport-neutral authority and synchronization gates above.
   survive snapshots and playback, including rejected commands. A configurable
   continuing-modal mode keeps simulation active under local menu/settings/reselection
   overlays and does not cancel a peer's pause when closing them. Participant UI
-  instances, explicit pause-state/paused-action snapshots, tutorial snapshot state
-  and combat presentation ports still need work;
+  instances, tutorial snapshot state and combat presentation ports still need work.
+  The session now owns/snapshots authoritative controls and enforces pause/speed;
+  restoration no longer overwrites them with local menu state. All deferred combat
+  attacks require its saved data queue, with the Phaser timer/paused-closure fallback
+  paths removed. Actual paused save/resume tests preserve 20 pending tower/enemy/Boss
+  actions and removed-source references, and replay identically at 30/144 Hz;
   actual card slots/cooldowns/reselection now belong to a renderer-free world
   loadout. Live comparisons with no card views preserve the complete battle,
   including continued attacks, auto-upgrades, reselect, saves and replay. See
@@ -89,8 +93,8 @@ transport-neutral authority and synchronization gates above.
   remain missing. Gate 5 is partial; gates 6-7 remain open. See
   [command authority](battle-authority.md).
 
-Next: complete participant/resource policies and explicit paused-control/action snapshots,
-finish simulation/presentation ports, and build snapshot synchronization and
+Next: complete participant/resource policies and tutorial checkpoint state,
+finish simulation/presentation ports and ID-based relationships, and build snapshot synchronization and
 reconnect on the new authority boundary. Validate each increment against the
 real battle path; green isolated tests are not proof of full readiness.
 

@@ -8,6 +8,7 @@ import {
 import type { SaveGraph } from "./saveGraph";
 import { copyBattleParticipants, sameBattleParticipants, type BattleOperationActor } from "./battleParticipants";
 import { copyBattlePolicy, LEGACY_BATTLE_POLICY, sameBattlePolicy, type BattlePolicy } from "./battlePolicy";
+import { copyBattleControlState, createBattleControlState, type BattleControlState } from "./battleControls";
 
 export interface BattleSessionSnapshot {
   version: number;
@@ -15,6 +16,7 @@ export interface BattleSessionSnapshot {
   randomState: number;
   participants?: readonly BattleOperationActor[];
   policy?: BattlePolicy;
+  controls?: BattleControlState;
 }
 
 export type BattleSessionOptions = Omit<BattleReplay, "commands" | "endTick" | "checkpoint">;
@@ -31,6 +33,7 @@ export class BattleSession {
   readonly clock = new BattleClock();
   readonly random: BattleRandom;
   readonly actions = new BattleActionQueue();
+  readonly controls = createBattleControlState();
   private recording: BattleReplay;
   private readonly replay?: BattleReplay;
   private replayCursor = 0;
@@ -51,6 +54,7 @@ export class BattleSession {
     this.actors = copyBattleParticipants((this.replay ?? this.recording).participants);
     const policy = (this.replay ?? this.recording).policy;
     this.savedPolicy = policy ? copyBattlePolicy(policy) : undefined;
+    this.controls.debugEnabled = (this.replay ?? this.recording).debug;
   }
 
   get playback(): Readonly<BattleReplay> | undefined { return this.replay; }
@@ -67,11 +71,11 @@ export class BattleSession {
     this.advancing = true;
     try {
       this.applyReplayCommands(runtime.executeCommand);
-      if (!runtime.canAdvance() || this.playbackComplete) return false;
-      this.clock.advance(delta, () => {
+      if (this.controls.paused || !runtime.canAdvance() || this.playbackComplete) return false;
+      this.clock.advance(delta * this.controls.speed, () => {
         runtime.step();
         this.applyReplayCommands(runtime.executeCommand);
-        return runtime.canAdvance() && !this.playbackComplete;
+        return !this.controls.paused && runtime.canAdvance() && !this.playbackComplete;
       });
       return true;
     } finally { this.advancing = false; }
@@ -107,10 +111,11 @@ export class BattleSession {
     const participants = (this.replay ?? this.recording).participants;
     return { version: BATTLE_RULES_VERSION, clock: this.clock.snapshot(), randomState: this.random.state,
       ...(participants ? { participants: structuredClone(this.actors) } : {}),
-      ...(this.savedPolicy ? { policy: structuredClone(this.savedPolicy) } : {}) };
+      ...(this.savedPolicy ? { policy: structuredClone(this.savedPolicy) } : {}),
+      controls: copyBattleControlState(this.controls) };
   }
 
-  restore(state: BattleSessionSnapshot | undefined, battleTime: number) {
+  restore(state: BattleSessionSnapshot | undefined, battleTime: number, legacyControls?: BattleControlState) {
     if (state && !canRestoreBattleVersion(state.version)) throw new Error("Incompatible battle rules");
     if (!state && (!Number.isFinite(battleTime) || battleTime < 0)) throw new Error("Invalid legacy battle time");
     const clock = state?.clock ?? { tick: Math.floor(battleTime / BATTLE_STEP_MS), remainder: 0 };
@@ -125,7 +130,11 @@ export class BattleSession {
     if (this.replay && (this.replay.endTick < clock.tick || this.replay.commands.some(entry => entry.tick < clock.tick))) {
       throw new Error("Replay predates checkpoint");
     }
+    const controls = copyBattleControlState(state?.controls !== undefined ? state.controls : legacyControls ?? {
+      ...createBattleControlState(), debugEnabled: (this.replay ?? this.recording).debug
+    });
     this.clock.restore(clock);
+    Object.assign(this.controls, controls);
     this.actors = actors;
     this.savedPolicy = policy;
     if (!this.replay) {
