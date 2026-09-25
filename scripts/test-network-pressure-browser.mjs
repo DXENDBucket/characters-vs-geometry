@@ -8,12 +8,17 @@ import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import { load, captureBattleSnapshot, battleChecksum } from "./helpers/battle-runtime.mjs";
 import { PRESSURE_CARDS, populatePipelinePressure, pipelinePressureCensus } from "./helpers/pipeline-pressure.mjs";
+import { CROWDED_CARDS, populateCrowdedBattle, crowdedCensus } from "./helpers/crowded-battle.mjs";
 
 const option = name => process.argv.find(value => value.startsWith(`--${name}=`))?.slice(name.length + 3);
 const seconds = Number(option("seconds") ?? 60), delay = Number(option("delay") ?? 25);
 const engine = option("engine") ?? "chromium", small = process.argv.includes("--small");
 const durable = process.argv.includes("--durable");
 const uncompressed = process.argv.includes("--uncompressed");
+const crowded = Number(option("crowded") ?? 0);
+assert.ok(Number.isSafeInteger(crowded) && crowded >= 0 && crowded <= 2000);
+const cards = crowded ? CROWDED_CARDS : PRESSURE_CARDS;
+const census = crowded ? crowdedCensus : pipelinePressureCensus;
 assert.ok(durable || !uncompressed, "--uncompressed requires --durable");
 assert.ok(Number.isSafeInteger(seconds) && seconds >= 15 && seconds <= 600);
 assert.ok(Number.isSafeInteger(delay) && delay >= 0 && delay <= 250);
@@ -32,12 +37,14 @@ const { LEGACY_BATTLE_POLICY } = load("src/game/battlePolicy.ts");
 const { upgradeTowerLevel, applyTowerUpgradeStats } = load("src/game/towerUpgradeRules.ts");
 const { getCardDefinition } = load("src/registry/cardDefinitions.ts");
 const config = load("src/config.ts"), url = option("url") ?? "http://127.0.0.1:5173";
-let runtime = createIndependentBattle({ version: BATTLE_RULES_VERSION, levelId: "IF-1",
+let runtime = createIndependentBattle({ version: BATTLE_RULES_VERSION, levelId: crowded ? "5-10" : "IF-1",
   difficultyVersion: config.DIFFICULTY_VERSION, difficulty: 3, seed: 178, debug: false,
-  unlimitedFirepower: false, selectedCards: PRESSURE_CARDS, policy: LEGACY_BATTLE_POLICY });
-populatePipelinePressure(runtime, { config, BATTLE_STEP_MS, upgradeTowerLevel, applyTowerUpgradeStats, getCardDefinition }, 35);
-for (let tick = 0; tick < 720; tick++) runtime.session.advance(BATTLE_STEP_MS, runtime.sessionRuntime);
-const hash = () => battleChecksum(runtime.snapshot(PRESSURE_CARDS[0]));
+  unlimitedFirepower: false, selectedCards: cards, policy: LEGACY_BATTLE_POLICY });
+const fixtureTools = { config, BATTLE_STEP_MS, upgradeTowerLevel, applyTowerUpgradeStats, getCardDefinition };
+if (crowded) populateCrowdedBattle(runtime, crowded, config);
+else populatePipelinePressure(runtime, fixtureTools, 35);
+for (let tick = 0; tick < (crowded ? 0 : 720); tick++) runtime.session.advance(BATTLE_STEP_MS, runtime.sessionRuntime);
+const hash = () => battleChecksum(runtime.snapshot(cards[0]));
 const errors = [], outbound = [], token = randomUUID();
 let peer, linkId = 0, bytes = 0, queuedBytes = 0, peakQueue = 0, snapshots = 0, dropReceipt = false, dropped = 0, browser, watchdog;
 let diskHost, store, directory, loop, recovery, storage;
@@ -55,7 +62,7 @@ const ports = { inputTime: () => performance.now(), save: async text => {
 const authority = new BattleAuthority("network-pressure", runtime.session, { inputTime: () => performance.now(),
   available: () => !runtime.world.gameOver, execute: command => runtime.executeCommand(command) });
 const host = new BattleSyncHost(runtime.session, authority, { inputTime: () => performance.now(), checksum: hash,
-  checkpoint: () => runtime.session.captureCheckpointReplay(() => captureBattleSnapshot(runtime.snapshot(PRESSURE_CARDS[0])), PRESSURE_CARDS) });
+  checkpoint: () => runtime.session.captureCheckpointReplay(() => captureBattleSnapshot(runtime.snapshot(cards[0])), cards) });
 const liveHost = () => diskHost ?? host;
 const hostTick = () => diskHost?.timing.tick ?? runtime.session.clock.tick;
 const scheduled = { get available() { return diskHost?.available ?? true; },
@@ -63,7 +70,7 @@ const scheduled = { get available() { return diskHost?.available ?? true; },
   async advance(delta) {
     if (diskHost) {
       const started = performance.now(); await diskHost.advance(delta); commitTimes.push(performance.now() - started);
-    } else { runtime.session.advance(delta, runtime.sessionRuntime); host.publish(false); }
+    } else { runtime.session.advance(delta, runtime.sessionRuntime); host.publish(runtime.world.gameOver); }
   }
 };
 function memoryTiming() {
@@ -113,7 +120,7 @@ try {
     directory = await mkdtemp(path.join(tmpdir(), "charset-network-pressure-"));
     store = createBattleCheckpointStore(path.join(directory, "battle.json"), undefined, { compression: !uncompressed });
     const ledger = authority.snapshot();
-    const replay = runtime.session.captureCheckpointReplay(() => captureBattleSnapshot(runtime.snapshot(PRESSURE_CARDS[0])), PRESSURE_CARDS);
+    const replay = runtime.session.captureCheckpointReplay(() => captureBattleSnapshot(runtime.snapshot(cards[0])), cards);
     const saved = JSON.stringify({ version: 1, stream: 0, authority: ledger, snapshot: {
       type: "snapshot", version: BATTLE_PROTOCOL_VERSION, battleId: authority.battleId, stream: 1,
       cursor: { tick: ledger.tick, sequence: ledger.commandSequence }, nextRequest: 0,
@@ -139,7 +146,7 @@ try {
       game: listeners(game.events), input: listeners(game.input.events) });
     const state = window.networkPressure = { tail: Promise.resolve(), errors: [], statuses: [], receipts: [], completions: 0,
       jobs: new Set(), links: [], holdUntil: 0, frames: 0, intervals: [], litPixels: 0, peakMortars: 0, peakTrails: 0,
-      profile: JSON.stringify(localStorage), baseline: resources(), resources };
+      peakEnemyProjectiles: 0, profile: JSON.stringify(localStorage), baseline: resources(), resources };
     const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
     state.remote = new RemoteBattleSession(game, { actorId: "local", onExit() {},
       receipt: receipt => state.receipts.push(receipt), scheduler: {
@@ -189,6 +196,7 @@ try {
       const scene = state.remote.scene;
       if (!scene) return;
       state.peakMortars = Math.max(state.peakMortars, scene.runtime.world.mortarProjectiles.length);
+      state.peakEnemyProjectiles = Math.max(state.peakEnemyProjectiles, scene.runtime.world.enemyProjectiles.length);
       const objects = [...scene.children.list];
       for (let i = 0; i < objects.length; i++) if (Array.isArray(objects[i].list)) objects.push(...objects[i].list);
       state.peakTrails = Math.max(state.peakTrails, objects.filter(child => child.name === "projectile-trail").length);
@@ -202,17 +210,43 @@ try {
     game.events.on("postrender", state.render); state.remote.start();
   }, { token, relay: `http://127.0.0.1:${server.address().port}` });
   await page.waitForFunction(() => window.networkPressure.remote.connection.ready);
-  const initial = pipelinePressureCensus(runtime), samples = [];
+  const viewBatch = await page.evaluate(() => {
+    const scene = window.networkPressure.remote.scene;
+    const refresh = scene.refreshBattleViews;
+    let count = 0;
+    scene.refreshBattleViews = function () { count++; return refresh.call(this); };
+    try {
+      const tick = scene.runtime.session.clock.tick;
+      for (let i = 0; i < 3; i++) scene.followSynchronizedFrame(tick, [], false);
+      const before = count;
+      scene.update(0, 0);
+      const after = count;
+      scene.followSynchronizedFrame(tick, []);
+      return { before, after, immediate: count };
+    } finally { scene.refreshBattleViews = refresh; }
+  });
+  assert.deepEqual(viewBatch, { before: 0, after: 1, immediate: 2 });
+  const initial = census(runtime), samples = [];
   writeTimes.length = 0; writtenBytes = 0; logicalBytes = 0; peakCheckpointBytes = 0; peakStoredBytes = 0;
-  const start = performance.now(); let heldAt, requested = false, disconnectedAt;
+  const start = performance.now(); let heldAt, requested = false, disconnectedAt, terminal;
+  // The mixed battle ends naturally in about twelve seconds. Seed the retry fault
+  // before ticking so receipt recovery is not confounded with input starvation.
+  if (crowded) {
+    dropReceipt = true;
+    requested = await page.evaluate(() => {
+      const s = window.networkPressure;
+      return s.remote.connection.request({ type: "control", control: { type: "reserve", value: 1234 } }, () => s.completions++);
+    });
+    assert.equal(requested, true);
+  }
   loop.start();
   while (performance.now() - start < seconds * 1000) {
     await new Promise(resolve => setTimeout(resolve, 250));
     const elapsed = performance.now() - start;
-    if (heldAt === undefined && elapsed >= seconds * 250) {
+    if (heldAt === undefined && elapsed >= (crowded ? 4000 : seconds * 250)) {
       heldAt = elapsed; await page.evaluate(() => { window.networkPressure.holdUntil = performance.now() + 1200; });
     }
-    if (!requested && elapsed >= seconds * 600) {
+    if (!requested && elapsed >= (crowded ? 4000 : seconds * 600)) {
       dropReceipt = true;
       requested = await page.evaluate(() => {
         const s = window.networkPressure;
@@ -224,18 +258,35 @@ try {
     }
     const sample = await page.evaluate(() => {
       const s = window.networkPressure;
-      return { tick: s.remote.scene?.runtime.session.clock.tick, status: s.remote.connection.status, catchingUp: s.remote.connection.catchingUp };
+      const world = s.remote.scene?.runtime.world;
+      return { tick: s.remote.scene?.runtime.session.clock.tick, enemies: s.remote.scene?.runtime.world.enemies.length,
+        passengers: world?.enemies.reduce((sum, enemy) => sum + (enemy.parenthesisCargo?.length ?? 0), 0),
+        gameOver: world?.gameOver, status: s.remote.connection.status, catchingUp: s.remote.connection.catchingUp };
     });
     samples.push({ elapsed, ...sample, hostTick: hostTick(), lag: hostTick() - sample.tick });
-    assert.deepEqual(errors, []); assert.equal(loop.status, "running");
+    assert.deepEqual(errors, []);
+    if (crowded && scheduled.timing.ended) {
+      assert.equal(loop.status, "stopped");
+      terminal ??= { elapsed, tick: hostTick() };
+      assert.equal(hostTick(), terminal.tick, "Ended host kept advancing");
+    } else assert.equal(loop.status, "running");
   }
   await loop.stop();
   if (diskHost) await diskHost.advance(BATTLE_STEP_MS * 6);
   else host.publish();
   await page.waitForFunction(tick => {
     const s = window.networkPressure;
-    return s.remote.connection.ready && !s.remote.connection.catchingUp && s.completions === 1 && s.remote.scene.runtime.session.clock.tick === tick;
-  }, hostTick(), { timeout: 15000 });
+    return s.remote.connection.ready && !s.remote.connection.catchingUp && s.completions === 1 &&
+      !s.remote.scene.synchronizedViewsDirty && s.remote.scene.runtime.session.clock.tick === tick;
+  }, hostTick(), { timeout: 15000 }).catch(async error => {
+    console.error(JSON.stringify({ hostTick: hostTick(), terminal, samples, client: await page.evaluate(() => {
+      const s = window.networkPressure;
+      return { tick: s.remote.scene?.runtime.session.clock.tick, status: s.remote.connection.status,
+        ready: s.remote.connection.ready, catchingUp: s.remote.connection.catchingUp, completions: s.completions,
+        receipts: s.receipts, errors: s.errors, statuses: s.statuses };
+    }) }));
+    throw error;
+  });
   let diskText;
   if (diskHost) {
     diskText = await store.read(); assert.equal(diskText, diskHost.checkpointText);
@@ -244,32 +295,45 @@ try {
     runtime.session.restoreCommandOffset(snapshot.cursor.sequence);
     assert.equal(hash(), snapshot.checksum);
   }
-  const final = pipelinePressureCensus(runtime);
+  const final = census(runtime);
+  if (crowded) {
+    assert.ok(initial.enemies === crowded && final.enemies + final.passengers >= crowded * .9 &&
+      samples.every(sample => sample.enemies + sample.passengers >= crowded * .9), "Crowded workload did not remain populated");
+    assert.ok(terminal && final.gameOver && samples.at(-1).gameOver, "Natural terminal state did not reach the client");
+    assert.ok(terminal.tick - initial.tick >= terminal.elapsed * .05, "Crowded host did not keep real time before defeat");
+  }
   const observed = await page.evaluate(() => {
     const s = window.networkPressure;
     return { hash: s.remote.scene.battleChecksum(), errors: s.errors, frames: s.frames, intervals: s.intervals,
-      peakMortars: s.peakMortars, peakTrails: s.peakTrails, litPixels: s.litPixels, statuses: s.statuses,
+      peakMortars: s.peakMortars, peakTrails: s.peakTrails, peakEnemyProjectiles: s.peakEnemyProjectiles,
+      litPixels: s.litPixels, statuses: s.statuses,
       completions: s.completions, receipts: s.receipts, links: s.links.length, profileUnchanged: JSON.stringify(localStorage) === s.profile };
   });
+  if (crowded) console.log(JSON.stringify({ diagnostic: "Mixed-battle terminal observations before acceptance checks",
+    initial, final, terminal, samples, frames: observed.frames, peakEnemyProjectiles: observed.peakEnemyProjectiles,
+    heldAt, disconnectedAt, snapshots, receipts: observed.receipts, checksum: observed.hash, hostChecksum: hash() }));
   assert.equal(observed.hash, hash()); assert.equal(runtime.session.nextCommandSequence, 1);
   assert.equal(runtime.session.controls.reserveChars, 1234); assert.equal(dropped, 1);
   assert.equal(observed.completions, 1); assert.equal(observed.links, 2); assert.equal(observed.profileUnchanged, true);
   assert.equal(snapshots, 2, "Unexpected resync could conceal a divergent replica");
   assert.deepEqual(observed.errors, []); assert.deepEqual(errors, []);
-  assert.ok(final.tick - initial.tick >= seconds * 50 && !final.gameOver);
-  assert.ok(observed.frames > seconds * 15 && observed.peakMortars >= 10 && observed.peakTrails > 0 && observed.litPixels > 100);
+  if (!crowded) assert.ok(final.tick - initial.tick >= seconds * 50 && !final.gameOver);
+  assert.ok(observed.frames > seconds * 15 && observed.litPixels > 100);
+  if (crowded) assert.ok(observed.peakEnemyProjectiles >= 100, "Missing mixed enemy attack workload");
+  else assert.ok(observed.peakMortars >= 10 && observed.peakTrails > 0);
   const summary = values => { values.sort((a, b) => a - b); return { median: values[Math.floor(values.length / 2)],
     p95: values[Math.ceil(values.length * .95) - 1], max: values.at(-1) }; };
   assert.ok(heldAt !== undefined && disconnectedAt !== undefined);
   assert.ok(samples.some(s => s.elapsed >= heldAt && s.elapsed <= heldAt + 1500 && s.lag >= 30), "Polling hold did not create backlog");
   for (const fault of [heldAt, disconnectedAt]) assert.ok(samples.some(s => s.elapsed > fault && s.elapsed <= fault + 3500 &&
     s.elapsed >= fault + 1500 && s.status === "ready" && s.lag <= 12), "Client did not recover while the host kept running");
-  const steady = samples.filter(s => [heldAt, disconnectedAt].every(fault => s.elapsed < fault || s.elapsed > fault + 3500));
+  const steady = samples.filter(s => (!terminal || s.elapsed < terminal.elapsed) &&
+    [heldAt, disconnectedAt].every(fault => s.elapsed < fault || s.elapsed > fault + 3500));
   assert.ok(steady.length >= 10);
   const lag = summary(steady.map(s => s.lag));
   assert.ok(lag.p95 <= 30 && lag.max <= 120, `Sustained replica backlog: ${JSON.stringify(lag)}`);
   if (diskHost) {
-    assert.ok(commitTimes.length > seconds * 5 && writeTimes.length >= commitTimes.length);
+    assert.ok(commitTimes.length > (terminal ? terminal.elapsed / 1000 : seconds) * 5 && writeTimes.length >= commitTimes.length);
     if (uncompressed) assert.equal(writtenBytes, logicalBytes);
     else assert.ok(writtenBytes < logicalBytes / 2, "Pressure checkpoints did not meaningfully compress");
     storage = { compression: !uncompressed, writes: writeTimes.length, writtenBytes, logicalBytes, peakCheckpointBytes, peakStoredBytes,
@@ -303,12 +367,14 @@ try {
     await recovery.advance(BATTLE_STEP_MS * 6);
     const restoredText = await store.read(); assert.equal(restoredText, recovery.checkpointText);
     assert.equal(JSON.parse(restoredText).snapshot.checksum, hash());
-    storage.recovery = "disk restart, receipt retry and continuation matched";
+    storage.recovery = terminal ? "disk restart, receipt retry and immutable terminal state matched" :
+      "disk restart, receipt retry and continuation matched";
   }
   console.log(JSON.stringify({ diagnostic: "Continuous localhost replica rendering with delayed polling; optional atomic file persistence",
-    engine, browser: browser.version(), seconds, delay, small, durable, storage, initial, final, checksum: observed.hash,
+    engine, browser: browser.version(), seconds, delay, small, crowded, terminal, durable, storage, initial, final, checksum: observed.hash,
     frames: observed.frames, frameIntervalMs: summary(observed.intervals), steadyLagTicks: lag,
-    peakMortars: observed.peakMortars, peakTrails: observed.peakTrails, peakQueue, bytes, samples, cleanup: "baseline restored" }));
+    peakMortars: observed.peakMortars, peakTrails: observed.peakTrails, peakEnemyProjectiles: observed.peakEnemyProjectiles,
+    peakQueue, bytes, samples, cleanup: "baseline restored" }));
 } finally {
   clearTimeout(watchdog); await loop?.stop(); await diskHost?.close(); await recovery?.close(); host.close(); authority.close();
   await browser?.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve));

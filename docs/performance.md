@@ -614,3 +614,44 @@ and lag p95 is 8/11 ticks. The pressure test asserts that this known compressibl
 fixture writes less than half its logical byte count; plaintext mode must write
 exactly that count. Full capture, checksum and JSON conversion still happen every
 transaction; large-roster CPU cost and slow-device flush latency remain open.
+
+### Crowded Network Terminal Profile
+
+`test-network-pressure-browser.mjs --crowded=800 --seconds=15` uses the original
+mixed-battle fixture, with ordinary defenders and unchanged combat rules. It
+does not grant immortality or disable enemy skills to prolong the battle. In
+this seed the natural defeat occurs at tick 705. This is a short high-population
+terminal/recovery test, not a sustained 800-enemy soak test.
+
+The command is submitted before ticking, its receipt is lost and retried after
+reconnect, and polling pauses for 1.2 seconds at four seconds. The existing lag
+and recovery budgets remain unchanged. Active enemies and carried passengers
+are counted separately: the observed terminal roster is 566 active enemies plus
+242 passengers, not 808 independently simulated/rendered enemies. Enemy attack
+coverage replaces the default fixture's mortar requirement; the run must show
+at least 100 enemy projectiles and deliver the natural terminal state.
+
+Remote sessions now defer their overlay/HUD refreshes until the next scene
+update, including the final update after defeat. Multiple two-tick simulation
+slices before that update share one view refresh. The immediate frame-following
+API remains available for diagnostics/other adapters. The browser regression
+verifies three deferred calls produce zero immediate refreshes and one update,
+while a normal call still refreshes immediately. This is display work only;
+simulation, message ordering and checksums are unchanged.
+
+**The 800-enemy profile currently fails its recovery-time gate.** An Edge 153
+run retained exact terminal checksum `0ad135ee`, one executed request and two
+snapshots, with 372 enemy projectiles at peak. However, sampled lag reached 159
+ticks and the receive pause did not recover within 3.5 seconds while the host
+was still advancing. An earlier probe attempting input during that backlog
+could not submit until defeat, when the host correctly rejected it as unavailable.
+Moving the retry command before ticking isolates receipt correctness; it does
+not resolve or count as passing input responsiveness under load.
+
+The modest view-coalescing change must not be presented as solving crowded
+throughput or as an FPS improvement. The default durable Edge regression still
+passes its file/retry/continuation/cleanup gates (15 seconds, lag p95 seven ticks).
+Firefox at 800x600 and WebKit at 1410x900 also pass the 15-second durable regression,
+with lag p95 12 and 11 ticks respectively. Actual Firefox tutorial, shifter and
+targeted S/# input regression still agrees with the host at checksum `d03152c3`.
+More work on catch-up throughput and input availability remains necessary.

@@ -216,6 +216,7 @@ export class GameScene extends Phaser.Scene {
   private session!: BattleSession;
   private authority!: BattleAuthority;
   private syncHost?: BattleSyncHost;
+  private synchronizedViewsDirty = false;
   private replicaCheckpoint?: SaveGraph;
   get commandAuthority() { return this.authority; }
   private get simulation() { return this.session.clock; }
@@ -386,6 +387,7 @@ export class GameScene extends Phaser.Scene {
 
   init(data: { levelId?: string; chapterId?: string; selectedCards?: CardId[]; difficulty?: number; unlimitedFirepower?: boolean; resume?: boolean; seed?: number; replay?: BattleReplay; participants?: readonly BattleOperationActor[]; policy?: BattlePolicy; playerLoadouts?: readonly BattlePlayerLoadout[]; persistProgress?: boolean; replica?: BattleReplay; viewActorId?: string; input?: BattleInputPort; onRemoteExit?: () => void }) {
     this.inputEpoch++;
+    this.synchronizedViewsDirty = false;
     if (data.input && !data.replica) throw new Error("Remote input requires a replica");
     this.inputPort = data.input;
     this.onRemoteExit = data.replica ? data.onRemoteExit : undefined;
@@ -688,6 +690,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number) {
+    if (this.synchronizedViewsDirty) {
+      this.synchronizedViewsDirty = false;
+      this.refreshBattleViews();
+    }
     if (this.gameOver || this.localModalPausesBattle) {
       return;
     }
@@ -2171,9 +2177,12 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  followSynchronizedFrame(tick: number, commands: RecordedBattleCommand[]) {
+  followSynchronizedFrame(tick: number, commands: RecordedBattleCommand[], refreshViews = true) {
     this.session.followFrame(tick, commands, { ...this.sessionRuntime, canAdvance: () => !this.gameOver });
-    this.refreshBattleViews();
+    if (refreshViews) {
+      this.synchronizedViewsDirty = false;
+      this.refreshBattleViews();
+    } else this.synchronizedViewsDirty = true;
   }
 
   battleChecksum() {

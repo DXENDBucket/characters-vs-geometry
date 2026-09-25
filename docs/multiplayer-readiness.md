@@ -228,7 +228,12 @@ final frame was sent. Durable and scene hosts now force terminal publication;
 the durable path retains its persistence barrier. A regression drives a real
 enemy breach in one tick, verifies no output before saving, and checks the client
 receives the exact terminal state without reconnecting. High-population catch-up
-and input availability remain a separate unresolved load issue.
+and input availability remain a separate unresolved load issue. The new
+[crowded terminal profile](performance.md#crowded-network-terminal-profile)
+now reproduces this with the original mixed roster: exact final state and retry
+semantics, but a failed 3.5-second recovery budget and up to 159 ticks of lag in
+the measured run. Remote view refreshes are coalesced per display update; this
+does not yet close that performance gap.
 
 1. Address full-checkpoint commit overhead without weakening durability and
    remaining crowded-rendering/catch-up hotspots. Rendered saturated pipelines,

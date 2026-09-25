@@ -27,7 +27,7 @@ export class RemoteBattleSession {
   constructor(private readonly game: Phaser.Game, private readonly options: RemoteBattleOptions) {
     this.connection = new BattleConnection({
       restore: snapshot => this.restore(snapshot),
-      follow: (tick, commands) => this.requireScene().followSynchronizedFrame(tick, commands),
+      follow: (tick, commands) => this.requireScene().followSynchronizedFrame(tick, commands, false),
       checksum: () => this.requireScene().battleChecksum(),
       receipt: receipt => options.receipt?.(receipt)
     }, options.transport, { ...options, frameSliceTicks: options.frameSliceTicks ?? 2 });
