@@ -72,6 +72,41 @@ test("durability barrier gates join snapshots, frames and receipts and serialize
   await f.host.close();
 });
 
+test("durable publication shares one checksum per transaction but never across commands, frames or reconnects", async () => {
+  let calculations = 0;
+  const measuredLoad = createTypeScriptLoader({ "src/game/battleChecksum.ts": {
+    battleChecksum: (...args) => { calculations++; return battleChecksum(...args); }
+  } });
+  const { DurableBattleHost: MeasuredHost } = measuredLoad("src/game/durableBattleHost.ts");
+  const host = await MeasuredHost.create("durable", options(), { inputTime: () => 0, save: async () => {} });
+  const messages = [];
+  const expectOne = async operation => {
+    const before = calculations;
+    const result = await operation();
+    assert.equal(calculations - before, 1);
+    const snapshot = decodeSyncMessage(JSON.parse(host.checkpointText).snapshot);
+    const restored = createIndependentBattle(snapshot.replay, { checkpoint: snapshot.replay.checkpoint });
+    assert.equal(battleChecksum(restored.snapshot("A")), snapshot.checksum);
+    for (const message of messages.splice(0)) if (message.type === "frame" || message.type === "snapshot") {
+      assert.equal(message.checksum, snapshot.checksum);
+    }
+    return result;
+  };
+  try {
+    assert.equal(calculations, 1);
+    const peer = await expectOne(() => host.connect("local", message => messages.push(message)));
+    const stream = JSON.parse(host.checkpointText).stream;
+    await expectOne(() => host.receiveText(peer, envelope(stream, 0, deploy)));
+    const deployed = JSON.parse(host.checkpointText).snapshot.checksum;
+    await expectOne(() => host.receiveText(peer, envelope(stream, 1, control({ type: "reserve", value: 123 }))));
+    assert.notEqual(JSON.parse(host.checkpointText).snapshot.checksum, deployed);
+    await expectOne(() => host.advance(BATTLE_STEP_MS * 6));
+    await expectOne(() => host.receiveText(peer, JSON.stringify({ type: "resync", stream })));
+    await expectOne(() => host.disconnect(peer));
+    await expectOne(() => host.connect("local", message => messages.push(message)));
+  } finally { await host.close(); }
+});
+
 test("host restart preserves lost receipts, global command cursor and stream ordering without redeployment", async () => {
   const f = await fixture();
   await f.send(control({ type: "autoUpgradeEnabled", enabled: false }));

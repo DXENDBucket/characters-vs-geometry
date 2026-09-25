@@ -58,7 +58,8 @@ try {
     state.client = new BattleSyncClient({ restore: ({ replay }) => {
       if (state.scene) { game.scene.stop(state.scene.sys.settings.key); game.scene.remove(state.scene.sys.settings.key); }
       const key = "DurableReplica" + state.serial++;
-      game.scene.add(key, new GameScene(key), false); game.scene.start(key, { replica: replay }); state.scene = game.scene.getScene(key);
+      game.scene.add(key, new GameScene(key), false);
+      game.scene.start(key, { replica: replay, viewActorId: "peer" }); state.scene = game.scene.getScene(key);
     }, follow: (tick, commands) => state.scene.followSynchronizedFrame(tick, commands),
     checksum: () => state.scene.battleChecksum(), receipt: receipt => state.receipts.push(receipt) });
     state.connect = () => state.client.connect(message => {
@@ -70,7 +71,10 @@ try {
     state.poll = async () => {
       await state.tail;
       const messages = await (await fetch(relay + "/poll", { headers })).json();
-      for (const message of messages) state.statuses.push(state.client.receiveText(JSON.stringify(message)));
+      for (const message of messages) {
+        const status = state.client.receiveText(JSON.stringify(message)); state.statuses.push(status);
+        if (status === "invalid") throw Error(`Invalid durable sync ${message.type}`);
+      }
       await state.tail; return messages.length;
     };
     state.connect();

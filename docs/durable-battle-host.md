@@ -53,19 +53,25 @@ The caller owns timers and networking. `advance(100)` is a suitable starting poi
 for 10 Hz host publication of six fixed simulation ticks at normal speed; it does
 not change the 60 Hz rules. Accelerated play needs enough scheduling batches to
 drain the clock's bounded catch-up steps. This implementation writes full checkpoints per transaction and is a
-correctness-first recovery path, **not** a measured low-latency storage pipeline.
+correctness-first recovery path, **not** a low-latency storage pipeline.
+The [mixed-battle profile](performance.md#mixed-battle-and-durable-host-profile)
+shows full checkpoints cannot sustain per-tick commits in crowded battles.
+Checksum reuse within one transaction removes duplicate publication/commit work;
+the cache is invalidated for every transaction and fenced by tick/command cursor.
 Large-state serialization, commit batching/journaling and slow-disk backpressure
-still need profiling before making multiplayer performance claims. Reject floods
+still need improvement before deployment. Reject floods
 and oversized requests at the transport before allocating/queueing them.
 
 ## Verification
 
-- `npm run test:host` runs fifteen cases with the real independent core and replica:
+- `npm run test:host` runs sixteen cases with the real independent core and replica:
   barrier ordering, lost acknowledgments, continuation, write failures before/after
   persistence, bounded receipt tails, quota preservation, conflicting/expired
   requests, malformed checkpoints, paused and terminal states, participant
   isolation, queue saturation, close behavior, atomic file replacement and retained
-  owner-only tower permissions after replacement of the host.
+  owner-only tower permissions after replacement of the host. Checksum cache
+  coverage verifies single calculation per transaction without stale commands,
+  frames, resyncs or reconnects.
 - A child-process test kills a Node host after an actual file flush but before
   acknowledgment, starts a new process, and retries deployment. There is one tower,
   one debit, the same receipt and a higher stream ID.

@@ -223,9 +223,68 @@ This local run measured 66.5 ms spawn time and 0.44 ms median simulation tick.
 It remains a synthetic circle fixture, not a populated pipeline/Boss battlefield
 or a synchronized-client frame-time measurement.
 
-The optional durable host serializes checkpoint writes and releases network
-output only after commit. It is isolated from existing single-player frame work.
-Full snapshots are still written per transaction; do not infer low-latency
-multiplayer performance from its correctness tests. Serialization, commit batching
-and storage backpressure need a populated-battle profile before deployment. See
-[durable host](durable-battle-host.md).
+## Mixed Battle And Durable Host Profile
+
+Reproduce with:
+
+```sh
+node scripts/benchmark-crowded-battle.mjs
+node scripts/benchmark-crowded-browser.mjs
+```
+
+Both accept `--counts=100,400,800`. Node accepts `--samples=12`; the browser accepts
+the usual `--playwright`, `--browser`, `--url`, and optional `--screenshot=path.png`.
+No progress/save from the player's profile is used. Atomic file profiling uses a
+new temporary directory, deleted after the run.
+
+The shared fixture deploys real towers, shared health, six pipeline edges and a
+5-10 Boss, then spawns mixed enemies including passengers, health links, ranged
+attackers and leaders. It warms 180 ticks and samples actual continuing combat.
+Towers can die normally: requested enemy count is not field roster count. Output
+reports the live census, passengers, projectiles, buffers and terminal state.
+At 800 requested enemies the measured initial state had 570 field enemies,
+230 passengers, 340 hostile projectiles and 12 surviving towers. Mortar and
+pipeline buffers were empty at sample boundaries; this is **not** a saturated
+pipeline/mortar workload or a multi-phase Boss acceptance test.
+
+The Node test times capture, checksum, wire encoding/decoding, host ticks,
+publication, independent replica application and actual atomic file commits.
+Every sampled sync frame must agree with the host, and durable output must agree
+with the final persisted checksum. In-process transport excludes network latency.
+Publication runs every six ticks; a tiny frame payload does not imply cheap
+application, since each client simulates those ticks and checks the full state.
+
+Local Windows / Node 22.19.0 diagnostics, 12 samples (milliseconds, medians):
+
+| Requested enemies | Simulation tick | Checksum | Client six-tick apply | Full commit per tick | Full commit per six ticks |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 100 | 0.44 | 1.91 | 5.14 | 11.20 | 12.66 |
+| 400 | 1.20 | 6.59 | 14.18 | 30.43 | 35.51 |
+| 800 | 2.32 | 13.49 | 28.56 | 58.78 | 69.46 |
+
+Before transaction-local checksum reuse, the six-tick commit medians were
+14.27 / 41.15 / 84.97 ms. This removes one redundant full checksum on publication
+transactions; tests assert one calculation and correct invalidation across
+commands, frames, resync and reconnect. It does not change the wire format or
+commit-before-publication guarantee. Samples are diagnostic, not portable timing
+assertions; GC, JIT, antivirus and storage contention produce large outliers.
+
+At 800 enemies the snapshot was about 1.28 MB and the atomic write portion about
+7.4 ms. Full serialization remains the larger cost. **Do not schedule one durable
+transaction per 60 Hz tick in crowded battles.** Even six-tick commits leave
+limited headroom; input transactions, accelerated play and slower storage need
+further work. Journaling/commit scheduling must retain receipt and publication
+durability rather than dropping that safety barrier.
+
+The headless Edge 153.0.4234.48 browser check renders 72 frames, one fixed tick per
+frame, then compares to an independent core and reads back the canvas. CPU frame
+medians for 100 / 400 / 800 were 4.4 / 9.9 / 18.2 ms, with p95 9.9 / 20.2 / 172.5 ms.
+Animation-frame intervals and maximum stalls are reported separately. These include
+initial render/JIT work after simulation warm-up and headless browser scheduling;
+they are not steady-state player FPS. The 800-enemy result demonstrates remaining
+rendering/allocation pressure, not a solved large-battle performance problem.
+
+Next profiles should isolate warmed rendering/allocation hotspots, saturated
+pipelines/mortars and long sessions, plus remote browser frame application. The
+optional durable host is isolated from existing single-player frame work; its
+storage costs do not explain single-player stalls. See [durable host](durable-battle-host.md).

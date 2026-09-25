@@ -32,6 +32,7 @@ export class DurableBattleHost {
   private closing = false;
   private outputs: (() => void)[] = [];
   private committed = "";
+  private checksumCache?: { tick: number; sequence: number; value: string };
 
   private constructor(private readonly runtime: BattleRuntime, battleId: string, private readonly ports: DurableBattleHostPorts,
     saved?: HostCheckpoint) {
@@ -75,7 +76,15 @@ export class DurableBattleHost {
     return this.runtime.session.checkpointReplay(captureBattleSnapshot(this.runtime.snapshot(this.runtime.world.loadout.ids[0])),
       this.runtime.world.loadout.ids);
   }
-  private checksum() { return battleChecksum(this.runtime.snapshot(this.runtime.world.loadout.ids[0])); }
+  private checksum() {
+    // Sync publication and durable commit inspect the same command boundary. Never
+    // retain this cache across transactions (including commands at the same tick).
+    const tick = this.runtime.session.clock.tick, sequence = this.runtime.session.nextCommandSequence;
+    if (this.checksumCache?.tick === tick && this.checksumCache.sequence === sequence) return this.checksumCache.value;
+    const value = battleChecksum(this.runtime.snapshot(this.runtime.world.loadout.ids[0]));
+    this.checksumCache = { tick, sequence, value };
+    return value;
+  }
 
   private checkpoint(): string {
     const replay = this.replay(), authority = this.authority.snapshot(), stream = this.sync.streamCursor;
@@ -95,6 +104,7 @@ export class DurableBattleHost {
     this.pending++;
     const task = this.tail.then(async () => {
       if (this.stopped) throw new Error("Durable host is closed");
+      this.checksumCache = undefined;
       try {
         const result = action();
         const text = this.checkpoint();
@@ -107,6 +117,8 @@ export class DurableBattleHost {
         // The world may have advanced, but no uncommitted output may escape or be retried in place.
         this.stopped = true; this.outputs = []; this.sync.close(); this.authority.close();
         throw error;
+      } finally {
+        this.checksumCache = undefined;
       }
     });
     this.tail = task.then(() => { this.pending--; }, () => { this.pending--; });

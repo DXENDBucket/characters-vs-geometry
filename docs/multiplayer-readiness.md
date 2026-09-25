@@ -136,12 +136,17 @@ connection/lobby service. Player input is now wired, and a
 replacement and final disposal, with real-browser lifecycle checks.
 [Durable host recovery](durable-battle-host.md)
 now covers atomic file replacement, killed-process restart and real browser
-reconnection. Broader content/fault coverage, distributed failover and crowded
-battle synchronization/storage cost measurements remain unfinished.
+reconnection. A reproducible [mixed-battle profile](performance.md#mixed-battle-and-durable-host-profile)
+now measures simulation, replicas, rendering and real atomic storage. It exposes
+costly full-state commits and crowded-client stalls; eliminating repeated checksum
+work is only a first improvement. Broader content/fault coverage, distributed
+failover and production load/latency readiness remain unfinished.
 
 ## Next Work
 
-1. Profile crowded host/replica execution, synchronization and durable-storage cost.
+1. Address full-checkpoint commit overhead without weakening durability; isolate
+   warmed rendering/allocation and remote-client application hotspots. Broaden
+   mixed profiles to saturated pipelines/mortars and long sessions.
 2. Broaden fault and content coverage, especially targeted skill/tutorial input,
    while retaining exact cross-engine numeric gates.
 3. Audit the full acceptance gates against current implementation and evidence.
