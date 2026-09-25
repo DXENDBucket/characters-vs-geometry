@@ -72,8 +72,8 @@ export function executePipelineAction(shot: StoredTowerShot, outlet: Tower, runt
       const event = action.event;
       switch (event.kind) {
         case "attack": cardBehaviorsById[action.type].execute(outlet, definition, combat, 1); break;
-        case "production": combat.gainChars(getProductionAmount(outlet, definition), outlet.x, outlet.y - 28); break;
-        case "hitProduction": combat.gainChars(getHitProductionAmount(outlet, definition), outlet.x, outlet.y - 28); break;
+        case "production": combat.gainChars(getProductionAmount(outlet, definition), outlet.x, outlet.y - 28, outlet); break;
+        case "hitProduction": combat.gainChars(getHitProductionAmount(outlet, definition), outlet.x, outlet.y - 28, outlet); break;
         case "shock": triggerShockTower({ ...runtime.trigger, onTowerAction: undefined, removeTower: () => {} }, outlet); break;
         case "trap": triggerTrapTower({ ...runtime.trigger, onTowerAction: undefined, removeTower: () => {} }, outlet, event.target); break;
         case "detonation": runtime.detonate(outlet); break;

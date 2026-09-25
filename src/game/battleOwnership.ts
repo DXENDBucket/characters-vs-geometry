@@ -20,7 +20,8 @@ export function inheritBattleOwner(target: BattleOwnedEntity, source: BattleOwne
 // Checks historical action sources and suspended towers too, not just the active board.
 export function validateBattleOwners(towers: Iterable<TowerState>, edges: Iterable<BattleOwnedEntity>,
   participants?: readonly BattleOperationActor[], policy?: BattlePolicy) {
-  const actors = new Set(copyBattleParticipants(participants).map(actor => actor.id));
+  const actors = new Set(copyBattleParticipants(participants)
+    .filter(actor => policy?.walletMode !== "individual" || actor.permissions.includes("build")).map(actor => actor.id));
   const check = (entity: BattleOwnedEntity) => {
     if (entity.ownerId !== undefined && (!validBattleActorId(entity.ownerId) || !actors.has(entity.ownerId))) {
       throw new Error("Unknown battle entity owner");

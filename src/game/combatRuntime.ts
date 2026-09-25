@@ -24,7 +24,7 @@ export interface CombatRuntime {
   damageBoss: (damage: number, damageType: DamageType, targetPart?: CubeBoss) => boolean;
   damageTower: (tower: Tower, damage: number, damageType: DamageType) => void;
   storeBlockedEnemies: (tower: Tower, definition: CardDefinition) => void;
-  gainChars: (amount: number, x: number, y: number) => void;
+  gainChars: (amount: number, x: number, y: number, source?: TowerState) => void;
   spawnTower: (id: CardId, lane: number, column: number, level: number, facingDirection?: -1 | 1, source?: TowerState) => Tower | null;
   isCellDeployable?: (lane: number, column: number) => boolean;
   triggerTrapTower: (tower: Tower, target: Enemy | CubeBoss | "boss") => void;

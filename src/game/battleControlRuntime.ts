@@ -9,12 +9,13 @@ import { isBossInRect } from "./unitGeometry";
 import { damageBoss, damageEnemy } from "./unitLifecycle";
 
 // The live scene and a display-free host use the same control effects.
-export function createBattleControlRuntime(runtime: BattleRuntime): BattleControlRuntime {
+export function createBattleControlRuntime(runtime: BattleRuntime, actorId: () => string | undefined = () => undefined): BattleControlRuntime {
   const { world, session, observers } = runtime;
   return {
     state: session.controls,
     get ended() { return world.gameOver; },
-    actor: id => session.actor(id), authorize: () => true,
+    actor: id => session.actor(id), authorize: (actor, control) =>
+      control.type !== "debugChars" || world.economy.hasWallet(actor.id),
     get slotCount() { return session.policy.slotCount; },
     cardAllowed: id => battleCardAllowed(session.policy, id),
     get reselectAvailable() { return !isTutorialMechanic(world.options.level.specialMechanic) && session.policy.reselectEnabled; },
@@ -40,7 +41,7 @@ export function createBattleControlRuntime(runtime: BattleRuntime): BattleContro
       world.loadout.resetCooldowns(world);
       world.baseIntegrity += 1000;
       world.invalidateFlawless();
-      const amount = world.gainChars(10000);
+      const amount = world.gainChars(10000, actorId());
       runtime.autoUpgrade();
       observers.debugChars?.(Math.floor(amount));
     },

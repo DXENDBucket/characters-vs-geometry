@@ -122,7 +122,7 @@ export const productionCardBehavior: CardBehavior = {
     return cooldownReady(tower, time, cooldownAlreadyReady) && Boolean(definition.produceAmount);
   },
   execute: (tower, definition, runtime) => {
-    runtime.gainChars(getProductionAmount(tower, definition), tower.x, tower.y - 28);
+    runtime.gainChars(getProductionAmount(tower, definition), tower.x, tower.y - 28, tower);
   }
 };
 
@@ -666,7 +666,7 @@ function fireSlash(tower: Tower, definition: CardDefinition, runtime: CardBehavi
     repeatHits(hitCount, () => {
       if (!target.inPlay) return;
       runtime.damageEnemy(target, damage, damageType, tower);
-      gainAttackProduction(definition, runtime, target.x, target.y);
+      gainAttackProduction(definition, runtime, target.x, target.y, tower);
     });
     return;
   }
@@ -683,7 +683,7 @@ function fireSlash(tower: Tower, definition: CardDefinition, runtime: CardBehavi
   repeatHits(hitCount, () => {
     if (bossPart.hp <= 0) return;
     runtime.damageBoss(damage, damageType, bossPart);
-    gainAttackProduction(definition, runtime, x, y);
+    gainAttackProduction(definition, runtime, x, y, tower);
   });
 }
 
@@ -910,12 +910,12 @@ function boardCellIntersectsBossPart(lane: number, column: number, part: CubeBos
   return bossPartIntersectsRect(part, left, right, top, bottom);
 }
 
-function gainAttackProduction(definition: CardDefinition, runtime: CardBehaviorRuntime, x: number, y: number) {
+function gainAttackProduction(definition: CardDefinition, runtime: CardBehaviorRuntime, x: number, y: number, source: Tower) {
   if (!definition.attackProduceAmount) {
     return;
   }
 
-  runtime.gainChars(definition.attackProduceAmount, x, y - 24);
+  runtime.gainChars(definition.attackProduceAmount, x, y - 24, source);
 }
 
 function healTower(runtime: CardBehaviorRuntime, tower: Tower, amount: number) {

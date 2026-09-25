@@ -18,7 +18,8 @@ const { DIFFICULTY_VERSION } = load("src/config.ts");
 const { LEGACY_BATTLE_POLICY } = load("src/game/battlePolicy.ts");
 const { BATTLE_PERMISSIONS } = load("src/game/battleParticipants.ts");
 const url = option("url") ?? "http://127.0.0.1:5173";
-const ownership = process.argv.includes("--ownership");
+const economy = process.argv.includes("--economy");
+const ownership = economy || process.argv.includes("--ownership");
 const roles = ["a", "b"], engines = (option("engines") ?? "firefox,webkit").split(",");
 assert.equal(engines.length, 2);
 const tokens = Object.fromEntries(roles.map(role => [role, randomUUID()]));
@@ -144,7 +145,7 @@ try {
     host?.close(); authority?.close();
     runtime = createIndependentBattle({ version: BATTLE_RULES_VERSION, difficultyVersion: DIFFICULTY_VERSION,
       levelId, difficulty: 3, unlimitedFirepower: false, seed: 810, selectedCards: ["A", "B", "X", "m", "u", "S"],
-      debug: true, policy: ownership ? { ...LEGACY_BATTLE_POLICY, towerAccess: "owner" } : LEGACY_BATTLE_POLICY,
+      debug: true, policy: ownership ? { ...LEGACY_BATTLE_POLICY, towerAccess: "owner", ...(economy ? { walletMode: "individual" } : {}) } : LEGACY_BATTLE_POLICY,
       participants: [{ id: "local", permissions: BATTLE_PERMISSIONS }, { id: "a", permissions: BATTLE_PERMISSIONS },
         { id: "b", permissions: ["build"] }] });
     // A captured mid-battle fixture with reselection ready. No display-specific preparation.
@@ -153,6 +154,7 @@ try {
       available: () => !runtime.world.gameOver, inputTime: () => performance.now(), execute: command => runtime.executeCommand(command)
     });
     authority.submitTrusted("local", control({ type: "debugChars" }));
+    if (economy) authority.submitTrusted("a", control({ type: "debugChars" }));
     authority.submitTrusted("local", control({ type: "autoUpgradeEnabled", enabled: false }));
     host = new BattleSyncHost(runtime.session, authority, {
       checkpoint: () => runtime.session.checkpointReplay(captureBattleSnapshot(runtime.snapshot(runtime.world.loadout.ids[0])), runtime.world.loadout.ids),
@@ -161,7 +163,9 @@ try {
     for (const role of roles) { queues[role].length = 0; await pages[role].evaluate(() => window.headlessTest.reset()); peers[role] = host.connect(role, send(role)); }
     await pump(); await equal("join");
     assert.equal((await request("b", control({ type: "debugChars" }))).result, "forbidden");
+    const peerBalance = runtime.world.effectiveChars("b");
     assert.equal((await request("a", deploy("A", 3, 8))).result, "deployed");
+    if (economy) assert.equal(runtime.world.effectiveChars("b"), peerBalance);
     if (ownership) {
       const tower = runtime.world.towers.find(t => t.type === "A");
       assert.equal(tower.ownerId, "a");
@@ -192,14 +196,14 @@ try {
     const batches = levelId === "AE-EX-2" ? 25 : 6;
     for (let batch = 0; batch < batches; batch++) { advance(150); await pump(); await equal("combat " + batch); }
     if (levelId === "AE-EX-2") assert.ok(runtime.nullification.snapshot()?.towers.length, "NUL recovery fixture has no suspended towers");
-    await pages.b.evaluate(() => { window.headlessTest.scene.world.chars += 1; });
+    await pages.b.evaluate(() => { window.headlessTest.scene.world.gainChars(1, "b"); });
     advance(6); await pump(); await equal("divergence repair");
     assert.ok(await pages.b.evaluate(() => window.headlessTest.statuses.includes("resync")));
     for (const role of roles) assert.equal(await pages[role].evaluate(() => JSON.stringify(localStorage) === window.headlessTest.profile), true);
     results.push({ levelId, tick: runtime.session.clock.tick, checksum: checksum() });
   }
   assert.deepEqual(errors, []);
-  console.log("Independent Node authority and real browser replicas over authenticated HTTP", { engines, ownership, results });
+  console.log("Independent Node authority and real browser replicas over authenticated HTTP", { engines, ownership, economy, results });
 } finally {
   host?.close(); authority?.close();
   for (const browser of browsers) await browser.close();

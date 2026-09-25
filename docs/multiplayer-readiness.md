@@ -96,8 +96,10 @@ progress or delete saves. See [session](battle-session.md), [world](battle-world
 [owner-only tower access](battle-ownership.md) are immutable session policy.
 Ownership follows deployments, generation, mirrors, suspended and historical
 entities; whole-command preflight protects foreign entities and topology.
-Wallets, loadouts, cooldowns and automatic-upgrade settings are still shared.
-Per-player resource policies and independently usable player input UI are unfinished.
+Optional [individual wallets](battle-economy.md) now isolate payment and production,
+including automatic upgrades, pipeline outputs and snapshot/host restoration.
+Loadouts, cooldowns, extraction pools and automatic-upgrade settings are still shared.
+The remaining per-player resources and independently usable player input UI are unfinished.
 
 ### Identity And Synchronization
 
@@ -130,7 +132,7 @@ battle synchronization/storage cost measurements remain unfinished.
 
 ## Next Work
 
-1. Finish per-player resource/loadout/cooldown policies and independent player input routing.
+1. Finish per-player loadout/cooldown/extraction/auto-upgrade policies and independent player input routing.
 2. Integrate client input and transport lifetime handling, then broaden fault and
    content coverage and profile crowded host/replica execution.
 3. Retain exact cross-engine numeric gates while expanding content/platform coverage.

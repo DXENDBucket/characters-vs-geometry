@@ -7,7 +7,7 @@ import type { TowerState } from "./towerState";
 import type { EnemyProjectileState, MortarProjectileState, ProjectileState } from "./projectileState";
 import { BATTLE_STEP_MS, type BattleRandom } from "./battleSimulation";
 import { syncBossBaseStats } from "./bossRules";
-import { rawCharsForSoftcapped, softcapChars } from "./charSoftcap";
+import { BattleEconomy } from "./battleEconomy";
 import { enemiesWithPassengers, enemyIsActive } from "./enemyContainerRules";
 import { towerBehaviorType } from "./towerIdentity";
 import { getProductionAmount } from "./towerRules";
@@ -80,7 +80,7 @@ export interface BattleWorldSystems<E extends BattleEntities = BattleEntities> e
   syncMirrors(): void;
   updateLevelAurasIfNeeded(): void;
   cardCooldownMultiplier(): number;
-  gainChars(amount: number, x: number, y: number): void;
+  gainChars(amount: number, x: number, y: number, source?: E["tower"]): void;
   hasTimedProducers: boolean;
   getDefinition(id: CardId): CardDefinition;
   routeProduction(tower: E["tower"]): boolean;
@@ -101,6 +101,7 @@ export interface BattleWorldSystems<E extends BattleEntities = BattleEntities> e
 export class BattleWorld<E extends BattleEntities = BattleEntities> implements BattleWorldProgress {
   readonly entityIds = new BattleEntityIds();
   readonly loadout: BattleLoadout;
+  readonly economy: BattleEconomy;
   tutorial: TutorialController | null = null;
   tutorialInteraction = createTutorialInteraction();
 
@@ -122,7 +123,8 @@ export class BattleWorld<E extends BattleEntities = BattleEntities> implements B
   battleTime = 0;
   cardTime = 0;
   nextNaturalProduceAt = NATURAL_PRODUCE_INTERVAL;
-  chars: number;
+  get chars() { return this.economy.totalChars; }
+  set chars(value: number) { this.economy.sharedBalance = value; }
   baseIntegrity = BASE_INTEGRITY;
   wave = 0;
   waveTracker: WaveTracker | null = null;
@@ -135,7 +137,7 @@ export class BattleWorld<E extends BattleEntities = BattleEntities> implements B
   constructor(options: BattleWorldOptions, readonly random: BattleRandom, cards: readonly CardDefinition[] = []) {
     this.loadout = new BattleLoadout(cards);
     this.options = structuredClone(options);
-    this.chars = options.level.startingChars ?? (options.levelId.startsWith("1-") ? 300 : STARTING_CHARS);
+    this.economy = new BattleEconomy(options.level.startingChars ?? (options.levelId.startsWith("1-") ? 300 : STARTING_CHARS));
     this.lifecycle = createBattleLifecycle(!options.unlimitedFirepower);
   }
 
@@ -206,17 +208,11 @@ export class BattleWorld<E extends BattleEntities = BattleEntities> implements B
     } finally { this.stepping = false; }
   }
 
-  effectiveChars() { return softcapChars(this.chars); }
+  effectiveChars(actorId?: string) { return this.economy.available(actorId); }
 
-  gainChars(amount: number) {
-    const previous = this.effectiveChars();
-    this.chars += amount;
-    return Math.max(0, this.effectiveChars() - previous);
-  }
+  gainChars(amount: number, actorId?: string) { return this.economy.gain(amount, actorId); }
 
-  spendChars(amount: number) {
-    this.chars = rawCharsForSoftcapped(Math.max(0, this.effectiveChars() - amount));
-  }
+  spendChars(amount: number, actorId?: string) { this.economy.spend(amount, actorId); }
 
   nextTowerOrder() { return this.towerOrder++; }
 
@@ -242,7 +238,7 @@ export class BattleWorld<E extends BattleEntities = BattleEntities> implements B
       while (this.battleTime >= tower.nextProduceAt) {
         const amount = getProductionAmount(tower, definition);
         tower.nextProduceAt += definition.produceEvery;
-        if (!systems.routeProduction(tower)) systems.gainChars(amount, tower.x, tower.y - 28);
+        if (!systems.routeProduction(tower)) systems.gainChars(amount, tower.x, tower.y - 28, tower);
       }
     }
   }
@@ -380,7 +376,7 @@ export class BattleWorld<E extends BattleEntities = BattleEntities> implements B
     this.battleTime = state.battleTime;
     this.cardTime = state.cardTime;
     this.nextNaturalProduceAt = state.nextNaturalProduceAt;
-    this.chars = state.chars;
+    if (!this.economy.individual) this.chars = state.chars;
     this.baseIntegrity = state.baseIntegrity;
     this.wave = state.wave;
     this.waveTracker = state.waveTracker;

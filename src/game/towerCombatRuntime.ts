@@ -26,7 +26,7 @@ export interface TowerCombatRuntime extends TowerReadinessRuntime {
   damageEnemy(enemy: EnemyState, damage: number, type: DamageType, source?: TowerState): boolean;
   damageBoss(damage: number, type: DamageType, part?: BossState): boolean;
   storeBlockedEnemies(tower: TowerState, definition: CardDefinition): void;
-  gainChars(amount: number, x: number, y: number): void;
+  gainChars(amount: number, x: number, y: number, source?: TowerState): void;
   spawnTower(id: CardId, lane: number, column: number, level: number, facingDirection?: -1 | 1, source?: TowerState): TowerState | null;
 }
 export interface TowerAttackRuntime extends TowerCombatRuntime {

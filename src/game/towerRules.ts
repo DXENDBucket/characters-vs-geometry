@@ -45,10 +45,11 @@ export function isTrapArmed(tower: TowerState, time: number) {
   return towerBehaviorType(tower) === "G" && time >= tower.armedAt;
 }
 
-export function findAutoUpgradeTarget<T extends TowerState>(towers: T[], cardId: CardId) {
+export function findAutoUpgradeTarget<T extends TowerState>(towers: T[], cardId: CardId, eligible?: (tower: T) => boolean) {
   let target: T | undefined;
   for (const tower of towers) {
     if (!tower.inPlay || !tower.autoUpgrade || tower.type !== deploymentCardId(cardId) || !supportsTowerAutoUpgrade(tower)) continue;
+    if (eligible && !eligible(tower)) continue;
     if (!target || tower.level < target.level || (tower.level === target.level && tower.placedOrder < target.placedOrder)) target = tower;
   }
   return target;

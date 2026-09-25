@@ -24,6 +24,7 @@ export interface TowerDeploymentRuntime<T extends Tower = Tower> {
   nextTowerOrder: () => number;
   resetTowerSkill: (tower: T) => void;
   executeAutoUpgrade?: (definition: CardDefinition, target: T) => boolean;
+  canAutoUpgrade?: (tower: T) => boolean;
   mirrorGroupFor?: (tower: T) => T[];
   isCellDeployable?: (lane: number, column: number) => boolean;
   updateLevelAuras: () => void;
@@ -109,7 +110,7 @@ export class TowerDeploymentSimulation<T extends Tower = Tower> {
         continue;
       }
 
-      const target = findAutoUpgradeTarget(runtime.towers, cardState.definition.id);
+      const target = findAutoUpgradeTarget(runtime.towers, cardState.definition.id, runtime.canAutoUpgrade);
       const batch = runtime.extraction.plan(cardState.definition);
       if (!target || availableChars - batch.cost < runtime.autoUpgradeReserveChars) {
         continue;

@@ -10,6 +10,7 @@ export interface BattlePolicy {
   readonly reselectEnabled: boolean;
   readonly pauseOnLocalModal: boolean;
   readonly towerAccess?: "shared" | "owner";
+  readonly walletMode?: "shared" | "individual";
 }
 
 const nativeCards = new Set<string>(allCardDefinitions.map(card => card.id));
@@ -18,8 +19,10 @@ export function validBattlePolicy(value: unknown): value is BattlePolicy {
   const data = value as Record<string, unknown>;
   const keys = ["version", "slotCount", "allowedCards", "reselectEnabled", "pauseOnLocalModal"];
   if (Object.hasOwn(data, "towerAccess")) keys.push("towerAccess");
+  if (Object.hasOwn(data, "walletMode")) keys.push("walletMode");
   return Object.keys(data).length === keys.length && keys.every(key => Object.hasOwn(data, key)) && data.version === 1 &&
     (!Object.hasOwn(data, "towerAccess") || data.towerAccess === "shared" || data.towerAccess === "owner") &&
+    (!Object.hasOwn(data, "walletMode") || data.walletMode === "shared" || data.walletMode === "individual" && data.towerAccess === "owner") &&
     Number.isSafeInteger(data.slotCount) && (data.slotCount as number) >= 1 && (data.slotCount as number) <= CARD_SLOT_COUNT &&
     Array.isArray(data.allowedCards) && data.allowedCards.length > 0 && data.allowedCards.length <= nativeCards.size &&
     Array.from(data.allowedCards).every(id => typeof id === "string" && nativeCards.has(id)) &&
@@ -45,6 +48,7 @@ export function battleCardAllowed(policy: BattlePolicy, id: CardId) {
 export function sameBattlePolicy(a: BattlePolicy, b: BattlePolicy) {
   return a.version === b.version && a.slotCount === b.slotCount && a.reselectEnabled === b.reselectEnabled &&
     (a.towerAccess ?? "shared") === (b.towerAccess ?? "shared") &&
+    (a.walletMode ?? "shared") === (b.walletMode ?? "shared") &&
     a.pauseOnLocalModal === b.pauseOnLocalModal && a.allowedCards.length === b.allowedCards.length &&
     a.allowedCards.every(id => b.allowedCards.includes(id));
 }

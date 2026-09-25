@@ -49,10 +49,10 @@ This is a configurable modal policy, not a multiplayer pause-voting design. Manu
 pause now belongs to the session and survives control snapshots. Deferred attacks
 all use its saved data queue; scene-local paused closures no longer exist. Closing
 a local menu does not mutate pause; explicit single-player Continue can issue an
-authorized resume command. Network join synchronization is still unfinished.
-Resources, cards and cooldowns also remain shared;
-separate player wallets, ownership and participant-owned UI instances are not added
-by this policy.
+authorized resume command. Snapshot-based join/reconnect now use the shared core.
+Optional [owner-only access](battle-ownership.md) and [individual wallets](battle-economy.md)
+are captured policy fields too. Cards, cooldowns, extraction and automatic-upgrade
+settings still remain shared; participant-aware UI and connection handling remain open.
 
 ## Compatibility And Verification
 

@@ -149,6 +149,7 @@ export class BattleRuntime {
   constructor(readonly world: BattleWorld, readonly session: BattleSession,
     factories: Partial<BattleFactories> = {}, readonly observers: BattleRuntimeObservers = {}) {
     if (world.random !== session.random) throw new Error("Battle world and session must share one random stream");
+    world.economy.initialize(session.policy, session.participants);
     this.factories = {
       tower: createTowerState, enemy: options => createEnemyState(options, () => world.random.next()),
       boss: createBossState, projectile: createTowerProjectileState, homingProjectile: createHomingTowerProjectileState,
@@ -188,12 +189,13 @@ export class BattleRuntime {
       get autoUpgradeReserveChars() { return session.controls.reserveChars; },
       extraction: this.extraction, getDefinition: getCardDefinition,
       cardTimeFor: (id: CardId) => battleCardTime(getCardDefinition(id), world),
-      getChars: () => world.effectiveChars(), spendChars: (amount: number) => world.spendChars(amount),
+      getChars: () => world.effectiveChars(this.actingActor), spendChars: (amount: number) => world.spendChars(amount, this.actingActor),
       nextTowerOrder: () => world.nextTowerOrder(),
       isCellDeployable: movement.isCellDeployable, createTower,
       updateLevelAuras: () => this.board.refresh()
     });
     const deploymentPorts = extendPorts(placement, {
+      canAutoUpgrade: (tower: TowerState) => !world.economy.individual || tower.ownerId === this.actingActor,
       executeAutoUpgrade: (definition: CardDefinition, target: TowerState) => this.withActor(target.ownerId, () => {
         if (session.policy.towerAccess === "owner") {
           const affected = deploymentUpgradeTargets({ occupied: world.occupied, unlimitedFirepower: world.options.unlimitedFirepower,
@@ -277,7 +279,7 @@ export class BattleRuntime {
       isCellDeployable: movement.isCellDeployable, getDefinition: getCardDefinition,
       scheduleBattleAction: this.schedule, onTowerAction: this.routeTowerAction,
       storeBlockedEnemies: (tower, definition) => this.storage.storeBlockedEnemies(tower, definition),
-      gainChars: (amount, x, y) => this.gainChars(amount, x, y),
+      gainChars: (amount, x, y, source) => this.gainChars(amount, x, y, source),
       spawnTower: (id, lane, column, level, direction, source) => this.deployment.spawnGeneratedTower(id, lane, column, level, direction, source)
     } satisfies Omit<TowerAttackRuntime, keyof typeof rosters>);
     this.triggers = ports({
@@ -336,8 +338,9 @@ export class BattleRuntime {
         return world.entityIds.identify("edge", edge);
       },
       time: world.battleTime, cardTime: battleCardTime(getCardDefinition("="), world),
-      chars: world.effectiveChars(), autoEnabled: session.controls.autoUpgradeEnabled, reserve: session.controls.reserveChars,
-      spend: amount => world.spendChars(amount), changed: () => { this.circuit.sync(); observers.cards?.(); }
+      chars: world.effectiveChars(this.actingActor), autoEnabled: session.controls.autoUpgradeEnabled, reserve: session.controls.reserveChars,
+      canAutoUpgrade: edge => !world.economy.individual || edge.ownerId === this.actingActor,
+      spend: amount => world.spendChars(amount, this.actingActor), changed: () => { this.circuit.sync(); observers.cards?.(); }
     }));
     const boardPorts = ports({
       getDefinition: getCardDefinition, syncMirrorLevelBonuses: () => this.mirrors.syncMirrorLevelBonuses(),
@@ -362,7 +365,7 @@ export class BattleRuntime {
       updateTowerPush: time => observers.push?.(time), updateTopology: () => observers.topology?.(),
       syncMirrors: () => this.mirrors.syncMirrors(), updateLevelAurasIfNeeded: () => this.board.updateIfNeeded(),
       cardCooldownMultiplier: () => this.skills.cardCooldownMultiplier(),
-      gainChars: (amount, x, y) => this.gainChars(amount, x, y), hasTimedProducers: HAS_TIMED_PRODUCERS,
+      gainChars: (amount, x, y, source) => this.gainChars(amount, x, y, source), hasTimedProducers: HAS_TIMED_PRODUCERS,
       getDefinition: getCardDefinition, routeProduction: tower => this.routeTowerAction(tower, { kind: "production" }) ?? false,
       updateArmingTowers: time => {
         for (const tower of world.towers) if (tower.statusEffects.length) expireReversalEffect(tower, time);
@@ -397,7 +400,7 @@ export class BattleRuntime {
       }),
       spawnWave: spawns => world.spawnTutorialWave(spawns, this.systems), finish: () => this.finish("victory")
     });
-    this.controls = createBattleControlRuntime(this);
+    this.controls = createBattleControlRuntime(this, () => this.actingActor);
   }
 
   step() { this.world.step(this.systems); }
@@ -462,7 +465,7 @@ export class BattleRuntime {
   }
 
   executeControl(actorId: string, control: BattleControl) {
-    return executeBattleControl(actorId, control, this.controls);
+    return this.withActor(actorId, () => executeBattleControl(actorId, control, this.controls));
   }
 
   executeCommand(command: SemanticBattleCommand) {
@@ -473,6 +476,7 @@ export class BattleRuntime {
   snapshot(selectedCardId: CardId): BattleSaveData {
     const world = this.world, controls = this.session.controls;
     return {
+      ...(world.economy.individual ? { wallets: world.economy.snapshot() } : {}),
       ...(world.tutorial ? { tutorial: world.tutorialSnapshot() } : {}), nullifiedTowers: this.nullification.snapshot(),
       edgeTowers: world.edgeTowers, simulation: { ...this.session.snapshot(), mirrorNextGroupId: this.mirrors.snapshotNextGroupId() },
       ...world.progressSnapshot(), gameSpeed: controls.speed, selectedCardId, debugModeEnabled: controls.debugEnabled,
@@ -496,11 +500,12 @@ export class BattleRuntime {
       paused: false, speed: state.gameSpeed, debugEnabled: state.debugModeEnabled ?? this.session.controls.debugEnabled,
       autoUpgradeEnabled: state.autoUpgradeEnabled, reserveChars: state.autoUpgradeReserveChars
     });
+    world.economy.restore(state.chars, state.wallets, this.session.policy, this.session.participants);
     world.restoreProgress(state); world.restoreLifecycle(state.lifecycle, state.battleTime, state.baseIntegrity);
     world.towers = state.towers; this.nullification.restore(state.nullifiedTowers); world.edgeTowers = state.edgeTowers ?? [];
     world.towers = world.towers.filter(tower => {
       if (tower.type !== "=") return true;
-      world.chars += getCardDefinition("=").cost * tower.level;
+      world.gainChars(getCardDefinition("=").cost * tower.level, tower.ownerId);
       tower.inPlay = false; this.lifecycle.presentation.removeTower(tower); return false;
     });
     for (const tower of world.towers) {
@@ -565,12 +570,17 @@ export class BattleRuntime {
     this.mirrors.handleTowersShifted(moves, tower => this.removeTower(tower));
     this.board.refresh();
   }
-  gainChars(amount: number, x: number, y: number) {
-    const gained = this.world.gainChars(amount);
+  gainChars(amount: number, x: number, y: number, source?: TowerState) {
+    const gained = this.world.gainChars(amount, source?.ownerId);
     this.observers.production?.(Math.floor(gained), x, y);
     this.autoUpgrade();
   }
   autoUpgrade() {
+    if (this.world.economy.individual) {
+      for (const actorId of this.world.economy.actorIds) this.withActor(actorId, () => this.autoUpgradeCurrentActor());
+    } else this.autoUpgradeCurrentActor();
+  }
+  private autoUpgradeCurrentActor() {
     this.deployment.attemptAutoUpgrades();
     for (const card of this.world.loadout.cards) if (deploymentCardId(card.definition.id) === "=") this.edgeControls.attemptAutoUpgrade(card);
   }
@@ -578,7 +588,7 @@ export class BattleRuntime {
     const definition = getCardDefinition(towerBehaviorType(tower));
     if (!definition.hitProduceAmount) return;
     const amount = getHitProductionAmount(tower, definition);
-    if (amount > 0 && !this.routeTowerAction(tower, { kind: "hitProduction" })) this.gainChars(amount, tower.x, tower.y - 28);
+    if (amount > 0 && !this.routeTowerAction(tower, { kind: "hitProduction" })) this.gainChars(amount, tower.x, tower.y - 28, tower);
   }
   executeAction(action: BattleAction) {
     if (this.world.gameOver) return;

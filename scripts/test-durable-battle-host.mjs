@@ -249,6 +249,26 @@ test("atomic file adapter bounds data and leaves no partial files after replacem
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
 
+test("individual balances survive host restart without double-charging a retried deployment", async () => {
+  const config = options();
+  config.policy = { ...LEGACY_BATTLE_POLICY, towerAccess: "owner", walletMode: "individual" };
+  config.participants = [{ id: "local", permissions: ["build", "debug"] }, { id: "guest", permissions: ["build"] }];
+  const f = await fixture(config);
+  await f.send(control({ type: "debugChars" }));
+  const before = state(f.stored).wallets;
+  await f.send(deploy);
+  const saved = state(f.stored), spent = saved.wallets;
+  assert.equal(spent.find(wallet => wallet.actorId === "guest").chars, before.find(wallet => wallet.actorId === "guest").chars);
+  assert.ok(spent.find(wallet => wallet.actorId === "local").chars < before.find(wallet => wallet.actorId === "local").chars);
+  await f.restart();
+  assert.deepEqual(state(f.stored).wallets, spent);
+  const stream = JSON.parse(f.stored).stream;
+  await f.host.receiveText(f.peer, envelope(stream, 1, deploy)); await f.pump();
+  assert.deepEqual(state(f.stored).wallets, spent);
+  assert.equal(state(f.stored).towers.length, 1);
+  await f.host.close();
+});
+
 test("a killed Node host restores its real flushed file in a new process with exactly-once deployment", { timeout: 30000 }, async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "charset-host-process-")), filename = path.join(dir, "battle.json");
   const children = [];
