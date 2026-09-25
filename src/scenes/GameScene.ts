@@ -30,6 +30,8 @@ import { restoreBattleEntityIds } from "../game/battleEntityGraph";
 import { LOCAL_BATTLE_ACTOR, towerOperationRef, edgeOperationRef, validBattleActorId, validBattleOperation,
   type BattleOperation, type BattleOperationResult } from "../game/battleOperations";
 import { executeLiveBattleOperation, type LiveBattleOperationRuntime } from "../game/battleOperationRuntime";
+import { createBattleControlState, executeBattleControl, validBattleControl, validReserveChars,
+  type BattleControl, type BattleControlRuntime } from "../game/battleControls";
 import { deleteSurvivalSave, readSurvivalSave, writeSurvivalSave, type SurvivalSave } from "../survivalSaves";
 import { endlessEnemyHpMultiplier } from "../game/endlessEnvironment";
 import { syncTowerHealthNetworks } from "../game/towerHealth";
@@ -324,8 +326,11 @@ export class GameScene extends Phaser.Scene {
   private set towerOrder(value: number) { this.world.towerOrder = value; }
   private get gameOver() { return this.world.gameOver; }
   private set gameOver(value: boolean) { this.world.gameOver = value; }
-  private battlePaused = false;
-  private gameSpeed = DEFAULT_GAME_SPEED;
+  private controls = createBattleControlState();
+  private get battlePaused() { return this.controls.paused; }
+  private set battlePaused(value: boolean) { this.controls.paused = value; }
+  private get gameSpeed() { return this.controls.speed; }
+  private set gameSpeed(value: number) { this.controls.speed = value; }
   private eraserMode = false;
   private levelBonusSnapshotTowers: Tower[] = [];
   private levelBonusSnapshotValues: number[] = [];
@@ -347,10 +352,14 @@ export class GameScene extends Phaser.Scene {
   private pausedActions: Array<() => void> = [];
   private autoUpgradeMode = false;
   private debugDamageMode: DebugDamageMode = null;
-  private debugModeEnabled = false;
-  private autoUpgradeEnabled = true;
-  private autoUpgradeReserveChars = 0;
+  private get debugModeEnabled() { return this.controls.debugEnabled; }
+  private set debugModeEnabled(value: boolean) { this.controls.debugEnabled = value; }
+  private get autoUpgradeEnabled() { return this.controls.autoUpgradeEnabled; }
+  private set autoUpgradeEnabled(value: boolean) { this.controls.autoUpgradeEnabled = value; }
+  private get autoUpgradeReserveChars() { return this.controls.reserveChars; }
+  private set autoUpgradeReserveChars(value: number) { this.controls.reserveChars = value; }
   private autoUpgradeReserveInputFocused = false;
+  private autoUpgradeReserveDraft = 0;
   private targetedEffects!: TargetedEffectCardController;
   private towerSkills!: TowerSkillController;
   private shifter!: TowerShifterController;
@@ -465,12 +474,13 @@ export class GameScene extends Phaser.Scene {
     this.autoUpgradeEnabled = true;
     this.autoUpgradeReserveChars = 0;
     this.autoUpgradeReserveInputFocused = false;
+    this.autoUpgradeReserveDraft = 0;
     this.tutorial = null;
     this.targetedEffects = new TargetedEffectCardController(() => this.targetedEffectCardRuntime());
     this.edgeControls = new EdgeTowerControls(() => ({ edges: this.edgeTowers, card: this.cardStatesById.get("="),
       identify: edge => this.world.entityIds.identify("edge", edge),
       time: this.battleTime, cardTime: this.cardTimeFor("="), chars: this.effectiveChars(),
-      autoEnabled: this.autoUpgradeEnabled, reserve: this.autoUpgradeReserveChars, reserveFocused: this.autoUpgradeReserveInputFocused,
+      autoEnabled: this.autoUpgradeEnabled, reserve: this.autoUpgradeReserveChars,
       spend: cost => this.spendChars(cost), changed: () => { this.numbers.sync(); this.updateCards(); } }));
     this.numbers = new ProjectileCircuitController(() => ({ towers: this.towers, edges: this.edgeTowers,
       battleTime: this.battleTime, getDefinition: id => this.getDefinition(id),
@@ -578,7 +588,7 @@ export class GameScene extends Phaser.Scene {
       onAutoUpgrade: () => this.toggleAutoUpgradeMode(),
       onAutoUpgradeEnabled: () => this.toggleAutoUpgradeEnabled(),
       onAutoUpgradeReserveFocus: () => this.focusAutoUpgradeReserveInput(),
-      onGameSpeedChange: (speed) => this.setGameSpeed(speed),
+      onGameSpeedChange: (speed) => this.requestGameSpeed(speed),
       canChangeGameSpeed: () => !this.gameOver && !this.menuOpen && !this.reselectOpen,
       onErase: () => this.toggleEraser()
     }, this.debugModeEnabled));
@@ -695,7 +705,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    if (this.battlePaused) {
+    if (this.battlePaused && !this.playback) {
       this.syncBattleOverlays();
       this.shifter.syncSelectionVisuals();
       this.syncPlacementGhost(this.input.activePointer);
@@ -856,7 +866,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.debugDamageMode) {
-      this.applyDebugDamage(x, y);
+      this.applyPlayerControl(LOCAL_BATTLE_ACTOR.id, { type: "debugDamage", mode: this.debugDamageMode, point: { x, y } });
       return;
     }
 
@@ -1039,6 +1049,53 @@ export class GameScene extends Phaser.Scene {
       if (accepted.type === "operation") result = this.applyPlayerOperation(accepted.actorId, accepted.operation);
     });
     return result;
+  }
+
+  private applyPlayerControl(actorId: string, control: BattleControl): BattleOperationResult {
+    return executeBattleControl(actorId, control, this.createPlayerControlRuntime());
+  }
+
+  private createPlayerControlRuntime(): BattleControlRuntime {
+    return {
+      state: this.controls, ended: this.gameOver,
+      actor: id => id === LOCAL_BATTLE_ACTOR.id ? LOCAL_BATTLE_ACTOR : undefined,
+      authorize: () => true,
+      slotCount: this.playback ? CARD_SLOT_COUNT : unlockedCardSlotCount(),
+      cardAllowed: id => hasCardDefinition(id) && (Boolean(this.playback) || isCardUnlocked(id)),
+      reselectAvailable: !isTutorialMechanic(this.levelConfig.specialMechanic) && (Boolean(this.playback) || isLevelCompleted(RESELECT_UNLOCK_LEVEL)),
+      reselectReady: this.reselection.isReady(this.battleTime),
+      reselect: cards => this.applyReselection(cards),
+      tutorialAvailable: !!this.tutorialAdvance,
+      tutorialAdvance: () => this.battlefield.ui(() => this.tutorialAdvance?.()),
+      pauseChanged: () => {
+        if (!this.battlePaused) this.flushPausedActions();
+        this.updateCards(); this.updateHud();
+      },
+      speedChanged: () => { this.time.timeScale = this.gameSpeed; this.updateHud(); },
+      autoUpgradeChanged: () => { this.syncAutoUpgradeBorders(); this.attemptAutoUpgrades(); this.updateCards(); },
+      debugChanged: () => {
+        if (!this.debugModeEnabled) this.debugDamageMode = null;
+        refreshGameHudSettings(this.ui, this.levelId, this.difficulty, this.debugModeEnabled); this.updateCards();
+      },
+      debugChars: () => this.applyDebugChars(),
+      debugDamage: (point, mode) => this.applyDebugDamage(point.x, point.y, mode)
+    };
+  }
+
+  submitPlayerControl(actorId: string, control: BattleControl): BattleOperationResult {
+    if (!validBattleActorId(actorId) || !validBattleControl(control)) return "invalid";
+    // A local menu must not reject an already-authorized control from another participant.
+    if (this.playback || this.gameOver) return "unavailable";
+    let result: BattleOperationResult = "unavailable";
+    this.session.submit({ type: "control", actorId, control }, command => {
+      if (command.type === "control") result = this.applyPlayerControl(command.actorId, command.control);
+    });
+    return result;
+  }
+
+  private requestControl(control: BattleControl) {
+    return this.session.executingCommand ? this.applyPlayerControl(LOCAL_BATTLE_ACTOR.id, control) :
+      this.submitPlayerControl(LOCAL_BATTLE_ACTOR.id, control);
   }
 
   private deploySelectedCard(
@@ -1661,7 +1718,6 @@ export class GameScene extends Phaser.Scene {
     runtime.unlimitedFirepower = this.unlimitedFirepower;
     runtime.autoUpgradeEnabled = this.autoUpgradeEnabled;
     runtime.autoUpgradeReserveChars = this.autoUpgradeReserveChars;
-    runtime.autoUpgradeReserveInputFocused = this.autoUpgradeReserveInputFocused;
     return runtime;
   }
 
@@ -1676,7 +1732,6 @@ export class GameScene extends Phaser.Scene {
       unlimitedFirepower: this.unlimitedFirepower,
       autoUpgradeEnabled: this.autoUpgradeEnabled,
       autoUpgradeReserveChars: this.autoUpgradeReserveChars,
-      autoUpgradeReserveInputFocused: this.autoUpgradeReserveInputFocused,
       getDefinition: (id) => this.getDefinition(id),
       cardTimeFor: (id) => this.cardTimeFor(id),
       getChars: () => this.effectiveChars(),
@@ -2188,7 +2243,7 @@ export class GameScene extends Phaser.Scene {
       this.debugDamageMode === "normal",
       this.debugDamageMode === "super",
       this.autoUpgradeEnabled,
-      this.autoUpgradeReserveChars,
+      this.autoUpgradeReserveInputFocused ? this.autoUpgradeReserveDraft : this.autoUpgradeReserveChars,
       this.autoUpgradeReserveInputFocused
     );
     updateReselectButtonState(this.ui, isLevelCompleted(RESELECT_UNLOCK_LEVEL),
@@ -2239,6 +2294,18 @@ export class GameScene extends Phaser.Scene {
     this.syncPlacementGhost(this.input.activePointer);
   }
 
+  private applyReselection(cards: readonly CardId[]) {
+    const deadlines = this.cardStates.map(card => ({ definition: card.definition, readyAt: card.readyAt,
+      displayTime: this.cardTimeFor(card.definition.id) }));
+    if (!this.reselection.confirm(this.battleTime, deadlines)) return false;
+    this.selectedCardIds = [...cards];
+    this.cardList?.destroy(); this.createCardList();
+    for (const card of this.cardStates) card.readyAt = this.reselection.cardReadyAt(card.definition.id, this.cardTimeFor(card.definition.id), this.battleTime);
+    if (!this.selectedCardIds.includes(this.selectedCardId)) this.selectedCardId = this.selectedCardIds[0];
+    this.updateCards();
+    return true;
+  }
+
   private grantDebugChars() {
     if (this.command({ type: "tool", action: "tool:debugChars" })) return;
     if (!this.debugModeEnabled || this.gameOver) {
@@ -2252,6 +2319,10 @@ export class GameScene extends Phaser.Scene {
     this.debugDamageMode = null;
     this.autoUpgradeReserveInputFocused = false;
     this.cancelSpellMortarTargeting();
+    this.requestControl({ type: "debugChars" });
+  }
+
+  private applyDebugChars() {
     this.cardStates.forEach((cardState) => {
       cardState.readyAt = this.cardTimeFor(cardState.definition.id);
     });
@@ -2332,11 +2403,8 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    this.autoUpgradeEnabled = !this.autoUpgradeEnabled;
     this.autoUpgradeReserveInputFocused = false;
-    this.syncAutoUpgradeBorders();
-    this.attemptAutoUpgrades();
-    this.updateCards();
+    this.requestControl({ type: "autoUpgradeEnabled", enabled: !this.autoUpgradeEnabled });
   }
 
   private focusAutoUpgradeReserveInput() {
@@ -2351,6 +2419,7 @@ export class GameScene extends Phaser.Scene {
     this.autoUpgradeMode = false;
     this.debugDamageMode = null;
     this.autoUpgradeReserveInputFocused = true;
+    this.autoUpgradeReserveDraft = this.autoUpgradeReserveChars;
     this.cancelSpellMortarTargeting();
     this.updateCards();
   }
@@ -2393,11 +2462,11 @@ export class GameScene extends Phaser.Scene {
     this.updateCards();
   }
 
-  private applyDebugDamage(x: number, y: number) {
+  private applyDebugDamage(x: number, y: number, mode: "normal" | "super") {
     this.flawlessRun = false;
     const rangeX = CELL_WIDTH / 2;
     const rangeY = CELL_HEIGHT / 2;
-    const damage = this.debugDamageMode === "super" ? 105_000 : 15_000;
+    const damage = mode === "super" ? 105_000 : 15_000;
     makeShellBurst(this, x, y, Math.min(CELL_WIDTH, CELL_HEIGHT) * 0.5, "true");
     makeShockPulse(this, x, y, CELL_WIDTH, CELL_HEIGHT);
 
@@ -2421,10 +2490,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    this.battlePaused = !this.battlePaused;
-    if (!this.battlePaused) {
-      this.flushPausedActions();
-    }
+    this.requestControl({ type: "pause", paused: !this.battlePaused });
     this.showToast(this.battlePaused ? t("toast.paused") : t("toast.resume"));
     this.updateCards();
     this.updateHud();
@@ -2444,6 +2510,11 @@ export class GameScene extends Phaser.Scene {
     this.gameSpeed = Math.min(GAME_SPEED_MAX, Math.max(GAME_SPEED_MIN, Math.round(speed * 10) / 10));
     this.time.timeScale = this.gameSpeed;
     this.updateHud();
+  }
+
+  private requestGameSpeed(speed: number) {
+    if (!Number.isFinite(speed)) return;
+    this.requestControl({ type: "speed", speed: Math.min(GAME_SPEED_MAX, Math.max(GAME_SPEED_MIN, Math.round(speed * 10) / 10)) });
   }
 
   private updateHud() {
@@ -2506,9 +2577,9 @@ export class GameScene extends Phaser.Scene {
 
   private refreshBattleSettings() {
     if (!this.playback) {
-      const command: BattleCommand = { type: "debugMode", enabled: isDebugModeEnabled() };
-      this.session.submit(command, this.sessionRuntime.executeCommand);
+      this.submitPlayerControl(LOCAL_BATTLE_ACTOR.id, { type: "debugMode", enabled: isDebugModeEnabled() });
     }
+    if (!this.debugModeEnabled) this.debugDamageMode = null;
     refreshGameHudSettings(this.ui, this.levelId, this.difficulty, this.debugModeEnabled);
     this.updateCards();
     this.updateHud();
@@ -2574,21 +2645,26 @@ export class GameScene extends Phaser.Scene {
 
     if (event.key === "Enter" || event.key === "Escape") {
       event.preventDefault();
-      this.command({ type: "reserveConfirm" });
+      this.autoUpgradeReserveInputFocused = false;
+      this.requestControl({ type: "reserve", value: this.autoUpgradeReserveDraft });
+      this.updateCards();
       return true;
     }
 
     if (event.key === "Backspace" || event.key === "Delete") {
       event.preventDefault();
-      this.setAutoUpgradeReserve(Math.floor(this.autoUpgradeReserveChars / 10));
+      this.autoUpgradeReserveDraft = Math.floor(this.autoUpgradeReserveDraft / 10);
+      this.updateCards();
       return true;
     }
 
     if (/^\d$/.test(event.key)) {
       event.preventDefault();
       const nextText =
-        this.autoUpgradeReserveChars === 0 ? event.key : `${this.autoUpgradeReserveChars}${event.key}`;
-      this.setAutoUpgradeReserve(Number.parseInt(nextText, 10));
+        this.autoUpgradeReserveDraft === 0 ? event.key : `${this.autoUpgradeReserveDraft}${event.key}`;
+      const next = Number.parseInt(nextText, 10);
+      if (validReserveChars(next)) this.autoUpgradeReserveDraft = next;
+      this.updateCards();
       return true;
     }
 
@@ -2598,8 +2674,7 @@ export class GameScene extends Phaser.Scene {
 
   private setAutoUpgradeReserve(value: number) {
     if (this.command({ type: "reserve", value })) return;
-    this.autoUpgradeReserveChars = Math.max(0, Math.floor(value));
-    this.updateCards();
+    this.requestControl({ type: "reserve", value });
   }
 
   private handleGameKey(event: KeyboardEvent) {
@@ -2778,6 +2853,7 @@ export class GameScene extends Phaser.Scene {
       simulation: { ...this.session.snapshot(),
         mirrorNextGroupId: this.mirrors.snapshotNextGroupId() },
       ...this.world.progressSnapshot(), gameSpeed: this.gameSpeed, selectedCardId: this.selectedCardId,
+      debugModeEnabled: this.debugModeEnabled,
       cardDeadlines: this.cardStates.map(card => ({ id: card.definition.id, readyAt: card.readyAt })),
       autoUpgradeEnabled: this.autoUpgradeEnabled, autoUpgradeReserveChars: this.autoUpgradeReserveChars,
       towers: this.towers, enemies: this.enemies, boss: this.boss, projectiles: this.projectiles,
@@ -2810,6 +2886,7 @@ export class GameScene extends Phaser.Scene {
     this.session.restore(state.simulation, state.battleTime);
     this.world.restoreProgress(state);
     this.selectedCardId = state.selectedCardId;
+    if (state.debugModeEnabled !== undefined) this.debugModeEnabled = state.debugModeEnabled;
     this.autoUpgradeEnabled = state.autoUpgradeEnabled;
     this.autoUpgradeReserveChars = state.autoUpgradeReserveChars;
     this.towers = state.towers;
@@ -2881,11 +2958,12 @@ export class GameScene extends Phaser.Scene {
 
   private executeCommand(command: BattleCommand) {
     switch (command.type) {
+      case "control": return this.applyPlayerControl(command.actorId, command.control);
       case "operation": return this.applyPlayerOperation(command.actorId, command.operation);
-      case "tutorialAdvance": this.battlefield.ui(() => this.tutorialAdvance?.()); break;
+      case "tutorialAdvance": this.applyPlayerControl(LOCAL_BATTLE_ACTOR.id, { type: "tutorialAdvance" }); break;
       case "cancelTargeting": this.cancelSpellMortarTargeting(); break;
       case "debugMode":
-        this.debugModeEnabled = command.enabled;
+        this.applyPlayerControl(LOCAL_BATTLE_ACTOR.id, command);
         if (!command.enabled) this.debugDamageMode = null;
         break;
       case "pointer": this.handlePointerDown(this.replayPointer(command.pointer)); break;
@@ -2897,12 +2975,7 @@ export class GameScene extends Phaser.Scene {
         this.attemptAutoUpgrades(); this.updateCards(); break;
       case "reselect":
         this.cancelSpellMortarTargeting();
-        if (command.cards.length && this.reselection.confirm(this.battleTime, this.cardStates)) {
-          this.selectedCardIds = this.sanitizeLoadout(command.cards);
-          this.cardList?.destroy(); this.createCardList();
-          for (const card of this.cardStates) card.readyAt = this.reselection.cardReadyAt(card.definition.id, this.cardTimeFor(card.definition.id), this.battleTime);
-          this.selectCard(this.selectedCardIds.includes(this.selectedCardId) ? this.selectedCardId : this.selectedCardIds[0]);
-        }
+        this.applyPlayerControl(LOCAL_BATTLE_ACTOR.id, command);
         break;
     }
   }

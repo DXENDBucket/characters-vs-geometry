@@ -1,13 +1,16 @@
 import type { BattleSaveState } from "./battleSaveState";
 import { captureBattleSnapshot } from "./captureBattleSnapshot";
 
-export function battleChecksum(state: BattleSaveState, options: { includeEntityIds?: boolean } = {}) {
+export function battleChecksum(state: BattleSaveState, options: { includeEntityIds?: boolean; includeLocalUi?: boolean } = {}) {
   // Normalize presentation state without mutating a checkpoint supplied by the caller.
   const graph = captureBattleSnapshot({
     ...state,
     simulation: state.simulation ? { ...state.simulation, clock: { ...state.simulation.clock, remainder: 0 } } : undefined,
     gameSpeed: 1
   }, options);
+  if (!options.includeLocalUi && graph.root && typeof graph.root === "object" && "ref" in graph.root) {
+    delete graph.nodes[graph.root.ref].data.selectedCardId;
+  }
   for (const node of graph.nodes) {
     if (node.kind === "boss") for (const key of ["rotationX", "rotationY", "rotationZ", "velocityX", "velocityY", "velocityZ",
       "targetVelocityX", "targetVelocityY", "targetVelocityZ", "nextTurnIn"]) delete node.data[key];

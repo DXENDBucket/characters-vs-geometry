@@ -28,6 +28,7 @@ export interface BattleSaveState {
   enemiesDefeated: number;
   towerOrder: number;
   gameSpeed: number;
+  debugModeEnabled?: boolean;
   selectedCardId: CardId;
   cardDeadlines: Array<{ id: CardId; readyAt: number }>;
   autoUpgradeEnabled: boolean;

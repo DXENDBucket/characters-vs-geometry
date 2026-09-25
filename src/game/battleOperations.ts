@@ -20,10 +20,10 @@ export type BattleOperation =
   | { type: "topology"; target: BattleEntityRef<"tower">; cell: BattleCell }
   | { type: "move"; sources: Array<BattleCell & { target: BattleEntityRef<"tower"> }>; destination: BattleCell };
 
-export type BattleOperationPermission = "build" | "edit" | "move" | "skill";
+export type BattleOperationPermission = "build" | "edit" | "move" | "skill" | "time" | "settings" | "loadout" | "debug" | "tutorial";
 export interface BattleOperationActor { id: string; permissions: readonly BattleOperationPermission[] }
 export const LOCAL_BATTLE_ACTOR: BattleOperationActor = Object.freeze({ id: "local",
-  permissions: Object.freeze(["build", "edit", "move", "skill"] as const) });
+  permissions: Object.freeze(["build", "edit", "move", "skill", "time", "settings", "loadout", "debug", "tutorial"] as const) });
 export type BattleOperationResult = "deployed" | "handled" | "moved" | "invalid" | "forbidden" | "unavailable" |
   "stale" | "occupied" | "cooldown" | "noChars" | "empty";
 export interface BattleOperationTargets<T extends TowerState = TowerState> { towers: T[]; edges: EdgeTower[] }
@@ -51,7 +51,7 @@ const coordinate = (value: unknown, max: number) => Number.isSafeInteger(value) 
 export const validBattleActorId = (value: unknown): value is string => typeof value === "string" && /^[a-zA-Z0-9_-]{1,64}$/.test(value);
 const cardId = (value: unknown) => typeof value === "string" && value.length > 0 && value.length <= 16;
 const cell = (value: unknown) => fields(value, ["lane", "column"]) && coordinate(value.lane, LANES) && coordinate(value.column, COLUMNS);
-const point = (value: unknown) => fields(value, ["x", "y"]) && typeof value.x === "number" && typeof value.y === "number" &&
+export const validBattlePoint = (value: unknown) => fields(value, ["x", "y"]) && typeof value.x === "number" && typeof value.y === "number" &&
   Number.isFinite(value.x) && Number.isFinite(value.y) && value.x >= BOARD_X && value.x < BOARD_X + BOARD_WIDTH &&
   value.y >= BOARD_Y && value.y < BOARD_Y + BOARD_HEIGHT;
 const reference = (value: unknown, kinds: readonly string[]) => {
@@ -83,7 +83,7 @@ export function validBattleOperation(value: unknown): value is BattleOperation {
     case "edgeMode": return fields(value, ["type", "target", "mode"]) && reference(value.target, ["edge"]) &&
       ["=", ">", "<", "!="].includes(value.mode as string);
     case "skill": return fields(value, ["type", "skill", "targets", "point"]) && cardId(value.skill) && targets(value.targets) &&
-      (value.targets as unknown[]).every(target => reference(target, ["tower"])) && (value.point === null || point(value.point));
+      (value.targets as unknown[]).every(target => reference(target, ["tower"])) && (value.point === null || validBattlePoint(value.point));
     case "trigger": return fields(value, ["type", "target", "behavior"]) && reference(value.target, ["tower"]) && cardId(value.behavior);
     case "push": case "topology": return fields(value, ["type", "target", "cell"]) && reference(value.target, ["tower"]) && cell(value.cell);
     case "move": return fields(value, ["type", "sources", "destination"]) && cell(value.destination) && Array.isArray(value.sources) &&

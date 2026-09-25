@@ -99,6 +99,7 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
     require(finite(state[key]) && state[key] >= 0);
   }
   require(state.wave === wave && state.baseIntegrity > 0 && state.gameSpeed > 0 && typeof state.autoUpgradeEnabled === "boolean");
+  require(state.debugModeEnabled === undefined || typeof state.debugModeEnabled === "boolean");
   require(expectedBossKind ? member("boss")(state.boss) && state.boss!.hp > 0 : !state.boss);
   for (const object of units.get("boss") ?? []) {
     const boss = object as Record<string, unknown>;

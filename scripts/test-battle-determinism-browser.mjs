@@ -71,6 +71,9 @@ try {
       const replay = scene.exportReplay();
       const expected = scene.battleChecksum();
       const behaviorHash = battleChecksum(scene.battleState(), { includeEntityIds: false });
+      const previousFormat = { ...scene.battleState(), simulation: { ...scene.battleState().simulation, version: 6 } };
+      delete previousFormat.debugModeEnabled;
+      const v6FormatHash = battleChecksum(previousFormat, { includeLocalUi: true });
       checkReplay(replay, expected);
       const resumed = start({ ...replay, replay: undefined });
       if (resumed.boss) { resumed.boss.body.destroy(); resumed.boss = null; }
@@ -79,7 +82,7 @@ try {
       go(resumed, 3600, [1000 / 60]);
       if (resumed.battleChecksum() !== expected) throw Error(`${levelId}: save continuation diverged ${expected} / ${resumed.battleChecksum()}`);
       checkReplay(resumed.exportReplay(), expected);
-      results.push({ levelId, ticks: replay.endTick, hash: expected, behaviorHash, commands: replay.commands.length });
+      results.push({ levelId, ticks: replay.endTick, hash: expected, behaviorHash, v6FormatHash, commands: replay.commands.length });
     }
     const reselect = start({ levelId: "IF-1", seed: 51 });
     reselect.submitBattleCommand({ type: "debugMode", enabled: true });

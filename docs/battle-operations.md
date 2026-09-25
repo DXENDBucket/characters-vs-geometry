@@ -75,13 +75,16 @@ acknowledge requests before accepting remote traffic.
 
 The current mouse adapter still records legacy pointer/card/tool intent and calls
 the same gate during its execution. It does not record a second operation that
-would apply the mutation twice. Old recordings remain supported and their full
-checksums remain unchanged. New operation recordings coexist with those commands.
+would apply the mutation twice. Legacy command forms coexist with explicit
+operations within current-version recordings. Rules version 7 rejects older
+recordings; version 1-6 saves still restore under the current rules. See
+[control compatibility](battle-controls.md) for the changed input/checksum semantics.
 
-Gate 3 remains open: global configuration/debug/tutorial actions, pause/speed
-policy, and complete separation of UI selection/focus from
-authoritative state and recording still need work. The legacy selected-card
-preference remains in snapshots/checksums. This pass does not claim that two
+Global configuration/debug/tutorial actions now use a separate
+[control gate](battle-controls.md), including explicit pause/speed settings.
+Gate 3 remains open: multiplayer policies and complete separation of local UI
+from recording still need work. Selected-card preferences remain in local saves
+but no longer in combat checksums. This pass does not claim that two
 players can yet use independent UI state in the complete battle.
 
 ## Checks
@@ -104,8 +107,9 @@ players can yet use independent UI state in the complete battle.
 - `test-pipeline-actions-browser.mjs` covers consumption/routing, saved attacks
   after source removal, routed SP skills and different-frame-rate continuation.
   Its synthetic edge fixtures use the world's allocator just like live edges.
-- The existing seven-stage replay suite, including all 5-10 phases and
-  reselection/push/move/erase, preserves its full identity-inclusive hashes.
+- The existing seven-stage replay suite also covers all 5-10 phases and
+  reselection/push/move/erase. Its seven combat fixtures match the preceding
+  baselines when normalized to the previous checksum format.
 
 See [multiplayer readiness](multiplayer-readiness.md) for the complete goal. This
 is a shared operation boundary, not an authority server or network protocol.

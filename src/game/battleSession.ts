@@ -50,11 +50,10 @@ export class BattleSession {
   // False means playback was already complete; no simulation or render refresh is needed.
   advance(delta: number, runtime: BattleSessionRuntime) {
     if (this.advancing) throw new Error("Battle session is already advancing");
-    if (!runtime.canAdvance()) return false;
     this.advancing = true;
     try {
       this.applyReplayCommands(runtime.executeCommand);
-      if (this.playbackComplete) return false;
+      if (!runtime.canAdvance() || this.playbackComplete) return false;
       this.clock.advance(delta, () => {
         runtime.step();
         this.applyReplayCommands(runtime.executeCommand);

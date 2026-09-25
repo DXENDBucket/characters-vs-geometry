@@ -22,7 +22,6 @@ export interface TowerDeploymentRuntime {
   unlimitedFirepower: boolean;
   autoUpgradeEnabled: boolean;
   autoUpgradeReserveChars: number;
-  autoUpgradeReserveInputFocused: boolean;
   getDefinition: (id: CardId) => CardDefinition;
   cardTimeFor: (id: CardId) => number;
   getChars: () => number;
@@ -72,7 +71,6 @@ export class TowerDeploymentController {
     let availableChars = runtime.getChars();
     if (
       !runtime.autoUpgradeEnabled ||
-      runtime.autoUpgradeReserveInputFocused ||
       availableChars <= runtime.autoUpgradeReserveChars
     ) {
       return;

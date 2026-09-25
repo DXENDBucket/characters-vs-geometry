@@ -10,7 +10,6 @@ interface EdgeControlRuntime {
   chars: number;
   autoEnabled: boolean;
   reserve: number;
-  reserveFocused: boolean;
   spend: (cost: number) => void;
   identify: (edge: EdgeTower) => EdgeTower;
   changed: () => void;
@@ -49,7 +48,7 @@ export class EdgeTowerControls {
 
   attemptAutoUpgrade(card = this.runtime().card) {
     const runtime = this.runtime();
-    if (!runtime.autoEnabled || runtime.reserveFocused || !card ||
+    if (!runtime.autoEnabled || !card ||
       runtime.chars - card.definition.cost < runtime.reserve) return;
     let target: EdgeTower | undefined;
     for (const edge of runtime.edges) if (edge.autoUpgrade && (!target || (edge.level ?? 1) < (target.level ?? 1))) target = edge;

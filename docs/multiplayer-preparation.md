@@ -48,6 +48,10 @@ rules from browser input and rendering, not a multiplayer implementation.
   stable target references and a shared validation/authorization gate. The mouse
   path uses the same executor while retaining its old recording format. See
   [Semantic Battle Operations](battle-operations.md) for the remaining boundary.
+- Global controls use explicit `control` commands with separate host capabilities.
+  Reserve edits are local drafts and selected cards are excluded from checksums.
+  Rules v7 continues to read v1-6 saves but rejects old-version recordings; see
+  [Battle Controls](battle-controls.md) for compatibility and live verification.
 - New endless saves retain the clock remainder, random state and mirror ID
   counter. Older saves can still resume, but their pre-save random history cannot
   be reconstructed. A recording started after loading uses that save as its
@@ -70,8 +74,8 @@ scene.submitBattleCommand({ type: "pointer", pointer: {
 } });
 ```
 
-Playback stops at `endTick`. Pause and playback speed remain local presentation
-controls; they do not need wall-clock events in the recording. There is no replay
+Playback stops at `endTick`. Pause and speed controls are recorded at battle ticks,
+not wall-clock timestamps; idle paused wall time is not replayed. There is no replay
 file picker or replay library UI yet. Checksums include logical state and pending
 attacks, but exclude purely visual Boss rotation and the render-time accumulator.
 

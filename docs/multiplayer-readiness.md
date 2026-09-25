@@ -51,8 +51,11 @@ transport-neutral authority and synchronization gates above.
   Skills, one-shot triggers, push directions and topology destinations have explicit
   commands, whole-group preflight and live UI/save/replay coverage. A local S picker
   no longer affects authoritative SP recovery. Mouse recordings still contain UI
-  intent; global controls, complete local UI state separation and
-  multi-player policies need migration; gates 2-3 remain open. See
+  intent. Global settings, time controls, reselection, debug and tutorial actions
+  now have a renderer-free policy/validation gate. Reserve drafts no longer affect
+  auto-upgrade execution, and selected cards are excluded from combat checksums.
+  Complete local UI/recording separation, multiplayer policies and the live loadout
+  adapter still need work; gates 2-3 remain open. See [global controls](battle-controls.md),
   [semantic operations](battle-operations.md),
   [session boundaries](battle-session.md) and [world ownership](battle-world.md).
 - Identity: common battle-local IDs now cover live towers, enemies, Boss bodies,
@@ -64,7 +67,7 @@ transport-neutral authority and synchronization gates above.
 - Networking: no authority protocol, participant policy, acknowledgment/resync
   implementation or two-client integration test yet. Gates 5-7 are open.
 
-Next: finish migrating global commands and separate local UI state, complete
+Next: finish separating local UI state/recording, complete
 participant/resource policies and simulation/presentation ports, then
 implement transport authority and reconnect. Validate each increment against the
 real battle path; green isolated tests are not proof of full readiness.

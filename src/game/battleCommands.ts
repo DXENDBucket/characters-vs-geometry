@@ -4,6 +4,7 @@ import type { SaveGraph } from "./saveGraph";
 import { BATTLE_RULES_VERSION } from "./battleSimulation";
 import { validStoredDifficulty } from "../config";
 import { validBattleActorId, validBattleOperation, type BattleOperation } from "./battleOperations";
+import { validBattleControl, type BattleControl } from "./battleControls";
 
 export interface BattlePointer {
   x: number;
@@ -14,6 +15,7 @@ export interface BattlePointer {
 }
 
 export type BattleCommand =
+  | { type: "control"; actorId: string; control: BattleControl }
   | { type: "operation"; actorId: string; operation: BattleOperation }
   | { type: "pointer"; pointer: BattlePointer }
   | { type: "selectCard"; id: CardId }
@@ -56,6 +58,9 @@ export function validateReplay(replay: BattleReplay) {
     tick = entry.tick;
     const command = entry.command;
     switch (command.type) {
+      case "control":
+        if (!validBattleActorId(command.actorId) || !validBattleControl(command.control)) throw new Error("Invalid battle control");
+        break;
       case "operation":
         if (!validBattleActorId(command.actorId) || !validBattleOperation(command.operation)) throw new Error("Invalid battle operation");
         break;
