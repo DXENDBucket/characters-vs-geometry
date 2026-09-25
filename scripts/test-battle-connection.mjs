@@ -11,6 +11,7 @@ const { BATTLE_RULES_VERSION } = load("src/game/battleSimulation.ts");
 const { LEGACY_BATTLE_POLICY } = load("src/game/battlePolicy.ts");
 const { captureBattleSnapshot } = load("src/game/captureBattleSnapshot.ts");
 const { battleChecksum } = load("src/game/battleChecksum.ts");
+const { BATTLE_STEP_MS } = load("src/game/battleSimulation.ts");
 
 function clock() {
   let now = 0, id = 0;
@@ -29,7 +30,7 @@ function clock() {
       now = end;
     } };
 }
-function fixture({ open = true, snapshots = true } = {}) {
+function fixture({ open = true, snapshots = true, frameSliceTicks } = {}) {
   const time = clock(), links = [], results = [], statuses = [];
   const hostRuntime = createIndependentBattle({ version: BATTLE_RULES_VERSION, levelId: "1-1", difficultyVersion: 2,
     difficulty: 3, unlimitedFirepower: false, seed: 113, debug: true, selectedCards: ["A"], policy: LEGACY_BATTLE_POLICY });
@@ -59,7 +60,7 @@ function fixture({ open = true, snapshots = true } = {}) {
       const text = JSON.stringify(message); link.received.push(text); events.message(text);
     });
     return link;
-  }, { scheduler: time, retryMs: 1000, reconnectMs: 100, timeoutMs: 3000 });
+  }, { scheduler: time, retryMs: 1000, reconnectMs: 100, timeoutMs: 3000, frameSliceTicks });
   connection.subscribe(status => statuses.push(status));
   const intent = value => ({ type: "control", control: { type: "reserve", value } });
   return { time, connection, links, results, statuses, intent, hostRuntime, host,
@@ -76,6 +77,132 @@ test("synchronous open and snapshot are queued until the transport exists; repea
   assert.equal(f.connection.request(f.intent(123), receipt => completed.push(receipt.result)), true);
   assert.deepEqual(completed, ["handled"]); assert.equal(f.connection.busy, false); f.same();
   f.connection.close(); assert.equal(f.links[0].closed, 1); assert.equal(f.time.size, 0);
+});
+
+test("sliced frames preserve commands at boundaries and withhold readiness until final checksum", () => {
+  const f = fixture({ frameSliceTicks: 2 }); f.connection.start();
+  const set = value => f.hostRuntime.session.submit({ type: "control", actorId: "local",
+    control: { type: "reserve", value } }, command => f.hostRuntime.executeCommand(command));
+  set(10); f.hostRuntime.session.advance(BATTLE_STEP_MS * 2, f.hostRuntime.sessionRuntime);
+  set(20); set(21); f.hostRuntime.session.advance(BATTLE_STEP_MS * 4, f.hostRuntime.sessionRuntime); set(60);
+  f.host.publish();
+  assert.equal(f.replica.session.clock.tick, 2); assert.equal(f.replica.session.controls.reserveChars, 21);
+  assert.equal(f.connection.ready, false); assert.equal(f.connection.busy, true);
+  assert.equal(f.connection.request(f.intent(999)), false);
+  // A later same-tick command must wait behind the first frame's checksum.
+  set(61); f.host.publish();
+  f.time.advance(1); assert.equal(f.replica.session.clock.tick, 4);
+  f.time.advance(1); assert.equal(f.replica.session.clock.tick, 6);
+  assert.equal(f.replica.session.controls.reserveChars, 60); assert.equal(f.connection.ready, false);
+  f.time.advance(1); assert.equal(f.replica.session.controls.reserveChars, 61);
+  assert.equal(f.connection.ready, true); assert.equal(f.connection.busy, false); assert.equal(f.time.size, 0);
+  f.connection.reconnect(); set(90);
+  f.hostRuntime.session.advance(100, f.hostRuntime.sessionRuntime); f.host.publish(); f.time.advance(3);
+  assert.equal(f.replica.session.controls.reserveChars, 90);
+  f.same(); f.connection.close();
+});
+
+test("a scene callback may reconnect during a slice without stranding the new snapshot", () => {
+  const f = fixture({ frameSliceTicks: 2 }); f.connection.start();
+  const abandoned = f.replica, follow = abandoned.session.followFrame;
+  abandoned.session.followFrame = function(...args) {
+    follow.apply(this, args); f.connection.reconnect();
+    throw Error("old scene retired");
+  };
+  f.hostRuntime.session.advance(100, f.hostRuntime.sessionRuntime); f.host.publish();
+  f.time.advance(5); assert.equal(f.restorations, 2); assert.equal(f.connection.ready, true);
+  assert.equal(abandoned.session.clock.tick, 2); f.same();
+  assert.equal(f.time.size, 0); f.connection.close();
+});
+
+test("pause and resume at slice boundaries preserve command order and queued receipts", () => {
+  const f = fixture({ frameSliceTicks: 2 }); f.connection.start();
+  const setPause = paused => f.hostRuntime.session.submit({ type: "control", actorId: "local",
+    control: { type: "pause", paused } }, command => f.hostRuntime.executeCommand(command));
+  f.hostRuntime.session.advance(BATTLE_STEP_MS * 2, f.hostRuntime.sessionRuntime);
+  setPause(true); setPause(false);
+  f.hostRuntime.session.advance(BATTLE_STEP_MS * 4, f.hostRuntime.sessionRuntime); setPause(true);
+  // Request handling publishes the unsent tick batch before its receipt.
+  let completed = 0;
+  assert.equal(f.connection.request(f.intent(75), () => completed++), true);
+  assert.equal(f.replica.session.clock.tick, 2);
+  assert.equal(f.replica.session.controls.paused, false);
+  assert.equal(completed, 0);
+  f.time.advance(2);
+  assert.equal(f.replica.session.controls.paused, true); assert.equal(completed, 0);
+  f.time.advance(1);
+  assert.equal(completed, 1); assert.equal(f.connection.catchingUp, false); f.same();
+  assert.equal(f.connection.request({ type: "control", control: { type: "pause", paused: false } }), true);
+  f.hostRuntime.session.advance(BATTLE_STEP_MS * 6, f.hostRuntime.sessionRuntime); f.host.publish();
+  f.time.advance(3);
+  assert.equal(f.replica.session.clock.tick, 12); assert.equal(f.connection.ready, true);
+  f.same(); f.connection.close(); assert.equal(f.time.size, 0);
+});
+
+test("the maximum valid tick gap drains in bounded slices without skipping simulation", () => {
+  const f = fixture({ frameSliceTicks: 2 }); f.connection.start();
+  for (let tick = 0; tick < 600; tick++) f.hostRuntime.session.advance(BATTLE_STEP_MS, f.hostRuntime.sessionRuntime);
+  assert.equal(f.hostRuntime.session.clock.tick, 600);
+  f.host.publish();
+  assert.equal(f.replica.session.clock.tick, 2);
+  for (let slice = 1; slice < 300; slice++) {
+    f.time.advance(1);
+    assert.equal(f.replica.session.clock.tick, (slice + 1) * 2);
+    assert.equal(f.connection.ready, false);
+  }
+  f.time.advance(1);
+  assert.equal(f.connection.ready, true); assert.equal(f.connection.catchingUp, false);
+  assert.equal(f.restorations, 1); f.same();
+  f.connection.close(); assert.equal(f.time.size, 0);
+});
+
+test("invalid later commands are rejected before the first slice mutates the replica", () => {
+  const f = fixture({ frameSliceTicks: 2 }); f.connection.start();
+  f.hostRuntime.session.advance(100, f.hostRuntime.sessionRuntime); f.host.publish(); f.time.advance(3);
+  const value = JSON.parse(f.links[0].received.at(-1));
+  value.from = { ...value.to }; value.to.tick += 6; value.to.sequence++;
+  value.commands = [{ tick: value.to.tick, sequence: value.from.sequence,
+    command: { type: "control", actorId: "local", control: { type: "reserve", value: -1 } } }];
+  const before = f.replica.session.clock.tick;
+  f.links[0].events.message(JSON.stringify(value));
+  assert.equal(f.connection.status, "failed"); assert.equal(f.replica.session.clock.tick, before);
+  assert.equal(f.time.size, 0); f.connection.close();
+});
+
+test("disconnect mid-slice abandons partial state and never advances the replacement snapshot", () => {
+  const f = fixture({ frameSliceTicks: 2 }); f.connection.start();
+  f.hostRuntime.session.advance(100, f.hostRuntime.sessionRuntime); f.host.publish();
+  const abandoned = f.replica, oldLink = f.links[0];
+  assert.equal(abandoned.session.clock.tick, 2);
+  oldLink.events.closed(); f.time.advance(100);
+  assert.notEqual(f.replica, abandoned); assert.equal(abandoned.session.clock.tick, 2);
+  oldLink.events.message(oldLink.received.at(-1)); f.time.advance(100);
+  assert.equal(f.replica.session.clock.tick, 6); f.same();
+  assert.equal(f.time.size, 0); f.connection.close();
+});
+
+test("sliced divergence resyncs after the complete frame, not from a partial checksum", () => {
+  const f = fixture({ frameSliceTicks: 2 }); f.connection.start();
+  f.hostRuntime.session.advance(100, f.hostRuntime.sessionRuntime); f.host.publish();
+  f.replica.world.chars++;
+  f.time.advance(2); assert.equal(f.restorations, 1);
+  f.time.advance(1); assert.equal(f.restorations, 2); assert.equal(f.connection.ready, true);
+  f.same(); assert.equal(f.time.size, 0); f.connection.close();
+});
+
+test("queued ingress is bounded while a sliced frame is in flight and close cancels work", () => {
+  for (const mode of ["close", "count", "size"]) {
+    const f = fixture({ frameSliceTicks: 2 }); f.connection.start();
+    f.hostRuntime.session.advance(100, f.hostRuntime.sessionRuntime); f.host.publish();
+    const tick = f.replica.session.clock.tick;
+    if (mode === "close") f.connection.close();
+    if (mode === "count") for (let i = 0; i < 65; i++) f.links[0].events.message(f.links[0].received.at(-1));
+    if (mode === "size") for (let i = 0; i < 3; i++) f.links[0].events.message(" ".repeat(8 * 1024 * 1024));
+    assert.equal(f.connection.status, mode === "close" ? "closed" : "failed");
+    assert.equal(f.time.size, 0); f.time.advance(100);
+    assert.equal(f.replica.session.clock.tick, tick); f.connection.close();
+  }
+  for (const frameSliceTicks of [0, -1, 1.5, 601, NaN]) assert.throws(() => fixture({ frameSliceTicks }));
 });
 
 test("lost receipts retry the original operation automatically without advancing simulation or charging twice", () => {

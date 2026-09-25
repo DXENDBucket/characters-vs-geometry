@@ -169,10 +169,14 @@ try {
     }, { token: tokens[role], relay, role, input, connection });
   }
   const pump = async () => {
-    for (let i = 0; i < 30; i++) {
+    const deadline = performance.now() + 15000;
+    while (performance.now() < deadline) {
       let count = 0;
       for (const role of roles) count += await pages[role].evaluate(() => window.headlessTest.poll());
-      if (!count && roles.every(role => !queues[role].length)) return;
+      let catchingUp = false;
+      for (const role of roles) catchingUp ||= await pages[role].evaluate(() => !!window.headlessTest.client.catchingUp);
+      if (!count && roles.every(role => !queues[role].length) && !catchingUp) return;
+      if (catchingUp) await new Promise(resolve => setTimeout(resolve, 2));
     }
     throw Error("Host/client messages did not settle");
   };

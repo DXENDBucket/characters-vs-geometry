@@ -30,7 +30,7 @@ export class RemoteBattleSession {
       follow: (tick, commands) => this.requireScene().followSynchronizedFrame(tick, commands),
       checksum: () => this.requireScene().battleChecksum(),
       receipt: receipt => options.receipt?.(receipt)
-    }, options.transport, options);
+    }, options.transport, { ...options, frameSliceTicks: options.frameSliceTicks ?? 2 });
     const owner = this;
     this.input = {
       get ready() { return owner.connection.ready; },

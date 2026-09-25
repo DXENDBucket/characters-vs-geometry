@@ -389,3 +389,33 @@ measured 13.0 ms vector versus 12.2 ms shared-outline median rendering, and
 replica also retained that hash. These are noisy local diagnostics, not a guaranteed
 FPS improvement. The p95 CPU frames remained around 43 ms. Most rendering cost and
 six-tick replica application spikes remain unresolved.
+
+### Sliced Replica Application
+
+`benchmark-crowded-browser.mjs --replica --slice-ticks=2` applies each six-tick
+frame in three two-tick tasks followed by a separate checksum task. The harness
+yields with a requested 1ms timer between tasks. `syncTask` reports individual
+synchronous calls, `syncApply` their summed CPU time per batch, and `syncWall` the
+batch's elapsed time including yields. `cpuFrame` sums application CPU and render
+CPU, excluding yields; in sliced mode it is not one uninterrupted browser task.
+
+This diagnostic manually renders after a whole batch, not between slices. It
+measures task costs, not improved visual FPS or input latency. Actual remote-scene
+tests retain the continuous Phaser loop. Host preparation still shares the test
+browser process and is excluded from CPU measurements, as described above.
+
+Consecutive Edge 153 runs, 800 initial enemies, 60 warm/180 measured renders:
+
+| Metric (ms) | Synchronous | Two-tick slices |
+| --- | ---: | ---: |
+| Sync task median / p95 / maximum | 28.8 / 59.7 / 90.2 | 7.8 / 16.2 / 36.1 |
+| Batch total CPU median / p95 | 28.8 / 59.7 | 32.3 / 61.5 |
+| Batch wall time median / p95 | 28.8 / 59.7 | 38.7 / 66.7 |
+
+Both finish at tick 420 with checksum `a2696ad8`, identical rosters and nonblank
+pixels. There are 30 batches: 30 synchronous tasks versus 120 sliced tasks, so the
+task percentiles describe different-sized work units. Individual blocking is
+shorter, but total CPU/wall time is not improved; additional view refreshes and
+task yields cost time. Render medians remain about 12.6-12.7ms. Final checksums and
+single ticks can still stall, and these samples do not establish production load
+readiness. Snapshot/full-state commit and crowded rendering remain open work.

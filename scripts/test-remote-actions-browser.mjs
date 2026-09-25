@@ -75,9 +75,14 @@ try {
     };
   }, { relay: `http://127.0.0.1:${server.address().port}`, token });
   const pump = async () => {
-    for (let i = 0; i < 30; i++) if (!await page.evaluate(() => window.actions.poll()) && !outbound.length) {
-      assert.equal(await page.evaluate(() => window.actions.remote.connection.ready), true);
-      return;
+    const deadline = performance.now() + 15000;
+    while (performance.now() < deadline) {
+      if (!await page.evaluate(() => window.actions.poll()) && !outbound.length &&
+          !await page.evaluate(() => window.actions.remote.connection.catchingUp)) {
+        assert.equal(await page.evaluate(() => window.actions.remote.connection.ready), true);
+        return;
+      }
+      await new Promise(resolve => setTimeout(resolve, 2));
     }
     throw Error("Sync did not settle");
   };

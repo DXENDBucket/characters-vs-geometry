@@ -57,6 +57,16 @@ submission and request a fresh snapshot. Resync is limited to once per second pe
 live peer, using an injected ingress clock outside deterministic combat. The
 transport adapter schedules retries; this module does not start timers itself.
 
+`new BattleSyncClient(runtime, frameSliceTicks)` optionally splits frame execution.
+`receiveText` may return `pending`; the caller must retain subsequent messages and
+call `continueFrame` in later tasks until the result is no longer `pending`.
+Calling `receiveText` during partial application is invalid. Entire-frame schema
+validation still precedes execution; the final checksum and verified cursor are
+not committed at intermediate ticks. Requests/retries wait during application.
+Disconnect/resync clears pending frame work. Omit the second constructor argument
+to retain synchronous execution. [BattleConnection](battle-connection.md) owns the
+bounded ordered queue, scheduling and lifetime fencing for real remote scenes.
+
 Reconnect retains a pending request's original sequence. If the host executed it
 but the receipt was lost, retry retrieves the authority's cached receipt instead
 of spending resources again. Only the latest handle for an actor remains valid.

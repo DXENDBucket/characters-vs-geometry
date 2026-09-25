@@ -8,6 +8,8 @@ const { chromium } = await import(modulePath ? pathToFileURL(modulePath).href : 
 const counts = (option("counts") ?? "100,400,800").split(",").map(Number);
 const warmFrames = Number(option("warm-frames") ?? 0), frames = Number(option("frames") ?? 72);
 const replica = process.argv.includes("--replica");
+const sliceTicks = option("slice-ticks") === undefined ? undefined : Number(option("slice-ticks"));
+assert.ok(sliceTicks === undefined || (replica && Number.isSafeInteger(sliceTicks) && sliceTicks >= 1 && sliceTicks <= 600));
 assert.ok(counts.every(n => Number.isSafeInteger(n) && n > 0 && n <= 5000));
 assert.ok(Number.isSafeInteger(warmFrames) && warmFrames >= 0 && warmFrames <= 600);
 assert.ok(Number.isSafeInteger(frames) && frames >= 12 && frames <= 1200);
@@ -35,10 +37,10 @@ try {
   console.log(JSON.stringify({ diagnostic: replica
     ? "Headless replica, six-tick JSON frames every six renders; same-process host preparation excluded from CPU frame costs, no network latency"
     : "Headless Chromium mixed battle, one fixed tick per rendered frame; not player FPS or network latency",
-    browser: browser.version(), vectorOutlines: process.argv.includes("--vector-outlines") }));
+    browser: browser.version(), sliceTicks, vectorOutlines: process.argv.includes("--vector-outlines") }));
   for (const count of counts) {
     if (profiler) await profiler.send("Profiler.start");
-    const result = await page.evaluate(async ({ count, warmFrames, frames, replica }) => {
+    const result = await page.evaluate(async ({ count, warmFrames, frames, replica, sliceTicks }) => {
       const mod = path => import(performance.getEntriesByType("resource").map(e => e.name)
         .find(url => new URL(url).pathname === path) ?? path);
       const { populateCrowdedBattle, crowdedCensus, CROWDED_CARDS } = await mod("/scripts/helpers/crowded-battle.mjs");
@@ -61,7 +63,7 @@ try {
       let scene = game.scene.getScene("GameScene"), runtime = scene.runtime;
       populateCrowdedBattle(runtime, count, config);
       for (let tick = 0; tick < 180; tick++) scene.update(0, BATTLE_STEP_MS);
-      const packets = [], syncCosts = [];
+      const packets = [], syncCosts = [], syncWallCosts = [], syncTaskCosts = [];
       let host, sync, authority, client;
       if (replica) {
         const { BattleAuthority } = await mod("/src/game/battleAuthority.ts");
@@ -78,7 +80,7 @@ try {
           game.scene.stop("GameScene"); game.scene.start("GameScene", { replica: replay, viewActorId: "local" });
           scene = game.scene.getScene("GameScene"); runtime = scene.runtime;
         }, follow: (tick, commands) => scene.followSynchronizedFrame(tick, commands),
-        checksum: () => scene.battleChecksum() });
+        checksum: () => scene.battleChecksum() }, sliceTicks);
         client.connect(() => { throw Error("Unexpected replica resync request"); });
         sync.connect("local", message => packets.push(JSON.stringify(message)));
         for (const text of packets.splice(0)) check(client.receiveText(text) === "applied", "Invalid replica snapshot");
@@ -90,12 +92,28 @@ try {
           check(packets.length === 1, "Expected one six-tick frame");
         }
       };
-      const apply = () => {
-        for (const text of packets.splice(0)) check(client.receiveText(text) === "applied", "Replica diverged");
+      const apply = async (record = false) => {
+        let cpu = 0;
+        for (const text of packets.splice(0)) {
+          const wallStart = performance.now();
+          let result, first = true;
+          do {
+            if (!first) await new Promise(resolve => setTimeout(resolve, 1));
+            const start = performance.now();
+            result = first ? client.receiveText(text) : client.continueFrame();
+            const cost = performance.now() - start;
+            cpu += cost;
+            if (record) syncTaskCosts.push(cost);
+            first = false;
+          } while (result === "pending");
+          check(result === "applied", "Replica diverged");
+          if (record) syncWallCosts.push(performance.now() - wallStart);
+        }
+        return cpu;
       };
       for (let frame = 0; frame < warmFrames; frame++) {
         const time = await new Promise(resolve => requestAnimationFrame(resolve));
-        prepare(frame); apply();
+        prepare(frame); await apply();
         game.step(time, BATTLE_STEP_MS);
       }
       const initial = crowdedCensus(runtime);
@@ -125,10 +143,10 @@ try {
         previous = time;
         prepare(frame);
         measured = {};
-        const start = performance.now(), received = packets.length;
-        apply();
-        if (received) syncCosts.push(performance.now() - start);
-        game.step(time, BATTLE_STEP_MS); frameCosts.push(performance.now() - start);
+        const received = packets.length, applyCpu = await apply(true);
+        if (received) syncCosts.push(applyCpu);
+        const start = performance.now();
+        game.step(time, BATTLE_STEP_MS); frameCosts.push(applyCpu + performance.now() - start);
         for (const key of ["simulationAndEffects", "viewRefresh", "overlays", "cards", "hud", "render"]) {
           (stages[key] ??= []).push(measured[key] ?? 0);
         }
@@ -151,9 +169,10 @@ try {
       client?.dispose(); sync?.close(); authority?.close();
       return { requestedEnemies: count, initial, final: crowdedCensus(runtime), checksum, litPixels: lit,
         warmFrames, samples: frameCosts.length, cpuFrame: summarize(frameCosts), animationFrameInterval: summarize(intervals),
-        ...(replica ? { syncFrames: syncCosts.length, syncApply: summarize(syncCosts) } : {}),
+        ...(replica ? { syncFrames: syncCosts.length, syncApply: summarize(syncCosts),
+          syncWall: summarize(syncWallCosts), syncTasks: syncTaskCosts.length, syncTask: summarize(syncTaskCosts) } : {}),
         stages: Object.fromEntries(Object.entries(stages).map(([key, values]) => [key, summarize(values)])) };
-    }, { count, warmFrames, frames, replica });
+    }, { count, warmFrames, frames, replica, sliceTicks });
     console.log(JSON.stringify(result));
     if (profiler) {
       const { profile } = await profiler.send("Profiler.stop");

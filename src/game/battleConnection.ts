@@ -27,6 +27,7 @@ export interface BattleConnectionOptions {
   retryMs?: number;
   reconnectMs?: number;
   timeoutMs?: number;
+  frameSliceTicks?: number;
 }
 
 // Owns ingress timers and connection lifetime, never simulation time or battle state.
@@ -43,11 +44,15 @@ export class BattleConnection implements BattleInputPort {
   private retryTimer?: unknown;
   private watchdog?: unknown;
   private reconnectTimer?: unknown;
+  private sliceTimer?: unknown;
+  private inbox: string[] = [];
+  private inboxCharacters = 0;
+  private processing = false;
   private current: BattleConnectionStatus = "idle";
   private readonly listeners = new Set<(status: BattleConnectionStatus) => void>();
 
   constructor(runtime: BattleSyncClientRuntime, private readonly factory: BattleTransportFactory, options: BattleConnectionOptions = {}) {
-    this.client = new BattleSyncClient(runtime);
+    this.client = new BattleSyncClient(runtime, options.frameSliceTicks);
     this.clock = options.scheduler ?? scheduler;
     this.retryMs = options.retryMs ?? 1500;
     this.reconnectMs = options.reconnectMs ?? 500;
@@ -58,6 +63,7 @@ export class BattleConnection implements BattleInputPort {
   get status() { return this.current; }
   get ready() { return this.current !== "closed" && this.client.ready; }
   get busy() { return this.client.busy; }
+  get catchingUp() { return this.client.applying || this.inbox.length > 0; }
 
   subscribe(listener: (status: BattleConnectionStatus) => void) {
     if (this.current !== "closed") this.listeners.add(listener);
@@ -82,13 +88,14 @@ export class BattleConnection implements BattleInputPort {
     this.refresh();
     return accepted;
   }
-  private clearTimer(key: "retryTimer" | "watchdog" | "reconnectTimer") {
+  private clearTimer(key: "retryTimer" | "watchdog" | "reconnectTimer" | "sliceTimer") {
     if (this[key] !== undefined) this.clock.clear(this[key]);
     this[key] = undefined;
   }
   private retire() {
     this.epoch++;
     this.clearTimer("retryTimer"); this.clearTimer("watchdog"); this.clearTimer("reconnectTimer");
+    this.clearTimer("sliceTimer"); this.inbox = []; this.inboxCharacters = 0;
     this.client.disconnect(); this.opened = false;
     const transport = this.transport; this.transport = undefined;
     try { transport?.close(); } catch { /* The old epoch is already detached. */ }
@@ -144,8 +151,11 @@ export class BattleConnection implements BattleInputPort {
           }
           dispatch(() => {
             if (!this.opened) { this.lost(false); return; }
-            if (this.client.receiveText(text) === "invalid") { this.lost(false); return; }
-            this.refresh();
+            if (this.inbox.length >= 64 || this.inboxCharacters + text.length > MAX_BATTLE_SYNC_BYTES) {
+              this.lost(false); return;
+            }
+            this.inbox.push(text); this.inboxCharacters += text.length;
+            this.drain();
           });
         },
         closed: (retryable = true) => dispatch(() => this.lost(retryable))
@@ -157,10 +167,37 @@ export class BattleConnection implements BattleInputPort {
     } catch { if (epoch === this.epoch) this.lost(true); }
     finally { queued.length = 0; constructing = false; }
   }
+  private drain() {
+    if (this.processing || this.sliceTimer !== undefined) return;
+    const epoch = this.epoch;
+    this.processing = true;
+    try {
+      if (this.client.applying && this.client.continueFrame() === "invalid") { this.lost(false); return; }
+      while (epoch === this.epoch && !this.client.applying && this.inbox.length) {
+        const text = this.inbox.shift()!; this.inboxCharacters -= text.length;
+        if (this.client.receiveText(text) === "invalid") { this.lost(false); return; }
+      }
+      if (epoch !== this.epoch) return;
+      if (this.client.applying) this.scheduleDrain();
+      this.refresh();
+    } finally {
+      this.processing = false;
+      // A callback may replace the connection while the old frame is unwinding.
+      if (epoch !== this.epoch && this.inbox.length) this.scheduleDrain();
+    }
+  }
+  private scheduleDrain() {
+    if (this.sliceTimer !== undefined) return;
+    const epoch = this.epoch;
+    this.sliceTimer = this.clock.set(1, () => {
+      if (epoch !== this.epoch) return;
+      this.sliceTimer = undefined; this.drain();
+    });
+  }
   private refresh() {
     if (["closed", "failed", "reconnecting", "idle"].includes(this.current)) return;
     const epoch = this.epoch;
-    this.statusChanged(!this.opened ? "connecting" : this.client.ready ? "ready" : "synchronizing");
+    this.statusChanged(!this.opened ? "connecting" : this.client.ready || this.client.applying ? "ready" : "synchronizing");
     if (epoch !== this.epoch) return;
     if (this.client.ready) this.failures = 0;
     if (this.client.ready && !this.client.busy) {

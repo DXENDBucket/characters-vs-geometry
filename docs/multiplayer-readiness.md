@@ -166,8 +166,13 @@ profile uses a same-process host, excludes network latency and is not deployment
 load evidence; see [performance](performance.md#warmed-rendering-and-replica-batches).
 The first static-outline optimization now shares high-DPI heart/tilde textures,
 with three-engine pixel/turning/cleanup checks and unchanged mixed-battle hashes.
-It removes repeated path work for those two families only; wider render load and
-replica burst handling remain open.
+It removes repeated path work for those two families only; wider render load
+remains open. Remote sessions now split incoming simulation into two-tick tasks
+and a final checksum task, with bounded ordered ingress and epoch-fenced cleanup.
+Real connection/skill browser tests retain matching host hashes. The 800-enemy
+diagnostic reduces individual sync-task p95 from 59.7ms to 16.2ms, but total batch
+CPU/wall time increases; it does not prove improved FPS or production latency.
+Snapshot/checksum costs and sustained catch-up throughput remain open.
 
 ## Next Work
 

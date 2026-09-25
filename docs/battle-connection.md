@@ -22,6 +22,31 @@ queue. Sync protocol byte limits still apply. Callbacks retain their link epoch;
 old messages/open/close callbacks are ignored after retirement or disposal.
 This is not a substitute for network-layer queue, rate and authentication limits.
 
+## Bounded Replica Tasks
+
+`frameSliceTicks` opts into deterministic frame continuation (integer 1-600).
+The low-level connection remains synchronous by default; `RemoteBattleSession`
+defaults to two ticks per task. The first slice runs on receipt, subsequent slices
+use one owned timer with a 1ms requested delay, and the final checksum runs after
+the last tick slice. Browser scheduling may delay those tasks further.
+
+The complete message is schema-validated before the first slice. Commands retain
+their exact tick/sequence boundaries. Later frames, snapshots and receipts wait in
+an ordered inbox, bounded to 64 messages and 16 Mi UTF-16 code units in aggregate;
+the active decoded frame is separate. Every decoded message still has the 16 MiB
+UTF-8 protocol limit. Overflow fails closed instead of accumulating unbounded work.
+
+`catchingUp` reports partial work or queued ingress. Input `ready` is false and
+`busy` true during partial application; the verified cursor advances only after
+the final checksum. The display status stays `ready` during ordinary catch-up to
+avoid a flashing reconnect label. Retry waits for that frame to finish; the
+watchdog still bounds stalled catch-up. Disconnect/replacement clears the timer,
+inbox and partial frame; callbacks from retired epochs cannot advance a new scene.
+
+This changes scheduling, not simulation rules or wire formats. Snapshot decoding,
+individual ticks and final checksums remain synchronous. See the measured costs
+and limitations in [performance](performance.md#sliced-replica-application).
+
 ## Recovery
 
 - Statuses: idle, connecting, synchronizing, ready, reconnecting, failed, closed.
@@ -69,6 +94,9 @@ tower from leaving a lesson stuck waiting for the shifter to be deselected.
   injected ingress clock, synchronous startup, automatic retry/reconnect,
   duplicate-payment prevention, stale callbacks, send failures, timeouts/backoff,
   divergence repair, terminal denial, disposal, reentrant close and startup bounds.
+  Sliced cases cover boundary commands, pause/resume, queued receipts, the maximum
+  600-tick gap, final checksum repair, mid-slice disconnect/reentrant replacement,
+  malformed later commands and bounded inbox overflow.
 - `test-headless-host-browser.mjs --connection`: independent Node authority plus
   Firefox/WebKit render and mouse/keyboard loops over authenticated HTTP. Includes
   pending-receipt disconnect, automatic reconnect, old-link messages, repeated
