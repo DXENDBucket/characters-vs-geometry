@@ -16,6 +16,7 @@ import type { BattleAction, ScheduleBattleAction } from "../game/battleActions";
 import { BattleSession, type BattleSessionRuntime } from "../game/battleSession";
 import { BattleAuthority } from "../game/battleAuthority";
 import type { BattleOperationActor } from "../game/battleParticipants";
+import { battleCardAllowed, copyBattlePolicy, LEGACY_BATTLE_POLICY, type BattlePolicy } from "../game/battlePolicy";
 import { BattleWorld, type BattleWorldSystems } from "../game/battleWorld";
 import { battleCardTime, type BattleCardState } from "../game/battleLoadout";
 import { battleChecksum } from "../game/battleChecksum";
@@ -256,7 +257,7 @@ export class GameScene extends Phaser.Scene {
   private readonly sessionRuntime: BattleSessionRuntime = {
     step: () => this.stepBattle(),
     executeCommand: command => this.executeCommand(command),
-    canAdvance: () => !this.gameOver && !this.battlePaused && !this.menuOpen && !this.reselectOpen
+    canAdvance: () => !this.gameOver && !this.battlePaused && !this.localModalPausesBattle
   };
   private tutorialAdvance?: () => void;
   private rewardEncyclopedia?: EncyclopediaPanel;
@@ -390,7 +391,9 @@ export class GameScene extends Phaser.Scene {
   private overlay!: GameOverlayElements;
   private pauseMenu!: PauseMenu;
   private menuOpen = false;
+  private battleSettingsOpen = false;
   private reselectOpen = false;
+  private get localModalPausesBattle() { return this.session.policy.pauseOnLocalModal && (this.menuOpen || this.reselectOpen); }
   private get reselection() { return this.world.loadout.reselection; }
   private extraction = new TowerExtractionPool();
   private reselectShade?: Phaser.GameObjects.Rectangle;
@@ -419,7 +422,7 @@ export class GameScene extends Phaser.Scene {
     super(key);
   }
 
-  init(data: { levelId?: string; chapterId?: string; selectedCards?: CardId[]; difficulty?: number; unlimitedFirepower?: boolean; resume?: boolean; seed?: number; replay?: BattleReplay; participants?: readonly BattleOperationActor[] }) {
+  init(data: { levelId?: string; chapterId?: string; selectedCards?: CardId[]; difficulty?: number; unlimitedFirepower?: boolean; resume?: boolean; seed?: number; replay?: BattleReplay; participants?: readonly BattleOperationActor[]; policy?: BattlePolicy }) {
     const playback = data.replay ? structuredClone(data.replay) : undefined;
     if (playback) {
       validateReplay(playback);
@@ -445,11 +448,17 @@ export class GameScene extends Phaser.Scene {
     this.debugModeEnabled = playback?.debug ?? isDebugModeEnabled();
     this.difficultyConfig = this.adjustDifficultyForUnlimitedFirepower(getDifficultyConfig(this.difficulty));
     if (isTutorial) this.difficultyConfig = getDifficultyConfig(1);
-    const selectedCards = this.sanitizeLoadout(tutorialLoadout(tutorialMechanic, data.selectedCards), Boolean(playback));
+    const policy = playback ? playback.policy : copyBattlePolicy(data.policy ?? {
+      version: 1, slotCount: unlockedCardSlotCount(), allowedCards: allCardDefinitions.filter(card => isCardUnlocked(card.id)).map(card => card.id),
+      reselectEnabled: !isTutorial && isLevelCompleted(RESELECT_UNLOCK_LEVEL), pauseOnLocalModal: true
+    });
+    const selectedCards = this.sanitizeLoadout(tutorialLoadout(tutorialMechanic, data.selectedCards), policy ?? LEGACY_BATTLE_POLICY,
+      Boolean(playback || this.resumeSave));
     this.session = new BattleSession({ version: BATTLE_RULES_VERSION, levelId: this.levelId, difficulty: this.difficulty,
       difficultyVersion: DIFFICULTY_VERSION,
       unlimitedFirepower: this.unlimitedFirepower, selectedCards,
-      seed, debug: this.debugModeEnabled, ...(data.participants ? { participants: data.participants } : {}) }, playback);
+      seed, debug: this.debugModeEnabled, ...(data.participants ? { participants: data.participants } : {}),
+      ...(policy ? { policy } : {}) }, playback);
     this.resetCommandAuthority();
     setBattleRandom(this, this.session.random);
     setBattlePlayback(this, Boolean(playback));
@@ -461,6 +470,7 @@ export class GameScene extends Phaser.Scene {
     this.selectedCardId = this.selectedCardIds.includes("X") ? "X" : this.selectedCardIds[0];
     this.sealedCellMarks = new Map<string, Phaser.GameObjects.Text>();
     this.menuOpen = false;
+    this.battleSettingsOpen = false;
     this.reselectOpen = false;
     this.extraction = new TowerExtractionPool();
     this.reselectShade = undefined;
@@ -601,7 +611,10 @@ export class GameScene extends Phaser.Scene {
       resume: () => this.closePauseMenu(),
       settings: () => {
         this.pauseMenu.hide();
+        this.battleSettingsOpen = true;
         this.scene.launch("SettingsScene", { onReturn: () => {
+          this.battleSettingsOpen = false;
+          if (!this.menuOpen) return;
           this.refreshBattleSettings();
           this.pauseMenu.show();
         } });
@@ -611,7 +624,8 @@ export class GameScene extends Phaser.Scene {
         chapterId: this.chapterId,
         selectedCards: [...this.selectedCardIds],
         difficulty: this.difficulty,
-        unlimitedFirepower: this.unlimitedFirepower
+        unlimitedFirepower: this.unlimitedFirepower,
+        policy: this.session.policy, participants: this.session.snapshot().participants
       }),
       exit: () => this.handleOverlayAction()
     });
@@ -672,6 +686,11 @@ export class GameScene extends Phaser.Scene {
 
   private cleanupSceneHandlers() {
     this.authority?.close();
+    if (this.reselectOpen) this.scene.stop("CardSelectScene");
+    if (this.battleSettingsOpen) this.scene.stop("SettingsScene");
+    this.menuOpen = false;
+    this.reselectOpen = false;
+    this.battleSettingsOpen = false;
     soundPlayer.stop("battle");
     window.removeEventListener("pagehide", this.saveOnPageHide);
     this.cardList?.destroy();
@@ -698,7 +717,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number) {
-    if (this.gameOver || this.menuOpen || this.reselectOpen) {
+    if (this.gameOver || this.localModalPausesBattle) {
       return;
     }
 
@@ -1062,9 +1081,9 @@ export class GameScene extends Phaser.Scene {
       state: this.controls, ended: this.gameOver,
       actor: id => this.session.actor(id),
       authorize: () => true,
-      slotCount: this.playback ? CARD_SLOT_COUNT : unlockedCardSlotCount(),
-      cardAllowed: id => hasCardDefinition(id) && (Boolean(this.playback) || isCardUnlocked(id)),
-      reselectAvailable: !isTutorialMechanic(this.levelConfig.specialMechanic) && (Boolean(this.playback) || isLevelCompleted(RESELECT_UNLOCK_LEVEL)),
+      slotCount: this.session.policy.slotCount,
+      cardAllowed: id => battleCardAllowed(this.session.policy, id),
+      reselectAvailable: !isTutorialMechanic(this.levelConfig.specialMechanic) && this.session.policy.reselectEnabled,
       reselectReady: this.reselection.isReady(this.battleTime),
       reselect: cards => this.applyReselection(cards),
       tutorialAvailable: !!this.tutorialAdvance,
@@ -2248,14 +2267,14 @@ export class GameScene extends Phaser.Scene {
       this.autoUpgradeReserveInputFocused ? this.autoUpgradeReserveDraft : this.autoUpgradeReserveChars,
       this.autoUpgradeReserveInputFocused
     );
-    updateReselectButtonState(this.ui, isLevelCompleted(RESELECT_UNLOCK_LEVEL),
+    updateReselectButtonState(this.ui, this.session.policy.reselectEnabled,
       this.reselection.readyRatio(this.battleTime), !isTutorialMechanic(this.levelConfig.specialMechanic));
   }
 
   private openReselection() {
     if (this.playback) return;
     if (this.gameOver || this.menuOpen || this.reselectOpen || isTutorialMechanic(this.levelConfig.specialMechanic)) return;
-    if (!isLevelCompleted(RESELECT_UNLOCK_LEVEL)) {
+    if (!this.session.policy.reselectEnabled) {
       this.showToast(t("card.unlockAfter", { level: RESELECT_UNLOCK_LEVEL }));
       return;
     }
@@ -2270,7 +2289,7 @@ export class GameScene extends Phaser.Scene {
     this.clearPlacementGhosts();
     this.reselectShade = this.battlefield.ui(() => this.add.rectangle(this.scale.width / 2, GAME_HEIGHT / 2, this.scale.width, GAME_HEIGHT, palette.black, 0.4)
       .setDepth(1000));
-    this.scene.pause();
+    if (this.session.policy.pauseOnLocalModal) this.scene.pause();
     this.scene.launch("CardSelectScene", {
       levelId: this.levelId,
       chapterId: this.chapterId,
@@ -2278,6 +2297,7 @@ export class GameScene extends Phaser.Scene {
       unlimitedFirepower: this.unlimitedFirepower,
       reselect: {
         selectedCards: [...this.selectedCardIds],
+        policy: this.session.policy,
         onConfirm: (cards: CardId[]) => this.closeReselection(cards),
         onCancel: () => this.closeReselection()
       }
@@ -2285,14 +2305,16 @@ export class GameScene extends Phaser.Scene {
   }
 
   private closeReselection(cards?: CardId[]) {
-    if (!this.reselectOpen) return;
+    if (!this.reselectOpen) return false;
     this.reselectOpen = false;
-    if (cards?.length) this.requestControl({ type: "reselect", cards });
+    const result = cards?.length ? this.requestControl({ type: "reselect", cards }) : undefined;
     this.reselectShade?.destroy();
     this.reselectShade = undefined;
-    this.scene.resume();
+    if (this.session.policy.pauseOnLocalModal) this.scene.resume();
     this.updateCards();
     this.syncPlacementGhost(this.input.activePointer);
+    if (result && result !== "handled") this.showToast(t(result === "cooldown" ? "toast.cooldown" : "toast.reselectUnavailable"));
+    return result === "handled";
   }
 
   private applyReselection(cards: readonly CardId[]) {
@@ -2558,16 +2580,24 @@ export class GameScene extends Phaser.Scene {
     this.autoUpgradeReserveInputFocused = false;
     this.ui.pauseMenuTooltip.setVisible(false);
     this.clearPlacementGhosts();
-    this.scene.pause();
+    if (this.session.policy.pauseOnLocalModal) this.scene.pause();
     this.pauseMenu.show();
   }
 
   private closePauseMenu() {
     this.pauseMenu.hide();
     this.menuOpen = false;
-    this.scene.resume();
-    if (this.battlePaused && !this.gameOver) this.toggleBattlePause();
+    if (this.session.policy.pauseOnLocalModal) {
+      this.scene.resume();
+      if (this.battlePaused && !this.gameOver) this.toggleBattlePause();
+    }
     this.syncPlacementGhost(this.input.activePointer);
+  }
+
+  private dismissBattleModals() {
+    if (this.battleSettingsOpen) { this.scene.stop("SettingsScene"); this.battleSettingsOpen = false; }
+    if (this.reselectOpen) { this.scene.stop("CardSelectScene"); this.closeReselection(); }
+    if (this.menuOpen) this.closePauseMenu();
   }
 
   private refreshBattleSettings() {
@@ -2588,6 +2618,7 @@ export class GameScene extends Phaser.Scene {
     soundPlayer.stop("battle");
     playSound("defeat");
     this.gameOver = true;
+    this.dismissBattleModals();
     this.clearPlacementGhosts();
     if (this.levelConfig.survival && !this.playback) deleteSurvivalSave(this.levelId);
     showGameOverlay(this.overlay, t("overlay.breach"), t("button.menu"));
@@ -2597,6 +2628,7 @@ export class GameScene extends Phaser.Scene {
     soundPlayer.stop("battle");
     playSound("victory");
     this.gameOver = true;
+    this.dismissBattleModals();
     this.clearPlacementGhosts();
     const reselectUnlocked = this.levelId === RESELECT_UNLOCK_LEVEL && !isLevelCompleted(RESELECT_UNLOCK_LEVEL);
     const previousCardSlotCount = unlockedCardSlotCount();
@@ -2802,15 +2834,17 @@ export class GameScene extends Phaser.Scene {
     return getCardDefinition(id);
   }
 
-  private sanitizeLoadout(selectedCards?: CardId[], playback = Boolean(this.playback)) {
-    const slotCount = playback ? CARD_SLOT_COUNT : unlockedCardSlotCount();
+  private sanitizeLoadout(selectedCards: CardId[] | undefined, policy: BattlePolicy, historical: boolean) {
+    const slotCount = historical ? CARD_SLOT_COUNT : policy.slotCount;
     const validCards = uniqueLoadout((selectedCards ?? defaultCardLoadout).filter((id, index, cards): id is CardId => {
-      return hasCardDefinition(id) && (playback || isCardUnlocked(id)) && cards.indexOf(id) === index;
+      return hasCardDefinition(id) && (historical || battleCardAllowed(policy, id)) && cards.indexOf(id) === index;
     }), slotCount);
 
-    return validCards.length > 0
-      ? validCards.slice(0, slotCount)
-      : [...defaultCardLoadout].slice(0, slotCount);
+    if (validCards.length) return validCards;
+    const defaults = uniqueLoadout(defaultCardLoadout.filter(id => battleCardAllowed(policy, id)), slotCount);
+    const fallback = defaults.length ? defaults : uniqueLoadout(policy.allowedCards.filter(id => battleCardAllowed(policy, id)), slotCount);
+    if (!fallback.length) throw new Error("No eligible battle cards");
+    return fallback;
   }
 
   private executeBattleAction(action: BattleAction) {
@@ -2925,7 +2959,7 @@ export class GameScene extends Phaser.Scene {
     for (const tower of this.towers) syncFriendlyRangeVisual(tower);
     this.topology.update();
     this.world.loadout.restoreDeadlines(state.cardDeadlines);
-    this.battlePaused = true;
+    this.battlePaused = this.session.policy.pauseOnLocalModal;
     for (const flight of state.spellMortarFlights) this.towerSkills.restoreSpellMortarFlight(flight);
     this.setGameSpeed(state.gameSpeed);
     this.syncAutoUpgradeBorders();

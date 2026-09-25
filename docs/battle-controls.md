@@ -21,9 +21,10 @@ from both UI adapters and `GameScene.submitPlayerControl(actorId, control)`.
   domain using authoritative time, never the card widget's last displayed time.
 - Debug damage/resources require both permission and enabled debug mode.
   Tutorial actions cannot be dispatched outside an active tutorial callback.
-- A local menu does not reject an explicit control. The single-player menu still
-  pauses the Phaser scene; separating that local modal from host advancement and
-  applying a multiplayer pause policy are remaining integration work.
+- A local menu does not reject an explicit control. Single-player menus pause by
+  default; a captured host policy can keep scene/simulation advancement active
+  underneath menu, settings and reselection overlays. Closing those local overlays
+  does not undo a peer's explicit pause. See [battle policy](battle-policy.md).
 
 Control data lives in a separate `BattleControlState`. Reselection and card
 deadlines now use the renderer-free `BattleWorld.loadout`; the scene only rebuilds
@@ -71,6 +72,9 @@ Rules version is now **7**: reserve editing no longer suspends automatic upgrade
 and local card selection no longer contributes to the checksum. Version 1-6 saves
 remain readable and continue under current rules. Version 6 recordings are
 explicitly rejected rather than silently interpreted with new input semantics.
+New recordings also capture slot/card access and reselection eligibility, preventing
+rejected commands from succeeding during playback against another local profile.
+Old policy-less recordings retain their earlier permissive behavior.
 
 - `test-battle-controls.mjs`: schemas, capabilities, host policy, whole-loadout
   preflight, idempotent settings, debug guards, pause/resume playback and UI-free

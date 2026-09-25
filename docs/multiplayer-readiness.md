@@ -56,13 +56,18 @@ transport-neutral authority and synchronization gates above.
   now have a renderer-free policy/validation gate. Reserve drafts no longer affect
   auto-upgrade execution, and selected cards are excluded from combat checksums.
   Auto-upgrade/shifter lessons replay with separate bounded tutorial observations,
-  without activating local tools. Participant UI instances, menu pause policies,
-  tutorial snapshot state and combat presentation ports still need work;
+  without activating local tools. Captured slot/card/reselection policies now
+  survive snapshots and playback, including rejected commands. A configurable
+  continuing-modal mode keeps simulation active under local menu/settings/reselection
+  overlays and does not cancel a peer's pause when closing them. Participant UI
+  instances, explicit pause-state/paused-action snapshots, tutorial snapshot state
+  and combat presentation ports still need work;
   actual card slots/cooldowns/reselection now belong to a renderer-free world
   loadout. Live comparisons with no card views preserve the complete battle,
   including continued attacks, auto-upgrades, reselect, saves and replay. See
   [loadout state](battle-loadout.md). Participant capabilities are now configured
   on the session, immutable during a battle and preserved in snapshots/replay.
+  See [captured policy](battle-policy.md) for access/modal integration and its limits.
   Independent participant resource policies
   have not been implemented;
   gates 2-3 remain open. See [global controls](battle-controls.md),
@@ -84,7 +89,7 @@ transport-neutral authority and synchronization gates above.
   remain missing. Gate 5 is partial; gates 6-7 remain open. See
   [command authority](battle-authority.md).
 
-Next: complete participant/resource and local-modal pause policies,
+Next: complete participant/resource policies and explicit paused-control/action snapshots,
 finish simulation/presentation ports, and build snapshot synchronization and
 reconnect on the new authority boundary. Validate each increment against the
 real battle path; green isolated tests are not proof of full readiness.

@@ -81,7 +81,9 @@ try {
     assert.deepEqual(await page.evaluate(() => window.__testGame.scene.getScene("GameScene").towers.map(t => [t.column, t.lane])), [[2, 3]]);
     await page.evaluate(() => {
       const game = window.__testGame;
-      game.scene.getScene("GameScene").scene.launch("CardSelectScene", { levelId: "1-1", reselect: { selectedCards: ["A"], onComplete: () => {} } });
+      const battle = game.scene.getScene("GameScene");
+      battle.scene.launch("CardSelectScene", { levelId: "1-1", reselect: { selectedCards: ["A"],
+        policy: battle.session.policy, onConfirm: () => true, onCancel: () => {} } });
     });
     await page.waitForTimeout(200);
     const button = await page.evaluate(() => {

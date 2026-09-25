@@ -23,6 +23,7 @@ import { isImitatorCard, uniqueLoadout } from "../game/cardIdentity";
 import { isLoadoutCardId } from "../game/cardEligibility";
 import { clipInputToViewport } from "../render/viewportInput";
 import { isCardUnlocked, unlockedCardSlotCount } from "../progress";
+import { battleCardAllowed, copyBattlePolicy, type BattlePolicy } from "../game/battlePolicy";
 import { createEnemyShape, createUnitBorder } from "../render/unitShapes";
 import { drawTowerShellBorder } from "../render/parenthesisTower";
 import { isTowerShellType } from "../game/towerOccupancy";
@@ -60,7 +61,8 @@ interface CardSelectSceneData {
   unlimitedFirepower?: boolean;
   reselect?: {
     selectedCards: CardId[];
-    onConfirm: (cards: CardId[]) => void;
+    policy: BattlePolicy;
+    onConfirm: (cards: CardId[]) => boolean;
     onCancel: () => void;
   };
 }
@@ -118,14 +120,14 @@ export class CardSelectScene extends Phaser.Scene {
 
   init(data: CardSelectSceneData) {
     this.levelSelectMapOffset = data.mapOffset;
-    this.reselect = data.reselect;
+    this.reselect = data.reselect ? { ...data.reselect, policy: copyBattlePolicy(data.reselect.policy) } : undefined;
     this.selectionFinished = false;
     this.choosingImitation = false;
     this.levelId = data.levelId ?? "1-1";
     this.chapterId = data.chapterId ?? chapterIdForLevelId(this.levelId);
     this.difficulty = clampDifficulty(data.difficulty);
     this.unlimitedFirepower = Boolean(data.unlimitedFirepower);
-    this.cardSlotCount = unlockedCardSlotCount();
+    this.cardSlotCount = this.reselect?.policy.slotCount ?? unlockedCardSlotCount();
     this.selectedCards = this.reselect ? [...this.reselect.selectedCards] : readStoredLoadout(this.cardSlotCount);
     this.slotFrames = [];
     this.slotLabels = [];
@@ -515,7 +517,7 @@ export class CardSelectScene extends Phaser.Scene {
     this.cardPoolList.removeAll(true);
     this.cardFrames.clear();
     const definitions = allCardDefinitions.filter((definition) =>
-      isCardUnlocked(definition.id) && cardLetterCase(definition.id) === this.cardPoolCase &&
+      this.cardAllowed(definition.id) && cardLetterCase(definition.id) === this.cardPoolCase &&
       (!this.choosingImitation || canImitateCard(definition))
     );
     definitions.forEach((definition, index) => {
@@ -681,7 +683,7 @@ export class CardSelectScene extends Phaser.Scene {
     const position = this.pointerPosition(pointer);
     if (
       this.encyclopedia.isOpen() ||
-      !isCardUnlocked(id) ||
+      !this.cardAllowed(id) ||
       this.cardPoolDragMoved ||
       this.time.now < this.suppressCardClickUntil ||
       !this.cardPoolViewport.contains(position.x, position.y)
@@ -749,7 +751,7 @@ export class CardSelectScene extends Phaser.Scene {
   }
 
   private toggleCard(id: CardId) {
-    if (!isCardUnlocked(id)) {
+    if (!this.cardAllowed(id)) {
       return;
     }
 
@@ -818,7 +820,7 @@ export class CardSelectScene extends Phaser.Scene {
     for (const [id, frame] of this.cardFrames) {
       const selected = this.choosingImitation ? this.selectedCards.includes(`?${id}`)
         : id === "?" ? this.selectedCards.some(isImitatorCard) : this.selectedCards.includes(id);
-      const unlocked = isCardUnlocked(id);
+      const unlocked = this.cardAllowed(id);
       frame.setStrokeStyle(
         selected ? 3 : 2,
         selected ? palette.white : palette.dim,
@@ -840,14 +842,14 @@ export class CardSelectScene extends Phaser.Scene {
       return;
     }
     this.selectionFinished = true;
-    writeStoredLoadout(this.selectedCards);
     if (this.reselect) {
       const onConfirm = this.reselect.onConfirm;
       this.reselect = undefined;
       this.scene.stop();
-      onConfirm([...this.selectedCards]);
+      if (onConfirm([...this.selectedCards])) writeStoredLoadout(this.selectedCards);
       return;
     }
+    writeStoredLoadout(this.selectedCards);
     this.scene.start("GameScene", {
       levelId: this.levelId,
       chapterId: this.chapterId,
@@ -855,6 +857,10 @@ export class CardSelectScene extends Phaser.Scene {
       difficulty: this.difficulty,
       unlimitedFirepower: this.unlimitedFirepower
     });
+  }
+
+  private cardAllowed(id: CardId) {
+    return this.reselect ? battleCardAllowed(this.reselect.policy, id) : isCardUnlocked(id);
   }
 
   private backToLevelSelect() {

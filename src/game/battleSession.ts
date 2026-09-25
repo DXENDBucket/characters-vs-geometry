@@ -7,12 +7,14 @@ import {
 } from "./battleSimulation";
 import type { SaveGraph } from "./saveGraph";
 import { copyBattleParticipants, sameBattleParticipants, type BattleOperationActor } from "./battleParticipants";
+import { copyBattlePolicy, LEGACY_BATTLE_POLICY, sameBattlePolicy, type BattlePolicy } from "./battlePolicy";
 
 export interface BattleSessionSnapshot {
   version: number;
   clock: BattleClockState;
   randomState: number;
   participants?: readonly BattleOperationActor[];
+  policy?: BattlePolicy;
 }
 
 export type BattleSessionOptions = Omit<BattleReplay, "commands" | "endTick" | "checkpoint">;
@@ -36,6 +38,7 @@ export class BattleSession {
   private advancing = false;
   private actors: readonly BattleOperationActor[];
   private epoch = 0;
+  private savedPolicy?: BattlePolicy;
 
   constructor(options: BattleSessionOptions, playback?: BattleReplay) {
     this.recording = { ...structuredClone(options), endTick: 0, commands: [] };
@@ -46,6 +49,8 @@ export class BattleSession {
     }
     this.random = new BattleRandom(this.replay?.seed ?? options.seed);
     this.actors = copyBattleParticipants((this.replay ?? this.recording).participants);
+    const policy = (this.replay ?? this.recording).policy;
+    this.savedPolicy = policy ? copyBattlePolicy(policy) : undefined;
   }
 
   get playback(): Readonly<BattleReplay> | undefined { return this.replay; }
@@ -53,6 +58,7 @@ export class BattleSession {
   get nextCommandSequence() { return this.recording.commands.length; }
   get commandEpoch() { return this.epoch; }
   actor(id: string) { return this.actors.find(actor => actor.id === id); }
+  get policy() { return this.savedPolicy ?? LEGACY_BATTLE_POLICY; }
   get playbackComplete() { return !!this.replay && this.clock.tick >= this.replay.endTick; }
 
   // False means playback was already complete; no simulation or render refresh is needed.
@@ -100,7 +106,8 @@ export class BattleSession {
   snapshot(): BattleSessionSnapshot {
     const participants = (this.replay ?? this.recording).participants;
     return { version: BATTLE_RULES_VERSION, clock: this.clock.snapshot(), randomState: this.random.state,
-      ...(participants ? { participants: structuredClone(this.actors) } : {}) };
+      ...(participants ? { participants: structuredClone(this.actors) } : {}),
+      ...(this.savedPolicy ? { policy: structuredClone(this.savedPolicy) } : {}) };
   }
 
   restore(state: BattleSessionSnapshot | undefined, battleTime: number) {
@@ -113,14 +120,19 @@ export class BattleSession {
     }
     const actors = copyBattleParticipants(state?.participants);
     if (this.replay && !sameBattleParticipants(actors, this.actors)) throw new Error("Replay participants differ from checkpoint");
+    const policy = state?.policy !== undefined ? copyBattlePolicy(state.policy) : this.replay ? undefined : this.savedPolicy;
+    if (this.replay && !sameBattlePolicy(policy ?? LEGACY_BATTLE_POLICY, this.policy)) throw new Error("Replay policy differs from checkpoint");
     if (this.replay && (this.replay.endTick < clock.tick || this.replay.commands.some(entry => entry.tick < clock.tick))) {
       throw new Error("Replay predates checkpoint");
     }
     this.clock.restore(clock);
     this.actors = actors;
+    this.savedPolicy = policy;
     if (!this.replay) {
       if (state?.participants) this.recording.participants = structuredClone(actors);
       else delete this.recording.participants;
+      if (policy) this.recording.policy = structuredClone(policy);
+      else delete this.recording.policy;
     }
     if (state) this.random.state = state.randomState;
     this.replayCursor = 0;

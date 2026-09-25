@@ -84,12 +84,11 @@ The authority's request ledger, channel handles and ingress time are intentional
 outside combat checksums. The ledger currently survives only reconnect to the same
 live authority, not process loss or loading a save. There is no production network
 adapter, client snapshot synchronization, late join, host migration or durable
-reconnect yet. Local menus still pause the single-player scene; resource/unlock
-and modal-pause policies need further work before exposing a multiplayer mode.
-In particular, reselection slot/card unlock checks still read local progress in
-live play and allow the full registry in playback. Those access rules must become
-captured session policy before arbitrary rejected reselections can replay reliably;
-the participant replay fixture here uses an already-unlocked host.
+reconnect yet. Slot/card access and the local-modal pause choice now come from
+[captured session policy](battle-policy.md); replay no longer grants access that
+was denied by a newly recorded battle. The default still pauses local single-player
+menus, while an explicitly configured host can continue under overlays. Separate
+resources, paused-action snapshots and participant-owned UI still need work.
 
 ## Verification
 
@@ -102,9 +101,10 @@ the participant replay fixture here uses an already-unlocked host.
   act on the actual game alongside local UI. Checks real tower costs/cooldowns,
   stable-target rejection, skill authorization, commands during a local menu,
   retries/reconnect, validated snapshots and full/checkpoint 30/144 Hz replay.
-  The fixture reaches 1800 ticks with checksum `bc486ec6`.
+  The fixture reaches 1800 ticks with checksum `1339f97a`, including captured access policy.
 - Existing board/skill/control/tutorial browser tests and the seven-stage replay
-  suite remain passing. All seven default-participant checksums are unchanged.
+  suite remain passing. All seven pre-policy combat checksums are unchanged;
+  current checksums additionally cover access/modal policy.
 
 The browser test uses in-memory serialized requests and real battle scenes, not
 two connected UI clients. It is evidence for this authority boundary, not completion

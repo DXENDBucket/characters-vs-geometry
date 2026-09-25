@@ -25,11 +25,13 @@ respects the continuation policy before advancing and between catch-up ticks.
   separately with the world's graph so their source/target identity is preserved.
 - `battleChecksum.ts` computes the current version-7 hash without mutating the
   supplied state. Frame remainder, playback speed and Boss cosmetic rotation are
-  normalized; local selected cards are excluded. This authority extraction does
-  not change the rules version or default single-player checksum.
+  normalized; local selected cards are excluded. Captured access/modal policy is
+  included because it changes future command outcomes. Rules remain version 7.
 - Optional immutable participant capabilities survive snapshots and replay. An
   omitted table means the original local participant. A restore/checkpoint epoch
   invalidates stale authority instances without entering the combat checksum.
+- Immutable slot/card/reselection and local-modal policies now survive snapshots
+  and replay too. See [captured policy](battle-policy.md) for legacy behavior.
 
 ## Still Open
 
@@ -54,17 +56,21 @@ Phaser stubs. Dependency guards cover the session and checksum modules.
 
 The actual browser replay suite covers normal, Boss, endless, ASCII and tutorial
 battles, continuation snapshots, reselection, shifter, push/erase and all finale
-phases. At 3600 ticks the current rules-version-7 baselines remain:
+phases. At 3600 ticks the current rules-version-7 baselines are:
 
 | Level | Checksum |
 | --- | --- |
-| 1-9 | f565a778 |
-| 2-10 | d86b747e |
-| 5-5 | 8eb6d943 |
-| 5-10 | bcbf8d7f |
-| AE-1 | c1deb289 |
-| IF-1 | fa677515 |
-| IF-BE-4 | f07464fc |
+| 1-9 | adaf7865 |
+| 2-10 | 866c6a85 |
+| 5-5 | 821e8819 |
+| 5-10 | f5a1fd95 |
+| AE-1 | 8930ca8a |
+| IF-1 | d5134628 |
+| IF-BE-4 | 95442e9b |
+
+These include captured access/modal policy. The test separately asserts all seven
+preceding hashes after removing only that metadata, and verifies old policy-less
+recordings against those preceding hashes.
 
 These are local Chromium regression fixtures, not a cross-engine or networking
 guarantee. No performance gain is claimed from moving orchestration ownership.

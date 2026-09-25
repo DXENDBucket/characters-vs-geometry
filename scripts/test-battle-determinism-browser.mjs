@@ -70,11 +70,19 @@ try {
       go(scene, 3600, [1000 / 60]);
       const replay = scene.exportReplay();
       const expected = scene.battleChecksum();
-      const behaviorHash = battleChecksum(scene.battleState(), { includeEntityIds: false });
-      const previousFormat = { ...scene.battleState(), simulation: { ...scene.battleState().simulation, version: 6 } };
+      const prePolicyState = { ...scene.battleState(), simulation: { ...scene.battleState().simulation } };
+      delete prePolicyState.simulation.policy;
+      const prePolicyHash = battleChecksum(prePolicyState);
+      const baselines = { "1-9": "f565a778", "2-10": "d86b747e", "5-5": "8eb6d943", "5-10": "bcbf8d7f",
+        "AE-1": "c1deb289", "IF-1": "fa677515", "IF-BE-4": "f07464fc" };
+      if (prePolicyHash !== baselines[levelId]) throw Error(`${levelId}: combat changed beyond captured policy`);
+      const behaviorHash = battleChecksum(prePolicyState, { includeEntityIds: false });
+      const previousFormat = { ...prePolicyState, simulation: { ...prePolicyState.simulation, version: 6 } };
       delete previousFormat.debugModeEnabled;
       const v6FormatHash = battleChecksum(previousFormat, { includeLocalUi: true });
       checkReplay(replay, expected);
+      const legacy = structuredClone(replay); delete legacy.policy;
+      checkReplay(legacy, prePolicyHash);
       const resumed = start({ ...replay, replay: undefined });
       if (resumed.boss) { resumed.boss.body.destroy(); resumed.boss = null; }
       resumed.applyBattleSave(restoreBattleSnapshot(resumed, checkpoint));
@@ -82,7 +90,7 @@ try {
       go(resumed, 3600, [1000 / 60]);
       if (resumed.battleChecksum() !== expected) throw Error(`${levelId}: save continuation diverged ${expected} / ${resumed.battleChecksum()}`);
       checkReplay(resumed.exportReplay(), expected);
-      results.push({ levelId, ticks: replay.endTick, hash: expected, behaviorHash, v6FormatHash, commands: replay.commands.length });
+      results.push({ levelId, ticks: replay.endTick, hash: expected, prePolicyHash, behaviorHash, v6FormatHash, commands: replay.commands.length });
     }
     const reselect = start({ levelId: "IF-1", seed: 51 });
     reselect.submitBattleCommand({ type: "debugMode", enabled: true });
