@@ -20,7 +20,7 @@ import { enemyIsBurrowed, enemyIsHighFlying } from "./enemyBehaviors";
 import { enemyIsSolarBomb } from "./solarBomb";
 import { getCardAttackArea, type AttackAreaConfig } from "./cardAttackConfigs";
 import { hasStatusEffectName } from "./statusEffects";
-import { towerFacingDirection, towerIsFlying } from "./towers";
+import { towerFacingDirection, towerIsFlying } from "./towerRules";
 import { towerFinalStats } from "./unitStats";
 import { segmentBoxHitTime } from "./oscillatingMovement";
 

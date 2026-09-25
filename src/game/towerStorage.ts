@@ -6,7 +6,7 @@ import type { CombatRuntime } from "./combatRuntime";
 import { expireReversalEffect } from "./rules/reversal";
 import { statusMultipliers, syncEnemyBodyPosition } from "./statusEffects";
 import { getBlockedEnemies } from "./targeting";
-import { towerFacingDirection } from "./towers";
+import { towerFacingDirection } from "./towerRules";
 import { detachEnemyHealth } from "./enemyHealth";
 import { destroyContainedEnemies, enemyCanBeLoaded } from "./enemyContainers";
 

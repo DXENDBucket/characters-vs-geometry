@@ -2,7 +2,7 @@ import type { SkillState, Tower } from "../types";
 import { getTowerSkillState } from "./skillState";
 import { TOWER_SKILLS } from "../data/towerAbilities";
 import { chargeTowerSkill, resetTowerSkillCharge, towerSkillIsReady } from "./towerSkillRules";
-import { effectiveTowerLevel } from "./towers";
+import { effectiveTowerLevel } from "./towerRules";
 import { towerBehaviorType } from "./towerIdentity";
 
 export const PUSH_MAX_SP = TOWER_SKILLS["#"].maxSp;

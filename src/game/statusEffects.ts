@@ -4,7 +4,7 @@ import { enemyFamily } from "../registry/enemies";
 import type { CubeBoss, Enemy, StatusEffectName, Tower } from "../types";
 import { syncEnemyFacingVisual } from "./enemyBehaviors";
 import { applyReversalEffect } from "./rules/reversal";
-import { syncTowerFacingVisual } from "./towers";
+import { syncTowerFacingVisual } from "../render/towerFacing";
 import { setPositionIfChanged, setScaleIfChanged, setVisibleIfChanged } from "./visualGuards";
 import { statusEffectDefinitions } from "../data/statusEffects";
 import { effectAttackMultiplier, effectSpeedMultiplier, refreshStatusEffect, type StatusEffectModifiers } from "./rules/statusEffectRules";

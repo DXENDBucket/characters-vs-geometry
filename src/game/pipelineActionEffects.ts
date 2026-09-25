@@ -4,7 +4,7 @@ import type { CombatRuntime } from "./combatRuntime";
 import type { TriggerTowerRuntime } from "./triggerTowers";
 import { triggerShockTower, triggerTrapTower } from "./triggerTowers";
 import { cardBehaviorsById } from "./cardBehaviors";
-import { getHitProductionAmount, getProductionAmount } from "./towers";
+import { getHitProductionAmount, getProductionAmount } from "./towerRules";
 import { withTowerActionContext } from "./towerIdentity";
 import { forEachProjectileHit } from "./projectileIntegrity";
 import { getBlockedEnemies, getLaneRepelTargets, getShiftTargets } from "./targeting";

@@ -97,9 +97,7 @@ const visual = () => ({ alpha: 1, visible: true, setAlpha(alpha) { this.alpha = 
 const runtimeLoad = createTypeScriptLoader({
   phaser: { default: { Utils: { Array: { Remove: (items, value) => items.splice(items.indexOf(value), 1) } } } },
   "src/game/towers.ts": {
-    effectiveTowerLevel: tower => Math.max(1, tower.level + tower.levelBonus + tower.mirrorLevelBonus),
-    setTowerFlyingUntil: (tower, until) => { tower.flyingUntil = until; },
-    syncTowerFlyingVisual() {}, syncNumberSkillRange() {}, towerDamageType: (_tower, type) => type
+    syncTowerFlyingVisual() {}, syncNumberSkillRange() {}
   },
   "src/game/unitStats.ts": { towerFinalStats: tower => tower.finalStats, towerAttackAmount: () => 500 },
   "src/game/towerHealth.ts": { changeTowerHealth: (tower, amount) => {
@@ -112,7 +110,7 @@ const { getTowerSkillState } = runtimeLoad("src/game/skillState.ts");
 const { withTowerActionContext } = runtimeLoad("src/game/towerIdentity.ts");
 function tower(type, copiedType) {
   return { type, copiedType, inPlay: true, transient: false, level: 1, levelBonus: 0, mirrorLevelBonus: 0,
-    placedOrder: 1, lane: 3, column: 4, x: 500, y: 400, hp: 3000, flyingUntil: 0,
+    placedOrder: 1, lane: 3, column: 4, x: 500, y: 400, hp: 3000, flyingUntil: 0, trueDamageUntil: 0, statusEffects: [],
     skills: initialTowerSkillStates(copiedType ?? type), border: visual(), rangeBorder: visual(), finalStats: { maxHp: 3000 } };
 }
 function controller(towers, extra = {}) {

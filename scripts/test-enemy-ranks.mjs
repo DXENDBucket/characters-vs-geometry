@@ -152,7 +152,6 @@ test("V prioritizes ranged attack modes, then final attack, then distance within
   const targetingLoad = createTypeScriptLoader({
     phaser: { default: {} },
     "src/render/unitShapes.ts": {},
-    "src/game/towers.ts": { towerFacingDirection: tower => tower.facingDirection ?? 1 },
     "src/game/enemyBehaviors.ts": {
       enemyIsBurrowed: enemy => !!enemy.burrowed,
       enemyIsHighFlying: enemy => !!enemy.highFlightUntil
@@ -167,7 +166,7 @@ test("V prioritizes ranged attack modes, then final attack, then distance within
   assert.equal(card.attackPower, 680);
   assert.equal(card.attackMultiplier, 2.5);
   assert.equal(card.mortarTargeting, "rangedHighestAttack");
-  const tower = { type: "V", lane: 2, column: 3, x: BOARD_X + 3.5 * CELL_WIDTH, y: BOARD_Y + 2.5 * CELL_HEIGHT };
+  const tower = { type: "V", lane: 2, column: 3, statusEffects: [], x: BOARD_X + 3.5 * CELL_WIDTH, y: BOARD_Y + 2.5 * CELL_HEIGHT };
   const enemy = (kind, damage, offset = 100, extra = {}) => ({
     kind, inPlay: true, lane: 2, x: tower.x + offset, y: tower.y, statusEffects: [],
     baseStats: { maxHp: 5000, damage }, finalStats: {}, ...extra

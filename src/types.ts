@@ -2,6 +2,7 @@ import type Phaser from "phaser";
 import type { TowerActionEvent } from "./game/towerActions";
 import type { ProjectileIntegrity } from "./game/projectileIntegrity";
 import type { EnemyProjectileState, MortarProjectileState, ProjectileState } from "./game/projectileState";
+import type { TowerState } from "./game/towerState";
 
 export type CardId =
   | "?"
@@ -273,69 +274,7 @@ export interface NumberTowerState {
   equationLevel?: number;
 }
 
-export interface Tower extends NumberTowerState {
-  nullified?: boolean;
-  nullifiedUntil?: number;
-  deployedAt?: number;
-  nextNullificationAt?: number;
-  parenthesisGuard?: Tower;
-  parenthesisInner?: Tower;
-  projectileBank?: { shots: StoredTowerShot[]; remaining: number; nextAt: number; outletIndex: number };
-  projectileNode?: {
-    input: StoredTowerShot[];
-    output: StoredTowerShot[];
-    processing?: { shots: StoredTowerShot[]; count: number; completeAt: number };
-  };
-  nextInterceptionAt?: number;
-  healingCredit?: number;
-  healingUpdatedAt?: number;
-  routedSkills?: Partial<Record<CardId, number>>;
-  pipelineSkillContexts?: Partial<Record<CardId, { level: number; stats: TowerFinalStats }>>;
-  projectileRouteIndex?: number;
-  continuousAttack?: boolean;
-  topologyTarget?: { lane: number; column: number };
-  topologyOrder?: number;
-  numberChannels?: Partial<Record<EquationAxis, NumberTowerState>>;
-  imitatedSkillLevels?: Partial<Record<CardId, number>>;
-  imitatedSkills?: CardId[];
-  copiedType?: CardId;
-  sourceCardId?: CardId;
-  copyRevision?: number;
-  healthPool?: TowerHealthPool;
-  unyieldingRatio?: number;
-  id: string;
-  type: CardId;
-  lane: number;
-  column: number;
-  x: number;
-  y: number;
-  hp: number;
-  baseStats: TowerBaseStats;
-  finalStats: TowerFinalStats;
-  maxHp: number;
-  baseMaxHp: number;
-  armor: number;
-  magicResistance: number;
-  attackSpeed?: number;
-  lastFire: number;
-  level: number;
-  levelBonus: number;
-  mirrorLevelBonus: number;
-  mirrorGroupId?: number;
-  nextProduceAt: number;
-  armedAt: number;
-  skills: Record<string, SkillState>;
-  moveVisual?: { fromX: number; fromY: number; startedAt: number; duration: number };
-  autoUpgrade: boolean;
-  reflectProjectiles: boolean;
-  nextRepelDirection: -1 | 1;
-  facingDirection: -1 | 1;
-  statusEffects: StatusEffect[];
-  transient: boolean;
-  mirroredEffect: boolean;
-  turnTargetId?: string;
-  placedOrder: number;
-  inPlay: boolean;
+export interface Tower extends TowerState {
   body: Phaser.GameObjects.Container;
   border: Phaser.GameObjects.Graphics;
   label: Phaser.GameObjects.Text;
@@ -348,8 +287,6 @@ export interface Tower extends NumberTowerState {
   negativeHpFill?: Phaser.GameObjects.Rectangle;
   rangeBorder?: Phaser.GameObjects.Graphics;
   levelText: Phaser.GameObjects.Text;
-  trueDamageUntil: number;
-  flyingUntil: number;
 }
 
 export interface EnemyHealthPool {

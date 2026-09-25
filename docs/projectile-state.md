@@ -47,7 +47,8 @@ exercise real rendering adapters, interception, pipeline routing and save resume
 ## Remaining Boundaries
 
 This is an incremental split, not a headless battle engine or network protocol.
-Towers, enemies and Bosses still use visual exclusion lists; source/target types
-still reference those live entities. Their state contracts and stable entity IDs
-remain future work. Projectile movement/collision also still invokes rendering.
+Towers now also have [explicit state contracts](tower-state.md); enemies and Bosses
+still use visual exclusion lists. Source/target types still reference live entities.
+Enemy/Boss contracts and stable entity IDs remain future work. Projectile
+movement/collision also still invokes rendering.
 No full-battle FPS improvement is claimed by this pass.

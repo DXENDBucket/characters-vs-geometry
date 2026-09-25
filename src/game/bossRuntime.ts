@@ -76,7 +76,7 @@ import {
   pointInBounds,
   type RectBounds
 } from "./targeting";
-import { isTrapArmed } from "./towers";
+import { isTrapArmed } from "./towerRules";
 import { syncBossBaseStats, towerFinalStats } from "./unitStats";
 import { volleyInterval } from "./upgrades";
 import { repeatHits, volleyHitsAt, volleyTimingCount } from "./volley";

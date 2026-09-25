@@ -49,7 +49,7 @@ import {
   pointInBossBounds,
   pointInTowerBounds
 } from "./targeting";
-import { towerDamageType, towerFacingDirection } from "./towers";
+import { towerDamageType, towerFacingDirection } from "./towerRules";
 import { segmentEnemyHitTime, type ProjectileMotionFrame } from "./projectileMotion";
 
 export interface ProjectileRuntime {

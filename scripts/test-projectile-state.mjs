@@ -56,9 +56,9 @@ function fixture() {
     radialFalloff: true, debuff: "slow", debuffDuration: 3000 }), { body: visual(), shiftSelfDamageApplied: true });
   mortar.progress = .45;
   consumeProjectileDamage(mortar, 1250);
-  tower.storedShots = [{ type: "bolt", sourceTower: tower, sourceBehaviorType: "H", hitCount: 2,
+  tower.projectileBank = { shots: [{ type: "bolt", sourceTower: tower, sourceBehaviorType: "H", hitCount: 2,
     vx: 430, vy: 0, damage: 400, damageType: "magic", splashRadius: 0, remainingRange: Infinity,
-    action: { event: { projectile: enemyShot, mortar }, baseDamage: 800 } }];
+    action: { event: { projectile: enemyShot, mortar }, baseDamage: 800 } }], remaining: 0, nextAt: 0, outletIndex: 0 };
   // The source is no longer in play; it and the stored reflection must retain shared identity.
   return { towers: [], enemies: [enemy], boss, projectiles: [shot, homing], enemyProjectiles: [enemyShot],
     mortarProjectiles: [mortar], actions: [{ source: tower }], battleTime: 1000 };
@@ -172,9 +172,9 @@ test("legacy data-only decode preserves removed sources, cyclic pipeline payload
   assert.equal(source, state.projectiles[1].sourceTower);
   assert.equal(source, state.actions[0].source);
   assert.equal(source, state.mortarProjectiles[0].targetTower);
-  assert.equal(source, source.storedShots[0].sourceTower);
-  assert.equal(source.storedShots[0].action.event.projectile, state.enemyProjectiles[0]);
-  assert.equal(source.storedShots[0].action.event.mortar, state.mortarProjectiles[0]);
+  assert.equal(source, source.projectileBank.shots[0].sourceTower);
+  assert.equal(source.projectileBank.shots[0].action.event.projectile, state.enemyProjectiles[0]);
+  assert.equal(source.projectileBank.shots[0].action.event.mortar, state.mortarProjectiles[0]);
   assert.equal(state.projectiles[0].targetEnemy, state.enemies[0]);
   assert.equal(state.projectiles[1].targetBossPart, state.boss);
   assert.equal(state.projectiles[0].maxX, Infinity);

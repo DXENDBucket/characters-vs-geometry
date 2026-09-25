@@ -1,11 +1,26 @@
-import type { CubeBoss, Enemy, Tower } from "../types";
+import type { CubeBoss, Enemy } from "../types";
+import type { TowerState } from "./towerState";
 import type { BattleSaveState } from "./battleSaveState";
 import type { EnemyProjectileState, MortarProjectileState, ProjectileState } from "./projectileState";
 import { rankedBossFamily } from "../bosses/bossRanks";
 import { encodeSaveGraph } from "./saveGraph";
 
-const towerVisuals = new Set<string>(["body", "border", "label", "facingIcon", "autoUpgradeBorder", "trueDamageBorder",
-  "flyingHalo", "hpFill", "negativeHpBack", "negativeHpFill", "rangeBorder", "levelText"] satisfies (keyof Tower)[]);
+const towerFields = new Set(Object.keys({
+  nullified: true, nullifiedUntil: true, deployedAt: true, nextNullificationAt: true,
+  parenthesisGuard: true, parenthesisInner: true, projectileBank: true, projectileNode: true,
+  nextInterceptionAt: true, healingCredit: true, healingUpdatedAt: true, routedSkills: true,
+  pipelineSkillContexts: true, projectileRouteIndex: true, continuousAttack: true,
+  topologyTarget: true, topologyOrder: true, numberChannels: true, imitatedSkillLevels: true,
+  imitatedSkills: true, copiedType: true, sourceCardId: true, copyRevision: true,
+  healthPool: true, unyieldingRatio: true, id: true, type: true, lane: true, column: true,
+  x: true, y: true, hp: true, baseStats: true, finalStats: true, maxHp: true, baseMaxHp: true,
+  armor: true, magicResistance: true, attackSpeed: true, lastFire: true, level: true,
+  levelBonus: true, mirrorLevelBonus: true, mirrorGroupId: true, nextProduceAt: true,
+  armedAt: true, skills: true, moveVisual: true, autoUpgrade: true, reflectProjectiles: true,
+  nextRepelDirection: true, facingDirection: true, statusEffects: true, transient: true,
+  mirroredEffect: true, turnTargetId: true, placedOrder: true, inPlay: true,
+  trueDamageUntil: true, flyingUntil: true, numberMemory: true, numberValue: true, equationLevel: true
+} satisfies Record<keyof TowerState, true>));
 const enemyVisuals = new Set<string>(["body", "shape", "statusBorder", "frozenBorder", "powerIcon", "sunderIcon",
   "armorIcon", "magicResistanceIcon", "flyingHalo", "statusMultiplierCache"] satisfies (keyof Enemy)[]);
 const bossVisuals = new Set<string>(["body", "frame", "labelText"] satisfies (keyof CubeBoss)[]);
@@ -36,7 +51,7 @@ const mortarFields = new Set(Object.keys({
 export function captureBattleSnapshot(state: BattleSaveState) {
   return encodeSaveGraph(state, object => {
     const value = object as Record<string, unknown>;
-    if (typeof value.id === "string" && value.id.startsWith("tower:")) return { kind: "tower", omit: towerVisuals };
+    if (typeof value.id === "string" && value.id.startsWith("tower:")) return { kind: "tower", include: towerFields };
     if ("kind" in value && "waveNumber" in value) return { kind: "enemy", omit: enemyVisuals };
     if ("advanceMinionKind" in value && "rank" in value) {
       if (!rankedBossFamily(value.kind) && value.kind !== "icosahedron" && value.kind !== "del") throw new Error("Unsupported boss save");

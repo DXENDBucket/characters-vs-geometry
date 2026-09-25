@@ -11,13 +11,12 @@ import {
   applyTowerTrueDamage,
   applyTowerUpgradeStats,
   createTower,
-  effectiveTowerLevel,
   setTowerFacing,
   syncTowerLevelText,
   toggleTowerFacing,
-  towerFacingDirection,
   upgradeTowerLevel
 } from "./towers";
+import { effectiveTowerLevel, towerFacingDirection } from "./towerRules";
 
 export type TargetedEffectCardResult = "handled" | "cooldown" | "empty" | "noChars";
 

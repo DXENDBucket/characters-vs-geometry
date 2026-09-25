@@ -280,13 +280,12 @@ test("attack, skill, aura and impact diagrams retain distinct scopes without sta
 test("E uses the shared forward fan, mirrors with facing, and retains three projectile angles", () => {
   const targetingLoad = createTypeScriptLoader({
     phaser: { default: {} }, "src/render/unitShapes.ts": {},
-    "src/game/towers.ts": { towerFacingDirection: tower => tower.facingDirection ?? 1 },
     "src/game/enemyBehaviors.ts": { enemyIsBurrowed: enemy => !!enemy.burrowed, enemyIsHighFlying: enemy => !!enemy.highFlightUntil }
   });
   const { hasAttackTarget, canAttackBossPart } = targetingLoad("src/game/targeting.ts");
   const { cardAttackAreas, getProjectilePattern } = targetingLoad("src/game/cardAttackConfigs.ts");
   const { BOARD_X, BOARD_Y, CELL_WIDTH, CELL_HEIGHT } = targetingLoad("src/config.ts");
-  const tower = { type: "E", lane: 3, column: 5, x: BOARD_X + 5.5 * CELL_WIDTH, y: BOARD_Y + 3.5 * CELL_HEIGHT };
+  const tower = { type: "E", lane: 3, column: 5, statusEffects: [], x: BOARD_X + 5.5 * CELL_WIDTH, y: BOARD_Y + 3.5 * CELL_HEIGHT };
   const target = (dx, dy, extra = {}) => ({ kind: "circle", inPlay: true, x: tower.x + dx, y: tower.y + dy,
     lane: tower.lane + Math.round(dy / CELL_HEIGHT), ...extra });
   const canFire = enemy => hasAttackTarget(tower, card("E"), [enemy], null);

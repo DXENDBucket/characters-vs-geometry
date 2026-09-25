@@ -9,7 +9,7 @@ import { enemyIsBurrowed, enemyIsHighFlying } from "./enemyBehaviors";
 import { forEachSnapshot } from "./iteration";
 import { applyStatusEffect } from "./statusEffects";
 import { bossPartDistanceSqToPoint, bossPartInRect, forEachBossPart } from "./targeting";
-import { getShockCount, getTriggerDebuffDuration, towerDamageType } from "./towers";
+import { getShockCount, getTriggerDebuffDuration, towerDamageType } from "./towerRules";
 import { towerAttackAmount } from "./unitStats";
 
 export interface TriggerTowerRuntime {

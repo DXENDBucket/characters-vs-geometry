@@ -97,7 +97,7 @@ import {
   latestPlacedTower,
   type RectBounds
 } from "./targeting";
-import { isTrapArmed, towerDamageType } from "./towers";
+import { isTrapArmed, towerDamageType } from "./towerRules";
 import { towerAttackAmount, towerFinalStats } from "./unitStats";
 import { volleyInterval } from "./upgrades";
 import { repeatHits, volleyHitsAt, volleyTimingCount } from "./volley";

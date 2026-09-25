@@ -12,7 +12,6 @@ const load = createTypeScriptLoader({
   "src/game/solarBomb.ts": { enemyIsSolarBomb: enemy => enemy.kind === "solarBomb" },
   "src/game/cardAttackConfigs.ts": {},
   "src/game/statusEffects.ts": { hasStatusEffectName: enemy => !!enemy.flying },
-  "src/game/towers.ts": { towerIsFlying: tower => !!tower.flying },
   "src/game/unitStats.ts": {}
 });
 const { BOARD_X, BOARD_Y, CELL_WIDTH, CELL_HEIGHT, COLUMNS } = load("src/config.ts");
@@ -20,7 +19,7 @@ const { getSweptBlockingTowerFromOccupied: sweep, getBlockingTowerFromOccupied: 
   load("src/game/targeting.ts");
 const tower = (column, extras = {}) => ({
   column, lane: 0, x: BOARD_X + (column + 0.5) * CELL_WIDTH, y: BOARD_Y + CELL_HEIGHT / 2,
-  inPlay: true, transient: false, ...extras
+  inPlay: true, transient: false, flyingUntil: 0, ...extras
 });
 const occupied = (...towers) => new Map(towers.map(t => [`${t.lane}:${t.column}`, t]));
 const enemy = (x, extras = {}) => ({ kind: "triangle10000", lane: 0, x, ...extras });
@@ -56,7 +55,7 @@ test("short moves only collide when they actually reach the boundary", () => {
 });
 
 test("sweeps preserve ground and flying blocking rules", () => {
-  const ground = tower(2), airborne = tower(8, { flying: true });
+  const ground = tower(2), airborne = tower(8, { flyingUntil: 1000 });
   const cells = occupied(ground, airborne);
   assert.equal(sweep(cells, enemy(1e9), -1e9).tower, ground);
   assert.equal(sweep(cells, enemy(1e9, { flying: true }), -1e9).tower, airborne);

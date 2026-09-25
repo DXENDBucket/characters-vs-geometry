@@ -10,9 +10,9 @@ import {
   createTower,
   setTowerFacing,
   syncTowerDerivedStats,
-  syncTowerLevelText,
-  towerFacingDirection
+  syncTowerLevelText
 } from "./towers";
+import { towerFacingDirection } from "./towerRules";
 
 const MIRROR_CARD_ID: CardId = "m";
 export const MIRROR_COST_LIMIT = 999;

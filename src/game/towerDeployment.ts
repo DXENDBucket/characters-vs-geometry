@@ -8,11 +8,10 @@ import { syncTowerOccupancy, towerInPlacementLayer } from "./towerOccupancy";
 import {
   applyTowerUpgradeStats,
   createTower,
-  findAutoUpgradeTarget,
-  isCardReadyForAutoUpgrade,
   syncTowerAutoUpgradeVisual,
   upgradeTowerLevel
 } from "./towers";
+import { findAutoUpgradeTarget, isCardReadyForAutoUpgrade } from "./towerRules";
 
 export interface TowerDeploymentRuntime {
   scene: Phaser.Scene;

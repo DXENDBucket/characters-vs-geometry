@@ -57,7 +57,7 @@ import {
   hasShiftTarget
 } from "./targeting";
 import { applyStatusEffect, hasStatusEffectName, syncEnemyBodyPosition } from "./statusEffects";
-import { effectiveTowerLevel, getProductionAmount, towerDamageType, towerFacingDirection } from "./towers";
+import { effectiveTowerLevel, getProductionAmount, towerDamageType, towerFacingDirection } from "./towerRules";
 import { changeTowerHealth } from "./towerHealth";
 import { repeatHits } from "./volley";
 import { towerAttackAmount, towerFinalStats } from "./unitStats";

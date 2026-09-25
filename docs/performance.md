@@ -98,9 +98,15 @@ explicit, type-checked state fields; old graph order and references are preserve
 See [Projectile State Boundary](projectile-state.md). This prepares a data boundary
 for replay/headless work, not a measured full-battle FPS gain.
 
+The sixth pass separated tower data/initialization and pure tower queries from the
+live factory, with explicit snapshot fields. Facing synchronization is a narrow
+render adapter; status effects and targeting no longer pull in the whole tower
+rendering module. See [Tower State Boundary](tower-state.md). This preserves battle
+behavior and snapshot compatibility; no full-battle FPS improvement is claimed.
+
 1. Move remaining pure visual updates to a frame-level rendering adapter while
    preserving simulation-owned positions, deadlines and random streams.
-2. Extend explicit snapshot contracts from projectiles to towers, enemies and
+2. Extend explicit snapshot contracts from projectiles and towers to enemies and
    Bosses, then introduce stable entity IDs instead of live object references.
 3. Continue consolidating tower aura, Boss events, scaling and encyclopedia metadata;
    named enemy, tower and Boss SP skills now share their numeric definitions.

@@ -1,25 +1,27 @@
 import Phaser from "phaser";
-import { deploymentCardId } from "./cardIdentity";
 import { isTowerShellType } from "./towerOccupancy";
 import { topologyKey } from "./towerTopology";
 import { drawLogicalTowerRange } from "../render/towerLogicalRange";
-import { towerBehaviorType, towerActionContext, towerFormType, isLiteralNumberType, isNumberTower, isNumericOperatorType, numberTowerStoredCount, numberTowerValue, numberTowerMultiplier, numberTowerActionLevel, supportsTowerAutoUpgrade } from "./towerIdentity";
+import { towerBehaviorType, towerFormType, isLiteralNumberType, isNumberTower, isNumericOperatorType, numberTowerStoredCount, numberTowerValue, numberTowerMultiplier, numberTowerActionLevel, supportsTowerAutoUpgrade } from "./towerIdentity";
 import { projectileBankCapacity } from "./projectileBank";
 import { isDamageOutlet, nodeOccupancy } from "./pipelineRules";
 import { syncHealthBar } from "./towerHealth";
-import { facingWithEffects } from "./rules/reversal";
-import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
-import { initialTowerSkillStates } from "./towerSkillRules";
+import { CELL_HEIGHT, CELL_WIDTH, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
+import { createTowerState } from "./towerState";
 import { createUnitBorder } from "../render/unitShapes";
 import { drawTowerShellBorder } from "../render/parenthesisTower";
-import type { CardDefinition, CardId, CardState, Tower } from "../types";
-import { syncTowerFinalStats, towerBaseStatsFromDefinition, towerFinalStats } from "./unitStats";
+import type { CardDefinition, Tower } from "../types";
+import { syncTowerFinalStats, towerFinalStats } from "./unitStats";
 import type { TowerAuraSources } from "./towerAuras";
-import {
-  effectiveUpgradeDelta,
-  scaledByEffectiveUpgrades
-} from "./upgrades";
+import { effectiveUpgradeDelta } from "./upgrades";
 import { setAlphaIfChanged, setPositionIfChanged, setScaleIfChanged, setVisibleIfChanged } from "./visualGuards";
+import { towerIsFlying, towerHasTrueDamage } from "./towerRules";
+import { syncTowerFacingVisual } from "../render/towerFacing";
+
+export { towerFacingDirection, effectiveTowerLevel, getProductionAmount, getHitProductionAmount,
+  getShockCount, getTriggerDebuffDuration, isTrapArmed, findAutoUpgradeTarget, isCardReadyForAutoUpgrade,
+  towerDamageType, towerIsFlying, setTowerFlyingUntil } from "./towerRules";
+export { syncTowerFacingVisual } from "../render/towerFacing";
 
 const TRUE_DAMAGE_DURATION_PER_LEVEL = 12_000;
 
@@ -32,17 +34,15 @@ export function createTower(
   placedOrder: number,
   options: { transient?: boolean; turnTargetId?: string } = {}
 ): Tower {
-  const sourceCardId = definition.id;
-  definition = { ...definition, id: deploymentCardId(definition.id) };
-  const x = BOARD_X + column * CELL_WIDTH + CELL_WIDTH / 2;
-  const y = BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2;
+  const state = createTowerState(definition, lane, column, battleTime, placedOrder, options);
+  definition = { ...definition, id: state.type };
+  const { x, y } = state;
   const body = scene.add.container(x, y).setDepth(20 + lane);
   const border = createUnitBorder(scene, definition.category, 24, definition.category === "defense" ? 3 : 2);
   const rangeBorder = createRangeBorder(scene, definition);
   const autoUpgradeBorder = createAutoUpgradeBorder(scene);
   const trueDamageBorder = createTrueDamageBorder(scene);
   const flyingHalo = createTowerFlyingHalo(scene);
-  const baseStats = towerBaseStatsFromDefinition(definition);
   const label = scene.add
     .text(0, -3, definition.id, {
       color: "#f5f5f5",
@@ -101,44 +101,7 @@ export function createTower(
     border.setVisible(false);
   }
 
-  const skills = initialTowerSkillStates(definition.id);
-
-  return {
-    id: `tower:${placedOrder}`,
-    type: definition.id,
-    sourceCardId: sourceCardId !== definition.id ? sourceCardId : undefined,
-    lane,
-    column,
-    x,
-    y,
-    hp: baseStats.maxHp,
-    baseStats,
-    finalStats: { ...baseStats },
-    maxHp: baseStats.maxHp,
-    baseMaxHp: baseStats.maxHp,
-    armor: baseStats.armor,
-    magicResistance: baseStats.magicResistance,
-    attackSpeed: baseStats.attackSpeed,
-    lastFire: definition.category === "production" && definition.attackSpeed && definition.produceAmount
-      ? battleTime
-      : -Number.POSITIVE_INFINITY,
-    level: 1,
-    levelBonus: 0,
-    mirrorLevelBonus: 0,
-    nextProduceAt: definition.produceEvery ? battleTime + definition.produceEvery : Number.POSITIVE_INFINITY,
-    armedAt: definition.armTime ? battleTime + definition.armTime : 0,
-    skills,
-    autoUpgrade: false,
-    reflectProjectiles: Boolean(definition.reflectProjectiles),
-    nextRepelDirection: placedOrder % 2 === 0 ? -1 : 1,
-    facingDirection: 1,
-    statusEffects: [],
-    transient: Boolean(options.transient),
-    mirroredEffect: false,
-    turnTargetId: options.turnTargetId,
-    placedOrder,
-    deployedAt: battleTime,
-    inPlay: true,
+  return Object.assign(state, {
     body,
     border,
     label,
@@ -150,14 +113,8 @@ export function createTower(
     negativeHpBack,
     negativeHpFill,
     levelText,
-    rangeBorder: rangeBorder ?? undefined,
-    trueDamageUntil: 0,
-    flyingUntil: 0
-  };
-}
-
-export function towerFacingDirection(tower: Tower) {
-  return facingWithEffects(tower, tower.facingDirection ?? 1);
+    rangeBorder: rangeBorder ?? undefined
+  });
 }
 
 export function toggleTowerFacing(tower: Tower) {
@@ -167,14 +124,6 @@ export function toggleTowerFacing(tower: Tower) {
 export function setTowerFacing(tower: Tower, direction: -1 | 1) {
   tower.facingDirection = direction;
   syncTowerFacingVisual(tower);
-}
-
-export function syncTowerFacingVisual(tower: Tower) {
-  const reversed = towerFacingDirection(tower) === -1;
-  const scaleX = reversed ? -1 : 1;
-  setScaleIfChanged(tower.border, scaleX, 1);
-  setScaleIfChanged(tower.label, scaleX, 1);
-  setVisibleIfChanged(tower.facingIcon, reversed);
 }
 
 export function syncTowerFormVisual(scene: Phaser.Scene, tower: Tower, definition: CardDefinition, time: number) {
@@ -227,10 +176,6 @@ export function syncTowerDerivedStats(
 
 export function syncTowerHpBar(tower: Tower) {
   syncHealthBar(tower);
-}
-
-export function effectiveTowerLevel(tower: Tower) {
-  return towerActionContext(tower)?.level ?? Math.max(1, tower.level + tower.levelBonus + tower.mirrorLevelBonus);
 }
 
 export function syncTowerLevelText(tower: Tower) {
@@ -318,33 +263,6 @@ export function syncTowerLevelText(tower: Tower) {
   tower.levelText.setColor("#8c8c8c");
 }
 
-export function getProductionAmount(tower: Tower, definition: CardDefinition) {
-  return scaledByEffectiveUpgrades(definition.produceAmount ?? 0, effectiveTowerLevel(tower));
-}
-
-export function getHitProductionAmount(tower: Tower, definition: CardDefinition) {
-  return scaledByEffectiveUpgrades(definition.hitProduceAmount ?? 0, effectiveTowerLevel(tower));
-}
-
-export function getShockCount(tower: Tower, definition: CardDefinition) {
-  if (towerBehaviorType(tower) === "l") {
-    return 1;
-  }
-
-  return scaledByEffectiveUpgrades(definition.triggerCount ?? 10, effectiveTowerLevel(tower));
-}
-
-export function getTriggerDebuffDuration(tower: Tower, definition: CardDefinition) {
-  if (definition.triggerDebuff === "reversed") {
-    return (definition.triggerDebuffDuration ?? 0) * effectiveTowerLevel(tower);
-  }
-  return scaledByEffectiveUpgrades(definition.triggerDebuffDuration ?? 0, effectiveTowerLevel(tower));
-}
-
-export function isTrapArmed(tower: Tower, time: number) {
-  return towerBehaviorType(tower) === "G" && time >= tower.armedAt;
-}
-
 export function setTowerAutoUpgradeState(tower: Tower, enabled: boolean, active = true) {
   tower.autoUpgrade = enabled && supportsTowerAutoUpgrade(tower);
   syncTowerAutoUpgradeVisual(tower, active);
@@ -355,41 +273,10 @@ export function syncTowerAutoUpgradeVisual(tower: Tower, active: boolean) {
   setAlphaIfChanged(tower.autoUpgradeBorder, active ? 0.95 : 0.28);
 }
 
-export function findAutoUpgradeTarget(towers: Tower[], cardId: CardId) {
-  let target: Tower | undefined;
-  for (const tower of towers) {
-    if (!tower.inPlay || !tower.autoUpgrade || tower.type !== deploymentCardId(cardId) || !supportsTowerAutoUpgrade(tower)) {
-      continue;
-    }
-
-    if (!target || tower.level < target.level || (tower.level === target.level && tower.placedOrder < target.placedOrder)) {
-      target = tower;
-    }
-  }
-  return target;
-}
-
-export function isCardReadyForAutoUpgrade(cardState: CardState, cardTime: number) {
-  return cardTime >= cardState.readyAt;
-}
-
 export function applyTowerTrueDamage(tower: Tower, battleTime: number, level: number) {
   const duration = TRUE_DAMAGE_DURATION_PER_LEVEL * Math.max(1, level);
   tower.trueDamageUntil = Math.max(tower.trueDamageUntil, battleTime) + duration;
   syncTowerTrueDamageVisual(tower, battleTime);
-}
-
-export function towerDamageType(tower: Tower, damageType: CardDefinition["damageType"], battleTime: number) {
-  if (towerActionContext(tower)?.stats.damageType) return towerActionContext(tower)!.stats.damageType!;
-  return towerHasTrueDamage(tower, battleTime) ? "true" : damageType ?? "physical";
-}
-
-export function towerIsFlying(tower: Tower) {
-  return tower.flyingUntil > 0;
-}
-
-export function setTowerFlyingUntil(tower: Tower, until: number) {
-  tower.flyingUntil = until;
 }
 
 export function syncTowerFlyingVisual(tower: Tower, time: number) {
@@ -540,10 +427,6 @@ function createNoCornerRangeBorder(scene: Phaser.Scene, color: number, alpha: nu
   border.closePath();
   border.strokePath();
   return border;
-}
-
-function towerHasTrueDamage(tower: Tower, battleTime: number) {
-  return battleTime < tower.trueDamageUntil;
 }
 
 function resetTrapArming(tower: Tower, definition: CardDefinition, battleTime: number) {

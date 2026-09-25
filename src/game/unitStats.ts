@@ -5,8 +5,7 @@ import type {
   Enemy,
   EnemyBaseStats,
   EnemyDefinition,
-  Tower,
-  TowerBaseStats
+  Tower
 } from "../types";
 import { enemyMaximumHp } from "./enemyContainers";
 import {
@@ -21,17 +20,8 @@ import { towerFormType, towerActionContext, withTowerActionContext } from "./tow
 import { syncTowerHealthCapacity } from "./towerHealth";
 import { syncEnemyHealthCapacity } from "./enemyHealth";
 import { towerZealAttackSpeedMultiplier, type TowerAuraSources } from "./towerAuras";
-
-export function towerBaseStatsFromDefinition(definition: CardDefinition): TowerBaseStats {
-  return {
-    maxHp: definition.maxHp,
-    armor: definition.armor ?? 0,
-    magicResistance: definition.magicResistance ?? 0,
-    attackSpeed: definition.attackSpeed,
-    attackPower: definition.attackPower,
-    damageType: definition.damageType
-  };
-}
+import { towerBaseStatsFromDefinition } from "./towerState";
+export { towerBaseStatsFromDefinition } from "./towerState";
 
 export function syncTowerFinalStats(
   tower: Tower,

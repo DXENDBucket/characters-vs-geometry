@@ -5,7 +5,8 @@ import { bindBattleAudio } from "../audio/battleAudio";
 import { canUpgradeTowerWithCard, supportsTowerAutoUpgrade, towerBehaviorType, towerFormType } from "../game/towerIdentity";
 import { syncTowerTopology, inFriendlyRange, towerCell, physicalTowerCell } from "../game/towerTopology";
 import { TowerTopologyController } from "../game/towerTopologyController";
-import { syncFriendlyRangeVisual, syncTowerAutoUpgradeVisual, towerFacingDirection } from "../game/towers";
+import { syncFriendlyRangeVisual, syncTowerAutoUpgradeVisual } from "../game/towers";
+import { effectiveTowerLevel, getHitProductionAmount, getProductionAmount, towerFacingDirection } from "../game/towerRules";
 import { syncTowerCopies } from "../game/towerCopy";
 import { syncTowerFormVisual } from "../game/towers";
 import { BattleClock, BattleRandom, BATTLE_STEP_MS, BATTLE_RULES_VERSION, canRestoreBattleVersion, setBattleRandom, setBattlePlayback } from "../game/battleSimulation";
@@ -93,9 +94,6 @@ import { ProjectileMotionFrame } from "../game/projectileMotion";
 import { gridCellKey, isBossInRect } from "../game/targeting";
 import {
   createTower,
-  effectiveTowerLevel,
-  getHitProductionAmount,
-  getProductionAmount,
   setTowerFacing,
   setTowerAutoUpgradeState,
   syncTowerDerivedStats,
