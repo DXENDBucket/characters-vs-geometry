@@ -44,6 +44,10 @@ rules from browser input and rendering, not a multiplayer implementation.
   tutorial progression. Commands run between ticks, ordered by tick and sequence.
   These are single-player session commands; tool/selection state is not yet
   independent per player. The existing movement planner remains reusable.
+- Seven board mutations additionally support explicit `operation` commands with
+  stable target references and a shared validation/authorization gate. The mouse
+  path uses the same executor while retaining its old recording format. See
+  [Semantic Battle Operations](battle-operations.md) for the remaining boundary.
 - New endless saves retain the clock remainder, random state and mirror ID
   counter. Older saves can still resume, but their pre-save random history cannot
   be reconstructed. A recording started after loading uses that save as its
@@ -84,13 +88,14 @@ The complete integration acceptance gates and current gaps are tracked in
 explicit snapshot fields now cover towers, enemies, projectiles and Bosses;
 live runtime orchestration and object relationships still need separation.
 
-1. Split session-level UI intent into per-player semantic commands and selection
-   state once multiplayer interaction and ownership rules are decided.
+1. Finish splitting UI intent into semantic commands and local selection state;
+   define configurable participant/resource policies without requiring a specific
+   multiplayer mode to have been chosen.
 2. Separate simulation state from Phaser objects in towers, enemies, projectiles,
-   card cooldowns, and boss parts. Introduce stable IDs for the remaining units.
+   card cooldowns, and boss parts. Stable IDs now exist for all entity factories.
    Publish data snapshots and visual events instead of serializing game objects.
-3. Once the multiplayer mode is chosen, define ownership, currencies, cooldowns,
-   pause/speed permissions, and the authoritative simulation. Add session IDs,
+3. Implement mode-neutral ownership, currencies, cooldowns, pause/speed policies
+   and the authoritative simulation. Add session IDs,
    command sequence numbers, duplicate rejection, schema validation, snapshots,
    and reconnect support at the transport boundary.
 

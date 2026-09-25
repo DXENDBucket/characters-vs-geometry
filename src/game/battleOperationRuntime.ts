@@ -1,0 +1,110 @@
+import { LANES } from "../config";
+import type { CardState, EdgeTower, Tower } from "../types";
+import { deploymentCardId } from "./cardIdentity";
+import { executeBattleOperation, type BattleOperation, type BattleOperationActor,
+  type BattleOperationResult, type BattleOperationTargets } from "./battleOperations";
+import type { TowerDeploymentController } from "./towerDeployment";
+import type { TargetedEffectCardController } from "./targetedEffectCards";
+import type { EdgeTowerControls } from "./edgeTowerControls";
+import type { TowerShifterController } from "./towerShifter";
+import { towerInPlacementLayer } from "./towerOccupancy";
+import { canUpgradeTowerWithCard, supportsTowerAutoUpgrade } from "./towerIdentity";
+import { setTowerAutoUpgradeState } from "./towers";
+import { edgeKey, edgePosition } from "./projectileCircuit";
+
+export interface LiveBattleOperationRuntime {
+  towers: Tower[];
+  edges: EdgeTower[];
+  occupied: Map<string, Tower>;
+  cards: CardState[];
+  unlimitedFirepower: boolean;
+  autoUpgradeEnabled: boolean;
+  ended: boolean;
+  actor(id: string): BattleOperationActor | undefined;
+  authorize(actor: BattleOperationActor, operation: BattleOperation, affected: BattleOperationTargets<Tower>): boolean;
+  deployment: TowerDeploymentController;
+  targetedEffects: TargetedEffectCardController;
+  edgeControls: EdgeTowerControls;
+  shifter: TowerShifterController;
+  mirrorGroupFor(tower: Tower): Tower[];
+  removeTower(tower: Tower): void;
+  erasedAt(x: number, y: number): void;
+  refreshPlacement(): void;
+  refreshEdges(): void;
+  updateLevelAuras(): void;
+  updateCards(): void;
+  attemptAutoUpgrades(): void;
+}
+
+// Live controllers remain adapters; the same semantic gate is used by UI and explicit commands.
+export function executeLiveBattleOperation(runtime: LiveBattleOperationRuntime, actorId: string, operation: BattleOperation): BattleOperationResult {
+  return executeBattleOperation(actorId, operation, {
+    ended: runtime.ended,
+    actor: id => runtime.actor(id),
+    card: id => runtime.cards.find(card => card.definition.id === id)?.definition,
+    tower: id => runtime.towers.find(tower => tower.entityId === id),
+    edge: id => runtime.edges.find(edge => edge.entityId === id),
+    towerAt: (cell, card) => towerInPlacementLayer(runtime.occupied, cell.lane, cell.column, card),
+    edgeAt: position => runtime.edges.find(edge => edgeKey(edge) === edgeKey({ type: "=", ...position })),
+    affected: (op, primary) => {
+      const towers = new Set(primary.towers);
+      if (op.type === "deploy") {
+        const lanes = runtime.unlimitedFirepower ? Array.from({ length: LANES }, (_, lane) => lane) : [op.cell.lane];
+        for (const lane of lanes) {
+          const tower = towerInPlacementLayer(runtime.occupied, lane, op.cell.column, op.card);
+          if (!tower || !canUpgradeTowerWithCard(tower, op.card)) continue;
+          for (const member of runtime.mirrorGroupFor(tower)) if (member.inPlay && member.type === tower.type) towers.add(member);
+        }
+      } else if (op.type === "effect") {
+        for (const tower of runtime.targetedEffects.deploymentTargets(op.cell.lane, op.cell.column, primary.towers[0])) towers.add(tower);
+      }
+      return { towers: [...towers], edges: primary.edges };
+    },
+    authorize: (actor, op, targets) => runtime.authorize(actor, op, targets),
+    apply: (op, primary) => {
+      switch (op.type) {
+        case "deploy": {
+          const card = runtime.cards.find(card => card.definition.id === op.card)!;
+          if (card.definition.category === "special" || runtime.targetedEffects.canHandle(op.card)) return "invalid";
+          const result = runtime.deployment.useCard(card.definition, op.cell.lane, op.cell.column);
+          if (result === "deployed") runtime.refreshPlacement();
+          return result;
+        }
+        case "effect": {
+          if (!runtime.targetedEffects.canHandle(op.card)) return "invalid";
+          const card = runtime.cards.find(card => card.definition.id === op.card)!;
+          const result = runtime.targetedEffects.use(card.definition, op.cell.lane, op.cell.column, primary.towers[0]);
+          if (result === "handled") runtime.refreshPlacement();
+          return result;
+        }
+        case "edgeCard": {
+          if (deploymentCardId(op.card) !== "=") return "invalid";
+          return runtime.edgeControls.use({ type: "=", ...op.position }, runtime.cards.find(card => card.definition.id === op.card)!);
+        }
+        case "erase": {
+          const edge = primary.edges[0], tower = primary.towers[0];
+          if (edge) {
+            runtime.edges.splice(runtime.edges.indexOf(edge), 1); runtime.refreshEdges();
+            const position = edgePosition(edge); runtime.erasedAt(position.x, position.y);
+          } else {
+            const { x, y } = tower;
+            runtime.removeTower(tower); runtime.updateLevelAuras(); runtime.erasedAt(x, y);
+          }
+          return "handled";
+        }
+        case "autoUpgrade":
+          if (primary.towers.some(tower => !supportsTowerAutoUpgrade(tower))) return "invalid";
+          for (const tower of primary.towers) setTowerAutoUpgradeState(tower, op.enabled, runtime.autoUpgradeEnabled);
+          for (const edge of primary.edges) edge.autoUpgrade = op.enabled;
+          if (primary.edges.length) runtime.refreshEdges();
+          runtime.attemptAutoUpgrades(); runtime.updateCards();
+          return "handled";
+        case "edgeMode":
+          primary.edges[0].mode = op.mode; runtime.refreshEdges(); return "handled";
+        case "move":
+          return runtime.shifter.executeMove({ type: "moveTowers", destination: op.destination,
+            sources: op.sources.map((source, index) => ({ towerId: primary.towers[index].id, lane: source.lane, column: source.column })) }, false);
+      }
+    }
+  });
+}

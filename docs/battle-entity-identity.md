@@ -64,9 +64,10 @@ Default battle checksums include IDs and allocator history. The explicit
 it must not be used as an authoritative synchronization checksum.
 
 Serialized saves still use graph references, and combat actions still hold local
-data-object references. Semantic player commands, identity-based wire contracts,
-authorization and reconnect are not implemented by this change. The identity
-part of readiness gate 4 is implemented; the whole gate remains open.
+data-object references. The subsequent [semantic operation pass](battle-operations.md)
+uses these IDs for seven board mutations. Remaining commands, identity-based wire
+contracts, authority and reconnect are still open. The identity part of readiness
+gate 4 is implemented; the whole gate remains open.
 
 ## Evidence
 

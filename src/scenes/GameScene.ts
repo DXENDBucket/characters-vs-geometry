@@ -27,6 +27,9 @@ import { captureBattleSnapshot } from "../game/captureBattleSnapshot";
 import { restoreBattleSnapshot } from "../game/battleSnapshot";
 import { setBattleEntityIds } from "../game/battleEntityIds";
 import { restoreBattleEntityIds } from "../game/battleEntityGraph";
+import { LOCAL_BATTLE_ACTOR, towerOperationRef, edgeOperationRef, validBattleActorId, validBattleOperation,
+  type BattleOperation, type BattleOperationResult } from "../game/battleOperations";
+import { executeLiveBattleOperation, type LiveBattleOperationRuntime } from "../game/battleOperationRuntime";
 import { deleteSurvivalSave, readSurvivalSave, writeSurvivalSave, type SurvivalSave } from "../survivalSaves";
 import { endlessEnemyHpMultiplier } from "../game/endlessEnvironment";
 import { syncTowerHealthNetworks } from "../game/towerHealth";
@@ -100,7 +103,6 @@ import { isBossInRect } from "../game/unitGeometry";
 import {
   createTower,
   setTowerFacing,
-  setTowerAutoUpgradeState,
   syncTowerDerivedStats,
   syncTowerFacingVisual,
   syncTowerLevelText,
@@ -108,7 +110,6 @@ import {
 } from "../game/towers";
 import {
   TargetedEffectCardController,
-  type TargetedEffectCardResult,
   type TargetedEffectCardRuntime
 } from "../game/targetedEffectCards";
 import { TowerDeploymentController, type TowerDeploymentRuntime } from "../game/towerDeployment";
@@ -863,12 +864,8 @@ export class GameScene extends Phaser.Scene {
       boardPointerTarget(this.occupied, this.edgeTowers, x, y)!;
 
     if (this.eraserMode) {
-      const edgeIndex = existingEdge ? this.edgeTowers.indexOf(existingEdge) : -1;
-      if (edgeIndex >= 0) {
-        const position = edgePosition(this.edgeTowers[edgeIndex]);
-        this.edgeTowers.splice(edgeIndex, 1); this.numbers.sync();
-        makeEraseMark(this, position.x, position.y);
-        playSound("erase");
+      if (existingEdge) {
+        this.applyPlayerOperation(LOCAL_BATTLE_ACTOR.id, { type: "erase", target: edgeOperationRef(existingEdge) });
         this.eraserMode = false; this.updateCards(); this.syncPlacementGhost(pointer); return;
       }
       if (!existingTower) {
@@ -876,12 +873,7 @@ export class GameScene extends Phaser.Scene {
         return;
       }
 
-      const erasedX = existingTower.x;
-      const erasedY = existingTower.y;
-      removeTower(this.unitLifecycleRuntime(), existingTower);
-      this.updateLevelAuras();
-      makeEraseMark(this, erasedX, erasedY);
-      playSound("erase");
+      this.applyPlayerOperation(LOCAL_BATTLE_ACTOR.id, { type: "erase", target: towerOperationRef(existingTower) });
       this.eraserMode = false;
       this.updateCards();
       return;
@@ -889,9 +881,14 @@ export class GameScene extends Phaser.Scene {
 
     if (existingEdge && !this.shifter.isActive()) {
       if (this.autoUpgradeMode) {
-        this.edgeControls.toggleAuto(existingEdge, this.isShiftPointer(pointer)); this.attemptAutoUpgrades();
-      } else if (deploymentCardId(this.selectedCardId) === "=") this.handleTargetedEffectCardResult(this.edgeControls.use(existingEdge, this.cardStatesById.get(this.selectedCardId)));
-      else this.edgeControls.cycle(existingEdge);
+        this.applyPlayerOperation(LOCAL_BATTLE_ACTOR.id, { type: "autoUpgrade", enabled: !existingEdge.autoUpgrade,
+          targets: (this.isShiftPointer(pointer) ? this.edgeTowers : [existingEdge]).map(edgeOperationRef) });
+      } else if (deploymentCardId(this.selectedCardId) === "=") this.useEdgeCard(existingEdge, existingEdge);
+      else {
+        const modes = ["=", ">", "<", "!="] as const;
+        this.applyPlayerOperation(LOCAL_BATTLE_ACTOR.id, { type: "edgeMode", target: edgeOperationRef(existingEdge),
+          mode: modes[(modes.indexOf(existingEdge.mode ?? "=") + 1) % modes.length] });
+      }
       this.syncPlacementGhost(pointer); return;
     }
 
@@ -903,17 +900,10 @@ export class GameScene extends Phaser.Scene {
 
       if (!supportsTowerAutoUpgrade(existingTower)) return;
       const nextState = !existingTower.autoUpgrade;
-      if (this.isShiftPointer(pointer)) {
-        for (const tower of this.towers) {
-          if (tower.type === existingTower.type) {
-            setTowerAutoUpgradeState(tower, nextState, this.autoUpgradeEnabled);
-          }
-        }
-      } else {
-        setTowerAutoUpgradeState(existingTower, nextState, this.autoUpgradeEnabled);
-      }
+      this.applyPlayerOperation(LOCAL_BATTLE_ACTOR.id, { type: "autoUpgrade", enabled: nextState,
+        targets: (this.isShiftPointer(pointer) ? this.towers.filter(tower => tower.type === existingTower.type && tower.inPlay && !tower.transient && supportsTowerAutoUpgrade(tower))
+          : [existingTower]).map(towerOperationRef) });
       this.showToast(nextState ? t("toast.autoOn") : t("toast.autoOff"));
-      this.attemptAutoUpgrades();
       return;
     }
 
@@ -926,7 +916,7 @@ export class GameScene extends Phaser.Scene {
     if (definition.category === "special") {
       const edge = edgeAtPoint(x, y);
       if (!edge) return;
-      this.handleTargetedEffectCardResult(this.edgeControls.use(edge, this.cardStatesById.get(definition.id))); this.syncPlacementGhost(pointer); return;
+      this.useEdgeCard(edge); this.syncPlacementGhost(pointer); return;
     }
     const cardState = this.cardStatesById.get(definition.id);
     const effectiveChars = this.effectiveChars();
@@ -943,11 +933,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.targetedEffects.canHandle(definition.id)) {
-      const result = this.targetedEffects.use(definition, lane, column, existingTower);
-      if (result === "handled") {
-        this.mirrors.syncMirrors();
-        this.updateLevelAuras();
-      }
+      const result = this.applyPlayerOperation(LOCAL_BATTLE_ACTOR.id, { type: "effect", card: definition.id,
+        cell: { lane, column }, target: existingTower ? towerOperationRef(existingTower) : null });
       this.handleTargetedEffectCardResult(result);
       return;
     }
@@ -995,20 +982,59 @@ export class GameScene extends Phaser.Scene {
     );
   }
 
+  private useEdgeCard(position: EdgeTower, existing?: EdgeTower) {
+    this.handleTargetedEffectCardResult(this.applyPlayerOperation(LOCAL_BATTLE_ACTOR.id, {
+      type: "edgeCard", card: this.selectedCardId,
+      position: { axis: position.axis, lane: position.lane, column: position.column },
+      expected: existing ? edgeOperationRef(existing) : null
+    }));
+  }
+
+  private applyPlayerOperation(actorId: string, operation: BattleOperation) {
+    return executeLiveBattleOperation(this.createPlayerOperationRuntime(), actorId, operation);
+  }
+
+  private createPlayerOperationRuntime(): LiveBattleOperationRuntime {
+    return {
+      towers: this.towers, edges: this.edgeTowers, occupied: this.occupied, cards: this.cardStates,
+      unlimitedFirepower: this.unlimitedFirepower, autoUpgradeEnabled: this.autoUpgradeEnabled, ended: this.gameOver,
+      actor: id => id === LOCAL_BATTLE_ACTOR.id ? LOCAL_BATTLE_ACTOR : undefined,
+      authorize: () => true,
+      deployment: this.deployment, targetedEffects: this.targetedEffects, edgeControls: this.edgeControls, shifter: this.shifter,
+      mirrorGroupFor: tower => this.mirrors.mirrorGroupFor(tower),
+      removeTower: tower => removeTower(this.unitLifecycleRuntime(), tower),
+      erasedAt: (x, y) => { makeEraseMark(this, x, y); playSound("erase"); },
+      refreshPlacement: () => { this.mirrors.syncMirrors(); this.updateLevelAuras(); },
+      refreshEdges: () => { this.numbers.sync(); this.updateCards(); },
+      updateLevelAuras: () => this.updateLevelAuras(), updateCards: () => this.updateCards(),
+      attemptAutoUpgrades: () => this.attemptAutoUpgrades()
+    };
+  }
+
+  submitPlayerOperation(actorId: string, operation: BattleOperation): BattleOperationResult {
+    if (!validBattleActorId(actorId) || !validBattleOperation(operation)) return "invalid";
+    if (this.playback || this.gameOver || this.menuOpen || this.reselectOpen) return "unavailable";
+    let result: BattleOperationResult = "unavailable";
+    this.session.submit({ type: "operation", actorId, operation }, accepted => {
+      if (accepted.type === "operation") result = this.applyPlayerOperation(accepted.actorId, accepted.operation);
+    });
+    return result;
+  }
+
   private deploySelectedCard(
     definition: CardDefinition,
     lane: number,
     column: number,
     pointer: Phaser.Input.Pointer
   ) {
-    const result = this.deployment.useCard(definition, lane, column);
+    const target = towerInPlacementLayer(this.occupied, lane, column, definition.id);
+    const result = this.applyPlayerOperation(LOCAL_BATTLE_ACTOR.id, { type: "deploy", card: definition.id,
+      cell: { lane, column }, expected: target ? towerOperationRef(target) : null });
     if (result !== "deployed") {
-      this.showToast(t(`toast.${result}`));
+      this.showToast(t(`toast.${result === "cooldown" || result === "noChars" ? result : "occupied"}`));
       return;
     }
 
-    this.mirrors.syncMirrors();
-    this.updateLevelAuras();
     if (definition.id === "&") {
       const tower = this.occupied.get(gridCellKey(lane, column));
       if (tower && !tower.topologyTarget) { this.prepareSkillTargeting(); this.topology.begin(tower); }
@@ -1017,8 +1043,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handleShifterPointer(pointer: Phaser.Input.Pointer, lane: number, column: number, existingTower?: Tower, explicitSelection = false) {
-    const result = this.shifter.handlePointer(lane, column, existingTower, this.isCtrlPointer(pointer), explicitSelection);
+    const action = this.shifter.pointerAction(lane, column, existingTower, this.isCtrlPointer(pointer), explicitSelection);
+    const result = action === "move" ? this.applyPlayerOperation(LOCAL_BATTLE_ACTOR.id, { type: "move",
+      sources: this.shifter.selectedTowers().map(tower => ({ target: towerOperationRef(tower), lane: tower.lane, column: tower.column })),
+      destination: { lane, column } }) : this.shifter.handlePointer(lane, column, existingTower, this.isCtrlPointer(pointer), explicitSelection);
     if (result === "cooldown") {
+      this.shifter.deactivate();
       this.clearPlacementGhosts();
       this.showToast(t("toast.cooldown"));
       this.updateCards();
@@ -1030,7 +1060,8 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    if (result === "invalid") {
+    if (result === "invalid" || result === "stale" || result === "forbidden" || result === "unavailable") {
+      this.shifter.clearSelection();
       this.clearPlacementGhosts();
       this.showToast(t("toast.invalidMove"));
       this.updateCards();
@@ -1038,6 +1069,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (result === "moved") {
+      this.shifter.deactivate();
       playSound("move");
       this.clearPlacementGhosts();
       this.updateCards();
@@ -1210,7 +1242,7 @@ export class GameScene extends Phaser.Scene {
     this.placementGhostKey = "";
   }
 
-  private handleTargetedEffectCardResult(result: TargetedEffectCardResult) {
+  private handleTargetedEffectCardResult(result: BattleOperationResult) {
     if (result === "handled") playSound("deploy");
     if (result === "cooldown") {
       this.showToast(t("toast.cooldown"));
@@ -2829,6 +2861,7 @@ export class GameScene extends Phaser.Scene {
 
   private executeCommand(command: BattleCommand) {
     switch (command.type) {
+      case "operation": return this.applyPlayerOperation(command.actorId, command.operation);
       case "tutorialAdvance": this.battlefield.ui(() => this.tutorialAdvance?.()); break;
       case "cancelTargeting": this.cancelSpellMortarTargeting(); break;
       case "debugMode":

@@ -149,16 +149,16 @@ export class TowerShifterController {
     };
   }
 
-  executeMove(command: MoveTowersCommand): "moved" | "invalid" | "cooldown" {
+  executeMove(command: MoveTowersCommand, updateSelection = true): "moved" | "invalid" | "cooldown" {
     const runtime = this.runtime();
     if (runtime.cardTime < this.readyAt) {
-      this.deactivate();
+      if (updateSelection) this.deactivate();
       return "cooldown";
     }
     const towersById = new Map(runtime.towers.map((tower) => [tower.id, tower]));
     const plan = this.planMove(runtime, command, towersById);
     if (!plan.valid) {
-      this.clearSelection();
+      if (updateSelection) this.clearSelection();
       return "invalid";
     }
 
@@ -167,7 +167,7 @@ export class TowerShifterController {
     this.cooldownStartedAt = runtime.cardTime;
     this.cooldownDuration = plan.cooldownMs;
     this.readyAt = runtime.cardTime + this.cooldownDuration;
-    this.deactivate();
+    if (updateSelection) this.deactivate();
     runtime.onMoved(moves);
     return "moved";
   }

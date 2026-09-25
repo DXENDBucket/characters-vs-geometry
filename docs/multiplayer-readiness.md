@@ -45,19 +45,24 @@ transport-neutral authority and synchronization gates above.
   tests and unchanged browser replay checksums verify this extraction. `BattleWorld`
   now owns rosters/progress, tick order, resource/wave rules and phase state. Three
   real local worlds pass interleaved advancement, checkpoint and restart isolation.
-  Its live system ports still depend on scene controllers/rendering, and recordings
-  contain single-player UI intent; gates 2-3 remain open. See
+  Its live system ports still depend on scene controllers/rendering. Seven board
+  mutations now share a semantic gate with explicit entity targets, capability
+  checks and a host authorization port; direct operation recordings replay too.
+  Mouse recordings still contain UI intent, remaining skills/global controls and
+  multi-player policies need migration; gates 2-3 remain open. See
+  [semantic operations](battle-operations.md),
   [session boundaries](battle-session.md) and [world ownership](battle-world.md).
 - Identity: common battle-local IDs now cover live towers, enemies, Boss bodies,
   projectiles and edges. Allocator history and IDs survive snapshots, old saves
-  are adopted, and historical references have live-browser coverage. Semantic
-  commands and wire relationships still need migration; gate 4 remains open. See
+  are adopted, and historical references have live-browser coverage. The first
+  semantic operations use these IDs; remaining commands and serialized combat
+  relationships still need migration. Gate 4 remains open. See
   [entity identity](battle-entity-identity.md).
 - Networking: no authority protocol, participant policy, acknowledgment/resync
   implementation or two-client integration test yet. Gates 5-7 are open.
 
-Next: migrate UI intent to semantic player commands with explicit entity targets
-and participant policies, complete the simulation/presentation ports, then
+Next: finish migrating skill/global commands and separate local UI state, complete
+participant/resource policies and simulation/presentation ports, then
 implement transport authority and reconnect. Validate each increment against the
 real battle path; green isolated tests are not proof of full readiness.
 

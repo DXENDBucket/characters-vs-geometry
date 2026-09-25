@@ -3,6 +3,7 @@ import type { ToolControlAction } from "../settings/keybindings";
 import type { SaveGraph } from "./saveGraph";
 import { BATTLE_RULES_VERSION } from "./battleSimulation";
 import { validStoredDifficulty } from "../config";
+import { validBattleActorId, validBattleOperation, type BattleOperation } from "./battleOperations";
 
 export interface BattlePointer {
   x: number;
@@ -13,6 +14,7 @@ export interface BattlePointer {
 }
 
 export type BattleCommand =
+  | { type: "operation"; actorId: string; operation: BattleOperation }
   | { type: "pointer"; pointer: BattlePointer }
   | { type: "selectCard"; id: CardId }
   | { type: "tool"; action: Exclude<ToolControlAction, "tool:pause" | "tool:reselect"> }
@@ -54,6 +56,9 @@ export function validateReplay(replay: BattleReplay) {
     tick = entry.tick;
     const command = entry.command;
     switch (command.type) {
+      case "operation":
+        if (!validBattleActorId(command.actorId) || !validBattleOperation(command.operation)) throw new Error("Invalid battle operation");
+        break;
       case "pointer":
         if (![command.pointer.x, command.pointer.y].every(Number.isFinite) ||
             ![command.pointer.shift, command.pointer.ctrl, command.pointer.right].every(x => typeof x === "boolean"))
