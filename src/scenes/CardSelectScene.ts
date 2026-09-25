@@ -13,14 +13,7 @@ import {
   palette,
   uiTextColors
 } from "../config";
-import {
-  bossRank,
-  isDodecahedronBossKind,
-  isIcosahedronBossKind,
-  isOctahedronBossKind,
-  isSmallStellatedDodecahedronBossKind,
-  isTetrahedronBossKind
-} from "../bosses/cubeBoss";
+import { bossRank, isDodecahedronBossKind, isIcosahedronBossKind, isOctahedronBossKind, isSmallStellatedDodecahedronBossKind, isTetrahedronBossKind } from "../game/bossRules";
 import { cardSlotUnlockChapter } from "../data/cardSlotUnlocks";
 import { chapterIdForLevelId } from "../data/chapters";
 import { getLevelConfig, levelPreviewEnemyKinds } from "../data/levels";

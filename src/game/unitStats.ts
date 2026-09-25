@@ -1,7 +1,5 @@
 import type {
-  BossBaseStats,
   CardDefinition,
-  CubeBoss,
   Enemy,
   EnemyBaseStats,
   Tower
@@ -21,6 +19,8 @@ import { towerZealAttackSpeedMultiplier, type TowerAuraSources } from "./towerAu
 import { towerBaseStatsFromDefinition } from "./towerState";
 export { enemyBaseStatsFromDefinition } from "./enemyState";
 export { towerBaseStatsFromDefinition } from "./towerState";
+export { bossBaseStatsFromValues } from "./bossState";
+export { syncBossBaseStats, setBossBaseArmor } from "./bossRules";
 
 export function syncTowerFinalStats(
   tower: Tower,
@@ -110,34 +110,6 @@ export function applyEnemyBaseStats(
     enemy.hp = Math.min(enemy.hp, enemy.maxHp);
   }
   syncEnemyHealthCapacity(enemy);
-}
-
-export function bossBaseStatsFromValues(
-  stats: { hp: number; armor: number; magicResistance: number; speed: number },
-  finalDamageReduction: number
-): BossBaseStats {
-  return {
-    maxHp: stats.hp,
-    armor: stats.armor,
-    magicResistance: stats.magicResistance,
-    speed: stats.speed,
-    finalDamageReduction
-  };
-}
-
-export function syncBossBaseStats(boss: CubeBoss) {
-  boss.finalStats = { ...boss.baseStats };
-  boss.maxHp = boss.baseStats.maxHp;
-  boss.armor = boss.baseStats.armor;
-  boss.magicResistance = boss.baseStats.magicResistance;
-  boss.speed = boss.baseStats.speed;
-  boss.finalDamageReduction = boss.baseStats.finalDamageReduction;
-  boss.hp = Math.min(boss.hp, boss.maxHp);
-}
-
-export function setBossBaseArmor(boss: CubeBoss, armor: number) {
-  boss.baseStats.armor = Math.max(0, armor);
-  syncBossBaseStats(boss);
 }
 
 function clamp(value: number, min: number, max: number) {

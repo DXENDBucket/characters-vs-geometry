@@ -1,4 +1,5 @@
-import type { CubeBoss, Enemy, StatusEffect } from "../../types";
+import type { Enemy, StatusEffect } from "../../types";
+import type { BossState } from "../bossState";
 
 export interface StatusHolder {
   statusEffects: StatusEffect[];
@@ -16,7 +17,7 @@ export function enemyFacingDirection(enemy: Enemy) {
   return facingWithEffects(enemy, enemy.maceFacingDirection ?? enemy.slopeFacingDirection ?? enemy.movementDirection ?? -1);
 }
 
-export function bossMovementDirection(boss: CubeBoss) {
+export function bossMovementDirection(boss: Pick<BossState, "movementAxis" | "movementDirection" | "statusEffects">) {
   const direction = boss.movementDirection ?? -1;
   return boss.movementAxis === "y" ? direction : facingWithEffects(boss, direction);
 }

@@ -27,16 +27,11 @@ import {
   LANES,
   TETRAHEDRON_BOSS_CHARGE_DURATION
 } from "../config";
+import { createCubeBoss, updateCubeBossMotion } from "../bosses/cubeBoss";
 import {
-  bossAdvanceSpawnPoints,
-  createCubeBoss,
-  isDodecahedronBoss,
-  isIcosahedronBoss,
-  isOctahedronBoss,
-  isSmallStellatedDodecahedronBoss,
-  isTetrahedronBoss,
-  updateCubeBossMotion
-} from "../bosses/cubeBoss";
+  bossAdvanceSpawnPoints, isDodecahedronBoss, isIcosahedronBoss, isOctahedronBoss,
+  isSmallStellatedDodecahedronBoss, isTetrahedronBoss, syncBossBaseStats
+} from "./bossRules";
 import {
   makeBossHasteTrail,
   makeCubeCollapse,
@@ -71,7 +66,7 @@ import { activeStatusSpeedMultiplier } from "./rules/statusEffectRules";
 import { latestPlacedTower, latestPlacedTowers } from "./targeting";
 import { bossBounds, findBossPart, forEachBossPart, pointInBounds, type RectBounds } from "./unitGeometry";
 import { isTrapArmed } from "./towerRules";
-import { syncBossBaseStats, towerFinalStats } from "./unitStats";
+import { towerFinalStats } from "./unitStats";
 import { volleyInterval } from "./upgrades";
 import { repeatHits, volleyHitsAt, volleyTimingCount } from "./volley";
 import { getEnemyDefinition, enemyRank, enemyFamily } from "../registry/enemies";

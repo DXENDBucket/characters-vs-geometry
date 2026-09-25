@@ -4,6 +4,7 @@ import type { ProjectileIntegrity } from "./game/projectileIntegrity";
 import type { EnemyProjectileState, MortarProjectileState, ProjectileState } from "./game/projectileState";
 import type { TowerState } from "./game/towerState";
 import type { EnemyState } from "./game/enemyState";
+import type { BossRotationState, BossState } from "./game/bossState";
 
 export type CardId =
   | "?"
@@ -458,84 +459,20 @@ export interface DelSweepState {
   sealedCells: string[];
 }
 
-export interface DelLaneSweepState {
+export interface DelLaneSweepState<Part = CubeBoss> {
   stage?: "half" | "quarter"; // Older saves without a stage are the half-health event.
   phase: "warning" | "sweeping" | "summoning" | "complete";
   startedAt: number;
   previousInvincibleUntil: number;
   sealedCells: string[];
-  parts: CubeBoss[];
+  parts: Part[];
   summons: number;
 }
 
-export interface CubeBoss {
-  deleteFormatReadyAt?: number;
+export interface CubeBoss extends BossState, BossRotationState {
   delLaneSweep?: DelLaneSweepState;
-  delEcho?: boolean;
-  delSweep?: DelSweepState;
-  deleteStackPending?: boolean;
-  statusEffects: StatusEffect[];
-  kind: BossKind;
-  rank: number;
-  label: string;
-  x: number;
-  y: number;
-  hitboxWidth: number;
-  hitboxHeight: number;
-  hp: number;
-  baseStats: BossBaseStats;
-  finalStats: BossFinalStats;
-  maxHp: number;
-  armor: number;
-  magicResistance: number;
-  finalDamageReduction: number;
-  speed: number;
-  movementAxis?: "x" | "y";
-  movementDirection?: -1 | 1;
-  advanceMinionKind: EnemyKind;
-  hasSkills: boolean;
-  skills: {
-    promotion: BossSkill<"promotion">;
-    advance: BossSkill<"advance">;
-    charge?: BossSkill<"charge">;
-    impact?: BossSkill<"impact">;
-    suppression?: BossSkill<"suppression">;
-    desperation?: BossSkill<"desperation">;
-    endlessWings?: BossSkill<"endlessWings">;
-    ultimateAdvance?: BossSkill<"ultimateAdvance">;
-    heartbeatAlpha?: BossSkill<"heartbeatAlpha">;
-    heartbeatBeta?: BossSkill<"heartbeatBeta">;
-    leap?: BossSkill<"leap">;
-    deleteStack?: BossSkill<"deleteStack">;
-    deleteFormat?: BossSkill<"deleteFormat">;
-  };
-  contactAttackBuffer: number;
-  chargeExpiresAt: number;
-  halfHpTriggered: boolean;
-  criticalHpTriggered: boolean;
-  pendingCriticalSummon: boolean;
-  companionsInitialized: boolean;
-  companionDeathsHandled: number;
-  invincibleUntil: number;
-  bossHasteUntil: number; // Legacy save field; live haste is stored in statusEffects.
-  nextBossHasteTrailAt: number;
   octahedronCopies?: CubeBoss[];
-  pendingCopies?: PendingBossCopy[];
-  octahedronSolarBombsInitialized?: boolean;
-  octahedronSpawn75Triggered?: boolean;
-  octahedronSpawn50Triggered?: boolean;
-  octahedronSpawn25Triggered?: boolean;
   body: Phaser.GameObjects.Container;
   frame: Phaser.GameObjects.Graphics;
   labelText: Phaser.GameObjects.Text;
-  rotationX: number;
-  rotationY: number;
-  rotationZ: number;
-  velocityX: number;
-  velocityY: number;
-  velocityZ: number;
-  targetVelocityX: number;
-  targetVelocityY: number;
-  targetVelocityZ: number;
-  nextTurnIn: number;
 }

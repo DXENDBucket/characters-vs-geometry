@@ -76,6 +76,11 @@ architectures or game versions are not promised.
 
 ## Next Boundaries
 
+The complete integration acceptance gates and current gaps are tracked in
+[Multiplayer Readiness](multiplayer-readiness.md). Pure state construction and
+explicit snapshot fields now cover towers, enemies, projectiles and Bosses;
+live runtime orchestration and object relationships still need separation.
+
 1. Split session-level UI intent into per-player semantic commands and selection
    state once multiplayer interaction and ownership rules are decided.
 2. Separate simulation state from Phaser objects in towers, enemies, projectiles,

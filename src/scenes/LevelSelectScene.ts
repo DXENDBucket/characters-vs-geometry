@@ -17,21 +17,8 @@ import {
   palette,
   uiTextColors
 } from "../config";
-import {
-  DODECAHEDRON_EDGES,
-  DODECAHEDRON_UNIT_VERTICES,
-  ICOSAHEDRON_EDGES,
-  ICOSAHEDRON_UNIT_VERTICES,
-  OCTAHEDRON_EDGES,
-  OCTAHEDRON_UNIT_VERTICES,
-  SMALL_STELLATED_DODECAHEDRON_SPIKES,
-  bossRank,
-  isDodecahedronBossKind,
-  isIcosahedronBossKind,
-  isOctahedronBossKind,
-  isSmallStellatedDodecahedronBossKind,
-  isTetrahedronBossKind
-} from "../bosses/cubeBoss";
+import { DODECAHEDRON_EDGES, DODECAHEDRON_UNIT_VERTICES, ICOSAHEDRON_EDGES, ICOSAHEDRON_UNIT_VERTICES, OCTAHEDRON_EDGES, OCTAHEDRON_UNIT_VERTICES, SMALL_STELLATED_DODECAHEDRON_SPIKES } from "../bosses/cubeBoss";
+import { bossRank, isDodecahedronBossKind, isIcosahedronBossKind, isOctahedronBossKind, isSmallStellatedDodecahedronBossKind, isTetrahedronBossKind } from "../game/bossRules";
 import { defaultChapterId, getChapterDefinition, levelNodesForChapter } from "../data/chapters";
 import { groupForChapter } from "../data/chapterGroups";
 import { getLevelConfig } from "../data/levels";

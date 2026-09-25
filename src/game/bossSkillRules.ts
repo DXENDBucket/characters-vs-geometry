@@ -1,5 +1,6 @@
 import { BOSS_SKILLS, ICOSAHEDRON_PHASE_SKILL_SP, type BossSkillData } from "../data/bossAbilities";
-import type { BossKind, BossSkill, BossSkillName, CubeBoss } from "../types";
+import type { BossKind, BossSkill, BossSkillName } from "../types";
+import type { BossState } from "./bossState";
 import { gainSkillSp, isSkillReady, spendSkillSp } from "./skillState";
 
 export function createBossSkill<Name extends BossSkillName>(name: Name, maxSp: number, cost: number, initialSp = 0): BossSkill<Name> {
@@ -11,7 +12,7 @@ export function createConfiguredBossSkill<Name extends BossSkillName>(name: Name
   return createBossSkill(name, data.maxSp, data.cost, data.initialSp);
 }
 
-export function initialBossSkillStates(kind: BossKind): CubeBoss["skills"] {
+export function initialBossSkillStates(kind: BossKind): BossState["skills"] {
   const tetrahedron = kind === "tetrahedron" || kind === "tetrahedron2", icosahedron = kind === "icosahedron";
   const dodecahedron = kind === "dodecahedron" || kind === "dodecahedron2";
   // Preserve even the inactive cube skills and insertion order for existing battle snapshots.
@@ -30,7 +31,7 @@ export function initialBossSkillStates(kind: BossKind): CubeBoss["skills"] {
   };
 }
 
-export function applyBossPhaseSkillState(boss: Pick<CubeBoss, "kind" | "skills">, phaseIndex: number) {
+export function applyBossPhaseSkillState(boss: Pick<BossState, "kind" | "skills">, phaseIndex: number) {
   if (boss.kind !== "icosahedron") return;
   const initial = ICOSAHEDRON_PHASE_SKILL_SP[phaseIndex];
   if (!initial) return;
@@ -51,7 +52,7 @@ export function bossSkillCharge(name: BossSkillName, kind?: BossKind, phaseIndex
   };
 }
 
-export function bossSkillRecoverySeconds(boss: Pick<CubeBoss, "hp" | "maxHp" | "criticalHpTriggered">, skill: BossSkill, seconds: number) {
+export function bossSkillRecoverySeconds(boss: Pick<BossState, "hp" | "maxHp" | "criticalHpTriggered">, skill: BossSkill, seconds: number) {
   const data: BossSkillData = BOSS_SKILLS[skill.name], threshold = data.recoveryHp;
   if (threshold && (threshold.inclusive ? boss.hp > boss.maxHp * threshold.ratio : boss.hp >= boss.maxHp * threshold.ratio)) return 0;
   return seconds * (boss.criticalHpTriggered ? data.criticalRegenMultiplier ?? 1 : 1);
@@ -68,7 +69,7 @@ export function gainBossSkillSp(skill: BossSkill | undefined, amount: number) {
   if (skill) skill.sp = Math.min(skill.maxSp, skill.sp + amount);
 }
 
-export function grantBossSkillSp(boss: Pick<CubeBoss, "skills">, source: BossSkillName) {
+export function grantBossSkillSp(boss: Pick<BossState, "skills">, source: BossSkillName) {
   const data: BossSkillData = BOSS_SKILLS[source];
   if (data.grantsSp) gainBossSkillSp(boss.skills[data.grantsSp.skill], data.grantsSp.amount);
 }

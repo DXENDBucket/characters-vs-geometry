@@ -1,29 +1,22 @@
 import Phaser from "phaser";
 import { drawDelBoss, drawDelEcho } from "../render/delBoss";
-import { initialBossSkillStates } from "../game/bossSkillRules";
+import { createBossState, type CreateBossOptions } from "../game/bossState";
+import {
+  advanceBossPosition, isTetrahedronBossKind, isTetrahedronBoss, isDodecahedronBoss,
+  isSmallStellatedDodecahedronBoss, isOctahedronBoss, isIcosahedronBossKind, isIcosahedronBoss
+} from "../game/bossRules";
+export {
+  bossRank, bossAdvanceSpawnPoints, isTetrahedronBossKind, isTetrahedronBoss,
+  isDodecahedronBossKind, isDodecahedronBoss, isSmallStellatedDodecahedronBossKind,
+  isSmallStellatedDodecahedronBoss, isOctahedronBossKind, isOctahedronBoss,
+  isIcosahedronBossKind, isIcosahedronBoss
+} from "../game/bossRules";
 export { createBossSkill, chargeBossSkill, isBossSkillReady, spendBossSkill } from "../game/bossSkillRules";
 import { delSweepActive } from "../game/delSweep";
 import { delLaneSweepInvincible } from "../game/delLaneSweep";
-import { bossMovementDirection, expireReversalEffect } from "../game/rules/reversal";
-import {
-  BOARD_HEIGHT,
-  BOARD_WIDTH,
-  BOARD_X,
-  BOARD_Y,
-  BOSS_HITBOX_HEIGHT,
-  BOSS_HITBOX_WIDTH,
-  CELL_HEIGHT,
-  CELL_WIDTH,
-  CUBE_BOSS_STATS,
-  LANES,
-  palette
-} from "../config";
+import { palette } from "../config";
 import { toRomanNumeral } from "../format";
-import { bossBounds } from "../game/unitGeometry";
-import { bossBaseStatsFromValues } from "../game/unitStats";
 import type { BossKind, CubeBoss } from "../types";
-import { bossStatsAtRank, rankedBossFamily } from "./bossRanks";
-import { enemyKindAtRank } from "../game/enemyIdentity";
 
 const CUBE_DRAW_SIZE = 59;
 const DODECAHEDRON_DRAW_SIZE = 47;
@@ -43,14 +36,6 @@ const ICOSAHEDRON_ROTATION_SPEED = {
   y: -0.72,
   z: 0.36
 };
-
-interface CreateCubeBossOptions {
-  rank?: number;
-  x?: number;
-  y?: number;
-  movementAxis?: "x" | "y";
-  movementDirection?: -1 | 1;
-}
 
 export const DODECAHEDRON_UNIT_VERTICES = [
   [-1, -1, -1],
@@ -207,16 +192,10 @@ export function createCubeBoss(
   scene: Phaser.Scene,
   kind: BossKind,
   finalDamageReduction: number,
-  options: CreateCubeBossOptions = {}
+  options: CreateBossOptions = {}
 ) {
-  const ranked = rankedBossFamily(kind);
-  const rank = ranked ? options.rank ?? bossRank(kind) : bossRank(kind);
-  const stats = ranked ? bossStatsAtRank(kind, rank) : CUBE_BOSS_STATS[kind];
-  const baseStats = bossBaseStatsFromValues(stats, finalDamageReduction);
-  const hitboxWidth = stats.hitboxCells ? CELL_WIDTH * stats.hitboxCells : BOSS_HITBOX_WIDTH;
-  const hitboxHeight = stats.hitboxCells ? CELL_HEIGHT * stats.hitboxCells : BOSS_HITBOX_HEIGHT;
-  const x = options.x ?? BOARD_X + BOARD_WIDTH - hitboxWidth / 2;
-  const y = options.y ?? BOARD_Y + BOARD_HEIGHT / 2;
+  const state = createBossState(kind, finalDamageReduction, options);
+  const { rank, x, y } = state;
   const frame = scene.add.graphics();
   const labelText = scene.add
     .text(0, -3, toRomanNumeral(rank), {
@@ -228,42 +207,8 @@ export function createCubeBoss(
     .setOrigin(0.5);
   const body = scene.add.container(x, y, [frame, labelText]).setDepth(88);
 
-  const boss: CubeBoss = {
-    kind,
-    rank,
-    label: kind === "del" ? "DEL" : toRomanNumeral(rank),
-    x,
-    y,
-    hitboxWidth,
-    hitboxHeight,
-    hp: baseStats.maxHp,
-    baseStats,
-    finalStats: { ...baseStats },
-    maxHp: baseStats.maxHp,
-    armor: baseStats.armor,
-    magicResistance: baseStats.magicResistance,
-    finalDamageReduction: baseStats.finalDamageReduction,
-    speed: baseStats.speed,
-    movementAxis: options.movementAxis ?? "x",
-    movementDirection: options.movementDirection ?? -1,
-    statusEffects: [],
-    advanceMinionKind: enemyKindAtRank("square", rank),
-    hasSkills: !isSkilllessBossKind(kind),
-    skills: initialBossSkillStates(kind),
-    contactAttackBuffer: 0,
-    chargeExpiresAt: 0,
-    halfHpTriggered: false,
-    criticalHpTriggered: false,
-    pendingCriticalSummon: false,
-    companionsInitialized: false,
-    companionDeathsHandled: 0,
-    invincibleUntil: 0,
-    bossHasteUntil: 0,
-    nextBossHasteTrailAt: 0,
-    octahedronCopies: isOctahedronBossKind(kind) ? [] : undefined,
-    octahedronSpawn75Triggered: false,
-    octahedronSpawn50Triggered: false,
-    octahedronSpawn25Triggered: false,
+  const boss = {
+    ...state,
     body,
     frame,
     labelText,
@@ -277,21 +222,14 @@ export function createCubeBoss(
     targetVelocityY: initialBossRotationSpeed(kind).y,
     targetVelocityZ: initialBossRotationSpeed(kind).z,
     nextTurnIn: isTetrahedronBossKind(kind) ? 0.8 : 1.8
-  };
+  } as CubeBoss;
 
   drawCubeBoss(boss, 0);
   return boss;
 }
 
 export function updateCubeBossMotion(boss: CubeBoss, seconds: number, movementMultiplier = 1, time = 0) {
-  expireReversalEffect(boss, time);
-  const distance = boss.finalStats.speed * seconds * movementMultiplier;
-  const direction = bossMovementDirection(boss);
-  if ((boss.movementAxis ?? "x") === "y") {
-    boss.y += direction * distance;
-  } else {
-    boss.x += direction * distance;
-  }
+  advanceBossPosition(boss, seconds, movementMultiplier, time);
   boss.body.setPosition(boss.x, boss.y);
 
   if (boss.kind === "del") {
@@ -342,15 +280,6 @@ function initialBossRotationSpeed(kind: BossKind) {
 
 function randomSignedRotationSpeed(min: number, max: number) {
   return Phaser.Math.FloatBetween(min, max) * (Phaser.Math.Between(0, 1) === 0 ? -1 : 1);
-}
-
-export function bossAdvanceSpawnPoints(boss: CubeBoss) {
-  const x = bossBounds(boss).left - CELL_WIDTH / 2;
-  return Array.from({ length: LANES }, (_, lane) => ({
-    lane,
-    x,
-    y: BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2
-  }));
 }
 
 function drawCubeBoss(boss: CubeBoss, time: number) {
@@ -422,58 +351,6 @@ function drawCubeBoss(boss: CubeBoss, time: number) {
   for (const [from, to] of edges) {
     boss.frame.lineBetween(vertices[from].x, vertices[from].y, vertices[to].x, vertices[to].y);
   }
-}
-
-export function bossRank(kind: BossKind) {
-  return kind === "cube2" || kind === "tetrahedron2" || kind === "dodecahedron2" || kind === "octahedron2" ? 2 : 1;
-}
-
-export function isTetrahedronBossKind(kind: BossKind) {
-  return kind === "tetrahedron" || kind === "tetrahedron2";
-}
-
-export function isTetrahedronBoss(boss: CubeBoss) {
-  return isTetrahedronBossKind(boss.kind);
-}
-
-export function isDodecahedronBossKind(kind: BossKind) {
-  return kind === "dodecahedron" || kind === "dodecahedron2";
-}
-
-export function isDodecahedronBoss(boss: CubeBoss) {
-  return isDodecahedronBossKind(boss.kind);
-}
-
-export function isSmallStellatedDodecahedronBossKind(kind: BossKind) {
-  return kind === "smallStellatedDodecahedron";
-}
-
-export function isSmallStellatedDodecahedronBoss(boss: CubeBoss) {
-  return isSmallStellatedDodecahedronBossKind(boss.kind);
-}
-
-export function isOctahedronBossKind(kind: BossKind) {
-  return kind === "octahedron" || kind === "octahedron2";
-}
-
-export function isOctahedronBoss(boss: CubeBoss) {
-  return isOctahedronBossKind(boss.kind);
-}
-
-export function isIcosahedronBossKind(kind: BossKind) {
-  return kind === "icosahedron";
-}
-
-export function isIcosahedronBoss(boss: CubeBoss) {
-  return isIcosahedronBossKind(boss.kind);
-}
-
-function isSkilllessBossKind(kind: BossKind) {
-  return (
-    isDodecahedronBossKind(kind) ||
-    isSmallStellatedDodecahedronBossKind(kind) ||
-    isOctahedronBossKind(kind)
-  );
 }
 
 function drawTetrahedronBoss(boss: CubeBoss, time: number) {

@@ -118,8 +118,9 @@ Selection order, damage rules and replay checksums remain unchanged.
 
 1. Move remaining pure visual updates to a frame-level rendering adapter while
    preserving simulation-owned positions, deadlines and random streams.
-2. Extend explicit snapshot contracts from projectiles, towers and enemies to
-   Bosses, then introduce stable entity IDs instead of live object references.
+2. Boss state and explicit snapshot contracts are now extracted as well; see
+   [Boss State Boundary](boss-state.md). Introduce stable entity IDs instead of
+   live object references next.
 3. Continue consolidating tower aura, Boss events, scaling and encyclopedia metadata;
    named enemy, tower and Boss SP skills now share their numeric definitions.
 4. Split oversized scene/runtime responsibilities along those boundaries, with

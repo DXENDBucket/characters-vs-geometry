@@ -10,7 +10,8 @@ import {
   TETRAHEDRON_BOSS_HASTE_MULTIPLIER,
   TETRAHEDRON_BOSS_INVINCIBLE_DURATION
 } from "../config";
-import { isIcosahedronBoss, isTetrahedronBoss, updateCubeBossMotion } from "../bosses/cubeBoss";
+import { updateCubeBossMotion } from "../bosses/cubeBoss";
+import { isIcosahedronBoss, isTetrahedronBoss } from "./bossRules";
 import { startDelSweep, delSweepActive } from "./delSweep";
 import { startDelLaneSweep, delLaneSweepInvincible } from "./delLaneSweep";
 import { syncDelSweepWarning } from "../render/delSweepWarning";

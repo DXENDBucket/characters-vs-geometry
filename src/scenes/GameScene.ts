@@ -73,7 +73,8 @@ import {
   getDifficultyConfig,
   palette
 } from "../config";
-import { createCubeBoss, isDodecahedronBoss, isOctahedronBoss } from "../bosses/cubeBoss";
+import { createCubeBoss } from "../bosses/cubeBoss";
+import { isDodecahedronBoss, isOctahedronBoss, syncBossBaseStats } from "../game/bossRules";
 import { applyBossPhaseSkillState } from "../game/bossSkillRules";
 import { clearBossCopyWarnings } from "../render/bossCopyWarnings";
 import { enemyIsBossCompanion } from "../registry/enemies";
@@ -140,7 +141,7 @@ import {
   triggerTrapTower as runTriggerTrapTower,
   type TriggerTowerRuntime
 } from "../game/triggerTowers";
-import { syncBossBaseStats, towerFinalStats } from "../game/unitStats";
+import { towerFinalStats } from "../game/unitStats";
 import { volleyInterval, volleyShotCount } from "../game/upgrades";
 import { volleyHitsAt, volleyTimingCount } from "../game/volley";
 import { waveScheduleAction } from "../game/waves";

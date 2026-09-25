@@ -76,7 +76,7 @@ test("source runtime imports and re-exports remain acyclic", () => {
 });
 
 test("data, geometry, support queries and snapshot capture cannot pull in scenes or rendering", () => {
-  const entries = ["enemyState", "towerState", "projectileState", "enemyCombatRules", "towerRules",
+  const entries = ["enemyState", "towerState", "projectileState", "bossState", "bossRules", "bossSkillRules", "enemyCombatRules", "towerRules",
     "captureBattleSnapshot", "unitGeometry", "enemySupport", "rules/statusEffectRules"];
   for (const entry of entries) {
     const seen = new Set();

@@ -1,4 +1,4 @@
-import type { CubeBoss } from "../types";
+import type { BossRotationState, BossState } from "./bossState";
 import type { EnemyState } from "./enemyState";
 import type { TowerState } from "./towerState";
 import type { BattleSaveState } from "./battleSaveState";
@@ -40,7 +40,23 @@ const enemyFields = new Set(Object.keys({
   bossCompanionIndex: true, bossCompanionNextActionAt: true, oscillationCenterY: true, oscillationPhase: true,
   oscillationLastY: true, bossCompanionActionPhase: true
 } satisfies Record<keyof EnemyState, true>));
-const bossVisuals = new Set<string>(["body", "frame", "labelText"] satisfies (keyof CubeBoss)[]);
+const bossFields = new Set(Object.keys({
+  deleteFormatReadyAt: true, delLaneSweep: true, delEcho: true, delSweep: true, deleteStackPending: true,
+  statusEffects: true, kind: true, rank: true, label: true, x: true, y: true,
+  hitboxWidth: true, hitboxHeight: true, hp: true, baseStats: true, finalStats: true,
+  maxHp: true, armor: true, magicResistance: true, finalDamageReduction: true, speed: true,
+  movementAxis: true, movementDirection: true, advanceMinionKind: true, hasSkills: true, skills: true,
+  contactAttackBuffer: true, chargeExpiresAt: true, halfHpTriggered: true, criticalHpTriggered: true,
+  pendingCriticalSummon: true, companionsInitialized: true, companionDeathsHandled: true,
+  invincibleUntil: true, bossHasteUntil: true, nextBossHasteTrailAt: true,
+  octahedronCopies: true, pendingCopies: true, octahedronSolarBombsInitialized: true,
+  octahedronSpawn75Triggered: true, octahedronSpawn50Triggered: true, octahedronSpawn25Triggered: true
+} satisfies Record<keyof BossState, true>));
+// Old saves retain cosmetic rotation. It is not part of authoritative Boss state.
+for (const key of Object.keys({
+  rotationX: true, rotationY: true, rotationZ: true, velocityX: true, velocityY: true, velocityZ: true,
+  targetVelocityX: true, targetVelocityY: true, targetVelocityZ: true, nextTurnIn: true
+} satisfies Record<keyof BossRotationState, true>)) bossFields.add(key);
 
 // Record covers optional fields too. Filtering retains the original object's field order and graph IDs.
 const projectileFields = new Set(Object.keys({
@@ -72,7 +88,7 @@ export function captureBattleSnapshot(state: BattleSaveState) {
     if ("kind" in value && "waveNumber" in value) return { kind: "enemy", include: enemyFields };
     if ("advanceMinionKind" in value && "rank" in value) {
       if (!rankedBossFamily(value.kind) && value.kind !== "icosahedron" && value.kind !== "del") throw new Error("Unsupported boss save");
-      return { kind: "boss", omit: bossVisuals };
+      return { kind: "boss", include: bossFields };
     }
     if ("owner" in value && "fromX" in value && "progress" in value) return { kind: "mortar", include: mortarFields };
     if ("sourceLane" in value && "vx" in value) return { kind: "enemyProjectile", include: enemyProjectileFields };
