@@ -81,6 +81,7 @@ stubs.set(slowAuraPath, { ...slowAuraStub, isCellInSlowAura });
 
 const rules = load("src/game/rules/reversal.ts");
 const statuses = load("src/game/statusEffects.ts");
+const { syncEnemyStatusVisuals } = load("src/render/enemyStatus.ts");
 const towers = load("src/game/towers.ts");
 const stats = load("src/game/unitStats.ts");
 const upgrades = load("src/game/upgrades.ts");
@@ -1475,6 +1476,7 @@ test("enemy reapplication extends without flipping twice, and expiry restores ba
   const target = enemy();
   statuses.applyStatusEffect(target, "reversed", 5000, 1000);
   statuses.statusMultipliers(target, 1000);
+  syncEnemyStatusVisuals(target, 1000);
   assert.equal(rules.enemyMovementDirection(target), 1);
   assert.equal(target.visualDirection, 1);
   statuses.applyStatusEffect(target, "reversed", 5000, 2000);
@@ -1482,6 +1484,7 @@ test("enemy reapplication extends without flipping twice, and expiry restores ba
   statuses.statusMultipliers(target, 6999);
   assert.equal(rules.enemyMovementDirection(target), 1);
   statuses.statusMultipliers(target, 7000);
+  syncEnemyStatusVisuals(target, 7000);
   assert.equal(rules.enemyMovementDirection(target), -1);
   assert.equal(target.visualDirection, -1);
 });
@@ -1489,6 +1492,7 @@ test("enemy reapplication extends without flipping twice, and expiry restores ba
 test("towers hold reversal and permanent facing changes survive expiry", () => {
   const target = tower();
   statuses.applyStatusEffect(target, "reversed", 5000, 0);
+  towers.syncTowerFacingVisual(target);
   assert.equal(towers.towerFacingDirection(target), -1);
   assert.equal(target.label.scaleX, -1);
   towers.toggleTowerFacing(target);

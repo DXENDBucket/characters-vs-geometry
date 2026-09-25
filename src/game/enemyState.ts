@@ -1,7 +1,7 @@
 import { BOARD_Y, CELL_HEIGHT, LANES } from "../config";
 import { ARCHANGEL_ENTRY } from "../data/enemyAbilities";
 import { enemyFamily, enemyIsMace, getEnemyDefinition } from "../registry/enemies";
-import type { BossCompanionActionPhase, DamageType, Enemy, EnemyBaseStats, EnemyDefinition,
+import type { BossCompanionActionPhase, DamageType, EnemyBaseStats, EnemyDefinition,
   EnemyFinalStats, EnemyHealthPool, EnemyKind, SkillState, StatusEffect } from "../types";
 import { attackIntervalMs } from "./attackSpeed";
 import { enemyAttackSpeed, randomizedEnemySpeed } from "./enemyCombatRules";
@@ -9,7 +9,7 @@ import { initialEnemySkillStates } from "./enemySkillRules";
 import { refreshStatusEffect } from "./rules/statusEffectRules";
 
 export interface EnemyState {
-  healthPool?: EnemyHealthPool;
+  healthPool?: EnemyHealthPool<EnemyState>;
   healthLinksInitialized?: boolean;
   kind: EnemyKind;
   waveNumber: number;
@@ -37,9 +37,9 @@ export interface EnemyState {
   burrowAt?: number;
   burrowed?: boolean;
   burrowUnloaded?: boolean;
-  burrowCargo?: Enemy[];
-  parenthesisCargo?: Enemy[];
-  parenthesisCarrier?: Enemy;
+  burrowCargo?: EnemyState[];
+  parenthesisCargo?: EnemyState[];
+  parenthesisCarrier?: EnemyState;
   parenthesisHpBonus?: number;
   environmentHpMultiplier?: number;
   slopeFacingDirection?: -1 | 1;

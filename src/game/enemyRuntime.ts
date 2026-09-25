@@ -51,7 +51,6 @@ import { enemyAttackDamage, enemyAttackMultiplier, enemyMovementMultiplier, enem
 import {
   enemySupportBonuses,
   enemySupportSources,
-  syncHexArmorAuras,
   type EnemySupportSources
 } from "./enemySupport";
 import { updateEnemySkills } from "./enemySkills";
@@ -73,9 +72,8 @@ import {
 } from "./solarBomb";
 import { enemyIsSolarBomb } from "./enemyIdentity";
 import { slowAuraSources, type SlowAuraSources } from "./slowAura";
-import {
-  applyStatusEffect, hasUnexpiredStatusEffect, statusMultipliers, type StatusMultipliers, syncEnemyBodyPosition
-} from "./statusEffects";
+import { applyStatusEffect, hasUnexpiredStatusEffect, statusMultipliers, type StatusMultipliers } from "./statusEffects";
+import { syncEnemyBodyPosition } from "../render/enemyStatus";
 import { hasStatusEffectName } from "./rules/statusEffectRules";
 import { getBlockingTowerFromOccupied, getSweptBlockingTowerFromOccupied, latestPlacedTower } from "./targeting";
 import { bossBounds, forEachBossPart, type RectBounds } from "./unitGeometry";
@@ -308,7 +306,6 @@ export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, secon
     ? new Map(runtime.enemies.map(enemy => [enemy, { x: enemy.x, y: enemy.y }])) : undefined;
   updateEnemySkills(runtime, seconds, time);
   const supportSources = enemySupportSources(runtime.enemies);
-  syncHexArmorAuras(runtime.enemies, time, supportSources);
   const slowSources = slowAuraSources(runtime.towers);
 
   forEachInitial(runtime.enemies, (enemy) => {

@@ -23,6 +23,7 @@ try {
     const progress = await mod("/src/progress.ts");
     const { spawnEnemyAt } = await mod("/src/game/enemyRuntime.ts");
     const { enemyDefenseStats } = await mod("/src/game/combatStats.ts");
+    const { applyStatusEffect, statusMultipliers, addFrozenPhysicalDamage } = await mod("/src/game/statusEffects.ts");
     const { createSharedGlyph } = await mod("/src/render/sharedGlyphs.ts");
     const { createEnemyShape } = await mod("/src/render/unitShapes.ts");
     const { applyEnemyPromotion, syncEnemyFacingVisual } = await mod("/src/game/enemyBehaviors.ts");
@@ -102,6 +103,13 @@ try {
     }
 
     const counts = [0, 0, 0];
+    applyStatusEffect(target, "stasis", 10000, scene.battleTime);
+    applyStatusEffect(target, "power", 10000, scene.battleTime);
+    let statusDraws = 0;
+    const setStroke = target.statusBorder.setStrokeStyle;
+    target.statusBorder.setStrokeStyle = function (...args) { statusDraws++; return setStroke.apply(this, args); };
+    for (let i = 0; i < 100; i++) enemyDefenseStats(target, scene.enemies, scene.battleTime);
+    check(statusDraws === 0, "Attribute queries drew status visuals");
     const layers = [scene.nullifiedTowerGraphics, scene.timedCellSealGraphics, scene.enemyHealthLinks];
     const clears = layers.map(g => g.clear);
     layers.forEach((g, i) => { g.clear = function () { counts[i]++; return clears[i].call(this); }; });
@@ -109,7 +117,18 @@ try {
     scene.update(0, 150);
     const catchUpTicks = scene.simulation.tick - tickBefore;
     layers.forEach((g, i) => { g.clear = clears[i]; });
+    target.statusBorder.setStrokeStyle = setStroke;
     check(catchUpTicks > 1 && counts.every(n => n === 1), `Catch-up redrew overlays: ${counts}; ticks: ${catchUpTicks}`);
+    check(statusDraws === 1 && target.powerIcon.visible && target.statusBorder.visible, "Status visuals were not rendered once per frame");
+    applyStatusEffect(target, "frozen", 10000, scene.battleTime);
+    scene.battlePaused = true; scene.update(0, 0);
+    check(target.frozenBorder.visible && !target.statusBorder.visible, "Paused rendering lost freeze priority");
+    addFrozenPhysicalDamage(target, target.maxHp / 2, scene.battleTime);
+    scene.update(0, 0);
+    check(!target.frozenBorder.visible && target.statusBorder.visible, "Freeze break did not refresh on the same paused tick");
+    const checksum = scene.battleChecksum();
+    scene.syncBattleOverlays();
+    check(scene.battleChecksum() === checksum, "Status rendering changed authoritative state");
 
     for (let rank = 1; rank <= 300; rank++) createEnemyShape(scene, enemyKindAtRank("triangle", rank)).destroy();
     const glyphCount = Object.keys(game.textures.list).filter(key => key.startsWith("shared-glyph-")).length;
@@ -120,11 +139,13 @@ try {
       "tilde3", "parentheses3", "archangelHeptagon3", "burrowArrow2", "equals3", "chevronLeader"];
     kinds.forEach((kind, i) => spawn(gallery, kind, 1 + Math.floor(i / 6) * 3, BOARD_X + (1 + i % 6 * 1.7) * CELL_WIDTH));
     const status = gallery.enemies[0];
-    [status.powerIcon, status.sunderIcon, status.armorIcon, status.magicResistanceIcon].forEach((icon, i) => icon.setVisible(true).setPosition(-30 + i * 20, -38));
+    applyStatusEffect(status, "power", 10000, gallery.battleTime);
+    applyStatusEffect(status, "sunder", 10000, gallery.battleTime);
+    statusMultipliers(status, gallery.battleTime);
     gallery.syncBattleOverlays();
     gallery.battlePaused = true;
     game.loop.start(game.step.bind(game));
-    return { measurements, catchUpTicks, overlayDraws: counts, cachedGlyphsAfter300Ranks: glyphCount };
+    return { measurements, catchUpTicks, overlayDraws: counts, statusDraws, cachedGlyphsAfter300Ranks: glyphCount };
   });
   if (option("screenshots")) {
     const directory = option("screenshots"); await mkdir(directory, { recursive: true });

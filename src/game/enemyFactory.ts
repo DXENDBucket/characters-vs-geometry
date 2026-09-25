@@ -10,6 +10,7 @@ import { createEnemyState, type CreateEnemyOptions } from "./enemyState";
 import { enemyIsSolarBomb } from "./enemyIdentity";
 import { syncSolarBombVisual } from "./solarBomb";
 import { statusSpeedMultiplier } from "./statusEffects";
+import { syncEnemyStatusVisuals } from "../render/enemyStatus";
 
 export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): Enemy {
   if (!isBattlePlayback(scene)) recordEnemySeen(options.kind);
@@ -20,19 +21,16 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
   body.add([visuals.frozenBorder, visuals.statusBorder, visuals.flyingHalo, shape,
     visuals.powerIcon, visuals.sunderIcon, visuals.armorIcon, visuals.magicResistanceIcon]);
 
-  const enemy: Enemy = {
+  const enemy = {
     ...state,
-    statusMultiplierCache: {
-      speed: 1, attack: 1, armor: 1,
-      visualSyncedAt: Number.NaN, visualSyncedX: Number.NaN, visualSyncedY: Number.NaN
-    },
     ...visuals,
     body,
     shape
-  };
+  } as Enemy;
 
   if (enemyFamily(enemy.kind) === "archangelHeptagon") {
     statusSpeedMultiplier(enemy, options.time);
+    syncEnemyStatusVisuals(enemy, options.time);
     enemy.body.setDepth(85 + enemy.lane);
   }
   if (enemyIsSolarBomb(enemy)) syncSolarBombVisual(enemy);

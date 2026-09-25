@@ -1,8 +1,8 @@
 # Enemy State Boundary
 
 `game/enemyState.ts` owns enemy data, base-panel projection and initial-state
-construction. `Enemy` in `types.ts` extends it with display objects and the derived
-status/visual cache. `game/enemyFactory.ts` attaches those objects, records discovery
+construction. `Enemy` in `types.ts` extends it with display objects and live
+relationship types. `game/enemyFactory.ts` attaches those objects, records discovery
 outside playback and supplies the battle RNG. The pure factory neither reads
 progress nor owns a random stream.
 
@@ -33,14 +33,16 @@ functions load without Phaser and operate on data holders.
 - Freeze breaks at cumulative physical damage of half maximum HP. Reapplication
   resets the counter. Sunder refresh replaces its deadline.
 
-`game/statusEffects.ts` remains the live adapter. It invalidates visual caches
-after mutations and synchronizes at the same call sites as before. Runtime
-callers should use this adapter when changing live effects; calling the pure
-mutators alone would not refresh their display cache.
+`game/statusEffects.ts` now owns renderer-free lifecycle coordination. It updates
+a nonserialized revision after mutations and keeps numeric caches in a WeakMap.
+Runtime callers should use it when changing effects; low-level mutators alone
+would not invalidate same-tick display. Passenger logical seats retain their
+original update timing, independently of body transforms.
 
 `render/enemyFacing.ts` handles shape facing without the entire enemy factory.
 Its rank labels keep readable orientation and chevrons retain their form update.
-No effect timing or visual update has been moved to a different simulation tick.
+Status rendering is now in `render/enemyStatus.ts`, refreshed once per displayed
+frame after simulation. Effect timing and authoritative positions are unchanged.
 
 ## Snapshots
 
@@ -62,9 +64,11 @@ special spawns, effect deadlines, frozen damage, eligibility and legacy cyclic
 snapshots. Browser checks cover status visuals, parentheses, chevrons, shared
 glyphs and deterministic save/replay continuation.
 
-This is not a renderer-free battle engine. Cargo and pool contracts still contain
-live entity references, and health, promotion and movement still update visuals.
-Boss state, stable entity IDs and a scene-independent session remain future work.
+This is not a renderer-free battle engine. Cargo and pool contracts now use pure
+state references, but health, promotion and movement still coordinate visuals.
+Boss state and session orchestration are extracted; stable entity IDs and a
+complete scene-independent world simulation remain future work. See
+[combat state](combat-state.md) and [battle session](battle-session.md).
 The follow-up [unit geometry extraction](unit-geometry.md) removed the remaining
 `combatStats.ts`, `enemySupport.ts` and `targeting.ts` runtime import cycle.
 Dependency tests now protect this boundary. These passes do not claim a measured

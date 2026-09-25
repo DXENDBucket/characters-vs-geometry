@@ -1,20 +1,20 @@
 import { ENEMY_AURAS } from "../data/enemyAbilities";
 import { enemySupportCandidates } from "./enemySupportIndex";
-import { enemiesWithPassengers, enemyIsActive } from "./enemyContainers";
+import { enemyIsActive } from "./enemyContainerRules";
 import { CELL_HEIGHT, CELL_WIDTH, LANES } from "../config";
-import type { CubeBoss, Enemy } from "../types";
+import type { BossState as CubeBoss } from "./bossState";
+import type { EnemyState as Enemy } from "./enemyState";
 import { enemyFamily, enemyRank } from "../registry/enemies";
 import { enemyIsHighFlying } from "./enemyCombatRules";
 import { bossPartDistanceSqToPoint } from "./unitGeometry";
-import { setPositionIfChanged, setVisibleIfChanged } from "./visualGuards";
 
 const HEX_ARMOR_RADIUS = CELL_WIDTH * ENEMY_AURAS.armor.range.shape.radius;
 const HEX_ARMOR_RANK_ONE_BONUS = ENEMY_AURAS.armor.base;
 const HEX_ARMOR_BONUS_PER_EXTRA_RANK = ENEMY_AURAS.armor.perRank;
 const HEX_SPELL_BULWARK_RANK_ONE_MAGIC_RESISTANCE_BONUS = ENEMY_AURAS.resistance.base;
 const HEX_SPELL_BULWARK_MAGIC_RESISTANCE_BONUS_PER_EXTRA_RANK = ENEMY_AURAS.resistance.perRank;
-const HEX_AURA_ARMOR_FLAG = 1;
-const HEX_AURA_MAGIC_RESISTANCE_FLAG = 2;
+export const HEX_AURA_ARMOR_FLAG = 1;
+export const HEX_AURA_MAGIC_RESISTANCE_FLAG = 2;
 const CHARGING_HEX_SPEED_MULTIPLIER = ENEMY_AURAS.advance.speedMultiplier;
 const LEADER_SPEED_MULTIPLIER = ENEMY_AURAS.advance.speedMultiplier;
 const HEX_ARMOR_RADIUS_SQ = HEX_ARMOR_RADIUS * HEX_ARMOR_RADIUS;
@@ -45,20 +45,20 @@ export interface EnemySupportSources {
   leadersByLane: Enemy[][];
 }
 
-const nearbyHexArmorSourcesBuffer: Enemy[] = [];
-let defensiveAuraIconsMayBeVisible = false;
-const enemySupportSourcesBuffer: EnemySupportSources = {
-  enemies: [],
-  hexagons: [],
-  hexagonLaneMask: 0,
-  magicResistanceLaneMask: 0,
-  chargingHexLaneMask: 0,
-  leaderLaneMask: 0,
-  hexagonsByLane: enemyLaneBuckets(),
-  magicResistanceByLane: enemyLaneBuckets(),
-  chargingHexByLane: enemyLaneBuckets(),
-  leadersByLane: enemyLaneBuckets()
-};
+const supportViews = new WeakMap<Enemy[], EnemySupportSources>();
+const nearbyBuffers = new WeakMap<EnemySupportSources, Enemy[]>();
+
+function supportView(enemies: Enemy[]) {
+  let sources = supportViews.get(enemies);
+  if (!sources) {
+    sources = { enemies, hexagons: [], hexagonLaneMask: 0, magicResistanceLaneMask: 0,
+      chargingHexLaneMask: 0, leaderLaneMask: 0, hexagonsByLane: enemyLaneBuckets(),
+      magicResistanceByLane: enemyLaneBuckets(), chargingHexByLane: enemyLaneBuckets(), leadersByLane: enemyLaneBuckets() };
+    supportViews.set(enemies, sources);
+    nearbyBuffers.set(sources, []);
+  }
+  return sources;
+}
 
 export function hexArmorBonus(enemies: Enemy[], target: Enemy) {
   return enemySupportBonuses(enemies, target, { includeDefense: true }).armor;
@@ -222,40 +222,6 @@ function bossBodyInRadius(boss: CubeBoss, x: number, y: number, radiusSq: number
   return bossPartDistanceSqToPoint(boss, x, y) <= radiusSq;
 }
 
-export function syncHexArmorAuras(enemies: Enemy[], time: number, sources = enemySupportSources(enemies)) {
-  if (sources.hexagons.length === 0 && sources.magicResistanceLaneMask === 0) {
-    if (!defensiveAuraIconsMayBeVisible) {
-      return;
-    }
-
-    for (const enemy of enemies) {
-      setVisibleIfChanged(enemy.armorIcon, false);
-      setVisibleIfChanged(enemy.magicResistanceIcon, false);
-    }
-    defensiveAuraIconsMayBeVisible = false;
-    return;
-  }
-
-  const iconY = -38 + Math.sin(time / 110) * 2;
-  let anyIconVisible = false;
-  for (const enemy of enemiesWithPassengers(enemies)) {
-    const auraFlags = hexAuraFlags(sources, enemy);
-    const hasArmorBonus = (auraFlags & HEX_AURA_ARMOR_FLAG) !== 0;
-    const hasMagicResistanceBonus = (auraFlags & HEX_AURA_MAGIC_RESISTANCE_FLAG) !== 0;
-    anyIconVisible = anyIconVisible || hasArmorBonus || hasMagicResistanceBonus;
-
-    setVisibleIfChanged(enemy.armorIcon, hasArmorBonus);
-    setVisibleIfChanged(enemy.magicResistanceIcon, hasMagicResistanceBonus);
-    if (hasArmorBonus) {
-      setPositionIfChanged(enemy.armorIcon, hasMagicResistanceBonus ? -10 : 0, iconY);
-    }
-    if (hasMagicResistanceBonus) {
-      setPositionIfChanged(enemy.magicResistanceIcon, hasArmorBonus ? 10 : 0, iconY);
-    }
-  }
-  defensiveAuraIconsMayBeVisible = anyIconVisible;
-}
-
 export function chargingHexSpeedMultiplier(enemies: Enemy[], target: Enemy) {
   let hasChargingHexBuff = false;
   let hasLeaderBuff = false;
@@ -293,8 +259,8 @@ function hexMagicResistanceAuraBonus(enemy: Enemy) {
 }
 
 export function enemySupportSources(enemies: Enemy[]): EnemySupportSources {
-  // Reused per call; consume synchronously before requesting another support view.
-  const sources = enemySupportSourcesBuffer;
+  // Reused within one roster. Another battle cannot overwrite this view.
+  const sources = supportView(enemies);
   sources.enemies = enemies;
   sources.hexagons.length = 0;
   clearEnemyLaneBuckets(sources.hexagonsByLane, sources.hexagonLaneMask);
@@ -360,7 +326,7 @@ function clearEnemyLaneBuckets(buckets: Enemy[][], laneMask: number) {
   }
 }
 
-function hexAuraFlags(sources: EnemySupportSources, target: Enemy) {
+export function hexAuraFlags(sources: EnemySupportSources, target: Enemy) {
   const laneMask = target.lane >= 0 && target.lane < LANES ? 1 << target.lane : 0;
   if (sources.hexagons.length === 0 && (sources.magicResistanceLaneMask & laneMask) === 0) {
     return 0;
@@ -396,7 +362,9 @@ function nearbyHexArmorSources(sources: EnemySupportSources, target: Enemy) {
     return sources.hexagons;
   }
 
-  nearbyHexArmorSourcesBuffer.length = 0;
+  let nearby = nearbyBuffers.get(sources);
+  if (!nearby) { nearby = []; nearbyBuffers.set(sources, nearby); }
+  nearby.length = 0;
   for (let lane = minLane; lane <= maxLane; lane += 1) {
     if ((sources.hexagonLaneMask & (1 << lane)) === 0) {
       continue;
@@ -404,10 +372,10 @@ function nearbyHexArmorSources(sources: EnemySupportSources, target: Enemy) {
 
     const laneSources = sources.hexagonsByLane[lane];
     for (const enemy of laneSources) {
-      nearbyHexArmorSourcesBuffer.push(enemy);
+      nearby.push(enemy);
     }
   }
-  return nearbyHexArmorSourcesBuffer;
+  return nearby;
 }
 
 function isHexagon(enemy: Enemy) {

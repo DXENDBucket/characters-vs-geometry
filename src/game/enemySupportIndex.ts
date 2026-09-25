@@ -1,4 +1,4 @@
-import type { Enemy } from "../types";
+import type { EnemyState as Enemy } from "./enemyState";
 import { enemyFamily } from "../registry/enemies";
 import { enemyFamilyProvidesSupport } from "../data/enemyAbilities";
 import { enemyRosterRevision } from "./enemyRoster";

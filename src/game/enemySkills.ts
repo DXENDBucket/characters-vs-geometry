@@ -14,7 +14,8 @@ import { enemyIgnoresLeaderRestrictedMechanics, enemyIsHighFlying } from "./enem
 import { createEnemySkillRegistry, enemySkillDefinitionsForFamily, type EnemySkillRuntime } from "./enemySkillRegistry";
 import { getEnemySkillState, isSkillReady, spendSkillSp } from "./skillState";
 import { chargeEnemySkill } from "./enemySkillRules";
-import { applyStatusEffect, hasUnexpiredStatusEffect, syncEnemyBodyPosition } from "./statusEffects";
+import { applyStatusEffect, hasUnexpiredStatusEffect } from "./statusEffects";
+import { syncEnemyBodyPosition } from "../render/enemyStatus";
 
 const HEAL_RADIUS = CELL_WIDTH * ENEMY_SKILLS.heal.range.shape.radius;
 const HEAL_RADIUS_SQ = HEAL_RADIUS * HEAL_RADIUS;

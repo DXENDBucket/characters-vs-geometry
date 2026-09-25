@@ -3,7 +3,8 @@ import { addEnemyToField, removeEnemyAt } from "./enemyRoster";
 import { enemyFamily, enemyRank } from "../registry/enemies";
 import { canJoinEnemyGroup, enemyMaximumHp, parenthesisHalfSpan, PASSENGER_STAT_RATIO, syncPassengerPositions } from "./enemyContainers";
 import { enemyIsBurrowed, enemyIsHighFlying } from "./enemyCombatRules";
-import { applyStatusEffect, effectSpeedMultiplier, hasUnexpiredStatusEffect, removeStatusEffect, statusMultipliers, syncEnemyBodyPosition } from "./statusEffects";
+import { applyStatusEffect, effectSpeedMultiplier, hasUnexpiredStatusEffect, removeStatusEffect, statusMultipliers } from "./statusEffects";
+import { syncEnemyBodyPosition } from "../render/enemyStatus";
 import { syncParenthesisVisual } from "../render/parenthesisEnemy";
 import { segmentBoxHitTime } from "./oscillatingMovement";
 

@@ -58,7 +58,8 @@ import {
   clampYToBossPart,
   findBossPart
 } from "./unitGeometry";
-import { applyStatusEffect, syncEnemyBodyPosition } from "./statusEffects";
+import { applyStatusEffect } from "./statusEffects";
+import { syncEnemyBodyPosition } from "../render/enemyStatus";
 import { hasStatusEffectName } from "./rules/statusEffectRules";
 import { effectiveTowerLevel, getProductionAmount, towerDamageType, towerFacingDirection } from "./towerRules";
 import { changeTowerHealth } from "./towerHealth";

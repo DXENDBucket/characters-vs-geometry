@@ -291,23 +291,18 @@ export interface Tower extends TowerState {
   levelText: Phaser.GameObjects.Text;
 }
 
-export interface EnemyHealthPool {
-  owner: Enemy;
-  members: Enemy[];
+export interface EnemyHealthPool<Member = Enemy> {
+  owner: Member;
+  members: Member[];
   hp: number;
   maxHp: number;
 }
 
 export interface Enemy extends EnemyState {
-  statusMultiplierCache: {
-    reversed?: boolean;
-    speed: number;
-    attack: number;
-    armor: number;
-    visualSyncedAt: number;
-    visualSyncedX: number;
-    visualSyncedY: number;
-  };
+  healthPool?: EnemyHealthPool;
+  burrowCargo?: Enemy[];
+  parenthesisCargo?: Enemy[];
+  parenthesisCarrier?: Enemy;
   statusBorder: Phaser.GameObjects.Arc;
   frozenBorder: Phaser.GameObjects.Rectangle;
   powerIcon: Phaser.GameObjects.Image;

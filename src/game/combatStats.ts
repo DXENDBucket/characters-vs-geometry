@@ -1,5 +1,7 @@
-import type { CubeBoss, Enemy, Tower } from "../types";
-import { enemyMaximumHp, PASSENGER_STAT_RATIO } from "./enemyContainers";
+import type { BossState as CubeBoss } from "./bossState";
+import type { EnemyState as Enemy } from "./enemyState";
+import type { TowerState as Tower } from "./towerState";
+import { enemyMaximumHp, PASSENGER_STAT_RATIO } from "./enemyContainerRules";
 import { enemyFamily } from "../registry/enemies";
 import {
   enemySupportBonuses,
@@ -8,7 +10,7 @@ import {
   hexBossArmorBonus
 } from "./enemySupport";
 import { movementSpeedMultiplier, type SlowAuraSources } from "./slowAura";
-import { statusMultipliers, type StatusMultipliers } from "./statusEffects";
+import { enemyStatusMultipliersCache, invalidateEnemyStatus, statusMultipliers, type StatusMultipliers } from "./statusEffects";
 import { movementHasteMultiplier, setMovementHasteEffect } from "./rules/statusEffectRules";
 import { delSweepSpeed } from "./delSweep";
 
@@ -62,11 +64,11 @@ export function syncEnemyFinalStats(enemy: Enemy, context: EnemyFinalStatsContex
   const auraSpeed = support?.speedMultiplier ?? 1;
   const auraChanged = includeMovement && setMovementHasteEffect(enemy, auraSpeed);
   // Passenger movement may carry a merged status copy rather than the enemy's live cache.
-  if (auraChanged && status && status !== enemy.statusMultiplierCache) {
+  if (auraChanged && status && status !== enemyStatusMultipliersCache(enemy)) {
     status = { ...status, speed: status.speed * auraSpeed / previousHaste };
   }
   if (auraChanged) {
-    enemy.statusMultiplierCache.visualSyncedAt = Number.NaN;
+    invalidateEnemyStatus(enemy);
     const refreshed = statusMultipliers(enemy, context.time ?? 0);
     status ??= refreshed;
   }

@@ -1,4 +1,4 @@
-import type { Enemy } from "../types";
+import type { EnemyState as Enemy } from "./enemyState";
 
 const revisions = new WeakMap<Enemy[], number>();
 
@@ -11,7 +11,7 @@ export function invalidateEnemyRoster(enemies: Enemy[]) {
   revisions.set(enemies, enemyRosterRevision(enemies) + 1);
 }
 
-export function addEnemyToField(enemies: Enemy[], enemy: Enemy) {
+export function addEnemyToField<E extends Enemy>(enemies: E[], enemy: E) {
   enemies.push(enemy);
   invalidateEnemyRoster(enemies);
 }

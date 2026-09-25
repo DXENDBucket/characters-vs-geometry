@@ -1,5 +1,5 @@
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, COLUMNS, LANES } from "../config";
-import type { Tower } from "../types";
+import type { TowerState as Tower } from "./towerState";
 import { towerFormType } from "./towerIdentity";
 
 const SLOW_AURA_MULTIPLIER = 1 / 6;
@@ -13,21 +13,29 @@ export interface SlowAuraSources {
   hasAura: boolean;
 }
 
-const slowAuraSourcesBuffer: SlowAuraSources = {
-  towers: [],
-  auraTowers: [],
-  slowCells: new Uint8Array(BOARD_CELL_COUNT),
-  hasAura: false
-};
-const activeSlowAuraTowersBuffer: Tower[] = [];
-const cachedSlowAuraIds: string[] = [];
-const cachedSlowAuraLanes: number[] = [];
-const cachedSlowAuraColumns: number[] = [];
+interface SlowAuraCache {
+  sources: SlowAuraSources;
+  active: Tower[];
+  ids: string[];
+  lanes: number[];
+  columns: number[];
+}
+const caches = new WeakMap<Tower[], SlowAuraCache>();
+
+function slowAuraCache(towers: Tower[]) {
+  let cache = caches.get(towers);
+  if (!cache) {
+    cache = { sources: { towers, auraTowers: [], slowCells: new Uint8Array(BOARD_CELL_COUNT), hasAura: false },
+      active: [], ids: [], lanes: [], columns: [] };
+    caches.set(towers, cache);
+  }
+  return cache;
+}
 
 export function slowAuraSources(towers: Tower[]): SlowAuraSources {
-  // Reused per call; consume synchronously before requesting another slow-aura view.
-  const activeAuras = activeSlowAuraTowers(towers);
-  if (slowAuraSourcesBuffer.towers === towers && slowAuraStateMatches(activeAuras)) {
+  const cache = slowAuraCache(towers), slowAuraSourcesBuffer = cache.sources;
+  const activeAuras = activeSlowAuraTowers(towers, cache.active);
+  if (slowAuraStateMatches(activeAuras, cache)) {
     return slowAuraSourcesBuffer;
   }
 
@@ -42,11 +50,11 @@ export function slowAuraSources(towers: Tower[]): SlowAuraSources {
     slowAuraSourcesBuffer.auraTowers.push(tower);
     markSlowAuraCells(slowAuraSourcesBuffer.slowCells, tower);
   }
-  cacheSlowAuraState(activeAuras);
+  cacheSlowAuraState(activeAuras, cache);
   return slowAuraSourcesBuffer;
 }
 
-function activeSlowAuraTowers(towers: Tower[]) {
+function activeSlowAuraTowers(towers: Tower[], activeSlowAuraTowersBuffer: Tower[]) {
   activeSlowAuraTowersBuffer.length = 0;
   for (const tower of towers) {
     if (towerFormType(tower) === "T" && tower.inPlay) {
@@ -56,7 +64,8 @@ function activeSlowAuraTowers(towers: Tower[]) {
   return activeSlowAuraTowersBuffer;
 }
 
-function slowAuraStateMatches(towers: Tower[]) {
+function slowAuraStateMatches(towers: Tower[], cache: SlowAuraCache) {
+  const { ids: cachedSlowAuraIds, lanes: cachedSlowAuraLanes, columns: cachedSlowAuraColumns } = cache;
   if (towers.length !== cachedSlowAuraIds.length) {
     return false;
   }
@@ -74,7 +83,8 @@ function slowAuraStateMatches(towers: Tower[]) {
   return true;
 }
 
-function cacheSlowAuraState(towers: Tower[]) {
+function cacheSlowAuraState(towers: Tower[], cache: SlowAuraCache) {
+  const { ids: cachedSlowAuraIds, lanes: cachedSlowAuraLanes, columns: cachedSlowAuraColumns } = cache;
   cachedSlowAuraIds.length = towers.length;
   cachedSlowAuraLanes.length = towers.length;
   cachedSlowAuraColumns.length = towers.length;

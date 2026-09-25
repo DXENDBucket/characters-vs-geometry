@@ -36,7 +36,8 @@ import {
   syncSolarBombVisual
 } from "./solarBomb";
 import { enemyIsSolarBomb } from "./enemyIdentity";
-import { addFrozenPhysicalDamage, applyStatusEffect, hasStatusEffect, syncEnemyBodyPosition } from "./statusEffects";
+import { addFrozenPhysicalDamage, applyStatusEffect, hasStatusEffect } from "./statusEffects";
+import { syncEnemyBodyPosition } from "../render/enemyStatus";
 import { gridCellKey } from "./targeting";
 import { bossParts, secondaryBossParts, forEachBossPart } from "./unitGeometry";
 import { changeTowerHealth, syncHealthBar, syncTowerHealthNetworks, towerHealthDepleted } from "./towerHealth";

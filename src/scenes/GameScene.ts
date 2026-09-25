@@ -14,6 +14,8 @@ import { validateReplay, type BattleCommand, type BattlePointer, type BattleRepl
 import type { BattleAction, ScheduleBattleAction } from "../game/battleActions";
 import { BattleSession, type BattleSessionRuntime } from "../game/battleSession";
 import { battleChecksum } from "../game/battleChecksum";
+import { syncEnemyStatusVisuals } from "../render/enemyStatus";
+import { syncHexArmorAuras } from "../render/enemySupport";
 import { TimedCellSeals } from "../game/timedCellSeals";
 import { drawTimedCellSeals } from "../render/timedCellSeals";
 import { createCellSealMark } from "../render/cellSealMark";
@@ -751,6 +753,9 @@ export class GameScene extends Phaser.Scene {
 
   private syncBattleOverlays() {
     // Catch-up ticks mutate battle state; redraw these overlays only once per displayed frame.
+    for (const enemy of enemiesWithPassengers(this.enemies)) syncEnemyStatusVisuals(enemy, this.battleTime);
+    syncHexArmorAuras(this.enemies, this.battleTime);
+    for (const tower of this.towers) syncTowerFacingVisual(tower);
     drawNullifiedTowers(this.nullifiedTowerGraphics, this.nullification.snapshot(), this.battleTime);
     drawTimedCellSeals(this.timedCellSealGraphics, this.timedCellSeals.entries, this.battleTime, this.timedCellWarningGraphics);
     drawEnemyHealthLinks(this.enemyHealthLinks, this.enemies, this.battleTime);

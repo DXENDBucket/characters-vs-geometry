@@ -8,7 +8,8 @@ import type { EnemyAdvanceRuntime } from "./combatRuntime";
 import { enemyMovementSpeed } from "./combatStats";
 import { enemyIgnoresLeaderRestrictedMechanics, enemyIsBurrowed, enemyIsHighFlying, siegeRamSpeed } from "./enemyCombatRules";
 import { forEachSnapshot } from "./iteration";
-import { applyStatusEffect, removeStatusEffect, statusSpeedMultiplier, syncEnemyBodyPosition } from "./statusEffects";
+import { applyStatusEffect, removeStatusEffect, statusSpeedMultiplier } from "./statusEffects";
+import { syncEnemyBodyPosition } from "../render/enemyStatus";
 import { hasStatusEffectName } from "./rules/statusEffectRules";
 
 const SLOPE_TOUCH_RANGE_X = CELL_WIDTH * 0.58;

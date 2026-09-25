@@ -35,8 +35,11 @@ transport-neutral authority and synchronization gates above.
 ## Current Evidence And Next Work
 
 - Data boundaries: pure tower, enemy, projectile and Boss construction, explicit
-  snapshot fields, and dependency-boundary tests exist. Battle controllers and
-  relationships still contain live references; gate 1 is only partial.
+  snapshot fields, and dependency-boundary tests exist. Status lifecycle and
+  final-stat/support calculations now run without Phaser; passenger relationships
+  use data-state contracts, and aura caches are isolated per battlefield. Battle
+  controllers still coordinate live objects; gate 1 is only partial. See
+  [combat state and display](combat-state.md).
 - Determinism: the integrated `BattleSession` now owns fixed steps, seeded battle
   RNG, delayed action queue, recording and checkpoint timing. Independent session
   tests and unchanged browser replay checksums verify this extraction. World

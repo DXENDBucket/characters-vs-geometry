@@ -1,6 +1,6 @@
 import { BOARD_X, BOARD_Y, BOARD_WIDTH, CELL_WIDTH, CELL_HEIGHT, COLUMNS, LANES } from "../config";
 import { DEL_SWEEP } from "../data/delBoss";
-import type { CubeBoss } from "../types";
+import type { BossState as CubeBoss } from "./bossState";
 
 export function delSweepActive(boss: CubeBoss) {
   return boss.kind === "del" && !!boss.delSweep && boss.delSweep.phase !== "complete";

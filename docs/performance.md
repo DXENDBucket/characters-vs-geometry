@@ -20,8 +20,9 @@ individually. Damage, armor thresholds, wave data and attack counts are unchange
 - Support-provider membership comes from `data/enemyAbilities.ts`. Add a new
   source family there and implement its support evaluation. Add a regression
   that changes its state between hits.
-- Movement's existing lane buckets remain a synchronous, reusable view. Do not
-  retain them across ticks or request another view before finishing with one.
+- Movement's lane buckets and slow-aura cell maps are reusable views owned by
+  each roster. Another battle no longer overwrites them. Within one battlefield,
+  consume them synchronously and refresh after roster/position changes.
 
 ## Rendering
 
@@ -35,8 +36,9 @@ individually. Damage, armor thresholds, wave data and attack counts are unchange
   Preserve their logical dimensions when adjusting scale: texture pixels are
   high-DPI and are not logical game pixels.
 - Enemy creation and promotion use the same status-visual factory.
-- `GameScene.syncBattleOverlays` draws NUL, timed cell seals and enemy health
-  links once after catch-up ticks (also while paused). Immediate command/load
+- `GameScene.syncBattleOverlays` draws status/defense-aura icons, tower facing,
+  NUL, timed cell seals and enemy health links once after catch-up ticks (also
+  while paused). Status/stat queries no longer draw. Immediate command/load
   redraws remain where required. Other visuals still run in simulation code.
 
 ## Checks
@@ -130,3 +132,9 @@ Session timing, randomness, command recording and checkpoint orchestration have
 now moved from `GameScene` to an integrated `BattleSession`. The actual world tick
 is still a scene callback. See [Battle Session Orchestration](battle-session.md).
 This is an ownership change with unchanged replay checksums, not an FPS claim.
+
+Status lifecycle, final combat panels and passenger-seat calculations now run
+without rendering dependencies. Numeric caches and aura source/cell buffers are
+isolated per unit or battlefield, while status visuals run once per displayed
+frame. New tests cover cross-battle isolation, same-tick changes and read-only
+overlay rendering. See [Combat State And Status Display](combat-state.md).

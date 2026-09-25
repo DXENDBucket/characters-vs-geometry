@@ -1,44 +1,44 @@
-import { CELL_HEIGHT, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
-import { syncPassengerPositions } from "./enemyContainers";
 import { enemyFamily } from "../registry/enemies";
-import type { CubeBoss, Enemy, StatusEffectName, Tower } from "../types";
-import { syncEnemyFacingVisual } from "../render/enemyFacing";
+import type { StatusEffectName } from "../types";
+import type { EnemyState } from "./enemyState";
+import type { TowerState } from "./towerState";
+import type { BossState } from "./bossState";
+import { syncPassengerPositionState } from "./enemyContainerRules";
 import { applyReversalEffect } from "./rules/reversal";
-import { syncTowerFacingVisual } from "../render/towerFacing";
-import { setPositionIfChanged, setScaleIfChanged, setVisibleIfChanged } from "./visualGuards";
 import { addFrozenPhysicalDamageState, calculateStatusMultipliers, expireStatusEffects,
   hasStatusEffectName, refreshStatusEffect, removeStatusEffectState,
   type StatusEffectModifiers, type StatusMultipliers } from "./rules/statusEffectRules";
 export { effectSpeedMultiplier, hasStatusEffectName, type StatusMultipliers } from "./rules/statusEffectRules";
 
-const BURROW_DISPLAY_OFFSET_Y = CELL_HEIGHT * 0.55;
+interface EnemyStatusCache { multipliers: StatusMultipliers; revision: number }
+const caches = new WeakMap<EnemyState, EnemyStatusCache>();
+
+function statusCache(enemy: EnemyState) {
+  let cache = caches.get(enemy);
+  if (!cache) {
+    cache = { multipliers: { speed: 1, attack: 1, armor: 1 }, revision: 0 };
+    caches.set(enemy, cache);
+  }
+  return cache;
+}
+
+export function enemyStatusMultipliersCache(enemy: EnemyState) { return statusCache(enemy).multipliers; }
+export function enemyStatusRevision(enemy: EnemyState) { return statusCache(enemy).revision; }
+export function invalidateEnemyStatus(enemy: EnemyState) { statusCache(enemy).revision++; }
 
 export function applyStatusEffect(
-  enemy: Enemy,
-  name: StatusEffectName,
-  duration: number,
-  time: number,
-  speedMultiplier?: number | StatusEffectModifiers,
-  showHalo?: boolean
+  enemy: EnemyState, name: StatusEffectName, duration: number, time: number,
+  speedMultiplier?: number | StatusEffectModifiers, showHalo?: boolean
 ): void;
-export function applyStatusEffect(unit: Tower | CubeBoss, name: "reversed", duration: number, time: number): void;
-export function applyStatusEffect(unit: CubeBoss, name: "haste", duration: number, time: number, speedMultiplier?: number): void;
+export function applyStatusEffect(unit: TowerState | BossState, name: "reversed", duration: number, time: number): void;
+export function applyStatusEffect(unit: BossState, name: "haste", duration: number, time: number, speedMultiplier?: number): void;
 export function applyStatusEffect(
-  unit: Enemy | Tower | CubeBoss,
-  name: StatusEffectName,
-  duration: number,
-  time: number,
-  speedMultiplier?: number | StatusEffectModifiers,
-  showHalo = false
+  unit: EnemyState | TowerState | BossState, name: StatusEffectName, duration: number, time: number,
+  speedMultiplier?: number | StatusEffectModifiers, showHalo = false
 ) {
-  if (!("statusMultiplierCache" in unit)) {
+  if (!("kind" in unit) || "rank" in unit) {
     if (name === "haste" && "rank" in unit) refreshStatusEffect(unit, name, time + duration, speedMultiplier);
-    if (name === "reversed") {
-      applyReversalEffect(unit, duration, time);
-      if ("facingDirection" in unit) {
-        syncTowerFacingVisual(unit);
-      }
-    }
+    if (name === "reversed") applyReversalEffect(unit, duration, time);
     return;
   }
   const enemy = unit;
@@ -47,195 +47,58 @@ export function applyStatusEffect(
     applyStatusEffect(enemy, "highFlying", duration, time, speedMultiplier, false);
     return;
   }
-
   refreshStatusEffect(enemy, name, time + duration, speedMultiplier, showHalo);
-  invalidateStatusVisuals(enemy);
+  invalidateEnemyStatus(enemy);
 }
 
-export function statusSpeedMultiplier(enemy: Enemy, time: number) {
+export function statusSpeedMultiplier(enemy: EnemyState, time: number) {
   return statusMultipliers(enemy, time).speed;
 }
 
-export function statusAttackMultiplier(enemy: Enemy, time: number) {
+export function statusAttackMultiplier(enemy: EnemyState, time: number) {
   return statusMultipliers(enemy, time).attack;
 }
 
-export function statusArmorMultiplier(enemy: Enemy, time: number) {
+export function statusArmorMultiplier(enemy: EnemyState, time: number) {
   return statusMultipliers(enemy, time).armor;
 }
 
-export function statusMultipliers(enemy: Enemy, time: number): StatusMultipliers {
+export function statusMultipliers(enemy: EnemyState, time: number): StatusMultipliers {
   const removedExpired = removeExpiredStatusEffects(enemy, time);
-  const multipliers = enemy.statusMultiplierCache;
-  if (enemy.statusEffects.length === 0) {
-    multipliers.speed = 1;
-    multipliers.attack = 1;
-    multipliers.armor = 1;
-    if (removedExpired) {
-      syncStatusVisuals(enemy, time);
-    }
-    return multipliers;
-  }
-
-  syncStatusVisuals(enemy, time);
-  return calculateStatusMultipliers(enemy, multipliers);
+  // Passenger coordinates used to be updated by status rendering. Keep that timing in simulation.
+  if (enemy.statusEffects.length > 0 || removedExpired) syncPassengerPositionState(enemy);
+  return calculateStatusMultipliers(enemy, enemyStatusMultipliersCache(enemy));
 }
 
-export function hasStatusEffect(enemy: Enemy, name: StatusEffectName, time: number) {
+export function hasStatusEffect(enemy: EnemyState, name: StatusEffectName, time: number) {
   const removedExpired = removeExpiredStatusEffects(enemy, time);
-  if (enemy.statusEffects.length > 0 || removedExpired) {
-    syncStatusVisuals(enemy, time);
-  }
+  if (enemy.statusEffects.length > 0 || removedExpired) syncPassengerPositionState(enemy);
   return hasStatusEffectName(enemy, name);
 }
 
-export function hasUnexpiredStatusEffect(enemy: Enemy, name: StatusEffectName, time: number) {
+export function hasUnexpiredStatusEffect(enemy: EnemyState, name: StatusEffectName, time: number) {
   removeExpiredStatusEffects(enemy, time);
   return hasStatusEffectName(enemy, name);
 }
 
-export function removeStatusEffect(enemy: Enemy, name: StatusEffectName) {
-  if (removeStatusEffectState(enemy, name)) invalidateStatusVisuals(enemy);
+export function removeStatusEffect(enemy: EnemyState, name: StatusEffectName) {
+  if (removeStatusEffectState(enemy, name)) invalidateEnemyStatus(enemy);
 }
 
-export function addFrozenPhysicalDamage(enemy: Enemy, damage: number, time: number) {
+export function addFrozenPhysicalDamage(enemy: EnemyState, damage: number, time: number) {
   removeExpiredStatusEffects(enemy, time);
   const removed = addFrozenPhysicalDamageState(enemy, damage);
-  if (removed) invalidateStatusVisuals(enemy);
-  syncStatusVisuals(enemy, time);
+  if (removed) invalidateEnemyStatus(enemy);
+  syncPassengerPositionState(enemy);
   return removed;
 }
 
-export function isEnemyFlying(enemy: Enemy, time: number) {
+export function isEnemyFlying(enemy: EnemyState, time: number) {
   return hasStatusEffect(enemy, "flying", time);
 }
 
-export function syncEnemyBodyPosition(enemy: Enemy) {
-  setPositionIfChanged(enemy.body, enemy.x, enemy.y + enemyDisplayOffsetY(enemy));
-  syncPassengerPositions(enemy);
-  invalidateStatusVisuals(enemy);
-}
-
-function removeExpiredStatusEffects(enemy: Enemy, time: number) {
+function removeExpiredStatusEffects(enemy: EnemyState, time: number) {
   const removed = expireStatusEffects(enemy, time);
-  if (removed) invalidateStatusVisuals(enemy);
+  if (removed) invalidateEnemyStatus(enemy);
   return removed;
-}
-
-function syncStatusVisuals(enemy: Enemy, time: number) {
-  const cache = enemy.statusMultiplierCache;
-  if (cache.visualSyncedAt === time && cache.visualSyncedX === enemy.x && cache.visualSyncedY === enemy.y) {
-    return;
-  }
-
-  const reversed = hasStatusEffectName(enemy, "reversed");
-  if (cache.reversed !== reversed) {
-    cache.reversed = reversed;
-    syncEnemyFacingVisual(enemy);
-  }
-
-  let stasisActive = false;
-  let frozenActive = false;
-  let powerActive = false;
-  let sunderActive = false;
-  let flyingActive = false;
-  let angelFlyingActive = false;
-  let highFlyingActive = false;
-  for (const effect of enemy.statusEffects) {
-    if (effect.name === "stasis") {
-      stasisActive = true;
-    } else if (effect.name === "frozen") {
-      frozenActive = true;
-    } else if (effect.name === "power") {
-      powerActive = true;
-    } else if (effect.name === "sunder") {
-      sunderActive = true;
-    } else if (effect.name === "flying") {
-      flyingActive = true;
-      angelFlyingActive = angelFlyingActive || Boolean(effect.showHalo);
-    } else if (effect.name === "highFlying") {
-      highFlyingActive = true;
-    }
-  }
-  const archangelActive = enemyFamily(enemy.kind) === "archangelHeptagon";
-  const airborneActive = flyingActive || highFlyingActive;
-  const haloActive = !archangelActive && (angelFlyingActive || highFlyingActive);
-  setVisibleIfChanged(enemy.statusBorder, stasisActive && !frozenActive);
-  setVisibleIfChanged(enemy.frozenBorder, frozenActive);
-  setVisibleIfChanged(enemy.powerIcon, powerActive);
-  setVisibleIfChanged(enemy.sunderIcon, sunderActive);
-  setVisibleIfChanged(enemy.flyingHalo, haloActive);
-  syncArchangelHalos(enemy, highFlyingActive);
-  if (stasisActive) {
-    enemy.statusBorder.setStrokeStyle(2, palette.magic, 0.92);
-    enemy.statusBorder.setScale(1 + Math.sin(time / 80) * 0.04);
-  } else {
-    setScaleIfChanged(enemy.statusBorder, 1, 1);
-  }
-  if (frozenActive) {
-    enemy.frozenBorder.setStrokeStyle(3, palette.magic, 0.96);
-    enemy.frozenBorder.setScale(1 + Math.sin(time / 95) * 0.035);
-  } else {
-    setScaleIfChanged(enemy.frozenBorder, 1, 1);
-  }
-  if (powerActive) {
-    enemy.powerIcon.setY(-38 + Math.sin(time / 120) * 2);
-  }
-  if (sunderActive) {
-    enemy.sunderIcon.setY(-56 + Math.sin(time / 125) * 2);
-  }
-  if (haloActive) {
-    enemy.flyingHalo.setStrokeStyle(2, highFlyingActive ? palette.gold : palette.white, 0.94);
-    enemy.flyingHalo.setY(-42 + Math.sin(time / 110) * 2);
-    enemy.flyingHalo.setScale(1 + Math.sin(time / 150) * 0.05, 1);
-  }
-  setPositionIfChanged(enemy.body, enemy.x, enemy.y + enemyDisplayOffsetY(enemy, airborneActive, time));
-  syncPassengerPositions(enemy);
-  cache.visualSyncedAt = time;
-  cache.visualSyncedX = enemy.x;
-  cache.visualSyncedY = enemy.y;
-}
-
-function invalidateStatusVisuals(enemy: Enemy) {
-  enemy.statusMultiplierCache.visualSyncedAt = Number.NaN;
-}
-
-function enemyDisplayOffsetY(
-  enemy: Enemy,
-  airborneActive = hasAirborneStatusName(enemy),
-  time = 0
-) {
-  if (enemy.parenthesisCarrier) return enemy.parenthesisCarrier.body.y - enemy.y;
-  const flyingOffset = airborneActive ? FLYING_DISPLAY_OFFSET_Y + Math.sin(time / 130) * 2 : 0;
-  const burrowOffset = enemy.burrowed ? BURROW_DISPLAY_OFFSET_Y : 0;
-  return flyingOffset + burrowOffset;
-}
-
-function hasAirborneStatusName(enemy: Enemy) {
-  for (const effect of enemy.statusEffects) {
-    if (effect.name === "flying" || effect.name === "highFlying") {
-      return true;
-    }
-  }
-  return false;
-}
-
-type HaloVisual = {
-  setStrokeStyle(lineWidth: number, color: number, alpha?: number): unknown;
-};
-
-type ShapeDataStore = {
-  getData(key: string): unknown;
-};
-
-function syncArchangelHalos(enemy: Enemy, highFlyingActive: boolean) {
-  if (enemyFamily(enemy.kind) !== "archangelHeptagon") {
-    return;
-  }
-
-  const halos = (enemy.shape as unknown as ShapeDataStore).getData("archangelHalos") as HaloVisual[] | undefined;
-  const [outerHalo, innerHalo] = halos ?? [];
-  const color = highFlyingActive ? palette.gold : palette.white;
-  outerHalo?.setStrokeStyle(2, color, highFlyingActive ? 0.94 : 0.86);
-  innerHalo?.setStrokeStyle(2, color, 0.95);
 }
