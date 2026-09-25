@@ -529,3 +529,42 @@ drainage, replay and all resource/listener checks. Bank-run CPU frame medians we
 objects during output/combat bursts, all cleared on shutdown. Desktop and small
 screenshots were reviewed. These are headless, moderate-roster pressure scenes, not the separate
 800-enemy crowd benchmark, network catch-up throughput, or player FPS guarantees.
+
+### Continuous Network Pressure
+
+`test-network-pressure-browser.mjs` runs the mortar/pipeline fixture in a Node
+authority and a continuously rendering `RemoteBattleSession` in a separate browser.
+It uses the real `BattleHostLoop`, fixed-step core, wire codecs, two-tick client
+slices and HTTP polling with `--delay=25` ms added to each poll response. Options
+include `--seconds=60`, `--engine`, `--small`, and the usual browser/tool overrides.
+Unlike the finite frame benchmarks, the host continues advancing during recovery.
+
+At one-quarter of the run, polling pauses for 1.2 seconds to build a backlog.
+After three-fifths, a real reserve command loses its receipt, then the connection
+automatically reconnects and retries the original request. Each interruption must
+recover within 3.5 seconds to a ready replica at most 12 ticks behind the host.
+Outside those windows, sampled lag must have p95 at most 30 ticks and maximum at
+most 120 ticks. These are test workload budgets, not general network latency promises.
+
+The test requires visible mortar trails, nonblank canvas pixels, continued host
+ticks/rendered frames, one executed command/completion, no profile writes and exact
+final host/client checksums. Exactly two snapshots are allowed (join and intended
+reconnect), so unnoticed resync cannot conceal divergence. Relay queues are bounded
+by 64 messages/16 MiB; client ingress retains its own production bounds. Closing
+must restore texture/canvas/global-listener baselines and leave no connection
+timers, live transport links or active scenes.
+
+This is a localhost, moderate-roster pressure test with an in-memory authority.
+It excludes durable disk-write latency, WAN loss/reordering, retained-heap analysis
+and the separate 800-enemy workload. Frame intervals include snapshot restoration
+and diagnostics, and are not CPU-only render timings.
+
+Local evidence (25 ms added poll delay): Edge 153 passed 60 seconds at 1410x900;
+Firefox 148 passed 30 seconds at 800x600; WebKit 26.4 passed 30 seconds at 1410x900.
+Steady lag p95 was 7/8/9 ticks respectively (maximum 7/9/12), with peak relay queues
+12/13/12 messages. Peak visible mortars/trails were 34/44/35. All three passed
+in-motion recovery, exactly-once completion, final checksums and cleanup checks;
+desktop/small screenshots were inspected. Wall-clock end ticks differ across runs,
+so final hashes are compared within each host/client pair, not between runs.
+Frame-interval p95 was 19/34/24 ms and maxima were 226/319/412 ms, including snapshot
+reconstruction. Successful catch-up does not imply consistently smooth rendering.

@@ -192,6 +192,14 @@ independent replay, and verifies texture/canvas/listener baselines and empty sce
 timers/tweens after repeated shutdown. This adds actual rendered lifecycle evidence
 to accelerated Node continuation, not a retained-heap audit or sustained network
 load guarantee; see [continuous pressure](performance.md#continuous-browser-pressure).
+Continuous network pressure now combines the same mortar/pipeline fixture with
+an independent Node authority, delayed HTTP polling and real `RemoteBattleSession`
+rendering. Three engines recover during ongoing simulation after a receive hold
+and lost-receipt reconnect, without extra resync snapshots masking divergence.
+Steady lag p95 is 7-9 ticks in these local runs; final state, exactly-once completion
+and resource cleanup agree. This is moderate-roster, in-memory-host evidence, not
+800-enemy, disk-inclusive or WAN load readiness; see
+[network pressure](performance.md#continuous-network-pressure).
 
 The connection-lifetime audit found and reproduced stale synchronous callback
 failures in snapshot restoration, immediate frame application and transport sends.
@@ -211,7 +219,8 @@ or production transport acceptance claim.
 1. Address full-checkpoint commit overhead without weakening durability and
    remaining crowded-rendering/catch-up hotspots. Rendered saturated pipelines,
    mortars and repeated wall-clock sessions now have regression coverage; retained
-   heap growth and sustained network catch-up still need separate evidence.
+   heap growth, 800-enemy continuous network catch-up and disk-inclusive latency
+   still need separate evidence beyond the moderate-roster network fixture.
 2. Broaden fault and content coverage, especially targeted skill/tutorial input,
    while retaining exact cross-engine numeric gates.
 3. Audit the full acceptance gates against current implementation and evidence.

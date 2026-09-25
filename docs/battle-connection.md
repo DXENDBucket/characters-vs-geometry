@@ -122,6 +122,12 @@ tower from leaving a lesson stuck waiting for the shifter to be deselected.
   lost skill receipt does not fire twice. The same test runs in Chromium, Firefox
   and WebKit; native mouse-button detection preserves Ctrl+left multi-selection
   without treating it as Phaser's synthesized macOS right click.
+- `test-network-pressure-browser.mjs`: continuous Node-host advancement and real
+  remote rendering during a mortar/pipeline workload. Delayed polling, a 1.2-second
+  receive pause and a lost receipt/reconnect must recover while the host keeps
+  advancing. Two snapshots only, one command completion, exact final state and
+  baseline resource cleanup are required. All three engines pass; timings and
+  workload limitations are in [continuous network pressure](performance.md#continuous-network-pressure).
 - The HTTP connector is a test transport, not a production server or account
   service. Steam/lobby integration, reconnect UX before the first snapshot,
   broader content/fault coverage and crowded host/client/storage readiness remain
