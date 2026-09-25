@@ -228,6 +228,64 @@ try {
     await pump(); content[levelId] = await equal(`${levelId} continuation`);
   }
 
+  // Join with a consumed source in storage, then submit attachments and open pipes over the relay.
+  await pages.host.evaluate(() => window.syncTest.host.close());
+  for (const role of roles) mail[role].length = 0;
+  for (const role of ["a", "b"]) await pages[role].evaluate(() => { window.syncTest.resetClient(); window.syncTest.attach(); });
+  await pages.host.evaluate(async () => {
+    const state = window.syncTest, participants = state.scene.session.snapshot().participants;
+    state.start({ levelId: "IF-1", seed: 92, participants, selectedCards: ["A", "F", "0", "1", "=", "t"] });
+    const scene = state.scene;
+    scene.submitPlayerControl("local", { type: "debugMode", enabled: true });
+    scene.submitPlayerControl("local", { type: "debugChars" });
+    scene.submitPlayerControl("local", { type: "autoUpgradeEnabled", enabled: false });
+    for (const [type, lane, column, level] of [["F", 0, 1, 1], ["0", 0, 2, 1], ["1", 0, 6, 1],
+      ["A", 1, 1, 7], ["0", 1, 2, 1], ["1", 1, 4, 1]]) scene.spawnGeneratedTower(type, lane, column, level);
+    for (const [lane, last] of [[0, 6], [1, 4]]) for (let column = 1; column < last; column++) {
+      scene.edgeTowers.push(scene.world.entityIds.identify("edge", {
+        type: "=", axis: "horizontal", lane, column, level: 10, mode: column === last - 1 ? "!=" : ">"
+      }));
+    }
+    scene.numbers.sync();
+    scene.triggerShockTower(scene.towers.find(t => t.type === "F"));
+    const a = scene.towers.find(t => t.type === "A");
+    scene.executeBattleAction({ type: "volley", tower: a, copyRevision: a.copyRevision, hitCount: 2 });
+    if (scene.towers.some(t => t.type === "F") || !scene.towers.some(t => t.projectileBank?.shots.some(s => s.action?.type === "F"))) {
+      throw Error("Consumed-source pipe fixture is missing");
+    }
+    const { spawnEnemyAt } = await import("/src/game/enemyRuntime.ts");
+    const outlet = scene.towers.find(t => t.type === "1" && t.lane === 0);
+    spawnEnemyAt(scene.combatRuntime(), { kind: "trapezoid3", lane: 0, x: outlet.x, time: 0,
+      waveNumber: 1, waveWeight: 0, finalDamageReduction: 0 });
+    state.pipelineEnemy = scene.enemies.at(-1);
+    state.host = scene.startSynchronization(); state.join("a"); state.join("b");
+  });
+  await pump(); await equal("stored pipeline action join");
+  const pipeTarget = await pages.a.evaluate(() => {
+    const t = window.syncTest.scene.towers.find(t => t.type === "A");
+    return { target: { kind: "tower", id: t.entityId }, cell: { lane: t.lane, column: t.column } };
+  });
+  assert.equal((await request("a", { type: "operation", operation: { type: "effect", card: "t", ...pipeTarget } })).result, "handled");
+  await pages.a.evaluate(() => window.syncTest.client.disconnect());
+  await pages.host.evaluate(() => window.syncTest.host.disconnect(window.syncTest.peers.a));
+  await pages.a.evaluate(() => window.syncTest.attach()); await pages.host.evaluate(() => window.syncTest.join("a"));
+  await pump(); await equal("pending attachment reconnect");
+  const closedEdges = await pages.a.evaluate(() => window.syncTest.scene.edgeTowers
+    .filter(e => e.mode === "!=").map(e => ({ kind: "edge", id: e.entityId })));
+  for (const target of closedEdges) assert.equal((await request("a", {
+    type: "operation", operation: { type: "edgeMode", target, mode: ">" }
+  })).result, "handled");
+  await pages.host.evaluate(async () => {
+    const state = window.syncTest;
+    for (let i = 0; i < 600; i++) state.scene.update(0, 1000 / 60);
+    const outlet = state.scene.towers.find(t => t.type === "1" && t.lane === 1);
+    if (!outlet || outlet.trueDamageUntil <= state.scene.battleTime || state.pipelineEnemy.hp >= state.pipelineEnemy.maxHp) {
+      throw Error("Routed attachment or stored explosion did not execute");
+    }
+    state.host.publish(); await state.tail;
+  });
+  await pump(); content.pipeline = await equal("network pipeline continuation");
+
   // A new battle gets new clients/connection scopes. Complete the actual damage tutorial at tick zero.
   await pages.host.evaluate(() => window.syncTest.host.close());
   for (const role of ["a", "b"]) {

@@ -76,7 +76,7 @@ test("source runtime imports and re-exports remain acyclic", () => {
 });
 
 test("combat controllers schedule data actions rather than engine timers or paused callbacks", () => {
-  const modules = ["combatRuntime", "towerCombat", "triggerTowers", "triggerTowerRules", "targetedEffectCards",
+  const modules = ["combatRuntime", "towerCombat", "triggerTowers", "triggerTowerRules", "targetedEffectCards", "targetedEffectRules",
     "towerSkills", "towerSkillSimulation", "enemyRuntime", "enemySimulation", "bossRuntime", "bossSimulation"];
   for (const name of modules) {
     const source = sources.get(`src/game/${name}.ts`);
@@ -101,7 +101,9 @@ test("data, geometry, support queries and snapshot capture cannot pull in scenes
     "triggerTowerRules", "triggerTowerPresentation", "towerSkillSimulation", "towerSkillPresentation",
     "towerSkillRegistry", "orientationSkillRules", "gatheringSkillRules", "pushSkillRules",
     "bossSimulation", "bossSimulationRuntime", "bossSimulationPresentation", "bossSkillRegistry", "enemyPromotionRules", "delSweep",
-    "battleEncounter", "battlefieldCells", "towerStorageRules", "towerNullificationRules"];
+    "battleEncounter", "battlefieldCells", "towerStorageRules", "towerNullificationRules",
+    "projectileCircuitRules", "pipelineRouting", "pipelineRules", "pipelineActionRules", "pipelineActionPayload",
+    "targetedEffectRules", "towerAttachmentRules"];
   for (const entry of [...entries, "../registry/cardDefinitions"]) {
     const seen = new Set();
     const visit = (name, chain) => {

@@ -1,4 +1,5 @@
-import type { CardId, DamageType, EdgeTower, Tower } from "../types";
+import type { CardId, DamageType, EdgeTower } from "../types";
+import type { TowerState as Tower } from "./towerState";
 
 export const PIPELINE_RATE = 25;
 export const HEALING_RATE = 25;

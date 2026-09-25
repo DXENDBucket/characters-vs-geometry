@@ -1,4 +1,5 @@
-import type { EdgeTower, Tower } from "../types";
+import type { EdgeTower } from "../types";
+import type { TowerState as Tower } from "./towerState";
 import { edgeAllows, edgeCells, refreshEdgeFlow } from "./pipelineRules";
 import { towerCell } from "./towerTopology";
 

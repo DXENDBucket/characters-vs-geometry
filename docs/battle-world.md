@@ -97,7 +97,9 @@ The world module has no Phaser/DOM/render imports, but its live ports still call
 scene-owned controllers and runtime modules that coordinate combat with graphics.
 Encounter transitions, field cells, storage and nullification now use pure rule
 systems on the live path; see [encounter rules](battle-encounter.md). Their ports
-still connect live network/skill controllers. Pipelines, mirrors and other state
+still connect live network/skill controllers. Pipeline and attachment rules now
+use explicit data/presentation ports too; see [pipeline simulation](pipeline-simulation.md).
+Deployment, mirrors and other state
 are not all independently composed yet. Input selection and interpretation remain local-scene
 responsibilities. Port implementations must be separated from rendering before a
 complete authoritative headless host can use this world.

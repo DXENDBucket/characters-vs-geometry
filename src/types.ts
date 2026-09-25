@@ -338,10 +338,10 @@ export interface EdgeTower {
 }
 
 export interface StoredTowerShot extends ProjectileIntegrity {
-  action?: { type: CardId; level: number; stats: TowerFinalStats; event: import("./game/towerActions").NativeTowerActionEvent; baseDamage: number };
+  action?: { type: CardId; level: number; stats: TowerFinalStats; event: import("./game/towerActions").NativeTowerActionDataEvent; baseDamage: number };
   pipelineMovedAt?: number;
   type: Exclude<ProjectileKind, "chevron">;
-  sourceTower?: Tower;
+  sourceTower?: TowerState;
   sourceBehaviorType?: CardId;
   hitCount: number;
   vx: number;

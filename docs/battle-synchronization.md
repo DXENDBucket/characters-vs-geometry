@@ -77,6 +77,11 @@ or terminating the connection.
 - Initial coverage uses IF-BE-4 and the damage tutorial. Additional join/continuation
   checks cover 1-9, 2-10, 5-5, 5-10 and AE-5 with mirror and shared-health towers.
   This is selected-content coverage, not every skill or Boss phase over a network.
+- Pipeline coverage joins with a consumed one-shot source still referenced by its
+  stored payload, submits a targeted attachment through the real authority,
+  reconnects before the pending action executes, and opens connector edges by ID.
+  Both clients retain the host's 600-tick result (`b2d37fe6`), including attachment
+  application and the stored explosion. Existing scenario hashes are unchanged.
 - Existing full/checkpoint replay tests retain their combat checksums. Session,
   authority, synchronization and checksum dependencies are guarded against Phaser
   and DOM imports.

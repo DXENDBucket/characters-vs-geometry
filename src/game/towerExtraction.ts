@@ -1,4 +1,5 @@
-import type { CardDefinition, Tower } from "../types";
+import type { CardDefinition } from "../types";
+import type { TowerState as Tower } from "./towerState";
 
 export interface DeploymentBatch {
   levels: number;

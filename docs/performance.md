@@ -157,6 +157,13 @@ continuation and connected-client regressions preserve battle behavior. This is
 an ownership/allocation change, not a full-battle FPS measurement.
 See [damage and unit lifecycle](unit-lifecycle.md).
 
+Pipeline routing, capture/transfer, output and attachment rules now use data-only
+states with explicit presentation/factory ports. Scene runtime and action adapters
+are retained instead of reconstructed on every transfer/output. Routing credits,
+partial judgments and processing rates are unchanged. Bodyless integrations,
+900-tick displayed/detached/restored scenes and connected-client continuation agree.
+No full-battle FPS improvement is claimed. See [pipeline simulation](pipeline-simulation.md).
+
 Enemy movement/attack/skill rules now share a data-only runtime with the live
 scene. Heart plans, mortar target counts and laser hit buffers are isolated per
 runtime; live adapters are cached. The 800-circle synthetic check still adds only

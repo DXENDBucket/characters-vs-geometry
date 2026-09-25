@@ -24,7 +24,7 @@ export { towerFacingDirection, effectiveTowerLevel, getProductionAmount, getHitP
   towerDamageType, towerIsFlying, setTowerFlyingUntil } from "./towerRules";
 export { syncTowerFacingVisual } from "../render/towerFacing";
 
-const TRUE_DAMAGE_DURATION_PER_LEVEL = 12_000;
+import { applyTowerTrueDamageState } from "./towerAttachmentRules";
 
 export function createTower(
   scene: Phaser.Scene,
@@ -275,8 +275,7 @@ export function syncTowerAutoUpgradeVisual(tower: Tower, active: boolean) {
 }
 
 export function applyTowerTrueDamage(tower: Tower, battleTime: number, level: number) {
-  const duration = TRUE_DAMAGE_DURATION_PER_LEVEL * Math.max(1, level);
-  tower.trueDamageUntil = Math.max(tower.trueDamageUntil, battleTime) + duration;
+  applyTowerTrueDamageState(tower, battleTime, level);
   syncTowerTrueDamageVisual(tower, battleTime);
 }
 

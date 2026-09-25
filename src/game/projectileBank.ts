@@ -1,4 +1,4 @@
-import type { Tower } from "../types";
+import type { TowerState as Tower } from "./towerState";
 
 export const PROJECTILE_BANK_CAPACITY = 128;
 

@@ -64,8 +64,9 @@ clients also retain synchronization/reconnect/content hashes.
 
 ## Remaining Work
 
-Pipeline, targeted attachments, deployment, copy/topology/mirror orchestration
-and live network/skill callbacks still prevent an entirely renderer-free host.
+Pipeline and targeted attachment rules were subsequently extracted; see
+[pipeline simulation](pipeline-simulation.md). Deployment, copy/topology/mirror
+orchestration and live network/skill callbacks still prevent an entirely renderer-free host.
 These tests prove the named systems, not complete headless battle execution.
 Relationship wire records, per-player resource/ownership rules and production
 multiplayer UI/transport lifetime handling remain open. No whole-battle FPS

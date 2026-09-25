@@ -59,7 +59,8 @@ import { drawTowerShellBorder } from "../render/parenthesisTower";
 import { isParenthesisTower, isTowerShellType, syncTowerOccupancy, towerInPlacementLayer } from "../game/towerOccupancy";
 import { boardPointerTarget } from "../game/boardPointerTarget";
 import { BoardToolPreview, type BoardToolHint } from "../render/boardToolPreview";
-import { executePipelineAction, healPipelineArea, pipelineActionSelfCost } from "../game/pipelineActionEffects";
+import { emitPipelineShot, healPipelineArea } from "../game/pipelineActionEffects";
+import { routePipelineTowerAction } from "../game/pipelineActionRules";
 import type { TowerActionEvent } from "../game/towerActions";
 import { reflectEnemyAttack } from "../game/projectileRuntime";
 import { projectileSimulationRuntime, type LiveProjectileRuntime } from "../render/projectileRuntime";
@@ -498,8 +499,17 @@ export class GameScene extends Phaser.Scene {
       time: this.battleTime, cardTime: this.cardTimeFor("="), chars: this.effectiveChars(),
       autoEnabled: this.autoUpgradeEnabled, reserve: this.autoUpgradeReserveChars,
       spend: cost => this.spendChars(cost), changed: () => { this.numbers.sync(); this.updateCards(); } }));
-    this.numbers = new ProjectileCircuitController(() => ({ towers: this.towers, edges: this.edgeTowers,
-      battleTime: this.battleTime, getDefinition: id => this.getDefinition(id),
+    const pipelineScene = this;
+    const pipelineActions: import("../game/pipelineActionEffects").PipelineActionRuntime = {
+      get combat() { return pipelineScene.combatRuntime(); }, get trigger() { return pipelineScene.triggerTowerRuntime(); },
+      getDefinition: id => this.getDefinition(id), skill: (tower, event) => { this.towerSkills.imitateSkill(tower, event); },
+      targeted: (type, tower, level) => this.targetedEffects.imitate(type, tower, level),
+      detonate: tower => detonateSlowAuraTower(this.unitLifecycleRuntime(), tower),
+      reflect: (tower, projectile) => reflectEnemyAttack(this.projectileRuntime(), tower, projectile, true)
+    };
+    const circuitRuntime: import("../game/projectileCircuit").CircuitRuntime = {
+      get towers() { return pipelineScene.towers; }, get edges() { return pipelineScene.edgeTowers; },
+      get battleTime() { return pipelineScene.battleTime; }, getDefinition: id => this.getDefinition(id),
       heal: (tower, amount) => healPipelineArea(tower, amount, this.combatRuntime()),
       shielded: (tower, damageType) => makeTowerPipelineShield(this, tower, damageType),
       changed: tower => { syncTowerLevelText(tower); syncTowerAutoUpgradeVisual(tower, this.autoUpgradeEnabled); },
@@ -509,23 +519,9 @@ export class GameScene extends Phaser.Scene {
         flash.strokeCircle(target.x, target.y, 10);
         this.tweens.add({ targets: flash, alpha: 0, duration: 160, onComplete: () => flash.destroy() });
       },
-      emit: (shot, outlet) => {
-        if (shot.action) {
-          executePipelineAction(shot, outlet, { combat: this.combatRuntime(), trigger: this.triggerTowerRuntime(),
-            getDefinition: id => this.getDefinition(id), skill: (tower, event) => { this.towerSkills.imitateSkill(tower, event); },
-            targeted: (type, tower, level) => this.targetedEffects.imitate(type, tower, level),
-            detonate: tower => detonateSlowAuraTower(this.unitLifecycleRuntime(), tower),
-            reflect: (tower, projectile) => reflectEnemyAttack(this.projectileRuntime(), tower, projectile, true) });
-          return;
-        }
-        const direction = towerFacingDirection(outlet), x = outlet.x + direction * 26;
-        const projectile = createTowerProjectile(this, { ...shot, x, y: outlet.y, lane: outlet.lane,
-          speed: Math.hypot(shot.vx, shot.vy), angleDegrees: Math.atan2(shot.vy, shot.vx * direction) * 180 / Math.PI,
-          maxX: x + direction * shot.remainingRange, limitDirection: direction });
-        projectile.sourceBehaviorType = shot.sourceBehaviorType;
-        projectile.circuitChecked = true;
-        this.projectiles.push(projectile);
-      } }));
+      emit: (shot, outlet) => emitPipelineShot(shot, outlet, pipelineActions)
+    };
+    this.numbers = new ProjectileCircuitController(() => circuitRuntime);
     this.topology = new TowerTopologyController(this, () => ({ towers: this.towers, battleTime: this.battleTime,
       onChanged: () => { this.updateLevelAuras(); this.mirrors.syncMirrors(); this.clearPlacementGhosts(); } }));
     this.towerSkills = new TowerSkillController(this, () => this.towerSkillRuntime());
@@ -1999,14 +1995,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private routeTowerAction = (tower: Tower, event: TowerActionEvent) => {
-    if (!this.numbers.captureAction(tower, event)) return false;
-    const definition = this.getDefinition(towerBehaviorType(tower));
-    const selfCost = event.kind === "attack" ? pipelineActionSelfCost(tower, definition, this.combatRuntime()) : 0;
-    const perHit = definition.selfDamage ?? 400;
-    for (let remaining = selfCost; remaining > 0 && tower.inPlay; remaining -= perHit) {
-      damageTower(this.unitLifecycleRuntime(), tower, perHit, definition.selfDamageType ?? "true");
-    }
-    return true;
+    return routePipelineTowerAction(tower, event, this.numbers, towerAttackRuntime(this.combatRuntime()), getCardDefinition);
   };
 
   private updateTowers(time: number) {
@@ -2666,7 +2655,7 @@ export class GameScene extends Phaser.Scene {
         executeBossAttack(this.bossRuntime(), action); break;
       case "enemyShot": case "enemyLaser": case "enemyMortar": executeEnemyAttack(this.combatRuntime(), action); break;
       case "volley": executeTowerVolley(towerAttackRuntime(this.combatRuntime()), action); break;
-      case "targetedEffect": this.targetedEffects.resolvePendingEffectCard(action.tower); break;
+      case "targetedEffect": this.targetedEffects.resolvePendingEffectCard(action.tower as Tower); break;
       case "shock": executeShockPulse(this.triggerTowerRuntime(), action); break;
       case "spellMortar": this.towerSkills.launchSpellMortar(action); break;
     }

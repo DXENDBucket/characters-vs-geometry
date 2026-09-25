@@ -23,7 +23,7 @@ export type BattleAction =
   | EnemyAttackAction
   | { type: "imitation"; tower: Tower; behavior: ImitationBehavior; event: TowerActionEvent }
   | TowerVolleyAction
-  | { type: "targetedEffect"; tower: Tower }
+  | { type: "targetedEffect"; tower: TowerState }
   | TowerShockAction
   | TowerSpellMortarAction;
 

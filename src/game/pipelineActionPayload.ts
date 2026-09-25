@@ -1,12 +1,13 @@
-import type { CardDefinition, StoredTowerShot, Tower } from "../types";
-import type { NativeTowerActionEvent } from "./towerActions";
+import type { CardDefinition, StoredTowerShot } from "../types";
+import type { TowerState as Tower } from "./towerState";
+import type { NativeTowerActionDataEvent } from "./towerActions";
 import { towerActionContext, towerFormType } from "./towerIdentity";
 import { SPELL_MORTAR_SHOT_COUNT } from "../config";
 import { projectileDamageBudget } from "./projectileIntegrity";
 import { scaledByEffectiveUpgrades } from "./upgrades";
-import { towerAttackAmount } from "./unitStats";
+import { towerAttackAmount } from "./unitStatRules";
 
-export function storeTowerAction(source: Tower, definition: CardDefinition, event: NativeTowerActionEvent, time: number): StoredTowerShot {
+export function storeTowerAction(source: Tower, definition: CardDefinition, event: NativeTowerActionDataEvent, time: number): StoredTowerShot {
   const context = towerActionContext(source);
   const stats = { ...(context?.stats ?? source.finalStats) };
   const level = context?.level ?? Math.max(1, source.level + source.levelBonus + source.mirrorLevelBonus);
