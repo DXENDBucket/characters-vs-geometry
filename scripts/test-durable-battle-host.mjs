@@ -224,6 +224,20 @@ test("independent actors keep separate request sequences and permissions through
   await f.host.close();
 });
 
+test("durable ownership survives restart and still rejects another authorized builder's upgrade", async () => {
+  const config = options(); config.policy = { ...config.policy, towerAccess: "owner" };
+  config.participants = [{ id: "local", permissions: ["build", "edit"] }, { id: "guest", permissions: ["build", "edit"] }];
+  const f = await fixture(config); await f.send(deploy); await f.restart();
+  const tower = state(f.stored).towers[0]; assert.equal(tower.ownerId, "local");
+  const messages = [], guest = await f.host.connect("guest", message => messages.push(message));
+  const before = JSON.parse(f.stored).snapshot.checksum;
+  await f.host.receiveText(guest, envelope(messages[0].stream, 0, { type: "operation", operation: {
+    ...deploy.operation, expected: { kind: "tower", id: tower.entityId } } }));
+  assert.equal(messages.at(-1).receipt.result, "forbidden");
+  assert.equal(JSON.parse(f.stored).snapshot.checksum, before);
+  await f.host.close();
+});
+
 test("atomic file adapter bounds data and leaves no partial files after replacement", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "charset-host-"));
   try {

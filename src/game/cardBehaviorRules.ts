@@ -805,7 +805,7 @@ function fireSmallSummon(tower: Tower, _definition: CardDefinition, runtime: Car
     return;
   }
 
-  const spawned = runtime.spawnTower("a", cell.lane, cell.column, effectiveTowerLevel(tower), towerFacingDirection(tower));
+  const spawned = runtime.spawnTower("a", cell.lane, cell.column, effectiveTowerLevel(tower), towerFacingDirection(tower), tower);
   if (spawned) {
     runtime.presentation.shift(tower.x, tower.y, spawned.x, spawned.y);
   }

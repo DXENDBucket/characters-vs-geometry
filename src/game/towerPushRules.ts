@@ -8,12 +8,13 @@ import { getTowerSkillState } from "./skillState";
 import { spendTowerSkill } from "./towerSkillRules";
 import { PUSH_DURATION, pushIsReady } from "./pushSkillRules";
 import { planTowerPush } from "./rules/towerPush";
-import type { TowerMovementRuntime } from "./towerShifterRules";
+import type { AppliedTowerMove, TowerMovementRuntime } from "./towerShifterRules";
 import { settleTowerMoveVisual } from "./towerRules";
 
 export interface TowerPushRuntime<T extends Tower = Tower> extends TowerMovementRuntime<T> {
   onTowerAction?: (tower: T, event: TowerActionDataEvent) => boolean | void;
   eraseTower: (tower: T) => void;
+  authorizeMoves?: (source: T, moves: readonly (AppliedTowerMove<T> & { erased: boolean })[]) => boolean;
 }
 
 export interface PushPresentation {
@@ -58,6 +59,7 @@ export class TowerPushSimulation<T extends Tower = Tower> {
     const plan = this.plan(source, lane, column);
     if (!plan) return false;
     const { moves, origin, target } = plan, runtime = this.runtime();
+    if (runtime.authorizeMoves?.(source, moves) === false) return false;
     if (!free) spendTowerSkill("#", getTowerSkillState(source, "push"));
     if (!free && runtime.onTowerAction?.(source, { kind: "skill", laneOffset: target.lane - origin.lane, columnOffset: target.column - origin.column })) return true;
     this.presentation.started(source);

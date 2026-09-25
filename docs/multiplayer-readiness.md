@@ -92,9 +92,12 @@ progress or delete saves. See [session](battle-session.md), [world](battle-world
 [loadout](battle-loadout.md), [policy](battle-policy.md),
 [tutorial state](tutorial-state.md) and [lifecycle](battle-lifecycle.md).
 
-**Gate 3 remains partial.** Participant capabilities are immutable session data,
-but wallets, loadouts and cooldowns are shared. Per-player resource/ownership
-policies and independently usable player input UI are unfinished.
+**Gate 3 remains partial.** Participant capabilities and optional
+[owner-only tower access](battle-ownership.md) are immutable session policy.
+Ownership follows deployments, generation, mirrors, suspended and historical
+entities; whole-command preflight protects foreign entities and topology.
+Wallets, loadouts, cooldowns and automatic-upgrade settings are still shared.
+Per-player resource policies and independently usable player input UI are unfinished.
 
 ### Identity And Synchronization
 
@@ -127,7 +130,7 @@ battle synchronization/storage cost measurements remain unfinished.
 
 ## Next Work
 
-1. Finish participant/resource policies and independent player input routing.
+1. Finish per-player resource/loadout/cooldown policies and independent player input routing.
 2. Integrate client input and transport lifetime handling, then broaden fault and
    content coverage and profile crowded host/replica execution.
 3. Retain exact cross-engine numeric gates while expanding content/platform coverage.

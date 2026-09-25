@@ -17,6 +17,7 @@ import { validBattlePolicy } from "./battlePolicy";
 import { copyBattleControlState } from "./battleControls";
 import { copyTutorialCheckpoint } from "./tutorialState";
 import { restoredBattleLifecycle } from "./battleLifecycle";
+import { validateBattleOwners } from "./battleOwnership";
 
 export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossKind?: BossKind) {
   const units = new Map<NodeKind, Set<object>>();
@@ -103,6 +104,7 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
     require(simulation.policy === undefined || validBattlePolicy(simulation.policy));
     if (simulation.controls !== undefined) copyBattleControlState(simulation.controls);
   }
+  validateBattleOwners(units.get("tower") as Set<Tower> ?? [], state.edgeTowers ?? [], state.simulation?.participants, state.simulation?.policy);
   for (const key of ["levelElapsed", "battleTime", "cardTime", "nextNaturalProduceAt", "chars", "baseIntegrity",
     "wave", "enemiesDefeated", "towerOrder", "gameSpeed", "autoUpgradeReserveChars", "extraction"] as const) {
     require(finite(state[key]) && state[key] >= 0);

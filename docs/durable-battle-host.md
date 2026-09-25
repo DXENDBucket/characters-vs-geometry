@@ -60,11 +60,12 @@ and oversized requests at the transport before allocating/queueing them.
 
 ## Verification
 
-- `npm run test:host` runs twelve cases with the real independent core and replica:
+- `npm run test:host` runs thirteen cases with the real independent core and replica:
   barrier ordering, lost acknowledgments, continuation, write failures before/after
   persistence, bounded receipt tails, quota preservation, conflicting/expired
   requests, malformed checkpoints, paused and terminal states, participant
-  isolation, queue saturation, close behavior and atomic file replacement.
+  isolation, queue saturation, close behavior, atomic file replacement and retained
+  owner-only tower permissions after replacement of the host.
 - A child-process test kills a Node host after an actual file flush but before
   acknowledgment, starts a new process, and retries deployment. There is one tower,
   one debit, the same receipt and a higher stream ID.

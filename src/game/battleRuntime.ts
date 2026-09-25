@@ -1,6 +1,6 @@
 import { COLUMNS, LANES } from "../config";
 import { allCardDefinitions, getCardDefinition } from "../registry/cardDefinitions";
-import type { BossKind, CardId, EnemyKind } from "../types";
+import type { BossKind, CardDefinition, CardId, EnemyKind } from "../types";
 import type { BattleSession, BattleSessionRuntime } from "./battleSession";
 import { createBattleControlRuntime } from "./battleControlRuntime";
 import { executeBattleControl, type BattleControl, type BattleControlRuntime } from "./battleControls";
@@ -64,9 +64,10 @@ import { NO_TOWER_SKILL_PRESENTATION } from "./towerSkillPresentation";
 import type { BattleSaveData } from "./battleSaveState";
 import { restoreBattleEntityIds } from "./battleEntityGraph";
 import { syncTowerOccupancy } from "./towerOccupancy";
-import { executeBattleOperationRules, type BattleOperationExecutionRuntime } from "./battleOperationRuntime";
+import { deploymentUpgradeTargets, executeBattleOperationRules, type BattleOperationExecutionRuntime } from "./battleOperationRuntime";
 import type { BattleOperation, BattlePoint } from "./battleOperations";
-import { connectTowerTopology } from "./towerTopology";
+import { connectTowerTopology, topologyAffectedTowers } from "./towerTopology";
+import { canControlBattleEntity, canLinkBattleOwners } from "./battleOwnership";
 
 // Factories may attach display objects, but must preserve the same authoritative state.
 export interface BattleFactories {
@@ -108,6 +109,7 @@ function extendPorts<B extends object, T extends object>(base: B, value: T): B &
 
 // The full rule graph is assembled once, with live getters so checkpoint roster replacement is safe.
 export class BattleRuntime {
+  private actingActor?: string;
   readonly extraction = new TowerExtractionPool();
   readonly projectileMotion = new ProjectileMotionFrame();
   readonly deployment: TowerDeploymentSimulation;
@@ -160,7 +162,11 @@ export class BattleRuntime {
     };
     // Keep own enumerable getters: routed actions clone ports for a single action.
     const ports = <T extends object>(value: T) => extendPorts(rosters, value);
-    const createTower: BattleFactories["tower"] = (...args) => world.entityIds.identify("tower", this.factories.tower(...args));
+    const createTower: BattleFactories["tower"] = (...args) => {
+      const tower = world.entityIds.identify("tower", this.factories.tower(...args));
+      if (session.policy.towerAccess === "owner" && this.actingActor) tower.ownerId = this.actingActor;
+      return tower;
+    };
     const createBoss: BattleFactories["boss"] = (...args) => world.entityIds.identify("boss", this.factories.boss(...args));
     const createProjectile: BattleFactories["projectile"] = spec => world.entityIds.identify("projectile", this.factories.projectile(spec));
     const createHomingProjectile: BattleFactories["homingProjectile"] = spec => world.entityIds.identify("projectile", this.factories.homingProjectile(spec));
@@ -188,15 +194,25 @@ export class BattleRuntime {
       updateLevelAuras: () => this.board.refresh()
     });
     const deploymentPorts = extendPorts(placement, {
+      executeAutoUpgrade: (definition: CardDefinition, target: TowerState) => this.withActor(target.ownerId, () => {
+        if (session.policy.towerAccess === "owner") {
+          const affected = deploymentUpgradeTargets({ occupied: world.occupied, unlimitedFirepower: world.options.unlimitedFirepower,
+            mirrorGroupFor: tower => this.mirrors.mirrorGroupFor(tower) }, definition.id, target);
+          if ([...affected].some(tower => !canControlBattleEntity(session.policy, target.ownerId, tower))) return false;
+        }
+        return this.deployment.useCard(definition, target.lane, target.column) === "deployed";
+      }),
       resetTowerSkill: (tower: TowerState) => this.skills.resetTowerSkill(tower),
       mirrorGroupFor: (tower: TowerState) => this.mirrors.mirrorGroupFor(tower)
     });
     this.deployment = new TowerDeploymentSimulation(() => deploymentPorts);
     const mirrorPorts = extendPorts(placement, {
+      canLink: (a: TowerState, b: TowerState) => canLinkBattleOwners(session.policy, a, b),
       createTargetedEffectMirror: (source: TowerState, target: TowerState) => this.targetedEffects.createMirroredEffect(source, target)
     });
     this.mirrors = new TowerMirrorSimulation(() => mirrorPorts);
     const targetedPorts = extendPorts(placement, {
+      canLink: (a: TowerState, b: TowerState) => canLinkBattleOwners(session.policy, a, b),
       scheduleBattleAction: this.schedule, onTowerAction: this.routeTowerAction,
       removeTower: (tower: TowerState) => this.removeTower(tower),
       runMirrorGroupEvent: (tower: TowerState, action: (member: TowerState) => void) => this.mirrors.runMirrorGroupEvent(tower, action)
@@ -204,6 +220,12 @@ export class BattleRuntime {
     this.targetedEffects = new TargetedEffectSimulation(() => targetedPorts);
     this.shifter = new TowerShifterSimulation(() => movement);
     const pushPorts = extendPorts(movement, {
+      authorizeMoves: (source: TowerState, moves: readonly (AppliedTowerMove & { erased: boolean })[]) => {
+        if (session.policy.towerAccess !== "owner") return true;
+        const changes = new Map(moves.map(move => [move.tower, { lane: move.toLane, column: move.toColumn, inPlay: !move.erased }]));
+        const targets = topologyAffectedTowers(world.towers, changes);
+        return [...moves.map(move => move.tower), ...targets].every(target => canControlBattleEntity(session.policy, source.ownerId, target));
+      },
       onTowerAction: this.routeTowerAction, eraseTower: (tower: TowerState) => this.removeTower(tower)
     });
     this.push = new TowerPushSimulation(() => pushPorts);
@@ -256,7 +278,7 @@ export class BattleRuntime {
       scheduleBattleAction: this.schedule, onTowerAction: this.routeTowerAction,
       storeBlockedEnemies: (tower, definition) => this.storage.storeBlockedEnemies(tower, definition),
       gainChars: (amount, x, y) => this.gainChars(amount, x, y),
-      spawnTower: (id, lane, column, level, direction) => this.deployment.spawnGeneratedTower(id, lane, column, level, direction)
+      spawnTower: (id, lane, column, level, direction, source) => this.deployment.spawnGeneratedTower(id, lane, column, level, direction, source)
     } satisfies Omit<TowerAttackRuntime, keyof typeof rosters>);
     this.triggers = ports({
       ...damage, presentation: NO_TRIGGER_TOWER_PRESENTATION, getDefinition: getCardDefinition,
@@ -309,7 +331,10 @@ export class BattleRuntime {
     this.circuit = new ProjectileCircuitSimulation(() => circuitPorts);
     this.edgeControls = new EdgeTowerControls(() => ({
       edges: world.edgeTowers, card: world.loadout.byId.get("="),
-      identify: edge => world.entityIds.identify("edge", edge),
+      identify: edge => {
+        if (session.policy.towerAccess === "owner" && this.actingActor) edge.ownerId = this.actingActor;
+        return world.entityIds.identify("edge", edge);
+      },
       time: world.battleTime, cardTime: battleCardTime(getCardDefinition("="), world),
       chars: world.effectiveChars(), autoEnabled: session.controls.autoUpgradeEnabled, reserve: session.controls.reserveChars,
       spend: amount => world.spendChars(amount), changed: () => { this.circuit.sync(); observers.cards?.(); }
@@ -382,7 +407,9 @@ export class BattleRuntime {
     return {
       towers: world.towers, edges: world.edgeTowers, occupied: world.occupied, cards: world.loadout.cards,
       unlimitedFirepower: world.options.unlimitedFirepower, autoUpgradeEnabled: this.session.controls.autoUpgradeEnabled,
-      ended: world.gameOver, actor: id => this.session.actor(id), authorize: () => true,
+      ended: world.gameOver, actor: id => this.session.actor(id),
+      authorize: (actor, op, targets) => [...targets.towers, ...targets.edges, ...this.topologyOperationTargets(op, targets.towers)]
+        .every(target => canControlBattleEntity(this.session.policy, actor.id, target)),
       deployment: this.deployment, targetedEffects: this.targetedEffects, edgeControls: this.edgeControls,
       shifter: this.shifter, skills: this.skills, push: this.push,
       topology: { connect: (tower, lane, column) => {
@@ -401,7 +428,37 @@ export class BattleRuntime {
   }
 
   executeOperation(actorId: string, operation: BattleOperation) {
-    return executeBattleOperationRules(this.operationRuntime(), actorId, operation);
+    return this.withActor(actorId, () => executeBattleOperationRules(this.operationRuntime(), actorId, operation));
+  }
+
+  private withActor<T>(actorId: string | undefined, execute: () => T): T {
+    const previous = this.actingActor;
+    this.actingActor = actorId;
+    try { return execute(); }
+    finally { this.actingActor = previous; }
+  }
+
+  private topologyOperationTargets(operation: BattleOperation, targets: readonly TowerState[]) {
+    if (this.session.policy.towerAccess !== "owner") return [];
+    const changes = new Map<TowerState, Partial<TowerState>>();
+    if (operation.type === "topology") {
+      changes.set(targets[0], { topologyTarget: operation.cell, topologyOrder: this.world.battleTime });
+    } else if (operation.type === "erase" || operation.type === "effect" && deploymentCardId(operation.card) === "y") {
+      for (const tower of targets) changes.set(tower, { inPlay: false });
+    } else if (operation.type === "move") {
+      const byId = new Map(this.world.towers.map(tower => [tower.entityId, tower]));
+      const sources = operation.sources.map(source => ({ ...source, towerId: byId.get(source.target.id)!.id }));
+      const plan = this.shifter.plan({ type: "moveTowers", sources, destination: operation.destination });
+      if (plan.valid) for (const move of plan.moves) {
+        const tower = this.world.towers.find(value => value.id === move.towerId)!;
+        changes.set(tower, { lane: move.toLane, column: move.toColumn });
+      }
+    } else if (operation.type === "push") {
+      for (const move of this.push.plan(targets[0], operation.cell.lane, operation.cell.column)?.moves ?? []) {
+        changes.set(move.tower, { lane: move.toLane, column: move.toColumn, inPlay: !move.erased });
+      }
+    }
+    return topologyAffectedTowers(this.world.towers, changes);
   }
 
   executeControl(actorId: string, control: BattleControl) {

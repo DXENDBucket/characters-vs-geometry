@@ -9,6 +9,7 @@ import type { BattleCardState } from "./battleLoadout";
 import type { TowerExtractionPool } from "./towerExtraction";
 import { upgradeTowerLevel, syncTowerDerivedStats } from "./towerUpgradeRules";
 import { effectiveTowerLevel, towerFacingDirection } from "./towerRules";
+import { inheritBattleOwner } from "./battleOwnership";
 
 export type TargetedEffectCardResult = "handled" | "cooldown" | "empty" | "noChars";
 
@@ -26,6 +27,7 @@ export interface TargetedEffectRuntime<T extends Tower = Tower> {
   nextTowerOrder: () => number;
   removeTower: (tower: T) => void;
   runMirrorGroupEvent?: (tower: T, action: (tower: T) => void) => void;
+  canLink?: (first: T, second: T) => boolean;
   updateLevelAuras: () => void;
   createTower(definition: CardDefinition, lane: number, column: number, time: number, order: number,
     options: { transient: true; turnTargetId: string }): T;
@@ -152,12 +154,13 @@ export class TargetedEffectSimulation<T extends Tower = Tower> {
   createMirroredEffect(source: T, target: T) {
     const runtime = this.runtime();
     const definition = runtime.getDefinition(source.type);
-    if (!this.canHandle(definition.id) || !source.inPlay || !target.inPlay) {
+    if (!this.canHandle(definition.id) || !source.inPlay || !target.inPlay || runtime.canLink?.(source, target) === false) {
       return null;
     }
 
     const pendingEffectCard = this.findPendingEffectCard(runtime, definition.id, target.lane, target.column);
     if (pendingEffectCard) {
+      if (runtime.canLink?.(source, pendingEffectCard) === false) return null;
       this.raisePendingEffectCardLevel(pendingEffectCard, source.level);
       return pendingEffectCard;
     }
@@ -165,7 +168,8 @@ export class TargetedEffectSimulation<T extends Tower = Tower> {
     return this.placePendingEffectCard(definition, target.lane, target.column, target, {
       level: source.level,
       facingDirection: towerFacingDirection(source),
-      mirroredEffect: true
+      mirroredEffect: true,
+      owner: source
     });
   }
 
@@ -174,7 +178,7 @@ export class TargetedEffectSimulation<T extends Tower = Tower> {
     lane: number,
     column: number,
     target: T,
-    options: { level?: number; facingDirection?: -1 | 1; mirroredEffect?: boolean } = {}
+    options: { level?: number; facingDirection?: -1 | 1; mirroredEffect?: boolean; owner?: T } = {}
   ) {
     const runtime = this.runtime();
     const effectCard = runtime.createTower(
@@ -186,6 +190,7 @@ export class TargetedEffectSimulation<T extends Tower = Tower> {
       { transient: true, turnTargetId: target.id }
     );
 
+    if (options.owner) inheritBattleOwner(effectCard, options.owner);
     effectCard.level = Math.max(1, Math.floor(options.level ?? effectCard.level));
     effectCard.mirroredEffect = Boolean(options.mirroredEffect);
     effectCard.facingDirection = options.facingDirection ?? towerFacingDirection(target);

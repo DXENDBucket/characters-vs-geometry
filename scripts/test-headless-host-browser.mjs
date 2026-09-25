@@ -18,6 +18,7 @@ const { DIFFICULTY_VERSION } = load("src/config.ts");
 const { LEGACY_BATTLE_POLICY } = load("src/game/battlePolicy.ts");
 const { BATTLE_PERMISSIONS } = load("src/game/battleParticipants.ts");
 const url = option("url") ?? "http://127.0.0.1:5173";
+const ownership = process.argv.includes("--ownership");
 const roles = ["a", "b"], engines = (option("engines") ?? "firefox,webkit").split(",");
 assert.equal(engines.length, 2);
 const tokens = Object.fromEntries(roles.map(role => [role, randomUUID()]));
@@ -143,7 +144,7 @@ try {
     host?.close(); authority?.close();
     runtime = createIndependentBattle({ version: BATTLE_RULES_VERSION, difficultyVersion: DIFFICULTY_VERSION,
       levelId, difficulty: 3, unlimitedFirepower: false, seed: 810, selectedCards: ["A", "B", "X", "m", "u", "S"],
-      debug: true, policy: LEGACY_BATTLE_POLICY,
+      debug: true, policy: ownership ? { ...LEGACY_BATTLE_POLICY, towerAccess: "owner" } : LEGACY_BATTLE_POLICY,
       participants: [{ id: "local", permissions: BATTLE_PERMISSIONS }, { id: "a", permissions: BATTLE_PERMISSIONS },
         { id: "b", permissions: ["build"] }] });
     // A captured mid-battle fixture with reselection ready. No display-specific preparation.
@@ -161,6 +162,19 @@ try {
     await pump(); await equal("join");
     assert.equal((await request("b", control({ type: "debugChars" }))).result, "forbidden");
     assert.equal((await request("a", deploy("A", 3, 8))).result, "deployed");
+    if (ownership) {
+      const tower = runtime.world.towers.find(t => t.type === "A");
+      assert.equal(tower.ownerId, "a");
+      const before = checksum();
+      assert.equal((await request("b", { type: "operation", operation: { ...deploy("A", 3, 8).operation,
+        expected: { kind: "tower", id: tower.entityId } } })).result, "forbidden");
+      assert.equal(checksum(), before);
+      assert.equal((await request("b", deploy("X", 0, 0))).result, "deployed");
+      const owned = runtime.world.towers.find(t => t.type === "X");
+      assert.equal(owned.ownerId, "b");
+      assert.equal((await request("a", { type: "operation", operation: { type: "erase",
+        target: { kind: "tower", id: owned.entityId } } })).result, "forbidden");
+    }
     assert.equal((await request("a", control({ type: "pause", paused: true }))).result, "handled");
     const tick = runtime.session.clock.tick; advance(20); assert.equal(runtime.session.clock.tick, tick);
     await request("a", control({ type: "reserve", value: 700 }));
@@ -185,7 +199,7 @@ try {
     results.push({ levelId, tick: runtime.session.clock.tick, checksum: checksum() });
   }
   assert.deepEqual(errors, []);
-  console.log("Independent Node authority and real browser replicas over authenticated HTTP", { engines, results });
+  console.log("Independent Node authority and real browser replicas over authenticated HTTP", { engines, ownership, results });
 } finally {
   host?.close(); authority?.close();
   for (const browser of browsers) await browser.close();

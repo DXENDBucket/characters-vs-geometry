@@ -1,5 +1,5 @@
 import { LANES } from "../config";
-import type { EdgeTower, Tower } from "../types";
+import type { CardId, EdgeTower, Tower } from "../types";
 import type { TowerState } from "./towerState";
 import type { MoveTowersCommand } from "./rules/towerMovement";
 import type { BattleCardState } from "./battleLoadout";
@@ -48,6 +48,18 @@ export interface BattleOperationExecutionRuntime<T extends TowerState = TowerSta
 export type LiveBattleOperationRuntime = BattleOperationExecutionRuntime<Tower>;
 export const executeLiveBattleOperation = executeBattleOperationRules;
 
+export function deploymentUpgradeTargets<T extends TowerState>(runtime: Pick<BattleOperationExecutionRuntime<T>, "occupied" | "unlimitedFirepower" | "mirrorGroupFor">,
+  card: CardId, cell: { lane: number; column: number }) {
+  const towers = new Set<T>();
+  const lanes = runtime.unlimitedFirepower ? Array.from({ length: LANES }, (_, lane) => lane) : [cell.lane];
+  for (const lane of lanes) {
+    const tower = towerInPlacementLayer(runtime.occupied, lane, cell.column, card);
+    if (!tower || !canUpgradeTowerWithCard(tower, card)) continue;
+    for (const member of runtime.mirrorGroupFor(tower)) if (member.inPlay && member.type === tower.type) towers.add(member);
+  }
+  return towers;
+}
+
 // The actual command application path uses data and rule ports, independent of local picking.
 export function executeBattleOperationRules<T extends TowerState>(runtime: BattleOperationExecutionRuntime<T>, actorId: string, operation: BattleOperation): BattleOperationResult {
   return executeBattleOperation(actorId, operation, {
@@ -61,14 +73,15 @@ export function executeBattleOperationRules<T extends TowerState>(runtime: Battl
     affected: (op, primary) => {
       const towers = new Set(primary.towers);
       if (op.type === "deploy") {
-        const lanes = runtime.unlimitedFirepower ? Array.from({ length: LANES }, (_, lane) => lane) : [op.cell.lane];
-        for (const lane of lanes) {
-          const tower = towerInPlacementLayer(runtime.occupied, lane, op.cell.column, op.card);
-          if (!tower || !canUpgradeTowerWithCard(tower, op.card)) continue;
-          for (const member of runtime.mirrorGroupFor(tower)) if (member.inPlay && member.type === tower.type) towers.add(member);
-        }
+        for (const tower of deploymentUpgradeTargets(runtime, op.card, op.cell)) towers.add(tower);
       } else if (op.type === "effect") {
-        for (const tower of runtime.targetedEffects.deploymentTargets(op.cell.lane, op.cell.column, primary.towers[0])) towers.add(tower);
+        for (const tower of runtime.targetedEffects.deploymentTargets(op.cell.lane, op.cell.column, primary.towers[0])) {
+          towers.add(tower);
+          for (const pending of runtime.towers) if (pending.inPlay && pending.transient &&
+            (pending.sourceCardId ?? pending.type) === op.card && pending.lane === tower.lane && pending.column === tower.column) {
+            for (const member of runtime.mirrorGroupFor(pending)) if (member.inPlay) towers.add(member);
+          }
+        }
       } else if (op.type === "trigger") {
         for (const tower of runtime.mirrorGroupFor(primary.towers[0])) if (tower.inPlay) towers.add(tower);
       } else if (op.type === "push") {

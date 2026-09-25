@@ -6,6 +6,7 @@ import { initialTowerSkillStates } from "./towerSkillRules";
 
 export interface TowerState extends NumberTowerState {
   entityId?: string;
+  ownerId?: string;
   nullified?: boolean;
   nullifiedUntil?: number;
   deployedAt?: number;

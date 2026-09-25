@@ -8,6 +8,7 @@ import { isTargetedEffectCardId } from "./targetedEffectRules";
 import { gridCellKey } from "./boardCells";
 import { syncTowerDerivedStats, NO_TOWER_UPGRADE_PRESENTATION, type TowerUpgradePresentation } from "./towerUpgradeRules";
 import { towerFacingDirection } from "./towerRules";
+import { inheritBattleOwner } from "./battleOwnership";
 
 const MIRROR_CARD_ID: CardId = "m";
 export const MIRROR_COST_LIMIT = 999;
@@ -20,6 +21,7 @@ export interface TowerMirrorRuntime<T extends Tower = Tower> {
   nextTowerOrder: () => number;
   isCellDeployable?: (lane: number, column: number) => boolean;
   createTargetedEffectMirror?: (source: T, target: T) => T | null;
+  canLink?: (first: T, second: T) => boolean;
   updateLevelAuras: () => void;
   createTower(definition: CardDefinition, lane: number, column: number, time: number, order: number): T;
 }
@@ -222,14 +224,14 @@ export class TowerMirrorSimulation<T extends Tower = Tower> {
 
     const firstTower = runtime.occupied.get(gridCellKey(first.lane, first.column));
     const secondTower = runtime.occupied.get(gridCellKey(second.lane, second.column));
-    this.syncTargetedEffectMirrors(runtime, first, secondTower);
-    this.syncTargetedEffectMirrors(runtime, second, firstTower);
+    this.syncTargetedEffectMirrors(runtime, anchor, first, secondTower);
+    this.syncTargetedEffectMirrors(runtime, anchor, second, firstTower);
 
     for (const type of ["A", "()"] as const) {
       const a = towerInPlacementLayer(runtime.occupied, first.lane, first.column, type);
       const b = towerInPlacementLayer(runtime.occupied, second.lane, second.column, type);
-      if (a && !b && this.canMirrorTowerSource(runtime, a)) this.createMirrorTower(runtime, a, second.lane, second.column);
-      else if (b && !a && this.canMirrorTowerSource(runtime, b)) this.createMirrorTower(runtime, b, first.lane, first.column);
+      if (a && !b && runtime.canLink?.(anchor, a) !== false && this.canMirrorTowerSource(runtime, a)) this.createMirrorTower(runtime, a, second.lane, second.column);
+      else if (b && !a && runtime.canLink?.(anchor, b) !== false && this.canMirrorTowerSource(runtime, b)) this.createMirrorTower(runtime, b, first.lane, first.column);
     }
   }
 
@@ -244,6 +246,7 @@ export class TowerMirrorSimulation<T extends Tower = Tower> {
 
     const definition = runtime.getDefinition(source.type);
     const mirror = runtime.createTower(definition, lane, column, runtime.battleTime, runtime.nextTowerOrder());
+    inheritBattleOwner(mirror, source);
     mirror.level = source.level;
     mirror.facingDirection = towerFacingDirection(source);
     this.presentation.facing(mirror);
@@ -290,13 +293,13 @@ export class TowerMirrorSimulation<T extends Tower = Tower> {
       }
 
       for (const tower of this.adjacentMirrorTowersAt(move.fromLane, move.fromColumn)) {
-        if (tower.mirrorGroupId) {
+        if (tower.mirrorGroupId && runtime.canLink?.(move.tower, tower) !== false) {
           groupIds.add(tower.mirrorGroupId);
           detachedTowers.add(tower);
         }
       }
       for (const tower of this.adjacentMirrorTowersAt(move.toLane, move.toColumn)) {
-        if (tower.mirrorGroupId) {
+        if (tower.mirrorGroupId && runtime.canLink?.(move.tower, tower) !== false) {
           groupIds.add(tower.mirrorGroupId);
         }
       }
@@ -378,6 +381,7 @@ export class TowerMirrorSimulation<T extends Tower = Tower> {
       const first = towerInPlacementLayer(runtime.occupied, firstCell.lane, firstCell.column, layer);
       const second = towerInPlacementLayer(runtime.occupied, secondCell.lane, secondCell.column, layer);
       if (!first || !second || first === second || first.type !== second.type ||
+          runtime.canLink?.(anchor, first) === false || runtime.canLink?.(anchor, second) === false ||
           first.mirrorGroupId !== second.mirrorGroupId || !memberSet.has(first) || !memberSet.has(second)) continue;
       edges.get(first)?.add(second);
       edges.get(second)?.add(first);
@@ -407,15 +411,16 @@ export class TowerMirrorSimulation<T extends Tower = Tower> {
 
   private syncTargetedEffectMirrors(
     runtime: TowerMirrorRuntime<T>,
+    anchor: T,
     sourceCell: { lane: number; column: number },
     target: T | undefined
   ) {
-    if (!target || target.transient || !target.inPlay || !runtime.createTargetedEffectMirror) {
+    if (!target || target.transient || !target.inPlay || !runtime.createTargetedEffectMirror || runtime.canLink?.(anchor, target) === false) {
       return;
     }
 
     for (const source of this.targetedEffectSourcesAt(runtime, sourceCell.lane, sourceCell.column)) {
-      if (!this.canMirrorTargetedEffectSource(runtime, source) || this.targetedEffectMirrorExists(runtime, source, target)) {
+      if (runtime.canLink?.(anchor, source) === false || !this.canMirrorTargetedEffectSource(runtime, source) || this.targetedEffectMirrorExists(runtime, source, target)) {
         continue;
       }
 
@@ -466,7 +471,7 @@ export class TowerMirrorSimulation<T extends Tower = Tower> {
     const removedGroups = new Set<number>();
     for (const tower of this.adjacentMirrorTowers(anchor)) {
       const groupId = tower.mirrorGroupId;
-      if (!groupId || removedGroups.has(groupId) || !tower.inPlay) {
+      if (!groupId || removedGroups.has(groupId) || !tower.inPlay || this.runtime().canLink?.(anchor, tower) === false) {
         continue;
       }
 

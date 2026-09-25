@@ -51,7 +51,7 @@ export function towerCombatRuntime(live: CardBehaviorRuntime): TowerCombatRuntim
       damageBoss: (amount, type, part) => live.damageBoss(amount, type, part as CubeBoss | undefined),
       storeBlockedEnemies: (tower, definition) => live.storeBlockedEnemies(tower as Tower, definition),
       gainChars: (amount, x, y) => live.gainChars(amount, x, y),
-      spawnTower: (id, lane, column, level, direction) => live.spawnTower(id, lane, column, level, direction)
+      spawnTower: (id, lane, column, level, direction, source) => live.spawnTower(id, lane, column, level, direction, source)
     };
     runtimes.set(live, runtime);
   }

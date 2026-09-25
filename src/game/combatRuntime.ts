@@ -2,6 +2,7 @@ import type Phaser from "phaser";
 import type { TowerActionListener } from "./towerActions";
 import type { ScheduleBattleAction } from "./battleActions";
 import type { ProjectileMotionFrame } from "./projectileMotion";
+import type { TowerState } from "./towerState";
 import type { CardDefinition, CardId, CubeBoss, DamageType, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower } from "../types";
 
 export interface CombatRuntime {
@@ -24,7 +25,7 @@ export interface CombatRuntime {
   damageTower: (tower: Tower, damage: number, damageType: DamageType) => void;
   storeBlockedEnemies: (tower: Tower, definition: CardDefinition) => void;
   gainChars: (amount: number, x: number, y: number) => void;
-  spawnTower: (id: CardId, lane: number, column: number, level: number, facingDirection?: -1 | 1) => Tower | null;
+  spawnTower: (id: CardId, lane: number, column: number, level: number, facingDirection?: -1 | 1, source?: TowerState) => Tower | null;
   isCellDeployable?: (lane: number, column: number) => boolean;
   triggerTrapTower: (tower: Tower, target: Enemy | CubeBoss | "boss") => void;
   triggerShockTower: (tower: Tower) => void;

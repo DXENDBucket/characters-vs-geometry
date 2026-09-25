@@ -326,6 +326,7 @@ export interface Projectile extends ProjectileState {
 
 export interface EdgeTower {
   entityId?: string;
+  ownerId?: string;
   type: "=";
   mode?: "=" | ">" | "<" | "!=";
   level?: number;

@@ -3,6 +3,7 @@ import type { TowerState as Tower } from "./towerState";
 
 export interface TowerCell { lane: number; column: number }
 interface Topology { logical: TowerCell[]; physical: TowerCell[]; signature: string }
+type TopologyTower = Pick<Tower, "id" | "type" | "inPlay" | "lane" | "column" | "topologyTarget" | "topologyOrder" | "placedOrder">;
 const contexts = new WeakMap<object, Topology>();
 const boards = new WeakMap<Tower[], Topology>();
 const index = (cell: TowerCell) => cell.lane * COLUMNS + cell.column;
@@ -20,20 +21,42 @@ export function connectTowerTopology(tower: Tower, target: TowerCell, towers: To
   return true;
 }
 
-export function syncTowerTopology(towers: Tower[]) {
-  const swaps = towers.filter(t => t.inPlay && t.type === "&" && t.topologyTarget && validTowerCell(t) && validTowerCell(t.topologyTarget))
+function topologySwaps(towers: readonly TopologyTower[]) {
+  return towers.filter(t => t.inPlay && t.type === "&" && t.topologyTarget && validTowerCell(t) && validTowerCell(t.topologyTarget))
     .sort((a, b) => (a.topologyOrder ?? a.placedOrder) - (b.topologyOrder ?? b.placedOrder) || a.placedOrder - b.placedOrder);
+}
+
+function topologyMapping(swaps: readonly TopologyTower[]) {
+  const physical = cells(), logical = cells();
+  for (const tower of swaps) {
+    const a = index(tower), b = index(tower.topologyTarget!);
+    [physical[a], physical[b]] = [physical[b], physical[a]];
+  }
+  for (let i = 0; i < physical.length; i++) logical[index(physical[i])] = { lane: Math.floor(i / COLUMNS), column: i % COLUMNS };
+  return { physical, logical };
+}
+
+// Read-only preflight, including chained swaps; never install projected topology in live caches.
+export function topologyAffectedTowers(towers: readonly Tower[], changes: ReadonlyMap<Tower, Partial<TopologyTower>>) {
+  if (![...changes].some(([tower]) => tower.type === "&")) return [];
+  const projected = towers.map(tower => ({ id: tower.id, type: tower.type, inPlay: tower.inPlay, lane: tower.lane, column: tower.column,
+    topologyTarget: tower.topologyTarget, topologyOrder: tower.topologyOrder, placedOrder: tower.placedOrder, ...changes.get(tower) }));
+  const before = topologyMapping(topologySwaps(towers)), after = topologyMapping(topologySwaps(projected));
+  return towers.filter((tower, i) => {
+    const next = projected[i];
+    if (!tower.inPlay || !validTowerCell(tower) || !next.inPlay || !validTowerCell(next)) return false;
+    const a = before.logical[index(tower)], b = after.logical[index(next)];
+    return a.lane !== b.lane || a.column !== b.column;
+  });
+}
+
+export function syncTowerTopology(towers: Tower[]) {
+  const swaps = topologySwaps(towers);
   const signature = swaps.map(t => `${t.id}:${index(t)}:${index(t.topologyTarget!)}`).join("|");
   let topology = boards.get(towers);
   const changed = topology?.signature !== signature;
   if (changed) {
-    const physical = cells(), logical = cells();
-    for (const tower of swaps) {
-      const a = index(tower), b = index(tower.topologyTarget!);
-      [physical[a], physical[b]] = [physical[b], physical[a]];
-    }
-    for (let i = 0; i < physical.length; i++) logical[index(physical[i])] = { lane: Math.floor(i / COLUMNS), column: i % COLUMNS };
-    topology = { physical, logical, signature }; boards.set(towers, topology);
+    topology = { ...topologyMapping(swaps), signature }; boards.set(towers, topology);
   }
   for (const tower of towers) contexts.set(tower, topology!);
   return changed;

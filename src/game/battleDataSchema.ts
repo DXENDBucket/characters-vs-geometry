@@ -8,7 +8,7 @@ import type { BattleEntityKind } from "./battleEntityIds";
 import type { EdgeTower } from "../types";
 
 const towerFields = new Set(Object.keys({
-  entityId: true,
+  entityId: true, ownerId: true,
   nullified: true, nullifiedUntil: true, deployedAt: true, nextNullificationAt: true,
   parenthesisGuard: true, parenthesisInner: true, projectileBank: true, projectileNode: true,
   nextInterceptionAt: true, healingCredit: true, healingUpdatedAt: true, routedSkills: true,
@@ -89,7 +89,7 @@ const mortarFields = new Set(Object.keys({
 } satisfies Record<keyof MortarProjectileState, true>));
 
 const edgeFields = new Set(Object.keys({
-  entityId: true, type: true, mode: true, level: true, autoUpgrade: true, flowCredit: true,
+  entityId: true, ownerId: true, type: true, mode: true, level: true, autoUpgrade: true, flowCredit: true,
   flowUpdatedAt: true, axis: true, lane: true, column: true
 } satisfies Record<keyof EdgeTower, true>));
 

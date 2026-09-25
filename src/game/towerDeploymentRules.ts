@@ -7,6 +7,7 @@ import type { TowerExtractionPool } from "./towerExtraction";
 import { syncTowerOccupancy, towerInPlacementLayer } from "./towerOccupancy";
 import { applyTowerUpgradeStats, upgradeTowerLevel, NO_TOWER_UPGRADE_PRESENTATION, type TowerUpgradePresentation } from "./towerUpgradeRules";
 import { findAutoUpgradeTarget, isCardReadyForAutoUpgrade } from "./towerRules";
+import { inheritBattleOwner } from "./battleOwnership";
 
 export interface TowerDeploymentRuntime<T extends Tower = Tower> {
   towers: T[];
@@ -22,6 +23,7 @@ export interface TowerDeploymentRuntime<T extends Tower = Tower> {
   spendChars: (amount: number) => void;
   nextTowerOrder: () => number;
   resetTowerSkill: (tower: T) => void;
+  executeAutoUpgrade?: (definition: CardDefinition, target: T) => boolean;
   mirrorGroupFor?: (tower: T) => T[];
   isCellDeployable?: (lane: number, column: number) => boolean;
   updateLevelAuras: () => void;
@@ -61,12 +63,13 @@ export class TowerDeploymentSimulation<T extends Tower = Tower> {
     return "deployed";
   }
 
-  spawnGeneratedTower(id: CardId, lane: number, column: number, level: number, facingDirection: -1 | 1 = 1) {
+  spawnGeneratedTower(id: CardId, lane: number, column: number, level: number, facingDirection: -1 | 1 = 1, source?: Tower) {
     const runtime = this.runtime();
     if (runtime.isCellDeployable?.(lane, column) === false || towerInPlacementLayer(runtime.occupied, lane, column, id)) return null;
     const definition = runtime.getDefinition(id);
     if (definition.category === "special") return null;
     const tower = runtime.createTower(definition, lane, column, runtime.battleTime, runtime.nextTowerOrder());
+    if (source) inheritBattleOwner(tower, source);
     tower.level = Math.max(1, Math.floor(level));
     tower.facingDirection = facingDirection;
     this.presentation.generated(tower);
@@ -112,7 +115,9 @@ export class TowerDeploymentSimulation<T extends Tower = Tower> {
         continue;
       }
 
-      if (this.useCard(cardState.definition, target.lane, target.column) !== "deployed") continue;
+      const applied = runtime.executeAutoUpgrade ? runtime.executeAutoUpgrade(cardState.definition, target) :
+        this.useCard(cardState.definition, target.lane, target.column) === "deployed";
+      if (!applied) continue;
       availableChars = runtime.getChars();
       this.presentation.autoUpgrade(target);
       upgraded = true;
