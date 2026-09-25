@@ -7,6 +7,8 @@ import { exactSyncFields, parseBoundedSyncText, sameSyncCursor,
 
 export interface BattleSyncHostRuntime {
   checkpoint(): BattleReplay;
+  // Optional transaction-owned encoder; it must retain encodeBattleWireGraph validation.
+  encodeCheckpoint?: typeof encodeBattleWireGraph;
   checksum(): string;
   inputTime(): number;
 }
@@ -77,7 +79,8 @@ export class BattleSyncHost {
     peer.stream = ++this.stream;
     const snapshot: BattleSyncSnapshot = { version: BATTLE_PROTOCOL_VERSION, battleId: this.authority.battleId,
       stream: peer.stream, type: "snapshot", cursor: { ...this.cursor }, nextRequest: hello.nextSequence,
-      replay: { ...replay, checkpoint: encodeBattleWireGraph(replay.checkpoint) }, checksum: this.runtime.checksum() };
+      replay: { ...replay, checkpoint: (this.runtime.encodeCheckpoint ?? encodeBattleWireGraph)(replay.checkpoint) },
+      checksum: this.runtime.checksum() };
     this.deliver(peer, snapshot);
   }
 

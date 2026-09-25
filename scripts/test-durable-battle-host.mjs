@@ -72,21 +72,25 @@ test("durability barrier gates join snapshots, frames and receipts and serialize
   await f.host.close();
 });
 
-test("durable publication shares one checksum and capture per transaction, never across commands, frames or reconnects", async () => {
-  let calculations = 0, captures = 0;
+test("durable publication shares one checksum, capture and wire conversion per transaction, never across boundaries", async () => {
+  let calculations = 0, captures = 0, encodings = 0;
   const measuredLoad = createTypeScriptLoader({ "src/game/battleChecksum.ts": {
     battleChecksum: (...args) => { calculations++; return battleChecksum(...args); }
   }, "src/game/captureBattleSnapshot.ts": {
     captureBattleSnapshot: (...args) => { captures++; return captureBattleSnapshot(...args); }
+  }, "src/game/battleWireGraph.ts": {
+    ...load("src/game/battleWireGraph.ts"),
+    encodeBattleWireGraph: (...args) => { encodings++; return encodeBattleWireGraph(...args); }
   } });
   const { DurableBattleHost: MeasuredHost } = measuredLoad("src/game/durableBattleHost.ts");
   const host = await MeasuredHost.create("durable", options(), { inputTime: () => 0, save: async () => {} });
   const messages = [];
   const expectOne = async operation => {
-    const before = calculations, beforeCaptures = captures;
+    const before = calculations, beforeCaptures = captures, beforeEncodings = encodings;
     const result = await operation();
     assert.equal(calculations - before, 1);
     assert.equal(captures - beforeCaptures, 1);
+    assert.equal(encodings - beforeEncodings, 1);
     const snapshot = decodeSyncMessage(JSON.parse(host.checkpointText).snapshot);
     const restored = createIndependentBattle(snapshot.replay, { checkpoint: snapshot.replay.checkpoint });
     assert.equal(battleChecksum(restored.snapshot("A")), snapshot.checksum);
@@ -108,6 +112,48 @@ test("durable publication shares one checksum and capture per transaction, never
     await expectOne(() => host.receiveText(peer, JSON.stringify({ type: "resync", stream })));
     await expectOne(() => host.disconnect(peer));
     await expectOne(() => host.connect("local", message => messages.push(message)));
+  } finally { await host.close(); }
+});
+
+test("delivered wire snapshots cannot mutate the committed graph or subsequent snapshots", async () => {
+  const f = await fixture();
+  let retained, expected, delivered, next;
+  try {
+    await f.host.connect("local", message => {
+      delivered = message;
+      expected = structuredClone(message.replay.checkpoint);
+      retained = message.replay.checkpoint;
+      retained.objects.length = 0;
+    });
+    assert.equal(delivered.type, "snapshot");
+    const persisted = JSON.parse(f.host.checkpointText);
+    assert.deepEqual(persisted.snapshot.replay.checkpoint, expected);
+    retained.entities.push({ id: "invalid", kind: "enemy", data: {} });
+    await f.host.connect("local", message => { next = message; });
+    assert.equal(next.type, "snapshot");
+    assert.deepEqual(next.replay.checkpoint, expected);
+    assert.deepEqual(JSON.parse(f.host.checkpointText).snapshot.replay.checkpoint, expected);
+    assert.deepEqual(state(f.host.checkpointText), state(JSON.stringify(persisted)));
+  } finally { await f.host.close(); }
+});
+
+test("a failed wire conversion closes the host without saving or publishing its new stream", async () => {
+  let fail = false, stored, writes = 0, deliveries = 0;
+  const measuredLoad = createTypeScriptLoader({ "src/game/battleWireGraph.ts": {
+    ...load("src/game/battleWireGraph.ts"), encodeBattleWireGraph: graph => {
+      if (fail) throw Error("wire conversion failed");
+      return encodeBattleWireGraph(graph);
+    }
+  } });
+  const { DurableBattleHost: MeasuredHost } = measuredLoad("src/game/durableBattleHost.ts");
+  const host = await MeasuredHost.create("durable", options(), { inputTime: () => 0,
+    save: async text => { writes++; stored = text; } });
+  const before = stored;
+  try {
+    fail = true;
+    await assert.rejects(host.connect("local", () => deliveries++), /wire conversion failed/);
+    assert.equal(host.available, false); assert.equal(deliveries, 0); assert.equal(writes, 1);
+    assert.equal(stored, before); assert.equal(host.checkpointText, before);
   } finally { await host.close(); }
 });
 

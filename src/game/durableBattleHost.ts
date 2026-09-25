@@ -1,7 +1,8 @@
 import { BattleAuthority, BATTLE_PROTOCOL_VERSION, MAX_BATTLE_REQUEST_BYTES, type BattleAuthorityCheckpoint } from "./battleAuthority";
 import { BattleSyncHost, type BattleSyncPeer } from "./battleSyncHost";
 import { decodeSyncMessage, exactSyncFields, parseBoundedSyncText, type BattleSyncMessage, type BattleSyncSnapshot } from "./battleSyncProtocol";
-import { encodeBattleWireGraph } from "./battleWireGraph";
+import { encodeBattleWireGraph, type BattleWireGraph } from "./battleWireGraph";
+import type { SaveGraph } from "./saveGraph";
 import { createIndependentBattle } from "./independentBattle";
 import { captureBattleSnapshot } from "./captureBattleSnapshot";
 import { battleChecksum } from "./battleChecksum";
@@ -37,6 +38,7 @@ export class DurableBattleHost implements ScheduledBattleHost {
   private committedTiming?: BattleHostTiming;
   private checksumCache?: { tick: number; sequence: number; value: string };
   private replayCache?: { tick: number; sequence: number; value: BattleReplay };
+  private wireCache?: { source: SaveGraph; value: BattleWireGraph };
 
   private constructor(private readonly runtime: BattleRuntime, battleId: string, private readonly ports: DurableBattleHostPorts,
     saved?: HostCheckpoint) {
@@ -45,7 +47,8 @@ export class DurableBattleHost implements ScheduledBattleHost {
       execute: command => runtime.executeCommand(command)
     }, saved?.authority);
     this.sync = new BattleSyncHost(runtime.session, this.authority, {
-      checkpoint: () => this.replay(), checksum: () => this.checksum(), inputTime: () => ports.inputTime()
+      checkpoint: () => this.replay(), encodeCheckpoint: graph => this.encodeCheckpoint(graph),
+      checksum: () => this.checksum(), inputTime: () => ports.inputTime()
     }, saved?.stream);
   }
 
@@ -98,12 +101,19 @@ export class DurableBattleHost implements ScheduledBattleHost {
     return value;
   }
 
+  private encodeCheckpoint(source: SaveGraph) {
+    if (this.wireCache?.source === source) return this.wireCache.value;
+    const value = encodeBattleWireGraph(source);
+    this.wireCache = { source, value };
+    return value;
+  }
+
   private checkpoint(): string {
     const replay = this.replay(), authority = this.authority.snapshot(), stream = this.sync.streamCursor;
     const data: HostCheckpoint = { version: 1, stream, authority, snapshot: {
       type: "snapshot", version: BATTLE_PROTOCOL_VERSION, battleId: this.authority.battleId, stream: stream + 1,
       cursor: { tick: authority.tick, sequence: authority.commandSequence }, nextRequest: 0,
-      replay: { ...replay, checkpoint: encodeBattleWireGraph(replay.checkpoint!) }, checksum: this.checksum()
+      replay: { ...replay, checkpoint: this.encodeCheckpoint(replay.checkpoint!) }, checksum: this.checksum()
     } };
     const text = JSON.stringify(data);
     if (new TextEncoder().encode(text).byteLength > MAX_HOST_CHECKPOINT_BYTES) throw new Error("Host checkpoint exceeds storage bound");
@@ -118,6 +128,7 @@ export class DurableBattleHost implements ScheduledBattleHost {
       if (this.stopped) throw new Error("Durable host is closed");
       this.checksumCache = undefined;
       this.replayCache = undefined;
+      this.wireCache = undefined;
       try {
         const result = action();
         const text = this.checkpoint();
@@ -136,6 +147,7 @@ export class DurableBattleHost implements ScheduledBattleHost {
       } finally {
         this.checksumCache = undefined;
         this.replayCache = undefined;
+        this.wireCache = undefined;
       }
     });
     this.tail = task.then(() => { this.pending--; }, () => { this.pending--; });

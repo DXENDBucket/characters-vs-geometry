@@ -148,6 +148,11 @@ Fresh replay capture also removes the immediate clone of a newly detached graph;
 transaction-local capture reuse avoids duplicate join/resync work. Mixed benchmark
 comparisons retain identical replay bytes and storage/replica checks. Full-state
 commit and crowded-rendering costs still require further work.
+Join/resync now also reuses its validated wire conversion within the transaction,
+with count, sender-mutation and failed-conversion regressions. Actual durable
+Node/file/browser restart and scheduled-loop tests still pass in Chromium,
+Firefox and WebKit. This does not remove the full checkpoint needed on ordinary
+advancement; see [wire reuse](performance.md#transaction-local-wire-reuse).
 
 The outer `BattleHostLoop` now bounds timer-driven advancement to one pending
 commit, drains fixed-tick remainder, skips idle paused writes and explicitly stops

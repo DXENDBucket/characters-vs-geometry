@@ -116,9 +116,12 @@ try {
       const host = await DurableBattleHost.restore(saved, { inputTime: () => 0, save: async text => {
         const start = performance.now(); await store.save(text); writes.push(performance.now() - start);
       } });
+      const joinStarted = performance.now();
       const client = attachReplica(send => host.connect("local", send));
       try {
-        await client.joined; client.drain(); writes.length = 0;
+        await client.joined;
+        const durableJoinMs = performance.now() - joinStarted;
+        client.drain(); writes.length = 0;
         for (let i = 0; i < samples; i++) {
           let start = performance.now(); await host.advance(BATTLE_STEP_MS * batch); advances.push(performance.now() - start);
           start = performance.now(); client.drain(); replicas.push(performance.now() - start);
@@ -127,7 +130,7 @@ try {
         await host.advance(BATTLE_STEP_MS * 6); client.drain(); writes.pop();
         const persisted = JSON.parse(await store.read());
         assert.equal(hash(client.replica), persisted.snapshot.checksum);
-        durable.push({ ticksPerCommit: batch, advance: summary(advances), atomicWrite: summary(writes),
+        durable.push({ ticksPerCommit: batch, joinMs: durableJoinMs, advance: summary(advances), atomicWrite: summary(writes),
           clientApply: summary(replicas), checkpointBytes: Buffer.byteLength(host.checkpointText) });
       } finally { client.client.dispose(); await host.close(); }
     }

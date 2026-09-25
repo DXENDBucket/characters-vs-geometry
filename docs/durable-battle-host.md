@@ -87,6 +87,16 @@ without immediately cloning its entire graph a second time. The original
 `checkpointReplay(graph, cards)` still copies borrowed input. Replay headers and
 card lists remain independent, peer delivery still clones messages, and the wire
 encoder still validates the graph. No version or stored/wire bytes change.
+The wire conversion now has the same transaction-local lifetime: the sync host's
+optional `encodeCheckpoint` port lets the durable owner reuse the validated wire
+graph for peer snapshots and persistence. Cache hits require the identical detached
+source graph, and all caches clear at transaction start and in `finally`, including
+failures. Send callbacks still receive cloned messages; they cannot mutate the
+cached graph. A conversion error closes the host before saving or publishing.
+The default sync host still calls `encodeBattleWireGraph` directly. Custom trusted
+encoders must preserve its validation; this is not a client-supplied encoding hook.
+This removes duplicate join/resync work, not the single conversion required by
+each ordinary advancement or the full-state storage write.
 Large-state serialization, commit batching/journaling and overloaded-host recovery
 still need improvement before deployment. Reject floods
 and oversized requests at the transport before allocating/queueing them.
@@ -97,14 +107,16 @@ and oversized requests at the transport before allocating/queueing them.
   retained remainder, pause, terminal state, cancellation, explicit overload and
   clock/storage failures. Real host/replica checks verify committed-only timing,
   restoration and zero idle writes; rejected persistence cannot leak timing.
-- `npm run test:host` runs sixteen cases with the real independent core and replica:
+- `npm run test:host` runs eighteen cases with the real independent core and replica:
   barrier ordering, lost acknowledgments, continuation, write failures before/after
   persistence, bounded receipt tails, quota preservation, conflicting/expired
   requests, malformed checkpoints, paused and terminal states, participant
   isolation, queue saturation, close behavior, atomic file replacement and retained
   owner-only tower permissions after replacement of the host. Checksum cache
-  and replay capture coverage verify single calculation/capture per transaction
-  without stale commands, frames, resyncs or reconnects.
+  and replay capture coverage verify single calculation/capture/wire conversion per
+  transaction without stale commands, frames, resyncs or reconnects. Additional
+  tests mutate delivered snapshots and fail conversion to verify isolation and
+  that no uncommitted stream escapes.
 - A child-process test kills a Node host after an actual file flush but before
   acknowledgment, starts a new process, and retries deployment. There is one tower,
   one debit, the same receipt and a higher stream ID.

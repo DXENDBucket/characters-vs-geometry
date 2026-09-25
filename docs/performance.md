@@ -320,6 +320,23 @@ the side-by-side replay comparison isolates the removed graph clone more directl
 Checksum cost, wire validation, atomic storage and durability barriers remain.
 This is not proof of production latency or a fix for crowded-client long frames.
 
+### Transaction-Local Wire Reuse
+
+The durable owner now reuses one validated wire conversion for the same detached
+graph within a transaction. A join/resync previously encoded the graph for the
+peer and again for storage. A counting regression fails with two encodings before
+the change and passes with one afterward; all new transactions still encode fresh
+state. Message delivery retains its clone, and storage remains a full atomic write.
+
+`benchmark-crowded-battle.mjs` now reports durable `joinMs` separately from client
+application. A local before/after run (`--samples=12`) measured the two 800-enemy
+join transactions at 62.30/57.21 ms before and 52.69/52.92 ms after. These are only
+two observations, not a stable percentile or portable speedup claim. Ordinary
+six-tick commit medians were 54.89/52.52 ms, with unchanged 1,187,067-byte final
+checkpoints; their encoding path is not reduced by this optimization. The fixture
+still checks legacy wire/replay bytes and client agreement with persisted state.
+Full-state serialization and atomic write costs remain the next storage concern.
+
 ### Warmed Rendering And Replica Batches
 
 The browser benchmark accepts `--warm-frames=60 --frames=180` to separate actual
