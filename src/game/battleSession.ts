@@ -1,6 +1,6 @@
 import type { CardId } from "../types";
 import { BattleActionQueue } from "./battleActions";
-import { type BattleCommand, type BattleReplay, validateReplay } from "./battleCommands";
+import { type BattleCommand, type BattleReplay, type RecordedBattleCommand, validateReplay } from "./battleCommands";
 import {
   BATTLE_RULES_VERSION, BATTLE_STEP_MS, BattleClock, BattleRandom,
   type BattleClockState, canRestoreBattleVersion, validBattleClock
@@ -21,6 +21,8 @@ export interface BattleSessionSnapshot {
 
 export type BattleSessionOptions = Omit<BattleReplay, "commands" | "endTick" | "checkpoint">;
 export type BattleCommandExecutor = (command: BattleCommand) => void;
+export const MAX_REPLICA_FRAME_TICKS = 600;
+export const MAX_REPLICA_FRAME_COMMANDS = 256;
 
 export interface BattleSessionRuntime {
   step(): void;
@@ -43,7 +45,8 @@ export class BattleSession {
   private epoch = 0;
   private savedPolicy?: BattlePolicy;
 
-  constructor(options: BattleSessionOptions, playback?: BattleReplay) {
+  constructor(options: BattleSessionOptions, playback?: BattleReplay, readonly replica = false) {
+    if (replica && playback) throw new Error("A replica cannot also play a recording");
     this.recording = { ...structuredClone(options), endTick: 0, commands: [] };
     validateReplay(this.recording);
     if (playback) {
@@ -59,6 +62,7 @@ export class BattleSession {
 
   get playback(): Readonly<BattleReplay> | undefined { return this.replay; }
   get executingCommand() { return this.executing; }
+  get atBoundary() { return !this.advancing && !this.executing; }
   get nextCommandSequence() { return this.recording.commands.length; }
   get commandEpoch() { return this.epoch; }
   actor(id: string) { return this.actors.find(actor => actor.id === id); }
@@ -67,6 +71,7 @@ export class BattleSession {
 
   // False means playback was already complete; no simulation or render refresh is needed.
   advance(delta: number, runtime: BattleSessionRuntime) {
+    if (this.replica) return false;
     if (this.advancing) throw new Error("Battle session is already advancing");
     this.advancing = true;
     try {
@@ -83,7 +88,7 @@ export class BattleSession {
 
   // Local, trusted commands only. Network schema validation and authorization are separate gates.
   submit(command: BattleCommand, execute: BattleCommandExecutor) {
-    if (this.replay || this.executing) return false;
+    if (this.replay || this.replica || this.executing) return false;
     const entry = { tick: this.clock.tick, sequence: this.recording.commands.length, command: structuredClone(command) };
     validateReplay({ ...this.recording, commands: [{ ...entry, sequence: 0 }], endTick: entry.tick });
     this.recording.commands.push(entry);
@@ -95,6 +100,48 @@ export class BattleSession {
     this.executing = true;
     try { execute(structuredClone(command)); }
     finally { this.executing = false; }
+  }
+
+  // Trusted host frames only. This uses the same fixed step and executor as local play/replay.
+  followFrame(tick: number, entries: readonly RecordedBattleCommand[], runtime: BattleSessionRuntime) {
+    if (!this.replica || this.advancing || this.executing) throw new Error("Replica is unavailable");
+    if (!Number.isSafeInteger(tick) || tick < this.clock.tick || tick - this.clock.tick > MAX_REPLICA_FRAME_TICKS ||
+        entries.length > MAX_REPLICA_FRAME_COMMANDS || entries.some((entry, index) => entry.tick < this.clock.tick ||
+          entry.sequence !== this.nextCommandSequence + index || !["operation", "control"].includes(entry.command.type))) {
+      throw new Error("Invalid replica frame");
+    }
+    validateReplay({ ...this.recording, commands: entries.map((entry, sequence) => ({ ...entry, sequence })), endTick: tick });
+    const frame = structuredClone(entries);
+    this.advancing = true;
+    try {
+      let cursor = 0;
+      const apply = () => {
+        while (cursor < frame.length && frame[cursor].tick === this.clock.tick) {
+          const entry = frame[cursor++];
+          this.recording.commands.push(entry);
+          this.execute(entry.command, runtime.executeCommand);
+        }
+      };
+      // Rendering backlog and speed do not decide how many authoritative ticks to reproduce.
+      this.clock.restore({ tick: this.clock.tick, remainder: 0 });
+      apply();
+      while (this.clock.tick < tick) {
+        if (this.controls.paused || !runtime.canAdvance()) throw new Error("Replica cannot advance to host tick");
+        this.clock.advance(BATTLE_STEP_MS, () => { runtime.step(); return false; });
+        apply();
+      }
+    } finally { this.advancing = false; }
+  }
+
+  recordedCommands(from: number, limit = MAX_REPLICA_FRAME_COMMANDS) {
+    if (!Number.isSafeInteger(from) || from < 0 || from > this.recording.commands.length ||
+        !Number.isSafeInteger(limit) || limit < 0 || limit > MAX_REPLICA_FRAME_COMMANDS) throw new Error("Invalid command range");
+    return structuredClone(this.recording.commands.slice(from, from + limit));
+  }
+
+  checkpointReplay(checkpoint: SaveGraph, selectedCards: readonly CardId[]): BattleReplay {
+    const { commands: _commands, checkpoint: _checkpoint, endTick: _endTick, ...header } = this.recording;
+    return structuredClone({ ...header, selectedCards: [...selectedCards], checkpoint, commands: [], endTick: this.clock.tick });
   }
 
   private applyReplayCommands(execute: BattleCommandExecutor) {

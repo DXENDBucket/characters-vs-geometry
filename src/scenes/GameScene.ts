@@ -11,7 +11,9 @@ import { effectiveTowerLevel, getHitProductionAmount, towerFacingDirection } fro
 import { syncTowerCopies } from "../game/towerCopy";
 import { syncTowerFormVisual } from "../game/towers";
 import { BATTLE_RULES_VERSION, setBattleRandom, setBattlePlayback } from "../game/battleSimulation";
-import { validateReplay, type BattleCommand, type BattlePointer, type BattleReplay } from "../game/battleCommands";
+import { validateReplay, type BattleCommand, type BattlePointer, type BattleReplay, type RecordedBattleCommand } from "../game/battleCommands";
+import type { SaveGraph } from "../game/saveGraph";
+import { BattleSyncHost } from "../game/battleSyncHost";
 import { sameTutorialInteraction, type TutorialInteraction } from "../game/tutorialInteraction";
 import type { BattleAction, ScheduleBattleAction } from "../game/battleActions";
 import { BattleSession, type BattleSessionRuntime } from "../game/battleSession";
@@ -249,6 +251,8 @@ export class GameScene extends Phaser.Scene {
   private enemyHealthLinks!: Phaser.GameObjects.Graphics;
   private session!: BattleSession;
   private authority!: BattleAuthority;
+  private syncHost?: BattleSyncHost;
+  private replicaCheckpoint?: SaveGraph;
   get commandAuthority() { return this.authority; }
   private get simulation() { return this.session.clock; }
   private get playback() { return this.session?.playback; }
@@ -420,7 +424,14 @@ export class GameScene extends Phaser.Scene {
     super(key);
   }
 
-  init(data: { levelId?: string; chapterId?: string; selectedCards?: CardId[]; difficulty?: number; unlimitedFirepower?: boolean; resume?: boolean; seed?: number; replay?: BattleReplay; participants?: readonly BattleOperationActor[]; policy?: BattlePolicy; persistProgress?: boolean }) {
+  init(data: { levelId?: string; chapterId?: string; selectedCards?: CardId[]; difficulty?: number; unlimitedFirepower?: boolean; resume?: boolean; seed?: number; replay?: BattleReplay; participants?: readonly BattleOperationActor[]; policy?: BattlePolicy; persistProgress?: boolean; replica?: BattleReplay }) {
+    const replica = data.replica ? structuredClone(data.replica) : undefined;
+    if (replica) {
+      validateReplay(replica);
+      if (data.replay || !replica.checkpoint || replica.commands.length) throw new Error("Invalid replica bootstrap");
+      data = { ...data, ...replica, resume: false };
+    }
+    this.replicaCheckpoint = replica?.checkpoint;
     const playback = data.replay ? structuredClone(data.replay) : undefined;
     if (playback) {
       validateReplay(playback);
@@ -441,7 +452,7 @@ export class GameScene extends Phaser.Scene {
     const tutorialMechanic = this.levelConfig.specialMechanic;
     const isTutorial = isTutorialMechanic(tutorialMechanic);
     this.unlimitedFirepower = isTutorial ? false : Boolean(data.unlimitedFirepower);
-    const debugModeEnabled = playback?.debug ?? isDebugModeEnabled();
+    const debugModeEnabled = playback?.debug ?? replica?.debug ?? isDebugModeEnabled();
     this.difficultyConfig = this.adjustDifficultyForUnlimitedFirepower(getDifficultyConfig(this.difficulty));
     if (isTutorial) this.difficultyConfig = getDifficultyConfig(1);
     const policy = playback ? playback.policy : copyBattlePolicy(data.policy ?? {
@@ -449,16 +460,16 @@ export class GameScene extends Phaser.Scene {
       reselectEnabled: !isTutorial && isLevelCompleted(RESELECT_UNLOCK_LEVEL), pauseOnLocalModal: true
     });
     const selectedCards = this.sanitizeLoadout(tutorialLoadout(tutorialMechanic, data.selectedCards), policy ?? LEGACY_BATTLE_POLICY,
-      Boolean(playback || this.resumeSave));
+      Boolean(playback || this.resumeSave || replica));
     this.session = new BattleSession({ version: BATTLE_RULES_VERSION, levelId: this.levelId, difficulty: this.difficulty,
       difficultyVersion: DIFFICULTY_VERSION,
       unlimitedFirepower: this.unlimitedFirepower, selectedCards,
       seed, debug: debugModeEnabled, ...(data.participants ? { participants: data.participants } : {}),
-      ...(policy ? { policy } : {}) }, playback);
+      ...(policy ? { policy } : {}) }, playback, Boolean(replica));
     this.resetCommandAuthority();
     setBattleRandom(this, this.session.random);
     setBattlePlayback(this, Boolean(playback));
-    this.profile = new BattleProfile(!playback && data.persistProgress !== false, this.levelId, this.difficulty, !!this.levelConfig.survival);
+    this.profile = new BattleProfile(!playback && !replica && data.persistProgress !== false, this.levelId, this.difficulty, !!this.levelConfig.survival);
     setBattleDiscoveryObserver(this, kind => this.profile.enemySeen(kind));
     this.world = new BattleWorld<LiveBattleEntities>({ levelId: this.levelId, level: this.levelConfig,
       difficulty: this.difficultyConfig, unlimitedFirepower: this.unlimitedFirepower },
@@ -631,18 +642,18 @@ export class GameScene extends Phaser.Scene {
           this.pauseMenu.show();
         } });
       },
-      restart: () => this.scene.restart({
+      restart: () => { if (this.session.replica) return; this.scene.restart({
         levelId: this.levelId,
         chapterId: this.chapterId,
         selectedCards: [...this.selectedCardIds],
         difficulty: this.difficulty,
         unlimitedFirepower: this.unlimitedFirepower,
         policy: this.session.policy, participants: this.session.snapshot().participants, persistProgress: this.profile.enabled
-      }),
+      }); },
       exit: () => this.handleOverlayAction()
     });
     this.setGameSpeed(this.gameSpeed);
-    if (!this.resumeSave && !this.playback?.checkpoint) this.spawnBossIfNeeded();
+    if (!this.resumeSave && !this.playback?.checkpoint && !this.replicaCheckpoint) this.spawnBossIfNeeded();
     this.createCardList();
     this.updateCards();
     this.overlay = this.battlefield.ui(() => createGameOverlay(this, () => this.handleOverlayAction()));
@@ -656,6 +667,9 @@ export class GameScene extends Phaser.Scene {
       this.resumeSave = undefined;
     } else if (this.playback?.checkpoint) {
       this.applyBattleSave(restoreBattleSnapshot(this, this.playback.checkpoint));
+    } else if (this.replicaCheckpoint) {
+      this.applyBattleSave(restoreBattleSnapshot(this, this.replicaCheckpoint));
+      this.replicaCheckpoint = undefined;
     } else if (this.levelConfig.survival && !this.playback) {
       this.profile.clearSurvivalSave();
     }
@@ -678,6 +692,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private cleanupSceneHandlers() {
+    this.syncHost?.close(); this.syncHost = undefined;
     setBattleDiscoveryObserver(this);
     this.authority?.close();
     if (this.reselectOpen) this.scene.stop("CardSelectScene");
@@ -726,6 +741,11 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (!this.session.advance(delta, this.sessionRuntime)) return;
+    this.syncHost?.publish(false);
+    this.refreshBattleViews();
+  }
+
+  private refreshBattleViews() {
     this.syncBattleOverlays();
     this.shifter.syncSelectionVisuals();
     this.syncPlacementGhost(this.input.activePointer);
@@ -1036,6 +1056,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private resetCommandAuthority() {
+    this.syncHost?.close(); this.syncHost = undefined;
     this.authority?.close();
     this.authority = new BattleAuthority(crypto.randomUUID(), this.session, {
       available: () => !this.gameOver,
@@ -1067,7 +1088,9 @@ export class GameScene extends Phaser.Scene {
   submitPlayerOperation(actorId: string, operation: BattleOperation): BattleOperationResult {
     if (!validBattleActorId(actorId) || !validBattleOperation(operation)) return "invalid";
     if (this.playback || this.gameOver) return "unavailable";
-    return this.authority.submitTrusted(actorId, { type: "operation", operation });
+    const result = this.authority.submitTrusted(actorId, { type: "operation", operation });
+    this.syncHost?.publish();
+    return result;
   }
 
   private applyPlayerControl(actorId: string, control: BattleControl): BattleOperationResult {
@@ -1110,7 +1133,9 @@ export class GameScene extends Phaser.Scene {
     if (!validBattleActorId(actorId) || !validBattleControl(control)) return "invalid";
     // A local menu must not reject an already-authorized control from another participant.
     if (this.playback || this.gameOver) return "unavailable";
-    return this.authority.submitTrusted(actorId, { type: "control", control });
+    const result = this.authority.submitTrusted(actorId, { type: "control", control });
+    this.syncHost?.publish();
+    return result;
   }
 
   private requestControl(control: BattleControl) {
@@ -2913,7 +2938,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private localInputBlocked() {
-    return !this.session.executingCommand && (!!this.playback || this.gameOver || this.menuOpen || this.reselectOpen);
+    return !this.session.executingCommand && (!!this.playback || this.session.replica || this.gameOver || this.menuOpen || this.reselectOpen);
   }
 
   private localInput(action: () => void) {
@@ -2929,6 +2954,7 @@ export class GameScene extends Phaser.Scene {
 
   /** Legacy input adapter for current-version recordings and diagnostic fixtures. */
   submitBattleCommand(command: BattleCommand) {
+    if (this.syncHost) throw new Error("Use semantic player commands while hosting");
     if (this.playback || this.gameOver || this.menuOpen || this.reselectOpen) return;
     this.session.submit(command, this.sessionRuntime.executeCommand);
   }
@@ -2968,6 +2994,18 @@ export class GameScene extends Phaser.Scene {
 
   exportReplay(): BattleReplay {
     return this.session.exportReplay();
+  }
+
+  startSynchronization() {
+    return this.syncHost ??= new BattleSyncHost(this.session, this.authority, {
+      checkpoint: () => this.session.checkpointReplay(captureBattleSnapshot(this.battleState()), this.selectedCardIds),
+      checksum: () => this.battleChecksum(), inputTime: () => performance.now()
+    });
+  }
+
+  followSynchronizedFrame(tick: number, commands: RecordedBattleCommand[]) {
+    this.session.followFrame(tick, commands, { ...this.sessionRuntime, canAdvance: () => !this.gameOver });
+    this.refreshBattleViews();
   }
 
   battleChecksum() {

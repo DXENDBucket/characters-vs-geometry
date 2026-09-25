@@ -14,6 +14,56 @@ const options = () => ({ version: BATTLE_RULES_VERSION, levelId: "1-10", difficu
 const recording = (commands = [], endTick = 3) => ({ ...options(), commands: commands.map((entry, sequence) => ({ ...entry, sequence })), endTick });
 const idle = { step() {}, executeCommand() {}, canAdvance: () => true };
 
+test("replicas use authoritative ticks and same-tick controls, never local wall time or trusted submission", () => {
+  const session = new BattleSession(options(), undefined, true), seen = [];
+  assert.equal(session.advance(100000, idle), false);
+  assert.equal(session.submit({ type: "control", actorId: "local", control: { type: "reserve", value: 3 } }, () => assert.fail()), false);
+  session.controls.speed = 4;
+  session.clock.restore({ tick: 0, remainder: 10000 });
+  const command = (tick, sequence, paused) => ({ tick, sequence,
+    command: { type: "control", actorId: "local", control: { type: "pause", paused } } });
+  const runtime = { step: () => seen.push(session.clock.tick), canAdvance: () => true,
+    executeCommand: command => { session.controls.paused = command.control.paused; } };
+  session.followFrame(2, [command(0, 0, true), command(0, 1, false), command(2, 2, true)], runtime);
+  assert.deepEqual(seen, [1, 2]); assert.equal(session.controls.paused, true);
+  session.followFrame(3, [command(2, 3, false)], runtime);
+  assert.deepEqual(seen, [1, 2, 3]); assert.equal(session.nextCommandSequence, 4);
+  assert.deepEqual(session.clock.snapshot(), { tick: 3, remainder: 0 });
+  assert.throws(() => new BattleSession(options()).followFrame(1, [], runtime), /unavailable/);
+  assert.throws(() => new BattleSession(options(), recording(), true), /replica/);
+});
+
+test("invalid replica frames are rejected before changing state; runtime divergence fails closed for resync", () => {
+  const session = new BattleSession(options(), undefined, true), before = session.snapshot();
+  const entry = { tick: 0, sequence: 0, command: { type: "control", actorId: "local", control: { type: "reserve", value: 3 } } };
+  for (const [tick, entries] of [[-1, []], [601, []], [1, [{ ...entry, sequence: 1 }]], [1, [{ ...entry, tick: 2 }]],
+    [1, [{ ...entry, command: { type: "selectCard", id: "A" } }]], [1, [{ ...entry, command: { ...entry.command, actorId: "?" } }]],
+    [1, Array(257).fill(entry)]]) {
+    assert.throws(() => session.followFrame(tick, entries, idle));
+    assert.deepEqual(session.snapshot(), before); assert.equal(session.nextCommandSequence, 0);
+  }
+  session.controls.paused = true;
+  assert.throws(() => session.followFrame(1, [], idle), /cannot advance/);
+  assert.equal(session.atBoundary, true);
+  session.controls.paused = false;
+  assert.throws(() => session.followFrame(1, [], { ...idle, step: () => session.followFrame(2, [], idle) }), /unavailable/);
+  assert.equal(session.atBoundary, true);
+});
+
+test("sync checkpoint export does not reset command ordering, and range reads return independent bounded copies", () => {
+  const session = new BattleSession(options());
+  session.submit({ type: "control", actorId: "local", control: { type: "reserve", value: 3 } }, () => {});
+  session.advance(BATTLE_STEP_MS, idle);
+  const epoch = session.commandEpoch, before = session.exportReplay(), checkpoint = captureBattleSnapshot({ simulation: session.snapshot() });
+  const exported = session.checkpointReplay(checkpoint, ["B"]);
+  assert.deepEqual(exported.commands, []); assert.equal(exported.endTick, 1);
+  assert.deepEqual(exported.selectedCards, ["B"]); assert.equal(session.commandEpoch, epoch);
+  exported.checkpoint.nodes.length = 0;
+  const entries = session.recordedCommands(0); entries[0].command.control.value = 10;
+  assert.deepEqual(session.exportReplay(), before);
+  for (const [from, limit] of [[-1, 1], [2, 1], [0, 257], [0, -1]]) assert.throws(() => session.recordedCommands(from, limit));
+});
+
 test("the session owns pause and speed even when the scene runtime always permits ticking", () => {
   const session = new BattleSession(options()), other = new BattleSession(options());
   session.controls.speed = 2;

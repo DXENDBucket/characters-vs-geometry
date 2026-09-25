@@ -83,12 +83,14 @@ recordings retain the default participant and their unchanged checksums.
 The authority's request ledger, channel handles and ingress time are intentionally
 outside combat checksums. The ledger currently survives only reconnect to the same
 live authority, not process loss or loading a save. There is no production network
-adapter, client snapshot synchronization, late join, host migration or durable
-reconnect yet. Slot/card access and the local-modal pause choice now come from
+adapter, host migration or durable reconnect yet. The new
+[synchronization layer](battle-synchronization.md) adds client snapshots, late join,
+checksummed command frames and same-live-host reconnect. Slot/card access and the local-modal pause choice now come from
 [captured session policy](battle-policy.md); replay no longer grants access that
 was denied by a newly recorded battle. The default still pauses local single-player
 menus, while an explicitly configured host can continue under overlays. Separate
-resources, paused-action snapshots and participant-owned UI still need work.
+resources and participant-owned UI still need work. Paused-action snapshots now
+have actual browser restore/replay coverage; see [session state](battle-session.md).
 
 ## Verification
 
@@ -101,11 +103,12 @@ resources, paused-action snapshots and participant-owned UI still need work.
   act on the actual game alongside local UI. Checks real tower costs/cooldowns,
   stable-target rejection, skill authorization, commands during a local menu,
   retries/reconnect, validated snapshots and full/checkpoint 30/144 Hz replay.
-  The fixture reaches 1800 ticks with checksum `1339f97a`, including captured access policy.
+  The fixture reaches 1800 ticks with checksum `e4a43371`, including captured access policy and lifecycle.
 - Existing board/skill/control/tutorial browser tests and the seven-stage replay
   suite remain passing. All seven pre-policy combat checksums are unchanged;
   current checksums additionally cover access/modal policy.
 
-The browser test uses in-memory serialized requests and real battle scenes, not
-two connected UI clients. It is evidence for this authority boundary, not completion
-of the full [multiplayer acceptance gates](multiplayer-readiness.md).
+The authority browser test uses in-memory serialized requests and real battle
+scenes. A separate synchronization browser suite now exercises two independent
+clients over an authenticated HTTP relay. Neither test implies completion of all
+[multiplayer acceptance gates](multiplayer-readiness.md).

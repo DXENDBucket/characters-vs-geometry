@@ -133,7 +133,7 @@ export class BattleAuthority {
   }
 
   private unavailable() {
-    return this.closed || this.session.commandEpoch !== this.epoch || !!this.session.playback;
+    return this.closed || this.session.commandEpoch !== this.epoch || !!this.session.playback || this.session.replica;
   }
 
   private reject(reason: Rejection, sequence: number | null = null, next: number | null = null): BattleReceipt {

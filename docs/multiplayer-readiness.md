@@ -99,15 +99,24 @@ transport-neutral authority and synchronization gates above.
   capability checks, ordered execution, acknowledgments, bounded retry receipts
   and same-live-host reconnect. Real battle tests cover two peer handles plus an
   observer, real costs/skills/cooldowns, snapshots and different-frame-rate replay.
-  This is an in-memory ingress test, not two connected clients. Transport
-  authentication, durable reconnect, join/resync and complete two-client testing
-  remain missing. Gate 5 is partial; gates 6-7 remain open. See
-  [command authority](battle-authority.md).
+  A transport-neutral synchronization layer now adds bounded snapshots, command
+  frames, checksums, joining, divergence recovery and same-live-host reconnect.
+  One actual host and two isolated browser contexts exchange messages over an
+  authenticated local HTTP relay, covering duplicate/reordered input, lost
+  receipts, reconnect, forged identity and terminal resync. Selected normal,
+  Boss and ASCII levels preserve mirror/shared-health relationships after joining.
+  Replicas use the real battle path, cannot self-advance and do not write profiles.
+  This is real connected-client evidence, but not a production lobby/transport or
+  player-input UI. Durable host recovery and broader content/latency coverage are
+  still missing. Gates 5-7 have partial implementation and verification, not full
+  completion. See [command authority](battle-authority.md) and
+  [battle synchronization](battle-synchronization.md).
 
-Next: complete participant/resource policies,
-finish simulation/presentation ports and ID-based relationships, and build snapshot synchronization and
-reconnect on the new authority boundary. Validate each increment against the
-real battle path; green isolated tests are not proof of full readiness.
+Next: finish simulation/presentation ports and ID-based relationships, complete
+participant/resource policies, and connect player UI/transport lifetime handling
+to synchronization. Profile and broaden connected-client tests before calling the
+whole system ready. Validate each increment against the real battle path; green
+isolated tests are not proof of full readiness.
 
 See [existing replay contracts](multiplayer-preparation.md),
 [performance measurements](performance.md) and [Boss state](boss-state.md).

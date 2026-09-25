@@ -55,6 +55,19 @@ paused closures were removed. Already-dead shock sources stay reachable through
 the saved graph until their queued attacks execute. These references still need
 conversion to stable-ID relationship records for a fully independent host.
 
+## Authoritative Replicas
+
+Replica sessions cannot advance from local frame time or accept local `submit`.
+`followFrame` prevalidates bounded ticks and semantic commands, then uses the same
+world step and command executor as local play/replay. Host tick counts determine
+advancement; client rendering cadence and speed do not. Commands at the current
+or terminal tick still execute in order.
+
+`recordedCommands` exports bounded independent command slices. `checkpointReplay`
+captures a join checkpoint without changing the host's recording epoch or input
+ledger. `atBoundary` prevents publishing partial ticks or reentrant commands.
+See [synchronization](battle-synchronization.md) for validation, retry and resync.
+
 ## Still Open
 
 This is session orchestration, not a complete headless battle engine. Tick order,
@@ -66,7 +79,7 @@ Live commands express semantic operations/controls; local UI intent is not share
 state. `submit` remains a trusted recording API. Real input now enters through the
 [command authority](battle-authority.md), which binds host-authenticated identities,
 validates requests and handles sequence/receipt retry rules. Ownership/resources,
-snapshot synchronization and durable reconnect still need work; see
+player-facing synchronization integration and durable reconnect still need work; see
 [Multiplayer Readiness](multiplayer-readiness.md).
 
 ## Verification
@@ -90,17 +103,18 @@ phases. At 3600 ticks the current rules-version-7 baselines are:
 
 | Level | Checksum |
 | --- | --- |
-| 1-9 | ab86ccd2 |
-| 2-10 | 20169cdd |
-| 5-5 | 93ce4080 |
-| 5-10 | b5504280 |
-| AE-1 | 0ba61674 |
-| IF-1 | 7dd5f41d |
-| IF-BE-4 | 6ee2b889 |
+| 1-9 | 1e6ea626 |
+| 2-10 | a7029fbd |
+| 5-5 | 4efc42e7 |
+| 5-10 | 9ccad86f |
+| AE-1 | 245de3b5 |
+| IF-1 | 09beb729 |
+| IF-BE-4 | 3453b471 |
 
-These include captured access/modal policy and authoritative controls. The test
-separately asserts all seven preceding hashes after removing only controls in a
-diagnostic copy; the older pre-policy diagnostics strip policy too. Actual replay
+These include captured access/modal policy, authoritative controls and lifecycle.
+The test separately asserts preceding hashes by removing only newly added fields
+in diagnostic copies; pre-lifecycle, pre-control and pre-policy histories remain
+checked separately. Actual replay
 and snapshot comparisons include all authoritative fields. Policy-less recordings
 still play with the historical unrestricted policy and current control snapshots.
 
