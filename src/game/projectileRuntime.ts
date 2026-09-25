@@ -35,6 +35,7 @@ import { enemyIsSolarBomb } from "./enemyIdentity";
 import { redirectOrientedTarget } from "./orientation";
 import { gatherProjectile, gatheringIsActive } from "./gathering";
 import { applyStatusEffect } from "./statusEffects";
+import { gridCellKey } from "./targeting";
 import {
   bossPartAtPoint,
   bossPartDistanceSqToPoint,
@@ -45,10 +46,9 @@ import {
   clampXToBossPart,
   clampYToBossPart,
   findBossPart,
-  gridCellKey,
   pointInBossBounds,
   pointInTowerBounds
-} from "./targeting";
+} from "./unitGeometry";
 import { towerDamageType, towerFacingDirection } from "./towerRules";
 import { segmentEnemyHitTime, type ProjectileMotionFrame } from "./projectileMotion";
 

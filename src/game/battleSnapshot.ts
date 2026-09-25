@@ -7,7 +7,7 @@ import { createConfiguredBossSkill } from "./bossSkillRules";
 import { DEL_ECHO_HITBOX_CELLS } from "../data/delBoss";
 import { syncBossCopyWarnings } from "../render/bossCopyWarnings";
 import { syncDelSweepWarning } from "../render/delSweepWarning";
-import { secondaryBossParts } from "./targeting";
+import { secondaryBossParts } from "./unitGeometry";
 import { rankedBossFamily } from "../bosses/bossRanks";
 import { getCardDefinition } from "../registry/cards";
 import { towerBehaviorType } from "./towerIdentity";

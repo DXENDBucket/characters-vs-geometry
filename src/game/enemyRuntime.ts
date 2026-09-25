@@ -77,14 +77,8 @@ import {
   applyStatusEffect, hasUnexpiredStatusEffect, statusMultipliers, type StatusMultipliers, syncEnemyBodyPosition
 } from "./statusEffects";
 import { hasStatusEffectName } from "./rules/statusEffectRules";
-import {
-  bossBounds,
-  forEachBossPart,
-  getBlockingTowerFromOccupied,
-  getSweptBlockingTowerFromOccupied,
-  latestPlacedTower,
-  type RectBounds
-} from "./targeting";
+import { getBlockingTowerFromOccupied, getSweptBlockingTowerFromOccupied, latestPlacedTower } from "./targeting";
+import { bossBounds, forEachBossPart, type RectBounds } from "./unitGeometry";
 import { isTrapArmed, towerDamageType } from "./towerRules";
 import { towerAttackAmount, towerFinalStats } from "./unitStats";
 import { volleyInterval } from "./upgrades";

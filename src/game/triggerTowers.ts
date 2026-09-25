@@ -8,7 +8,7 @@ import type { CardDefinition, CardId, CubeBoss, DamageType, Enemy, Tower } from 
 import { enemyIsBurrowed, enemyIsHighFlying } from "./enemyCombatRules";
 import { forEachSnapshot } from "./iteration";
 import { applyStatusEffect } from "./statusEffects";
-import { bossPartDistanceSqToPoint, bossPartInRect, forEachBossPart } from "./targeting";
+import { bossPartDistanceSqToPoint, bossPartInRect, forEachBossPart } from "./unitGeometry";
 import { getShockCount, getTriggerDebuffDuration, towerDamageType } from "./towerRules";
 import { towerAttackAmount } from "./unitStats";
 

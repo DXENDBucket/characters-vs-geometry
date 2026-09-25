@@ -91,7 +91,8 @@ import {
 } from "../game/projectileRuntime";
 import { forEachSnapshot } from "../game/iteration";
 import { ProjectileMotionFrame } from "../game/projectileMotion";
-import { gridCellKey, isBossInRect } from "../game/targeting";
+import { gridCellKey } from "../game/targeting";
+import { isBossInRect } from "../game/unitGeometry";
 import {
   createTower,
   setTowerFacing,

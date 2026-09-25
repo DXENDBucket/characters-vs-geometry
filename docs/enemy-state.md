@@ -65,6 +65,7 @@ glyphs and deterministic save/replay continuation.
 This is not a renderer-free battle engine. Cargo and pool contracts still contain
 live entity references, and health, promotion and movement still update visuals.
 Boss state, stable entity IDs and a scene-independent session remain future work.
-The core runtime dependency cycle is now limited to `combatStats.ts`,
-`enemySupport.ts` and `targeting.ts`; extracting shared range/target primitives
-is a suitable next step. This pass does not claim a measured battle FPS gain.
+The follow-up [unit geometry extraction](unit-geometry.md) removed the remaining
+`combatStats.ts`, `enemySupport.ts` and `targeting.ts` runtime import cycle.
+Dependency tests now protect this boundary. These passes do not claim a measured
+battle FPS gain.

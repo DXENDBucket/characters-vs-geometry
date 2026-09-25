@@ -5,7 +5,7 @@ import { CELL_HEIGHT, CELL_WIDTH, LANES } from "../config";
 import type { CubeBoss, Enemy } from "../types";
 import { enemyFamily, enemyRank } from "../registry/enemies";
 import { enemyIsHighFlying } from "./enemyCombatRules";
-import { bossPartDistanceSqToPoint } from "./targeting";
+import { bossPartDistanceSqToPoint } from "./unitGeometry";
 import { setPositionIfChanged, setVisibleIfChanged } from "./visualGuards";
 
 const HEX_ARMOR_RADIUS = CELL_WIDTH * ENEMY_AURAS.armor.range.shape.radius;

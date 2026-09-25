@@ -29,7 +29,7 @@ import { getTowerSkillState } from "./skillState";
 import { TOWER_SKILLS } from "../data/towerAbilities";
 import { chargeTowerSkill, resetTowerSkillCharge, spendTowerSkill, towerSkillIsReady } from "./towerSkillRules";
 import { createTowerSkillRegistry, type TowerSkillActivation, type TowerSkillDefinition } from "./towerSkillRegistry";
-import { bossPartInRect } from "./targeting";
+import { bossPartInRect } from "./unitGeometry";
 import { syncTowerFlyingVisual, syncNumberSkillRange } from "./towers";
 import { effectiveTowerLevel, setTowerFlyingUntil, towerDamageType } from "./towerRules";
 import { towerAttackAmount, towerFinalStats, withTowerBehavior } from "./unitStats";

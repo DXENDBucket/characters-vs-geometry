@@ -110,6 +110,12 @@ are explicit and type-checked. See [Enemy State Boundary](enemy-state.md). The c
 runtime dependency cycle shrank from eight modules to three: combat stats,
 enemy support and targeting. No battle FPS improvement is claimed for this pass.
 
+The eighth pass extracted physical hitbox geometry and Boss-part traversal from
+targeting. Support queries now use that lower-level module, eliminating the last
+runtime import cycle. A new rule test checks emitted source dependencies and
+guards headless data/query boundaries. See [Unit Geometry Boundary](unit-geometry.md).
+Selection order, damage rules and replay checksums remain unchanged.
+
 1. Move remaining pure visual updates to a frame-level rendering adapter while
    preserving simulation-owned positions, deadlines and random streams.
 2. Extend explicit snapshot contracts from projectiles, towers and enemies to

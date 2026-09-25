@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createTypeScriptLoader } from "./helpers/load-typescript.mjs";
 
-const load = createTypeScriptLoader({ phaser: { default: {} }, "src/render/unitShapes.ts": {} });
+const load = createTypeScriptLoader();
 const { enemySupportCandidates } = load("src/game/enemySupportIndex.ts");
 const { addEnemyToField, removeEnemyFromField, removeEnemyAt, clearEnemyField, invalidateEnemyRoster } = load("src/game/enemyRoster.ts");
 const { enemySupportBonuses, enemySupportSources } = load("src/game/enemySupport.ts");

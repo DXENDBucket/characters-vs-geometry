@@ -35,14 +35,8 @@ import {
 } from "./projectiles";
 import {
   attackRangeLimitX,
-  bossPartIntersectsRect,
-  bossPartDistanceSqToPoint,
-  bossParts,
-  clampXToBossPart,
-  clampYToBossPart,
   canAttackBoss,
   canAttackBossPart,
-  findBossPart,
   getAttackTarget,
   getBlockedEnemies,
   getBlockingTowerFromOccupied,
@@ -56,6 +50,14 @@ import {
   hasLaneRepelTarget,
   hasShiftTarget
 } from "./targeting";
+import {
+  bossPartIntersectsRect,
+  bossPartDistanceSqToPoint,
+  bossParts,
+  clampXToBossPart,
+  clampYToBossPart,
+  findBossPart
+} from "./unitGeometry";
 import { applyStatusEffect, syncEnemyBodyPosition } from "./statusEffects";
 import { hasStatusEffectName } from "./rules/statusEffectRules";
 import { effectiveTowerLevel, getProductionAmount, towerDamageType, towerFacingDirection } from "./towerRules";

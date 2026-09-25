@@ -23,6 +23,32 @@ import { hasStatusEffectName } from "./rules/statusEffectRules";
 import { towerFacingDirection, towerIsFlying } from "./towerRules";
 import { towerFinalStats } from "./unitStats";
 import { segmentBoxHitTime } from "./oscillatingMovement";
+import { bossBounds, towerBounds, findBossPart } from "./unitGeometry";
+
+export {
+  bossBounds,
+  bossParts,
+  secondaryBossParts,
+  findBossPart,
+  forEachBossPart,
+  towerBounds,
+  pointInBounds,
+  pointInTowerBounds,
+  pointInBossBounds,
+  bossPartDistanceSqToPoint,
+  clampXToBossPart,
+  clampYToBossPart,
+  bossPartIntersectsRect,
+  rectBoundsIntersect,
+  towerIntersectsBoss,
+  isPointInBossHitbox,
+  bossPartAtPoint,
+  isBossInRadius,
+  bossPartInRadius,
+  isBossInRect,
+  bossPartInRect,
+  type RectBounds
+} from "./unitGeometry";
 
 interface AttackTargetQuery {
   area: AttackAreaConfig;
@@ -34,13 +60,6 @@ interface AttackTargetQuery {
 interface AttackRangeBounds {
   left: number;
   right: number;
-}
-
-export interface RectBounds {
-  left: number;
-  right: number;
-  top: number;
-  bottom: number;
 }
 
 const GRID_CELL_KEYS: string[][] = [];
@@ -57,17 +76,6 @@ export function gridCellKey(lane: number, column: number) {
   return GRID_CELL_KEYS[lane]?.[column] ?? `${lane}:${column}`;
 }
 
-export function bossBounds(boss: CubeBoss): RectBounds {
-  const width = boss.hitboxWidth ?? BOSS_HITBOX_WIDTH;
-  const height = boss.hitboxHeight ?? BOSS_HITBOX_HEIGHT;
-  return {
-    left: boss.x - width / 2,
-    right: boss.x + width / 2,
-    top: boss.y - height / 2,
-    bottom: boss.y + height / 2
-  };
-}
-
 export function bossRect(boss: CubeBoss) {
   const bounds = bossBounds(boss);
   return new Phaser.Geom.Rectangle(
@@ -78,192 +86,9 @@ export function bossRect(boss: CubeBoss) {
   );
 }
 
-export function bossParts(boss: CubeBoss | null) {
-  return boss ? [boss, ...secondaryBossParts(boss)] : [];
-}
-
-export function secondaryBossParts(boss: CubeBoss) {
-  return boss.delLaneSweep?.parts ?? boss.octahedronCopies ?? [];
-}
-
-export function findBossPart(boss: CubeBoss | null, predicate: (part: CubeBoss) => boolean) {
-  if (!boss) {
-    return undefined;
-  }
-
-  if (predicate(boss)) {
-    return boss;
-  }
-
-  for (const part of secondaryBossParts(boss)) {
-    if (predicate(part)) {
-      return part;
-    }
-  }
-
-  return undefined;
-}
-
-export function forEachBossPart(boss: CubeBoss | null, visit: (part: CubeBoss) => void) {
-  if (!boss) {
-    return;
-  }
-
-  visit(boss);
-  for (const part of secondaryBossParts(boss)) {
-    visit(part);
-  }
-}
-
-export function towerBounds(tower: Tower): RectBounds {
-  return {
-    left: tower.x - CELL_WIDTH / 2,
-    right: tower.x + CELL_WIDTH / 2,
-    top: tower.y - CELL_HEIGHT / 2,
-    bottom: tower.y + CELL_HEIGHT / 2
-  };
-}
-
 export function towerRect(tower: Tower) {
   const bounds = towerBounds(tower);
   return new Phaser.Geom.Rectangle(bounds.left, bounds.top, CELL_WIDTH, CELL_HEIGHT);
-}
-
-export function pointInBounds(bounds: RectBounds, x: number, y: number) {
-  return x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom;
-}
-
-export function pointInTowerBounds(tower: Tower, x: number, y: number) {
-  return (
-    x >= tower.x - CELL_WIDTH / 2 &&
-    x <= tower.x + CELL_WIDTH / 2 &&
-    y >= tower.y - CELL_HEIGHT / 2 &&
-    y <= tower.y + CELL_HEIGHT / 2
-  );
-}
-
-export function pointInBossBounds(boss: CubeBoss, x: number, y: number) {
-  const width = boss.hitboxWidth ?? BOSS_HITBOX_WIDTH;
-  const height = boss.hitboxHeight ?? BOSS_HITBOX_HEIGHT;
-  return (
-    x >= boss.x - width / 2 &&
-    x <= boss.x + width / 2 &&
-    y >= boss.y - height / 2 &&
-    y <= boss.y + height / 2
-  );
-}
-
-export function bossPartDistanceSqToPoint(boss: CubeBoss, x: number, y: number) {
-  const halfWidth = (boss.hitboxWidth ?? BOSS_HITBOX_WIDTH) / 2;
-  const halfHeight = (boss.hitboxHeight ?? BOSS_HITBOX_HEIGHT) / 2;
-  const closestX = Phaser.Math.Clamp(x, boss.x - halfWidth, boss.x + halfWidth);
-  const closestY = Phaser.Math.Clamp(y, boss.y - halfHeight, boss.y + halfHeight);
-  return distanceSq(x, y, closestX, closestY);
-}
-
-export function clampXToBossPart(boss: CubeBoss, x: number) {
-  const halfWidth = (boss.hitboxWidth ?? BOSS_HITBOX_WIDTH) / 2;
-  return Phaser.Math.Clamp(x, boss.x - halfWidth, boss.x + halfWidth);
-}
-
-export function clampYToBossPart(boss: CubeBoss, y: number) {
-  const halfHeight = (boss.hitboxHeight ?? BOSS_HITBOX_HEIGHT) / 2;
-  return Phaser.Math.Clamp(y, boss.y - halfHeight, boss.y + halfHeight);
-}
-
-export function bossPartIntersectsRect(boss: CubeBoss, left: number, right: number, top: number, bottom: number) {
-  const halfWidth = (boss.hitboxWidth ?? BOSS_HITBOX_WIDTH) / 2;
-  const halfHeight = (boss.hitboxHeight ?? BOSS_HITBOX_HEIGHT) / 2;
-  return (
-    boss.x - halfWidth <= right &&
-    boss.x + halfWidth >= left &&
-    boss.y - halfHeight <= bottom &&
-    boss.y + halfHeight >= top
-  );
-}
-
-export function rectBoundsIntersect(a: RectBounds, b: RectBounds) {
-  return a.left <= b.right && a.right >= b.left && a.top <= b.bottom && a.bottom >= b.top;
-}
-
-export function towerIntersectsBoss(tower: Tower, boss: CubeBoss) {
-  const bossWidth = boss.hitboxWidth ?? BOSS_HITBOX_WIDTH;
-  const bossHeight = boss.hitboxHeight ?? BOSS_HITBOX_HEIGHT;
-  return (
-    tower.x - CELL_WIDTH / 2 <= boss.x + bossWidth / 2 &&
-    tower.x + CELL_WIDTH / 2 >= boss.x - bossWidth / 2 &&
-    tower.y - CELL_HEIGHT / 2 <= boss.y + bossHeight / 2 &&
-    tower.y + CELL_HEIGHT / 2 >= boss.y - bossHeight / 2
-  );
-}
-
-export function isPointInBossHitbox(boss: CubeBoss | null, x: number, y: number) {
-  return Boolean(bossPartAtPoint(boss, x, y));
-}
-
-export function bossPartAtPoint(boss: CubeBoss | null, x: number, y: number) {
-  if (!boss) {
-    return undefined;
-  }
-
-  if (pointInBossBounds(boss, x, y)) {
-    return boss;
-  }
-
-  for (const part of secondaryBossParts(boss)) {
-    if (pointInBossBounds(part, x, y)) {
-      return part;
-    }
-  }
-
-  return undefined;
-}
-
-export function isBossInRadius(boss: CubeBoss | null, x: number, y: number, radius: number) {
-  return Boolean(bossPartInRadius(boss, x, y, radius));
-}
-
-export function bossPartInRadius(boss: CubeBoss | null, x: number, y: number, radius: number) {
-  if (!boss) {
-    return undefined;
-  }
-
-  const radiusSq = radius * radius;
-  if (bossPartDistanceSqToPoint(boss, x, y) <= radiusSq) {
-    return boss;
-  }
-
-  for (const part of secondaryBossParts(boss)) {
-    if (bossPartDistanceSqToPoint(part, x, y) <= radiusSq) {
-      return part;
-    }
-  }
-
-  return undefined;
-}
-
-export function isBossInRect(boss: CubeBoss | null, x: number, y: number, width: number, height: number) {
-  return Boolean(bossPartInRect(boss, x, y, width, height));
-}
-
-export function bossPartInRect(boss: CubeBoss | null, x: number, y: number, width: number, height: number) {
-  if (!boss) {
-    return undefined;
-  }
-
-  const right = x + width;
-  const bottom = y + height;
-  if (bossPartIntersectsRect(boss, x, right, y, bottom)) {
-    return boss;
-  }
-
-  for (const part of secondaryBossParts(boss)) {
-    if (bossPartIntersectsRect(part, x, right, y, bottom)) {
-      return part;
-    }
-  }
-
-  return undefined;
 }
 
 export function getHealTargets(
@@ -840,10 +665,4 @@ function attackTargetPriority(query: AttackTargetQuery, enemy: Enemy) {
   }
 
   return query.direction > 0 ? enemy.x : -enemy.x;
-}
-
-function distanceSq(ax: number, ay: number, bx: number, by: number) {
-  const dx = ax - bx;
-  const dy = ay - by;
-  return dx * dx + dy * dy;
 }

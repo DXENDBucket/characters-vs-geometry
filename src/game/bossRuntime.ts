@@ -68,15 +68,8 @@ import { triggerAngelWings } from "./enemySkills";
 import { makeWingPulse } from "../render/enemySkillEffects";
 import { applyStatusEffect, hasStatusEffect } from "./statusEffects";
 import { activeStatusSpeedMultiplier } from "./rules/statusEffectRules";
-import {
-  bossBounds,
-  findBossPart,
-  forEachBossPart,
-  latestPlacedTower,
-  latestPlacedTowers,
-  pointInBounds,
-  type RectBounds
-} from "./targeting";
+import { latestPlacedTower, latestPlacedTowers } from "./targeting";
+import { bossBounds, findBossPart, forEachBossPart, pointInBounds, type RectBounds } from "./unitGeometry";
 import { isTrapArmed } from "./towerRules";
 import { syncBossBaseStats, towerFinalStats } from "./unitStats";
 import { volleyInterval } from "./upgrades";

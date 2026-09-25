@@ -19,7 +19,7 @@ import {
   palette
 } from "../config";
 import { toRomanNumeral } from "../format";
-import { bossRect } from "../game/targeting";
+import { bossBounds } from "../game/unitGeometry";
 import { bossBaseStatsFromValues } from "../game/unitStats";
 import type { BossKind, CubeBoss } from "../types";
 import { bossStatsAtRank, rankedBossFamily } from "./bossRanks";
@@ -345,7 +345,7 @@ function randomSignedRotationSpeed(min: number, max: number) {
 }
 
 export function bossAdvanceSpawnPoints(boss: CubeBoss) {
-  const x = bossRect(boss).left - CELL_WIDTH / 2;
+  const x = bossBounds(boss).left - CELL_WIDTH / 2;
   return Array.from({ length: LANES }, (_, lane) => ({
     lane,
     x,

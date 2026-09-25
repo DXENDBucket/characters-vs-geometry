@@ -36,7 +36,8 @@ import {
 } from "./solarBomb";
 import { enemyIsSolarBomb } from "./enemyIdentity";
 import { addFrozenPhysicalDamage, applyStatusEffect, hasStatusEffect, syncEnemyBodyPosition } from "./statusEffects";
-import { bossParts, secondaryBossParts, forEachBossPart, gridCellKey } from "./targeting";
+import { gridCellKey } from "./targeting";
+import { bossParts, secondaryBossParts, forEachBossPart } from "./unitGeometry";
 import { changeTowerHealth, syncHealthBar, syncTowerHealthNetworks, towerHealthDepleted } from "./towerHealth";
 import { syncUnyieldingAuras } from "./towerAuras";
 import { towerFinalStats } from "./unitStats";
