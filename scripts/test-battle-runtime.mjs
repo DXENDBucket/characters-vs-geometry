@@ -132,3 +132,17 @@ test("restoring active mortar flights twice does not duplicate them or terminal 
   assert.equal(finished.length, 1);
   assert.equal(runtime.world.result.outcome, "victory");
 });
+
+test("AE-EX-2 mirrored shells keep exact checksums across wire restore and the first occupancy/NUL refresh", () => {
+  const runtime = prepared("AE-EX-2", ["A", "m", "[]"]);
+  place(runtime, "A", 0, 1); place(runtime, "[]", 0, 1); place(runtime, "m", 0, 2);
+  const local = cloneCheckpoint(runtime), remote = cloneCheckpoint(runtime, undefined, true);
+  assert.equal(checksum(remote), checksum(runtime));
+  for (let tick = 0; tick < 4200; tick++) {
+    step(runtime); step(local); step(remote);
+    if (tick === 0 || tick % 300 === 0) {
+      assert.equal(checksum(local), checksum(runtime), "local checkpoint at " + tick);
+      assert.equal(checksum(remote), checksum(runtime), "wire checkpoint at " + tick);
+    }
+  }
+});

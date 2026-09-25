@@ -6,6 +6,7 @@ const load = createTypeScriptLoader();
 const { BattleSession } = load("src/game/battleSession.ts");
 const { BATTLE_RULES_VERSION, BATTLE_STEP_MS } = load("src/game/battleSimulation.ts");
 const { captureBattleSnapshot } = load("src/game/captureBattleSnapshot.ts");
+const { canonicalSaveGraph } = load("src/game/saveGraph.ts");
 const { battleChecksum } = load("src/game/battleChecksum.ts");
 const { createBossState } = load("src/game/bossState.ts");
 const { advanceBossPosition } = load("src/game/bossRules.ts");
@@ -290,7 +291,7 @@ test("recording from a checkpoint clears old commands and replays only at or aft
   assert.equal(early.clock.tick, 0);
 });
 
-test("logical checksums preserve the old algorithm, exclude cosmetics and never mutate supplied state", () => {
+test("logical checksums hash canonical state, exclude cosmetics and never mutate supplied state", () => {
   const state = { simulation: { version: BATTLE_RULES_VERSION, clock: { tick: 10, remainder: 8 }, randomState: 42, mirrorNextGroupId: 1 },
     gameSpeed: 3, boss: { ...createBossState("cube", 0), rotationX: .1, rotationY: .2, rotationZ: .3,
       velocityX: .4, velocityY: .5, velocityZ: .6, targetVelocityX: .7, targetVelocityY: .8, targetVelocityZ: .9, nextTurnIn: 2 } };
@@ -300,7 +301,7 @@ test("logical checksums preserve the old algorithm, exclude cosmetics and never 
   const graph = captureBattleSnapshot(legacy);
   const cosmetic = ["rotationX", "rotationY", "rotationZ", "velocityX", "velocityY", "velocityZ", "targetVelocityX", "targetVelocityY", "targetVelocityZ", "nextTurnIn"];
   for (const node of graph.nodes) if (node.kind === "boss") for (const key of cosmetic) delete node.data[key];
-  let expected = 2166136261; const text = JSON.stringify(graph);
+  let expected = 2166136261; const text = JSON.stringify(canonicalSaveGraph(graph));
   for (let i = 0; i < text.length; i++) expected = Math.imul(expected ^ text.charCodeAt(i), 16777619);
   assert.equal(hash, (expected >>> 0).toString(16).padStart(8, "0"));
   state.gameSpeed = 6; state.simulation.clock.remainder = 100;

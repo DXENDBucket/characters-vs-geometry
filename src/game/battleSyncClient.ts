@@ -1,10 +1,10 @@
 import { BATTLE_PROTOCOL_VERSION, validBattleIntent, type BattleIntent, type BattleReceipt, type BattleRequest } from "./battleAuthority";
 import type { RecordedBattleCommand } from "./battleCommands";
-import { olderSyncCursor, sameSyncCursor, parseBoundedSyncText, validateSyncMessage,
-  type BattleSyncCursor, type BattleSyncInput, type BattleSyncSnapshot } from "./battleSyncProtocol";
+import { olderSyncCursor, sameSyncCursor, parseBoundedSyncText, decodeSyncMessage,
+  type BattleSyncCursor, type BattleSyncInput, type BattleSyncRestoreSnapshot } from "./battleSyncProtocol";
 
 export interface BattleSyncClientRuntime {
-  restore(snapshot: BattleSyncSnapshot): void;
+  restore(snapshot: BattleSyncRestoreSnapshot): void;
   follow(tick: number, commands: RecordedBattleCommand[]): void;
   checksum(): string;
   receipt?(receipt: BattleReceipt): void;
@@ -56,8 +56,8 @@ export class BattleSyncClient {
 
   receiveText(text: string): "applied" | "ignored" | "invalid" | "resync" {
     if (!this.send) return "ignored";
-    let message: unknown;
-    try { message = parseBoundedSyncText(text); validateSyncMessage(message); } catch { return "invalid"; }
+    let message: ReturnType<typeof decodeSyncMessage>;
+    try { message = decodeSyncMessage(parseBoundedSyncText(text)); } catch { return "invalid"; }
     if (message.type === "snapshot") {
       if (this.battleId && message.battleId !== this.battleId) return "invalid";
       if (message.stream <= this.stream) return "ignored";

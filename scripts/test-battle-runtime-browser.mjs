@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { pathToFileURL } from "node:url";
 import { load, runtimeFromOptions, battleChecksum, captureBattleSnapshot, step, cloneCheckpoint } from "./helpers/battle-runtime.mjs";
-const { decodeSaveGraph } = load("src/game/saveGraph.ts");
+const { decodeSaveGraph, canonicalSaveGraph } = load("src/game/saveGraph.ts");
 function authoritativeGraph(graph) {
   for (const node of graph.nodes) {
     if (node.kind === "boss") for (const key of ["rotationX", "rotationY", "rotationZ", "velocityX", "velocityY", "velocityZ", "targetVelocityX", "targetVelocityY", "targetVelocityZ", "nextTurnIn"]) delete node.data[key];
     delete node.data.selectedCardId;
   }
-  return graph;
+  return canonicalSaveGraph(graph);
 }
 const option = name => process.argv.find(value => value.startsWith(`--${name}=`))?.slice(name.length + 3);
 const { chromium } = await import(option("playwright") ? pathToFileURL(option("playwright")).href : "playwright");
@@ -89,7 +89,7 @@ try {
     assert.equal(battleChecksum(fresh.snapshot(selected)), fixture.initial, fixture.name + " fresh default factories differ");
     const runtime = runtimeFromOptions(fixture.options, fixture.worldOptions);
     runtime.restore(decodeSaveGraph(fixture.graph, () => ({})));
-    let restored, crossEngineCoordinateDifferences = 0, graphOrderDifferences = 0;
+    let restored, crossEngineCoordinateDifferences = 0;
     for (const checkpoint of fixture.checkpoints) {
       const count = checkpoint.tick === 0 ? 0 : 300;
       step(runtime, count);
@@ -108,16 +108,7 @@ try {
           } else differences.push({ path, actual: a, expected: b });
         };
         compare(actual, expected);
-        if (!differences.length) {
-          const ordered = [];
-          const orderDiff = (a, b, path = "root") => {
-            if (!a || !b || typeof a !== "object" || typeof b !== "object") return;
-            if (JSON.stringify(Object.keys(a)) !== JSON.stringify(Object.keys(b))) ordered.push({ path, actual: Object.keys(a), expected: Object.keys(b) });
-            for (const key of Object.keys(a)) orderDiff(a[key], b[key], path + "." + key);
-          };
-          orderDiff(actual, expected);
-          graphOrderDifferences += ordered.length;
-        }
+        assert.ok(differences.length, fixture.name + " checksum mismatch without a canonical data difference");
         for (const diff of differences) {
           assert.match(diff.path, /^root\.nodes\.\d+\.data\.(x|y|vx|vy)$/);
           assert.ok(typeof diff.actual === "number" && typeof diff.expected === "number" && Math.abs(diff.actual - diff.expected) <= 1e-10,
@@ -129,9 +120,9 @@ try {
       } else {
         assert.equal(battleChecksum(runtime.snapshot(selected)), checkpoint.hash, fixture.name + " Node vs actual browser at " + checkpoint.tick);
       }
-      if (checkpoint.tick === 1500) restored = cloneCheckpoint(runtime, fixture.options);
+      if (checkpoint.tick === 1500) restored = cloneCheckpoint(runtime, fixture.options, true);
     }
-    results.push({ name: fixture.name, browserHash: fixture.checkpoints.at(-1).hash, crossEngineCoordinateDifferences, graphOrderDifferences, ...fixture.seen });
+    results.push({ name: fixture.name, browserHash: fixture.checkpoints.at(-1).hash, crossEngineCoordinateDifferences, ...fixture.seen });
   }
   assert.deepEqual(errors, []);
   console.log("Diagnostic Node/browser state comparison (coordinate tolerance 1e-10; exact Node state continuation; not proof of cross-engine checksum agreement)", results);

@@ -21,6 +21,8 @@ try {
     const progress = await import("/src/progress.ts");
     const { captureBattleSnapshot, restoreBattleSnapshot } = await import("/src/game/battleSnapshot.ts");
     const { battleChecksum } = await import("/src/game/battleChecksum.ts");
+    const { legacyBattleChecksum } = await import("/scripts/helpers/legacy-battle-checksum.mjs");
+    const historicalChecksum = (state, options) => legacyBattleChecksum(captureBattleSnapshot, state, options);
     const game = window.__testGame;
     game.loop.stop();
     progress.unlockAllCards();
@@ -74,26 +76,26 @@ try {
       // when checking historical hashes; playback and restore still use current rules.
       const preLifecycleState = { ...scene.battleState(), simulation: { ...scene.battleState().simulation, version: 7 } };
       delete preLifecycleState.lifecycle;
-      const preLifecycleHash = battleChecksum(preLifecycleState);
+      const preLifecycleHash = historicalChecksum(preLifecycleState);
       const lifecycleBaselines = { "1-9": "ab86ccd2", "2-10": "20169cdd", "5-5": "93ce4080", "5-10": "b5504280",
         "AE-1": "0ba61674", "IF-1": "7dd5f41d", "IF-BE-4": "6ee2b889" };
       if (preLifecycleHash !== lifecycleBaselines[levelId]) throw Error(`${levelId}: combat changed beyond lifecycle snapshot`);
       const preControlState = { ...preLifecycleState, simulation: { ...preLifecycleState.simulation } };
       delete preControlState.simulation.controls;
-      const preControlHash = battleChecksum(preControlState);
+      const preControlHash = historicalChecksum(preControlState);
       const controlBaselines = { "1-9": "adaf7865", "2-10": "866c6a85", "5-5": "821e8819", "5-10": "f5a1fd95",
         "AE-1": "8930ca8a", "IF-1": "d5134628", "IF-BE-4": "95442e9b" };
       if (preControlHash !== controlBaselines[levelId]) throw Error(`${levelId}: combat changed beyond control snapshot`);
       const prePolicyState = { ...preControlState, simulation: { ...preControlState.simulation } };
       delete prePolicyState.simulation.policy;
-      const prePolicyHash = battleChecksum(prePolicyState);
+      const prePolicyHash = historicalChecksum(prePolicyState);
       const baselines = { "1-9": "f565a778", "2-10": "d86b747e", "5-5": "8eb6d943", "5-10": "bcbf8d7f",
         "AE-1": "c1deb289", "IF-1": "fa677515", "IF-BE-4": "f07464fc" };
       if (prePolicyHash !== baselines[levelId]) throw Error(`${levelId}: combat changed beyond captured policy`);
-      const behaviorHash = battleChecksum(prePolicyState, { includeEntityIds: false });
+      const behaviorHash = historicalChecksum(prePolicyState, { includeEntityIds: false });
       const previousFormat = { ...prePolicyState, simulation: { ...prePolicyState.simulation, version: 6 } };
       delete previousFormat.debugModeEnabled;
-      const v6FormatHash = battleChecksum(previousFormat, { includeLocalUi: true });
+      const v6FormatHash = historicalChecksum(previousFormat, { includeLocalUi: true });
       const legacyState = { ...scene.battleState(), simulation: { ...scene.battleState().simulation } };
       delete legacyState.simulation.policy;
       const legacyHash = battleChecksum(legacyState);

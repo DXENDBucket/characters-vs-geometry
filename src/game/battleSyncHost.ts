@@ -1,6 +1,7 @@
 import { BattleAuthority, BATTLE_PROTOCOL_VERSION, MAX_BATTLE_REQUEST_BYTES, type BattleChannel } from "./battleAuthority";
 import { BattleSession, MAX_REPLICA_FRAME_COMMANDS, MAX_REPLICA_FRAME_TICKS } from "./battleSession";
 import type { BattleReplay } from "./battleCommands";
+import { encodeBattleWireGraph } from "./battleWireGraph";
 import { exactSyncFields, parseBoundedSyncText, sameSyncCursor,
   type BattleSyncCursor, type BattleSyncMessage, type BattleSyncSnapshot } from "./battleSyncProtocol";
 
@@ -66,10 +67,12 @@ export class BattleSyncHost {
   private snapshot(peer: Peer) {
     const hello = this.authority.describe(peer.channel);
     if (!hello) return;
+    const replay = this.runtime.checkpoint();
+    if (!replay.checkpoint) throw new Error("Battle sync requires a checkpoint");
     peer.stream = ++this.stream;
     const snapshot: BattleSyncSnapshot = { version: BATTLE_PROTOCOL_VERSION, battleId: this.authority.battleId,
       stream: peer.stream, type: "snapshot", cursor: { ...this.cursor }, nextRequest: hello.nextSequence,
-      replay: this.runtime.checkpoint(), checksum: this.runtime.checksum() };
+      replay: { ...replay, checkpoint: encodeBattleWireGraph(replay.checkpoint) }, checksum: this.runtime.checksum() };
     this.deliver(peer, snapshot);
   }
 

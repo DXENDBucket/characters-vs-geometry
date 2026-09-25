@@ -63,11 +63,13 @@ Default battle checksums include IDs and allocator history. The explicit
 `includeEntityIds: false` diagnostic compares behavior with pre-identity fixtures;
 it must not be used as an authoritative synchronization checksum.
 
-Serialized saves still use graph references, and combat actions still hold local
-data-object references. The subsequent [semantic operation pass](battle-operations.md)
-uses these IDs for seven board mutations. Remaining commands, identity-based wire
-contracts, authority and reconnect are still open. The identity part of readiness
-gate 4 is implemented; the whole gate remains open.
+Local saves still use graph references, and combat actions hold local data-object
+references. Semantic operations use IDs. Protocol 2 now serializes all entity
+relationships by ID, preserving cyclic/shared non-entity state through object
+records; see [wire state](battle-wire-state.md). The identity and wire parts of
+readiness gate 4 are implemented. This is not completion of the overall goal:
+independent control adapters, numeric guarantees, player ownership/resources and
+durable authority recovery remain open.
 
 ## Evidence
 

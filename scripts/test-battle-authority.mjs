@@ -4,7 +4,7 @@ import { createTypeScriptLoader } from "./helpers/load-typescript.mjs";
 
 const load = createTypeScriptLoader();
 const { BattleAuthority, BATTLE_RECEIPT_WINDOW, MAX_BATTLE_REQUEST_BYTES, MAX_BATTLE_REQUESTS_PER_WINDOW,
-  BATTLE_REQUEST_WINDOW_MS,
+  BATTLE_REQUEST_WINDOW_MS, BATTLE_PROTOCOL_VERSION,
   validBattleRequest } = load("src/game/battleAuthority.ts");
 const { BattleSession } = load("src/game/battleSession.ts");
 const { BATTLE_RULES_VERSION, BATTLE_STEP_MS } = load("src/game/battleSimulation.ts");
@@ -15,7 +15,7 @@ const options = () => ({ version: BATTLE_RULES_VERSION, levelId: "IF-1", difficu
   participants: [LOCAL_BATTLE_ACTOR, { id: "builder", permissions: ["build", "settings"] }, { id: "observer", permissions: [] }] });
 const idle = { step() {}, executeCommand() {}, canAdvance: () => true };
 const intent = value => ({ type: "control", control: { type: "reserve", value } });
-const request = (sequence = 0, value = 500) => ({ version: 1, battleId: "battle_one", sequence, intent: intent(value) });
+const request = (sequence = 0, value = 500) => ({ version: BATTLE_PROTOCOL_VERSION, battleId: "battle_one", sequence, intent: intent(value) });
 
 function fixture(config = options()) {
   let inputTime = 0;
@@ -49,7 +49,7 @@ test("participant schemas are bounded, immutable and default to the original sin
 
 test("wire schema accepts only bounded semantic intentions, not actor IDs or client-computed state", () => {
   assert.equal(validBattleRequest(request()), true);
-  for (const change of [r => r.actorId = "local", r => r.tick = 100, r => r.version = 2, r => r.sequence = -1,
+  for (const change of [r => r.actorId = "local", r => r.tick = 100, r => r.version = 1, r => r.sequence = -1,
     r => r.sequence = Number.MAX_SAFE_INTEGER, r => r.sequence = .1, r => r.battleId = "!", r => r.intent.actorId = "local",
     r => r.intent.control.value = Infinity, r => r.intent.control.damage = 999, r => r.intent.type = "pointer",
     r => r.intent = { type: "control", control: { type: "reselect", cards: new Array(2) } }]) {
@@ -117,7 +117,7 @@ test("reconnect replaces the channel but preserves receipts and sequence, includ
   f.authority.disconnect(f.builder);
   assert.equal(f.authority.receive(f.builder, request()).reason, "forbidden");
   const connected = f.authority.connect("builder");
-  assert.deepEqual(f.authority.describe(connected), { version: 1, rulesVersion: BATTLE_RULES_VERSION, battleId: "battle_one",
+  assert.deepEqual(f.authority.describe(connected), { version: BATTLE_PROTOCOL_VERSION, rulesVersion: BATTLE_RULES_VERSION, battleId: "battle_one",
     tick: 0, nextSequence: 1, oldestReceipt: 0 });
   assert.equal(f.authority.describe(f.builder), undefined);
   assert.deepEqual(f.authority.receive(connected, request()), before);

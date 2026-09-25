@@ -54,10 +54,11 @@ try {
         .find(url => new URL(url).pathname === path) ?? path);
       const { GameScene } = await mod("/src/scenes/GameScene.ts");
       const { BattleSyncClient } = await mod("/src/game/battleSyncClient.ts");
+      const { BATTLE_PROTOCOL_VERSION } = await mod("/src/game/battleAuthority.ts");
       const progress = await mod("/src/progress.ts"), { BATTLE_PERMISSIONS } = await mod("/src/game/battleParticipants.ts");
       const game = window.__testGame; game.loop.stop();
       for (const scene of game.scene.getScenes(true)) game.scene.stop(scene.sys.settings.key);
-      const state = window.syncTest = { role, tail: Promise.resolve(), peers: {}, receipts: [], statuses: [], serial: 0 };
+      const state = window.syncTest = { role, protocolVersion: BATTLE_PROTOCOL_VERSION, tail: Promise.resolve(), peers: {}, receipts: [], statuses: [], serial: 0 };
       const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
       state.send = (to, message) => {
         state.tail = state.tail.then(async () => {
@@ -192,7 +193,7 @@ try {
   await pages.a.evaluate(async () => {
     const state = window.syncTest;
     state.send("host", { type: "request", stream: state.client.stream,
-      request: { version: 1, battleId: state.client.battleId, sequence: state.client.nextRequest,
+      request: { version: state.protocolVersion, battleId: state.client.battleId, sequence: state.client.nextRequest,
         intent: { type: "control", actorId: "local", control: { type: "debugChars" } } } });
     await state.tail;
   });

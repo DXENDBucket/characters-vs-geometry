@@ -103,10 +103,11 @@ have actual browser restore/replay coverage; see [session state](battle-session.
   act on the actual game alongside local UI. Checks real tower costs/cooldowns,
   stable-target rejection, skill authorization, commands during a local menu,
   retries/reconnect, validated snapshots and full/checkpoint 30/144 Hz replay.
-  The fixture reaches 1800 ticks with checksum `e4a43371`, including captured access policy and lifecycle.
+  The fixture reaches 1800 ticks with protocol-2 checksum `ededb3fc`, including captured access policy and lifecycle.
 - Existing board/skill/control/tutorial browser tests and the seven-stage replay
-  suite remain passing. All seven pre-policy combat checksums are unchanged;
-  current checksums additionally cover access/modal policy.
+  suite remain passing. All seven pre-policy combat baselines remain unchanged
+  under the frozen test-only historical hash. Current checksums use canonical
+  serialization and additionally cover access/modal policy.
 
 The authority browser test uses in-memory serialized requests and real battle
 scenes. A separate synchronization browser suite now exercises two independent

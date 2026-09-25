@@ -9,6 +9,7 @@ import { validateReplay, type BattleReplay, type RecordedBattleCommand } from ".
 import { validBattleActorId, sameBattleParticipants, copyBattleParticipants } from "./battleParticipants";
 import { sameBattlePolicy } from "./battlePolicy";
 import { decodeSaveGraph } from "./saveGraph";
+import { decodeBattleWireGraph, type BattleWireGraph } from "./battleWireGraph";
 import { validateBattleSave } from "./validateBattleSave";
 import { battleChecksum } from "./battleChecksum";
 import type { BattleSaveState } from "./battleSaveState";
@@ -20,8 +21,12 @@ export interface BattleSyncSnapshot extends Envelope {
   type: "snapshot";
   cursor: BattleSyncCursor;
   nextRequest: number;
-  replay: BattleReplay;
+  replay: Omit<BattleReplay, "checkpoint"> & { checkpoint: BattleWireGraph };
   checksum: string;
+}
+export interface BattleSyncRestoreSnapshot extends Omit<BattleSyncSnapshot, "replay"> { replay: BattleReplay }
+function decodeSyncSnapshot(snapshot: BattleSyncSnapshot): BattleSyncRestoreSnapshot {
+  return { ...snapshot, replay: { ...snapshot.replay, checkpoint: decodeBattleWireGraph(snapshot.replay.checkpoint) } };
 }
 export interface BattleSyncFrame extends Envelope {
   type: "frame";
@@ -32,6 +37,7 @@ export interface BattleSyncFrame extends Envelope {
 }
 export interface BattleSyncReceipt extends Envelope { type: "receipt"; receipt: BattleReceipt }
 export type BattleSyncMessage = BattleSyncSnapshot | BattleSyncFrame | BattleSyncReceipt;
+export type DecodedBattleSyncMessage = BattleSyncRestoreSnapshot | BattleSyncFrame | BattleSyncReceipt;
 export type BattleSyncInput = { type: "request"; stream: number; request: BattleRequest } | { type: "resync"; stream: number };
 
 export const exactSyncFields = (value: unknown, keys: readonly string[]): value is Record<string, unknown> =>
@@ -51,6 +57,10 @@ export function parseBoundedSyncText(text: string, maxBytes = MAX_BATTLE_SYNC_BY
 }
 
 export function validateSyncMessage(value: unknown): asserts value is BattleSyncMessage {
+  decodeSyncMessage(value);
+}
+
+export function decodeSyncMessage(value: unknown): DecodedBattleSyncMessage {
   const common = ["version", "battleId", "stream", "type"];
   const message = value as BattleSyncMessage;
   if (!message || message.version !== BATTLE_PROTOCOL_VERSION || !validBattleActorId(message.battleId) ||
@@ -58,7 +68,7 @@ export function validateSyncMessage(value: unknown): asserts value is BattleSync
   if (message.type === "snapshot") {
     if (!exactSyncFields(value, [...common, "cursor", "nextRequest", "replay", "checksum"]) || !cursor(message.cursor) ||
         !natural(message.nextRequest) || !checksum(message.checksum)) throw new Error("Invalid battle snapshot envelope");
-    const replay = message.replay;
+    const decoded = decodeSyncSnapshot(message), replay = decoded.replay;
     validateReplay(replay);
     if (replay.difficultyVersion !== DIFFICULTY_VERSION || !Object.hasOwn(levelConfigs, replay.levelId) ||
         replay.commands.length || !replay.checkpoint || !replay.policy || !replay.selectedCards.every(isLoadoutCardId) ||
@@ -73,7 +83,7 @@ export function validateSyncMessage(value: unknown): asserts value is BattleSync
     }
     validateBattleSave(replay.checkpoint, state.wave, levelConfigs[replay.levelId].bossKind);
     if (battleChecksum(state) !== message.checksum) throw new Error("Corrupted sync checkpoint");
-    return;
+    return decoded;
   }
   if (message.type === "frame") {
     if (!exactSyncFields(value, [...common, "from", "to", "commands", "checksum"]) || !cursor(message.from) || !cursor(message.to) ||
@@ -91,7 +101,7 @@ export function validateSyncMessage(value: unknown): asserts value is BattleSync
       if (!validBattleIntent(intent)) throw new Error("Invalid synchronized intent");
       tick = entry.tick;
     }
-    return;
+    return message;
   }
   if (message.type === "receipt") {
     const receipt = message.receipt;
@@ -102,9 +112,9 @@ export function validateSyncMessage(value: unknown): asserts value is BattleSync
     if (receipt.status === "executed" && exactSyncFields(receipt, [...receiptKeys, "tick", "commandSequence", "result"]) &&
         natural(receipt.tick) && natural(receipt.commandSequence) && receipt.requestSequence !== null &&
         receipt.nextSequence === receipt.requestSequence + 1 &&
-        ["deployed", "handled", "moved", "invalid", "forbidden", "unavailable", "stale", "occupied", "cooldown", "noChars", "empty"].includes(receipt.result)) return;
+        ["deployed", "handled", "moved", "invalid", "forbidden", "unavailable", "stale", "occupied", "cooldown", "noChars", "empty"].includes(receipt.result)) return message;
     if (receipt.status === "rejected" && exactSyncFields(receipt, [...receiptKeys, "reason"]) &&
-        ["invalid", "forbidden", "wrongBattle", "gap", "expired", "conflict", "busy", "unavailable", "faulted"].includes(receipt.reason)) return;
+        ["invalid", "forbidden", "wrongBattle", "gap", "expired", "conflict", "busy", "unavailable", "faulted"].includes(receipt.reason)) return message;
   }
   throw new Error("Invalid battle sync message");
 }

@@ -1,7 +1,7 @@
 # Battle Performance Boundaries
 
-This is an incremental optimization, not a renderer-free battle engine or a
-multiplayer implementation. Combat still uses fixed ticks and resolves each hit
+This documents incremental optimization and the shared data-only battle runtime,
+not a complete multiplayer implementation. Combat uses fixed ticks and resolves each hit
 individually. Damage, armor thresholds, wave data and attack counts are unchanged.
 
 ## Enemy Roster And Support
@@ -201,3 +201,11 @@ without rendering dependencies. Numeric caches and aura source/cell buffers are
 isolated per unit or battlefield, while status visuals run once per displayed
 frame. New tests cover cross-battle isolation, same-tick changes and read-only
 overlay rendering. See [Combat State And Status Display](combat-state.md).
+
+Protocol-2 checksums use canonical capture directly instead of copying and
+validating a second graph each time. A Node-only 800-circle benchmark measured
+about 10.0 ms median checksum time versus 7.5 ms for the old order-sensitive
+checksum, with a 950,965-byte wire snapshot. This is still a significant cost;
+it is not full browser synchronization/frame-time evidence. Broader mixed-content
+profiling remains open. Reproduce with `node scripts/benchmark-battle-serialization.mjs`;
+see [wire state](battle-wire-state.md) for format and diagnostic limits.

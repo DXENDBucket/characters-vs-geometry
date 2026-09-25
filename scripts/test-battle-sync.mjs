@@ -4,7 +4,7 @@ import { createTypeScriptLoader } from "./helpers/load-typescript.mjs";
 
 const load = createTypeScriptLoader();
 const { BattleSession } = load("src/game/battleSession.ts");
-const { BattleAuthority } = load("src/game/battleAuthority.ts");
+const { BattleAuthority, BATTLE_PROTOCOL_VERSION } = load("src/game/battleAuthority.ts");
 const { BattleSyncHost } = load("src/game/battleSyncHost.ts");
 const { BattleSyncClient } = load("src/game/battleSyncClient.ts");
 const { validateSyncMessage, parseBoundedSyncText } = load("src/game/battleSyncProtocol.ts");
@@ -73,6 +73,24 @@ test("snapshot join, ordered frames and duplicate frames converge using the real
   assert.equal(f.copy().nextCommandSequence, 1);
 });
 
+test("wire record order cannot change snapshot validation or restored command continuation", () => {
+  const f = fixture(), message = f.snapshot(), graph = message.replay.checkpoint;
+  assert.equal(message.version, 2);
+  assert.equal(graph.nodes, undefined, "Legacy numeric entity graph must not be sent on the wire");
+  const remap = value => value && typeof value === "object" && "object" in value
+    ? { object: graph.objects.length - value.object - 1 } : value;
+  graph.objects.reverse(); graph.root = remap(graph.root);
+  for (const node of [...graph.objects, ...graph.entities]) {
+    node.data = Object.fromEntries(Object.entries(node.data).reverse().map(([key, value]) => [key, remap(value)]));
+  }
+  assert.doesNotThrow(() => validateSyncMessage(message));
+  f.outbound[0] = JSON.stringify(message); f.pump();
+  assert.equal(f.client.ready, true);
+  assert.equal(f.client.request(intent(135)), true); f.pump();
+  f.advance(30); f.host.publish(); f.pump();
+  assert.equal(f.copy().controls.reserveChars, 135); assert.equal(f.copy().clock.tick, 30);
+});
+
 test("lost receipts reconnect with the original request sequence and never execute a second time", () => {
   const f = fixture(); f.pump(); f.client.request(intent(75));
   f.host.receiveText(f.peer(), f.inbound.shift());
@@ -106,7 +124,7 @@ test("resync requests are bounded and retryable, and oversized catch-up becomes 
 test("frame schemas reject forged state, ordering, identities and oversized input before execution", () => {
   const f = fixture(); f.pump(); f.client.request(intent(30)); f.host.receiveText(f.peer(), f.inbound.shift());
   const original = JSON.parse(f.outbound[0]);
-  for (const mutate of [m => m.version = 2, m => m.stream = 0, m => m.extra = 1, m => m.to.sequence++,
+  for (const mutate of [m => m.version = BATTLE_PROTOCOL_VERSION + 1, m => m.stream = 0, m => m.extra = 1, m => m.to.sequence++,
     m => m.to.tick = 601, m => m.checksum = "bad", m => m.commands[0].tick = -1,
     m => m.commands[0].sequence++, m => m.commands[0].command.actorId = "?",
     m => m.commands[0].command.control.damage = 999, m => m.commands[0].command.type = "pointer"]) {
@@ -126,8 +144,8 @@ test("join snapshots require current schema, matching configuration and exact ch
   const f = fixture(), original = f.snapshot();
   for (const mutate of [m => m.cursor.tick++, m => m.replay.levelId = "unknown", m => m.replay.difficultyVersion = 1,
     m => m.replay.selectedCards = ["unknown"], m => m.replay.selectedCards.push("A"), m => m.checksum = "00000000",
-    m => m.replay.policy.slotCount = 9, m => m.replay.checkpoint.nodes[0].data.chars = 1000,
-    m => delete m.replay.checkpoint.nodes[0].data.lifecycle]) {
+    m => m.version = 1, m => m.replay.policy.slotCount = 9, m => m.replay.checkpoint.objects[0].data.chars = 1000,
+    m => delete m.replay.checkpoint.objects[0].data.lifecycle]) {
     const message = structuredClone(original); mutate(message); assert.throws(() => validateSyncMessage(message));
     assert.equal(f.client.receiveText(JSON.stringify(message)), "invalid"); assert.equal(f.client.ready, false);
   }

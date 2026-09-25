@@ -29,28 +29,31 @@ must be addressed before calling the full multiplayer goal complete.
 
 ## Verification
 
-- Seven Node tests instantiate the real assembly with its default data factories.
+- Eight Node tests instantiate the real assembly with its default data factories.
   They exercise real waves, attacks, damage, production, permissions, pipeline
   one-shot actions, mirrors with protective shells, push, queued skills, NUL,
   timed seals, tutorial initialization, phase transitions, endless succession,
-  checkpoint continuation and repeated restoration of active mortar flights.
+  checkpoint continuation and repeated restoration of active mortar flights. The
+  added AE-EX-2 regression compares local and ID-wire restoration through first
+  occupancy refresh and NUL timing for 4,200 ticks.
 - The module-boundary test traverses emitted dependencies from BattleRuntime and
   rejects scene/render imports. Ordinary Node execution requires no Phaser bodies.
-- The actual movement regression still matches `96cce19b` after 1500 ticks.
+- The actual movement regression matches across display modes and restore after
+  1500 ticks (`060b8989` with the protocol-2 canonical checksum).
   Existing deterministic browser scenarios, operation/skill flows, pipeline
   actions, tutorial checkpoints and authenticated three-context synchronization
   remain part of the regression suite.
 - `test-battle-runtime-browser.mjs` compares fresh default Node factories with an
   actual GameScene, then runs 3600 ticks with checks every 300 ticks and an
-  additional Node checkpoint continuation at tick 1500. Eleven scenarios cover
+  additional Node wire-checkpoint continuation at tick 1500. Eleven scenarios cover
   1-9, 2-10, 5-5, all four 5-10 phases, AE-5, AE-10, AE-EX-2 and IF-BE-4.
-- The complete rule suite passes 658 tests; seven audio tests, data validation
+- The complete rule suite passes 665 tests; seven audio tests, data validation
   and the TypeScript/Vite build pass. The existing large-bundle warning remains.
 
 This last script is deliberately a **diagnostic**, not a passing gate for strict
 cross-engine synchronization. It checks exact data for Node-to-Node continuation,
 permits only coordinate differences no greater than 1e-10 for Node versus Edge,
-and reports object-key ordering discrepancies. Run with
+and compares canonical graphs without tolerating key-order checksum errors. Run with
 `--case=5-10:P3 --strict=true` to reproduce the unresolved exact checksum failure.
 
 ## New Findings
@@ -60,16 +63,16 @@ and reports object-key ordering discrepancies. Run with
    186.624576969851 versus 186.62457696985103. Two sampled coordinate discrepancies
    occur across the complete fixture. No observed count/health/action difference
    in this short run proves that a longer run cannot diverge at a hit boundary.
-2. In AE-EX-2 with mirror shells, restoring a checkpoint causes the first board
+2. **Resolved in protocol 2:** In AE-EX-2 with mirror shells, restoring a checkpoint causes the first board
    cache refresh to reinsert occupancy relationships after
    `nextNullificationAt`. Values and graph references agree, but the current
-   checksum serializes property insertion order. The diagnostic records 28
-   order discrepancies across its checkpoints. This can cause unnecessary
-   resynchronization even without a gameplay-state difference.
+   old checksum serialized property insertion order. The original diagnostic recorded
+   28 order discrepancies. Canonical capture now removes this false mismatch;
+   AE-EX-2 passes `--case=AE-EX-2 --strict=true`. See [wire state](battle-wire-state.md).
 
 Do not round checksums to conceal numerical divergence or teach the simulation
-cache about a particular test. Relationship serialization/checksums need a
-canonical contract. Native transcendental operations need a deterministic
+cache about a particular test. Relationship serialization/checksums now have a
+canonical contract. Native transcendental operations still need a deterministic
 implementation or an explicitly enforced matching engine/runtime requirement.
-Both remain open along with participant ownership/resources, fully independent
+The numeric requirement remains open along with participant ownership/resources, fully independent
 control ingress, durable recovery and production transport/player UI.

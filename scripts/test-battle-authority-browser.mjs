@@ -18,6 +18,7 @@ try {
       .find(url => new URL(url).pathname === path) ?? path);
     const { GameScene } = await mod("/src/scenes/GameScene.ts");
     const { LOCAL_BATTLE_ACTOR } = await mod("/src/game/battleParticipants.ts");
+    const { BATTLE_PROTOCOL_VERSION } = await mod("/src/game/battleAuthority.ts");
     const { towerOperationRef } = await mod("/src/game/battleOperations.ts");
     const { dispatchBattleUi, assertSemanticRecording } = await mod("/scripts/helpers/battle-ui.mjs");
     const { captureBattleSnapshot, restoreBattleSnapshot } = await mod("/src/game/battleSnapshot.ts");
@@ -35,7 +36,7 @@ try {
     const host = start("AuthorityHost"), authority = host.commandAuthority;
     let alice = authority.connect("alice");
     const bob = authority.connect("bob"), observer = authority.connect("observer");
-    const message = (sequence, intent) => ({ version: 1, battleId: authority.battleId, sequence, intent });
+    const message = (sequence, intent) => ({ version: BATTLE_PROTOCOL_VERSION, battleId: authority.battleId, sequence, intent });
     const send = (channel, request, result) => {
       const receipt = authority.receiveText(channel, JSON.stringify(request));
       check(receipt.result === result, `${request.intent.type}: ${JSON.stringify(receipt)}, expected ${result}`);

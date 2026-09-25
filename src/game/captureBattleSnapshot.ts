@@ -5,7 +5,7 @@ import { encodeSaveGraph } from "./saveGraph";
 
 const identityFields = new Set(["entityId"]);
 
-export function captureBattleSnapshot(state: BattleSaveData, options: { includeEntityIds?: boolean } = {}) {
+export function captureBattleSnapshot(state: BattleSaveData, options: { includeEntityIds?: boolean; canonical?: boolean } = {}) {
   const includeIds = options.includeEntityIds !== false;
   const allocator = includeIds ? state.entityIds : undefined;
   if (allocator !== undefined) validateBattleEntityIdState(allocator);
@@ -20,5 +20,5 @@ export function captureBattleSnapshot(state: BattleSaveData, options: { includeE
       ids.add(id!);
     }
     return includeIds ? classification : { ...classification, omit: identityFields };
-  });
+  }, options);
 }

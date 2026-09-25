@@ -8,7 +8,8 @@ const { BattleEntityIds, BATTLE_ENTITY_KINDS, parseBattleEntityId, setBattleEnti
 const { collectBattleEntities, restoreBattleEntityIds, BattleEntityIndex } = load("src/game/battleEntityGraph.ts");
 const { captureBattleSnapshot } = load("src/game/captureBattleSnapshot.ts");
 const { battleChecksum } = load("src/game/battleChecksum.ts");
-const { decodeSaveGraph } = load("src/game/saveGraph.ts");
+const { decodeSaveGraph, canonicalSaveGraph } = load("src/game/saveGraph.ts");
+const { encodeBattleWireGraph, decodeBattleWireGraph } = load("src/game/battleWireGraph.ts");
 const { EdgeTowerControls } = load("src/game/edgeTowerControls.ts");
 
 const shapes = () => [
@@ -205,4 +206,109 @@ test("edge IDs survive upgrades and mode changes; replacement at the same edge g
   runtime.edges.length = 0; runtime.cardTime = 2000;
   controls.use(edge); assert.notEqual(runtime.edges[0].entityId, id);
   assert.equal(runtime.edges[0].entityId, "edge:2");
+});
+
+function reverseFields(root) {
+  const seen = new Set(), pending = [root];
+  while (pending.length) {
+    const value = pending.pop();
+    if (!value || typeof value !== "object" || seen.has(value)) continue;
+    seen.add(value);
+    const entries = Object.entries(value);
+    pending.push(...entries.map(([, child]) => child));
+    if (!Array.isArray(value)) {
+      for (const [key] of entries) delete value[key];
+      for (const [key, child] of entries.reverse()) value[key] = child;
+    }
+  }
+  return root;
+}
+
+test("canonical checksums ignore field insertion and traversal history, not identity, array order or exact numbers", () => {
+  const f = fixture(), before = captureBattleSnapshot(f.state), expected = battleChecksum(f.state);
+  reverseFields(f.state);
+  const reordered = captureBattleSnapshot(f.state);
+  assert.notEqual(JSON.stringify(before), JSON.stringify(reordered));
+  assert.equal(battleChecksum(f.state), expected);
+  assert.equal(JSON.stringify(canonicalSaveGraph(before)), JSON.stringify(canonicalSaveGraph(reordered)));
+  assert.deepEqual(captureBattleSnapshot(f.state, { canonical: true }), canonicalSaveGraph(reordered));
+  f.state.actions.push({ tower: f.tower, target: f.enemy });
+  const hash = battleChecksum(f.state);
+  f.state.actions.reverse(); assert.notEqual(battleChecksum(f.state), hash);
+  f.state.actions.reverse(); assert.equal(battleChecksum(f.state), hash);
+  f.enemy.x = 186.624576969851; const coordinate = battleChecksum(f.state);
+  f.enemy.x = 186.62457696985103; assert.notEqual(battleChecksum(f.state), coordinate);
+  f.enemy.x = 186.624576969851;
+  f.projectile.sourceTower = f.tower; assert.notEqual(battleChecksum(f.state), coordinate);
+});
+
+test("wire references use stable IDs for every entity kind, preserving cycles, detached sources and shared pools", () => {
+  const f = fixture(), graph = captureBattleSnapshot(f.state), wire = encodeBattleWireGraph(graph);
+  assert.equal(wire.entities.length, 10);
+  assert.ok(wire.objects.every(node => node.kind === "array" || node.kind === "object"));
+  const shot = wire.entities.find(e => e.id === f.projectile.entityId);
+  assert.deepEqual(shot.data.sourceTower, { entity: f.removed.entityId });
+  assert.deepEqual(shot.data.targetEnemy, { entity: f.cargo.entityId });
+  assert.deepEqual(shot.data.targetBossPart, { entity: f.copy.entityId });
+  assert.ok(wire.entities.some(e => e.kind === "edge" && e.id === f.edge.entityId));
+  assert.ok(wire.entities.every(e => !("entityId" in e.data)));
+  const restored = decodeSaveGraph(decodeBattleWireGraph(JSON.parse(JSON.stringify(wire))), () => ({}));
+  assert.equal(battleChecksum(restored), battleChecksum(f.state));
+  assert.equal(restored.actions[0].tower, restored.projectiles[0].sourceTower);
+  assert.equal(restored.towers[0].healthPool, restored.actions[0].tower.healthPool);
+  assert.equal(restored.enemies[0].parenthesisCargo[0].parenthesisCarrier, restored.enemies[0]);
+  assert.equal(restored.projectiles[0].targetBossPart, restored.boss.octahedronCopies[0]);
+  assert.equal(restoreBattleEntityIds(restored).identify("tower", {}).entityId, "tower:11");
+  reverseFields(f.state);
+  assert.equal(JSON.stringify(encodeBattleWireGraph(captureBattleSnapshot(f.state))), JSON.stringify(wire));
+  assert.deepEqual(captureBattleSnapshot(decodeSaveGraph(graph, () => ({}))), graph, "Local save encoding is unchanged");
+});
+
+test("wire reconstruction is independent of entity record order and data property order", () => {
+  const state = fixture().state, wire = encodeBattleWireGraph(captureBattleSnapshot(state));
+  const copy = structuredClone(wire);
+  copy.entities.reverse(); reverseFields(copy);
+  const restoredGraph = decodeBattleWireGraph(copy);
+  assert.equal(battleChecksum(decodeSaveGraph(restoredGraph, () => ({}))), battleChecksum(state));
+  assert.equal(JSON.stringify(encodeBattleWireGraph(restoredGraph)), JSON.stringify(wire));
+});
+
+test("wire decoding rejects missing, duplicate, hidden, mismatched and unreachable entities before hydration", () => {
+  const original = encodeBattleWireGraph(captureBattleSnapshot(fixture().state));
+  for (const mutate of [
+    w => w.version++, w => w.extra = 1, w => w.root = { ref: 0 },
+    w => w.root = { object: w.objects.length }, w => w.root = { entity: "enemy:999" },
+    w => w.entities.push(structuredClone(w.entities[0])), w => w.entities[0].kind = "tower",
+    w => w.entities[0].id = "boss:0", w => w.entities[0].data.entityId = w.entities[0].id,
+    w => w.entities[0].data.body = 1,
+    w => w.entities[0].data.x = { entity: w.entities[0].id, extra: 1 },
+    w => w.entities[0].data.x = { number: "-0" }, w => w.entities[0].data.x = NaN,
+    w => w.entities[0].data.x = { object: -1 },
+    w => w.entities[0].data.x = Object.assign(Object.create({}), { entity: w.entities[0].id }),
+    w => w.objects.push({ kind: "object", data: {} }),
+    w => w.objects.push({ kind: "object", data: { type: "=", axis: "horizontal" } }),
+    w => w.objects[0].data = JSON.parse('{"__proto__":null}'),
+    w => w.objects.find(n => n.kind === "array").data.length = 100000000,
+    w => w.objects.find(n => n.kind === "array").data[250001] = null,
+    w => w.objects = new Array(250001).fill({ kind: "object", data: {} })
+  ]) {
+    const value = structuredClone(original); mutate(value);
+    assert.throws(() => decodeBattleWireGraph(value));
+  }
+  const noIds = captureBattleSnapshot(fixture().state, { includeEntityIds: false });
+  assert.throws(() => encodeBattleWireGraph(noIds), /identity/);
+});
+
+test("canonical graph traversal handles deep cycles without recursion and retains non-finite values", () => {
+  const graph = { root: { ref: 0 }, nodes: Array.from({ length: 12000 }, (_, i) => ({ kind: "object", data: {
+    next: { ref: (i + 1) % 12000 }, maximum: { number: "Infinity" }, minimum: { number: "-Infinity" }, invalid: { number: "NaN" }
+  } })) };
+  const before = JSON.stringify(graph), canonical = canonicalSaveGraph(graph);
+  assert.equal(JSON.stringify(graph), before);
+  const restored = decodeSaveGraph(decodeBattleWireGraph(encodeBattleWireGraph(graph)), () => ({}));
+  assert.equal(restored.maximum, Infinity); assert.equal(restored.minimum, -Infinity); assert.ok(Number.isNaN(restored.invalid));
+  let current = restored; for (let i = 0; i < 12000; i++) current = current.next;
+  assert.equal(current, restored);
+  assert.equal(canonical.nodes.length, 12000);
+  assert.deepEqual(captureBattleSnapshot(restored, { canonical: true }), canonical);
 });

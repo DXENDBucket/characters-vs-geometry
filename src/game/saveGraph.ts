@@ -1,5 +1,5 @@
 export type NodeKind = "object" | "array" | "tower" | "enemy" | "boss" | "projectile" | "enemyProjectile" | "mortar";
-type Value = null | boolean | string | number | { ref: number } | { number: "Infinity" | "-Infinity" | "NaN" };
+export type Value = null | boolean | string | number | { ref: number } | { number: "Infinity" | "-Infinity" | "NaN" };
 export interface GraphNode { kind: NodeKind; data: Record<string, Value> }
 export interface SaveGraph { root: Value; nodes: GraphNode[] }
 const forbidden = new Set(["__proto__", "prototype", "constructor"]);
@@ -7,9 +7,21 @@ const forbidden = new Set(["__proto__", "prototype", "constructor"]);
 // References preserve shared health pools, targets and removed sources without copying Phaser objects.
 export function encodeSaveGraph(root: unknown, classify: (object: object) => {
   kind: NodeKind; omit?: ReadonlySet<string>; include?: ReadonlySet<string>
-}): SaveGraph {
+}, options: { canonical?: boolean } = {}): SaveGraph {
   const nodes: GraphNode[] = [];
   const ids = new Map<object, number>();
+  interface Pending { value: object; node: GraphNode; omit?: ReadonlySet<string>; include?: ReadonlySet<string> }
+  const pending: Pending[] = [];
+  function fill({ value, node, omit, include }: Pending) {
+    const keys = Object.keys(value);
+    if (options.canonical) keys.sort(node.kind === "array" ? (a, b) => Number(a) - Number(b) : undefined);
+    for (const key of keys) {
+      if (omit?.has(key) || (include && !include.has(key))) continue;
+      if (forbidden.has(key)) throw new Error("Invalid save property");
+      const child = (value as Record<string, unknown>)[key];
+      if (child !== undefined) node.data[key] = encode(child);
+    }
+  }
   function encode(value: unknown): Value {
     if (value === null || typeof value === "string" || typeof value === "boolean") return value;
     if (typeof value === "number") {
@@ -23,16 +35,14 @@ export function encodeSaveGraph(root: unknown, classify: (object: object) => {
     const { kind, omit, include } = classify(value);
     const node: GraphNode = { kind, data: {} };
     nodes.push(node);
-    for (const key of Object.keys(value)) {
-      if (omit?.has(key) || (include && !include.has(key))) continue;
-      if (forbidden.has(key)) throw new Error("Invalid save property");
-      const child = (value as Record<string, unknown>)[key];
-      if (child === undefined) continue;
-      node.data[key] = encode(child);
-    }
+    const task = { value, node, omit, include };
+    if (options.canonical) pending.push(task);
+    else fill(task);
     return { ref: id };
   }
-  return { root: encode(root), nodes };
+  const encodedRoot = encode(root);
+  for (let index = 0; index < pending.length; index++) fill(pending[index]);
+  return { root: encodedRoot, nodes };
 }
 
 export function validateSaveGraph(value: unknown): asserts value is SaveGraph {
@@ -71,4 +81,29 @@ export function decodeSaveGraph<T>(graph: SaveGraph, create: (node: GraphNode) =
       { value: decode(value), writable: true, enumerable: true, configurable: true });
   });
   return decode(graph.root) as T;
+}
+
+// Sorted breadth-first traversal normalizes keys AND reference numbers. Array order
+// and object identity remain significant; insertion history and unreachable nodes do not.
+export function canonicalSaveGraph(graph: SaveGraph): SaveGraph {
+  validateSaveGraph(graph);
+  const nodes: GraphNode[] = [], pending: number[] = [], ids = new Map<number, number>();
+  const encode = (value: Value): Value => {
+    if (value === null || typeof value !== "object") return value;
+    if ("number" in value) return { number: value.number };
+    let id = ids.get(value.ref);
+    if (id === undefined) {
+      id = nodes.length;
+      ids.set(value.ref, id); pending.push(value.ref);
+      nodes.push({ kind: graph.nodes[value.ref].kind, data: {} });
+    }
+    return { ref: id };
+  };
+  const root = encode(graph.root);
+  for (let index = 0; index < pending.length; index++) {
+    const source = graph.nodes[pending[index]], target = nodes[index];
+    const keys = Object.keys(source.data).sort(source.kind === "array" ? (a, b) => Number(a) - Number(b) : undefined);
+    for (const key of keys) target.data[key] = encode(source.data[key]);
+  }
+  return { root, nodes };
 }

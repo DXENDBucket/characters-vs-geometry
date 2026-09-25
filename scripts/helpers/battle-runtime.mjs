@@ -8,6 +8,7 @@ const { getLevelConfig } = load("src/data/levels.ts");
 const { DIFFICULTY_VERSION, getDifficultyConfig } = load("src/config.ts");
 const { getCardDefinition } = load("src/registry/cardDefinitions.ts");
 const { decodeSaveGraph } = load("src/game/saveGraph.ts");
+const { encodeBattleWireGraph, decodeBattleWireGraph } = load("src/game/battleWireGraph.ts");
 export const { captureBattleSnapshot } = load("src/game/captureBattleSnapshot.ts");
 export const { battleChecksum } = load("src/game/battleChecksum.ts");
 
@@ -32,8 +33,10 @@ export function step(runtime, ticks = 1) {
   }, canAdvance: () => !runtime.world.gameOver };
   for (let tick = 0; tick < ticks; tick++) runtime.session.advance(BATTLE_STEP_MS, adapter);
 }
-export function cloneCheckpoint(runtime, options = runtime.session.exportReplay()) {
-  const state = decodeSaveGraph(captureBattleSnapshot(runtime.snapshot(options.selectedCards[0])), () => ({}));
+export function cloneCheckpoint(runtime, options = runtime.session.exportReplay(), wire = false) {
+  let graph = captureBattleSnapshot(runtime.snapshot(options.selectedCards[0]));
+  if (wire) graph = decodeBattleWireGraph(JSON.parse(JSON.stringify(encodeBattleWireGraph(graph))));
+  const state = decodeSaveGraph(graph, () => ({}));
   const restored = runtimeFromOptions(options, runtime.world.options);
   restored.restore(state);
   return restored;

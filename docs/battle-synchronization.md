@@ -27,17 +27,20 @@ production transport or renderer-free authoritative server.
 
 ## Stream And Recovery
 
-Protocol version 1 messages identify the battle and snapshot stream. A cursor
+Protocol version 2 messages identify the battle and snapshot stream. A cursor
 contains the absolute simulation tick and next global command sequence. New
 connections and resync snapshots receive a new stream; old-stream messages cannot
 rewind the client. A new battle needs a new client/transport scope.
 
-Snapshots contain a current-schema checkpoint, captured configuration, checksum
+Snapshots contain an [ID-based wire checkpoint](battle-wire-state.md), captured configuration, checksum
 and the actor's next request number. Commands after that cursor use the existing
 semantic operation/control schema. A replica validates the complete frame before
 execution, maps global command indices into its checkpoint-relative recording and
 follows the host's ticks using the existing executor, RNG and action queue. Pause
-and speed remain battle state, not client rendering decisions.
+and speed remain battle state, not client rendering decisions. The client decodes
+the validated wire graph before invoking its restore adapter; local replay/save
+formats are unchanged. Checksums use canonical property/reference order. Protocol-1
+peers are rejected; the combat rules version is unchanged.
 
 The host publishes commands immediately and coalesces command-free advancement
 to at least six ticks per update (about 10 Hz at normal speed). A frame is bounded
@@ -80,15 +83,15 @@ or terminating the connection.
 - Pipeline coverage joins with a consumed one-shot source still referenced by its
   stored payload, submits a targeted attachment through the real authority,
   reconnects before the pending action executes, and opens connector edges by ID.
-  Both clients retain the host's 600-tick result (rules 8: `cbac5b45`), including
+  Both clients retain the host's 600-tick result (rules 8, protocol 2: `b15f3a9d`), including
   attachment application and the stored explosion.
 - AE-4 adds remote topology connection using a tower ID, a copied w on a distant
   logical cell and resynchronization after that form change. The three worlds
-  match at rules-8 checksum `0d018cfd` after 600 further ticks.
+  match at rules-8/protocol-2 checksum `8a1b318a` after 600 further ticks.
 - A movement fixture submits layered pushes and mirror-group shifts by entity ID,
   rejects an unauthorized actor and a stale repeat, resyncs during interpolation,
   and verifies inherited generated-tower level/facing. All three worlds agree at
-  `c1bccd60` after 600 further ticks.
+  `0e59f424` after 600 further ticks (rules 8, protocol 2).
 - Rules 8 fixes supported mirror shells disappearing on movement. Version metadata
   changes raw hashes; historical combat fixtures still match after version
   normalization. Current-version full/checkpoint replay tests agree. Session,
@@ -101,10 +104,12 @@ No desktop packaging is needed.
 
 ## Remaining Work
 
-The complete simulation still has scene-dependent system ports and graph-based
-relationships. Wallets, loadouts and cooldowns remain shared; ownership/resource
+The complete shared runtime is data-only, but independent control ingress and
+legacy display hydration still need adapters. Entity wire relationships now use
+IDs. Wallets, loadouts and cooldowns remain shared; ownership/resource
 policies for different multiplayer modes are not implemented. Production transport,
 join UI, latency handling, reconnect UI and durable authority recovery remain open.
-Full-state checksum and snapshot cost need profiling on crowded battlefields;
-no performance improvement is claimed by this synchronization work. See the
+Full-state checksum and snapshot cost need broader profiling on crowded battlefields;
+the wire-state document records an initial Node-only static benchmark, not full
+battle FPS. No performance improvement is claimed by this synchronization work. See the
 [multiplayer acceptance gates](multiplayer-readiness.md).

@@ -70,11 +70,11 @@ See [synchronization](battle-synchronization.md) for validation, retry and resyn
 
 ## Still Open
 
-This is session orchestration, not a complete headless battle engine. Tick order,
-entity collections, resource/wave rules and phase progress now belong to
-[BattleWorld](battle-world.md). The scene supplies required system ports, whose
-live controllers/runtime still call visual adapters. Command interpretation remains
-in `GameScene`, and actions still hold live unit references.
+This module owns session orchestration. Tick order, entity collections,
+resource/wave rules and phase progress belong to [BattleWorld](battle-world.md),
+with the complete data-only system assembly in [BattleRuntime](battle-runtime.md).
+Independent control ingress and legacy display hydration still need adapters.
+Actions hold data-object references locally and stable entity IDs on the wire.
 Live commands express semantic operations/controls; local UI intent is not shared
 state. `submit` remains a trusted recording API. Real input now enters through the
 [command authority](battle-authority.md), which binds host-authenticated identities,
@@ -86,7 +86,7 @@ player-facing synchronization integration and durable reconnect still need work;
 
 `scripts/test-battle-session.mjs` tests independent sessions, frame schedules,
 same-tick order, end-of-playback behavior, pause, reentrancy, mutation isolation,
-checkpoint validation/resume and legacy checksum compatibility in Node without
+checkpoint validation/resume and canonical checksum exclusions in Node without
 Phaser stubs. Dependency guards cover the session and checksum modules.
 The guards also reject reintroducing timer/paused-closure fallback paths in combat
 controllers.

@@ -67,10 +67,10 @@ capture/restore also use that assembly. Local targeting controllers bind its
 existing simulation objects rather than constructing parallel ones.
 
 **Gates 1-2 remain incomplete.** Control/UI ingress and legacy display hydration
-still need independent adapters. New Node/Edge comparisons expose native
-trigonometric coordinate differences and property-order-sensitive checksums;
-neither is covered by earlier same-browser agreement. See the runtime document
-for exact reproduction and diagnostic limits.
+still need independent adapters. Node/Edge comparisons expose native
+trigonometric coordinate differences not covered by earlier same-browser agreement.
+Property-order-sensitive checksums are now fixed by canonical capture. See the
+runtime and [wire state](battle-wire-state.md) documents for diagnostic limits.
 
 ### Session, Commands And Profile Isolation
 
@@ -97,8 +97,11 @@ policies and independently usable player input UI are unfinished.
 
 Battle-local IDs cover towers, enemies, Boss bodies, projectiles and edges.
 Allocator history survives snapshots and legacy-save adoption. Semantic commands
-use IDs, but serialized combat relationships still use graph references.
-**Gate 4 remains open.** See [entity identity](battle-entity-identity.md).
+and protocol-2 serialized entity relationships use stable IDs, including historical
+sources retained by actions. Local-save graph compatibility is preserved by the
+wire adapter; shared non-entity objects retain graph identity. **Gate 4 is
+implemented**, with identity/codec, complete-runtime and connected-client evidence.
+See [entity identity](battle-entity-identity.md) and [wire state](battle-wire-state.md).
 
 The actual single-player path uses bounded, versioned command authority with
 host-bound participant handles, ordered execution, acknowledgments, retry receipts
@@ -120,8 +123,8 @@ coverage and crowded-battle synchronization cost measurements remain unfinished.
 ## Next Work
 
 1. Complete independent control/checkpoint adapters around the shared runtime;
-   resolve canonical serialization/checksums and cross-engine numeric guarantees.
-2. Finish ID-based relationship serialization and participant/resource policies.
+   resolve cross-engine numeric guarantees.
+2. Finish participant/resource policies and durable authority recovery.
 3. Integrate client input and transport lifetime handling, then broaden fault and
    content coverage and profile crowded host/replica execution.
 
