@@ -1,178 +1,123 @@
 # Multiplayer Readiness
 
 Goal: make the existing game ready to integrate multiplayer without choosing a
-specific cooperative or competitive mode. This is not complete while only isolated
-rules can run in Node. The real single-player path must use the same core and
-command contracts as the future authoritative host.
+specific cooperative or competitive mode. Passing isolated rules is insufficient:
+the actual single-player path must share the authoritative core and commands.
 
 ## Acceptance Gates
 
-1. Explicit battle data and presentation boundaries for towers, enemies,
-   projectiles, Bosses, cooldowns, actions and relationships. No Phaser, DOM,
-   wall-clock or cosmetic RNG dependency in the authoritative core.
-2. An independent battle session advances the actual game's complete simulation
-   using fixed ticks and seeded randomness. The existing single-player scene is
-   an adapter, not a second implementation of the game rules.
-3. Semantic commands identify their actor, target and intended operation. Local
-   selection is not shared authoritative state. Ownership, resources, cooldowns,
-   pause and speed policy can be configured for a future mode.
-4. Stable battle-local entity IDs survive snapshots and restore. Commands and
-   serialized relationships do not rely on live Phaser object references.
-5. A transport-neutral authority boundary validates schemas, participant identity,
-   permissions, command ordering, duplicates and bounded inputs. It does not trust
-   client-computed damage, resources or simulation progress.
-6. Versioned snapshots, command acknowledgments and checksums support joining,
-   resynchronization and reconnect without repeating accepted actions. Persistent
-   player progress remains outside replay and remote simulation.
-7. End-to-end tests exercise the actual game with two independent clients, late,
-   duplicated, out-of-order and unauthorized messages, and disconnect/reconnect.
-   Existing saves, deterministic replay and single-player UI remain verified.
+1. Explicit battle data/presentation boundaries for towers, enemies, projectiles,
+   Bosses, cooldowns, actions and relationships. No Phaser, DOM, wall-clock or
+   cosmetic RNG dependency in the authoritative core.
+2. An independent session advances the complete game with fixed ticks and seeded
+   randomness. The single-player scene adapts that core rather than duplicating it.
+3. Semantic commands identify actor, target and operation. Local selection is
+   not authoritative. Ownership, resources, cooldowns, pause and speed policies
+   can be configured for a future mode.
+4. Stable battle-local IDs survive snapshots and restore; commands and serialized
+   relationships do not depend on live Phaser references.
+5. Transport-neutral authority validates schema, identity, permissions, ordering,
+   duplicates and bounded input. Clients cannot dictate damage/resources/progress.
+6. Versioned snapshots, acknowledgments and checksums support joining, resync and
+   reconnect without repeated actions. Player profiles stay outside remote/replay
+   simulation.
+7. Tests exercise the actual game with independent connected clients, late,
+   duplicated, reordered and unauthorized input, and disconnect/reconnect.
+   Existing saves, deterministic replay and single-player UI stay verified.
 
-A Steam transport, matchmaking service and finalized multiplayer game mode are
-separate integration decisions. Their absence does not justify skipping the
-transport-neutral authority and synchronization gates above.
+Steam transport, matchmaking and finalized mode design are separate decisions.
+Their absence does not excuse missing core/authority/synchronization guarantees.
 
-## Current Evidence And Next Work
+## Current Evidence
 
-- Data boundaries: pure tower, enemy, projectile and Boss construction, explicit
-  snapshot fields, and dependency-boundary tests exist. Status lifecycle and
-  final-stat/support calculations now run without Phaser; passenger relationships
-  use data-state contracts, and aura caches are isolated per battlefield. Battle
-  controllers still coordinate live objects; gate 1 is only partial. See
-  [combat state and display](combat-state.md).
-  All projectile advancement/collision, mortar trajectories, reflection payloads,
-  Gathering and Orientation targeting now use data-only rules with explicit
-  presentation/factory ports. Bodyless Node tests and actual displayed/detached
-  scene continuations match, including cross-world scratch isolation. Tower firing
-  now has its own data-only runtime; physical board movement and broader battle orchestration remain scene-bound.
-  This does not complete the
-  headless simulation gate. See [projectile simulation](projectile-runtime.md).
-  Actual damage/removal, shared-health arithmetic, passenger release, death splits
-  and lethal-lock decisions now also run on data-only states through the same
-  live path. Bodyless rules and displayed/detached/restored battle scenes verify
-  their ordering. Gameplay callbacks still connect movement/commands and other battle
-  controllers that need extraction; the whole simulation is not headless yet.
-  See [damage and unit lifecycle](unit-lifecycle.md).
-  Enemy movement, blocking, ranged/melee attacks, skills, slope flights and
-  carrier boarding now run through data-only rules on the actual live path too.
-  Factories and presentation are explicit ports, with per-world targeting and
-  heart-plan buffers. No-engine integration and three real displayed/detached/
-  restored scenes agree; physical board movement and broader battle orchestration still need extraction.
-  See [enemy simulation](enemy-simulation.md).
-  Tower targeting, attack timing, behavior execution, one-shot triggers and SP
-  skill simulation now run through data-only rules on the actual scene path.
-  Local S aiming remains in the live controller; skill flights and push-movement
-  completion remain authoritative with presentation disabled. Ten bodyless
-  integration tests and a displayed/detached/restored live comparison verify the
-  boundary. A status-refresh snapshot field-order discrepancy was fixed without
-  changing damage values. Physical shifter/push execution and other live
-  orchestration still prevent a complete headless battle. See
+### Simulation And Presentation
+
+The real scene now delegates these systems to data-only implementations:
+
+- State factories, status lifecycle, final stats, support queries and geometry:
+  [combat state](combat-state.md), [unit geometry](unit-geometry.md).
+- Projectile advancement/collision, reflection, Gathering and Orientation:
+  [projectile simulation](projectile-runtime.md).
+- Damage, shared health, removal, passengers, splits and lethal locks:
+  [unit lifecycle](unit-lifecycle.md).
+- Enemy movement, blocking, attacks, skills, slope flight and loading:
+  [enemy simulation](enemy-simulation.md).
+- Tower targeting, attacks, triggers, SP skills and delayed volleys:
   [tower simulation](tower-simulation.md).
-  Boss movement, promotion, skill dispatch, copies, companions, contact attacks
-  and DEL sweeps now use the same data-only implementation on the live path.
-  Factories, cell effects and rendering are explicit ports; scratch buffers are
-  per-runtime. Ten no-engine integrations and seven displayed/detached/restored
-  browser scenarios preserve behavior. See [Boss simulation](boss-simulation.md).
-  Boss spawning, endless succession, phase cleanup and base breaches now also
-  use data-only encounter rules. Storage, NUL and field-cell operations run the
-  same pure implementations through existing public controllers. Eight no-engine
-  integrations and five displayed/detached/restored browser scenarios verify
-  cleanup, suspended timers and succession ordering. Physical movement and
-  network/skill orchestration callbacks remain live, so complete
-  headless battle execution is still open. See [encounter rules](battle-encounter.md).
-  Circuit routing, action payloads, output, interception, shielding and healing
-  consumption now run through pure rules on the live path. Targeted b/t/!/y
-  attachments also have data-only deployment/application/refund rules with explicit
-  factories and presentation. Eight Node integrations and a 900-tick displayed/
-  detached/restored browser comparison verify these systems. Connected clients
-  additionally exercise stored removed-source effects and pending attachment
-  reconnect. Physical shifter/push execution, generated placement and some callback
-  composition still need extraction; this is not a complete headless host.
-  See [pipeline and attachment simulation](pipeline-simulation.md).
-  Deployment, upgrades, mirror lifecycle, copied forms, topology connection and
-  board-wide aura/shared-health refresh now use data-only rules on the live path.
-  Ten Node integrations, a 900-tick displayed/detached/restored scenario and a
-  connected-client topology/copy resync scenario verify these boundaries.
-  Physical shifter/push execution, generated-tower placement and full live
-  runtime/command composition remain to be extracted and assembled; gates 1-2
-  are still open. See [tower board simulation](tower-board.md).
-- Determinism: the integrated `BattleSession` now owns fixed steps, seeded battle
-  RNG, delayed action queue, recording and checkpoint timing. Independent session
-  tests and unchanged browser replay checksums verify this extraction. `BattleWorld`
-  now owns rosters/progress, tick order, resource/wave rules and phase state. Three
-  real local worlds pass interleaved advancement, checkpoint and restart isolation.
-  Its live system ports still depend on scene controllers/rendering. Board
-  mutations and manual skills now share a semantic gate with explicit entity targets, capability
-  checks and a host authorization port; direct operation recordings replay too.
-  Skills, one-shot triggers, push directions and topology destinations have explicit
-  commands, whole-group preflight and live UI/save/replay coverage. A local S picker
-  no longer affects authoritative SP recovery. Live UI now records only semantic
-  operations/controls; legacy mouse recording remains a compatibility adapter.
-  Global settings, time controls, reselection, debug and tutorial actions
-  now have a renderer-free policy/validation gate. Reserve drafts no longer affect
-  auto-upgrade execution, and selected cards are excluded from combat checksums.
-  Auto-upgrade/shifter lessons replay with separate bounded tutorial observations,
-  without activating local tools. Captured slot/card/reselection policies now
-  survive snapshots and playback, including rejected commands. A configurable
-  continuing-modal mode keeps simulation active under local menu/settings/reselection
-  overlays and does not cancel a peer's pause when closing them. Participant UI
-  instances and combat presentation ports still need work. All six tutorial models
-  now run without rendering and store versioned step/reference state plus explicit
-  lesson observations in the world. Their presentation is derived data; actual
-  browser continuations from 57 checkpoint positions match at 30/144 Hz with the
-  tutorial view removed. See [tutorial state](tutorial-state.md).
-  Terminal lifecycle now belongs to the world and is checkpointed, including
-  flawless eligibility and a first-result-wins immutable outcome. Actual terminal
-  replay/restore tests cover wave clear, last-enemy breach, Boss breach and debug
-  Boss kills. Local profile settlement/discovery/records are behind a separate
-  adapter; read-only live scenes and restored finished results do not award progress
-  or delete local saves. This is not a durable multiplayer settlement protocol.
-  See [battle lifecycle](battle-lifecycle.md).
-  The session now owns/snapshots authoritative controls and enforces pause/speed;
-  restoration no longer overwrites them with local menu state. All deferred combat
-  attacks require its saved data queue, with the Phaser timer/paused-closure fallback
-  paths removed. Actual paused save/resume tests preserve 20 pending tower/enemy/Boss
-  actions and removed-source references, and replay identically at 30/144 Hz;
-  actual card slots/cooldowns/reselection now belong to a renderer-free world
-  loadout. Live comparisons with no card views preserve the complete battle,
-  including continued attacks, auto-upgrades, reselect, saves and replay. See
-  [loadout state](battle-loadout.md). Participant capabilities are now configured
-  on the session, immutable during a battle and preserved in snapshots/replay.
-  See [captured policy](battle-policy.md) for access/modal integration and its limits.
-  Independent participant resource policies
-  have not been implemented;
-  gates 2-3 remain open. See [global controls](battle-controls.md),
-  [semantic operations](battle-operations.md),
-  [session boundaries](battle-session.md) and [world ownership](battle-world.md).
-- Identity: common battle-local IDs now cover live towers, enemies, Boss bodies,
-  projectiles and edges. Allocator history and IDs survive snapshots, old saves
-  are adopted, and historical references have live-browser coverage. The first
-  semantic operations use these IDs; remaining commands and serialized combat
-  relationships still need migration. Gate 4 remains open. See
-  [entity identity](battle-entity-identity.md).
-- Networking: the real single-player path now uses a transport-neutral authority
-  with host-bound participant handles, versioned/bounded semantic requests,
-  capability checks, ordered execution, acknowledgments, bounded retry receipts
-  and same-live-host reconnect. Real battle tests cover two peer handles plus an
-  observer, real costs/skills/cooldowns, snapshots and different-frame-rate replay.
-  A transport-neutral synchronization layer now adds bounded snapshots, command
-  frames, checksums, joining, divergence recovery and same-live-host reconnect.
-  One actual host and two isolated browser contexts exchange messages over an
-  authenticated local HTTP relay, covering duplicate/reordered input, lost
-  receipts, reconnect, forged identity and terminal resync. Selected normal,
-  Boss and ASCII levels preserve mirror/shared-health relationships after joining.
-  Replicas use the real battle path, cannot self-advance and do not write profiles.
-  This is real connected-client evidence, but not a production lobby/transport or
-  player-input UI. Durable host recovery and broader content/latency coverage are
-  still missing. Gates 5-7 have partial implementation and verification, not full
-  completion. See [command authority](battle-authority.md) and
-  [battle synchronization](battle-synchronization.md).
+- Boss combat, promotion, copies, companions and DEL sweeps:
+  [Boss simulation](boss-simulation.md).
+- Encounter spawning/succession, phase cleanup, breaches, field cells, NUL and
+  storage: [encounter rules](battle-encounter.md).
+- Pipeline routing, actions, output, interception, shields, healing and targeted
+  attachments: [pipeline simulation](pipeline-simulation.md).
+- Deployment, upgrades, mirrors, copies, topology and board-wide support refresh:
+  [tower board](tower-board.md).
+- Shifter cooldown/execution, whole-chain push, generated towers and actual
+  semantic command application: [tower movement](tower-movement.md).
 
-Next: finish simulation/presentation ports and ID-based relationships, complete
-participant/resource policies, and connect player UI/transport lifetime handling
-to synchronization. Profile and broaden connected-client tests before calling the
-whole system ready. Validate each increment against the real battle path; green
-isolated tests are not proof of full readiness.
+These are used by single-player, with explicit factories, callbacks and display
+ports. Node integrations run without Phaser; selected real displayed, display-
+disabled and restored scenes agree. Scratch state is per-world/runtime and module
+guards reject rendering imports and dependency cycles.
 
-See [existing replay contracts](multiplayer-preparation.md),
-[performance measurements](performance.md) and [Boss state](boss-state.md).
+**Gates 1-2 are not complete.** The complete runtime/factory/callback graph and
+world-system assembly still live in GameScene. Individual pure systems plus
+presentation-disabled scenes are not proof of a complete independent headless
+host. The next priority is assembling that host and making the scene use it.
+
+### Session, Commands And Profile Isolation
+
+BattleSession owns fixed ticks, seeded RNG, delayed actions, recordings,
+checkpoints and authoritative pause/speed. BattleWorld owns rosters, progress,
+wave/resource rules, phases and terminal settlement. Actual UI records semantic
+operations/controls; selection and aiming stay local. Captured loadout, card
+clocks, policies and tutorial state restore independently of their views.
+Continuing-modal policy does not unpause a peer when a local menu closes.
+
+Explicit operations use stable entity targets, complete group preflight and
+capability/authorization ports before mutation. Live rendering is an observer.
+Terminal outcomes are immutable; read-only replicas and replay do not award
+progress or delete saves. See [session](battle-session.md), [world](battle-world.md),
+[operations](battle-operations.md), [controls](battle-controls.md),
+[loadout](battle-loadout.md), [policy](battle-policy.md),
+[tutorial state](tutorial-state.md) and [lifecycle](battle-lifecycle.md).
+
+**Gate 3 remains partial.** Participant capabilities are immutable session data,
+but wallets, loadouts and cooldowns are shared. Per-player resource/ownership
+policies and independently usable player input UI are unfinished.
+
+### Identity And Synchronization
+
+Battle-local IDs cover towers, enemies, Boss bodies, projectiles and edges.
+Allocator history survives snapshots and legacy-save adoption. Semantic commands
+use IDs, but serialized combat relationships still use graph references.
+**Gate 4 remains open.** See [entity identity](battle-entity-identity.md).
+
+The actual single-player path uses bounded, versioned command authority with
+host-bound participant handles, ordered execution, acknowledgments, retry receipts
+and same-live-host reconnect. The synchronization layer transports snapshots,
+command frames and checksums, handles joining and repairs divergence.
+
+One real host and two isolated browser contexts communicate through an authenticated
+local HTTP relay. Tests cover duplicate/reordered messages, lost receipts,
+reconnect, forged identity, paused actions, profile isolation and terminal resync,
+plus selected normal/Boss/ASCII content, mirror/shared-health relationships,
+stored removed-source actions, topology/copy changes and layered movement.
+This is connected-client evidence, not merely multiple scenes in one browser.
+See [authority](battle-authority.md), [synchronization](battle-synchronization.md).
+
+**Gates 5-7 remain partial.** The relay is test infrastructure, not a production
+connection/lobby or player-input UI. Durable host recovery, broader content/fault
+coverage and crowded-battle synchronization cost measurements remain unfinished.
+
+## Next Work
+
+1. Assemble a complete renderer-free host from the extracted systems; wire actual
+   single-player to that same assembly and compare full battle/save/replay runs.
+2. Finish ID-based relationship serialization and participant/resource policies.
+3. Integrate client input and transport lifetime handling, then broaden fault and
+   content coverage and profile crowded host/replica execution.
+
+Rules version 8 fixes layered mirror movement; older saves remain loadable, while
+older replay rule versions are rejected. The full goal is still active. See
+[replay compatibility](multiplayer-preparation.md) and [performance](performance.md).

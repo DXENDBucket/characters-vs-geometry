@@ -28,7 +28,7 @@ can refresh paused UI without advancing simulation or draining delayed attacks.
   supplied state. Frame remainder and Boss cosmetic rotation are normalized; local
   selected cards are excluded. Captured access/modal policy and the new authoritative
   controls, including pause and speed, are included. The historical top-level speed
-  mirror remains normalized for old checksum diagnostics. Rules remain version 7.
+  mirror remains normalized for old checksum diagnostics. This extraction did not change rules.
 - Optional immutable participant capabilities survive snapshots and replay. An
   omitted table means the original local participant. A restore/checkpoint epoch
   invalidates stale authority instances without entering the combat checksum.

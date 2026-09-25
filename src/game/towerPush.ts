@@ -1,16 +1,14 @@
 import Phaser from "phaser";
-import { parenthesisInner, syncTowerOccupancy } from "./towerOccupancy";
-import { logicalTowerCell, physicalTowerCell, towerCell } from "./towerTopology";
+import { physicalTowerCell, towerCell } from "./towerTopology";
 import type { TowerActionListener } from "./towerActions";
-import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, COLUMNS, LANES, palette } from "../config";
+import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, palette } from "../config";
 import type { Tower } from "../types";
 import { gridCellKey } from "./targeting";
-import { getTowerSkillState } from "./skillState";
-import { spendTowerSkill } from "./towerSkillRules";
-import { PUSH_DURATION, pushIsReady } from "./pushSkill";
-import { planTowerPush } from "./rules/towerPush";
+import { pushIsReady } from "./pushSkillRules";
+import { TowerPushSimulation, type TowerPushRuntime } from "./towerPushRules";
+import type { TowerActionEvent } from "./towerActions";
+import { TowerPushPresentation } from "../render/towerMovement";
 import type { TowerShifterRuntime } from "./towerShifter";
-import { syncTowerFlyingVisual } from "./towers";
 
 interface PushRuntime extends TowerShifterRuntime {
   onTowerAction?: TowerActionListener;
@@ -20,9 +18,19 @@ interface PushRuntime extends TowerShifterRuntime {
 export class TowerPushController {
   private source?: Tower;
   private marks?: Phaser.GameObjects.Graphics;
-  private exits: Array<{ body: Phaser.GameObjects.Container; fromX: number; fromY: number; x: number; y: number; at: number }> = [];
+  readonly simulation: TowerPushSimulation<Tower>;
+  private readonly presentation: TowerPushPresentation;
 
-  constructor(private readonly scene: Phaser.Scene, private readonly runtime: () => PushRuntime) {}
+  constructor(private readonly scene: Phaser.Scene, private readonly runtime: () => PushRuntime) {
+    this.presentation = new TowerPushPresentation(scene);
+    const rules: TowerPushRuntime<Tower> = {
+      get towers() { return runtime().towers; }, get occupied() { return runtime().occupied; },
+      get battleTime() { return runtime().battleTime; }, get isCellDeployable() { return runtime().isCellDeployable; },
+      onMoved: moves => runtime().onMoved(moves), eraseTower: tower => runtime().eraseTower(tower),
+      onTowerAction: (tower, event) => runtime().onTowerAction?.(tower, event as TowerActionEvent)
+    };
+    this.simulation = new TowerPushSimulation(() => rules, this.presentation);
+  }
 
   isTargeting() { return Boolean(this.source); }
   selectedSource() { return this.source; }
@@ -43,8 +51,7 @@ export class TowerPushController {
   destroy() {
     this.cancel();
     this.marks?.destroy();
-    for (const exit of this.exits) exit.body.destroy();
-    this.exits = [];
+    this.presentation.destroy();
   }
 
   update(time: number) {
@@ -52,79 +59,11 @@ export class TowerPushController {
       if (!pushIsReady(this.source) || this.source.moveVisual) this.cancel();
       else this.drawSelection();
     }
-    if (this.exits.length === 0) return;
-    this.exits = this.exits.filter(exit => {
-      if (!exit.body.scene) return false;
-      const progress = Phaser.Math.Clamp((time - exit.at) / PUSH_DURATION, 0, 1);
-      const eased = progress * progress * (3 - 2 * progress);
-      exit.body.setPosition(exit.fromX + (exit.x - exit.fromX) * eased, exit.fromY + (exit.y - exit.fromY) * eased);
-      exit.body.setAlpha(1 - progress * progress);
-      if (progress >= 1) { exit.body.destroy(); return false; }
-      return true;
-    });
+    this.presentation.update(time);
   }
 
-  plan(source: Tower, lane: number, column: number) {
-    if (!source.inPlay || source.nullified || source.moveVisual) return null;
-    const runtime = this.runtime();
-    const byId = new Map(runtime.towers.map(tower => [tower.id, tower]));
-    const origin = towerCell(source), target = logicalTowerCell(source, { lane, column });
-    const logicalTowers = new Map(runtime.towers.map(tower => [tower.id, { ...tower, ...towerCell(tower) }]));
-    const plan = planTowerPush({ ...source, ...origin }, target, {
-      lanes: LANES, columns: COLUMNS,
-      getTower: id => logicalTowers.get(id),
-      occupantAt: (row, col) => { const cell = physicalTowerCell(source, { lane: row, column: col }); return runtime.occupied.get(gridCellKey(cell.lane, cell.column))?.id; },
-      isCellDeployable: (row, col) => { const cell = physicalTowerCell(source, { lane: row, column: col }); return runtime.isCellDeployable?.(cell.lane, cell.column) ?? true; }
-    });
-    if (!plan) return null;
-    const moves = plan.map(move => {
-      const from = physicalTowerCell(source, { lane: move.fromLane, column: move.fromColumn });
-      const to = physicalTowerCell(source, { lane: move.toLane, column: move.toColumn });
-      return { ...move, fromLane: from.lane, fromColumn: from.column, toLane: to.lane, toColumn: to.column, tower: byId.get(move.towerId)! };
-    });
-    for (const move of [...moves]) {
-      const companion = move.tower.parenthesisGuard ?? parenthesisInner(move.tower);
-      if (companion && !moves.some(item => item.tower === companion)) moves.push({ ...move, towerId: companion.id, tower: companion });
-    }
-    if (moves.some(move => !move.tower.inPlay || move.tower.nullified || move.tower.moveVisual)) return null;
-    return { moves, origin, target };
-  }
-
-  push(source: Tower, lane: number, column: number, free = false) {
-    if (!source.inPlay || source.nullified || source.moveVisual || (!free && (!source.skills.push || !pushIsReady(source)))) return false;
-    const plan = this.plan(source, lane, column);
-    if (!plan) return false;
-    const { moves, origin, target } = plan, runtime = this.runtime();
-    if (!free) spendTowerSkill("#", getTowerSkillState(source, "push"));
-    if (!free && runtime.onTowerAction?.(source, { kind: "skill", laneOffset: target.lane - origin.lane, columnOffset: target.column - origin.column })) return true;
-    source.border.setAlpha(1);
-    // Commit all cells before any removal callback can rebuild mirror/health networks.
-    for (const move of moves) runtime.occupied.delete(gridCellKey(move.fromLane, move.fromColumn));
-    for (const move of moves) {
-      const tower = move.tower;
-      tower.moveVisual = { fromX: tower.x, fromY: tower.y, startedAt: runtime.battleTime, duration: PUSH_DURATION };
-      tower.lane = move.toLane;
-      tower.column = move.toColumn;
-      tower.x = BOARD_X + (tower.column + 0.5) * CELL_WIDTH;
-      tower.y = BOARD_Y + (tower.lane + 0.5) * CELL_HEIGHT;
-      tower.body.setDepth(20 + Phaser.Math.Clamp(tower.lane, 0, LANES - 1));
-      if (!move.erased) runtime.occupied.set(gridCellKey(tower.lane, tower.column), tower);
-    }
-    for (const move of moves) {
-      if (!move.erased) continue;
-      const tower = move.tower;
-      const { fromX, fromY } = tower.moveVisual!;
-      runtime.eraseTower(tower);
-      if (tower.body.scene) {
-        this.scene.tweens.killTweensOf(tower.body);
-        this.exits.push({ body: tower.body, fromX, fromY, x: tower.x, y: tower.y, at: runtime.battleTime });
-      }
-    }
-    syncTowerOccupancy(runtime.towers, runtime.occupied);
-    runtime.onMoved(moves);
-    for (const { tower } of moves) if (tower.inPlay) syncTowerFlyingVisual(tower, runtime.battleTime);
-    return true;
-  }
+  plan(source: Tower, lane: number, column: number) { return this.simulation.plan(source, lane, column); }
+  push(source: Tower, lane: number, column: number, free = false) { return this.simulation.push(source, lane, column, free); }
 
   private drawSelection() {
     const source = this.source;

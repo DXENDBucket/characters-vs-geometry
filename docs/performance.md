@@ -171,6 +171,13 @@ Visual upgrades and mirror creation are observer callbacks. Bodyless, actual
 display-disabled/restored and connected-client tests verify behavior, not a measured
 FPS gain. See [tower board simulation](tower-board.md).
 
+Shifter/push execution, generated placement and command application now also use
+data-only rules. The live push runtime is retained; push planning copies only
+required grid fields instead of whole towers. Layered mirror support rebuilding
+was corrected and versioned. Bodyless, displayed/detached/restored and connected
+client checks pass; no whole-battle FPS gain is claimed. See
+[tower movement](tower-movement.md).
+
 Enemy movement/attack/skill rules now share a data-only runtime with the live
 scene. Heart plans, mortar target counts and laser hit buffers are isolated per
 runtime; live adapters are cached. The 800-circle synthetic check still adds only

@@ -30,6 +30,7 @@ export interface TowerDeploymentRuntime<T extends Tower = Tower> {
 }
 
 export interface DeploymentPresentation extends TowerUpgradePresentation {
+  generated(tower: Tower): void;
   cards(): void;
   feedback(kind: "deploy" | "upgrade"): void;
   upgraded(towers: Tower[]): void;
@@ -37,7 +38,7 @@ export interface DeploymentPresentation extends TowerUpgradePresentation {
   autoBorder(tower: Tower, active: boolean): void;
 }
 export const NO_DEPLOYMENT_PRESENTATION: DeploymentPresentation = Object.freeze({
-  ...NO_TOWER_UPGRADE_PRESENTATION, cards() {}, feedback() {}, upgraded() {}, autoUpgrade() {}, autoBorder() {}
+  ...NO_TOWER_UPGRADE_PRESENTATION, generated() {}, cards() {}, feedback() {}, upgraded() {}, autoUpgrade() {}, autoBorder() {}
 });
 
 export class TowerDeploymentSimulation<T extends Tower = Tower> {
@@ -58,6 +59,21 @@ export class TowerDeploymentSimulation<T extends Tower = Tower> {
     card.readyAt = runtime.cardTimeFor(definition.id) + definition.cooldown;
     this.presentation.cards();
     return "deployed";
+  }
+
+  spawnGeneratedTower(id: CardId, lane: number, column: number, level: number, facingDirection: -1 | 1 = 1) {
+    const runtime = this.runtime();
+    if (runtime.isCellDeployable?.(lane, column) === false || towerInPlacementLayer(runtime.occupied, lane, column, id)) return null;
+    const definition = runtime.getDefinition(id);
+    if (definition.category === "special") return null;
+    const tower = runtime.createTower(definition, lane, column, runtime.battleTime, runtime.nextTowerOrder());
+    tower.level = Math.max(1, Math.floor(level));
+    tower.facingDirection = facingDirection;
+    this.presentation.generated(tower);
+    runtime.towers.push(tower);
+    syncTowerOccupancy(runtime.towers, runtime.occupied);
+    runtime.updateLevelAuras();
+    return tower;
   }
 
   private deploy(definition: CardDefinition, lane: number, column: number, levels: number) {

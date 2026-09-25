@@ -1,43 +1,43 @@
 import { LANES } from "../config";
 import type { EdgeTower, Tower } from "../types";
+import type { TowerState } from "./towerState";
+import type { MoveTowersCommand } from "./rules/towerMovement";
 import type { BattleCardState } from "./battleLoadout";
 import { deploymentCardId } from "./cardIdentity";
 import { executeBattleOperation, type BattleOperation, type BattleOperationActor,
   type BattleOperationResult, type BattleOperationTargets } from "./battleOperations";
-import type { TowerDeploymentController } from "./towerDeployment";
-import type { TargetedEffectCardController } from "./targetedEffectCards";
+import type { TowerDeploymentSimulation } from "./towerDeploymentRules";
+import type { TargetedEffectSimulation } from "./targetedEffectRules";
 import type { EdgeTowerControls } from "./edgeTowerControls";
-import type { TowerShifterController } from "./towerShifter";
-import type { TowerSkillController } from "./towerSkills";
-import type { TowerPushController } from "./towerPush";
-import type { TowerTopologyController } from "./towerTopologyController";
+import type { TowerSkillSimulation } from "./towerSkillSimulation";
+import type { TowerPushSimulation } from "./towerPushRules";
 import { towerInPlacementLayer } from "./towerOccupancy";
 import { canUpgradeTowerWithCard, supportsTowerAutoUpgrade, towerBehaviorType } from "./towerIdentity";
-import { isShockTower } from "./triggerTowers";
-import { setTowerAutoUpgradeState } from "./towers";
-import { edgeKey, edgePosition } from "./projectileCircuit";
+import { isShockTower } from "./towerRules";
+import { edgeKey, edgePosition } from "./projectileCircuitRules";
 
-export interface LiveBattleOperationRuntime {
-  towers: Tower[];
+export interface BattleOperationExecutionRuntime<T extends TowerState = TowerState> {
+  towers: T[];
   edges: EdgeTower[];
-  occupied: Map<string, Tower>;
+  occupied: Map<string, T>;
   cards: readonly BattleCardState[];
   unlimitedFirepower: boolean;
   autoUpgradeEnabled: boolean;
   ended: boolean;
   actor(id: string): BattleOperationActor | undefined;
-  authorize(actor: BattleOperationActor, operation: BattleOperation, affected: BattleOperationTargets<Tower>): boolean;
-  deployment: TowerDeploymentController;
-  targetedEffects: TargetedEffectCardController;
-  edgeControls: EdgeTowerControls;
-  shifter: TowerShifterController;
-  skills: TowerSkillController;
-  push: TowerPushController;
-  topology: TowerTopologyController;
-  triggerShockTower(tower: Tower): void;
-  mirrorGroupFor(tower: Tower): Tower[];
-  removeTower(tower: Tower): void;
+  authorize(actor: BattleOperationActor, operation: BattleOperation, affected: BattleOperationTargets<T>): boolean;
+  deployment: Pick<TowerDeploymentSimulation<T>, "useCard">;
+  targetedEffects: Pick<TargetedEffectSimulation<T>, "deploymentTargets" | "canHandle" | "use">;
+  edgeControls: Pick<EdgeTowerControls, "use">;
+  shifter: { executeMove(command: MoveTowersCommand, updateSelection?: boolean): "moved" | "invalid" | "cooldown" };
+  skills: Pick<TowerSkillSimulation, "activateManualSkills">;
+  push: Pick<TowerPushSimulation<T>, "plan" | "push">;
+  topology: { connect(tower: T, lane: number, column: number): boolean };
+  triggerShockTower(tower: T): void;
+  mirrorGroupFor(tower: T): T[];
+  removeTower(tower: T): void;
   erasedAt(x: number, y: number): void;
+  autoUpgradeChanged?(tower: T, active: boolean): void;
   refreshPlacement(): void;
   refreshEdges(): void;
   updateLevelAuras(): void;
@@ -45,8 +45,11 @@ export interface LiveBattleOperationRuntime {
   attemptAutoUpgrades(): void;
 }
 
-// Live controllers remain adapters; the same semantic gate is used by UI and explicit commands.
-export function executeLiveBattleOperation(runtime: LiveBattleOperationRuntime, actorId: string, operation: BattleOperation): BattleOperationResult {
+export type LiveBattleOperationRuntime = BattleOperationExecutionRuntime<Tower>;
+export const executeLiveBattleOperation = executeBattleOperationRules;
+
+// The actual command application path uses data and rule ports, independent of local picking.
+export function executeBattleOperationRules<T extends TowerState>(runtime: BattleOperationExecutionRuntime<T>, actorId: string, operation: BattleOperation): BattleOperationResult {
   return executeBattleOperation(actorId, operation, {
     ended: runtime.ended,
     actor: id => runtime.actor(id),
@@ -112,7 +115,10 @@ export function executeLiveBattleOperation(runtime: LiveBattleOperationRuntime, 
         }
         case "autoUpgrade":
           if (primary.towers.some(tower => !supportsTowerAutoUpgrade(tower))) return "invalid";
-          for (const tower of primary.towers) setTowerAutoUpgradeState(tower, op.enabled, runtime.autoUpgradeEnabled);
+          for (const tower of primary.towers) {
+            tower.autoUpgrade = op.enabled;
+            runtime.autoUpgradeChanged?.(tower, runtime.autoUpgradeEnabled);
+          }
           for (const edge of primary.edges) edge.autoUpgrade = op.enabled;
           if (primary.edges.length) runtime.refreshEdges();
           runtime.attemptAutoUpgrades(); runtime.updateCards();

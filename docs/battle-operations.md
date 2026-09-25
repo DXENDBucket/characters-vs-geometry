@@ -42,8 +42,9 @@ edit. These capabilities are policy inputs, not a finalized multiplayer rule set
 Natural consequences such as mirror disappearance still belong to combat rules;
 this query is not a complete prediction of every downstream combat event.
 
-`battleOperationRuntime.ts` adapts the existing live controllers to that gate.
-They remain responsible for actual costs, cooldowns, placement layers, seals,
+`battleOperationRuntime.ts` now applies commands through data-only rule ports,
+used by both the live controllers and bodyless integrations. Its dependencies are
+guarded against rendering imports. Rules own costs, cooldowns, placement layers, seals,
 mirrors, extraction, topology and movement validation. Execution does not inspect
 the currently selected card/tool. An explicit move does not clear local shifter
 selection; the pointer adapter separately handles its own selection feedback.
@@ -77,8 +78,9 @@ The live mouse/keyboard/card/HUD adapters now record only explicit operations an
 controls. Local selection and aiming do not enter the battle log. The deprecated
 `submitBattleCommand` adapter still accepts legacy pointer/card/tool commands for
 existing current-version recordings and diagnostic fixtures. Those execute through
-the same gate without recording a second mutation. Rules version 7 rejects older
-recordings; version 1-6 saves still restore under the current rules. See
+the same gate without recording a second mutation. Rules version 8 rejects older
+recordings; version 1-7 saves still restore under the current rules. Version 8 fixes
+mirror shells being lost when a complete supported component moves. See
 [control compatibility](battle-controls.md) for the changed input/checksum semantics.
 
 Global configuration/debug/tutorial actions now use a separate
@@ -115,5 +117,7 @@ players can yet use independent UI state in the complete battle.
   baselines when normalized to the previous checksum format.
 
 See [multiplayer readiness](multiplayer-readiness.md) for the complete goal. This
-is a shared operation boundary; the authority ingress is separate and there is
-not yet a production transport server or full client synchronization layer.
+is a shared operation boundary; the authority ingress is separate. Connected-client
+synchronization is tested, but production connection/player UI and independent
+resources are unfinished. Movement/command bodyless integration coverage is in
+[tower movement](tower-movement.md).

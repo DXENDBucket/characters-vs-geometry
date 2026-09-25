@@ -1,6 +1,6 @@
 import type { EdgeTower } from "../types";
 import type { BattleCardState } from "./battleLoadout";
-import { edgeKey } from "./projectileCircuit";
+import { edgeKey } from "./projectileCircuitRules";
 import { refreshEdgeFlow } from "./pipelineRules";
 
 interface EdgeControlRuntime {

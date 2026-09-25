@@ -114,8 +114,6 @@ import { ProjectileMotionFrame } from "../game/projectileMotion";
 import { gridCellKey } from "../game/targeting";
 import { isBossInRect } from "../game/unitGeometry";
 import {
-  createTower,
-  setTowerFacing,
   syncTowerFacingVisual,
   syncTowerLevelText,
   syncTowerTrueDamageVisual
@@ -506,11 +504,16 @@ export class GameScene extends Phaser.Scene {
       onChanged: () => { this.updateLevelAuras(); this.mirrors.syncMirrors(); this.clearPlacementGhosts(); } }));
     this.towerSkills = new TowerSkillController(this, () => this.towerSkillRuntime());
     this.shifter = new TowerShifterController(() => this.towerShifterRuntime());
-    this.towerPush = new TowerPushController(this, () => ({
-      ...this.towerShifterRuntime(),
+    const pushRuntime = {
+      scene: this,
+      get towers() { return pipelineScene.towers; }, get occupied() { return pipelineScene.occupied; },
+      get cardTime() { return pipelineScene.battleTime; }, get battleTime() { return pipelineScene.battleTime; },
+      isCellDeployable: (lane: number, column: number) => this.cellIsDeployable(lane, column),
+      onMoved: (moves: import("../game/towerShifter").AppliedTowerMove[]) => this.towerShifterRuntime().onMoved(moves),
       onTowerAction: this.routeTowerAction,
-      eraseTower: tower => removeTower(this.unitLifecycleRuntime(), tower)
-    }));
+      eraseTower: (tower: Tower) => removeTower(this.unitLifecycleRuntime(), tower)
+    };
+    this.towerPush = new TowerPushController(this, () => pushRuntime);
     this.mirrors = new TowerMirrorController(() => this.towerMirrorRuntime());
     this.storage = new TowerStorageController(() => this.combatRuntime());
     this.nullification = new TowerNullificationController(() => ({
@@ -1084,6 +1087,7 @@ export class GameScene extends Phaser.Scene {
       mirrorGroupFor: tower => this.mirrors.mirrorGroupFor(tower),
       removeTower: tower => removeTower(this.unitLifecycleRuntime(), tower),
       erasedAt: (x, y) => { makeEraseMark(this, x, y); playSound("erase"); },
+      autoUpgradeChanged: (tower, active) => syncTowerAutoUpgradeVisual(tower, active),
       refreshPlacement: () => { this.mirrors.syncMirrors(); this.updateLevelAuras(); },
       refreshEdges: () => { this.numbers.sync(); this.updateCards(); },
       updateLevelAuras: () => this.updateLevelAuras(), updateCards: () => this.updateCards(),
@@ -1833,27 +1837,7 @@ export class GameScene extends Phaser.Scene {
   private nextTowerOrder() { return this.world.nextTowerOrder(); }
 
   private spawnGeneratedTower(id: CardId, lane: number, column: number, level: number, facingDirection: -1 | 1 = 1) {
-    if (!this.cellIsDeployable(lane, column) || towerInPlacementLayer(this.occupied, lane, column, id)) {
-      return null;
-    }
-
-    const definition = this.getDefinition(id);
-    if (definition.category === "special") return null;
-    const tower = createTower(
-      this,
-      definition,
-      lane,
-      column,
-      this.battleTime,
-      this.nextTowerOrder()
-    );
-    tower.level = Math.max(1, Math.floor(level));
-    syncTowerLevelText(tower);
-    setTowerFacing(tower, facingDirection);
-    this.towers.push(tower);
-    syncTowerOccupancy(this.towers, this.occupied);
-    this.updateLevelAuras();
-    return tower;
+    return this.deployment.spawnGeneratedTower(id, lane, column, level, facingDirection);
   }
 
   private routeTowerAction = (tower: Tower, event: TowerActionEvent) => {

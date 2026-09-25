@@ -63,8 +63,9 @@ not yet an ID-based wire format.
 
 Deployment, copy/mirror/topology and board refresh rules have since been extracted;
 see [tower board simulation](tower-board.md). Physical shifter/push execution,
-generated placement and some live callback composition still prevent a complete
-renderer-free battle host. Entity relationships still
+generated placement and command application now also use pure rules; see
+[tower movement](tower-movement.md). Full runtime composition still prevents a
+complete renderer-free battle host. Entity relationships still
 use graph references. Per-player resources/ownership, durable host recovery and
 production multiplayer UI/transport remain open. See
 [multiplayer readiness](multiplayer-readiness.md).

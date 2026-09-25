@@ -70,7 +70,9 @@ try {
       go(scene, 3600, [1000 / 60]);
       const replay = scene.exportReplay();
       const expected = scene.battleChecksum();
-      const preLifecycleState = { ...scene.battleState() };
+      // These fixtures have no mirrored shells. Normalize only the version field
+      // when checking historical hashes; playback and restore still use current rules.
+      const preLifecycleState = { ...scene.battleState(), simulation: { ...scene.battleState().simulation, version: 7 } };
       delete preLifecycleState.lifecycle;
       const preLifecycleHash = battleChecksum(preLifecycleState);
       const lifecycleBaselines = { "1-9": "ab86ccd2", "2-10": "20169cdd", "5-5": "93ce4080", "5-10": "b5504280",

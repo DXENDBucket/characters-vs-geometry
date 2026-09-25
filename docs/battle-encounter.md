@@ -67,8 +67,9 @@ clients also retain synchronization/reconnect/content hashes.
 Pipeline and targeted attachment rules were subsequently extracted; see
 [pipeline simulation](pipeline-simulation.md). Deployment, copy/topology/mirror
 and board refresh rules were also extracted; see [tower board simulation](tower-board.md).
-Physical movement, generated placement and live callback composition still prevent
-an entirely renderer-free host.
+Physical movement, generated placement and command application are now data-only
+as well; see [tower movement](tower-movement.md). Complete live callback/runtime
+composition still prevents an entirely renderer-free host.
 These tests prove the named systems, not complete headless battle execution.
 Relationship wire records, per-player resource/ownership rules and production
 multiplayer UI/transport lifetime handling remain open. No whole-battle FPS

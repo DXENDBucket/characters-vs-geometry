@@ -303,6 +303,55 @@ try {
   });
   await pump(); content.pipeline = await equal("network pipeline continuation");
 
+  // Peers move and push real layered towers; resync during an unfinished push.
+  await pages.host.evaluate(() => window.syncTest.host.close());
+  for (const role of roles) mail[role].length = 0;
+  for (const role of ["a", "b"]) await pages[role].evaluate(() => { window.syncTest.resetClient(); window.syncTest.attach(); });
+  await pages.host.evaluate(async () => {
+    const state = window.syncTest, participants = state.scene.session.snapshot().participants;
+    state.start({ levelId: "IF-1", seed: 94, participants, selectedCards: ["B", "[]", "m", "#", "s"] });
+    const scene = state.scene;
+    scene.submitPlayerControl("local", { type: "autoUpgradeEnabled", enabled: false });
+    for (const [type, lane, column] of [["B", 3, 1], ["[]", 3, 1], ["m", 3, 2], ["m", 3, 4],
+      ["#", 1, 0], ["B", 1, 1], ["[]", 1, 1]]) {
+      scene.spawnGeneratedTower(type, lane, column, 1); scene.mirrors.syncMirrors();
+    }
+    const source = scene.spawnGeneratedTower("s", 4, 8, 3, -1); source.lastFire = -20000;
+    const { getTowerSkillState } = await import("/src/game/skillState.ts");
+    getTowerSkillState(scene.towers.find(t => t.type === "#"), "push").sp = 30;
+    state.host = scene.startSynchronization(); state.join("a"); state.join("b");
+  });
+  await pump(); await equal("layered movement join");
+  const pushTarget = await pages.a.evaluate(() => {
+    const t = window.syncTest.scene.towers.find(t => t.type === "#"); return { kind: "tower", id: t.entityId };
+  });
+  assert.equal((await request("a", { type: "operation", operation: { type: "push", target: pushTarget, cell: { lane: 1, column: 1 } } })).result, "handled");
+  const shift = await pages.b.evaluate(() => ({
+    type: "move", destination: { lane: 0, column: 2 },
+    sources: window.syncTest.scene.towers.filter(t => t.lane === 3 && t.column <= 3).map(t => ({
+      target: { kind: "tower", id: t.entityId }, lane: t.lane, column: t.column
+    }))
+  }));
+  assert.equal((await request("b", { type: "operation", operation: shift })).result, "forbidden");
+  assert.equal((await request("a", { type: "operation", operation: shift })).result, "moved");
+  assert.equal((await request("a", { type: "operation", operation: shift })).result, "stale");
+  await pages.b.evaluate(() => window.syncTest.client.resync()); await pump(); await equal("mid-movement resync");
+  for (const role of roles) assert.equal(await pages[role].evaluate(() => {
+    const scene = window.syncTest.scene;
+    return !!scene.towers.find(t => t.type === "B" && t.lane === 0 && t.column === 2)?.parenthesisGuard &&
+      !!scene.towers.find(t => t.type === "B" && t.lane === 1 && t.column === 2)?.moveVisual &&
+      scene.shifter.cooldownRatio() === 0;
+  }), true);
+  await pages.host.evaluate(async () => {
+    const state = window.syncTest;
+    for (let i = 0; i < 600; i++) state.scene.update(0, 1000 / 60);
+    if (!state.scene.towers.some(t => t.type === "a" && t.lane === 4 && t.level === 3 && t.facingDirection === -1)) {
+      throw Error("Generated tower did not inherit source state");
+    }
+    state.host.publish(); await state.tail;
+  });
+  await pump(); content.movement = await equal("network movement continuation");
+
   // A new battle gets new clients/connection scopes. Complete the actual damage tutorial at tick zero.
   await pages.host.evaluate(() => window.syncTest.host.close());
   for (const role of ["a", "b"]) {

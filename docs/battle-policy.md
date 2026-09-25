@@ -3,7 +3,7 @@
 `game/battlePolicy.ts` defines the immutable per-battle access and local-modal
 policy. The real single-player scene captures it once from progress when creating
 a new battle. A trusted host can instead provide it explicitly; a client request
-cannot change it. Policy schema version 1 is independent of rules version 7.
+cannot change it. Policy schema version 1 is independent of the battle rules version.
 
 | Field | Meaning |
 | --- | --- |

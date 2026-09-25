@@ -38,7 +38,7 @@ the data API for existing callers. Data-only consumers import the pure module.
 The existing ordered `cardDeadlines` and `reselection` snapshot fields are
 unchanged. Restore writes deadlines into model slots, not UI objects. Saved
 loadout IDs still come from the surrounding save/replay envelope. This change
-does not add a new snapshot or rules version; rules remain at version 7.
+did not add a new snapshot or rules version.
 
 - `test-battle-loadout.mjs` loads the real world, loadout and definition registry in
   Node without Phaser overrides. It covers isolation, ordering, clock eligibility,

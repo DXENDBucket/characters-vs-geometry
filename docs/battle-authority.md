@@ -3,7 +3,7 @@
 `game/battleAuthority.ts` is the transport-neutral command ingress used by the real
 single-player UI and explicit participant commands. It wraps the existing session,
 operation and control executors; it does not implement another combat simulation.
-Rules remain version 7. The command protocol has its own version, currently 1.
+Battle rules are advertised separately. The command protocol has its own version, currently 1.
 
 ## Trust Boundary
 

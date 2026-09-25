@@ -35,7 +35,7 @@ adds local picking and marks around that command.
   member acts, and performs one post-event mirror refresh.
 - Moving a supported mirror component preserves its internal relationship and
   removes unsupported former members. This rule is data-only; executing the
-  physical shifter/push movement itself still has a live adapter to extract.
+  physical execution is now also data-only; see [tower movement](tower-movement.md).
 - U eligibility, m bonuses and u shared-health arithmetic are unchanged. Board
   refresh retains health-settlement recursion and its circuit-update order.
 - Copies observe the same physical target obtained from logical topology, retain
@@ -67,8 +67,9 @@ adds local picking and marks around that command.
 
 ## Remaining Work
 
-Physical shifter/push execution, generated-tower placement and remaining live
-command/runtime composition must be extracted before assembling the complete
-renderer-free host. ID-based relationship serialization, per-player resources and
+Physical movement, generated-tower placement and command application now also use
+data-only rules; see [tower movement](tower-movement.md). Full runtime/factory
+composition must still move out of the scene to complete the renderer-free host.
+ID-based relationship serialization, per-player resources and
 ownership, durable host recovery and production UI/transport remain open. No
 whole-battle FPS gain is claimed by this refactor.

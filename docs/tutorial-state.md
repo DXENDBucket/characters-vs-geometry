@@ -27,7 +27,7 @@ time and explicit lesson observations, and supplies wave/finish effects.
 
 Tutorial battles add an optional top-level `tutorial` checkpoint:
 `{ state, interaction }`. Non-tutorial snapshots keep their previous shape and
-checksums. State schema version is 1; battle rules remain version 7.
+checksums. State schema version is 1, independent of the battle rules version.
 
 State records the mechanic plus its exact step, practice start flag or damage
 lesson index/fired flag. Auto-upgrade, F/G and shifter references use battle entity

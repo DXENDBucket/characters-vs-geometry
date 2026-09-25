@@ -80,12 +80,18 @@ or terminating the connection.
 - Pipeline coverage joins with a consumed one-shot source still referenced by its
   stored payload, submits a targeted attachment through the real authority,
   reconnects before the pending action executes, and opens connector edges by ID.
-  Both clients retain the host's 600-tick result (`b2d37fe6`), including attachment
-  application and the stored explosion. Existing scenario hashes are unchanged.
+  Both clients retain the host's 600-tick result (rules 8: `cbac5b45`), including
+  attachment application and the stored explosion.
 - AE-4 adds remote topology connection using a tower ID, a copied w on a distant
   logical cell and resynchronization after that form change. The three worlds
-  match at `77b5e210` after 600 further ticks; earlier scenario hashes are unchanged.
-- Existing full/checkpoint replay tests retain their combat checksums. Session,
+  match at rules-8 checksum `0d018cfd` after 600 further ticks.
+- A movement fixture submits layered pushes and mirror-group shifts by entity ID,
+  rejects an unauthorized actor and a stale repeat, resyncs during interpolation,
+  and verifies inherited generated-tower level/facing. All three worlds agree at
+  `c1bccd60` after 600 further ticks.
+- Rules 8 fixes supported mirror shells disappearing on movement. Version metadata
+  changes raw hashes; historical combat fixtures still match after version
+  normalization. Current-version full/checkpoint replay tests agree. Session,
   authority, synchronization and checksum dependencies are guarded against Phaser
   and DOM imports.
 

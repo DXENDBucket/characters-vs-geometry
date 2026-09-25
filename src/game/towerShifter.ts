@@ -1,10 +1,9 @@
 import Phaser from "phaser";
-import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, COLUMNS, LANES } from "../config";
 import type { Tower } from "../types";
-import { gridCellKey } from "./targeting";
-import { syncTowerFlyingVisual } from "./towers";
-import { isParenthesisTower, syncTowerOccupancy, towerInPlacementLayer } from "./towerOccupancy";
-import { planTowerMove, SHIFTER_BASE_COOLDOWN, type MoveTowersCommand, type TowerMove } from "./rules/towerMovement";
+import { isParenthesisTower } from "./towerOccupancy";
+import type { MoveTowersCommand } from "./rules/towerMovement";
+import { TowerShifterSimulation, type AppliedTowerMove as DataTowerMove, type TowerShifterRuntime as SimulationRuntime } from "./towerShifterRules";
+import { shifterPresentation } from "../render/towerMovement";
 import { drawTowerSelection } from "../render/boardToolPreview";
 
 export type TowerShifterPointerResult = "selected" | "empty" | "invalid" | "moved" | "cooldown";
@@ -20,49 +19,32 @@ export interface TowerShifterMovePreview {
   positions: TowerShifterMovePosition[];
 }
 
-export interface AppliedTowerMove extends TowerMove {
-  tower: Tower;
-}
+export type AppliedTowerMove = DataTowerMove<Tower>;
 
-export interface TowerShifterRuntime {
-  scene: Phaser.Scene;
-  towers: Tower[];
-  occupied: Map<string, Tower>;
-  cardTime: number;
-  battleTime: number;
-  isCellDeployable?: (lane: number, column: number) => boolean;
-  onMoved: (moves: AppliedTowerMove[]) => void;
-}
+export interface TowerShifterRuntime extends SimulationRuntime<Tower> { scene: Phaser.Scene }
 
 export class TowerShifterController {
   private active = false;
-  private readyAt = 0;
-  private cooldownStartedAt = 0;
-  private cooldownDuration = SHIFTER_BASE_COOLDOWN;
+  readonly simulation: TowerShifterSimulation<Tower>;
   private selection: Tower[] = [];
   private readonly selectionSet = new Set<Tower>();
   private selectionMarks = new Map<Tower, Phaser.GameObjects.Graphics>();
   private readonly previewPositions: TowerShifterMovePosition[] = [];
   private readonly previewResult: TowerShifterMovePreview = { valid: false, positions: this.previewPositions };
 
-  constructor(private readonly runtime: () => TowerShifterRuntime) {}
-
-  snapshot() {
-    return { readyAt: this.readyAt, cooldownStartedAt: this.cooldownStartedAt, cooldownDuration: this.cooldownDuration };
+  constructor(private readonly runtime: () => TowerShifterRuntime) {
+    this.simulation = new TowerShifterSimulation(runtime, shifterPresentation);
   }
 
+  snapshot() { return this.simulation.snapshot(); }
   restore(state: ReturnType<TowerShifterController["snapshot"]>) {
     this.reset();
-    this.readyAt = state.readyAt;
-    this.cooldownStartedAt = state.cooldownStartedAt;
-    this.cooldownDuration = state.cooldownDuration;
+    this.simulation.restore(state);
   }
 
   reset() {
     this.active = false;
-    this.readyAt = 0;
-    this.cooldownStartedAt = 0;
-    this.cooldownDuration = SHIFTER_BASE_COOLDOWN;
+    this.simulation.reset();
     this.clearSelection();
   }
 
@@ -81,22 +63,8 @@ export class TowerShifterController {
     this.setActive(false);
   }
 
-  isReady() {
-    return this.runtime().cardTime >= this.readyAt;
-  }
-
-  cooldownRatio() {
-    const cardTime = this.runtime().cardTime;
-    if (cardTime >= this.readyAt) {
-      return 1;
-    }
-
-    return Phaser.Math.Clamp(
-      (cardTime - this.cooldownStartedAt) / this.cooldownDuration,
-      0,
-      1
-    );
-  }
+  isReady() { return this.simulation.isReady(); }
+  cooldownRatio() { return this.simulation.cooldownRatio(); }
 
   hasSelection() {
     return this.liveSelection().length > 0;
@@ -150,38 +118,24 @@ export class TowerShifterController {
   }
 
   executeMove(command: MoveTowersCommand, updateSelection = true): "moved" | "invalid" | "cooldown" {
-    const runtime = this.runtime();
-    if (runtime.cardTime < this.readyAt) {
-      if (updateSelection) this.deactivate();
-      return "cooldown";
+    const result = this.simulation.executeMove(command);
+    if (updateSelection) {
+      if (result === "invalid") this.clearSelection();
+      else this.deactivate();
     }
-    const towersById = new Map(runtime.towers.map((tower) => [tower.id, tower]));
-    const plan = this.planMove(runtime, command, towersById);
-    if (!plan.valid) {
-      if (updateSelection) this.clearSelection();
-      return "invalid";
-    }
-
-    const moves = plan.moves.map((move) => ({ ...move, tower: towersById.get(move.towerId)! }));
-    this.applyMove(runtime, moves);
-    this.cooldownStartedAt = runtime.cardTime;
-    this.cooldownDuration = plan.cooldownMs;
-    this.readyAt = runtime.cardTime + this.cooldownDuration;
-    if (updateSelection) this.deactivate();
-    runtime.onMoved(moves);
-    return "moved";
+    return result;
   }
 
   previewMove(lane: number, column: number): TowerShifterMovePreview {
-    return this.previewMoveWithRuntime(this.runtime(), lane, column);
+    return this.previewMoveSelection(lane, column);
   }
 
-  private previewMoveWithRuntime(runtime: TowerShifterRuntime, lane: number, column: number): TowerShifterMovePreview {
+  private previewMoveSelection(lane: number, column: number): TowerShifterMovePreview {
     const positions = this.previewPositions;
     positions.length = 0;
     const command = this.createMoveCommand(lane, column);
     const towersById = new Map(this.liveSelection().map((tower) => [tower.id, tower]));
-    const plan = this.planMove(runtime, command, towersById);
+    const plan = this.simulation.plan(command, towersById);
     if (!plan.valid) {
       return this.setPreviewResult(false);
     }
@@ -190,17 +144,6 @@ export class TowerShifterController {
     }
 
     return this.setPreviewResult(true);
-  }
-
-  private planMove(runtime: TowerShifterRuntime, command: MoveTowersCommand, towersById: Map<string, Tower>) {
-    return planTowerMove(command, {
-      lanes: LANES,
-      columns: COLUMNS,
-      layers: 2,
-      getTower: (id) => towersById.get(id),
-      occupantAt: (lane, column, movingId) => towerInPlacementLayer(runtime.occupied, lane, column, towersById.get(movingId!)!.type)?.id,
-      isCellDeployable: (lane, column) => runtime.isCellDeployable?.(lane, column) ?? true
-    });
   }
 
   syncSelectionVisuals() {
@@ -256,24 +199,6 @@ export class TowerShifterController {
       this.selectionSet.add(tower);
     }
     this.syncSelectionVisuals();
-  }
-
-  private applyMove(runtime: TowerShifterRuntime, positions: AppliedTowerMove[]) {
-    for (const { tower } of positions) {
-      runtime.occupied.delete(gridCellKey(tower.lane, tower.column));
-    }
-
-    for (const { tower, toLane: lane, toColumn: column } of positions) {
-      tower.moveVisual = undefined;
-      tower.lane = lane;
-      tower.column = column;
-      tower.x = BOARD_X + column * CELL_WIDTH + CELL_WIDTH / 2;
-      tower.y = BOARD_Y + lane * CELL_HEIGHT + CELL_HEIGHT / 2;
-      tower.body.setDepth(20 + lane);
-      syncTowerFlyingVisual(tower, runtime.battleTime);
-      runtime.occupied.set(gridCellKey(lane, column), tower);
-    }
-    syncTowerOccupancy(runtime.towers, runtime.occupied);
   }
 
   private liveSelection() {

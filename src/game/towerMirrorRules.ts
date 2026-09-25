@@ -1,5 +1,5 @@
 import { syncTowerOccupancy, towerCellMembers, towerInPlacementLayer } from "./towerOccupancy";
-import { logicalTowerCell, physicalTowerCell, towerAtCell, towerCell, topologyKey } from "./towerTopology";
+import { logicalTowerCell, physicalTowerCell, towerCell, topologyKey } from "./towerTopology";
 import { COLUMNS, LANES } from "../config";
 import type { CardDefinition, CardId } from "../types";
 import type { TowerState as Tower } from "./towerState";
@@ -372,22 +372,16 @@ export class TowerMirrorSimulation<T extends Tower = Tower> {
     edges: Map<T, Set<T>>
   ) {
     const origin = towerCell(anchor);
-    const first = towerAtCell(runtime.occupied, anchor, origin.lane - laneDelta, origin.column - columnDelta);
-    const second = towerAtCell(runtime.occupied, anchor, origin.lane + laneDelta, origin.column + columnDelta);
-    if (
-      !first ||
-      !second ||
-      first === second ||
-      first.type !== second.type ||
-      first.mirrorGroupId !== second.mirrorGroupId ||
-      !memberSet.has(first) ||
-      !memberSet.has(second)
-    ) {
-      return;
+    const firstCell = physicalTowerCell(anchor, { lane: origin.lane - laneDelta, column: origin.column - columnDelta });
+    const secondCell = physicalTowerCell(anchor, { lane: origin.lane + laneDelta, column: origin.column + columnDelta });
+    for (const layer of ["A", "()"] as const) {
+      const first = towerInPlacementLayer(runtime.occupied, firstCell.lane, firstCell.column, layer);
+      const second = towerInPlacementLayer(runtime.occupied, secondCell.lane, secondCell.column, layer);
+      if (!first || !second || first === second || first.type !== second.type ||
+          first.mirrorGroupId !== second.mirrorGroupId || !memberSet.has(first) || !memberSet.has(second)) continue;
+      edges.get(first)?.add(second);
+      edges.get(second)?.add(first);
     }
-
-    edges.get(first)?.add(second);
-    edges.get(second)?.add(first);
   }
 
   private connectedMirrorComponent(start: T, edges: Map<T, Set<T>>, visited: Set<T>) {

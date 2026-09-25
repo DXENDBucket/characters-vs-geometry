@@ -258,7 +258,7 @@ test("invalid or incompatible session checkpoints are rejected before mutating c
     assert.deepEqual(session.snapshot(), before);
   }
   for (const time of [-1, NaN, Infinity]) assert.throws(() => session.restore(undefined, time));
-  for (const version of [1, 2, 3, 4, 5, 6, BATTLE_RULES_VERSION]) {
+  for (const version of [1, 2, 3, 4, 5, 6, 7, BATTLE_RULES_VERSION]) {
     assert.doesNotThrow(() => session.restore({ ...before, version }, 0));
   }
   session.restore(undefined, 1001);

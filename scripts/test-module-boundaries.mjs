@@ -104,7 +104,8 @@ test("data, geometry, support queries and snapshot capture cannot pull in scenes
     "battleEncounter", "battlefieldCells", "towerStorageRules", "towerNullificationRules",
     "projectileCircuitRules", "pipelineRouting", "pipelineRules", "pipelineActionRules", "pipelineActionPayload",
     "targetedEffectRules", "towerAttachmentRules", "towerUpgradeRules", "towerDeploymentRules",
-    "towerMirrorRules", "towerCopy", "towerTopology", "towerBoard"];
+    "towerMirrorRules", "towerCopy", "towerTopology", "towerBoard", "towerShifterRules", "towerPushRules",
+    "battleOperationRuntime", "edgeTowerControls"];
   for (const entry of [...entries, "../registry/cardDefinitions"]) {
     const seen = new Set();
     const visit = (name, chain) => {
