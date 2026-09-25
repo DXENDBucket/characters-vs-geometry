@@ -3,8 +3,9 @@
 `battleSyncHost.ts`, `battleSyncClient.ts` and `battleSyncProtocol.ts` provide a
 transport-neutral snapshot/command stream around the existing battle authority.
 The host and replicas execute the same `BattleSession` and actual world systems;
-there is no second implementation of combat. This is not yet a multiplayer UI,
-production transport or renderer-free authoritative server.
+there is no second implementation of combat. The [independent entry](independent-battle.md)
+also runs the actual authoritative game without a browser. Mode/lobby and production
+transport remain separate integration decisions.
 
 ## Integration And Trust
 
@@ -23,7 +24,9 @@ production transport or renderer-free authoritative server.
   progress. Local rendering and menus cannot reject authoritative simulation ticks.
 - Request inputs through `BattleSyncClient.request`, not a replica scene's local
   authority. The current client allows one pending request and does not speculate.
-  Player-facing build/skill controls are not yet wired to this client API.
+  [Player-facing input](battle-player-resources.md) uses this port and waits for
+  receipts. [Connection lifetime](battle-connection.md) provides retries, scene
+  replacement, status display and exit cleanup around the port.
 
 ## Stream And Recovery
 
@@ -114,9 +117,9 @@ No desktop packaging is needed.
 The [independent entry](independent-battle.md) now shares startup, control execution
 and logical restoration with the scene. Legacy pointer recordings still require
 the local adapter. Entity wire relationships use
-IDs. Wallets, loadouts and cooldowns remain shared; ownership/resource
-policies for different multiplayer modes are not implemented. Production transport,
-join UI, latency handling and reconnect UI remain open. Durable authority recovery
+IDs. Optional ownership, wallet and resource policies support separate players;
+actual peer input/HUD and generic connection lifetime are now implemented.
+Production transport, join UI and mode selection remain open. Durable authority recovery
 now has file/process and real browser tests; distributed failover and storage
 throughput tuning remain separate work.
 Full-state checksum and snapshot cost need broader profiling on crowded battlefields;

@@ -18,7 +18,8 @@ const { DIFFICULTY_VERSION } = load("src/config.ts");
 const { LEGACY_BATTLE_POLICY } = load("src/game/battlePolicy.ts");
 const { BATTLE_PERMISSIONS } = load("src/game/battleParticipants.ts");
 const url = option("url") ?? "http://127.0.0.1:5173";
-const input = process.argv.includes("--input");
+const connection = process.argv.includes("--connection");
+const input = connection || process.argv.includes("--input");
 const resources = input || process.argv.includes("--resources");
 const economy = resources || process.argv.includes("--economy");
 const ownership = economy || process.argv.includes("--ownership");
@@ -26,6 +27,7 @@ const roles = ["a", "b"], engines = (option("engines") ?? "firefox,webkit").spli
 assert.equal(engines.length, 2);
 const tokens = Object.fromEntries(roles.map(role => [role, randomUUID()]));
 const queues = { a: [], b: [] }, peers = {}, browsers = [], pages = {}, errors = [], results = [];
+const linkIds = { a: 0, b: 0 };
 let runtime, authority, host, loseReceipt = false;
 const checksum = () => battleChecksum(runtime.snapshot(runtime.world.loadout.ids[0]));
 const send = role => message => {
@@ -34,11 +36,21 @@ const send = role => message => {
 };
 const server = createServer(async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", new URL(url).origin);
-  res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Connection");
   res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
   if (req.method === "OPTIONS") { res.writeHead(204).end(); return; }
   const role = roles.find(role => req.headers.authorization === `Bearer ${tokens[role]}`);
   if (!role) { res.writeHead(403).end(); return; }
+  if (connection && req.method === "POST" && req.url === "/connect") {
+    if (peers[role]) host.disconnect(peers[role]);
+    queues[role].length = 0; linkIds[role]++;
+    peers[role] = host.connect(role, send(role));
+    res.setHeader("Content-Type", "application/json"); res.end(JSON.stringify({ id: linkIds[role] })); return;
+  }
+  if (connection && req.headers["x-connection"] !== String(linkIds[role])) { res.writeHead(409).end(); return; }
+  if (connection && req.method === "POST" && req.url === "/disconnect") {
+    host.disconnect(peers[role]); delete peers[role]; res.writeHead(204).end(); return;
+  }
   if (req.method === "GET" && req.url === "/poll") { res.setHeader("Content-Type", "application/json"); res.end(JSON.stringify(queues[role].splice(0))); return; }
   if (req.method !== "POST" || req.url !== "/send") { res.writeHead(404).end(); return; }
   try {
@@ -62,13 +74,70 @@ try {
       const response = await route.fetch(); await route.fulfill({ response, body: await response.text() + "\nwindow.__testGame=game;" });
     });
     await page.goto(url); await page.waitForFunction(() => window.__testGame?.scene.getScenes(true).length);
-    await page.evaluate(async ({ token, relay, role, input }) => {
+    await page.evaluate(async ({ token, relay, role, input, connection }) => {
       const { GameScene } = await import("/src/scenes/GameScene.ts");
       const { BattleSyncClient } = await import("/src/game/battleSyncClient.ts");
+      const { RemoteBattleSession } = await import("/src/render/remoteBattleSession.ts");
       const game = window.__testGame; game.loop.stop();
       for (const scene of game.scene.getScenes(true)) game.scene.stop(scene.sys.settings.key);
       const state = window.headlessTest = { serial: 0, tail: Promise.resolve(), receipts: [], statuses: [], profile: JSON.stringify(localStorage) };
       const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+      if (connection) {
+        const jobs = new Set(); state.links = []; state.exits = 0;
+        state.timerCount = () => jobs.size;
+        Object.defineProperty(state, "scene", { get: () => state.remote?.scene });
+        state.reset = () => {
+          state.remote?.close(); state.receipts = []; state.statuses = [];
+          state.remote = new RemoteBattleSession(game, { actorId: role,
+            onExit: () => { state.exits++; game.scene.start("MainMenuScene"); },
+            receipt: receipt => state.receipts.push(receipt),
+            scheduler: {
+              set: (delay, fn) => { const id = setTimeout(() => { jobs.delete(id); fn(); }, delay); jobs.add(id); return id; },
+              clear: id => { clearTimeout(id); jobs.delete(id); }
+            },
+            transport: events => {
+              const link = { events, id: 0, closed: false };
+              state.links.push(link); state.link = link;
+              state.tail = state.tail.then(async () => {
+                const response = await fetch(relay + "/connect", { method: "POST", headers });
+                if (!response.ok) throw Error("Connect rejected");
+                link.id = (await response.json()).id;
+                if (!link.closed) events.open();
+              });
+              return {
+                send: text => {
+                  state.tail = state.tail.then(async () => {
+                    if (link.closed) return;
+                    const response = await fetch(relay + "/send", { method: "POST",
+                      headers: { ...headers, "X-Connection": String(link.id) }, body: text });
+                    if (!response.ok) events.closed(response.status !== 403);
+                  });
+                },
+                close: () => {
+                  link.closed = true;
+                  state.tail = state.tail.then(() => fetch(relay + "/disconnect", { method: "POST",
+                    headers: { ...headers, "X-Connection": String(link.id) } }));
+                }
+              };
+            }
+          });
+          state.client = state.remote.connection;
+          state.client.subscribe(status => state.statuses.push(status));
+          state.remote.start();
+        };
+        state.poll = async () => {
+          await state.tail;
+          const link = state.link;
+          if (!link || link.closed) return 0;
+          const response = await fetch(relay + "/poll", { headers: { ...headers, "X-Connection": String(link.id) } });
+          if (response.status === 409) return 0;
+          const messages = await response.json();
+          for (const message of messages) link.events.message(message);
+          await state.tail; return messages.length;
+        };
+        game.loop.start(game.step.bind(game));
+        return;
+      }
       state.connect = () => state.client.connect(message => {
         state.tail = state.tail.then(async () => {
           const result = await fetch(relay + "/send", { method: "POST", headers, body: JSON.stringify(message) });
@@ -97,7 +166,7 @@ try {
         for (const message of messages) state.statuses.push(state.client.receiveText(message));
         await state.tail; return messages.length;
       };
-    }, { token: tokens[role], relay, role, input });
+    }, { token: tokens[role], relay, role, input, connection });
   }
   const pump = async () => {
     for (let i = 0; i < 30; i++) {
@@ -189,7 +258,10 @@ try {
       checkpoint: () => runtime.session.checkpointReplay(captureBattleSnapshot(runtime.snapshot(runtime.world.loadout.ids[0])), runtime.world.loadout.ids),
       checksum, inputTime: () => performance.now()
     });
-    for (const role of roles) { queues[role].length = 0; await pages[role].evaluate(() => window.headlessTest.reset()); peers[role] = host.connect(role, send(role)); }
+    for (const role of roles) {
+      queues[role].length = 0; await pages[role].evaluate(() => window.headlessTest.reset());
+      if (!connection) peers[role] = host.connect(role, send(role));
+    }
     await pump(); await equal("join");
     if (input) {
       for (const role of roles) {
@@ -228,12 +300,25 @@ try {
       const sequence = runtime.session.nextCommandSequence;
       await click("a", { button: "eraserButton" }); await click("a", { cell: [2, 2] }); await pump();
       assert.equal(runtime.session.nextCommandSequence, sequence, "pending receipt blocks duplicate inputs");
-      await pages.a.evaluate(() => window.headlessTest.client.disconnect());
+      if (connection) {
+        await pages.a.evaluate(() => window.headlessTest.link.events.closed());
+        assert.equal(await pages.a.evaluate(() => window.headlessTest.scene.connectionText.visible), true);
+        await pages.a.screenshot({ path: "logs/connection-reconnecting.png" });
+      } else await pages.a.evaluate(() => window.headlessTest.client.disconnect());
       await click("a", { cell: [1, 4] }); await pump();
       assert.equal(runtime.session.nextCommandSequence, sequence, "disconnected input cannot mutate replica or host");
-      host.disconnect(peers.a);
-      await pages.a.evaluate(() => window.headlessTest.connect()); peers.a = host.connect("a", send("a"));
+      if (connection) {
+        await pages.a.waitForFunction(() => window.headlessTest.links.length === 2);
+      } else {
+        host.disconnect(peers.a);
+        await pages.a.evaluate(() => window.headlessTest.connect()); peers.a = host.connect("a", send("a"));
+      }
       await pump(); await equal("input reconnect");
+      if (connection) {
+        assert.equal(await pages.a.evaluate(() => window.headlessTest.scene.connectionText.visible), false);
+        await pages.a.evaluate(() => { const old = window.headlessTest.links[0]; old.events.message("bad stale input"); old.events.closed(false); });
+        assert.equal(await pages.a.evaluate(() => window.headlessTest.client.status), "ready");
+      }
       assert.equal(await pages.a.evaluate(() => window.headlessTest.client.busy), false);
       assert.equal(runtime.world.towers.filter(t => t.type === "B").length, 1, "lost receipt retry does not deploy twice");
       await click("a", { button: "eraserButton" }); await click("a", { cell: [2, 2] }); await pump();
@@ -258,7 +343,47 @@ try {
       assert.equal(await pages.a.evaluate(() => window.headlessTest.scene.menuOpen), false);
       await pages.a.screenshot({ path: "logs/player-input.png" });
       for (const role of roles) assert.equal(await pages[role].evaluate(() => JSON.stringify(localStorage) === window.headlessTest.profile), true);
-      results.push({ levelId, input: true, checksum: checksum() });
+      if (connection) {
+        for (let i = 0; i < 3; i++) {
+          await pages.a.evaluate(() => window.headlessTest.client.reconnect()); await pump(); await equal("scene replacement " + i);
+          assert.equal(await pages.a.evaluate(() => window.__testGame.scene.getScenes(false).filter(s => s.sys.settings.key.startsWith("RemoteBattle-")).length), 1);
+          assert.equal(await pages.a.locator(".pause-menu-backdrop").count(), 1);
+          assert.equal(await pages.a.evaluate(() => window.headlessTest.timerCount()), 0);
+        }
+        await pages.b.evaluate(() => { window.headlessTest.scene.world.gainChars(1, "b"); });
+        advance(6); await pump(); await equal("owned connection divergence repair");
+        assert.equal(await pages.b.evaluate(() => window.headlessTest.client.status), "ready");
+        assert.equal(await pages.b.locator(".pause-menu-backdrop").count(), 1);
+        await pages.b.evaluate(() => window.headlessTest.link.events.message("{}"));
+        assert.equal(await pages.b.evaluate(() => window.headlessTest.client.status), "failed");
+        assert.equal(await pages.b.evaluate(() => window.headlessTest.scene.connectionText.visible), true);
+        await pages.b.screenshot({ path: "logs/connection-failed.png" });
+        await pages.b.evaluate(() => window.headlessTest.client.reconnect()); await pump(); await equal("manual protocol-error recovery");
+        await pages.a.keyboard.press("Escape");
+        await pages.a.locator(".pause-menu button").nth(3).click();
+        await pages.a.evaluate(() => window.headlessTest.tail);
+        assert.equal(await pages.a.evaluate(() => window.headlessTest.client.status), "closed");
+        assert.equal(await pages.a.evaluate(() => window.headlessTest.exits), 1);
+        assert.equal(await pages.a.evaluate(() => window.headlessTest.timerCount()), 0);
+        assert.equal(await pages.a.locator(".pause-menu-backdrop").count(), 0);
+        assert.equal(await pages.a.evaluate(() => window.__testGame.scene.getScenes(false).filter(s => s.sys.settings.key.startsWith("RemoteBattle-")).length), 0);
+        await pages.a.evaluate(() => { window.__testGame.scene.stop("MainMenuScene"); window.headlessTest.reset(); });
+        await pump(); await equal("new connection owner");
+        await pages.a.evaluate(() => window.__testGame.scene.stop(window.headlessTest.scene.sys.settings.key));
+        await pages.a.evaluate(() => window.headlessTest.tail);
+        assert.equal(await pages.a.evaluate(() => window.headlessTest.client.status), "closed");
+        assert.equal(await pages.a.evaluate(() => window.headlessTest.exits), 2);
+        assert.equal(await pages.a.evaluate(() => window.headlessTest.timerCount()), 0);
+        assert.equal(await pages.a.locator(".pause-menu-backdrop").count(), 0);
+        await pages.b.evaluate(() => window.__testGame.destroy(true));
+        await pages.b.waitForFunction(() => window.headlessTest.client.status === "closed");
+        await pages.b.evaluate(() => window.headlessTest.tail);
+        assert.equal(await pages.b.evaluate(() => window.headlessTest.timerCount()), 0);
+        assert.equal(await pages.b.locator(".pause-menu-backdrop").count(), 0);
+        assert.equal(await pages.b.evaluate(() => window.headlessTest.exits), 0, "destroying the game must not reopen menu scenes");
+        assert.equal(peers.a, undefined); assert.equal(peers.b, undefined);
+      }
+      results.push({ levelId, input: true, connection, checksum: checksum() });
       continue;
     }
     assert.equal((await request("b", control({ type: "debugChars" }))).result, "forbidden");

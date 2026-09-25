@@ -92,7 +92,7 @@ progress or delete saves. See [session](battle-session.md), [world](battle-world
 [loadout](battle-loadout.md), [policy](battle-policy.md),
 [tutorial state](tutorial-state.md) and [lifecycle](battle-lifecycle.md).
 
-**Gate 3 remains partial.** Participant capabilities and optional
+Participant capabilities and optional
 [owner-only tower access](battle-ownership.md) are immutable session policy.
 Ownership follows deployments, generation, mirrors, suspended and historical
 entities; whole-command preflight protects foreign entities and topology.
@@ -100,8 +100,12 @@ Optional [individual wallets](battle-economy.md) now isolate payment and product
 including automatic upgrades, pipeline outputs and snapshot/host restoration.
 Optional [player resources](battle-player-resources.md) now isolate initial/current
 loadouts, card clocks, shifter/reselection cooldowns, extraction pools and automatic
-upgrade settings. Independently usable player input/HUD/tool bindings remain unfinished;
-network tests currently submit semantic requests rather than actual peer UI input.
+upgrade settings. **Gate 3 has configurable policy and actual player UI bindings**:
+the participant view resolves the correct wallet/deck/clocks/tools, and mouse/key
+operations use the remote intent port. Firefox/WebKit real-input tests cover
+deployment, shifter, erase protection, reselection, settings and pending receipts.
+This does not choose a multiplayer game mode; broader skill/tutorial UI coverage
+is still needed.
 
 ### Identity And Synchronization
 
@@ -127,17 +131,21 @@ This is connected-client evidence, not merely multiple scenes in one browser.
 See [authority](battle-authority.md), [synchronization](battle-synchronization.md).
 
 **Gates 5-7 remain partial.** The relay is test infrastructure, not a production
-connection/lobby or player-input UI. [Durable host recovery](durable-battle-host.md)
+connection/lobby service. Player input is now wired, and a
+[connection owner](battle-connection.md) handles retry/backoff, status, scene
+replacement and final disposal, with real-browser lifecycle checks.
+[Durable host recovery](durable-battle-host.md)
 now covers atomic file replacement, killed-process restart and real browser
 reconnection. Broader content/fault coverage, distributed failover and crowded
 battle synchronization/storage cost measurements remain unfinished.
 
 ## Next Work
 
-1. Bind participant-aware HUD, selection and tools to the new player resources and remote input.
-2. Integrate transport lifetime handling, then broaden fault and
-   content coverage and profile crowded host/replica execution.
-3. Retain exact cross-engine numeric gates while expanding content/platform coverage.
+1. Profile crowded host/replica execution, synchronization and durable-storage cost.
+2. Broaden fault and content coverage, especially targeted skill/tutorial input,
+   while retaining exact cross-engine numeric gates.
+3. Audit the full acceptance gates against current implementation and evidence.
+   Steam/lobby transport and final mode design remain separate decisions.
 
 Rules version 9 adds deterministic math and signed-zero preservation; older saves
 remain loadable, while older replay rule versions are rejected. The full goal is still active. See

@@ -242,6 +242,10 @@ export class GameScene extends Phaser.Scene {
   private playerView!: BattlePlayerView;
   private inputPort?: BattleInputPort;
   private inputEpoch = 0;
+  private unsubscribeInput?: () => void;
+  private connectionText?: Phaser.GameObjects.Text;
+  private onRemoteExit?: () => void;
+  private readonly sceneCleanup = () => this.cleanupSceneHandlers();
   private get selectedCardIds() { return this.playerView.loadout.ids; }
   private get levelElapsed() { return this.world.levelElapsed; }
   private set levelElapsed(value: number) { this.world.levelElapsed = value; }
@@ -380,10 +384,11 @@ export class GameScene extends Phaser.Scene {
     super(key);
   }
 
-  init(data: { levelId?: string; chapterId?: string; selectedCards?: CardId[]; difficulty?: number; unlimitedFirepower?: boolean; resume?: boolean; seed?: number; replay?: BattleReplay; participants?: readonly BattleOperationActor[]; policy?: BattlePolicy; playerLoadouts?: readonly BattlePlayerLoadout[]; persistProgress?: boolean; replica?: BattleReplay; viewActorId?: string; input?: BattleInputPort }) {
+  init(data: { levelId?: string; chapterId?: string; selectedCards?: CardId[]; difficulty?: number; unlimitedFirepower?: boolean; resume?: boolean; seed?: number; replay?: BattleReplay; participants?: readonly BattleOperationActor[]; policy?: BattlePolicy; playerLoadouts?: readonly BattlePlayerLoadout[]; persistProgress?: boolean; replica?: BattleReplay; viewActorId?: string; input?: BattleInputPort; onRemoteExit?: () => void }) {
     this.inputEpoch++;
     if (data.input && !data.replica) throw new Error("Remote input requires a replica");
     this.inputPort = data.input;
+    this.onRemoteExit = data.replica ? data.onRemoteExit : undefined;
     const replica = data.replica ? structuredClone(data.replica) : undefined;
     if (replica) {
       validateReplay(replica);
@@ -527,7 +532,8 @@ export class GameScene extends Phaser.Scene {
       this.scene.start("LevelSelectScene", { chapterId: this.chapterId, resumeError: true });
       return;
     }
-    this.events.once("shutdown", () => this.cleanupSceneHandlers());
+    this.events.once("shutdown", this.sceneCleanup);
+    this.events.once("destroy", this.sceneCleanup);
     useBattlefieldCanvas(this);
     this.cameras.main.setBackgroundColor(palette.black);
     this.drawBoard();
@@ -625,10 +631,27 @@ export class GameScene extends Phaser.Scene {
       paused: this.battlePaused || this.menuOpen || this.reselectOpen, finished: this.gameOver
     }));
     if (this.resumeRequested && !this.playback && !this.gameOver) this.openPauseMenu();
+    if (this.inputPort?.subscribe) {
+      const label = this.connectionText = this.battlefield.ui(() => this.add.text(24, GAME_HEIGHT - 24, "", {
+        fontFamily: "monospace", fontSize: "14px", color: "#efc777", wordWrap: { width: 180 }
+      }).setOrigin(0, 1).setDepth(50));
+      this.unsubscribeInput = this.inputPort.subscribe(status => {
+        label.setText(t(`connection.${status}`)).setVisible(status !== "ready");
+        label.setColor(status === "failed" ? "#ff8888" : "#efc777");
+        if (status !== "ready") {
+          this.shifter.deactivate(); this.cancelSpellMortarTargeting(); this.clearPlacementGhosts();
+        }
+        this.updateCards();
+      });
+    }
   }
 
   private cleanupSceneHandlers() {
+    this.events.off("shutdown", this.sceneCleanup);
+    this.events.off("destroy", this.sceneCleanup);
     this.inputEpoch++;
+    this.unsubscribeInput?.(); this.unsubscribeInput = undefined;
+    this.connectionText?.destroy(); this.connectionText = undefined;
     this.inputPort = undefined;
     this.syncHost?.close(); this.syncHost = undefined;
     setBattleDiscoveryObserver(this);
@@ -1834,6 +1857,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handleOverlayAction() {
+    if (this.session.replica && this.onRemoteExit) { this.onRemoteExit(); return; }
     if (this.levelConfig.survival && !this.gameOver && !this.saveSurvivalBattle()) {
       this.pauseMenu.showError(t("save.failed"));
       this.showToast(t("save.failed"));

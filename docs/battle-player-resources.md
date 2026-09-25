@@ -107,5 +107,6 @@ receipt, lost-receipt reconnect, current cooldowns after restore, separate
 reselection and unchanged local profiles. Screenshots are written under `logs/`.
 
 This is an input/presentation adapter, not a finished multiplayer mode. The
-application still needs an external connection/session lifetime owner and user
-connection status, plus broader skill/tutorial and crowded-battle transport tests.
+application uses [RemoteBattleSession](battle-connection.md) for connection/scene
+lifetime and connection status. Broader skill/tutorial and crowded-battle transport
+tests, plus outer join navigation and a concrete production transport, remain open.

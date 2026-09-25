@@ -10,9 +10,12 @@ export interface BattleSyncClientRuntime {
   receipt?(receipt: BattleReceipt): void;
 }
 
+export type BattleInputStatus = "idle" | "connecting" | "synchronizing" | "ready" | "reconnecting" | "failed" | "closed";
 export interface BattleInputPort {
   readonly ready: boolean;
   readonly busy: boolean;
+  readonly status?: BattleInputStatus;
+  subscribe?(listener: (status: BattleInputStatus) => void): () => void;
   request(intent: BattleIntent, completed?: (receipt: BattleReceipt) => void): boolean;
 }
 
@@ -38,6 +41,7 @@ export class BattleSyncClient {
     this.send = send; this.synchronized = false; this.resyncRequested = false;
   }
   disconnect() { this.send = undefined; this.synchronized = false; this.resyncRequested = false; }
+  dispose() { this.disconnect(); this.pending = undefined; this.completed = undefined; }
 
   private transmit(message: BattleSyncInput) {
     try { this.send?.(message); }
