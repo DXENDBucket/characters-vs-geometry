@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { pathToFileURL } from "node:url";
 import { load, runtimeFromOptions, battleChecksum, captureBattleSnapshot, step, cloneCheckpoint } from "./helpers/battle-runtime.mjs";
-const { decodeSaveGraph, canonicalSaveGraph } = load("src/game/saveGraph.ts");
+const { canonicalSaveGraph } = load("src/game/saveGraph.ts");
+const { restoreBattleData } = load("src/game/restoreBattleData.ts");
 function authoritativeGraph(graph) {
   for (const node of graph.nodes) {
     if (node.kind === "boss") for (const key of ["rotationX", "rotationY", "rotationZ", "velocityX", "velocityY", "velocityZ", "targetVelocityX", "targetVelocityY", "targetVelocityZ", "nextTurnIn"]) delete node.data[key];
@@ -89,7 +90,7 @@ try {
     const selected = fixture.options.selectedCards[0];
     assert.equal(battleChecksum(fresh.snapshot(selected)), fixture.initial, fixture.name + " fresh default factories differ");
     const runtime = runtimeFromOptions(fixture.options, fixture.worldOptions);
-    runtime.restore(decodeSaveGraph(fixture.graph, () => ({})));
+    runtime.restore(restoreBattleData(fixture.graph));
     let restored;
     for (const checkpoint of fixture.checkpoints) {
       const count = checkpoint.tick === 0 ? 0 : 300;

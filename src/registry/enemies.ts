@@ -1,7 +1,6 @@
 import { enemyDefinitionAtRank, enemyDefinitions } from "../data/enemies";
 import { enemyArchetypes, type EnemyAttackMode } from "../data/enemyArchetypes";
 import { enemyKindAtRank, parseEnemyKind } from "../game/enemyIdentity";
-import { t } from "../i18n";
 import type { DamageType, EnemyDefinition, EnemyFamily, EnemyKind } from "../types";
 
 export type { EnemyFamily, EnemyAttackMode };
@@ -68,12 +67,6 @@ export function getEnemyRegistration(kind: EnemyKind) {
 
 export function getEnemyDefinition(kind: EnemyKind) {
   return getEnemyRegistration(kind).definition;
-}
-
-export function getEnemyDisplayName(kind: EnemyKind) {
-  const registration = getEnemyRegistration(kind);
-  if (registration.rank <= enemyArchetypes[registration.family].catalogRanks) return t(registration.nameKey);
-  return t("enemy.rankedName", { name: t(`enemyFamily.${registration.family}`), rank: registration.rank });
 }
 
 export function enemyRank(kind: EnemyKind) { return getEnemyRegistration(kind).rank; }

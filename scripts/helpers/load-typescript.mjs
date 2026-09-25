@@ -26,7 +26,8 @@ export function createTypeScriptLoader(overrides = {}, globals = {}) {
       if (Object.hasOwn(overrides, specifier)) return overrides[specifier];
       if (!specifier.startsWith(".")) return loadExternal(specifier);
       return load(path.relative(root, path.resolve(path.dirname(filename), `${specifier}.ts`)).replaceAll("\\", "/"));
-    }, exports, globals.window ?? { localStorage: { getItem: () => null, setItem() {} } }, { language: "en" });
+    }, exports, Object.hasOwn(globals, "window") ? globals.window : { localStorage: { getItem: () => null, setItem() {} } },
+      Object.hasOwn(globals, "navigator") ? globals.navigator : { language: "en" });
     return exports;
   }
   return load;

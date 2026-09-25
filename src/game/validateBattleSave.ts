@@ -182,8 +182,10 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
       require(boss.pendingCopies === undefined || Array.isArray(boss.pendingCopies) && boss.pendingCopies.length === 0);
     }
     require(boss.advanceMinionKind === ((boss.rank as number) === 1 ? "square" : `square${boss.rank}`));
-    for (const key of ["hitboxWidth", "hitboxHeight", "rotationX", "rotationY", "rotationZ", "velocityX", "velocityY", "velocityZ",
-      "targetVelocityX", "targetVelocityY", "targetVelocityZ", "nextTurnIn", "contactAttackBuffer"]) require(finite(boss[key]));
+    for (const key of ["hitboxWidth", "hitboxHeight", "contactAttackBuffer"]) require(finite(boss[key]));
+    // Legacy display snapshots retain rotation, but a headless authority has no visual pose.
+    for (const key of ["rotationX", "rotationY", "rotationZ", "velocityX", "velocityY", "velocityZ",
+      "targetVelocityX", "targetVelocityY", "targetVelocityZ", "nextTurnIn"]) require(boss[key] === undefined || finite(boss[key]));
     require(finite(boss.invincibleUntil) || ((family === "octahedron" || family === "icosahedron" ||
       family === "del" && (boss.delEcho || record(boss.delSweep) && boss.delSweep.phase !== "complete" ||
         record(boss.delLaneSweep) && ["warning", "sweeping"].includes(boss.delLaneSweep.phase as string))) && boss.invincibleUntil === Infinity));

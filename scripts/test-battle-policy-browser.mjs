@@ -41,7 +41,7 @@ try {
     first.openPauseMenu(); game.scene.processQueue(); check(game.scene.isPaused("FreshProgress"), "Default menu no longer pauses scene");
     first.update(0, 100); check(first.simulation.tick === 0, "Default menu advanced battle"); first.closePauseMenu(); game.scene.processQueue();
     progress.unlockAllCards(); progress.completeAllLevels();
-    check(first.session.policy.slotCount === originalSlots && !first.createPlayerControlRuntime().reselectAvailable,
+    check(first.session.policy.slotCount === originalSlots && !first.runtime.controls.reselectAvailable,
       "Progress update changed an existing battle's policy");
     for (const scene of [first, host]) {
       control(scene, { type: "debugMode", enabled: true }); control(scene, { type: "debugChars" });

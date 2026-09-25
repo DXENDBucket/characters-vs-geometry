@@ -29,8 +29,8 @@ try {
       game.scene.add(key, new GameScene(key), false); game.scene.start(key, options); return game.scene.getScene(key);
     };
     const a = start("ControlUI"), b = start("ControlCommands");
-    const calls = [], oldApply = a.applyPlayerControl.bind(a);
-    a.applyPlayerControl = (actor, control) => { calls.push(control.type); return oldApply(actor, control); };
+    const calls = [], oldApply = a.runtime.executeControl.bind(a.runtime);
+    a.runtime.executeControl = (actor, control) => { calls.push(control.type); return oldApply(actor, control); };
     const equal = label => check(a.battleChecksum() === b.battleChecksum(), `${label}: ${a.battleChecksum()} / ${b.battleChecksum()}`);
     const send = (control, expected = "handled", scene = b) => {
       const result = scene.submitPlayerControl("local", structuredClone(control));
@@ -71,7 +71,7 @@ try {
     for (let i = 0; i < 14500; i++) { a.update(0, 1000 / 60); b.update(0, 1000 / 60); }
     equal("simulation with different local tools");
     const requested = { type: "reselect", cards: ["B", "?A", "="] };
-    const runtime = b.createPlayerControlRuntime(), before = b.battleChecksum(); runtime.slotCount = 1;
+    const runtime = { ...b.runtime.controls, slotCount: 1 }, before = b.battleChecksum();
     check(executeBattleControl("local", requested, runtime) === "forbidden", "Slot policy bypassed");
     check(b.battleChecksum() === before, "Rejected loadout spent reselection cooldown");
     runtime.slotCount = 10; runtime.cardAllowed = id => id !== "?A";

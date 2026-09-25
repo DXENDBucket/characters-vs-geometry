@@ -1,7 +1,10 @@
 import { COLUMNS, LANES } from "../config";
 import { allCardDefinitions, getCardDefinition } from "../registry/cardDefinitions";
 import type { BossKind, CardId, EnemyKind } from "../types";
-import type { BattleSession } from "./battleSession";
+import type { BattleSession, BattleSessionRuntime } from "./battleSession";
+import { createBattleControlRuntime } from "./battleControlRuntime";
+import { executeBattleControl, type BattleControl, type BattleControlRuntime } from "./battleControls";
+import type { SemanticBattleCommand } from "./battleAuthority";
 import type { BattleWorldSystems } from "./battleWorld";
 import { BattleWorld } from "./battleWorld";
 import type { BattleResult } from "./battleLifecycle";
@@ -62,7 +65,7 @@ import type { BattleSaveData } from "./battleSaveState";
 import { restoreBattleEntityIds } from "./battleEntityGraph";
 import { syncTowerOccupancy } from "./towerOccupancy";
 import { executeBattleOperationRules, type BattleOperationExecutionRuntime } from "./battleOperationRuntime";
-import type { BattleOperation } from "./battleOperations";
+import type { BattleOperation, BattlePoint } from "./battleOperations";
 import { connectTowerTopology } from "./towerTopology";
 
 // Factories may attach display objects, but must preserve the same authoritative state.
@@ -76,6 +79,9 @@ export interface BattleFactories {
   enemyProjectile: (state: EnemyProjectileState) => EnemyProjectileState;
 }
 export interface BattleRuntimeObservers {
+  controlChanged?(type: BattleControl["type"]): void;
+  debugChars?(amount: number): void;
+  debugDamage?(point: BattlePoint): void;
   cards?(): void;
   placement?(): void;
   topology?(): void;
@@ -126,6 +132,14 @@ export class BattleRuntime {
   readonly skillRuntime: TowerSkillSimulationRuntime;
   readonly systems: BattleWorldSystems;
   readonly factories: BattleFactories;
+  readonly controls: BattleControlRuntime;
+  readonly sessionRuntime: BattleSessionRuntime = {
+    step: () => this.step(), canAdvance: () => !this.world.gameOver,
+    executeCommand: command => {
+      if (command.type !== "operation" && command.type !== "control") throw new Error("Legacy input requires a local input adapter");
+      this.executeCommand(command);
+    }
+  };
   readonly schedule: ScheduleBattleAction = (delay, action) => this.session.actions.schedule(this.world.battleTime, delay, action);
   readonly routeTowerAction: TowerActionDataListener = (tower, event) =>
     routePipelineTowerAction(tower, event, this.circuit, this.combat, getCardDefinition);
@@ -358,6 +372,7 @@ export class BattleRuntime {
       }),
       spawnWave: spawns => world.spawnTutorialWave(spawns, this.systems), finish: () => this.finish("victory")
     });
+    this.controls = createBattleControlRuntime(this);
   }
 
   step() { this.world.step(this.systems); }
@@ -387,6 +402,15 @@ export class BattleRuntime {
 
   executeOperation(actorId: string, operation: BattleOperation) {
     return executeBattleOperationRules(this.operationRuntime(), actorId, operation);
+  }
+
+  executeControl(actorId: string, control: BattleControl) {
+    return executeBattleControl(actorId, control, this.controls);
+  }
+
+  executeCommand(command: SemanticBattleCommand) {
+    return command.type === "operation" ? this.executeOperation(command.actorId, command.operation) :
+      this.executeControl(command.actorId, command.control);
   }
 
   snapshot(selectedCardId: CardId): BattleSaveData {

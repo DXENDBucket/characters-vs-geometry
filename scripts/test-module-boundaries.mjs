@@ -105,7 +105,7 @@ test("data, geometry, support queries and snapshot capture cannot pull in scenes
     "projectileCircuitRules", "pipelineRouting", "pipelineRules", "pipelineActionRules", "pipelineActionPayload",
     "targetedEffectRules", "towerAttachmentRules", "towerUpgradeRules", "towerDeploymentRules",
     "towerMirrorRules", "towerCopy", "towerTopology", "towerBoard", "towerShifterRules", "towerPushRules",
-    "battleOperationRuntime", "edgeTowerControls"];
+    "battleOperationRuntime", "edgeTowerControls", "battleControlRuntime", "battleSetup", "independentBattle", "restoreBattleData"];
   for (const entry of [...entries, "../registry/cardDefinitions"]) {
     const seen = new Set();
     const visit = (name, chain) => {
@@ -126,6 +126,25 @@ test("combat code cannot write a player's persistent profile", () => {
     if (!name.startsWith("src/game/") && !name.startsWith("src/bosses/")) continue;
     assert.ok(!dependencies.includes("src/progress.ts") && !dependencies.includes("src/battleProfile.ts"), name);
   }
+});
+
+test("independent battle boot, controls and restoration have no browser or wall-clock globals", () => {
+  const forbidden = new Set(["window", "document", "navigator", "localStorage", "sessionStorage", "Date", "performance", "crypto",
+    "setTimeout", "setInterval", "requestAnimationFrame"]);
+  const seen = new Set();
+  const visit = name => {
+    if (seen.has(name) || !sources.has(name)) return;
+    seen.add(name);
+    const ast = ts.createSourceFile(name, ts.transpileModule(sources.get(name), { compilerOptions }).outputText, ts.ScriptTarget.Latest, true);
+    const walk = node => {
+      if (ts.isIdentifier(node)) assert.ok(!forbidden.has(node.text), name + ": " + node.text);
+      ts.forEachChild(node, walk);
+    };
+    walk(ast);
+    for (const child of graph.get(name) ?? []) visit(child);
+  };
+  visit("src/game/independentBattle.ts");
+  assert.ok(seen.size > 100);
 });
 
 test("the independent battle graph cannot use implementation-approximated native math", () => {
@@ -154,5 +173,6 @@ test("the independent battle graph cannot use implementation-approximated native
     for (const child of graph.get(name) ?? []) visit(child);
   };
   visit("src/game/battleRuntime.ts");
+  visit("src/game/independentBattle.ts");
   assert.ok(seen.size > 100);
 });

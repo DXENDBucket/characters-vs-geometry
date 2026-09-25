@@ -93,8 +93,8 @@ try {
     }
     game.scene.stop("PausedPlayback");
     const trace = scene => {
-      const events = [], execute = scene.executeBattleAction.bind(scene);
-      scene.executeBattleAction = action => {
+      const events = [], execute = scene.runtime.executeAction.bind(scene.runtime);
+      scene.runtime.executeAction = action => {
         events.push([scene.simulation.tick, action.type, action.tower?.entityId ?? action.enemy?.entityId ?? action.boss?.entityId]);
         execute(action);
       };

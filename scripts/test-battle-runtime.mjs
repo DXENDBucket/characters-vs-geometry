@@ -1,11 +1,18 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { createTypeScriptLoader } from "./helpers/load-typescript.mjs";
 import { load, createRuntime, runtimeFromOptions, cloneCheckpoint, captureBattleSnapshot, battleChecksum, place, step } from "./helpers/battle-runtime.mjs";
 const { getTowerSkillState } = load("src/game/skillState.ts");
 const { towerOperationRef: ref } = load("src/game/battleOperations.ts");
 const { collectBattleEntities } = load("src/game/battleEntityGraph.ts");
 const { damageBoss } = load("src/game/unitLifecycle.ts");
 const { applyStatusEffect } = load("src/game/statusEffects.ts");
+const { createIndependentBattle } = load("src/game/independentBattle.ts");
+const { restoreBattleData } = load("src/game/restoreBattleData.ts");
+const { BattleAuthority } = load("src/game/battleAuthority.ts");
+const { LEGACY_BATTLE_POLICY } = load("src/game/battlePolicy.ts");
+const { getCardDefinition } = load("src/registry/cardDefinitions.ts");
+const { BATTLE_STEP_MS } = load("src/game/battleSimulation.ts");
 const checksum = runtime => battleChecksum(runtime.snapshot(runtime.world.loadout.ids[0]));
 const prepared = (level = "1-9", cards = ["A", "B", "X"]) => {
   const runtime = createRuntime(level, cards);
@@ -144,5 +151,135 @@ test("AE-EX-2 mirrored shells keep exact checksums across wire restore and the f
       assert.equal(checksum(local), checksum(runtime), "local checkpoint at " + tick);
       assert.equal(checksum(remote), checksum(runtime), "wire checkpoint at " + tick);
     }
+  }
+});
+
+test("independent boot shares tutorial/unlimited rules and rejects invalid captured configuration", () => {
+  const options = createRuntime().session.exportReplay();
+  const normal = createIndependentBattle(options);
+  const unlimited = createIndependentBattle({ ...options, unlimitedFirepower: true });
+  assert.equal(unlimited.world.options.difficulty.weightMultiplier, normal.world.options.difficulty.weightMultiplier * 10);
+  const tutorial = createIndependentBattle({ ...options, levelId: "0-2", unlimitedFirepower: true });
+  assert.equal(tutorial.world.options.unlimitedFirepower, false);
+  assert.equal(tutorial.world.sealedCells.size, 78);
+  assert.throws(() => createIndependentBattle({ ...options, levelId: "missing" }), /Unknown battle level/);
+  assert.throws(() => createIndependentBattle({ ...options, difficulty: NaN }), /Unsupported battle replay/);
+  assert.throws(() => createIndependentBattle({ ...options, selectedCards: ["?"] }), /Invalid battle cards/);
+  assert.throws(() => createIndependentBattle(options, { replica: true }), /checkpoint/);
+  assert.throws(() => createIndependentBattle(options, { playback: { ...options, commands: [
+    { tick: 0, sequence: 0, command: { type: "selectCard", id: "A" } }
+  ] } }), /Legacy input replay/);
+});
+
+test("the production independent entry boots and executes controls without browser shims", () => {
+  const bare = createTypeScriptLoader({}, { window: undefined, navigator: undefined })("src/game/independentBattle.ts");
+  const runtime = bare.createIndependentBattle({ ...createRuntime("AE-10").session.exportReplay(), debug: true });
+  assert.equal(runtime.executeControl("local", { type: "debugChars" }), "handled");
+  runtime.session.advance(BATTLE_STEP_MS, runtime.sessionRuntime);
+  assert.equal(runtime.session.clock.tick, 1);
+  assert.ok(runtime.world.boss);
+});
+
+test("real independent authority applies controls, settings, cooldown-preserving reselection and semantic replay", () => {
+  const options = { ...createRuntime("IF-1").session.exportReplay(), policy: LEGACY_BATTLE_POLICY };
+  const runtime = createIndependentBattle(options);
+  const authority = new BattleAuthority("headless", runtime.session, {
+    available: () => !runtime.world.gameOver, inputTime: () => 0, execute: command => runtime.executeCommand(command)
+  });
+  const control = data => authority.submitTrusted("local", { type: "control", control: data });
+  assert.equal(control({ type: "debugChars" }), "forbidden");
+  control({ type: "debugMode", enabled: true });
+  control({ type: "debugChars" });
+  assert.equal(runtime.world.lifecycleSnapshot().flawlessEligible, false);
+  control({ type: "autoUpgradeEnabled", enabled: false });
+  control({ type: "reserve", value: 450 });
+  assert.equal(authority.submitTrusted("local", { type: "operation", operation: {
+    type: "deploy", card: "A", cell: { lane: 3, column: 8 }, expected: null
+  } }), "deployed");
+  control({ type: "pause", paused: true });
+  step(runtime, 100); assert.equal(runtime.session.clock.tick, 0);
+  control({ type: "pause", paused: false });
+  control({ type: "speed", speed: 2 });
+  assert.equal(control({ type: "reselect", cards: ["A", "B"] }), "cooldown");
+  step(runtime, 7201);
+  assert.ok(!runtime.world.gameOver);
+  assert.equal(control({ type: "reselect", cards: ["B", "A"] }), "handled");
+  assert.deepEqual(runtime.world.loadout.ids, ["B", "A"]);
+  assert.equal(control({ type: "reselect", cards: ["X"] }), "cooldown");
+  step(runtime, 60);
+  const replay = runtime.session.exportReplay(), expected = checksum(runtime);
+  for (const delta of [1000 / 30, 1000 / 144]) {
+    const restored = createIndependentBattle(replay, { playback: replay });
+    while (!restored.session.playbackComplete) restored.session.advance(delta, restored.sessionRuntime);
+    assert.equal(checksum(restored), expected);
+  }
+  const checkpoint = captureBattleSnapshot(runtime.snapshot("B"));
+  const resumedOptions = { ...replay, selectedCards: [...runtime.world.loadout.ids] };
+  const resumed = createIndependentBattle(resumedOptions, { checkpoint });
+  assert.equal(checksum(resumed), expected);
+  assert.equal(resumed.executeControl("local", { type: "reselect", cards: ["X"] }), "cooldown");
+  assert.throws(() => createIndependentBattle({ ...resumedOptions, selectedCards: ["A", "B"] }, { checkpoint }), /loadout differs/);
+  step(runtime, 200); step(resumed, 200);
+  assert.equal(checksum(resumed), checksum(runtime));
+});
+
+test("independent control damage hits actual enemies and Bosses without display callbacks", () => {
+  const runtime = createIndependentBattle({ ...createRuntime("2-10").session.exportReplay(), debug: true });
+  runtime.spawnEnemy({ kind: "circle", waveNumber: 1, lane: 0, x: 700, time: 0, waveWeight: 10, finalDamageReduction: 0 });
+  const enemy = runtime.world.enemies[0];
+  assert.equal(runtime.executeControl("local", { type: "debugDamage", mode: "normal", point: { x: enemy.x, y: enemy.y } }), "handled");
+  assert.equal(enemy.inPlay, false);
+  const hp = runtime.world.boss.hp, { x, y } = runtime.world.boss;
+  runtime.executeControl("local", { type: "debugDamage", mode: "super", point: { x, y } });
+  assert.ok(runtime.world.boss.hp < hp);
+  assert.equal(runtime.executeControl("unknown", { type: "debugChars" }), "forbidden");
+});
+
+test("independent tutorial controls reject stale selections and advance without views", () => {
+  const runtime = createIndependentBattle({ ...createRuntime("0-5").session.exportReplay(), selectedCards: ["A", "B", "X"] });
+  assert.equal(runtime.executeControl("local", { type: "tutorialInput", input: { tool: "shifter", selected: ["tower:999"] } }), "stale");
+  assert.equal(runtime.executeControl("local", { type: "tutorialInput", input: { tool: "erase", selected: [] } }), "handled");
+  const before = runtime.world.tutorialSnapshot();
+  assert.equal(runtime.executeControl("local", { type: "tutorialAdvance" }), "handled");
+  assert.notDeepEqual(runtime.world.tutorialSnapshot(), before);
+  const checkpoint = captureBattleSnapshot(runtime.snapshot("A"));
+  const replica = createIndependentBattle(runtime.session.exportReplay(), { checkpoint, replica: true });
+  assert.equal(checksum(replica), checksum(runtime));
+  replica.session.advance(BATTLE_STEP_MS, replica.sessionRuntime);
+  assert.equal(replica.session.clock.tick, runtime.session.clock.tick);
+});
+
+test("pure snapshot migration supplies identical authoritative defaults to arbitrary display factories", () => {
+  const runtime = prepared("2-10", ["x"]);
+  const tower = place(runtime, "x", 0, 0);
+  tower.level = 2; tower.baseStats.attackPower = 200; tower.finalStats.attackPower = 360;
+  runtime.world.boss.bossHasteUntil = 5000;
+  const state = runtime.snapshot("x"); state.simulation.version = 3;
+  delete tower.deployedAt;
+  const graph = captureBattleSnapshot(state), savedRandom = runtime.session.random.state;
+  const plain = restoreBattleData(graph);
+  const displayed = restoreBattleData(graph, () => ({ body: { fake: true }, speed: 12345, deployedAt: 999 }));
+  assert.equal(plain.towers[0].deployedAt, 0);
+  assert.equal(displayed.towers[0].deployedAt, 0);
+  assert.equal(plain.towers[0].baseStats.attackPower, getCardDefinition("x").attackPower);
+  assert.equal(plain.towers[0].finalStats.attackPower, getCardDefinition("x").attackPower);
+  assert.equal(plain.boss.bossHasteUntil, 0);
+  assert.equal(plain.boss.statusEffects.find(e => e.name === "haste").expiresAt, 5000);
+  assert.equal(runtime.session.random.state, savedRandom);
+  assert.equal(battleChecksum(plain), battleChecksum(displayed));
+});
+
+test("independent Boss checkpoints validate without visual pose, while malformed optional pose is rejected", () => {
+  for (const levelId of ["1-10", "2-10", "5-5", "5-10", "AE-10", "IF-BE-4"]) {
+    const options = createRuntime(levelId).session.exportReplay(), runtime = createIndependentBattle(options);
+    const checkpoint = captureBattleSnapshot(runtime.snapshot("A"));
+    const replica = createIndependentBattle(options, { checkpoint, replica: true });
+    assert.equal(checksum(replica), checksum(runtime), levelId);
+    step(runtime, 300);
+    replica.session.followFrame(300, [], replica.sessionRuntime);
+    assert.equal(checksum(replica), checksum(runtime), levelId + " continuation");
+    const malformed = structuredClone(checkpoint);
+    malformed.nodes.find(node => node.kind === "boss").data.rotationX = { number: "Infinity" };
+    assert.throws(() => createIndependentBattle(options, { checkpoint: malformed }), /Invalid battle save/);
   }
 });

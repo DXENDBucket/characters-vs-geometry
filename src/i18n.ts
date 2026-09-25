@@ -1,15 +1,6 @@
 export type Language = "en" | "zh-CN";
 
-export const DAMAGE_SYMBOLS = {
-  physical: "◆",
-  magic: "✦",
-  true: "◇"
-} as const;
-
-export const EFFECT_SYMBOLS = {
-  chars: "Aa",
-  heal: "♡"
-} as const;
+export { DAMAGE_SYMBOLS, EFFECT_SYMBOLS } from "./data/symbols";
 
 const STORAGE_KEY = "characters-vs-geometry-language";
 

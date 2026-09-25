@@ -651,9 +651,10 @@ test("high-rank attacks and skill charge scale without changing existing low-ran
 });
 
 test("high-rank names do not require translation entries per rank and labels remain bounded", () => {
-  assert.equal(registry.getEnemyDisplayName("triangle100"), "TRIANGLE 100");
-  assert.equal(registry.getEnemyDisplayName("heart10000"), "HEART 10000");
-  assert.equal(registry.getEnemyDisplayName("triangle3"), "TRIANGLE 3");
+  const { getEnemyDisplayName } = load("src/enemyDisplayName.ts");
+  assert.equal(getEnemyDisplayName("triangle100"), "TRIANGLE 100");
+  assert.equal(getEnemyDisplayName("heart10000"), "HEART 10000");
+  assert.equal(getEnemyDisplayName("triangle3"), "TRIANGLE 3");
   const { toRomanNumeral } = load("src/format.ts");
   assert.equal(toRomanNumeral(3), "III");
   assert.equal(toRomanNumeral(100), "C");

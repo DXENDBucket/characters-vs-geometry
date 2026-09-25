@@ -66,9 +66,12 @@ and independent Node integrations. Semantic operation wiring and resolved-state
 capture/restore also use that assembly. Local targeting controllers bind its
 existing simulation objects rather than constructing parallel ones.
 
-**Gates 1-2 remain incomplete.** Control/UI ingress and legacy display hydration
-still need independent adapters. Canonical capture fixes property-order-sensitive
-checksums. Rules-9 deterministic math now passes exact Node/Chromium/Firefox/WebKit
+The [independent entry](independent-battle.md) now shares boot, semantic controls,
+checkpoint defaults and legacy state migration with the scene. Dependency guards
+and a no-browser-shim Node test verify its boundary. **Gates 1-2 are implemented
+for current semantic battles**; legacy pointer recordings still require the local
+adapter, and coverage is not exhaustive across content/platforms. Canonical capture
+fixes property-order-sensitive checksums. Rules-9 math passes exact Node/Chromium/Firefox/WebKit
 comparisons for eleven complete-runtime fixtures; see [math](battle-math.md) and
 [wire state](battle-wire-state.md) for the contract and verification limits.
 
@@ -122,11 +125,10 @@ coverage and crowded-battle synchronization cost measurements remain unfinished.
 
 ## Next Work
 
-1. Complete independent control/checkpoint adapters around the shared runtime;
-   retain exact cross-engine numeric gates while expanding content/platform coverage.
-2. Finish participant/resource policies and durable authority recovery.
-3. Integrate client input and transport lifetime handling, then broaden fault and
+1. Finish participant/resource policies and durable authority recovery.
+2. Integrate client input and transport lifetime handling, then broaden fault and
    content coverage and profile crowded host/replica execution.
+3. Retain exact cross-engine numeric gates while expanding content/platform coverage.
 
 Rules version 9 adds deterministic math and signed-zero preservation; older saves
 remain loadable, while older replay rule versions are rejected. The full goal is still active. See

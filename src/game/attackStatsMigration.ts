@@ -1,4 +1,6 @@
-import type { CardId, Enemy, Tower, TowerFinalStats } from "../types";
+import type { CardId, TowerFinalStats } from "../types";
+import type { EnemyState } from "./enemyState";
+import type { TowerState } from "./towerState";
 import { getCardDefinition } from "../registry/cardDefinitions";
 import { getEnemyDefinition } from "../registry/enemies";
 import { towerFormType } from "./towerIdentity";
@@ -10,7 +12,7 @@ const legacyAttackPower: Partial<Record<CardId, number>> = {
 };
 
 // Old panels already included upgrade damage. Strip it before applying the new coefficients.
-export function migrateAttackStats(version: number | undefined, towers: Tower[], enemies: Enemy[]) {
+export function migrateAttackStats(version: number | undefined, towers: TowerState[], enemies: EnemyState[]) {
   if ((version ?? 1) >= 4) return;
   const migrated = new Set<TowerFinalStats>();
   const migratePanel = (type: CardId, level: number, stats: TowerFinalStats) => {

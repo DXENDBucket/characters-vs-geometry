@@ -29,7 +29,8 @@ import { drawTowerShellBorder } from "../render/parenthesisTower";
 import { isTowerShellType } from "../game/towerOccupancy";
 import { EncyclopediaPanel } from "../render/encyclopediaPanel";
 import { allCardDefinitions, canImitateCard, cardLetterCase, getCardDefinition, type CardLetterCase } from "../registry/cardDefinitions";
-import { enemyFamily, enemyRank, getEnemyDefinition, getEnemyDisplayName, type EnemyFamily } from "../registry/enemies";
+import { enemyFamily, enemyRank, getEnemyDefinition, type EnemyFamily } from "../registry/enemies";
+import { getEnemyDisplayName } from "../enemyDisplayName";
 import type { BossKind, CardId, EnemyKind } from "../types";
 
 const LOADOUT_STORAGE_KEY = "characters-vs-geometry:last-card-loadout";

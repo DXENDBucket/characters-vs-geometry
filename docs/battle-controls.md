@@ -9,7 +9,7 @@ from both UI adapters and `GameScene.submitPlayerControl(actorId, control)`.
 
 - Desired settings are explicit values, not toggles. Reapplying the same setting
   has no effect callback. This is not transport-level request deduplication;
-  resource grants and other actions still need the future authority protocol.
+  resource grants and other actions are deduplicated by the separate authority protocol.
 - The host resolves participants and authorizes separate `time`, `settings`,
   `loadout`, `debug` and `tutorial` capabilities. Identity strings are not proof of
   authentication. Single-player still registers only the trusted `local` actor.
@@ -28,10 +28,10 @@ from both UI adapters and `GameScene.submitPlayerControl(actorId, control)`.
 
 Control data lives in a separate `BattleControlState`. Reselection and card
 deadlines now use the renderer-free `BattleWorld.loadout`; the scene only rebuilds
-its views after success. See [loadout state](battle-loadout.md). Other callbacks
-and combat controllers still use live scene adapters. Time and resource policies
-remain single-player defaults; a participant registry and independent wallets are
-not implemented by this boundary.
+its views after success. See [loadout state](battle-loadout.md). All control effects
+use `battleControlRuntime.ts` in both the scene and independent host. Participants
+and capabilities are captured session data; wallets, loadouts and cooldowns remain
+shared. Independently configurable player resources are still unfinished.
 
 ## Local State
 
@@ -76,10 +76,10 @@ See [paused checkpoints](battle-session.md#paused-checkpoints) for legacy defaul
 
 ## Compatibility And Checks
 
-Rules version is now **7**: reserve editing no longer suspends automatic upgrades,
-and local card selection no longer contributes to the checksum. Version 1-6 saves
-remain readable and continue under current rules. Version 6 recordings are
-explicitly rejected rather than silently interpreted with new input semantics.
+Current rules version is **9**. Since version 7, reserve editing no longer suspends
+automatic upgrades and local card selection no longer contributes to the checksum.
+Older supported saves continue under current rules; older replay rule versions
+are explicitly rejected. Version 9 adds deterministic math and signed-zero snapshots.
 New recordings also capture slot/card access and reselection eligibility, preventing
 rejected commands from succeeding during playback against another local profile.
 Old policy-less recordings retain their earlier permissive behavior.

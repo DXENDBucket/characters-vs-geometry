@@ -1,14 +1,9 @@
 import type Phaser from "phaser";
-import { TETRAHEDRON_BOSS_HASTE_MULTIPLIER, CELL_WIDTH, CELL_HEIGHT, CUBE_BOSS_STATS } from "../config";
-import { refreshStatusEffect } from "./rules/statusEffectRules";
 import type { CubeBoss, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower } from "../types";
 import { createCubeBoss, updateCubeBossMotion } from "../bosses/cubeBoss";
-import { createConfiguredBossSkill } from "./bossSkillRules";
-import { DEL_ECHO_HITBOX_CELLS } from "../data/delBoss";
 import { syncBossCopyWarnings } from "../render/bossCopyWarnings";
 import { syncDelSweepWarning } from "../render/delSweepWarning";
 import { secondaryBossParts } from "./unitGeometry";
-import { rankedBossFamily } from "../bosses/bossRanks";
 import { getCardDefinition } from "../registry/cardDefinitions";
 import { towerBehaviorType } from "./towerIdentity";
 import { syncTowerFormVisual } from "./towers";
@@ -17,19 +12,17 @@ import { createTower, syncTowerFacingVisual, syncTowerFlyingVisual, syncTowerHpB
 import { createMortarProjectile, createTowerProjectile, restoreEnemyProjectile } from "./projectiles";
 import { syncEnemyFacingVisual, syncEnemyVisualScale } from "./enemyBehaviors";
 import { syncChevronVisual } from "../render/chevronLeader";
-import { statusMultipliers } from "./statusEffects";
 import { syncEnemyBodyPosition, syncEnemyStatusVisuals } from "../render/enemyStatus";
-import { decodeSaveGraph, type GraphNode, type SaveGraph } from "./saveGraph";
+import type { GraphNode, SaveGraph } from "./saveGraph";
+import { restoreBattleData, snapshotPrimitiveData } from "./restoreBattleData";
+import { atan2 } from "./battleMath";
 import type { BattleSaveState } from "./battleSaveState";
 import type { EnemyProjectileState } from "./projectileState";
-import { containedEnemies, syncPassengerPositions } from "./enemyContainers";
+import { containedEnemies, syncPassengerVisuals } from "./enemyContainers";
 import { projectileVisualScale } from "./projectileIntegrity";
 import { syncTowerAttachmentVisual } from "../render/towerAttachments";
-import { migrateAttackStats } from "./attackStatsMigration";
 import { withoutBattleEntityAllocation } from "./battleEntityIds";
-import { restoreBattleEntityIds } from "./battleEntityGraph";
 import { battleRandom, isBattlePlayback, setBattlePlayback } from "./battleSimulation";
-import { restoredBattleLifecycle } from "./battleLifecycle";
 
 export { captureBattleSnapshot } from "./captureBattleSnapshot";
 
@@ -43,53 +36,47 @@ export function restoreBattleSnapshot(scene: Phaser.Scene, graph: SaveGraph): Ba
   // Constructing a checkpoint must not consume live RNG or write discovery progress.
   setBattlePlayback(scene, true);
   try {
-    const state = withoutBattleEntityAllocation(scene, () => decodeSaveGraph<BattleSaveState>(graph, (node: GraphNode) => {
+    const state = withoutBattleEntityAllocation(scene, () => restoreBattleData(graph, (node: GraphNode) => {
       // References are connected in a second pass; factories only need primitive placement fields.
       if (node.kind === "boss") {
-        const data = node.data as unknown as CubeBoss;
+        const data = snapshotPrimitiveData<CubeBoss>(node);
         const boss = createCubeBoss(scene, data.kind, 0, { rank: data.rank, x: data.x, y: data.y });
         bosses.push(boss); bodies.push(boss.body);
         return boss;
       }
       if (node.kind === "tower") {
-        const data = node.data as unknown as Tower;
+        const data = snapshotPrimitiveData<Tower>(node);
         const tower = createTower(scene, getCardDefinition(data.type), data.lane, data.column, 0, data.placedOrder);
         towers.push(tower); bodies.push(tower.body);
         return tower;
       }
       if (node.kind === "enemy") {
-        const data = node.data as unknown as Enemy;
+        const data = snapshotPrimitiveData<Enemy>(node);
         const enemy = createEnemy(scene, { kind: data.kind, lane: data.lane, x: data.x, time: 0,
           waveNumber: data.waveNumber, waveWeight: data.weight, finalDamageReduction: data.finalDamageReduction });
         enemies.push(enemy); bodies.push(enemy.body);
         return enemy;
       }
       if (node.kind === "mortar") {
-        const data = node.data as unknown as MortarProjectile;
+        const data = snapshotPrimitiveData<MortarProjectile>(node);
         const projectile = createMortarProjectile(scene, { owner: data.owner, fromX: data.fromX, fromY: data.fromY,
           targetX: data.targetX, targetY: data.targetY, damage: data.damage, damageType: data.damageType,
           rangeX: data.rangeX, rangeY: data.rangeY, marker: data.marker, markerText: data.markerText, markerTextColor: data.markerTextColor });
         bodies.push(projectile.body); shots.push(projectile);
         return projectile;
       }
-      const data = node.data as unknown as Projectile;
+      const data = snapshotPrimitiveData<Projectile>(node);
       if (node.kind === "enemyProjectile") {
-        const projectile = restoreEnemyProjectile(scene, node.data as unknown as EnemyProjectileState);
+        const projectile = restoreEnemyProjectile(scene, snapshotPrimitiveData<EnemyProjectileState>(node));
         bodies.push(projectile.body); shots.push(projectile);
         return projectile;
       }
       const projectile = createTowerProjectile(scene, { type: data.type,
         x: data.x, y: data.y, lane: data.lane, speed: 0, damage: data.damage, damageType: data.damageType,
-        splashRadius: 0, angleDegrees: Math.atan2(data.vy ?? 0, data.vx) * 180 / Math.PI, maxX: Infinity });
+        splashRadius: 0, angleDegrees: atan2(data.vy ?? 0, data.vx) * 180 / Math.PI, maxX: Infinity });
       bodies.push(projectile.body); shots.push(projectile);
       return projectile;
-    }));
-    if (!Array.isArray(state.towers) || !Array.isArray(state.enemies)) {
-      throw new Error("Invalid battle state");
-    }
-    restoredBattleLifecycle(state.lifecycle, state.battleTime, state.baseIntegrity);
-    restoreBattleEntityIds(state);
-    migrateAttackStats(state.simulation?.version, towers, enemies);
+    })) as BattleSaveState;
     const nullified = new Set(state.nullifiedTowers?.towers ?? []);
     for (const tower of towers) {
       if (tower.type === "@") syncTowerFormVisual(scene, tower, getCardDefinition(towerBehaviorType(tower)), state.battleTime);
@@ -100,17 +87,6 @@ export function restoreBattleSnapshot(scene: Phaser.Scene, graph: SaveGraph): Ba
       if (!tower.inPlay && !nullified.has(tower)) tower.body.destroy();
     }
     for (const boss of bosses) {
-      if (boss.kind === "del") {
-        const size = boss.delEcho ? DEL_ECHO_HITBOX_CELLS : CUBE_BOSS_STATS.del.hitboxCells!;
-        boss.hitboxWidth = CELL_WIDTH * size;
-        boss.hitboxHeight = CELL_HEIGHT * size;
-      }
-      if (boss.kind === "del" && !boss.delEcho) boss.skills.deleteFormat ??=
-        createConfiguredBossSkill("deleteFormat");
-      if (rankedBossFamily(boss.kind) === "tetrahedron" && boss.bossHasteUntil > state.battleTime) {
-        refreshStatusEffect(boss, "haste", boss.bossHasteUntil, TETRAHEDRON_BOSS_HASTE_MULTIPLIER);
-      }
-      boss.bossHasteUntil = 0;
       if (boss !== state.boss && (!state.boss || !secondaryBossParts(state.boss).includes(boss))) boss.body.destroy();
       else {
         if (boss !== state.boss) boss.body.setDepth(87);
@@ -127,14 +103,13 @@ export function restoreBattleSnapshot(scene: Phaser.Scene, graph: SaveGraph): Ba
     };
     for (const enemy of [...state.enemies, ...storedEnemies]) retainCargo(enemy);
     for (const enemy of enemies) {
-      statusMultipliers(enemy, state.battleTime);
       syncEnemyStatusVisuals(enemy, state.battleTime);
       syncEnemyFacingVisual(enemy); syncEnemyVisualScale(enemy); syncEnemyBodyPosition(enemy);
       syncChevronVisual(enemy);
       enemy.body.setVisible(enemy.inPlay);
       if (!enemy.inPlay && !storedEnemies.has(enemy)) enemy.body.destroy();
     }
-    for (const enemy of state.enemies) syncPassengerPositions(enemy);
+    for (const enemy of state.enemies) syncPassengerVisuals(enemy);
     const activeShots = new Set<Projectile | EnemyProjectile | MortarProjectile>([...state.projectiles, ...state.enemyProjectiles, ...state.mortarProjectiles]);
     // Stored reflection events retain projectile data, not a projectile on the field.
     for (const projectile of shots) if (!activeShots.has(projectile)) projectile.body.destroy();

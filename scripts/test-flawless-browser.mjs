@@ -44,15 +44,13 @@ try {
     check(progress.isLevelCompleted("1-2") && progress.bestFlawlessDifficulty("1-2") === undefined, "Healing erased breach history");
     scene = battle("1-3");
     scene.debugModeEnabled = true;
-    scene.executingCommand = true;
     scene.grantDebugChars();
-    scene.executingCommand = false;
     scene.endLevel();
     check(progress.bestFlawlessDifficulty("1-3") === undefined, "Debug resources awarded flawless");
     for (const mode of ["normal", "super"]) {
       scene = battle("1-4");
-      scene.debugDamageMode = mode;
-      scene.applyDebugDamage(300, 200);
+      scene.submitPlayerControl("local", { type: "debugMode", enabled: true });
+      check(scene.submitPlayerControl("local", { type: "debugDamage", mode, point: { x: 300, y: 200 } }) === "handled", "Debug damage was rejected");
       scene.endLevel();
       check(progress.bestFlawlessDifficulty("1-4") === undefined, "Debug damage awarded flawless");
     }

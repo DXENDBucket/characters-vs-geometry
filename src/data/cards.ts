@@ -1,5 +1,5 @@
 import { CELL_HEIGHT, CELL_WIDTH } from "../config";
-import { DAMAGE_SYMBOLS, EFFECT_SYMBOLS } from "../i18n";
+import { DAMAGE_SYMBOLS, EFFECT_SYMBOLS } from "./symbols";
 import { INITIAL_CARD_IDS } from "./cardUnlocks";
 import type { CardDefinition, CardId } from "../types";
 

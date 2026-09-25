@@ -23,13 +23,14 @@ presentation observers.
 
 GameScene no longer owns the full combat factory/callback graph, tick-system
 assembly, operation execution wiring or resolved-state restoration. It still
-owns control/UI ingress, legacy pointer recordings, display graph hydration,
-profile settlement and transport lifecycle. Those remaining responsibilities
+owns local UI ingress, legacy pointer recordings, display attachment,
+profile settlement and transport lifecycle. Shared control execution and pure graph
+restoration live in the [independent entry](independent-battle.md). Remaining multiplayer responsibilities
 must be addressed before calling the full multiplayer goal complete.
 
 ## Verification
 
-- Eight Node tests instantiate the real assembly with its default data factories.
+- Fifteen Node tests instantiate the real assembly with its default data factories.
   They exercise real waves, attacks, damage, production, permissions, pipeline
   one-shot actions, mirrors with protective shells, push, queued skills, NUL,
   timed seals, tutorial initialization, phase transitions, endless succession,
@@ -47,7 +48,7 @@ must be addressed before calling the full multiplayer goal complete.
   actual GameScene, then runs 3600 ticks with checks every 300 ticks and an
   additional Node wire-checkpoint continuation at tick 1500. Eleven scenarios cover
   1-9, 2-10, 5-5, all four 5-10 phases, AE-5, AE-10, AE-EX-2 and IF-BE-4.
-- The rule suite passes 667 tests plus four math tests in its pretest hook.
+- The rule suite passes 675 tests plus four math tests in its pretest hook.
   Seven audio tests, data validation and the TypeScript/Vite build also pass;
   the existing large-bundle warning remains.
 
@@ -75,5 +76,5 @@ Do not round checksums to conceal numerical divergence or teach the simulation
 cache about a particular test. Relationship serialization/checksums now have a
 canonical contract and approximated math has a pinned deterministic implementation.
 Platform/content coverage still needs expansion. Participant ownership/resources,
-fully independent control ingress, durable recovery and production transport/player
+durable recovery and production transport/player
 UI remain unfinished; these passing fixtures do not complete the multiplayer goal.
