@@ -59,8 +59,11 @@ tower IDs. Their `tutorialInput` control carries a bounded tool/ID observation;
 the tutorial reads this separate state rather than the local player's selection.
 Other levels reject it. It does not activate tools, select towers or move anything.
 Full 30/144 Hz tutorial replay therefore works while local tools stay inactive.
-Tutorial controller state and rendering still need their own headless/snapshot
-boundary before tutorial checkpoint synchronization can be claimed.
+Tutorial controllers now own explicit versioned state with stable tower IDs and
+derived presentation instructions. Their observations survive checkpoints without
+activating local tools. All six lessons load headlessly; live 30/144 Hz checkpoint
+continuations work with tutorial views removed. This is not yet network join
+synchronization. See [tutorial state](tutorial-state.md).
 
 Replay drains already-due commands before checking whether ticks can advance.
 This permits a same-tick resume control to release a restored paused session.

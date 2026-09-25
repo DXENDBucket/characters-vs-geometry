@@ -15,6 +15,7 @@ import { restoreBattleEntityIds } from "./battleEntityGraph";
 import { validBattleParticipants } from "./battleParticipants";
 import { validBattlePolicy } from "./battlePolicy";
 import { copyBattleControlState } from "./battleControls";
+import { copyTutorialCheckpoint } from "./tutorialState";
 
 export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossKind?: BossKind) {
   const units = new Map<NodeKind, Set<object>>();
@@ -74,6 +75,7 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
     (entry.storedEvent === undefined || towerEvent(entry.storedEvent)) &&
     array(entry.sourceIds, id => typeof id === "string" && /^tower:\d+$/.test(id)));
   require(record(state));
+  if (state.tutorial !== undefined) copyTutorialCheckpoint(state.tutorial);
   if (state.edgeTowers !== undefined) {
     const edgeKeys = new Set<string>();
     require(array(state.edgeTowers, edge => {

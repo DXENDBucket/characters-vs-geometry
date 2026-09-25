@@ -1,24 +1,15 @@
-import type { CardId, Tower } from "../types";
+import { copyTutorialState, TUTORIAL_STEPS, type TutorialState } from "./tutorialState";
+import type { TowerState } from "./towerState";
+import type { CardId } from "../types";
 import {
-  GuidedTutorialView,
+  TutorialPresentation,
   type GuidedTutorialCopy,
   type TutorialRuntime
 } from "./tutorial";
 
 export const AUTO_UPGRADE_TUTORIAL_LOADOUT = ["A"] as const satisfies readonly CardId[];
 
-type TutorialStep =
-  | "intro"
-  | "deploy"
-  | "selectAuto"
-  | "mark"
-  | "waiting"
-  | "controls"
-  | "batchMark"
-  | "batchClear"
-  | "selectErase"
-  | "erase"
-  | "complete";
+type TutorialStep = typeof TUTORIAL_STEPS.tutorialAutoUpgrade[number];
 
 const TUTORIAL_COPY: Record<TutorialStep, GuidedTutorialCopy> = {
   intro: {
@@ -80,12 +71,29 @@ const PEER = { lane: 4, column: 4 };
 export class AutoUpgradeTutorialController {
   readonly usesToolInteraction = true;
   private step: TutorialStep = "intro";
-  private readonly view: GuidedTutorialView;
-  private tower: Tower | null = null;
+  readonly presentation: TutorialPresentation;
+  private towerId: string | null = null;
+  private get tower() { return this.runtime.getTowers().find(tower => tower.entityId === this.towerId) ?? null; }
+  private set tower(tower: TowerState | null) {
+    if (tower && !tower.entityId) throw new Error("Tutorial tower requires a battle entity ID");
+    this.towerId = tower?.entityId ?? null;
+  }
   private destroyed = false;
 
   constructor(private readonly runtime: TutorialRuntime) {
-    this.view = new GuidedTutorialView(runtime, TOTAL_LESSONS, "tutorial.auto.progress", () => this.advance());
+    this.presentation = new TutorialPresentation(TOTAL_LESSONS, "tutorial.auto.progress");
+    this.syncCopy();
+    this.drawHighlights();
+  }
+
+  snapshot(): TutorialState {
+    return { version: 1, kind: "tutorialAutoUpgrade", step: this.step, towerId: this.towerId };
+  }
+
+  restore(value: TutorialState) {
+    const state = copyTutorialState(value, "tutorialAutoUpgrade");
+    this.step = state.step;
+    this.towerId = state.towerId;
     this.syncCopy();
     this.drawHighlights();
   }
@@ -172,10 +180,10 @@ export class AutoUpgradeTutorialController {
       return;
     }
     this.destroyed = true;
-    this.view.destroy();
   }
 
-  private advance() {
+  advance() {
+    if (this.destroyed) return;
     switch (this.step) {
       case "intro":
         this.setStep("deploy");
@@ -198,46 +206,46 @@ export class AutoUpgradeTutorialController {
   }
 
   private syncCopy() {
-    this.view.setCopy(TUTORIAL_COPY[this.step]);
+    this.presentation.setCopy(TUTORIAL_COPY[this.step]);
   }
 
   private drawHighlights() {
-    const alpha = this.view.beginHighlights();
+    this.presentation.beginHighlights();
     switch (this.step) {
       case "intro":
-        this.view.drawToolHighlight("autoUpgrade", alpha);
-        this.view.drawToolHighlight("erase", alpha);
+        this.presentation.drawToolHighlight("autoUpgrade");
+        this.presentation.drawToolHighlight("erase");
         return;
       case "deploy":
-        this.view.drawCardHighlight("A", alpha);
-        this.view.drawCellHighlight(TARGET.lane, TARGET.column, alpha);
-        this.view.drawCellHighlight(PEER.lane, PEER.column, alpha);
+        this.presentation.drawCardHighlight("A");
+        this.presentation.drawCellHighlight(TARGET.lane, TARGET.column);
+        this.presentation.drawCellHighlight(PEER.lane, PEER.column);
         return;
       case "selectAuto":
-        this.view.drawToolHighlight("autoUpgrade", alpha);
+        this.presentation.drawToolHighlight("autoUpgrade");
         return;
       case "mark":
-        this.view.drawToolHighlight("autoUpgrade", alpha);
-        this.view.drawCellHighlight(TARGET.lane, TARGET.column, alpha);
+        this.presentation.drawToolHighlight("autoUpgrade");
+        this.presentation.drawCellHighlight(TARGET.lane, TARGET.column);
         return;
       case "waiting":
-        this.view.drawCellHighlight(TARGET.lane, TARGET.column, alpha);
+        this.presentation.drawCellHighlight(TARGET.lane, TARGET.column);
         return;
       case "controls":
-        this.view.drawToolHighlight("autoUpgradeEnabled", alpha);
-        this.view.drawToolHighlight("autoUpgradeReserve", alpha);
+        this.presentation.drawToolHighlight("autoUpgradeEnabled");
+        this.presentation.drawToolHighlight("autoUpgradeReserve");
         return;
       case "selectErase":
-        this.view.drawToolHighlight("erase", alpha);
+        this.presentation.drawToolHighlight("erase");
         return;
       case "batchMark":
       case "batchClear":
-        this.view.drawToolHighlight("autoUpgrade", alpha);
-        this.view.drawCellHighlight(PEER.lane, PEER.column, alpha);
+        this.presentation.drawToolHighlight("autoUpgrade");
+        this.presentation.drawCellHighlight(PEER.lane, PEER.column);
         return;
       case "erase":
-        this.view.drawToolHighlight("erase", alpha);
-        this.view.drawCellHighlight(TARGET.lane, TARGET.column, alpha);
+        this.presentation.drawToolHighlight("erase");
+        this.presentation.drawCellHighlight(TARGET.lane, TARGET.column);
         return;
     }
   }

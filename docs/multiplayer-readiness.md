@@ -60,7 +60,11 @@ transport-neutral authority and synchronization gates above.
   survive snapshots and playback, including rejected commands. A configurable
   continuing-modal mode keeps simulation active under local menu/settings/reselection
   overlays and does not cancel a peer's pause when closing them. Participant UI
-  instances, tutorial snapshot state and combat presentation ports still need work.
+  instances and combat presentation ports still need work. All six tutorial models
+  now run without rendering and store versioned step/reference state plus explicit
+  lesson observations in the world. Their presentation is derived data; actual
+  browser continuations from 57 checkpoint positions match at 30/144 Hz with the
+  tutorial view removed. See [tutorial state](tutorial-state.md).
   The session now owns/snapshots authoritative controls and enforces pause/speed;
   restoration no longer overwrites them with local menu state. All deferred combat
   attacks require its saved data queue, with the Phaser timer/paused-closure fallback
@@ -93,8 +97,8 @@ transport-neutral authority and synchronization gates above.
   remain missing. Gate 5 is partial; gates 6-7 remain open. See
   [command authority](battle-authority.md).
 
-Next: complete participant/resource policies and tutorial checkpoint state,
-finish simulation/presentation ports and ID-based relationships, and build snapshot synchronization and
+Next: complete participant/resource policies,
+finish simulation/presentation ports, terminal lifecycle state and ID-based relationships, and build snapshot synchronization and
 reconnect on the new authority boundary. Validate each increment against the
 real battle path; green isolated tests are not proof of full readiness.
 

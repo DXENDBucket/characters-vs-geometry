@@ -19,6 +19,7 @@ const { waveWeightLimit } = load("src/game/waves.ts");
 const { softcapChars } = load("src/game/charSoftcap.ts");
 const { captureBattleSnapshot } = load("src/game/captureBattleSnapshot.ts");
 const { decodeSaveGraph } = load("src/game/saveGraph.ts");
+const { createTutorialController } = load("src/game/tutorialRegistry.ts");
 
 const options = (id = "1-9", extra = {}) => ({ levelId: id, level: structuredClone(getLevelConfig(id)),
   difficulty: { ...getDifficultyConfig(3) }, unlimitedFirepower: false, ...extra });
@@ -32,12 +33,15 @@ const stages = ["updateNullification", "syncCopiedTowers", "updateActions", "upd
 
 function systems(world, changes = {}) {
   const events = [];
+  world.tutorial = {
+    update: () => events.push(["updateTutorial"]),
+    get usesWaveSchedule() { events.push(["usesWaveSchedule"]); return changes.waveSchedule ?? false; }
+  };
   const ports = Object.fromEntries(stages.map(name => [name, (...args) => { events.push([name, ...args]); }]));
   Object.assign(ports, {
     eraseSealedCell: (lane, column) => { events.push(["erase", lane, column]); return true; },
     updateLevelAuras: () => events.push(["auras"]), sealsChanged: () => events.push(["seals"]),
     cardCooldownMultiplier: () => { events.push(["cardCooldownMultiplier"]); return 1; },
-    usesWaveSchedule: () => { events.push(["usesWaveSchedule"]); return false; },
     hasTimedProducers: false, getDefinition: definition, routeProduction: () => false,
     gainChars: (amount, x, y) => { world.gainChars(amount); events.push(["produce", amount, x, y]); },
     storedEnemyCount: () => 0, earliestStoredWave: () => Infinity,
@@ -67,6 +71,34 @@ test("world instances own independent progress, rosters, occupancy, seals and co
   assert.equal(makeWorld("5-10").chars, getLevelConfig("5-10").startingChars);
   assert.equal(makeWorld("1-9", { level: { ...getLevelConfig("1-9"), startingChars: undefined } }).chars, 300);
   assert.equal(makeWorld("IF-1", { resumed: true }).flawlessRun, false);
+});
+
+test("the real tutorial model controls world waves and restores without replaying entry effects", () => {
+  const world = makeWorld("0-1"), { ports, events } = systems(world);
+  world.tutorial = createTutorialController(world.options.level.specialMechanic, {
+    getTowers: () => world.towers, getEnemies: () => world.enemies, getBattleTime: () => world.battleTime,
+    getToolState: () => { throw Error("Basic lesson does not need tools"); },
+    spawnWave: spawns => world.spawnTutorialWave(spawns, ports), finish: ports.completeLevel
+  });
+  world.step(ports); assert.equal(world.wave, 0);
+  world.tutorial.advance();
+  const producer = createTowerState(definition("X"), 1, 1, world.battleTime, 0);
+  const attacker = createTowerState(definition("A"), 3, 2, world.battleTime, 1);
+  world.entityIds.identify("tower", producer); world.entityIds.identify("tower", attacker);
+  world.towers.push(producer, attacker); world.step(ports); world.step(ports);
+  assert.equal(world.tutorial.snapshot().step, "incomingReady");
+  world.tutorial.advance();
+  assert.equal(world.wave, 1); assert.equal(world.enemies.length, 1);
+  assert.equal(world.enemies[0].kind, "circle"); assert.equal(world.enemies[0].lane, 3);
+  assert.equal(world.enemies[0].finalDamageReduction, 0); assert.equal(world.waveTracker.totalWeight, 10);
+  assert.equal(world.waveTracker.spawnedAt, world.levelElapsed);
+  const saved = world.tutorialSnapshot(), before = events.length;
+  world.restoreTutorial(JSON.parse(JSON.stringify(saved)));
+  assert.equal(events.length, before); assert.equal(world.wave, 1);
+  assert.deepEqual(world.tutorialSnapshot(), saved);
+  assert.throws(() => world.validateTutorial(undefined), /checkpoint/);
+  assert.throws(() => world.restoreTutorial({ ...saved, state: { version: 1, kind: "tutorialPractice", started: true } }), /differs/);
+  assert.deepEqual(world.tutorialSnapshot(), saved);
 });
 
 test("world executes the original full tick order and rejects reentrant steps", () => {
@@ -211,7 +243,7 @@ test("session-driven worlds match across frame schedules, interleaved battles an
     unlimitedFirepower: false, selectedCards: ["A"], debug: false, seed: 4829 };
   function fixture() {
     const session = new BattleSession(sessionOptions), world = new BattleWorld(options(), session.random);
-    const { ports } = systems(world, { usesWaveSchedule: () => true });
+    const { ports } = systems(world, { waveSchedule: true });
     const runtime = { step: () => world.step(ports), executeCommand() {}, canAdvance: () => !world.gameOver };
     return { world, session, runtime };
   }

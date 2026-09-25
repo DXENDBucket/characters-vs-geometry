@@ -9,8 +9,10 @@ import type { TimedCellSeal } from "./timedCellSeals";
 import type { NullifiedTowers } from "./towerNullification";
 import type { BattleEntityIdState } from "./battleEntityIds";
 import type { CardDeadline } from "./battleLoadout";
+import type { TutorialCheckpoint } from "./tutorialState";
 
 export interface BattleSaveState {
+  tutorial?: TutorialCheckpoint;
   entityIds?: BattleEntityIdState;
   nullifiedTowers?: NullifiedTowers;
   edgeTowers?: EdgeTower[];

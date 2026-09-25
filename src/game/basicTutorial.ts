@@ -1,27 +1,15 @@
+import { copyTutorialState, TUTORIAL_STEPS, type TutorialState } from "./tutorialState";
 import { BOARD_WIDTH, BOARD_X, CELL_WIDTH } from "../config";
 import type { CardId } from "../types";
 import {
-  GuidedTutorialView,
+  TutorialPresentation,
   type GuidedTutorialCopy,
   type TutorialRuntime
 } from "./tutorial";
 
 export const BASIC_TUTORIAL_LOADOUT = ["X", "A", "B"] as const satisfies readonly CardId[];
 
-type TutorialStep =
-  | "welcome"
-  | "producer"
-  | "attacker"
-  | "incomingReady"
-  | "firstWave"
-  | "defender"
-  | "blockingReady"
-  | "blockingWave"
-  | "upgrade"
-  | "reinforce"
-  | "finalReady"
-  | "finalWave"
-  | "complete";
+type TutorialStep = typeof TUTORIAL_STEPS.tutorialBasics[number];
 
 const TUTORIAL_COPY: Record<TutorialStep, GuidedTutorialCopy> = {
   welcome: {
@@ -104,11 +92,22 @@ const DEFENDER_TARGET = { lane: CENTER_LANE, column: 5 };
 
 export class BasicTutorialController {
   private step: TutorialStep = "welcome";
-  private readonly view: GuidedTutorialView;
+  readonly presentation: TutorialPresentation;
   private destroyed = false;
 
   constructor(private readonly runtime: TutorialRuntime) {
-    this.view = new GuidedTutorialView(runtime, TOTAL_LESSONS, "tutorial.progress", () => this.advance());
+    this.presentation = new TutorialPresentation(TOTAL_LESSONS, "tutorial.progress");
+    this.syncCopy();
+    this.drawHighlights();
+  }
+
+  snapshot(): TutorialState {
+    return { version: 1, kind: "tutorialBasics", step: this.step };
+  }
+
+  restore(value: TutorialState) {
+    const state = copyTutorialState(value, "tutorialBasics");
+    this.step = state.step;
     this.syncCopy();
     this.drawHighlights();
   }
@@ -169,10 +168,10 @@ export class BasicTutorialController {
       return;
     }
     this.destroyed = true;
-    this.view.destroy();
   }
 
-  private advance() {
+  advance() {
+    if (this.destroyed) return;
     switch (this.step) {
       case "welcome":
         this.setStep("producer");
@@ -213,52 +212,52 @@ export class BasicTutorialController {
   }
 
   private syncCopy() {
-    this.view.setCopy(TUTORIAL_COPY[this.step]);
+    this.presentation.setCopy(TUTORIAL_COPY[this.step]);
   }
 
   private drawHighlights() {
-    const alpha = this.view.beginHighlights();
+    this.presentation.beginHighlights();
 
     switch (this.step) {
       case "welcome":
       case "incomingReady":
-        this.view.drawLaneDirectionGuide(CENTER_LANE, alpha);
+        this.presentation.drawLaneDirectionGuide(CENTER_LANE);
         return;
       case "producer":
-        this.view.drawCardHighlight("X", alpha);
-        this.view.drawCellHighlight(PRODUCER_TARGET.lane, PRODUCER_TARGET.column, alpha);
+        this.presentation.drawCardHighlight("X");
+        this.presentation.drawCellHighlight(PRODUCER_TARGET.lane, PRODUCER_TARGET.column);
         return;
       case "attacker":
-        this.view.drawCardHighlight("A", alpha);
-        this.view.drawCellHighlight(ATTACKER_TARGET.lane, ATTACKER_TARGET.column, alpha);
+        this.presentation.drawCardHighlight("A");
+        this.presentation.drawCellHighlight(ATTACKER_TARGET.lane, ATTACKER_TARGET.column);
         return;
       case "defender":
-        this.view.drawCardHighlight("B", alpha);
-        this.view.drawCellHighlight(DEFENDER_TARGET.lane, DEFENDER_TARGET.column, alpha);
+        this.presentation.drawCardHighlight("B");
+        this.presentation.drawCellHighlight(DEFENDER_TARGET.lane, DEFENDER_TARGET.column);
         return;
       case "upgrade": {
-        this.view.drawCardHighlight("A", alpha);
+        this.presentation.drawCardHighlight("A");
         const attacker = this.centerAttacker();
         if (attacker) {
-          this.view.drawCellHighlight(attacker.lane, attacker.column, alpha);
+          this.presentation.drawCellHighlight(attacker.lane, attacker.column);
         }
         return;
       }
       case "reinforce": {
-        this.view.drawCardHighlight("A", alpha);
+        this.presentation.drawCardHighlight("A");
         const column = this.centerAttacker()?.column ?? ATTACKER_TARGET.column;
         if (!this.attackerInLane(CENTER_LANE - 1)) {
-          this.view.drawCellHighlight(CENTER_LANE - 1, column, alpha);
+          this.presentation.drawCellHighlight(CENTER_LANE - 1, column);
         }
         if (!this.attackerInLane(CENTER_LANE + 1)) {
-          this.view.drawCellHighlight(CENTER_LANE + 1, column, alpha);
+          this.presentation.drawCellHighlight(CENTER_LANE + 1, column);
         }
         return;
       }
       case "firstWave":
       case "blockingWave":
       case "finalWave":
-        this.view.drawEnemyHighlights(alpha);
+        this.presentation.drawEnemyHighlights();
         return;
     }
   }

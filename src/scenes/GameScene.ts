@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { GuidedTutorialView } from "../render/guidedTutorialView";
 import { clearEnemyField } from "../game/enemyRoster";
 import { playSound, soundPlayer } from "../audio/player";
 import { bindBattleAudio } from "../audio/battleAudio";
@@ -11,7 +12,7 @@ import { syncTowerCopies } from "../game/towerCopy";
 import { syncTowerFormVisual } from "../game/towers";
 import { BATTLE_RULES_VERSION, setBattleRandom, setBattlePlayback } from "../game/battleSimulation";
 import { validateReplay, type BattleCommand, type BattlePointer, type BattleReplay } from "../game/battleCommands";
-import { createTutorialInteraction, sameTutorialInteraction, type TutorialInteraction } from "../game/tutorialInteraction";
+import { sameTutorialInteraction, type TutorialInteraction } from "../game/tutorialInteraction";
 import type { BattleAction, ScheduleBattleAction } from "../game/battleActions";
 import { BattleSession, type BattleSessionRuntime } from "../game/battleSession";
 import { BattleAuthority } from "../game/battleAuthority";
@@ -125,8 +126,6 @@ import { TowerPushController } from "../game/towerPush";
 import { TowerSkillController, type TowerSkillRuntime } from "../game/towerSkills";
 import {
   isTutorialMechanic,
-  type TutorialController,
-  type TutorialEnemySpawn,
   type TutorialRuntime,
   type TutorialToolId
 } from "../game/tutorial";
@@ -175,7 +174,6 @@ import {
 } from "../render/gameUi";
 import { getCardBehavior } from "../registry/cards";
 import { allCardDefinitions, defaultCardLoadout, getCardDefinition, hasCardDefinition } from "../registry/cardDefinitions";
-import { getEnemyDefinition } from "../registry/enemies";
 import {
   CONTROL_SLOT_COUNT,
   cardControlAction,
@@ -258,7 +256,6 @@ export class GameScene extends Phaser.Scene {
     executeCommand: command => this.executeCommand(command),
     canAdvance: () => !this.gameOver && !this.localModalPausesBattle
   };
-  private tutorialAdvance?: () => void;
   private rewardEncyclopedia?: EncyclopediaPanel;
   private resumeSave?: SurvivalSave;
   private resumeRequested = false;
@@ -383,8 +380,11 @@ export class GameScene extends Phaser.Scene {
   private projectileRuntimeCache!: ProjectileRuntime;
   private readonly projectileMotion = new ProjectileMotionFrame();
   private triggerTowerRuntimeCache!: TriggerTowerRuntime;
-  private tutorial: TutorialController | null = null;
-  private tutorialInteraction = createTutorialInteraction();
+  private get tutorial() { return this.world.tutorial; }
+  private set tutorial(value: ReturnType<typeof createTutorialController>) { this.world.tutorial = value; }
+  private get tutorialInteraction() { return this.world.tutorialInteraction; }
+  private set tutorialInteraction(value: TutorialInteraction) { this.world.tutorialInteraction = value; }
+  private tutorialView?: GuidedTutorialView;
   private ui!: GameHudElements;
   private overlay!: GameOverlayElements;
   private pauseMenu!: PauseMenu;
@@ -429,8 +429,6 @@ export class GameScene extends Phaser.Scene {
       data = { ...data, ...playback, resume: false };
     }
     const seed = (data.seed ?? crypto.getRandomValues(new Uint32Array(1))[0]) >>> 0;
-    this.tutorialAdvance = undefined;
-    this.tutorialInteraction = createTutorialInteraction();
     this.rewardEncyclopedia = undefined;
     this.resumeRequested = Boolean(data.resume);
     this.resumeSave = data.resume && data.levelId ? readSurvivalSave(data.levelId) : undefined;
@@ -560,6 +558,20 @@ export class GameScene extends Phaser.Scene {
     this.unitLifecycleRuntimeCache = this.createUnitLifecycleRuntime();
     this.projectileRuntimeCache = this.createProjectileRuntime();
     this.triggerTowerRuntimeCache = this.createTriggerTowerRuntime();
+    const tutorialRuntime: TutorialRuntime = {
+      getTowers: () => this.towers, getEnemies: () => this.enemies, getBattleTime: () => this.battleTime,
+      getToolState: () => ({
+        eraserMode: this.tutorialInteraction.tool === "erase",
+        autoUpgradeMode: this.tutorialInteraction.tool === "autoUpgrade",
+        autoUpgradeEnabled: this.autoUpgradeEnabled,
+        shifterMode: this.tutorialInteraction.tool === "shifter",
+        shifterReadyRatio: this.shifter.cooldownRatio(),
+        shifterSelection: this.towers.filter(tower => tower.inPlay && !tower.nullified && this.tutorialInteraction.selected.includes(tower.entityId!))
+      }),
+      spawnWave: spawns => this.battlefield.world(() => this.world.spawnTutorialWave(spawns, this.worldSystems)),
+      finish: () => this.battlefield.ui(() => this.endLevel())
+    };
+    this.tutorial = createTutorialController(this.levelConfig.specialMechanic, tutorialRuntime);
   }
 
   create() {
@@ -645,30 +657,12 @@ export class GameScene extends Phaser.Scene {
     } else if (this.levelConfig.survival && !this.playback) {
       deleteSurvivalSave(this.levelId);
     }
-    if (isTutorialMechanic(this.levelConfig.specialMechanic)) {
-      const runtime: TutorialRuntime = {
-        registerAdvance: action => {
-          this.tutorialAdvance = action;
-          return () => this.localInput(() => { this.requestControl({ type: "tutorialAdvance" }); });
-        },
-        scene: this,
-        getCardView: (id) => this.cardList?.cards.find(card => card.state.definition.id === id),
-        getTowers: () => this.towers,
-        getEnemies: () => this.enemies,
-        getBattleTime: () => this.battleTime,
-        getToolBounds: (id) => this.tutorialToolBounds(id),
-        getToolState: () => ({
-          eraserMode: this.tutorialInteraction.tool === "erase",
-          autoUpgradeMode: this.tutorialInteraction.tool === "autoUpgrade",
-          autoUpgradeEnabled: this.autoUpgradeEnabled,
-          shifterMode: this.tutorialInteraction.tool === "shifter",
-          shifterReadyRatio: this.shifter.cooldownRatio(),
-          shifterSelection: this.towers.filter(tower => tower.inPlay && !tower.nullified && this.tutorialInteraction.selected.includes(tower.entityId!))
-        }),
-        spawnWave: (spawns) => this.battlefield.world(() => this.spawnTutorialWave(spawns)),
-        finish: () => this.endLevel()
-      };
-      this.tutorial = this.battlefield.ui(() => createTutorialController(this.levelConfig.specialMechanic, runtime));
+    if (this.tutorial) {
+      this.tutorialView = this.battlefield.ui(() => new GuidedTutorialView({
+        scene: this, getCardView: id => this.cardList?.cards.find(card => card.state.definition.id === id),
+        getEnemies: () => this.enemies, getToolBounds: id => this.tutorialToolBounds(id)
+      }, () => this.localInput(() => { this.requestControl({ type: "tutorialAdvance" }); })));
+      this.syncTutorialView();
     }
 
     this.input.on("pointerdown", this.scenePointerDownHandler);
@@ -697,6 +691,8 @@ export class GameScene extends Phaser.Scene {
     this.input.off("pointermove", this.scenePointerMoveHandler);
     this.input.keyboard?.off("keydown", this.sceneKeyDownHandler);
     this.clearPlacementGhosts();
+    this.tutorialView?.destroy();
+    this.tutorialView = undefined;
     this.tutorial?.destroy();
     this.tutorial = null;
     this.shifter?.clearSelection();
@@ -732,6 +728,10 @@ export class GameScene extends Phaser.Scene {
     this.syncPlacementGhost(this.input.activePointer);
     this.updateCards();
     this.updateHud();
+  }
+
+  private syncTutorialView() {
+    if (this.tutorialView && this.tutorial) this.battlefield.ui(() => this.tutorialView!.sync(this.tutorial!.presentation));
   }
 
   private stepBattle() { this.world.step(this.worldSystems); }
@@ -772,8 +772,6 @@ export class GameScene extends Phaser.Scene {
         projectiles.slowAuraSources = slowAuraSources(this.towers);
         updateMortarProjectiles(projectiles, seconds);
       },
-      updateTutorial: () => { if (this.tutorial) this.battlefield.ui(() => this.tutorial!.update()); },
-      usesWaveSchedule: () => !this.tutorial || !!this.tutorial.usesWaveSchedule,
       autoUpgrade: () => this.attemptAutoUpgrades(),
       storedEnemyCount: () => this.storage.count,
       earliestStoredWave: () => this.storage.earliestWaveNumber,
@@ -789,6 +787,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private syncBattleOverlays() {
+    this.syncTutorialView();
     // Catch-up ticks mutate battle state; redraw these overlays only once per displayed frame.
     for (const enemy of enemiesWithPassengers(this.enemies)) syncEnemyStatusVisuals(enemy, this.battleTime);
     syncHexArmorAuras(this.enemies, this.battleTime);
@@ -1082,8 +1081,8 @@ export class GameScene extends Phaser.Scene {
       reselectAvailable: !isTutorialMechanic(this.levelConfig.specialMechanic) && this.session.policy.reselectEnabled,
       reselectReady: this.reselection.isReady(this.battleTime),
       reselect: cards => this.applyReselection(cards),
-      tutorialAvailable: !!this.tutorialAdvance,
-      tutorialAdvance: () => this.battlefield.ui(() => this.tutorialAdvance?.()),
+      tutorialAvailable: !!this.tutorial,
+      tutorialAdvance: () => { this.tutorial?.advance(); this.syncTutorialView(); },
       tutorialInput: input => {
         if (!this.tutorial?.usesToolInteraction) return "unavailable";
         if (input.selected.some(id => !this.towers.some(tower => tower.entityId === id && tower.inPlay && !tower.transient && !tower.nullified))) return "stale";
@@ -2058,36 +2057,6 @@ export class GameScene extends Phaser.Scene {
 
   private spawnWave(levelElapsed: number, gameTime: number) { this.world.spawnWave(levelElapsed, gameTime, this.worldSystems); }
 
-  private spawnTutorialWave(spawns: TutorialEnemySpawn[]) {
-    const waveNumber = this.wave + 1;
-    playSound(waveNumber % this.levelConfig.wavesPerFlag === 0 ? "flag" : "wave");
-    let totalWeight = 0;
-    this.wave = waveNumber;
-    spawns.forEach((spawn, index) => {
-      const definition = getEnemyDefinition(spawn.kind);
-      totalWeight += spawnEnemyAt(this.combatRuntime(), {
-        kind: spawn.kind,
-        waveNumber,
-        time: this.battleTime,
-        lane: spawn.lane,
-        x: spawn.x ?? BOARD_X + BOARD_WIDTH + 46 + index * 5,
-        waveWeight: definition.weight,
-        finalDamageReduction: 0
-      });
-    });
-    this.waveTracker = {
-      number: waveNumber,
-      totalWeight,
-      defeatedWeight: 0,
-      spawnedAt: this.levelElapsed
-    };
-    this.showToast(
-      waveNumber % this.levelConfig.wavesPerFlag === 0
-        ? `${t("label.flag")} ${waveNumber / this.levelConfig.wavesPerFlag}`
-        : `${t("label.wave")} ${waveNumber}`
-    );
-  }
-
   private tutorialToolBounds(id: TutorialToolId) {
     switch (id) {
       case "erase":
@@ -2841,6 +2810,7 @@ export class GameScene extends Phaser.Scene {
 
   private battleState(): BattleSaveState {
     return {
+      ...(this.tutorial ? { tutorial: this.world.tutorialSnapshot() } : {}),
       nullifiedTowers: this.nullification.snapshot(),
       edgeTowers: this.edgeTowers,
       simulation: { ...this.session.snapshot(),
@@ -2875,6 +2845,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private applyBattleSave(state: BattleSaveState) {
+    this.world.validateTutorial(state.tutorial);
     restoreBattleEntityIds(state, this.world.entityIds);
     this.session.restore(state.simulation, state.battleTime, {
       paused: false, speed: state.gameSpeed, debugEnabled: state.debugModeEnabled ?? this.debugModeEnabled,
@@ -2929,6 +2900,8 @@ export class GameScene extends Phaser.Scene {
     this.updateCards();
     this.updateHud();
     drawEnemyHealthLinks(this.enemyHealthLinks, this.enemies, this.battleTime);
+    this.world.restoreTutorial(state.tutorial);
+    this.syncTutorialView();
     if (!this.playback) this.session.startRecordingFromCheckpoint(captureBattleSnapshot(this.battleState()), this.selectedCardIds);
     this.resetCommandAuthority();
   }

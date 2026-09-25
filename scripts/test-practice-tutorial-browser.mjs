@@ -46,7 +46,7 @@ try {
   const result = await page.evaluate(async () => {
     const game = window.__testGame; game.loop.stop();
     const scene = game.scene.getScene("GameScene"); scene.battlePaused = false;
-    scene.tutorialAdvance();
+    scene.submitPlayerControl("local", { type: "tutorialAdvance" });
     const budgets = [];
     for (let wave = 1; wave <= 5; wave++) {
       scene.world.updateWaveSchedule(30000 + wave * 30000, wave * 30000, scene.worldSystems);

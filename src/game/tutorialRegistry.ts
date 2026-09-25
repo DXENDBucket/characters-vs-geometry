@@ -37,7 +37,7 @@ export function createTutorialController(
     case "tutorialBasics":
       return new BasicTutorialController(runtime);
     case "tutorialPractice":
-      return new PracticeTutorialController(runtime);
+      return new PracticeTutorialController();
     case "tutorialTowerTypes":
       return new TowerTypeTutorialController(runtime);
     case "tutorialAutoUpgrade":

@@ -10,6 +10,9 @@ collections rather than leaving the simulation attached to stale arrays.
 The world also owns `BattleLoadout`: ordered cards, deadlines and reselection
 memory exist before any card widgets. Scene compatibility getters use that model;
 view recreation does not rebuild battle state. See [loadout state](battle-loadout.md).
+Tutorial models and semantic lesson observations also belong to the world. Their
+step/reference snapshots are separate from scalar progress, and rendering consumes
+derived instructions. See [tutorial state](tutorial-state.md).
 
 `BattleSession` still owns fixed ticks, RNG, queued actions and recordings. The
 world uses the session's exact RNG object. Battle configuration is copied once at
@@ -21,8 +24,10 @@ The world drives the existing tick order through required `BattleWorldSystems`
 ports: timed effects and seals, copy synchronization, scheduled actions, tower
 skills/push/topology/mirrors, support refresh, accelerated card clock, production,
 arming, storage, Bosses, swept motion, enemies, tower attacks, pipelines, friendly
-projectiles, deferred exits, hostile projectiles, mortars, tutorials, waves and
-auto-upgrades. Missing systems are not silently replaced by no-op defaults.
+projectiles, deferred exits, hostile projectiles and mortars. It then updates its
+tutorial model, decides whether normal waves may run, and invokes auto-upgrades.
+Tutorial update/wave gating no longer use scene-owned hooks. Required combat ports
+are not silently replaced by no-op defaults.
 
 Preserve this order. In particular:
 
@@ -66,7 +71,9 @@ the world's own allocator is bound to live factories and adopted on restore. See
 
 - `test-battle-world.mjs` loads without Phaser stubs. It checks system order,
   reentrancy, seal deadlines, production, resources, completion, passenger/storage
-  records, phases, independent worlds and session/checkpoint continuation.
+records, phases, independent worlds and session/checkpoint continuation.
+  The actual basic tutorial model also exercises world-owned tutorial wave creation
+  and side-effect-free checkpoint restoration.
 - Eight wave fixtures were captured from commit `023b9e0`'s previous spawner with
   the real pure enemy constructor. They verify full enemy states and RNG, covering
   ordinary/flag waves, mixed leaders, endless ranks, extra spawns and tutorial lanes.

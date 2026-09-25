@@ -18,6 +18,8 @@ try {
       .find(url => new URL(url).pathname === path) ?? path);
     const { GameScene } = await mod("/src/scenes/GameScene.ts");
     const cfg = await mod("/src/config.ts"), progress = await mod("/src/progress.ts");
+    const { captureBattleSnapshot, restoreBattleSnapshot } = await mod("/src/game/battleSnapshot.ts");
+    const { validateBattleSave } = await mod("/src/game/validateBattleSave.ts");
     const { dispatchBattleUi: input, assertSemanticRecording } = await import("/scripts/helpers/battle-ui.mjs");
     const game = window.__testGame, check = (value, message) => { if (!value) throw Error(message); };
     game.loop.stop(); progress.unlockAllCards(); progress.completeAllLevels();
@@ -34,12 +36,16 @@ try {
     } });
     const card = (scene, id) => scene.cardList.onSelect(id);
     const tool = (scene, name) => scene.ui[name].emit("pointerdown");
-    const next = scene => scene.tutorial.view.button.emit("pointerdown");
+    const next = scene => scene.tutorialView.button.emit("pointerdown");
     const key = (scene, code) => scene.input.keyboard.emit("keydown", { code, key: code === "Space" ? " " : code.slice(-1), preventDefault() {} });
+    let checkpoints = [];
     const until = (scene, expected, limit = 3000) => {
       let count = 0;
       while (scene.tutorial.step !== expected && !scene.gameOver && count++ < limit) tick(scene);
       check(scene.tutorial.step === expected, `${scene.levelId}: expected ${expected}, got ${scene.tutorial.step}`);
+      const graph = captureBattleSnapshot(scene.battleState());
+      validateBattleSave(graph, scene.wave);
+      checkpoints.push({ graph, sequence: scene.exportReplay().commands.length, hash: scene.battleChecksum(), step: expected });
     };
     const ordinary = start({ levelId: "IF-1", seed: 804, selectedCards: ["A", "B"] });
     const before = ordinary.battleChecksum();
@@ -69,6 +75,7 @@ try {
 
     const results = [];
     for (const levelId of ["0-4", "0-5"]) {
+      checkpoints = [];
       const scene = start({ levelId, seed: 804 });
       next(scene); until(scene, "deploy");
       if (levelId === "0-4") {
@@ -112,7 +119,26 @@ try {
         game.scene.stop(replayed.sys.settings.key);
       }
       check(JSON.stringify(localStorage) === storage, "Tutorial replay changed progress");
-      results.push({ levelId, ticks: replay.endTick, commands: replay.commands.length });
+      for (const checkpoint of checkpoints) {
+        const suffix = { ...replay, checkpoint: checkpoint.graph,
+          commands: replay.commands.slice(checkpoint.sequence).map((entry, sequence) => ({ ...entry, sequence })) };
+        // Restore without advancing: no repeats of entry actions or dependence on local selection.
+        const resumed = start({ levelId, seed: 804 });
+        resumed.applyBattleSave(restoreBattleSnapshot(resumed, checkpoint.graph));
+        check(resumed.battleChecksum() === checkpoint.hash, `${levelId}/${checkpoint.step}: restore changed state`);
+        check(!resumed.shifter.isActive() && !resumed.eraserMode && !resumed.autoUpgradeMode, "Restore activated local tools");
+        game.scene.stop(resumed.sys.settings.key);
+        for (const delta of [1000 / 30, 1000 / 144]) {
+          const played = start({ replay: suffix });
+          played.tutorialView.destroy(); played.tutorialView = undefined;
+          for (let frames = 0; !played.gameOver && frames < 15000; frames++) played.update(0, delta);
+          check(played.gameOver && played.battleChecksum() === expected,
+            `${levelId}/${checkpoint.step}: checkpoint playback diverged without tutorial view`);
+          game.scene.stop(played.sys.settings.key);
+        }
+      }
+      check(JSON.stringify(localStorage) === storage, "Checkpoint playback changed progress");
+      results.push({ levelId, ticks: replay.endTick, commands: replay.commands.length, checkpoints: checkpoints.length });
       game.scene.stop(scene.sys.settings.key);
     }
     return results;

@@ -1,4 +1,4 @@
-import { BASE_INTEGRITY, COLUMNS, CUBE_BOSS_STATS, NATURAL_PRODUCE_AMOUNT,
+import { BASE_INTEGRITY, BOARD_X, BOARD_WIDTH, COLUMNS, CUBE_BOSS_STATS, NATURAL_PRODUCE_AMOUNT,
   NATURAL_PRODUCE_INTERVAL, STARTING_CHARS } from "../config";
 import type { CardDefinition, CardId, DifficultyConfig, EdgeTower, LevelConfig, WaveTracker } from "../types";
 import type { BossState } from "./bossState";
@@ -17,6 +17,10 @@ import { spawnBattleWave, type EnemySpawnOptions } from "./waveSpawner";
 import { BattleEntityIds } from "./battleEntityIds";
 import { BattleEntityIndex } from "./battleEntityGraph";
 import { BattleLoadout } from "./battleLoadout";
+import { getEnemyDefinition } from "../registry/enemies";
+import type { TutorialController, TutorialEnemySpawn } from "./tutorial";
+import { createTutorialInteraction } from "./tutorialInteraction";
+import { copyTutorialCheckpoint, type TutorialCheckpoint } from "./tutorialState";
 
 export interface BattleEntities {
   tower: TowerState;
@@ -91,14 +95,14 @@ export interface BattleWorldSystems<E extends BattleEntities = BattleEntities> e
   finishProjectileMotion(): void;
   updateEnemyProjectiles(seconds: number): void;
   updateMortarProjectiles(seconds: number): void;
-  updateTutorial(): void;
-  usesWaveSchedule(): boolean;
   autoUpgrade(): void;
 }
 
 export class BattleWorld<E extends BattleEntities = BattleEntities> implements BattleWorldProgress {
   readonly entityIds = new BattleEntityIds();
   readonly loadout: BattleLoadout;
+  tutorial: TutorialController | null = null;
+  tutorialInteraction = createTutorialInteraction();
 
   indexEntities(state: unknown) { return new BattleEntityIndex<E>(state); }
   towers: E["tower"][] = [];
@@ -168,8 +172,8 @@ export class BattleWorld<E extends BattleEntities = BattleEntities> implements B
       systems.finishProjectileMotion();
       systems.updateEnemyProjectiles(seconds);
       systems.updateMortarProjectiles(seconds);
-      systems.updateTutorial();
-      if (systems.usesWaveSchedule()) this.updateWaveSchedule(this.levelElapsed, this.battleTime, systems);
+      this.tutorial?.update();
+      if (!this.tutorial || this.tutorial.usesWaveSchedule) this.updateWaveSchedule(this.levelElapsed, this.battleTime, systems);
       systems.autoUpgrade();
     } finally { this.stepping = false; }
   }
@@ -246,6 +250,37 @@ export class BattleWorld<E extends BattleEntities = BattleEntities> implements B
       waveNumber, levelElapsed: this.currentPhaseElapsed(levelElapsed), gameTime }, this.random, spawn => systems.spawnEnemy(spawn));
     this.applyWaveStartMechanics(column => systems.sealColumn(column));
     systems.waveStarted(waveNumber, waveNumber % level.wavesPerFlag === 0);
+  }
+
+  spawnTutorialWave(spawns: TutorialEnemySpawn[], systems: BattleWaveSystems) {
+    const waveNumber = ++this.wave;
+    let totalWeight = 0;
+    spawns.forEach((spawn, index) => {
+      totalWeight += systems.spawnEnemy({ kind: spawn.kind, lane: spawn.lane, waveNumber, time: this.battleTime,
+        x: spawn.x ?? BOARD_X + BOARD_WIDTH + 46 + index * 5,
+        waveWeight: getEnemyDefinition(spawn.kind).weight, finalDamageReduction: 0 });
+    });
+    this.waveTracker = { number: waveNumber, totalWeight, defeatedWeight: 0, spawnedAt: this.levelElapsed };
+    systems.waveStarted(waveNumber, waveNumber % this.options.level.wavesPerFlag === 0);
+  }
+
+  tutorialSnapshot(): TutorialCheckpoint | undefined {
+    return this.tutorial ? copyTutorialCheckpoint({ state: this.tutorial.snapshot(), interaction: this.tutorialInteraction }) : undefined;
+  }
+
+  validateTutorial(value: TutorialCheckpoint | undefined) {
+    if (value === undefined && !this.tutorial) return;
+    if (value === undefined || !this.tutorial) throw new Error("Missing or unexpected tutorial checkpoint");
+    const checkpoint = copyTutorialCheckpoint(value);
+    if (checkpoint.state.kind !== this.tutorial.snapshot().kind) throw new Error("Tutorial checkpoint differs from level");
+    return checkpoint;
+  }
+
+  restoreTutorial(value: TutorialCheckpoint | undefined) {
+    const checkpoint = this.validateTutorial(value);
+    if (!checkpoint || !this.tutorial) return;
+    this.tutorial.restore(checkpoint.state);
+    this.tutorialInteraction = checkpoint.interaction;
   }
 
   applyWaveStartMechanics(sealColumn: BattleWaveSystems["sealColumn"]) {

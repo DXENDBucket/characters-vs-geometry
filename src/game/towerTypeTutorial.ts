@@ -1,34 +1,16 @@
-import Phaser from "phaser";
+import { copyTutorialState, TUTORIAL_STEPS, type TutorialState } from "./tutorialState";
+import type { TowerState } from "./towerState";
+import { CELL_WIDTH } from "../config";
+import type { CardId } from "../types";
 import {
-  BOARD_HEIGHT,
-  BOARD_WIDTH,
-  BOARD_X,
-  BOARD_Y,
-  CELL_WIDTH,
-  palette
-} from "../config";
-import { t } from "../i18n";
-import { createUnitBorder } from "../render/unitShapes";
-import type { CardId, Tower, UnitCategory } from "../types";
-import {
-  GuidedTutorialView,
+  TutorialPresentation,
   type GuidedTutorialCopy,
   type TutorialRuntime
 } from "./tutorial";
 
 export const TOWER_TYPE_TUTORIAL_LOADOUT = ["F", "G"] as const satisfies readonly CardId[];
 
-type TutorialStep =
-  | "categories"
-  | "functionClass"
-  | "deployF"
-  | "fReady"
-  | "fActive"
-  | "deployG"
-  | "armingG"
-  | "gReady"
-  | "gActive"
-  | "complete";
+type TutorialStep = typeof TUTORIAL_STEPS.tutorialTowerTypes[number];
 
 const TUTORIAL_COPY: Record<TutorialStep, GuidedTutorialCopy> = {
   categories: {
@@ -93,25 +75,39 @@ const CENTER_LANE = 3;
 const F_TARGET = { lane: CENTER_LANE, column: 4 };
 const G_TARGET = { lane: CENTER_LANE, column: 7 };
 
-const CATEGORY_ITEMS: Array<{ category: UnitCategory; labelKey: string }> = [
-  { category: "production", labelKey: "tutorial.types.category.production" },
-  { category: "attack", labelKey: "tutorial.types.category.attack" },
-  { category: "defense", labelKey: "tutorial.types.category.defense" },
-  { category: "function", labelKey: "tutorial.types.category.function" },
-  { category: "healing", labelKey: "tutorial.types.category.healing" }
-];
 
 export class TowerTypeTutorialController {
   private step: TutorialStep = "categories";
-  private readonly view: GuidedTutorialView;
-  private readonly categoryLegend: Phaser.GameObjects.Container;
-  private fTower: Tower | null = null;
-  private gTower: Tower | null = null;
+  readonly presentation: TutorialPresentation;
+  private fTowerId: string | null = null;
+  private get fTower() { return this.runtime.getTowers().find(tower => tower.entityId === this.fTowerId) ?? null; }
+  private set fTower(tower: TowerState | null) {
+    if (tower && !tower.entityId) throw new Error("Tutorial tower requires a battle entity ID");
+    this.fTowerId = tower?.entityId ?? null;
+  }
+  private gTowerId: string | null = null;
+  private get gTower() { return this.runtime.getTowers().find(tower => tower.entityId === this.gTowerId) ?? null; }
+  private set gTower(tower: TowerState | null) {
+    if (tower && !tower.entityId) throw new Error("Tutorial tower requires a battle entity ID");
+    this.gTowerId = tower?.entityId ?? null;
+  }
   private destroyed = false;
 
   constructor(private readonly runtime: TutorialRuntime) {
-    this.view = new GuidedTutorialView(runtime, TOTAL_LESSONS, "tutorial.types.progress", () => this.advance());
-    this.categoryLegend = createCategoryLegend(runtime.scene);
+    this.presentation = new TutorialPresentation(TOTAL_LESSONS, "tutorial.types.progress");
+    this.syncStep();
+    this.drawHighlights();
+  }
+
+  snapshot(): TutorialState {
+    return { version: 1, kind: "tutorialTowerTypes", step: this.step, fTowerId: this.fTowerId, gTowerId: this.gTowerId };
+  }
+
+  restore(value: TutorialState) {
+    const state = copyTutorialState(value, "tutorialTowerTypes");
+    this.step = state.step;
+    this.fTowerId = state.fTowerId;
+    this.gTowerId = state.gTowerId;
     this.syncStep();
     this.drawHighlights();
   }
@@ -178,11 +174,10 @@ export class TowerTypeTutorialController {
       return;
     }
     this.destroyed = true;
-    this.view.destroy();
-    this.categoryLegend.destroy(true);
   }
 
-  private advance() {
+  advance() {
+    if (this.destroyed) return;
     switch (this.step) {
       case "categories":
         this.setStep("functionClass");
@@ -225,42 +220,42 @@ export class TowerTypeTutorialController {
   }
 
   private syncStep() {
-    this.view.setCopy(TUTORIAL_COPY[this.step]);
-    this.categoryLegend.setVisible(this.step === "categories" || this.step === "functionClass");
+    this.presentation.setCopy(TUTORIAL_COPY[this.step]);
+    this.presentation.showCategories = this.step === "categories" || this.step === "functionClass";
   }
 
   private drawHighlights() {
-    const alpha = this.view.beginHighlights();
+    this.presentation.beginHighlights();
 
     switch (this.step) {
       case "categories":
         return;
       case "functionClass":
-        this.view.drawCardHighlight("F", alpha);
-        this.view.drawCardHighlight("G", alpha);
+        this.presentation.drawCardHighlight("F");
+        this.presentation.drawCardHighlight("G");
         return;
       case "deployF":
-        this.view.drawCardHighlight("F", alpha);
-        this.view.drawCellHighlight(F_TARGET.lane, F_TARGET.column, alpha);
+        this.presentation.drawCardHighlight("F");
+        this.presentation.drawCellHighlight(F_TARGET.lane, F_TARGET.column);
         return;
       case "fReady":
-        this.view.drawCellHighlight(F_TARGET.lane, F_TARGET.column, alpha);
+        this.presentation.drawCellHighlight(F_TARGET.lane, F_TARGET.column);
         return;
       case "fActive":
-        this.view.drawCellHighlight(F_TARGET.lane, F_TARGET.column, alpha);
-        this.view.drawEnemyHighlights(alpha);
+        this.presentation.drawCellHighlight(F_TARGET.lane, F_TARGET.column);
+        this.presentation.drawEnemyHighlights();
         return;
       case "deployG":
-        this.view.drawCardHighlight("G", alpha);
-        this.view.drawCellHighlight(G_TARGET.lane, G_TARGET.column, alpha);
+        this.presentation.drawCardHighlight("G");
+        this.presentation.drawCellHighlight(G_TARGET.lane, G_TARGET.column);
         return;
       case "armingG":
       case "gReady":
-        this.view.drawCellHighlight(G_TARGET.lane, G_TARGET.column, alpha);
+        this.presentation.drawCellHighlight(G_TARGET.lane, G_TARGET.column);
         return;
       case "gActive":
-        this.view.drawCellHighlight(G_TARGET.lane, G_TARGET.column, alpha);
-        this.view.drawEnemyHighlights(alpha);
+        this.presentation.drawCellHighlight(G_TARGET.lane, G_TARGET.column);
+        this.presentation.drawEnemyHighlights();
         return;
     }
   }
@@ -270,40 +265,4 @@ export class TowerTypeTutorialController {
       return tower.inPlay && tower.type === type && tower.lane === lane && tower.column === column;
     });
   }
-}
-
-function createCategoryLegend(scene: Phaser.Scene) {
-  const width = 850;
-  const height = 132;
-  const centerX = BOARD_X + BOARD_WIDTH / 2;
-  const centerY = BOARD_Y + BOARD_HEIGHT / 2;
-  const plate = scene.add.rectangle(0, 0, width, height, palette.black, 0.96).setStrokeStyle(2, palette.mid, 0.92);
-  const title = scene.add
-    .text(0, -48, t("tutorial.types.legendTitle"), {
-      color: "#f5f5f5",
-      fontFamily: "monospace",
-      fontSize: "15px",
-      fontStyle: "700"
-    })
-    .setOrigin(0.5);
-  const children: Phaser.GameObjects.GameObject[] = [plate, title];
-  const gap = 160;
-  const startX = -gap * 2;
-
-  CATEGORY_ITEMS.forEach((item, index) => {
-    const x = startX + index * gap;
-    const border = createUnitBorder(scene, item.category, 18, 2).setPosition(x, -7);
-    const label = scene.add
-      .text(x, 31, t(item.labelKey), {
-        align: "center",
-        color: "#d8d8d8",
-        fontFamily: "monospace",
-        fontSize: "12px",
-        fontStyle: "700"
-      })
-      .setOrigin(0.5, 0);
-    children.push(border, label);
-  });
-
-  return scene.add.container(centerX, centerY, children).setDepth(168);
 }

@@ -1,26 +1,15 @@
-import Phaser from "phaser";
-import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH } from "../config";
-import type { CardId, Tower } from "../types";
+import { copyTutorialState, TUTORIAL_STEPS, type TutorialState } from "./tutorialState";
+import type { TowerState } from "./towerState";
+import type { CardId } from "../types";
 import {
-  GuidedTutorialView,
+  TutorialPresentation,
   type GuidedTutorialCopy,
   type TutorialRuntime
 } from "./tutorial";
 
 export const SHIFTER_TUTORIAL_LOADOUT = ["A", "B"] as const satisfies readonly CardId[];
 
-type TutorialStep =
-  | "intro"
-  | "deploy"
-  | "singleTool"
-  | "singleSelect"
-  | "singleMove"
-  | "cooldown"
-  | "multiTool"
-  | "multiFirst"
-  | "multiSecond"
-  | "multiMove"
-  | "complete";
+type TutorialStep = typeof TUTORIAL_STEPS.tutorialShifter[number];
 
 const TUTORIAL_COPY: Record<TutorialStep, GuidedTutorialCopy> = {
   intro: {
@@ -90,29 +79,47 @@ const GROUP_B_ORIGIN = { lane: 4, column: 3 };
 const GROUP_TARGET = { lane: 3, column: 7 };
 const GROUP_B_TARGET = { lane: 4, column: 8 };
 
-interface PlacementHint {
-  type: CardId;
-  position: { lane: number; column: number };
-  label: Phaser.GameObjects.Text;
-}
 
 export class ShifterTutorialController {
   readonly usesToolInteraction = true;
   private step: TutorialStep = "intro";
-  private readonly view: GuidedTutorialView;
-  private readonly placementHints: PlacementHint[];
-  private singleTower: Tower | null = null;
-  private groupATower: Tower | null = null;
-  private groupBTower: Tower | null = null;
+  readonly presentation: TutorialPresentation;
+  private singleTowerId: string | null = null;
+  private get singleTower() { return this.runtime.getTowers().find(tower => tower.entityId === this.singleTowerId) ?? null; }
+  private set singleTower(tower: TowerState | null) {
+    if (tower && !tower.entityId) throw new Error("Tutorial tower requires a battle entity ID");
+    this.singleTowerId = tower?.entityId ?? null;
+  }
+  private groupATowerId: string | null = null;
+  private get groupATower() { return this.runtime.getTowers().find(tower => tower.entityId === this.groupATowerId) ?? null; }
+  private set groupATower(tower: TowerState | null) {
+    if (tower && !tower.entityId) throw new Error("Tutorial tower requires a battle entity ID");
+    this.groupATowerId = tower?.entityId ?? null;
+  }
+  private groupBTowerId: string | null = null;
+  private get groupBTower() { return this.runtime.getTowers().find(tower => tower.entityId === this.groupBTowerId) ?? null; }
+  private set groupBTower(tower: TowerState | null) {
+    if (tower && !tower.entityId) throw new Error("Tutorial tower requires a battle entity ID");
+    this.groupBTowerId = tower?.entityId ?? null;
+  }
   private destroyed = false;
 
   constructor(private readonly runtime: TutorialRuntime) {
-    this.view = new GuidedTutorialView(runtime, TOTAL_LESSONS, "tutorial.shifter.progress", () => this.advance());
-    this.placementHints = [
-      this.createPlacementHint("A", SINGLE_ORIGIN),
-      this.createPlacementHint("A", GROUP_A_ORIGIN),
-      this.createPlacementHint("B", GROUP_B_ORIGIN)
-    ];
+    this.presentation = new TutorialPresentation(TOTAL_LESSONS, "tutorial.shifter.progress");
+    this.syncCopy();
+    this.drawHighlights();
+  }
+
+  snapshot(): TutorialState {
+    return { version: 1, kind: "tutorialShifter", step: this.step, singleTowerId: this.singleTowerId, groupATowerId: this.groupATowerId, groupBTowerId: this.groupBTowerId };
+  }
+
+  restore(value: TutorialState) {
+    const state = copyTutorialState(value, "tutorialShifter");
+    this.step = state.step;
+    this.singleTowerId = state.singleTowerId;
+    this.groupATowerId = state.groupATowerId;
+    this.groupBTowerId = state.groupBTowerId;
     this.syncCopy();
     this.drawHighlights();
   }
@@ -225,11 +232,10 @@ export class ShifterTutorialController {
       return;
     }
     this.destroyed = true;
-    this.view.destroy();
-    this.placementHints.forEach((hint) => hint.label.destroy());
   }
 
-  private advance() {
+  advance() {
+    if (this.destroyed) return;
     switch (this.step) {
       case "intro":
         this.setStep("deploy");
@@ -249,86 +255,69 @@ export class ShifterTutorialController {
   }
 
   private syncCopy() {
-    this.view.setCopy(TUTORIAL_COPY[this.step]);
+    this.presentation.setCopy(TUTORIAL_COPY[this.step]);
   }
 
   private drawHighlights() {
-    const alpha = this.view.beginHighlights();
-    this.syncPlacementHints(alpha);
+    this.presentation.beginHighlights();
+    this.syncPlacementHints();
     switch (this.step) {
       case "intro":
       case "singleTool":
       case "multiTool":
-        this.view.drawToolHighlight("shifter", alpha);
+        this.presentation.drawToolHighlight("shifter");
         return;
       case "deploy":
-        this.drawMissingDeploymentHighlights(alpha);
+        this.drawMissingDeploymentHighlights();
         return;
       case "singleSelect":
-        this.view.drawCellHighlight(this.singleTower?.lane ?? SINGLE_ORIGIN.lane, this.singleTower?.column ?? SINGLE_ORIGIN.column, alpha);
+        this.presentation.drawCellHighlight(this.singleTower?.lane ?? SINGLE_ORIGIN.lane, this.singleTower?.column ?? SINGLE_ORIGIN.column);
         return;
       case "singleMove":
-        this.view.drawCellHighlight(SINGLE_TARGET.lane, SINGLE_TARGET.column, alpha);
+        this.presentation.drawCellHighlight(SINGLE_TARGET.lane, SINGLE_TARGET.column);
         return;
       case "cooldown":
-        this.view.drawToolHighlight("shifter", alpha);
+        this.presentation.drawToolHighlight("shifter");
         return;
       case "multiFirst":
-        this.view.drawCellHighlight(GROUP_A_ORIGIN.lane, GROUP_A_ORIGIN.column, alpha);
+        this.presentation.drawCellHighlight(GROUP_A_ORIGIN.lane, GROUP_A_ORIGIN.column);
         return;
       case "multiSecond":
-        this.view.drawCellHighlight(GROUP_A_ORIGIN.lane, GROUP_A_ORIGIN.column, alpha);
-        this.view.drawCellHighlight(GROUP_B_ORIGIN.lane, GROUP_B_ORIGIN.column, alpha);
+        this.presentation.drawCellHighlight(GROUP_A_ORIGIN.lane, GROUP_A_ORIGIN.column);
+        this.presentation.drawCellHighlight(GROUP_B_ORIGIN.lane, GROUP_B_ORIGIN.column);
         return;
       case "multiMove":
-        this.view.drawCellHighlight(GROUP_TARGET.lane, GROUP_TARGET.column, alpha);
-        this.view.drawCellHighlight(GROUP_B_TARGET.lane, GROUP_B_TARGET.column, alpha);
+        this.presentation.drawCellHighlight(GROUP_TARGET.lane, GROUP_TARGET.column);
+        this.presentation.drawCellHighlight(GROUP_B_TARGET.lane, GROUP_B_TARGET.column);
         return;
     }
   }
 
-  private drawMissingDeploymentHighlights(alpha: number) {
+  private drawMissingDeploymentHighlights() {
     const missingSingle = !this.findTowerAt("A", SINGLE_ORIGIN);
     const missingGroupA = !this.findTowerAt("A", GROUP_A_ORIGIN);
     const missingGroupB = !this.findTowerAt("B", GROUP_B_ORIGIN);
     if (missingSingle || missingGroupA) {
-      this.view.drawCardHighlight("A", alpha);
+      this.presentation.drawCardHighlight("A");
     }
     if (missingGroupB) {
-      this.view.drawCardHighlight("B", alpha);
+      this.presentation.drawCardHighlight("B");
     }
     if (missingSingle) {
-      this.view.drawCellHighlight(SINGLE_ORIGIN.lane, SINGLE_ORIGIN.column, alpha);
+      this.presentation.drawCellHighlight(SINGLE_ORIGIN.lane, SINGLE_ORIGIN.column);
     }
     if (missingGroupA) {
-      this.view.drawCellHighlight(GROUP_A_ORIGIN.lane, GROUP_A_ORIGIN.column, alpha);
+      this.presentation.drawCellHighlight(GROUP_A_ORIGIN.lane, GROUP_A_ORIGIN.column);
     }
     if (missingGroupB) {
-      this.view.drawCellHighlight(GROUP_B_ORIGIN.lane, GROUP_B_ORIGIN.column, alpha);
+      this.presentation.drawCellHighlight(GROUP_B_ORIGIN.lane, GROUP_B_ORIGIN.column);
     }
   }
 
-  private createPlacementHint(type: CardId, position: { lane: number; column: number }): PlacementHint {
-    const x = BOARD_X + (position.column + 0.5) * CELL_WIDTH;
-    const y = BOARD_Y + (position.lane + 0.5) * CELL_HEIGHT;
-    const label = this.runtime.scene.add
-      .text(x, y - 3, type, {
-        color: "#ffd75a",
-        fontFamily: "monospace",
-        fontSize: "34px",
-        fontStyle: "700",
-        stroke: "#050505",
-        strokeThickness: 5
-      })
-      .setOrigin(0.5)
-      .setDepth(166);
-    return { type, position, label };
-  }
-
-  private syncPlacementHints(alpha: number) {
-    for (const hint of this.placementHints) {
-      const missing = !this.findTowerAt(hint.type, hint.position);
-      hint.label.setVisible(this.step === "deploy" && missing).setAlpha(0.55 + alpha * 0.35);
+  private syncPlacementHints() {
+    if (this.step !== "deploy") return;
+    for (const [type, position] of [["A", SINGLE_ORIGIN], ["A", GROUP_A_ORIGIN], ["B", GROUP_B_ORIGIN]] as const) {
+      if (!this.findTowerAt(type, position)) this.presentation.drawPlacementHint(type, position.lane, position.column);
     }
   }
 
@@ -355,7 +344,7 @@ export class ShifterTutorialController {
     });
   }
 
-  private towerMovedFrom(tower: Tower, origin: { lane: number; column: number }) {
+  private towerMovedFrom(tower: TowerState, origin: { lane: number; column: number }) {
     return tower.lane !== origin.lane || tower.column !== origin.column;
   }
 }

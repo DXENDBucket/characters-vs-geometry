@@ -88,6 +88,7 @@ test("combat controllers schedule data actions rather than engine timers or paus
 test("data, geometry, support queries and snapshot capture cannot pull in scenes or rendering", () => {
   const entries = ["enemyState", "towerState", "projectileState", "bossState", "bossRules", "bossSkillRules", "enemyCombatRules", "towerRules",
     "captureBattleSnapshot", "battleDataSchema", "battleEntityIds", "battleEntityGraph", "battleOperations", "battleControls", "tutorialInteraction",
+    "tutorial", "tutorialRegistry", "tutorialState", "tutorialPresentation",
     "battleSession", "battleAuthority", "battleParticipants", "battlePolicy", "battleChecksum", "battleLoadout", "loadoutReselection", "unitGeometry", "enemySupport",
     "combatStats", "statusEffects", "enemyContainerRules", "slowAura", "battleWorld", "waveSpawner", "rules/statusEffectRules"];
   for (const entry of [...entries, "../registry/cardDefinitions"]) {
