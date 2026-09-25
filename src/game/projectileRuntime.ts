@@ -5,7 +5,7 @@ import { towerBehaviorType } from "./towerIdentity";
 import type { TowerActionListener } from "./towerActions";
 import { updateProjectileTrail } from "../render/projectileTrail";
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, COLUMNS, LANES, palette } from "../config";
-import { getCardDefinition } from "../registry/cards";
+import { getCardDefinition } from "../registry/cardDefinitions";
 import { enemyIsBossCompanion } from "../registry/enemies";
 import {
   damageEffectColor,

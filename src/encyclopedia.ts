@@ -7,7 +7,7 @@ import {
 import { attackIntervalMs } from "./game/attackSpeed";
 import { isTowerShellType } from "./game/towerOccupancy";
 import { DAMAGE_SYMBOLS, EFFECT_SYMBOLS, getLanguage, t } from "./i18n";
-import { allCardDefinitions, getCardDefinition } from "./registry/cards";
+import { allCardDefinitions, getCardDefinition } from "./registry/cardDefinitions";
 import { enemyFamily, getEnemyDefinition } from "./registry/enemies";
 import { statusEffectDefinitions } from "./data/statusEffects";
 import { sortEnemyEncyclopediaEntries } from "./enemyEncyclopediaCatalog";

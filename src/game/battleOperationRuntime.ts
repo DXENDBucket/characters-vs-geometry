@@ -1,5 +1,6 @@
 import { LANES } from "../config";
-import type { CardState, EdgeTower, Tower } from "../types";
+import type { EdgeTower, Tower } from "../types";
+import type { BattleCardState } from "./battleLoadout";
 import { deploymentCardId } from "./cardIdentity";
 import { executeBattleOperation, type BattleOperation, type BattleOperationActor,
   type BattleOperationResult, type BattleOperationTargets } from "./battleOperations";
@@ -20,7 +21,7 @@ export interface LiveBattleOperationRuntime {
   towers: Tower[];
   edges: EdgeTower[];
   occupied: Map<string, Tower>;
-  cards: CardState[];
+  cards: readonly BattleCardState[];
   unlimitedFirepower: boolean;
   autoUpgradeEnabled: boolean;
   ended: boolean;

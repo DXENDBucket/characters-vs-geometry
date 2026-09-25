@@ -1,10 +1,11 @@
-import type { CardState, EdgeTower } from "../types";
+import type { EdgeTower } from "../types";
+import type { BattleCardState } from "./battleLoadout";
 import { edgeKey } from "./projectileCircuit";
 import { refreshEdgeFlow } from "./pipelineRules";
 
 interface EdgeControlRuntime {
   edges: EdgeTower[];
-  card?: CardState;
+  card?: BattleCardState;
   time: number;
   cardTime: number;
   chars: number;

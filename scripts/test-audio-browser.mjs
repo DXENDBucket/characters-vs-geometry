@@ -143,7 +143,7 @@ try {
   await page.waitForTimeout(250);
   assert.equal(await page.evaluate(() => window.__testGame.scene.getScene("GameScene").selectedCardId), "B");
   assert.equal(await page.evaluate(() => window.__uiClicks), beforeCardSwitch, "Neither mouse down nor release should sound when switching battle cards");
-  assert.equal(await page.evaluate(() => window.__testGame.scene.getScene("GameScene").cardStates[1].frame.parentContainer.list
+  assert.equal(await page.evaluate(() => window.__testGame.scene.getScene("GameScene").cardList.cards[1].frame.parentContainer.list
     .some(object => object.name === "button-hover" && object.visible)), true, "Silent cards must retain hover feedback");
   await page.evaluate(async () => {
     (await window.__module("/src/settings/keybindings.ts")).setKeybinding("card:A", "KeyA");

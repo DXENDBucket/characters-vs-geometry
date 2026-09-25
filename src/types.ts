@@ -5,6 +5,7 @@ import type { EnemyProjectileState, MortarProjectileState, ProjectileState } fro
 import type { TowerState } from "./game/towerState";
 import type { EnemyState } from "./game/enemyState";
 import type { BossRotationState, BossState } from "./game/bossState";
+import type { BattleCardState } from "./game/battleLoadout";
 
 export type CardId =
   | "?"
@@ -249,15 +250,14 @@ export interface SkillState {
   regenMultiplier?: number;
 }
 
-export interface CardState {
-  definition: CardDefinition;
+export interface CardView {
+  readonly state: Readonly<BattleCardState>;
   frame: Phaser.GameObjects.Rectangle;
   cooldownFill: Phaser.GameObjects.Rectangle;
   costText: Phaser.GameObjects.Text;
   statsText: Phaser.GameObjects.Text;
   batchText: Phaser.GameObjects.Text;
   content: AlphaGameObject[];
-  readyAt: number;
   displayTime: number;
 }
 

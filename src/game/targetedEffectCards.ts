@@ -5,7 +5,8 @@ import type { TowerActionListener } from "./towerActions";
 import type { ScheduleBattleAction } from "./battleActions";
 import { palette } from "../config";
 import { syncTowerAttachmentVisual } from "../render/towerAttachments";
-import type { CardDefinition, CardId, CardState, Tower } from "../types";
+import type { CardDefinition, CardId, Tower } from "../types";
+import type { BattleCardState } from "./battleLoadout";
 import type { TowerExtractionPool } from "./towerExtraction";
 import {
   applyTowerTrueDamage,
@@ -25,7 +26,7 @@ export interface TargetedEffectCardRuntime {
   scheduleBattleAction?: ScheduleBattleAction;
   scene: Phaser.Scene;
   towers: Tower[];
-  cardStates: CardState[];
+  cardStates: readonly BattleCardState[];
   battleTime: number;
   unlimitedFirepower?: boolean;
   getDefinition: (id: CardId) => CardDefinition;

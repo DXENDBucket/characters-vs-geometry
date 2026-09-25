@@ -78,9 +78,9 @@ test("source runtime imports and re-exports remain acyclic", () => {
 test("data, geometry, support queries and snapshot capture cannot pull in scenes or rendering", () => {
   const entries = ["enemyState", "towerState", "projectileState", "bossState", "bossRules", "bossSkillRules", "enemyCombatRules", "towerRules",
     "captureBattleSnapshot", "battleDataSchema", "battleEntityIds", "battleEntityGraph", "battleOperations", "battleControls", "tutorialInteraction",
-    "battleSession", "battleChecksum", "unitGeometry", "enemySupport",
+    "battleSession", "battleChecksum", "battleLoadout", "loadoutReselection", "unitGeometry", "enemySupport",
     "combatStats", "statusEffects", "enemyContainerRules", "slowAura", "battleWorld", "waveSpawner", "rules/statusEffectRules"];
-  for (const entry of entries) {
+  for (const entry of [...entries, "../registry/cardDefinitions"]) {
     const seen = new Set();
     const visit = (name, chain) => {
       if (seen.has(name)) return;
@@ -89,7 +89,7 @@ test("data, geometry, support queries and snapshot capture cannot pull in scenes
       assert.ok(name !== "phaser" && !name.startsWith("src/render/") && !name.startsWith("src/scenes/"), trace.join(" -> "));
       for (const child of graph.get(name) ?? []) visit(child, trace);
     };
-    const name = "src/game/" + entry + ".ts";
+    const name = path.posix.normalize("src/game/" + entry + ".ts");
     assert.ok(graph.has(name), name);
     visit(name, []);
   }

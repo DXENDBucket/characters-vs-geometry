@@ -57,7 +57,12 @@ transport-neutral authority and synchronization gates above.
   auto-upgrade execution, and selected cards are excluded from combat checksums.
   Auto-upgrade/shifter lessons replay with separate bounded tutorial observations,
   without activating local tools. Participant UI instances, menu pause policies,
-  tutorial snapshot state and the live loadout adapter still need work;
+  tutorial snapshot state and combat presentation ports still need work;
+  actual card slots/cooldowns/reselection now belong to a renderer-free world
+  loadout. Live comparisons with no card views preserve the complete battle,
+  including continued attacks, auto-upgrades, reselect, saves and replay. See
+  [loadout state](battle-loadout.md). Independent participant resource policies
+  have not been implemented;
   gates 2-3 remain open. See [global controls](battle-controls.md),
   [semantic operations](battle-operations.md),
   [session boundaries](battle-session.md) and [world ownership](battle-world.md).

@@ -9,7 +9,7 @@ import { syncBossCopyWarnings } from "../render/bossCopyWarnings";
 import { syncDelSweepWarning } from "../render/delSweepWarning";
 import { secondaryBossParts } from "./unitGeometry";
 import { rankedBossFamily } from "../bosses/bossRanks";
-import { getCardDefinition } from "../registry/cards";
+import { getCardDefinition } from "../registry/cardDefinitions";
 import { towerBehaviorType } from "./towerIdentity";
 import { syncTowerFormVisual } from "./towers";
 import { createEnemy } from "./enemyFactory";

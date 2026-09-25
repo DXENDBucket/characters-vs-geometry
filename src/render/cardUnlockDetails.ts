@@ -2,7 +2,7 @@ import type Phaser from "phaser";
 import { GAME_WIDTH, palette, uiTextColors } from "../config";
 import { towerEncyclopediaEntry } from "../encyclopedia";
 import { t } from "../i18n";
-import { getCardDefinition } from "../registry/cards";
+import { getCardDefinition } from "../registry/cardDefinitions";
 import type { CardId } from "../types";
 import { bindButtonHover } from "./buttonHover";
 import { drawTowerShellBorder } from "./parenthesisTower";

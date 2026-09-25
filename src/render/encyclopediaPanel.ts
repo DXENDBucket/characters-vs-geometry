@@ -33,7 +33,7 @@ import { enemyEncyclopediaSections } from "../enemyEncyclopediaCatalog";
 import { enemyKindAtRank } from "../game/enemyIdentity";
 import { DAMAGE_SYMBOLS, getLanguage, t } from "../i18n";
 import { bossEncyclopediaIcon, enemyEncyclopediaGroup, visibleEnemyEncyclopediaGroups, visibleEncyclopediaEntries } from "../encyclopediaVisibility";
-import { cardLetterCase, type CardLetterCase } from "../registry/cards";
+import { cardLetterCase, type CardLetterCase } from "../registry/cardDefinitions";
 import { enemyFamily, enemyRank, getEnemyDefinition } from "../registry/enemies";
 import type { BossKind, CardId, DamageType, EnemyKind } from "../types";
 import {

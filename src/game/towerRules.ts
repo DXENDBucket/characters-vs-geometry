@@ -1,4 +1,5 @@
-import type { CardDefinition, CardId, CardState } from "../types";
+import type { CardDefinition, CardId } from "../types";
+import type { BattleCardState } from "./battleLoadout";
 import type { TowerState } from "./towerState";
 import { deploymentCardId } from "./cardIdentity";
 import { facingWithEffects } from "./rules/reversal";
@@ -44,7 +45,7 @@ export function findAutoUpgradeTarget<T extends TowerState>(towers: T[], cardId:
   return target;
 }
 
-export function isCardReadyForAutoUpgrade(cardState: Pick<CardState, "readyAt">, cardTime: number) {
+export function isCardReadyForAutoUpgrade(cardState: Pick<BattleCardState, "readyAt">, cardTime: number) {
   return cardTime >= cardState.readyAt;
 }
 

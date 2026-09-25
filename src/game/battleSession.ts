@@ -109,7 +109,7 @@ export class BattleSession {
     this.replayCursor = 0;
   }
 
-  startRecordingFromCheckpoint(checkpoint: SaveGraph, selectedCards: CardId[]) {
+  startRecordingFromCheckpoint(checkpoint: SaveGraph, selectedCards: readonly CardId[]) {
     if (this.replay) return;
     this.recording = { ...this.recording, selectedCards: [...selectedCards],
       checkpoint: structuredClone(checkpoint), commands: [] };

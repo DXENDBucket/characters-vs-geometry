@@ -1,10 +1,11 @@
 import Phaser from "phaser";
 import { BOARD_HEIGHT, BOARD_Y, CARD_HEIGHT, CARD_WIDTH, palette } from "../config";
-import type { CardId, CardState } from "../types";
-import { createCardStates, destroyCardStates } from "./gameUi";
+import type { CardId, CardView } from "../types";
+import type { BattleCardState } from "../game/battleLoadout";
+import { createCardViews, destroyCardViews } from "./gameUi";
 
 export class BattleCardList {
-  readonly cards: CardState[];
+  readonly cards: CardView[];
   private readonly viewport = new Phaser.Geom.Rectangle(24, 118, 184, BOARD_Y + BOARD_HEIGHT + 4 - 118);
   private readonly container: Phaser.GameObjects.Container;
   private readonly maskGraphics: Phaser.GameObjects.Graphics;
@@ -13,15 +14,15 @@ export class BattleCardList {
   private readonly thumb: Phaser.GameObjects.Rectangle;
   private readonly maxOffset: number;
   private offset = 0;
-  private drag?: { pointer: Phaser.Input.Pointer; y: number; offset: number; card?: CardState; moved: boolean; scrollbar: boolean };
+  private drag?: { pointer: Phaser.Input.Pointer; y: number; offset: number; card?: CardView; moved: boolean; scrollbar: boolean };
 
   constructor(
     private readonly scene: Phaser.Scene,
-    ids: CardId[],
+    states: readonly BattleCardState[],
     private readonly onSelect: (id: CardId) => void,
     private readonly canInteract: () => boolean
   ) {
-    this.cards = createCardStates(scene, ids);
+    this.cards = createCardViews(scene, states);
     this.container = scene.add.container(0, 0).setDepth(30);
     for (const card of this.cards) {
       this.container.add([card.frame, ...card.content, card.cooldownFill]);
@@ -46,7 +47,7 @@ export class BattleCardList {
   }
 
   ensureVisible(id: CardId) {
-    const card = this.cards.find(card => card.definition.id === id);
+    const card = this.cards.find(card => card.state.definition.id === id);
     if (!card) return;
     const top = card.frame.y - this.offset - 4;
     const bottom = card.frame.y - this.offset + CARD_HEIGHT + 4;
@@ -61,7 +62,7 @@ export class BattleCardList {
     this.scene.input.off("pointerup", this.onUp);
     this.scene.input.off("pointerupoutside", this.onUpOutside);
     this.drag = undefined;
-    destroyCardStates(this.cards);
+    destroyCardViews(this.cards);
     this.container.clearMask();
     this.container.destroy();
     this.mask.destroy();
@@ -103,7 +104,7 @@ export class BattleCardList {
     this.drag = undefined;
     if (!this.canInteract() || drag.moved || drag.scrollbar || !this.viewport.contains(pointer.x, pointer.y)) return;
     if (drag.card && this.cardAt(pointer) === drag.card) {
-      this.onSelect(drag.card.definition.id);
+      this.onSelect(drag.card.state.definition.id);
     }
   };
 

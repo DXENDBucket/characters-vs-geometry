@@ -77,7 +77,7 @@ try {
     runtime.slotCount = 10; runtime.cardAllowed = id => id !== "?A";
     check(executeBattleControl("local", requested, runtime) === "forbidden", "Card unlock policy bypassed");
     check(b.battleChecksum() === before, "Locked card partially changed loadout");
-    b.cardStates.find(card => card.definition.id === "?A").displayTime = -10000;
+    b.cardList.cards.find(card => card.state.definition.id === "?A").displayTime = -10000;
     a.submitBattleCommand(requested); send(requested); equal("reselection ignores stale display clock");
     check(b.selectedCardIds.join() === "B,?A,=", "Loadout was not applied exactly");
     const checkpoint = structuredClone(captureBattleSnapshot(b.battleState())), restored = start("RestoredControls");

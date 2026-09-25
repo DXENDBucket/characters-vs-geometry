@@ -9,7 +9,7 @@ import {
   palette
 } from "../config";
 import { t } from "../i18n";
-import type { CardId, CardState, Enemy, EnemyKind, LevelConfig, Tower } from "../types";
+import type { CardId, CardView, Enemy, EnemyKind, LevelConfig, Tower } from "../types";
 
 const PANEL_X = 18;
 const PANEL_Y = 350;
@@ -41,7 +41,7 @@ export interface TutorialToolState {
 export interface TutorialRuntime {
   registerAdvance?: (action: () => void) => () => void;
   scene: Phaser.Scene;
-  getCardState: (id: CardId) => CardState | undefined;
+  getCardView: (id: CardId) => CardView | undefined;
   getTowers: () => Tower[];
   getEnemies: () => Enemy[];
   getBattleTime: () => number;
@@ -176,7 +176,7 @@ export class GuidedTutorialView {
   }
 
   drawCardHighlight(id: CardId, alpha: number) {
-    const card = this.runtime.getCardState(id);
+    const card = this.runtime.getCardView(id);
     if (!card) {
       return;
     }

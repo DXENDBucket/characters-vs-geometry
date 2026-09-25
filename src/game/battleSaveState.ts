@@ -8,6 +8,7 @@ import type { BattleSessionSnapshot } from "./battleSession";
 import type { TimedCellSeal } from "./timedCellSeals";
 import type { NullifiedTowers } from "./towerNullification";
 import type { BattleEntityIdState } from "./battleEntityIds";
+import type { CardDeadline } from "./battleLoadout";
 
 export interface BattleSaveState {
   entityIds?: BattleEntityIdState;
@@ -30,7 +31,7 @@ export interface BattleSaveState {
   gameSpeed: number;
   debugModeEnabled?: boolean;
   selectedCardId: CardId;
-  cardDeadlines: Array<{ id: CardId; readyAt: number }>;
+  cardDeadlines: CardDeadline[];
   autoUpgradeEnabled: boolean;
   autoUpgradeReserveChars: number;
   towers: Tower[];

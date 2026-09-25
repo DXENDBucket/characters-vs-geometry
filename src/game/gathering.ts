@@ -1,6 +1,6 @@
 import { CELL_HEIGHT, CELL_WIDTH } from "../config";
 import { towerBehaviorType, towerHasSkillBehavior } from "./towerIdentity";
-import { getCardDefinition } from "../registry/cards";
+import { getCardDefinition } from "../registry/cardDefinitions";
 import { makeShiftEffect } from "../render/combatEffects";
 import type { EnemyProjectile, Projectile, SkillState, Tower } from "../types";
 import type { ProjectileRuntime } from "./projectileRuntime";

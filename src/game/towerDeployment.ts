@@ -2,7 +2,8 @@ import Phaser from "phaser";
 import { canUpgradeTowerWithCard, towerBehaviorType } from "./towerIdentity";
 import { LANES } from "../config";
 import { makeAutoUpgradePulse } from "../render/combatEffects";
-import type { CardDefinition, CardId, CardState, Tower } from "../types";
+import type { CardDefinition, CardId, Tower } from "../types";
+import type { BattleCardState } from "./battleLoadout";
 import type { TowerExtractionPool } from "./towerExtraction";
 import { syncTowerOccupancy, towerInPlacementLayer } from "./towerOccupancy";
 import {
@@ -17,7 +18,7 @@ export interface TowerDeploymentRuntime {
   scene: Phaser.Scene;
   towers: Tower[];
   occupied: Map<string, Tower>;
-  cardStates: CardState[];
+  cardStates: readonly BattleCardState[];
   battleTime: number;
   unlimitedFirepower: boolean;
   autoUpgradeEnabled: boolean;

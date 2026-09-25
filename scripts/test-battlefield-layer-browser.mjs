@@ -85,7 +85,7 @@ try {
     const scene = window.__testGame.scene.getScene("GameScene"), list = scene.cardList;
     if (list.offset <= 0) throw Error("Card scrolling broke");
     const card = list.cards.at(-1);
-    return { x: card.frame.x + 40, y: card.frame.y - list.offset + 30, id: card.definition.id };
+    return { x: card.frame.x + 40, y: card.frame.y - list.offset + 30, id: card.state.definition.id };
   });
   const target = await point(last.x, last.y);
   await page.mouse.click(target.x, target.y); await page.waitForTimeout(100);

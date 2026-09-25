@@ -1,5 +1,5 @@
 import type { CardId, Enemy, Tower, TowerFinalStats } from "../types";
-import { getCardDefinition } from "../registry/cards";
+import { getCardDefinition } from "../registry/cardDefinitions";
 import { getEnemyDefinition } from "../registry/enemies";
 import { towerFormType } from "./towerIdentity";
 import { upgradedAttackMultiplier } from "./upgrades";

@@ -15,6 +15,7 @@ import { createTutorialInteraction, sameTutorialInteraction, type TutorialIntera
 import type { BattleAction, ScheduleBattleAction } from "../game/battleActions";
 import { BattleSession, type BattleSessionRuntime } from "../game/battleSession";
 import { BattleWorld, type BattleWorldSystems } from "../game/battleWorld";
+import { battleCardTime, type BattleCardState } from "../game/battleLoadout";
 import { battleChecksum } from "../game/battleChecksum";
 import { syncEnemyStatusVisuals } from "../render/enemyStatus";
 import { syncHexArmorAuras } from "../render/enemySupport";
@@ -57,7 +58,7 @@ import { EncyclopediaPanel } from "../render/encyclopediaPanel";
 import { BattleCardList } from "../render/battleCardList";
 import { BattlefieldLayer, useBattlefieldCanvas } from "../render/battlefieldLayer";
 import { TowerExtractionPool } from "../game/towerExtraction";
-import { LoadoutReselection, RESELECT_UNLOCK_LEVEL } from "../game/loadoutReselection";
+import { RESELECT_UNLOCK_LEVEL } from "../game/loadoutReselection";
 import { TowerStorageController } from "../game/towerStorage";
 import { expireReversalEffect } from "../game/rules/reversal";
 import {
@@ -164,13 +165,14 @@ import {
   createGameOverlay,
   showGameOverlay,
   showToast as showUiToast,
-  updateCardStates,
+  updateCardViews,
   updateGameHud,
   updateToolButtonStates,
   type GameHudElements,
   type GameOverlayElements
 } from "../render/gameUi";
-import { allCardDefinitions, defaultCardLoadout, getCardBehavior, getCardDefinition, hasCardDefinition } from "../registry/cards";
+import { getCardBehavior } from "../registry/cards";
+import { allCardDefinitions, defaultCardLoadout, getCardDefinition, hasCardDefinition } from "../registry/cardDefinitions";
 import { getEnemyDefinition } from "../registry/enemies";
 import {
   CONTROL_SLOT_COUNT,
@@ -187,7 +189,6 @@ import { isDebugModeEnabled } from "../settings/preferences";
 import type {
   CardDefinition,
   CardId,
-  CardState,
   CubeBoss,
   DifficultyConfig,
   Enemy,
@@ -267,7 +268,7 @@ export class GameScene extends Phaser.Scene {
   private difficulty = DEFAULT_DIFFICULTY;
   private difficultyConfig = getDifficultyConfig(DEFAULT_DIFFICULTY);
   private unlimitedFirepower = false;
-  private selectedCardIds: CardId[] = [...defaultCardLoadout];
+  private get selectedCardIds() { return this.world.loadout.ids; }
   private get levelElapsed() { return this.world.levelElapsed; }
   private set levelElapsed(value: number) { this.world.levelElapsed = value; }
   private get battleTime() { return this.world.battleTime; }
@@ -276,10 +277,10 @@ export class GameScene extends Phaser.Scene {
   private set cardTime(value: number) { this.world.cardTime = value; }
   private get nextNaturalProduceAt() { return this.world.nextNaturalProduceAt; }
   private set nextNaturalProduceAt(value: number) { this.world.nextNaturalProduceAt = value; }
-  private cardStates: CardState[] = [];
+  private get cardStates() { return this.world.loadout.cards; }
   private cardList?: BattleCardList;
   private battlefield!: BattlefieldLayer;
-  private cardStatesById = new Map<CardId, CardState>();
+  private get cardStatesById() { return this.world.loadout.byId; }
   private selectedCardId: CardId = "X";
   private get towers() { return this.world.towers; }
   private set towers(value: Tower[]) { this.world.towers = value; }
@@ -386,7 +387,7 @@ export class GameScene extends Phaser.Scene {
   private pauseMenu!: PauseMenu;
   private menuOpen = false;
   private reselectOpen = false;
-  private reselection = new LoadoutReselection();
+  private get reselection() { return this.world.loadout.reselection; }
   private extraction = new TowerExtractionPool();
   private reselectShade?: Phaser.GameObjects.Rectangle;
   private readonly scenePointerDownHandler = (pointer: Phaser.Input.Pointer) => this.localInput(() => this.handlePointerDown(pointer));
@@ -440,23 +441,22 @@ export class GameScene extends Phaser.Scene {
     this.debugModeEnabled = playback?.debug ?? isDebugModeEnabled();
     this.difficultyConfig = this.adjustDifficultyForUnlimitedFirepower(getDifficultyConfig(this.difficulty));
     if (isTutorial) this.difficultyConfig = getDifficultyConfig(1);
-    this.selectedCardIds = this.sanitizeLoadout(tutorialLoadout(tutorialMechanic, data.selectedCards), Boolean(playback));
+    const selectedCards = this.sanitizeLoadout(tutorialLoadout(tutorialMechanic, data.selectedCards), Boolean(playback));
     this.session = new BattleSession({ version: BATTLE_RULES_VERSION, levelId: this.levelId, difficulty: this.difficulty,
       difficultyVersion: DIFFICULTY_VERSION,
-      unlimitedFirepower: this.unlimitedFirepower, selectedCards: [...this.selectedCardIds],
+      unlimitedFirepower: this.unlimitedFirepower, selectedCards,
       seed, debug: this.debugModeEnabled }, playback);
     setBattleRandom(this, this.session.random);
     setBattlePlayback(this, Boolean(playback));
     this.world = new BattleWorld<LiveBattleEntities>({ levelId: this.levelId, level: this.levelConfig,
-      difficulty: this.difficultyConfig, unlimitedFirepower: this.unlimitedFirepower, resumed: !!this.resumeSave }, this.session.random);
+      difficulty: this.difficultyConfig, unlimitedFirepower: this.unlimitedFirepower, resumed: !!this.resumeSave },
+      this.session.random, selectedCards.map(id => this.getDefinition(id)));
     setBattleEntityIds(this, this.world.entityIds);
     this.worldSystems = this.createWorldSystems();
-    this.setCardStates([]);
     this.selectedCardId = this.selectedCardIds.includes("X") ? "X" : this.selectedCardIds[0];
     this.sealedCellMarks = new Map<string, Phaser.GameObjects.Text>();
     this.menuOpen = false;
     this.reselectOpen = false;
-    this.reselection = new LoadoutReselection();
     this.extraction = new TowerExtractionPool();
     this.reselectShade = undefined;
     this.battlePaused = false;
@@ -636,7 +636,7 @@ export class GameScene extends Phaser.Scene {
           return () => this.localInput(() => { this.requestControl({ type: "tutorialAdvance" }); });
         },
         scene: this,
-        getCardState: (id) => this.cardStatesById.get(id),
+        getCardView: (id) => this.cardList?.cards.find(card => card.state.definition.id === id),
         getTowers: () => this.towers,
         getEnemies: () => this.enemies,
         getBattleTime: () => this.battleTime,
@@ -686,18 +686,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createCardList() {
-    this.cardList = this.battlefield.ui(() => new BattleCardList(this, this.selectedCardIds, (id) => this.localInput(() => this.selectCard(id)),
+    this.cardList = this.battlefield.ui(() => new BattleCardList(this, this.cardStates, (id) => this.localInput(() => this.selectCard(id)),
       () => !this.gameOver && !this.menuOpen && !this.reselectOpen));
-    this.setCardStates(this.cardList.cards);
     this.cardList.ensureVisible(this.selectedCardId);
-  }
-
-  private setCardStates(cardStates: CardState[]) {
-    this.cardStates = cardStates;
-    this.cardStatesById.clear();
-    for (const cardState of cardStates) {
-      this.cardStatesById.set(cardState.definition.id, cardState);
-    }
   }
 
   update(_time: number, delta: number) {
@@ -999,7 +990,7 @@ export class GameScene extends Phaser.Scene {
   private canUpgradeSelectedTower(
     tower: Tower | undefined,
     definition: CardDefinition,
-    cardState: CardState | undefined,
+    cardState: BattleCardState | undefined,
     effectiveChars: number
   ) {
     return (
@@ -1506,15 +1497,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private cardTimeFor(id: CardId) {
-    return this.cardUsesClockCooldown(id) ? this.cardTime : this.battleTime;
-  }
-
-  private cardUsesClockCooldown(id: CardId) {
-    return this.cardDefinitionUsesClockCooldown(this.getDefinition(id));
-  }
-
-  private cardDefinitionUsesClockCooldown(definition: CardDefinition) {
-    return deploymentCardId(definition.id) !== "c" && definition.cost <= MIRROR_COST_LIMIT;
+    return battleCardTime(this.getDefinition(id), this.world);
   }
 
   private gainChars(amount: number, x: number, y: number) {
@@ -2230,11 +2213,12 @@ export class GameScene extends Phaser.Scene {
 
   private updateCards() {
     const shifterMode = this.shifter.isActive();
-    for (const cardState of this.cardStates) {
-      cardState.displayTime = this.cardDefinitionUsesClockCooldown(cardState.definition) ? this.cardTime : this.battleTime;
+    const views = this.cardList?.cards ?? [];
+    for (const view of views) {
+      view.displayTime = battleCardTime(view.state.definition, this.world);
     }
 
-    updateCardStates(this.cardStates, {
+    updateCardViews(views, {
       extraction: this.extraction,
       selectedCardId: this.selectedCardId,
       chars: this.effectiveChars(),
@@ -2304,12 +2288,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private applyReselection(cards: readonly CardId[]) {
-    const deadlines = this.cardStates.map(card => ({ definition: card.definition, readyAt: card.readyAt,
-      displayTime: this.cardTimeFor(card.definition.id) }));
-    if (!this.reselection.confirm(this.battleTime, deadlines)) return false;
-    this.selectedCardIds = [...cards];
+    if (!this.world.loadout.reselect(cards.map(id => this.getDefinition(id)), this.world)) return false;
     this.cardList?.destroy(); this.createCardList();
-    for (const card of this.cardStates) card.readyAt = this.reselection.cardReadyAt(card.definition.id, this.cardTimeFor(card.definition.id), this.battleTime);
     if (!this.selectedCardIds.includes(this.selectedCardId)) this.selectedCardId = this.selectedCardIds[0];
     this.updateCards();
     return true;
@@ -2332,9 +2312,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private applyDebugChars() {
-    this.cardStates.forEach((cardState) => {
-      cardState.readyAt = this.cardTimeFor(cardState.definition.id);
-    });
+    this.world.loadout.resetCooldowns(this.world);
     this.baseIntegrity += 1_000;
     this.flawlessRun = false;
     this.gainChars(10_000, this.ui.debugButton.x, this.ui.debugButton.y + 34);
@@ -2863,7 +2841,7 @@ export class GameScene extends Phaser.Scene {
         mirrorNextGroupId: this.mirrors.snapshotNextGroupId() },
       ...this.world.progressSnapshot(), gameSpeed: this.gameSpeed, selectedCardId: this.selectedCardId,
       debugModeEnabled: this.debugModeEnabled,
-      cardDeadlines: this.cardStates.map(card => ({ id: card.definition.id, readyAt: card.readyAt })),
+      cardDeadlines: this.world.loadout.deadlines(),
       autoUpgradeEnabled: this.autoUpgradeEnabled, autoUpgradeReserveChars: this.autoUpgradeReserveChars,
       towers: this.towers, enemies: this.enemies, boss: this.boss, projectiles: this.projectiles,
       enemyProjectiles: this.enemyProjectiles, mortarProjectiles: this.mortarProjectiles,
@@ -2938,10 +2916,7 @@ export class GameScene extends Phaser.Scene {
     this.numbers.sync();
     for (const tower of this.towers) syncFriendlyRangeVisual(tower);
     this.topology.update();
-    for (const deadline of state.cardDeadlines) {
-      const card = this.cardStatesById.get(deadline.id);
-      if (card) card.readyAt = deadline.readyAt;
-    }
+    this.world.loadout.restoreDeadlines(state.cardDeadlines);
     this.battlePaused = true;
     for (const flight of state.spellMortarFlights) this.towerSkills.restoreSpellMortarFlight(flight);
     this.setGameSpeed(state.gameSpeed);

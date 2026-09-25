@@ -7,6 +7,10 @@ temporary compatibility accessors point at world fields; they do not keep anothe
 copy of battle data. Restart creates a new world, and restore replaces that world's
 collections rather than leaving the simulation attached to stale arrays.
 
+The world also owns `BattleLoadout`: ordered cards, deadlines and reselection
+memory exist before any card widgets. Scene compatibility getters use that model;
+view recreation does not rebuild battle state. See [loadout state](battle-loadout.md).
+
 `BattleSession` still owns fixed ticks, RNG, queued actions and recordings. The
 world uses the session's exact RNG object. Battle configuration is copied once at
 construction, so caller mutation cannot alter another world through shared input.

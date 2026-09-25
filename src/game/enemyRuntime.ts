@@ -13,7 +13,7 @@ import { enemyFacingDirection, enemyMovementDirection } from "./rules/reversal";
 import { isShockTower } from "./triggerTowers";
 import { redirectOrientedTarget } from "./orientation";
 import { BOARD_HEIGHT, BOARD_WIDTH, BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, LANES } from "../config";
-import { getCardDefinition } from "../registry/cards";
+import { getCardDefinition } from "../registry/cardDefinitions";
 import {
   enemyKindAtRank,
   enemyBlockedDetonation,

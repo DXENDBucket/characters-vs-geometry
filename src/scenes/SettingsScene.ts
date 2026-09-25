@@ -10,7 +10,7 @@ import {
   resetProgress as resetGameProgress,
   unlockAllCards
 } from "../progress";
-import { allCardDefinitions, cardLetterCase, type CardLetterCase } from "../registry/cards";
+import { allCardDefinitions, cardLetterCase, type CardLetterCase } from "../registry/cardDefinitions";
 import {
   CONTROL_SLOT_COUNT,
   captureKeyCode,

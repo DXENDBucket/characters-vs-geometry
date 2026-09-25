@@ -16,6 +16,7 @@ import { waveScheduleAction } from "./waves";
 import { spawnBattleWave, type EnemySpawnOptions } from "./waveSpawner";
 import { BattleEntityIds } from "./battleEntityIds";
 import { BattleEntityIndex } from "./battleEntityGraph";
+import { BattleLoadout } from "./battleLoadout";
 
 export interface BattleEntities {
   tower: TowerState;
@@ -97,6 +98,7 @@ export interface BattleWorldSystems<E extends BattleEntities = BattleEntities> e
 
 export class BattleWorld<E extends BattleEntities = BattleEntities> implements BattleWorldProgress {
   readonly entityIds = new BattleEntityIds();
+  readonly loadout: BattleLoadout;
 
   indexEntities(state: unknown) { return new BattleEntityIndex<E>(state); }
   towers: E["tower"][] = [];
@@ -127,7 +129,8 @@ export class BattleWorld<E extends BattleEntities = BattleEntities> implements B
   readonly options: BattleWorldOptions;
   private stepping = false;
 
-  constructor(options: BattleWorldOptions, readonly random: BattleRandom) {
+  constructor(options: BattleWorldOptions, readonly random: BattleRandom, cards: readonly CardDefinition[] = []) {
+    this.loadout = new BattleLoadout(cards);
     this.options = structuredClone(options);
     this.chars = options.level.startingChars ?? (options.levelId.startsWith("1-") ? 300 : STARTING_CHARS);
     this.flawlessRun = !options.unlimitedFirepower && !options.resumed;

@@ -25,10 +25,12 @@ from both UI adapters and `GameScene.submitPlayerControl(actorId, control)`.
   pauses the Phaser scene; separating that local modal from host advancement and
   applying a multiplayer pause policy are remaining integration work.
 
-Control data lives in a separate `BattleControlState`. Actual costs, callbacks and
-card rebuilding still use live scene adapters. Time and resource policies remain
-single-player defaults; a participant registry, independent wallets and a complete
-renderer-free loadout runtime are not implemented by this boundary.
+Control data lives in a separate `BattleControlState`. Reselection and card
+deadlines now use the renderer-free `BattleWorld.loadout`; the scene only rebuilds
+its views after success. See [loadout state](battle-loadout.md). Other callbacks
+and combat controllers still use live scene adapters. Time and resource policies
+remain single-player defaults; a participant registry and independent wallets are
+not implemented by this boundary.
 
 ## Local State
 

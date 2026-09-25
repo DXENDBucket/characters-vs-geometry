@@ -427,8 +427,8 @@ const { LoadoutReselection, RESELECT_UNLOCK_LEVEL, RESELECT_COOLDOWN } = createT
 
 test("changing imitation target cannot reset the imitator cooldown and preserves the native slot", () => {
   const state = new LoadoutReselection();
-  state.confirm(240000, [{ definition: { id: "?A" }, readyAt: 502000, displayTime: 500000 },
-    { definition: { id: "A" }, readyAt: 501000 }]);
+  state.confirm(240000, [{ definition: { id: "?A" }, readyAt: 502000 },
+    { definition: { id: "A" }, readyAt: 501000 }], () => 500000);
   assert.equal(state.cardReadyAt("?B", 500000, 240000), 502000);
   assert.equal(state.cardReadyAt("A"), 501000);
   const restored = new LoadoutReselection(); restored.restore(state.snapshot());

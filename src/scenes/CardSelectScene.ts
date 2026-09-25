@@ -27,7 +27,7 @@ import { createEnemyShape, createUnitBorder } from "../render/unitShapes";
 import { drawTowerShellBorder } from "../render/parenthesisTower";
 import { isTowerShellType } from "../game/towerOccupancy";
 import { EncyclopediaPanel } from "../render/encyclopediaPanel";
-import { allCardDefinitions, canImitateCard, cardLetterCase, getCardDefinition, type CardLetterCase } from "../registry/cards";
+import { allCardDefinitions, canImitateCard, cardLetterCase, getCardDefinition, type CardLetterCase } from "../registry/cardDefinitions";
 import { enemyFamily, enemyRank, getEnemyDefinition, getEnemyDisplayName, type EnemyFamily } from "../registry/enemies";
 import type { BossKind, CardId, EnemyKind } from "../types";
 

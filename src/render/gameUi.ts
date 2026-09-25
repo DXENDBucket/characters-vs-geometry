@@ -17,8 +17,8 @@ import {
 } from "../config";
 import { createUnlockedCardDetails } from "./cardUnlockDetails";
 import { t } from "../i18n";
-import { getCardDefinition } from "../registry/cards";
-import type { AlphaGameObject, CardId, CardState, CubeBoss } from "../types";
+import type { AlphaGameObject, CardId, CardView, CubeBoss } from "../types";
+import type { BattleCardState } from "../game/battleLoadout";
 import { createUnitBorder } from "./unitShapes";
 import { drawTowerShellBorder } from "./parenthesisTower";
 import { isTowerShellType } from "../game/towerOccupancy";
@@ -388,9 +388,9 @@ export function refreshGameHudSettings(ui: GameHudElements, levelId: string, dif
   ui.pauseMenuTooltip.setText(`${t("button.menu")} (Esc)`).setVisible(false);
 }
 
-export function createCardStates(scene: Phaser.Scene, selectedCardIds: CardId[]) {
-  return selectedCardIds.map((cardId, index): CardState => {
-    const definition = getCardDefinition(cardId);
+export function createCardViews(scene: Phaser.Scene, states: readonly BattleCardState[]) {
+  return states.map((state, index): CardView => {
+    const definition = state.definition;
     const x = 28;
     const y = 122 + index * 70;
     const frame = scene.add
@@ -431,20 +431,19 @@ export function createCardStates(scene: Phaser.Scene, selectedCardIds: CardId[])
     bindButtonHover(frame, [], undefined, { clickSound: false });
 
     return {
-      definition,
+      state,
       frame,
       cooldownFill,
       costText,
       statsText,
       batchText,
       content: [previewBorder, label, costText, statsText, barBack, batchText],
-      readyAt: 0,
       displayTime: 0
     };
   });
 }
 
-export function destroyCardStates(cards: CardState[]) {
+export function destroyCardViews(cards: CardView[]) {
   for (const card of cards) {
     card.frame.destroy();
     card.cooldownFill.destroy();
@@ -518,15 +517,16 @@ export function createGameOverlay(scene: Phaser.Scene, onAction: () => void): Ga
   return { container, plate, title, subtitle, menuButton, buttonText, details };
 }
 
-export function updateCardStates(cardStates: CardState[], state: CardUpdateState) {
-  for (const card of cardStates) {
+export function updateCardViews(cards: CardView[], state: CardUpdateState) {
+  for (const card of cards) {
+    const { definition, readyAt } = card.state;
     const isSelected =
       !state.eraserMode &&
       !state.shifterMode &&
       !state.autoUpgradeMode &&
       !state.debugDamageMode &&
-      card.definition.id === state.selectedCardId;
-    const batch = state.extraction.plan(card.definition);
+      definition.id === state.selectedCardId;
+    const batch = state.extraction.plan(definition);
     const isAffordable = state.chars >= batch.cost;
     setTextIfChanged(card.costText, `${batch.cost}`);
     setTextIfChanged(card.batchText, `x${batch.levels}`);
@@ -535,7 +535,7 @@ export function updateCardStates(cardStates: CardState[], state: CardUpdateState
     fitCardText(card.costText, CARD_WIDTH - 84);
     fitCardText(card.statsText, CARD_WIDTH - 84);
     fitCardText(card.batchText, CARD_WIDTH - 84);
-    const cooldownRatio = Phaser.Math.Clamp((card.readyAt - card.displayTime) / card.definition.cooldown, 0, 1);
+    const cooldownRatio = Phaser.Math.Clamp((readyAt - card.displayTime) / definition.cooldown, 0, 1);
     const readyRatio = 1 - cooldownRatio;
     const contentAlpha = isSelected ? (isAffordable ? 1 : 0.56) : isAffordable ? 0.95 : 0.22;
 

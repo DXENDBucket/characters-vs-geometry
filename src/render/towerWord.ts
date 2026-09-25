@@ -1,6 +1,6 @@
 import type Phaser from "phaser";
 import { palette, uiTextColors } from "../config";
-import { getCardDefinition } from "../registry/cards";
+import { getCardDefinition } from "../registry/cardDefinitions";
 import type { CardId } from "../types";
 import { createUnitBorder } from "./unitShapes";
 

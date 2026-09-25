@@ -24,14 +24,15 @@ export class LoadoutReselection {
     return Math.max(0, Math.min(1, 1 - (this.readyAt - battleTime) / RESELECT_COOLDOWN));
   }
 
-  confirm(battleTime: number, cards: ReadonlyArray<{ definition: { id: CardId }; readyAt: number; displayTime?: number }>) {
+  confirm(battleTime: number, cards: ReadonlyArray<{ definition: { id: CardId }; readyAt: number }>,
+    cardTimeFor: (id: CardId) => number = () => battleTime) {
     if (!this.isReady(battleTime)) return false;
     // Keep deadlines in each card's original clock, even while it is out of the loadout.
     for (const card of cards) {
       const key = cardCooldownKey(card.definition.id);
       // An imitator can switch clock domains by changing its target (for example c -> A).
       this.cardReadyTimes.set(key, key === "?"
-        ? battleTime + Math.max(0, card.readyAt - (card.displayTime ?? battleTime)) : card.readyAt);
+        ? battleTime + Math.max(0, card.readyAt - cardTimeFor(card.definition.id)) : card.readyAt);
     }
     this.readyAt = battleTime + RESELECT_COOLDOWN;
     return true;
