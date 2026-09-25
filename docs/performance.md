@@ -319,3 +319,47 @@ censuses matched. These full-commit comparisons include storage/JIT/GC variance;
 the side-by-side replay comparison isolates the removed graph clone more directly.
 Checksum cost, wire validation, atomic storage and durability barriers remain.
 This is not proof of production latency or a fix for crowded-client long frames.
+
+### Warmed Rendering And Replica Batches
+
+The browser benchmark accepts `--warm-frames=60 --frames=180` to separate actual
+render warm-up from the measured window. `--profile=logs/battle.cpuprofile` records
+a Chromium CPU profile (one enemy count only). The profile includes fixture setup,
+warm-up and final reference checks; only the reported frame samples are the measured
+window. Stage timings report simulation including cosmetic effect creation, view
+refresh and WebGL rendering. Overlays/cards/HUD are nested within view refresh:
+do not sum these columns as independent totals. Timing wrappers add diagnostic
+overhead and never participate in combat state.
+
+`--replica` initializes a real GameScene replica from a wire snapshot and feeds it
+six-tick JSON command frames through BattleSyncClient every six renders. Each frame
+checks its checksum. Host preparation occurs outside the CPU frame timing; it still
+runs in the same browser process and affects frame intervals and shared GC. This
+isolates displayed-client application cost, **not network latency or a remote-host
+end-to-end FPS result**. Replica windows must be multiples of six. Both modes compare
+the final state to a separately advancing independent core and check nonblank pixels.
+
+Local headless Edge 153, 60 warm frames and 180 measured frames (milliseconds):
+
+| Enemies | Local CPU frame median / p95 | Local render median | Replica six-tick apply median / p95 |
+| --- | ---: | ---: | ---: |
+| 100 | 4.0 / 5.8 | 2.6 | 4.9 / 13.5 |
+| 400 | 10.0 / 20.9 | 6.8 | 12.7 / 23.3 |
+| 800 | 18.1 / 36.7 | 12.9 | 28.1 / 54.1 |
+
+Local and replica hashes at tick 420 agree: `984cb91a`, `9d0f763a`, `a2696ad8`.
+The live roster changes during the window; census and projectile counts are emitted
+with the results. At 800 enemies the replica's worst sampled CPU frame was 139.9 ms.
+These results leave rendering and burst application as unresolved bottlenecks, even
+after warm-up. Smaller replica median frame costs mostly reflect five frames without
+a simulation batch, not a faster simulation.
+
+CPU sampling also exposed global tween-list scans on every pooled effect acquisition.
+Private pools only contain completed effects (or manually retired mortar visuals
+which never have tweens). Acquiring those objects no longer calls `killTweensOf`;
+refreshing an active pipeline shield still does. In one full 800-enemy profile,
+`hasTarget` / `getTweensOf` self samples went from 229 / 57 to zero. Overall frame
+timings are noisy and rendering remains dominant; this does not establish a broad
+FPS gain. Real Phaser tests in Chromium/Firefox/WebKit cover reuse while completed
+tweens still await manager cleanup, multi-target completion, unrelated active tweens,
+shield refresh and scene restart (`scripts/test-effect-pools-browser.mjs`).

@@ -156,6 +156,15 @@ before persistence. Real-clock Node/file/browser checks cover pause, resume, sto
 and disk restoration. This prevents unbounded scheduling; it does not reduce the
 cost of a full checkpoint or establish crowded-battle latency readiness.
 
+Warmed browser profiling now separates simulation/effect creation, view refresh
+and rendering, and adds a real displayed replica consuming six-tick JSON frames.
+Local/replica/independent-core checksums agree at 100/400/800 enemies. The 800-enemy
+replica still has expensive batch application and long frames. Avoiding redundant
+global tween scans on completed pooled effects removes a measured hotspot, but
+does not resolve the dominant graphics rendering/batched-simulation costs. The
+profile uses a same-process host, excludes network latency and is not deployment
+load evidence; see [performance](performance.md#warmed-rendering-and-replica-batches).
+
 ## Next Work
 
 1. Address full-checkpoint commit overhead without weakening durability; isolate

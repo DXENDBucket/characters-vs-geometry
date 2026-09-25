@@ -107,6 +107,8 @@ function ensureEffectPoolLifecycle(scene: Phaser.Scene) {
 }
 
 function takeLiveEffect<T extends Phaser.GameObjects.GameObject>(scene: Phaser.Scene, pool?: T[]) {
+  // Only completed effects enter these private pools. Acquisition must not scan
+  // every active scene tween; refreshing a still-active effect handles cancellation separately.
   let effect = pool?.pop();
   while (effect && effect.scene !== scene) effect = pool?.pop();
   return effect;
@@ -116,7 +118,6 @@ function acquireEffectGraphics(scene: Phaser.Scene, depth: number) {
   ensureEffectPoolLifecycle(scene);
   const pool = effectGraphicsPools.get(scene);
   const graphics = takeLiveEffect(scene, pool) ?? scene.add.graphics();
-  scene.tweens.killTweensOf(graphics);
   graphics.clear();
   graphics.setPosition(0, 0);
   graphics.setScale(1, 1);
@@ -165,7 +166,6 @@ function acquireEffectRectangle(
   ensureEffectPoolLifecycle(scene);
   const pool = effectRectanglePools.get(scene);
   const rectangle = takeLiveEffect(scene, pool) ?? scene.add.rectangle(0, 0, width, height, color, alpha);
-  scene.tweens.killTweensOf(rectangle);
   rectangle.setPosition(x, y);
   rectangle.setSize(width, height);
   rectangle.setFillStyle(color, alpha);
@@ -221,7 +221,6 @@ function acquireEffectCircle(
   ensureEffectPoolLifecycle(scene);
   const pool = effectCirclePools.get(scene);
   const circle = takeLiveEffect(scene, pool) ?? scene.add.circle(0, 0, radius, fillColor, fillAlpha);
-  scene.tweens.killTweensOf(circle);
   circle.setPosition(x, y);
   circle.setRadius(radius);
   circle.setFillStyle(fillColor, fillAlpha);
@@ -270,7 +269,6 @@ function acquireEffectText(
   const scenePools = effectTextPools.get(scene);
   const pool = scenePools?.get(key);
   const textObject = takeLiveEffect(scene, pool) ?? scene.add.text(0, 0, text, style);
-  scene.tweens.killTweensOf(textObject);
   textObject.setText(text);
   textObject.setPosition(x, y);
   textObject.setOrigin(0.5);

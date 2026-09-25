@@ -194,6 +194,17 @@ test("all four effect pools reuse live objects within a battle, including pause/
   assert.equal(f.scene.events.listenerCount("destroy"), 1);
 });
 
+test("new and completed pooled effects do not scan or cancel unrelated scene tweens", () => {
+  const f = fixture();
+  f.scene.tweens.killTweensOf = () => assert.fail("Pooled acquisition scanned the scene tween list");
+  for (let i = 0; i < 20; i++) {
+    emitAll(f.scene); emitAll(f.scene);
+    assert.equal(f.objects.length, 8, "Still-active effects must not be reused");
+    f.complete();
+  }
+  f.end();
+});
+
 test("ion impacts reuse four objects, emit one audio cue, and clear after scene restart", () => {
   const f = fixture();
   const positions = [];
