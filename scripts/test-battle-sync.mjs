@@ -73,6 +73,18 @@ test("snapshot join, ordered frames and duplicate frames converge using the real
   assert.equal(f.copy().nextCommandSequence, 1);
 });
 
+test("UI completion waits for a terminal receipt, runs once after frame application and survives a lost receipt reconnect", () => {
+  const f = fixture(); f.pump(); const calls = [];
+  assert.equal(f.client.request(intent(75), receipt => calls.push([receipt.result, f.copy().controls.reserveChars])), true);
+  assert.equal(f.client.busy, true); assert.equal(f.client.request(intent(90), () => assert.fail("busy callback")), false);
+  f.host.receiveText(f.peer(), f.inbound.shift());
+  const receipt = f.outbound.splice(f.outbound.findIndex(text => JSON.parse(text).type === "receipt"), 1)[0];
+  f.pump(); assert.deepEqual(calls, []); assert.equal(f.client.busy, true);
+  f.reconnect(); f.pump();
+  assert.deepEqual(calls, [["handled", 75]]); assert.equal(f.client.busy, false);
+  assert.equal(f.client.receiveText(receipt), "ignored"); assert.equal(calls.length, 1);
+});
+
 test("wire record order cannot change snapshot validation or restored command continuation", () => {
   const f = fixture(), message = f.snapshot(), graph = message.replay.checkpoint;
   assert.equal(message.version, BATTLE_PROTOCOL_VERSION);

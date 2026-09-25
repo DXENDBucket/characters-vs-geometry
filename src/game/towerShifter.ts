@@ -64,8 +64,15 @@ export class TowerShifterController {
     this.setActive(false);
   }
 
-  isReady() { return this.simulation.isReady(); }
-  cooldownRatio() { return this.simulation.cooldownRatio(); }
+  isReady() {
+    const runtime = this.runtime();
+    return runtime.cooldown ? runtime.cardTime >= runtime.cooldown.readyAt : this.simulation.isReady();
+  }
+  cooldownRatio() {
+    const runtime = this.runtime(), state = runtime.cooldown;
+    return state ? runtime.cardTime >= state.readyAt ? 1 : Math.max(0, Math.min(1,
+      (runtime.cardTime - state.cooldownStartedAt) / state.cooldownDuration)) : this.simulation.cooldownRatio();
+  }
 
   hasSelection() {
     return this.liveSelection().length > 0;

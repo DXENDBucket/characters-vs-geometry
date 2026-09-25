@@ -10,6 +10,12 @@ export interface BattleSyncClientRuntime {
   receipt?(receipt: BattleReceipt): void;
 }
 
+export interface BattleInputPort {
+  readonly ready: boolean;
+  readonly busy: boolean;
+  request(intent: BattleIntent, completed?: (receipt: BattleReceipt) => void): boolean;
+}
+
 export class BattleSyncClient {
   private battleId?: string;
   private stream = 0;
@@ -17,12 +23,14 @@ export class BattleSyncClient {
   private baseSequence = 0;
   private nextRequest = 0;
   private pending?: BattleRequest;
+  private completed?: (receipt: BattleReceipt) => void;
   private send?: (message: BattleSyncInput) => void;
   private synchronized = false;
   private resyncRequested = false;
 
   constructor(private readonly runtime: BattleSyncClientRuntime) {}
   get ready() { return this.synchronized && !!this.send; }
+  get busy() { return !!this.pending; }
   get pendingRequest() { return this.pending ? structuredClone(this.pending) : undefined; }
   get position() { return this.cursor ? { ...this.cursor } : undefined; }
 
@@ -36,9 +44,10 @@ export class BattleSyncClient {
     catch { this.disconnect(); }
   }
 
-  request(intent: BattleIntent) {
+  request(intent: BattleIntent, completed?: (receipt: BattleReceipt) => void) {
     if (!this.ready || this.pending || !validBattleIntent(intent) || !this.battleId) return false;
     this.pending = { version: BATTLE_PROTOCOL_VERSION, battleId: this.battleId, sequence: this.nextRequest, intent: structuredClone(intent) };
+    this.completed = completed;
     this.retry(); return true;
   }
 
@@ -74,12 +83,16 @@ export class BattleSyncClient {
     if (message.type === "receipt") {
       const receipt = message.receipt;
       if (!this.pending || receipt.requestSequence !== this.pending.sequence) return "ignored";
+      let completed: typeof this.completed;
       if (receipt.status === "executed" || !["busy", "gap"].includes(receipt.reason)) {
         this.pending = undefined;
         if (receipt.nextSequence !== null) this.nextRequest = receipt.nextSequence;
+        completed = this.completed;
+        this.completed = undefined;
       }
       this.runtime.receipt?.(receipt);
       if (receipt.status === "rejected" && ["gap", "expired", "conflict", "wrongBattle", "faulted"].includes(receipt.reason)) this.resync();
+      completed?.(receipt);
       return "applied";
     }
     if (!this.synchronized) return "ignored";

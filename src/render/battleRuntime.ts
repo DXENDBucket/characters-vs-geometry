@@ -102,7 +102,7 @@ export function attachBoardPresentation(scene: Phaser.Scene, runtime: BattleRunt
   runtime.nullification.presentation = { visible: (tower, visible) => { (tower as Tower).body.setVisible(visible); } };
   runtime.circuit.presentation = circuitPresentation(() => ({
     shielded: (tower, type) => makeTowerPipelineShield(scene, tower, type),
-    changed: tower => { syncTowerLevelText(tower); syncTowerAutoUpgradeVisual(tower, runtime.session.controls.autoUpgradeEnabled); },
+    changed: tower => { syncTowerLevelText(tower); syncTowerAutoUpgradeVisual(tower, runtime.players.get(tower.ownerId).auto.autoUpgradeEnabled); },
     intercepted: (tower, target) => {
       const flash = scene.add.graphics().setDepth(121);
       flash.lineStyle(2, 0x8ce4ba, .85).lineBetween(tower.x, tower.y, target.x, target.y);

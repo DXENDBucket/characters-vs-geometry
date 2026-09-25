@@ -5,7 +5,8 @@ import { edgeKey, edgePosition } from "../game/projectileCircuit";
 const labels = new WeakMap<Phaser.GameObjects.Graphics, Map<string, Phaser.GameObjects.Text>>();
 
 export function drawCircuitEdges(graphics: Phaser.GameObjects.Graphics, edges: EdgeTower[],
-  active: (edge: EdgeTower) => boolean, preview?: EdgeTower, canPlace = false, autoEnabled = true) {
+  active: (edge: EdgeTower) => boolean, preview?: EdgeTower, canPlace = false,
+  autoEnabled: boolean | ((edge: EdgeTower) => boolean) = true) {
   graphics.clear();
   let texts = labels.get(graphics);
   if (!texts) {
@@ -26,7 +27,7 @@ export function drawCircuitEdges(graphics: Phaser.GameObjects.Graphics, edges: E
       if (mode === "!=") line(-9, 12, 9, -12);
     }
     if (edge.autoUpgrade) {
-      graphics.lineStyle(1, 0x8ce4ba, autoEnabled ? .9 : .3);
+      graphics.lineStyle(1, 0x8ce4ba, (typeof autoEnabled === "function" ? autoEnabled(edge) : autoEnabled) ? .9 : .3);
       graphics.strokeRect(x - 18, y - 15, 36, 30);
     }
   };

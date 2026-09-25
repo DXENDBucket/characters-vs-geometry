@@ -17,6 +17,7 @@ const { encodeBattleWireGraph, decodeBattleWireGraph } = load("src/game/battleWi
 const { towerOperationRef: ref, edgeOperationRef } = load("src/game/battleOperations.ts");
 const { getCardDefinition } = load("src/registry/cardDefinitions.ts");
 const { getTowerSkillState } = load("src/game/skillState.ts");
+const { BattlePlayerView } = load("src/game/battlePlayerView.ts");
 const participants = [{ id: "b", permissions: BATTLE_PERMISSIONS }, { id: "a", permissions: BATTLE_PERMISSIONS },
   { id: "viewer", permissions: ["debug", "settings", "loadout", "move"] }];
 const policy = { ...LEGACY_BATTLE_POLICY, towerAccess: "owner", walletMode: "individual", resourceMode: "individual" };
@@ -41,6 +42,38 @@ function fixture(options = config()) {
   const advance = ticks => { for (let i = 0; i < ticks; i++) runtime.session.advance(BATTLE_STEP_MS, runtime.sessionRuntime); };
   return { runtime, player, ready, place, hash, advance, options };
 }
+
+test("player presentation reads the right wallet, cards, clocks and ownership without changing simulation context", () => {
+  const f = fixture({ ...config(["A", "B"]), playerLoadouts: [{ actorId: "a", cards: ["A"] }, { actorId: "b", cards: ["B"] }] });
+  const a = new BattlePlayerView(f.runtime, "a"), b = new BattlePlayerView(f.runtime, "b");
+  f.runtime.world.gainChars(900, "a"); f.player("a").cardTime = 2000; f.player("b").cardTime = 900;
+  f.player("a").auto.autoUpgradeEnabled = true;
+  const before = f.hash();
+  assert.deepEqual(a.loadout.ids, ["A"]); assert.deepEqual(b.loadout.ids, ["B"]);
+  assert.equal(a.chars, f.runtime.world.effectiveChars("a")); assert.notEqual(a.chars, b.chars);
+  assert.equal(a.rawChars, f.runtime.world.economy.balance("a"));
+  assert.equal(a.cardTimeFor("A"), 2000); assert.equal(b.cardTimeFor("B"), 900);
+  assert.equal(a.autoEnabledFor({ ownerId: "b" }), false); assert.equal(b.autoEnabledFor({ ownerId: "a" }), true);
+  assert.equal(a.canControl({ ownerId: "b" }), false); assert.equal(a.canControl({}), true);
+  assert.equal(a.can("build"), true); assert.equal(new BattlePlayerView(f.runtime, "viewer").can("build"), false);
+  assert.throws(() => new BattlePlayerView(f.runtime, "unknown"));
+  assert.equal(f.hash(), before);
+  assert.equal(f.runtime.currentResources, f.runtime.players.shared);
+});
+
+test("player presentation resolves replacement resources after restore, not stale card/cooldown references", () => {
+  const f = fixture(config(["A", "B"]));
+  const view = new BattlePlayerView(f.runtime, "a"), old = view.resources;
+  f.place("a", "A", 1, 1);
+  f.player("a").extraction.restore(275); f.player("a").shifter.readyAt = 15000;
+  const saved = f.runtime.snapshot("A");
+  f.player("a").loadout.reselection.restore({ readyAt: 0, cards: [] });
+  f.runtime.restore(saved);
+  assert.notEqual(view.resources, old);
+  assert.equal(view.loadout.byId.get("A").readyAt, getCardDefinition("A").cooldown);
+  assert.equal(view.resources.shifter.readyAt, 15000);
+  assert.equal(view.resources.extraction.value, 275);
+});
 
 test("resource policy is optional and independent loadouts are validated, captured and immutable from caller edits", () => {
   assert.equal(validBattlePolicy(policy), true);

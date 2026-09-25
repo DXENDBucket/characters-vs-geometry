@@ -26,6 +26,7 @@ export class BattleEconomy {
   constructor(private sharedChars: number) {}
 
   get individual() { return this.wallets !== undefined; }
+  balance(actorId: string) { return this.wallets ? this.wallets.get(actorId) ?? 0 : this.sharedChars; }
   hasWallet(actorId: string) { return !this.wallets || this.wallets.has(actorId); }
   get actorIds(): Iterable<string> { return this.wallets?.keys() ?? []; }
   get totalChars() {

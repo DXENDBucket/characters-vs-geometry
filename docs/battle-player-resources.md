@@ -60,7 +60,7 @@ Missing/duplicate/foreign entries, invalid cards, negative/nonfinite values and
 malformed cooldown states are rejected. Restore uses the saved current decks,
 not the initial-deck header; a reselected deck survives reconnect and host restart.
 
-- `npm run test:player-resources`: fourteen core tests include initial decks,
+- `npm run test:player-resources`: sixteen core tests include initial decks,
   same-tick deployment, imitators, both wallet policies, separate automatic
   upgrades, movement/reselection, pending extraction/refunds, clock ownership,
   spectator rejection and malformed snapshots. Real NUL battles preserve exact
@@ -74,7 +74,38 @@ not the initial-deck header; a reselected deck survives reconnect and host resta
 - Default shared-mode rules and browser replay/synchronization remain regression
   gates. No default expected hash was replaced by an individual-mode baseline.
 
-The displayed HUD/selection and real peer-input transport still need explicit
-participant binding, including tool/tutorial interactions and connection lifetime.
-The current network tests send semantic requests directly. These changes implement
-the resource boundary, not a finished multiplayer UI or chosen game mode.
+## Participant Views And Input
+
+`BattlePlayerView` binds a registered actor to the HUD's wallet, deck, card clocks,
+extraction pool, reselection and tool settings. Its getters resolve the current
+resources after every restore; it does not change the runtime's command context.
+Automatic-upgrade borders use each entity owner's settings, not the viewing
+player's. Shared-mode behavior remains the default.
+
+`GameScene` accepts `viewActorId` (default `local`). A replica may additionally
+receive an `input` port implementing `BattleInputPort`; `BattleSyncClient` is one
+implementation. The authenticated transport must bind that same actor at the
+host. The view ID is not sent as authentication and cannot override host identity.
+Without a port replicas stay read-only. With one, existing mouse and keyboard
+handlers produce the same semantic intents as single player. Only received host
+frames mutate the replica. Deployment, movement and targeted-tool completion wait
+for receipts rather than treating successful transmission as successful gameplay.
+
+Disconnected, resynchronizing or pending-request clients reject new local input.
+The client retains the original request and completion across reconnect, so a
+lost receipt can be retried without a second deployment. Scene shutdown invalidates
+its UI callbacks; old receipts cannot act on a replacement or destroyed scene.
+Reselection by a replica does not write the local profile. Checkpoint headers keep
+the common deck instead of accidentally capturing one player's visible deck.
+
+`test-headless-host-browser.mjs --input` runs the real render/input loop in Firefox
+and WebKit against an independent authenticated Node host. Playwright clicks the
+cards, board, shifter, eraser, auto switch and reselection overlay, and uses Escape
+to open/close the menu. It checks distinct decks/wallets/cooldowns, no speculative
+placement, forbidden foreign erase, blocked input during disconnect/pending
+receipt, lost-receipt reconnect, current cooldowns after restore, separate
+reselection and unchanged local profiles. Screenshots are written under `logs/`.
+
+This is an input/presentation adapter, not a finished multiplayer mode. The
+application still needs an external connection/session lifetime owner and user
+connection status, plus broader skill/tutorial and crowded-battle transport tests.

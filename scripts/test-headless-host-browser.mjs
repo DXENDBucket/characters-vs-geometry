@@ -18,7 +18,8 @@ const { DIFFICULTY_VERSION } = load("src/config.ts");
 const { LEGACY_BATTLE_POLICY } = load("src/game/battlePolicy.ts");
 const { BATTLE_PERMISSIONS } = load("src/game/battleParticipants.ts");
 const url = option("url") ?? "http://127.0.0.1:5173";
-const resources = process.argv.includes("--resources");
+const input = process.argv.includes("--input");
+const resources = input || process.argv.includes("--resources");
 const economy = resources || process.argv.includes("--economy");
 const ownership = economy || process.argv.includes("--ownership");
 const roles = ["a", "b"], engines = (option("engines") ?? "firefox,webkit").split(",");
@@ -61,7 +62,7 @@ try {
       const response = await route.fetch(); await route.fulfill({ response, body: await response.text() + "\nwindow.__testGame=game;" });
     });
     await page.goto(url); await page.waitForFunction(() => window.__testGame?.scene.getScenes(true).length);
-    await page.evaluate(async ({ token, relay }) => {
+    await page.evaluate(async ({ token, relay, role, input }) => {
       const { GameScene } = await import("/src/scenes/GameScene.ts");
       const { BattleSyncClient } = await import("/src/game/battleSyncClient.ts");
       const game = window.__testGame; game.loop.stop();
@@ -80,8 +81,10 @@ try {
           restore: ({ replay }) => {
             if (state.scene) { game.scene.stop(state.scene.sys.settings.key); game.scene.remove(state.scene.sys.settings.key); }
             const key = "Replica" + state.serial++;
-            game.scene.add(key, new GameScene(key), false); game.scene.start(key, { replica: replay });
+            game.scene.add(key, new GameScene(key), false); game.scene.start(key, { replica: replay,
+              ...(input ? { viewActorId: role, input: state.client } : {}) });
             state.scene = game.scene.getScene(key);
+            if (input && !game.loop.running) game.loop.start(game.step.bind(game));
           },
           follow: (tick, commands) => state.scene.followSynchronizedFrame(tick, commands),
           checksum: () => state.scene.battleChecksum(), receipt: receipt => state.receipts.push(receipt)
@@ -94,7 +97,7 @@ try {
         for (const message of messages) state.statuses.push(state.client.receiveText(message));
         await state.tail; return messages.length;
       };
-    }, { token: tokens[role], relay });
+    }, { token: tokens[role], relay, role, input });
   }
   const pump = async () => {
     for (let i = 0; i < 30; i++) {
@@ -142,7 +145,27 @@ try {
     for (let i = 0; i < ticks; i++) runtime.session.advance(BATTLE_STEP_MS, runtime.sessionRuntime);
     host.publish();
   };
-  for (const levelId of ["IF-1", "5-10", "AE-EX-2", "AE-10"]) {
+  const click = async (role, target) => {
+    const point = await pages[role].evaluate(async target => {
+      const scene = target.reselect ? window.__testGame.scene.getScene("CardSelectScene") : window.headlessTest.scene;
+      const { BOARD_X, BOARD_Y, CELL_WIDTH, CELL_HEIGHT } = await import("/src/config.ts");
+      let point;
+      if (target.cell) point = { x: BOARD_X + (target.cell[1] + .5) * CELL_WIDTH, y: BOARD_Y + (target.cell[0] + .5) * CELL_HEIGHT };
+      else {
+        const object = target.reselect ? target.card ? scene.cardFrames.get(target.card) : scene[target.button] :
+          target.card ? scene.cardList.cards.find(card => card.state.definition.id === target.card).frame : scene.ui[target.button];
+        const rect = object.getBounds(); point = { x: rect.centerX, y: rect.centerY };
+      }
+      const camera = scene.cameras.main;
+      point = camera.matrix.transformPoint(point.x - camera.scrollX, point.y - camera.scrollY);
+      const rect = window.__testGame.canvas.getBoundingClientRect();
+      return { x: rect.x + point.x * rect.width / scene.scale.width, y: rect.y + point.y * rect.height / scene.scale.height };
+    }, target);
+    await pages[role].mouse.click(point.x, point.y);
+    await pages[role].waitForTimeout(70);
+    await pages[role].evaluate(() => window.headlessTest.tail);
+  };
+  for (const levelId of input ? ["AE-EX-2"] : ["IF-1", "5-10", "AE-EX-2", "AE-10"]) {
     host?.close(); authority?.close();
     runtime = createIndependentBattle({ version: BATTLE_RULES_VERSION, difficultyVersion: DIFFICULTY_VERSION,
       levelId, difficulty: 3, unlimitedFirepower: false, seed: 810, selectedCards: ["A", "B", "X", "m", "u", "S"],
@@ -168,6 +191,76 @@ try {
     });
     for (const role of roles) { queues[role].length = 0; await pages[role].evaluate(() => window.headlessTest.reset()); peers[role] = host.connect(role, send(role)); }
     await pump(); await equal("join");
+    if (input) {
+      for (const role of roles) {
+        const view = await pages[role].evaluate(() => {
+          const scene = window.headlessTest.scene;
+          return { cards: scene.cardList.cards.map(card => card.state.definition.id), chars: scene.effectiveChars(),
+            raw: scene.playerView.rawChars, shift: scene.shifter.cooldownRatio() };
+        });
+        assert.deepEqual(view.cards, runtime.players.get(role).loadout.ids);
+        assert.equal(view.chars, runtime.world.effectiveChars(role));
+        assert.equal(view.raw, runtime.world.economy.balance(role));
+        assert.equal(view.shift, 1);
+      }
+      const before = runtime.world.effectiveChars("b");
+      await click("a", { card: "A" }); await click("a", { cell: [1, 2] });
+      assert.equal(runtime.world.towers.length, 1);
+      // Transport sends may already have reached the host, but clients only apply polled frames.
+      assert.equal(await pages.a.evaluate(() => window.headlessTest.scene.towers.length), 0);
+      await pump(); await equal("pointer deploy");
+      assert.equal(runtime.world.towers[0].ownerId, "a");
+      assert.equal(runtime.world.effectiveChars("b"), before);
+      await click("b", { card: "A" }); await click("b", { cell: [2, 2] }); await pump();
+      await equal("other player same card"); assert.equal(runtime.world.towers.length, 2);
+      await click("a", { button: "shifterButton" });
+      assert.equal(await pages.a.evaluate(() => window.headlessTest.scene.shifter.isActive()), true, "pointer activates shifter");
+      await click("a", { cell: [1, 2] });
+      assert.equal(await pages.a.evaluate(() => window.headlessTest.scene.shifter.selectedTowers().length), 1, "pointer selects owned tower");
+      await click("a", { cell: [1, 4] });
+      await pump(); await equal("pointer shift");
+      assert.equal(runtime.world.towers.find(t => t.ownerId === "a").column, 4);
+      assert.equal(await pages.a.evaluate(() => window.headlessTest.scene.shifter.cooldownRatio()), 0);
+      assert.equal(await pages.b.evaluate(() => window.headlessTest.scene.shifter.cooldownRatio()), 1);
+      loseReceipt = true;
+      await click("a", { card: "B" }); await click("a", { cell: [3, 3] }); await pump(); await equal("pointer lost receipt");
+      assert.equal(await pages.a.evaluate(() => window.headlessTest.client.busy), true);
+      const sequence = runtime.session.nextCommandSequence;
+      await click("a", { button: "eraserButton" }); await click("a", { cell: [2, 2] }); await pump();
+      assert.equal(runtime.session.nextCommandSequence, sequence, "pending receipt blocks duplicate inputs");
+      await pages.a.evaluate(() => window.headlessTest.client.disconnect());
+      await click("a", { cell: [1, 4] }); await pump();
+      assert.equal(runtime.session.nextCommandSequence, sequence, "disconnected input cannot mutate replica or host");
+      host.disconnect(peers.a);
+      await pages.a.evaluate(() => window.headlessTest.connect()); peers.a = host.connect("a", send("a"));
+      await pump(); await equal("input reconnect");
+      assert.equal(await pages.a.evaluate(() => window.headlessTest.client.busy), false);
+      assert.equal(runtime.world.towers.filter(t => t.type === "B").length, 1, "lost receipt retry does not deploy twice");
+      await click("a", { button: "eraserButton" }); await click("a", { cell: [2, 2] }); await pump();
+      assert.equal(runtime.session.nextCommandSequence, sequence, "foreign towers are not locally selected for erase");
+      assert.equal(await pages.a.evaluate(() => window.headlessTest.scene.cardList.cards.find(c => c.state.definition.id === "A").state.readyAt),
+        runtime.players.get("a").loadout.byId.get("A").readyAt);
+      await click("a", { button: "autoUpgradeEnabledBox" }); await pump(); await equal("player settings pointer");
+      assert.equal(runtime.players.get("a").auto.autoUpgradeEnabled, true);
+      assert.equal(runtime.players.get("b").auto.autoUpgradeEnabled, false);
+      await click("a", { button: "reselectButton" });
+      assert.equal(await pages.a.evaluate(() => window.__testGame.scene.isActive("CardSelectScene")), true);
+      await click("a", { reselect: true, card: "B" });
+      await pages.a.screenshot({ path: "logs/player-reselect.png" });
+      assert.deepEqual(await pages.a.evaluate(() => window.__testGame.scene.getScene("CardSelectScene").selectedCards), ["A", "S"], "reselect card pointer");
+      await click("a", { reselect: true, button: "startButton" }); await pump(); await equal("pointer reselection");
+      assert.deepEqual(runtime.players.get("a").loadout.ids, ["A", "S"]);
+      assert.deepEqual(await pages.a.evaluate(() => window.headlessTest.scene.cardList.cards.map(c => c.state.definition.id)), ["A", "S"]);
+      assert.deepEqual(await pages.b.evaluate(() => window.headlessTest.scene.cardList.cards.map(c => c.state.definition.id)), ["A", "B", "X"]);
+      await pages.a.keyboard.press("Escape");
+      assert.equal(await pages.a.evaluate(() => window.headlessTest.scene.menuOpen), true);
+      await pages.a.keyboard.press("Escape");
+      assert.equal(await pages.a.evaluate(() => window.headlessTest.scene.menuOpen), false);
+      await pages.a.screenshot({ path: "logs/player-input.png" });
+      for (const role of roles) assert.equal(await pages[role].evaluate(() => JSON.stringify(localStorage) === window.headlessTest.profile), true);
+      results.push({ levelId, input: true, checksum: checksum() });
+      continue;
+    }
     assert.equal((await request("b", control({ type: "debugChars" }))).result, "forbidden");
     const peerBalance = runtime.world.effectiveChars("b");
     assert.equal((await request("a", deploy("A", 3, 8))).result, "deployed");
