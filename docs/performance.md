@@ -363,3 +363,29 @@ timings are noisy and rendering remains dominant; this does not establish a broa
 FPS gain. Real Phaser tests in Chromium/Firefox/WebKit cover reuse while completed
 tweens still await manager cleanup, multi-target completion, unrelated active tweens,
 shield refresh and scene restart (`scripts/test-effect-pools-browser.mjs`).
+
+### Shared Static Outlines
+
+Heart and tilde outlines now use scene-owned high-resolution textures instead of
+repeating their static Graphics path processing every rendered frame. The existing
+drawing callbacks produce 144x144 textures at 72x72 logical size, with unchanged
+points, colors and line widths. Each scene owns at most two outline textures,
+independent of enemy count/rank; shutdown/destroy releases both. Labels remain
+separate shared glyphs, and dynamic shapes (parentheses, ion charging, Bosses,
+halos) are not baked. Reversal and HP scaling still transform the same containers.
+
+`test-battle-performance-browser.mjs` accepts `--engine=chromium|firefox|webkit`.
+All three engines pass exact canvas-pixel comparisons with the original paths,
+logical/backing-size checks, repeated reversal, 100-rank texture sharing and
+restart cleanup. Desktop and small-viewport galleries remain visually checked.
+Node coverage verifies bounded allocation, failed capture, separate scene ownership
+and both shutdown paths.
+
+For a diagnostic reference, add `--vector-outlines` to the crowded browser benchmark.
+The harness substitutes the old Graphics creation path only in that test page;
+there is no player setting or combat-rule branch. Local 800-enemy warmed runs
+measured 13.0 ms vector versus 12.2 ms shared-outline median rendering, and
+18.4 versus 17.5 ms CPU frames. Both retained `a2696ad8` at tick 420; the displayed
+replica also retained that hash. These are noisy local diagnostics, not a guaranteed
+FPS improvement. The p95 CPU frames remained around 43 ms. Most rendering cost and
+six-tick replica application spikes remain unresolved.

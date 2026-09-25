@@ -164,6 +164,10 @@ global tween scans on completed pooled effects removes a measured hotspot, but
 does not resolve the dominant graphics rendering/batched-simulation costs. The
 profile uses a same-process host, excludes network latency and is not deployment
 load evidence; see [performance](performance.md#warmed-rendering-and-replica-batches).
+The first static-outline optimization now shares high-DPI heart/tilde textures,
+with three-engine pixel/turning/cleanup checks and unchanged mixed-battle hashes.
+It removes repeated path work for those two families only; wider render load and
+replica burst handling remain open.
 
 ## Next Work
 

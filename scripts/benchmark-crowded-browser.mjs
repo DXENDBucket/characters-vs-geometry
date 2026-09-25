@@ -22,6 +22,10 @@ try {
   }
   const errors = [];
   page.on("pageerror", error => errors.push(error.message));
+  // Diagnostic reference path only; never a runtime option or a gameplay rule.
+  if (process.argv.includes("--vector-outlines")) await page.route("**/src/render/sharedEnemyOutline.ts*", route => route.fulfill({
+    contentType: "text/javascript", body: "export function createSharedEnemyOutline(scene, kind, draw) { const graphics=scene.add.graphics(); draw(graphics); return graphics; }"
+  }));
   await page.route("**/src/main.ts*", async route => {
     const response = await route.fetch();
     await route.fulfill({ response, body: await response.text() + "\nwindow.__testGame=game;" });
@@ -31,7 +35,7 @@ try {
   console.log(JSON.stringify({ diagnostic: replica
     ? "Headless replica, six-tick JSON frames every six renders; same-process host preparation excluded from CPU frame costs, no network latency"
     : "Headless Chromium mixed battle, one fixed tick per rendered frame; not player FPS or network latency",
-    browser: browser.version() }));
+    browser: browser.version(), vectorOutlines: process.argv.includes("--vector-outlines") }));
   for (const count of counts) {
     if (profiler) await profiler.send("Profiler.start");
     const result = await page.evaluate(async ({ count, warmFrames, frames, replica }) => {

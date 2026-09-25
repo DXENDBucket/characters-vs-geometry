@@ -35,14 +35,24 @@ function fixture() {
     }
     destroy() { this.canvas.width = 0; }
   }
+  class Graphics {
+    constructor(scene) { this.scene = scene; }
+    scaleCanvas(x, y) { this.scale = [x, y]; return this; }
+    translateCanvas(x, y) { this.translation = [x, y]; return this; }
+    generateTexture(key, width, height) { this.scene.textures.addCanvas(key, { width, height,
+      scale: this.scale, translation: this.translation }); }
+    destroy() { this.scene = undefined; }
+  }
   const load = createTypeScriptLoader({ phaser: { default: {
-    GameObjects: { Text, Events: { DESTROY: "destroy" } }, Scenes: { Events: { SHUTDOWN: "shutdown", DESTROY: "destroy" } }
+    GameObjects: { Text, Graphics, Events: { DESTROY: "destroy" } }, Scenes: { Events: { SHUTDOWN: "shutdown", DESTROY: "destroy" } }
   } } });
   const { createSharedGlyph } = load("src/render/sharedGlyphs.ts");
+  const { createSharedEnemyOutline } = load("src/render/sharedEnemyOutline.ts");
   const scene = {
     events: new EventEmitter(),
     textures: {
       addCanvas(key, canvas) { textures.set(key, canvas); },
+      exists: key => textures.has(key),
       remove(key) { assert(textures.delete(key), "texture removed twice"); }
     },
     add: { image(x, y, key) {
@@ -56,8 +66,35 @@ function fixture() {
     } }
   };
   return { scene, textures, images, rasterizations: () => rasterizations,
+    outline: (kind, draw) => createSharedEnemyOutline(scene, kind, draw),
     glyph: (text = "I", color = "#ffffff") => createSharedGlyph(scene, 0, 0, text, { color, fontFamily: "serif", fontSize: "18px", fontStyle: "bold" }) };
 }
+
+test("static enemy outlines rasterize once per kind at high DPI and clean up on restart", () => {
+  const f = fixture(); let draws = 0;
+  const a = f.outline("heart", () => draws++);
+  for (let i = 0; i < 500; i++) assert.equal(f.outline("heart", () => draws++).key, a.key);
+  f.outline("tilde", () => draws++);
+  assert.equal(draws, 2); assert.equal(f.textures.size, 2);
+  assert.deepEqual([a.width, a.height], [72, 72]);
+  assert.deepEqual(f.textures.get(a.key), { width: 144, height: 144, scale: [2, 2], translation: [36, 36] });
+  a.destroy(); assert.equal(f.textures.size, 2, "Other instances still use the outline");
+  f.scene.events.emit("shutdown"); assert.equal(f.textures.size, 0);
+  assert.equal(f.scene.events.listenerCount("destroy"), 0);
+  assert.notEqual(f.outline("heart", () => draws++).key, a.key);
+  f.scene.events.emit("destroy"); assert.equal(f.textures.size, 0);
+  assert.equal(f.scene.events.listenerCount("shutdown"), 0);
+});
+
+test("a failed outline capture is not cached and other scenes own independent textures", () => {
+  const a = fixture(), b = fixture(); let draws = 0;
+  assert.throws(() => a.outline("heart", () => { throw Error("draw failed"); }), /draw failed/);
+  assert.equal(a.textures.size, 0);
+  a.outline("heart", () => draws++); b.outline("heart", () => draws++);
+  assert.equal(draws, 2);
+  a.scene.events.emit("shutdown"); assert.equal(b.textures.size, 1);
+  b.scene.events.emit("destroy"); assert.equal(b.textures.size, 0);
+});
 
 function withCanvas(run) {
   const original = globalThis.document;

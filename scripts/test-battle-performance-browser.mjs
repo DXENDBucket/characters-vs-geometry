@@ -5,8 +5,9 @@ import { pathToFileURL } from "node:url";
 
 const option = name => process.argv.find(value => value.startsWith(`--${name}=`))?.slice(name.length + 3);
 const modulePath = option("playwright");
-const { chromium } = await import(modulePath ? pathToFileURL(modulePath).href : "playwright");
-const browser = await chromium.launch({ executablePath: option("browser"), headless: true });
+const playwright = await import(modulePath ? pathToFileURL(modulePath).href : "playwright");
+const engine = option("engine") ?? "chromium";
+const browser = await playwright[engine].launch({ executablePath: engine === "chromium" ? option("browser") : undefined, headless: true });
 try {
   const page = await browser.newPage({ viewport: { width: 1410, height: 900 } });
   const errors = [];
@@ -91,6 +92,42 @@ try {
     for (let i = 0; i < 100; i++) applyEnemyPromotion(scene, target, i % 2 ? "hexagon2" : "hexagon", scene.battleTime);
     check(target.body.list.includes(target.armorIcon) && target.armorIcon.texture.source[0].width > 0, "Promotion lost its shared glyph");
 
+    const outlineKeys = new Set();
+    for (const family of ["heart", "tilde"]) {
+      const shape = createEnemyShape(scene, family), outline = shape.list[0];
+      outlineKeys.add(outline.texture.key);
+      const canvas = outline.texture.getSourceImage();
+      check(canvas.width === 144 && canvas.height === 144 && outline.displayWidth === 72, "Outline resolution changed");
+      const reference = scene.add.graphics().scaleCanvas(2, 2).translateCanvas(36, 36);
+      reference.fillStyle(0x050505, 1).lineStyle(family === "heart" ? 2 : 4, family === "heart" ? 0xff7eb6 : 0xf5f5f5, 1).beginPath();
+      const steps = family === "heart" ? 48 : 24;
+      for (let i = 0; i <= steps; i++) {
+        const t = Math.PI * 2 * i / steps;
+        const x = family === "heart" ? 1.65 * 16 * Math.sin(t) ** 3 : -26 + i * 52 / 24;
+        const y = family === "heart" ? -1.65 * (13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)) + 3 : 9 * Math.sin(t);
+        if (!i) reference.moveTo(x, y); else reference.lineTo(x, y);
+      }
+      if (family === "heart") reference.closePath().fillPath();
+      reference.strokePath();
+      const expected = document.createElement("canvas"); expected.width = expected.height = 144;
+      reference.generateTexture(expected, 144, 144);
+      const actualPixels = canvas.getContext("2d").getImageData(0, 0, 144, 144).data;
+      const expectedPixels = expected.getContext("2d").getImageData(0, 0, 144, 144).data;
+      check(actualPixels.some(value => value > 0) && actualPixels.every((value, i) => value === expectedPixels[i]), "Static outline pixels differ");
+      for (let rank = 1; rank <= 100; rank++) {
+        const ranked = createEnemyShape(scene, enemyKindAtRank(family, rank));
+        check(ranked.list[0].texture.key === outline.texture.key, "Ranks created duplicate outline textures");
+        ranked.destroy();
+      }
+      const e = { kind: family, shape, statusEffects: [] };
+      for (const direction of [1, -1, 1, -1]) {
+        e.movementDirection = direction; syncEnemyFacingVisual(e);
+        check(outline.scaleX === -.5 * direction && outline.scaleY === .5, "Outline facing or size drifted");
+      }
+      reference.destroy(); shape.destroy();
+    }
+    check(outlineKeys.size === 2, "Outlines did not share per-kind textures");
+
     const reversed = spawn(scene, "triangleRam14", 2, BOARD_X + CELL_WIDTH * 9);
     const labels = reversed.shape.list.filter(child => child.getData("enemyRankLabel"));
     check(labels.length === 2, "Reversal fixture needs both rank labels");
@@ -135,6 +172,7 @@ try {
     check(glyphCount <= 128 + 6, `Unused rank glyphs are unbounded: ${glyphCount}`);
 
     const gallery = start();
+    check([...outlineKeys].every(key => !game.textures.exists(key)), "Scene restart leaked outline textures");
     const kinds = ["circle", "triangle2", "triangleRam3", "hexMace2", "hexSpellBulwark3", "heart3",
       "tilde3", "parentheses3", "archangelHeptagon3", "burrowArrow2", "equals3", "chevronLeader"];
     kinds.forEach((kind, i) => spawn(gallery, kind, 1 + Math.floor(i / 6) * 3, BOARD_X + (1 + i % 6 * 1.7) * CELL_WIDTH));

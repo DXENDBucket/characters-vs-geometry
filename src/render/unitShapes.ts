@@ -12,6 +12,7 @@ import {
 } from "../bosses/cubeBoss";
 import { palette } from "../config";
 import { createSharedGlyph } from "./sharedGlyphs";
+import { createSharedEnemyOutline } from "./sharedEnemyOutline";
 import { romanLabel, toRomanNumeral } from "../format";
 import { enemyFamily, enemyRank, getEnemyDefinition } from "../registry/enemies";
 import type { EnemyKind, UnitCategory } from "../types";
@@ -125,15 +126,16 @@ export function createEnemyShape(scene: Phaser.Scene, kind: EnemyKind, options: 
   }
   if (family === "tilde") {
     const shape = scene.add.container(0, 0);
-    const wave = scene.add.graphics().lineStyle(4, palette.white, 1);
-    wave.beginPath();
-    for (let i = 0; i <= 24; i++) {
-      const x = -26 + i * 52 / 24;
-      const y = 9 * Math.sin(i / 24 * Math.PI * 2);
-      if (i === 0) wave.moveTo(x, y);
-      else wave.lineTo(x, y);
-    }
-    wave.strokePath();
+    const wave = createSharedEnemyOutline(scene, "tilde", wave => {
+      wave.lineStyle(4, palette.white, 1).beginPath();
+      for (let i = 0; i <= 24; i++) {
+        const x = -26 + i * 52 / 24;
+        const y = 9 * Math.sin(i / 24 * Math.PI * 2);
+        if (i === 0) wave.moveTo(x, y);
+        else wave.lineTo(x, y);
+      }
+      wave.strokePath();
+    });
     shape.add([wave, createEnemyLabel(scene, 0, -25, kind)]);
     return shape;
   }
@@ -493,23 +495,24 @@ export function createEnemyShape(scene: Phaser.Scene, kind: EnemyKind, options: 
 
   if (family === "heart") {
     const shape = scene.add.container(0, 0);
-    const heart = scene.add.graphics();
-    heart.fillStyle(palette.black, 1);
-    heart.lineStyle(2, palette.heart, 1);
-    heart.beginPath();
-    for (let index = 0; index <= 48; index += 1) {
-      const t = (Math.PI * 2 * index) / 48;
-      const x = 1.65 * 16 * Math.sin(t) ** 3;
-      const y = -1.65 * (13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)) + 3;
-      if (index === 0) {
-        heart.moveTo(x, y);
-      } else {
-        heart.lineTo(x, y);
+    const heart = createSharedEnemyOutline(scene, "heart", heart => {
+      heart.fillStyle(palette.black, 1);
+      heart.lineStyle(2, palette.heart, 1);
+      heart.beginPath();
+      for (let index = 0; index <= 48; index += 1) {
+        const t = (Math.PI * 2 * index) / 48;
+        const x = 1.65 * 16 * Math.sin(t) ** 3;
+        const y = -1.65 * (13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)) + 3;
+        if (index === 0) {
+          heart.moveTo(x, y);
+        } else {
+          heart.lineTo(x, y);
+        }
       }
-    }
-    heart.closePath();
-    heart.fillPath();
-    heart.strokePath();
+      heart.closePath();
+      heart.fillPath();
+      heart.strokePath();
+    });
     const label = createEnemyLabel(scene, 0, 5, kind, 18, "#ff7eb6");
     shape.add([heart, label]);
     return shape;
