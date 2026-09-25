@@ -1,10 +1,8 @@
 import Phaser from "phaser";
-import { CHEVRON_LEADER } from "../data/chevronLeader";
+import { createEnemyProjectileState, createIonProjectileState } from "./enemyProjectileRules";
 import { drawIonOrb } from "../render/chevronLeader";
 import { attachProjectileTrail } from "../render/projectileTrail";
-import { enemyFacingDirection, enemyMovementDirection } from "./rules/reversal";
-import { CELL_WIDTH, palette } from "../config";
-import { enemyFamily } from "../registry/enemies";
+import { palette } from "../config";
 import { damageEffectColor, damageEffectTextColor } from "../render/combatEffects";
 import type {
   DamageType,
@@ -15,7 +13,6 @@ import type {
   ProjectileKind,
   Tower
 } from "../types";
-import { enemyAttackDamage } from "./combatStats";
 import { projectileVisualScale } from "./projectileIntegrity";
 import { identifyBattleEntity } from "./battleEntityIds";
 import { createTowerProjectileState, createHomingTowerProjectileState, createMortarProjectileState,
@@ -62,12 +59,7 @@ export function createHomingTowerProjectile(scene: Phaser.Scene, spec: HomingTow
 }
 
 export function createEnemyProjectile(scene: Phaser.Scene, enemy: Enemy, time: number, hitCount = 1): EnemyProjectile {
-  const isDiamondShot = enemyFamily(enemy.kind) === "diamond";
-  const direction = enemyMovementDirection(enemy);
-  const shotX = enemy.x + direction * 22;
-  return restoreEnemyProjectile(scene, { x: shotX, y: enemy.y, hitCount, vx: direction * 430,
-    damage: enemyAttackDamage(enemy, time), damageType: enemy.damageType, sourceLane: enemy.lane,
-    appearance: isDiamondShot ? "star" : "bolt" });
+  return restoreEnemyProjectile(scene, createEnemyProjectileState(enemy, time, hitCount));
 }
 
 export function restoreEnemyProjectile(scene: Phaser.Scene, state: EnemyProjectileState): EnemyProjectile {
@@ -93,13 +85,7 @@ export function restoreEnemyProjectile(scene: Phaser.Scene, state: EnemyProjecti
 }
 
 export function createIonProjectile(scene: Phaser.Scene, enemy: Enemy, time: number): EnemyProjectile {
-  const direction = enemyFacingDirection(enemy);
-  return restoreEnemyProjectile(scene, {
-    x: enemy.x + direction * 12, y: enemy.y, vx: direction * CHEVRON_LEADER.projectileSpeed,
-    appearance: "ion", sourceLane: enemy.lane, hitCount: 1,
-    damage: enemyAttackDamage(enemy, time) * CHEVRON_LEADER.attackMultiplier, damageType: "magic",
-    splashRadius: CHEVRON_LEADER.radiusCells * CELL_WIDTH
-  });
+  return restoreEnemyProjectile(scene, createIonProjectileState(enemy, time));
 }
 
 export function createMortarProjectile(scene: Phaser.Scene, spec: MortarProjectileSpec): MortarProjectile {

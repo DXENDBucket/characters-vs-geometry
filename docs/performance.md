@@ -150,6 +150,14 @@ continuation and connected-client regressions preserve battle behavior. This is
 an ownership/allocation change, not a full-battle FPS measurement.
 See [damage and unit lifecycle](unit-lifecycle.md).
 
+Enemy movement/attack/skill rules now share a data-only runtime with the live
+scene. Heart plans, mortar target counts and laser hit buffers are isolated per
+runtime; live adapters are cached. The 800-circle synthetic check still adds only
+five textures (latest local spawn 68.2 ms, simulation-tick median 0.43 ms), with
+overlays drawn once per displayed frame. These timings are diagnostic and are
+not mixed-combat FPS or evidence of a speedup from this extraction.
+See [enemy simulation](enemy-simulation.md).
+
 Status lifecycle, final combat panels and passenger-seat calculations now run
 without rendering dependencies. Numeric caches and aura source/cell buffers are
 isolated per unit or battlefield, while status visuals run once per displayed

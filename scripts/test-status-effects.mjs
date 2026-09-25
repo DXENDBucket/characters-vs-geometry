@@ -147,10 +147,11 @@ test("Incitement casts at 25 SP for 20, recovers during the 15s buffs and never 
 });
 
 test("the skill registry pauses Incitement while frozen and resumes without losing initial SP", () => {
-  const { updateEnemySkills } = load("src/game/enemySkills.ts");
+  const { updateEnemySkills } = load("src/game/enemySkillExecution.ts");
+  const { NO_ENEMY_SKILL_PRESENTATION: presentation } = load("src/game/enemySkillPresentation.ts");
   const { initialEnemySkillStates } = load("src/game/enemyBehaviors.ts");
   const caster = enemy("dollar"), target = enemy(); caster.skills = initialEnemySkillStates("dollar");
-  const runtime = { enemies: [caster, target] };
+  const runtime = { enemies: [caster, target], presentation };
   applyStatusEffect(caster, "frozen", 1000, 0);
   updateEnemySkills(runtime, 1, 999); assert.equal(caster.skills.incitement.sp, 20);
   updateEnemySkills(runtime, 5, 1000); assert.equal(caster.skills.incitement.sp, 5);

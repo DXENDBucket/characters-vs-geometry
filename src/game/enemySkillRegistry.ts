@@ -1,11 +1,11 @@
-import type Phaser from "phaser";
 import { ENEMY_SKILLS, ENEMY_SKILL_IDS, type EnemySkillId } from "../data/enemyAbilities";
 import { enemyFamily, type EnemyFamily } from "../registry/enemies";
-import type { Enemy } from "../types";
+import type { EnemyState as Enemy } from "./enemyState";
+import type { EnemySkillPresentation } from "./enemySkillPresentation";
 import type { RegisteredSkillDefinition } from "./skillRegistry";
 
 export interface EnemySkillRuntime {
-  scene: Phaser.Scene;
+  presentation: EnemySkillPresentation;
   enemies: Enemy[];
 }
 

@@ -92,23 +92,15 @@ test("support index membership follows the shared aura catalog", () => {
   for (const family of Object.keys(enemyArchetypes)) assert.equal(enemyFamilyProvidesSupport(family), expected.has(family), family);
 });
 
-const runtimeLoad = createTypeScriptLoader({
-  phaser: { default: { Math: { Clamp: (v, min, max) => Math.max(min, Math.min(max, v)) }, GameObjects: { Text: class {} } } },
-  "src/render/unitShapes.ts": {},
-  "src/render/combatEffects.ts": { makeHealParticles() {}, makeShiftEffect() {} },
-  "src/render/enemySkillEffects.ts": { makeWingPulse() {} }
-});
-const { updateEnemySkills } = runtimeLoad("src/game/enemySkills.ts");
+const runtimeLoad = createTypeScriptLoader();
+const { updateEnemySkills } = runtimeLoad("src/game/enemySkillExecution.ts");
+const { NO_ENEMY_SKILL_PRESENTATION: presentation } = runtimeLoad("src/game/enemySkillPresentation.ts");
 const { BOARD_X, BOARD_Y, CELL_WIDTH, CELL_HEIGHT } = runtimeLoad("src/config.ts");
-const visual = () => new Proxy({ list: [], getData() {}, setScale() {}, setPosition() {}, setVisible() {}, setDepth() {} }, {
-  get: (object, key) => key in object ? object[key] : () => {}
-});
 function enemy(kind, lane = 3, column = 5) {
   const definition = pure("src/registry/enemies.ts").getEnemyDefinition(kind);
   return { kind, x: BOARD_X + (column + .5) * CELL_WIDTH, y: BOARD_Y + (lane + .5) * CELL_HEIGHT, lane,
     hp: definition.hp, inPlay: true, baseStats: { maxHp: definition.hp }, skills: initialEnemySkillStates(kind), statusEffects: [],
-    statusMultiplierCache: { speed: 1, attack: 1, armor: 1, reversed: false }, body: visual(), shape: visual(),
-    statusBorder: visual(), frozenBorder: visual(), flyingHalo: visual(), powerIcon: visual(), sunderIcon: visual() };
+    statusMultiplierCache: { speed: 1, attack: 1, armor: 1, reversed: false } };
 }
 
 test("Wings/Ascension preserve ranges, flight durations, carrier propagation and pause recovery", () => {
@@ -119,7 +111,7 @@ test("Wings/Ascension preserve ranges, flight durations, carrier propagation and
     high.highFlightUntil = 20000;
     edge.x += CELL_WIDTH * (id === "wings" ? 1.5 : 2.5); outside.x = edge.x + .01;
     caster.skills[id] = { sp: 15, spBuffer: 0, activeUntil: 0 };
-    const runtime = { scene: {}, enemies: [caster, near, edge, outside, carrier, high] };
+    const runtime = { presentation, enemies: [caster, near, edge, outside, carrier, high] };
     updateEnemySkills(runtime, 0, 1000);
     assert.equal(caster.skills[id].sp, 0);
     assert.equal(caster.skills[id].activeUntil, 1000 + duration);
@@ -141,7 +133,7 @@ test("Wings/Ascension preserve ranges, flight durations, carrier propagation and
 test("Heal waits for an injured target, uses the lowest ratio and honors its exact range", () => {
   const caster = enemy("hexagon"), target = enemy("circle"), outside = enemy("triangle");
   caster.skills.heal = { sp: 20, spBuffer: 0, activeUntil: 0 };
-  const runtime = { scene: {}, enemies: [caster, target, outside] };
+  const runtime = { presentation, enemies: [caster, target, outside] };
   updateEnemySkills(runtime, 0, 0); assert.equal(caster.skills.heal.sp, 20);
   caster.x = 0;
   target.hp = 100; target.x = CELL_WIDTH * 1.4;
@@ -156,7 +148,7 @@ test("simultaneous Hearts claim targets once using original positions, including
   const first = enemy("heart", 2), second = enemy("heart", 4), target = enemy("tilde", 3, 6), outside = enemy("circle", 6, 6);
   target.oscillationCenterY = target.y; target.oscillationPhase = 1; target.oscillationLastY = target.y;
   for (const caster of [first, second]) caster.skills.lead = { sp: 5, spBuffer: 0, activeUntil: 0 };
-  updateEnemySkills({ scene: {}, enemies: [first, second, target, outside] }, 0, 0);
+  updateEnemySkills({ presentation, enemies: [first, second, target, outside] }, 0, 0);
   assert.equal(target.lane, first.lane); assert.equal(target.y, first.y);
   assert.equal(target.oscillationCenterY, first.y); assert.equal(target.oscillationPhase, 0);
   assert.equal(outside.lane, 6);
@@ -165,7 +157,7 @@ test("simultaneous Hearts claim targets once using original positions, including
 
 test("Frozen and High Flight pause registered skills, including a frozen carrier's passenger", () => {
   const caster = enemy("angelPentagon2"), carrier = enemy("parentheses");
-  const runtime = { scene: {}, enemies: [caster] };
+  const runtime = { presentation, enemies: [caster] };
   caster.statusEffects = [{ name: "frozen", expiresAt: 1000 }];
   updateEnemySkills(runtime, 1, 0); assert.equal(caster.skills.wings.sp, 2);
   caster.statusEffects = []; caster.highFlightUntil = 2000;

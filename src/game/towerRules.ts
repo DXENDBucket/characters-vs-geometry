@@ -6,6 +6,11 @@ import { facingWithEffects } from "./rules/reversal";
 import { towerActionContext, towerBehaviorType, supportsTowerAutoUpgrade } from "./towerIdentity";
 import { scaledByEffectiveUpgrades } from "./upgrades";
 
+const SHOCK_TOWER_IDS = new Set<CardId>(["F", "f", "i", "l", "r"]);
+export function isShockTower<T extends TowerState>(tower: T | undefined): tower is T {
+  return tower !== undefined && SHOCK_TOWER_IDS.has(towerBehaviorType(tower));
+}
+
 export function towerFacingDirection(tower: TowerState) {
   return facingWithEffects(tower, tower.facingDirection ?? 1);
 }

@@ -1,5 +1,5 @@
 import { BOARD_Y, CELL_HEIGHT, LANES } from "../config";
-import type { Enemy } from "../types";
+import type { EnemyState as Enemy } from "./enemyState";
 
 export const OSCILLATION_PERIOD = 4;
 export const OSCILLATION_AMPLITUDE = CELL_HEIGHT * 0.6;

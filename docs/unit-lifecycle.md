@@ -46,8 +46,9 @@ position/reversal update also remains in the rules, not its warning renderer.
 The lifecycle still has explicit gameplay callbacks for absorption, reactions to
 damage/removal, captured detonations, Boss phase replacement and level completion.
 GameScene currently supplies these using its existing controllers. Mirror and
-pipeline controllers, complete firing/movement/skill execution and Boss phase
-orchestration are not made headless by this extraction. Their remaining ports
+pipeline controllers, tower firing/skills and Boss phase orchestration are not
+made headless by this extraction. Enemy movement/attacks/skills now use a separate
+[data-only runtime](enemy-simulation.md). The remaining controller ports
 must still be separated. Relationships remain graph references, not ID records.
 
 Important ordering remains unchanged:

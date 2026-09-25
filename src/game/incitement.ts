@@ -1,8 +1,8 @@
 import { INCITEMENT } from "../data/incitement";
 import { ENEMY_SKILLS } from "../data/enemyAbilities";
 import { enemyIsBossCompanion, enemyRank } from "../registry/enemies";
-import type { Enemy } from "../types";
-import { enemyIsActive } from "./enemyContainers";
+import type { EnemyState as Enemy } from "./enemyState";
+import { enemyIsActive } from "./enemyContainerRules";
 import { enemyIgnoresLeaderRestrictedMechanics } from "./enemyCombatRules";
 import type { EnemySkillDefinition } from "./enemySkillRegistry";
 import { spendSkillSp } from "./skillState";

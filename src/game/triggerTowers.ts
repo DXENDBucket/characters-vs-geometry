@@ -26,11 +26,7 @@ export interface TriggerTowerRuntime {
   damageBoss: (damage: number, damageType: DamageType, targetPart?: CubeBoss) => boolean;
 }
 
-const SHOCK_TOWER_IDS = new Set<CardId>(["F", "f", "i", "l", "r"]);
-
-export function isShockTower(tower: Tower | undefined): tower is Tower {
-  return tower !== undefined && SHOCK_TOWER_IDS.has(towerBehaviorType(tower));
-}
+export { isShockTower } from "./towerRules";
 
 export function triggerShockTower(runtime: TriggerTowerRuntime, tower: Tower) {
   if (!tower.inPlay) return;

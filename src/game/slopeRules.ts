@@ -1,0 +1,203 @@
+import { enemyFacingDirection, enemyMovementDirection } from "./rules/reversal";
+import { CELL_HEIGHT, CELL_WIDTH } from "../config";
+import { enemyFamily, enemyIsBossCompanion, enemyIsMace } from "../registry/enemies";
+import type { EnemyState as Enemy } from "./enemyState";
+import type { TowerState as Tower } from "./towerState";
+import type { EnemySimulationPresentation } from "./enemySimulationPresentation";
+import { syncPassengerPositionState } from "./enemyContainerRules";
+import type { EnemySimulationRuntime as EnemyAdvanceRuntime } from "./enemySimulationRuntime";
+import { enemyMovementSpeed } from "./combatStats";
+import { enemyIgnoresLeaderRestrictedMechanics, enemyIsBurrowed, enemyIsHighFlying, siegeRamSpeed } from "./enemyCombatRules";
+import { forEachSnapshot } from "./iteration";
+import { applyStatusEffect, removeStatusEffect, statusSpeedMultiplier } from "./statusEffects";
+import { hasStatusEffectName } from "./rules/statusEffectRules";
+
+const SLOPE_TOUCH_RANGE_X = CELL_WIDTH * 0.58;
+const SLOPE_TOUCH_RANGE_Y = CELL_HEIGHT * 0.55;
+const HIGH_FLIGHT_MIN_DURATION = 900;
+const HIGH_FLIGHT_MAX_DURATION = 2_600;
+const HIGH_FLIGHT_STATUS_BUFFER = 80;
+
+export function advanceHighFlyingEnemy(enemy: Enemy, time: number, presentation: EnemySimulationPresentation) {
+  if (!enemyIsHighFlying(enemy)) {
+    return false;
+  }
+
+  if (enemy.highFlightUntil === undefined) {
+    statusSpeedMultiplier(enemy, time);
+    if (!hasStatusEffectName(enemy, "highFlying")) {
+      landHighFlyingEnemy(enemy, presentation);
+      return false;
+    }
+
+    presentation.depth(enemy, 85 + enemy.lane);
+    presentation.highFlightHalo(enemy, time);
+    presentation.highFlightHover(enemy, time);
+    return false;
+  }
+
+  const startedAt = enemy.highFlightStartedAt ?? time;
+  const until = enemy.highFlightUntil ?? time;
+  const duration = Math.max(1, until - startedAt);
+  const progress = clamp((time - startedAt) / duration, 0, 1);
+  statusSpeedMultiplier(enemy, time);
+
+  if (progress >= 1) {
+    landHighFlyingEnemy(enemy, presentation);
+    return true;
+  }
+
+  const startX = enemy.highFlightStartX ?? enemy.x;
+  const startY = enemy.highFlightStartY ?? enemy.y;
+  const targetX = enemy.highFlightTargetX ?? enemy.x;
+  const targetY = enemy.highFlightTargetY ?? enemy.y;
+  const peakHeight = enemy.highFlightPeakHeight ?? CELL_HEIGHT;
+  const arcOffset = Math.sin(progress * Math.PI) * peakHeight;
+
+  enemy.x = linear(startX, targetX, progress);
+  enemy.y = linear(startY, targetY, progress) - arcOffset;
+  presentation.depth(enemy, 85 + enemy.lane);
+  presentation.highFlightHalo(enemy, time);
+  syncEnemyPosition(enemy, presentation);
+  return true;
+}
+
+export function advanceSlopeTriangle(
+  runtime: EnemyAdvanceRuntime,
+  enemy: Enemy,
+  blocker: Tower | undefined,
+  time: number
+) {
+  if (enemyFamily(enemy.kind) !== "slopeTriangle") {
+    return false;
+  }
+
+  if (!blocker) {
+    enemy.blockedByTowerId = undefined;
+    enemy.blockedSince = undefined;
+    return false;
+  }
+
+  enemy.slopeFacingDirection = enemy.slopeFacingDirection ?? enemy.movementDirection ?? -1;
+  const isNewBlocker = enemy.blockedByTowerId !== blocker.id;
+  enemy.blockedByTowerId = blocker.id;
+  enemy.blockedSince = isNewBlocker ? time : enemy.blockedSince ?? time;
+  if (isNewBlocker) {
+    runtime.presentation.pulse(enemy.x, enemy.y, CELL_WIDTH * 0.72, CELL_HEIGHT * 0.62);
+  }
+  launchTouchingEnemies(runtime, enemy, time);
+  syncPassengerPositionState(enemy);
+  runtime.presentation.position(enemy);
+  return true;
+}
+
+function launchTouchingEnemies(runtime: EnemyAdvanceRuntime, slope: Enemy, time: number) {
+  const facingDirection = enemyFacingDirection(slope);
+  forEachSnapshot(runtime.enemies, (target) => {
+    if (!canSlopeLaunchEnemy(target, slope)) {
+      return;
+    }
+
+    const motion = currentMotion(runtime, target, time);
+    if (!motion || motion.direction !== facingDirection) {
+      return;
+    }
+
+    launchHighFlyingEnemy(runtime, target, motion.direction, motion.speed, time, slope);
+  });
+}
+
+function canSlopeLaunchEnemy(target: Enemy, slope: Enemy) {
+  return (
+    target !== slope &&
+    !enemyIgnoresLeaderRestrictedMechanics(target) &&
+    !enemyIsBossCompanion(target.kind) &&
+    !enemyIsBurrowed(target) &&
+    !enemyIsHighFlying(target) &&
+    target.lane === slope.lane &&
+    Math.abs(target.x - slope.x) <= SLOPE_TOUCH_RANGE_X &&
+    Math.abs(target.y - slope.y) <= SLOPE_TOUCH_RANGE_Y
+  );
+}
+
+function currentMotion(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number) {
+  const direction = currentMotionDirection(enemy);
+  if (!direction) {
+    return null;
+  }
+
+  const speed = enemyMovementSpeed(
+    enemy,
+    { enemies: runtime.enemies, towers: runtime.towers, time },
+    currentBaseSpeed(enemy)
+  );
+
+  return speed > 0 ? { direction, speed } : null;
+}
+
+function currentMotionDirection(enemy: Enemy) {
+  if (enemyIsMace(enemy.kind)) {
+    const velocityDirection = Math.sign(enemy.maceVelocity ?? 0);
+    return velocityDirection === 0 ? undefined : (velocityDirection as -1 | 1);
+  }
+
+  return enemyMovementDirection(enemy);
+}
+
+function currentBaseSpeed(enemy: Enemy) {
+  if (enemyIsMace(enemy.kind)) {
+    return Math.abs(enemy.maceVelocity ?? 0);
+  }
+
+  return siegeRamSpeed(enemy);
+}
+
+function launchHighFlyingEnemy(
+  runtime: EnemyAdvanceRuntime,
+  enemy: Enemy,
+  direction: -1 | 1,
+  speed: number,
+  time: number,
+  slope: Enemy
+) {
+  const distance = (speed / 10) * 1.5 * CELL_WIDTH;
+  const duration = clamp(750 + distance * 3.2, HIGH_FLIGHT_MIN_DURATION, HIGH_FLIGHT_MAX_DURATION);
+  const peakHeight = clamp(CELL_HEIGHT * 0.72 + distance * 0.18, CELL_HEIGHT * 0.85, CELL_HEIGHT * 2.4);
+  const targetX = enemy.x + direction * distance;
+
+  enemy.highFlightStartedAt = time;
+  enemy.highFlightUntil = time + duration;
+  enemy.highFlightStartX = enemy.x;
+  enemy.highFlightStartY = enemy.y;
+  enemy.highFlightTargetX = targetX;
+  enemy.highFlightTargetY = enemy.y;
+  enemy.highFlightPeakHeight = peakHeight;
+  enemy.blockedByTowerId = undefined;
+  enemy.blockedSince = undefined;
+  applyStatusEffect(enemy, "highFlying", duration + HIGH_FLIGHT_STATUS_BUFFER, time, 1, true);
+  runtime.presentation.highFlightHalo(enemy, time);
+  runtime.presentation.shift(enemy.x, enemy.y, targetX, enemy.y);
+  runtime.presentation.pulse(slope.x, slope.y, CELL_WIDTH * 0.48, CELL_HEIGHT * 0.48);
+}
+
+function landHighFlyingEnemy(enemy: Enemy, presentation: EnemySimulationPresentation) {
+  enemy.x = enemy.highFlightTargetX ?? enemy.x;
+  enemy.y = enemy.highFlightTargetY ?? enemy.y;
+  enemy.highFlightStartedAt = undefined;
+  enemy.highFlightUntil = undefined;
+  enemy.highFlightStartX = undefined;
+  enemy.highFlightStartY = undefined;
+  enemy.highFlightTargetX = undefined;
+  enemy.highFlightTargetY = undefined;
+  enemy.highFlightPeakHeight = undefined;
+  removeStatusEffect(enemy, "highFlying");
+  presentation.landHighFlight(enemy);
+  syncEnemyPosition(enemy, presentation);
+}
+
+function syncEnemyPosition(enemy: Enemy, presentation: EnemySimulationPresentation) {
+  syncPassengerPositionState(enemy);
+  presentation.position(enemy);
+}
+const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+const linear = (start: number, end: number, t: number) => start + (end - start) * t;

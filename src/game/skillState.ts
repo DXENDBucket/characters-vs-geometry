@@ -1,4 +1,6 @@
-import type { Enemy, SkillState, Tower } from "../types";
+import type { SkillState } from "../types";
+import type { EnemyState as Enemy } from "./enemyState";
+import type { TowerState as Tower } from "./towerState";
 
 interface SkillBearer {
   skills: Record<string, SkillState>;

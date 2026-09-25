@@ -1,5 +1,10 @@
 import type { CubeBoss, DamageType, Enemy, EnemyKind, Tower } from "../types";
 import type { ImitationBehavior, TowerActionEvent } from "./towerActions";
+import type { EnemyState } from "./enemyState";
+
+export type EnemyAttackAction = {
+  type: "enemyShot" | "enemyLaser" | "enemyMortar"; enemy: EnemyState; time: number; hitCount: number;
+};
 
 export type BossAttackAction =
   | { type: "bossReinforcements"; boss: CubeBoss; kind: EnemyKind; lanes: readonly number[]; icosahedron?: boolean }
@@ -9,7 +14,7 @@ export type BossAttackAction =
 
 export type BattleAction =
   | BossAttackAction
-  | { type: "enemyShot" | "enemyLaser" | "enemyMortar"; enemy: Enemy; time: number; hitCount: number }
+  | EnemyAttackAction
   | { type: "imitation"; tower: Tower; behavior: ImitationBehavior; event: TowerActionEvent }
   | { type: "volley"; tower: Tower; hitCount: number; copyRevision?: number; behavior?: ImitationBehavior }
   | { type: "targetedEffect"; tower: Tower }
