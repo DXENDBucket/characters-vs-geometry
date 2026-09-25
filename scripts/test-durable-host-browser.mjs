@@ -12,14 +12,16 @@ const option = name => process.argv.find(v => v.startsWith(`--${name}=`))?.slice
 const playwright = await import(option("playwright") ? pathToFileURL(option("playwright")).href : "playwright");
 const load = createTypeScriptLoader({}, { window: undefined, navigator: undefined });
 const { DurableBattleHost } = load("src/game/durableBattleHost.ts");
+const { BattleHostLoop } = load("src/game/battleHostLoop.ts");
 const { BATTLE_RULES_VERSION } = load("src/game/battleSimulation.ts");
 const { BATTLE_PERMISSIONS } = load("src/game/battleParticipants.ts");
 const { LEGACY_BATTLE_POLICY } = load("src/game/battlePolicy.ts");
 const { createBattleCheckpointStore } = createRequire(import.meta.url)("../electron/battle-checkpoint.cjs");
 const dir = await mkdtemp(path.join(tmpdir(), "charset-durable-browser-"));
 const store = createBattleCheckpointStore(path.join(dir, "battle.json"));
-const ports = { inputTime: () => performance.now(), save: text => store.save(text) };
-let host, peer, browser, drop = false;
+let writes = 0;
+const ports = { inputTime: () => performance.now(), save: async text => { await store.save(text); writes++; } };
+let host, peer, browser, loop, drop = false;
 const outbound = [], errors = [], token = randomUUID(), url = option("url") ?? "http://127.0.0.1:5173";
 const send = message => { if (drop && message.type === "receipt") { drop = false; return; } outbound.push(message); };
 const server = createServer(async (req, res) => {
@@ -104,11 +106,50 @@ try {
   await page.evaluate(() => { window.durable.scene.world.chars += 1; });
   await host.advance(100); await pump(); await equal();
   assert.ok(await page.evaluate(() => window.durable.statuses.includes("resync")));
+  if (process.argv.includes("--scheduled")) {
+    const failures = [], start = host.timing.tick;
+    loop = new BattleHostLoop(host, { failed: error => failures.push(error.message) });
+    const waitFor = async predicate => {
+      const deadline = performance.now() + 15000;
+      while (!predicate()) {
+        assert.deepEqual(failures, []);
+        assert.ok(performance.now() < deadline, "Scheduled host did not reach target");
+        await page.evaluate(() => window.durable.poll());
+        await new Promise(resolve => setTimeout(resolve, 20));
+      }
+    };
+    loop.start();
+    await waitFor(() => host.timing.tick >= start + 60);
+    assert.equal(await page.evaluate(() => window.durable.client.request({ type: "control",
+      control: { type: "pause", paused: true } })), true);
+    await waitFor(() => host.timing.paused && !loop.busy);
+    await pump(); await equal();
+    const pausedTick = host.timing.tick, pausedWrites = writes;
+    await new Promise(resolve => setTimeout(resolve, 350));
+    assert.equal(host.timing.tick, pausedTick); assert.equal(writes, pausedWrites);
+    assert.equal(await page.evaluate(() => window.durable.client.request({ type: "control",
+      control: { type: "pause", paused: false } })), true);
+    await waitFor(() => host.timing.tick >= pausedTick + 60);
+    await loop.stop();
+    // A command publishes the final partial batch too; no synthetic tick is added.
+    await pump(); await request({ type: "control", control: { type: "reserve", value: 101 } });
+    const stoppedTick = host.timing.tick;
+    await new Promise(resolve => setTimeout(resolve, 150));
+    assert.equal(host.timing.tick, stoppedTick); assert.deepEqual(failures, []);
+    assert.equal(await store.read(), host.checkpointText);
+    await host.close(); await page.evaluate(() => window.durable.client.disconnect());
+    host = await DurableBattleHost.restore(await store.read(), ports);
+    assert.equal(host.timing.tick, stoppedTick);
+    await page.evaluate(() => window.durable.connect()); peer = await host.connect("peer", send);
+    await pump(); await equal();
+  }
   assert.equal(await page.evaluate(() => JSON.stringify(localStorage) === window.durable.profile), true);
   assert.deepEqual(errors, []);
   console.log("Durable Node host / live browser restart, lost receipt, continuation and resync passed", { engine,
+    scheduled: process.argv.includes("--scheduled"),
     cursor: JSON.parse(host.checkpointText).snapshot.cursor, checksum: JSON.parse(host.checkpointText).snapshot.checksum });
 } finally {
+  await loop?.stop();
   await host?.close(); await browser?.close();
   await new Promise(resolve => server.close(resolve));
   await rm(dir, { recursive: true, force: true });

@@ -145,6 +145,13 @@ reuse and fused wire conversion remove duplicate work with unchanged bytes and
 validation, but do not settle load/latency readiness. Broader content/fault coverage, distributed
 failover and production load/latency readiness remain unfinished.
 
+The outer `BattleHostLoop` now bounds timer-driven advancement to one pending
+commit, drains fixed-tick remainder, skips idle paused writes and explicitly stops
+on overload instead of discarding elapsed time. Committed timing is not exposed
+before persistence. Real-clock Node/file/browser checks cover pause, resume, stop
+and disk restoration. This prevents unbounded scheduling; it does not reduce the
+cost of a full checkpoint or establish crowded-battle latency readiness.
+
 ## Next Work
 
 1. Address full-checkpoint commit overhead without weakening durability; isolate

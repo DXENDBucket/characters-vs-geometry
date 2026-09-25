@@ -7,6 +7,7 @@ import { captureBattleSnapshot } from "./captureBattleSnapshot";
 import { battleChecksum } from "./battleChecksum";
 import type { BattleSessionOptions } from "./battleSession";
 import type { BattleRuntime } from "./battleRuntime";
+import type { BattleHostTiming, ScheduledBattleHost } from "./battleHostLoop";
 
 export const MAX_HOST_CHECKPOINT_BYTES = 32 * 1024 * 1024;
 export const MAX_PENDING_HOST_TASKS = 64;
@@ -23,7 +24,7 @@ export interface DurableBattleHostPorts {
 }
 
 // All mutation and publication is serialized across the asynchronous durability barrier.
-export class DurableBattleHost {
+export class DurableBattleHost implements ScheduledBattleHost {
   private readonly authority: BattleAuthority;
   private readonly sync: BattleSyncHost;
   private tail: Promise<unknown> = Promise.resolve();
@@ -32,6 +33,7 @@ export class DurableBattleHost {
   private closing = false;
   private outputs: (() => void)[] = [];
   private committed = "";
+  private committedTiming?: BattleHostTiming;
   private checksumCache?: { tick: number; sequence: number; value: string };
 
   private constructor(private readonly runtime: BattleRuntime, battleId: string, private readonly ports: DurableBattleHostPorts,
@@ -71,6 +73,10 @@ export class DurableBattleHost {
 
   get checkpointText() { return this.committed; }
   get available() { return !this.stopped && !this.closing; }
+  get timing(): BattleHostTiming {
+    if (!this.committedTiming) throw new Error("Host has no committed timing");
+    return { ...this.committedTiming };
+  }
 
   private replay() {
     return this.runtime.session.checkpointReplay(captureBattleSnapshot(this.runtime.snapshot(this.runtime.world.loadout.ids[0])),
@@ -108,8 +114,11 @@ export class DurableBattleHost {
       try {
         const result = action();
         const text = this.checkpoint();
+        const timing: BattleHostTiming = { ...this.runtime.session.clock.snapshot(),
+          speed: this.runtime.session.controls.speed, paused: this.runtime.session.controls.paused, ended: this.runtime.world.gameOver };
         await this.ports.save(text);
         this.committed = text;
+        this.committedTiming = timing;
         const outputs = this.outputs; this.outputs = [];
         for (const deliver of outputs) deliver();
         return result;
