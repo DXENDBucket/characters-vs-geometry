@@ -1,41 +1,27 @@
-import Phaser from "phaser";
 import { CHEVRON_LEADER } from "../data/chevronLeader";
 import { towerAreaTargets, towerDamageReceiver } from "./towerOccupancy";
 import { towerBehaviorType } from "./towerIdentity";
-import type { TowerActionListener } from "./towerActions";
-import { updateProjectileTrail } from "../render/projectileTrail";
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, COLUMNS, LANES, palette } from "../config";
 import { getCardDefinition } from "../registry/cardDefinitions";
 import { enemyIsBossCompanion } from "../registry/enemies";
-import {
-  damageEffectColor,
-  damageEffectTextColor,
-  makeEnemyHitShards,
-  makeIonImpact,
-  makeHitShards,
-  makeReflectFlash,
-  makeShellBurst,
-  makeShiftEffect,
-  makeSpellMortarImpact,
-  makeStasisEffect
-} from "../render/combatEffects";
-import type { CubeBoss, DamageType, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower } from "../types";
-import {
-  createMortarProjectile,
-  createReflectedProjectile,
-  isEnemyProjectileOutOfBounds,
-  isTowerProjectileOutOfBounds
-} from "./projectiles";
+import { damageEffectColor, damageEffectTextColor } from "../data/damageColors";
+import type { DamageType } from "../types";
+import type { EnemyState as Enemy } from "./enemyState";
+import type { TowerState as Tower } from "./towerState";
+import type { BossState as CubeBoss } from "./bossState";
+import { reflectedProjectileSpec, type ProjectileState as Projectile, type EnemyProjectileState as EnemyProjectile,
+  type MortarProjectileState as MortarProjectile, type TowerProjectileSpec, type MortarProjectileSpec } from "./projectileState";
+import type { ProjectilePresentation } from "./projectilePresentation";
+import { isEnemyProjectileOutOfBounds, isTowerProjectileOutOfBounds } from "./projectileBounds";
 import { enemyIsBurrowed, enemyIsHighFlying } from "./enemyCombatRules";
 import { forEachInitial, forEachSnapshot } from "./iteration";
 import { repeatHits } from "./volley";
-import { forEachProjectileHit, projectileVisualScale } from "./projectileIntegrity";
+import { forEachProjectileHit } from "./projectileIntegrity";
 import { movementSpeedMultiplier, slowAuraSources, type SlowAuraSources } from "./slowAura";
 import { enemyIsSolarBomb } from "./enemyIdentity";
-import { redirectOrientedTarget } from "./orientation";
-import { gatherProjectile, gatheringIsActive } from "./gathering";
+import { redirectOrientedTarget } from "./orientationRules";
+import { gatherProjectile, gatheringIsActive } from "./gatheringRules";
 import { applyStatusEffect } from "./statusEffects";
-import { gridCellKey } from "./targeting";
 import {
   bossPartAtPoint,
   bossPartDistanceSqToPoint,
@@ -52,12 +38,16 @@ import {
 import { towerDamageType, towerFacingDirection } from "./towerRules";
 import { segmentEnemyHitTime, type ProjectileMotionFrame } from "./projectileMotion";
 
+const gridCellKey = (lane: number, column: number) => `${lane}:${column}`;
+
 export interface ProjectileRuntime {
   routeProjectile?: (projectile: Projectile) => boolean;
   interceptProjectile?: (projectile: EnemyProjectile | MortarProjectile, from: { x: number; y: number }) => boolean;
-  onTowerAction?: TowerActionListener;
+  onReflection?: (tower: Tower, projectile: EnemyProjectile | MortarProjectile) => boolean | void;
+  presentation: ProjectilePresentation;
+  createProjectile(spec: TowerProjectileSpec): Projectile;
+  createMortar(spec: MortarProjectileSpec): MortarProjectile;
   projectileMotion?: ProjectileMotionFrame;
-  scene: Phaser.Scene;
   projectiles: Projectile[];
   enemyProjectiles: EnemyProjectile[];
   mortarProjectiles: MortarProjectile[];
@@ -72,15 +62,29 @@ export interface ProjectileRuntime {
   slowAuraSources?: SlowAuraSources;
 }
 
-const enemyMortarHitTowersBuffer: Tower[] = [];
-const enemyMortarReflectorsBuffer: Tower[] = [];
-const bossRadiusFalloffResult: { falloff: number; part: CubeBoss | undefined } = { falloff: 0, part: undefined };
 type DirectProjectileTargets = Enemy[][];
 type EnemyProjectileTransientTargets = Tower[][];
-const directProjectileTargetBuffers: DirectProjectileTargets = Array.from({ length: LANES }, () => []);
-const enemyProjectileTransientTargetBuffers: EnemyProjectileTransientTargets = Array.from({ length: LANES }, () => []);
 const emptyEnemyProjectileTransientTargets: EnemyProjectileTransientTargets = Array.from({ length: LANES }, () => []);
 const DIRECT_ENEMY_HIT_RADIUS = 22;
+
+interface ProjectileScratch {
+  directTargets: DirectProjectileTargets;
+  transientTargets: EnemyProjectileTransientTargets;
+  mortarHits: Tower[];
+  reflectors: Tower[];
+  bossFalloff: { falloff: number; part: CubeBoss | undefined };
+}
+const workspaces = new WeakMap<ProjectileRuntime, ProjectileScratch>();
+function scratch(runtime: ProjectileRuntime) {
+  let value = workspaces.get(runtime);
+  if (!value) {
+    value = { directTargets: Array.from({ length: LANES }, () => []),
+      transientTargets: Array.from({ length: LANES }, () => []),
+      mortarHits: [], reflectors: [], bossFalloff: { falloff: 0, part: undefined } };
+    workspaces.set(runtime, value);
+  }
+  return value;
+}
 
 export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: number) {
   if (runtime.projectiles.length === 0) {
@@ -91,7 +95,7 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
   const gatherers = runtime.towers.filter(tower => gatheringIsActive(tower, runtime.battleTime));
   let directTargets: DirectProjectileTargets | undefined;
   const getDirectTargets = () => {
-    directTargets ??= buildDirectProjectileTargets(runtime.enemies);
+    directTargets ??= buildDirectProjectileTargets(runtime.enemies, scratch(runtime).directTargets);
     return directTargets;
   };
   const invalidateDirectTargetsIfNeeded = (enemy: Enemy, previousEnemyCount: number) => {
@@ -102,7 +106,7 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
 
   forEachInitial(runtime.projectiles, (projectile) => {
     if (runtime.routeProjectile?.(projectile)) {
-      Phaser.Utils.Array.Remove(runtime.projectiles, projectile);
+      removeItem(runtime.projectiles, projectile);
       return;
     }
     if (projectile.type === "chevron") {
@@ -117,7 +121,7 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
     const reachedLimitX = projectile.limitDirection < 0 ? nextX <= projectile.maxX : nextX >= projectile.maxX;
     projectile.x = reachedLimitX ? projectile.maxX : nextX;
     projectile.y += projectile.vy * seconds * speedMultiplier;
-    projectile.body.setPosition(projectile.x, projectile.y);
+    runtime.presentation.position(projectile);
 
     if (gatherers.length > 0 && gatherProjectile(runtime, gatherers, projectile, previousX, previousY)) {
       // Self-damage can remove linked towers and clear projectiles through T's removal effect.
@@ -139,23 +143,23 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
 
     if (!hit && !hitBoss) {
       if (isTowerProjectileOutOfBounds(projectile, reachedLimitX)) {
-        removeProjectile(runtime.projectiles, projectile);
+        removeProjectile(runtime, runtime.projectiles, projectile);
       }
       return;
     }
 
     if (projectile.type === "bolt" || projectile.type === "star" || projectile.type === "dollar" || projectile.type === "chevron") {
       if (hit) {
-        makeHitShards(runtime.scene, hit.x, hit.y, projectile.damageType);
+        runtime.presentation.hit(hit.x, hit.y, projectile.damageType);
         const previousEnemyCount = runtime.enemies.length;
         forEachProjectileHit(projectile, damage => {
           if (!hit.inPlay) return;
           runtime.damageEnemy(hit, directImpactDamage(projectile, hit, damage), projectile.damageType, projectile.sourceTower);
-          if (hit.inPlay) applyProjectileDebuff(runtime.scene, projectile, hit, runtime.battleTime);
+          if (hit.inPlay) applyProjectileDebuff(runtime, projectile, hit, runtime.battleTime);
         });
         invalidateDirectTargetsIfNeeded(hit, previousEnemyCount);
       } else {
-        makeHitShards(runtime.scene, projectile.x, projectile.y, projectile.damageType);
+        runtime.presentation.hit(projectile.x, projectile.y, projectile.damageType);
         forEachProjectileHit(projectile, damage => {
           if (hitBoss && hitBoss.hp > 0) runtime.damageBoss(directImpactDamage(projectile, hitBoss, damage), projectile.damageType, hitBoss);
         });
@@ -163,7 +167,7 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
     } else {
       const burstX = hit ? hit.x : projectile.x;
       const burstY = hit ? hit.y : projectile.y;
-      makeShellBurst(runtime.scene, burstX, burstY, projectile.splashRadius, projectile.damageType);
+      runtime.presentation.burst(burstX, burstY, projectile.splashRadius, projectile.damageType);
       forEachSnapshot(runtime.enemies, (enemy) => {
         if (enemyIsHighFlying(enemy)) {
           return;
@@ -180,11 +184,11 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
         forEachProjectileHit(projectile, damage => {
           if (!enemy.inPlay) return;
           runtime.damageEnemy(enemy, damage * falloff, projectile.damageType, projectile.sourceTower);
-          if (enemy.inPlay) applyProjectileDebuff(runtime.scene, projectile, enemy, runtime.battleTime);
+          if (enemy.inPlay) applyProjectileDebuff(runtime, projectile, enemy, runtime.battleTime);
         });
         invalidateDirectTargetsIfNeeded(enemy, previousEnemyCount);
       });
-      const bossFalloff = bossRadiusFalloff(runtime.getBoss(), burstX, burstY, projectile.splashRadius);
+      const bossFalloff = bossRadiusFalloff(runtime, runtime.getBoss(), burstX, burstY, projectile.splashRadius);
       if (bossFalloff.falloff > 0) {
         const { part, falloff } = bossFalloff;
         forEachProjectileHit(projectile, damage => {
@@ -193,7 +197,7 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
       }
     }
 
-    removeProjectile(runtime.projectiles, projectile);
+    removeProjectile(runtime, runtime.projectiles, projectile);
   });
 }
 
@@ -207,21 +211,21 @@ export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: numb
   const transientTargets =
     runtime.towers.length === runtime.occupied.size
       ? emptyEnemyProjectileTransientTargets
-      : buildEnemyProjectileTransientTargets(runtime.towers);
+      : buildEnemyProjectileTransientTargets(runtime.towers, scratch(runtime).transientTargets);
   forEachInitial(runtime.enemyProjectiles, (projectile) => {
     const from = { x: projectile.x, y: projectile.y };
     projectile.x += projectile.vx * seconds * movementSpeedMultiplier(runtime.towers, projectile.x, projectile.y, slowSources);
-    projectile.body.setPosition(projectile.x, projectile.y);
+    runtime.presentation.position(projectile);
 
     if (runtime.interceptProjectile?.(projectile, from)) {
-      removeEnemyProjectile(runtime.enemyProjectiles, projectile);
+      removeEnemyProjectile(runtime, runtime.enemyProjectiles, projectile);
       return;
     }
     if (gatherers.length > 0 && gatherProjectile(runtime, gatherers, projectile, from.x, from.y)) {
       // Linked removals can clear this shot; the lane change itself is not a swept trajectory.
       if (!runtime.enemyProjectiles.includes(projectile)) return;
       if (runtime.interceptProjectile?.(projectile, { x: projectile.x, y: projectile.y })) {
-        removeEnemyProjectile(runtime.enemyProjectiles, projectile);
+        removeEnemyProjectile(runtime, runtime.enemyProjectiles, projectile);
         return;
       }
     }
@@ -231,23 +235,23 @@ export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: numb
       if (towerBehaviorType(hit) === "N") {
         const previousX = projectile.x;
         shiftEnemyProjectile(projectile, hit);
-        makeShiftEffect(runtime.scene, previousX, projectile.y, projectile.x, projectile.y);
-        projectile.body.setPosition(projectile.x, projectile.y);
+        runtime.presentation.shift(previousX, projectile.y, projectile.x, projectile.y);
+        runtime.presentation.position(projectile);
         repeatHits(projectile.hitCount, () => damageShiftTowerSelf(runtime, hit));
         if (isEnemyProjectileOutOfBounds(projectile)) {
-          removeEnemyProjectile(runtime.enemyProjectiles, projectile);
+          removeEnemyProjectile(runtime, runtime.enemyProjectiles, projectile);
         }
         return;
       }
 
-      if (projectile.appearance !== "ion") makeEnemyHitShards(runtime.scene, projectile.x, projectile.y);
+      if (projectile.appearance !== "ion") runtime.presentation.enemyHit(projectile.x, projectile.y);
       const receiver = towerDamageReceiver(hit);
       const reflectsProjectile = receiver.reflectProjectiles;
-      const routedReflection = reflectsProjectile && runtime.onTowerAction?.(receiver, { kind: "reflection", projectile });
+      const routedReflection = reflectsProjectile && runtime.onReflection?.(receiver, projectile);
       if (projectile.splashRadius) {
         const x = hit.x, y = hit.y, radius = projectile.splashRadius;
-        if (projectile.appearance === "ion") makeIonImpact(runtime.scene, x, y, radius, CHEVRON_LEADER.color);
-        else makeShellBurst(runtime.scene, x, y, radius, projectile.damageType);
+        if (projectile.appearance === "ion") runtime.presentation.ionImpact(x, y, radius, CHEVRON_LEADER.color);
+        else runtime.presentation.burst(x, y, radius, projectile.damageType);
         const targets = towerAreaTargets(runtime.towers);
         for (const tower of targets) {
           const dx = tower.x - x, dy = tower.y - y;
@@ -263,12 +267,12 @@ export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: numb
       if (reflectsProjectile && !routedReflection) {
         reflectEnemyAttack(runtime, receiver, projectile);
       }
-      removeEnemyProjectile(runtime.enemyProjectiles, projectile);
+      removeEnemyProjectile(runtime, runtime.enemyProjectiles, projectile);
       return;
     }
 
     if (isEnemyProjectileOutOfBounds(projectile)) {
-      removeEnemyProjectile(runtime.enemyProjectiles, projectile);
+      removeEnemyProjectile(runtime, runtime.enemyProjectiles, projectile);
     }
   });
 }
@@ -284,9 +288,9 @@ export function updateMortarProjectiles(runtime: ProjectileRuntime, seconds: num
     syncMortarTarget(runtime, projectile);
     const speedMultiplier = movementSpeedMultiplier(runtime.towers, projectile.x, projectile.y, slowSources);
     projectile.progress = Math.min(1, projectile.progress + (seconds * 1000 * speedMultiplier) / projectile.duration);
-    positionMortarProjectile(projectile);
+    positionMortarProjectile(runtime, projectile);
     if (projectile.owner === "enemy" && runtime.interceptProjectile?.(projectile, from)) {
-      removeMortarProjectile(runtime.mortarProjectiles, projectile);
+      removeMortarProjectile(runtime, runtime.mortarProjectiles, projectile);
       return;
     }
 
@@ -299,7 +303,7 @@ export function updateMortarProjectiles(runtime: ProjectileRuntime, seconds: num
     } else {
       detonateTowerMortar(runtime, projectile);
     }
-    removeMortarProjectile(runtime.mortarProjectiles, projectile);
+    removeMortarProjectile(runtime, runtime.mortarProjectiles, projectile);
   });
 }
 
@@ -320,9 +324,9 @@ function projectileSlowAuraSources(runtime: ProjectileRuntime) {
   return runtime.slowAuraSources ?? slowAuraSources(runtime.towers);
 }
 
-function removeProjectile(projectiles: Projectile[], projectile: Projectile) {
-  Phaser.Utils.Array.Remove(projectiles, projectile);
-  projectile.body.destroy();
+function removeProjectile(runtime: ProjectileRuntime, projectiles: Projectile[], projectile: Projectile) {
+  removeItem(projectiles, projectile);
+  runtime.presentation.remove(projectile);
 }
 
 function enemyProjectileHitRadius(enemy: Enemy) {
@@ -351,7 +355,7 @@ function updateHomingProjectile(runtime: ProjectileRuntime, projectile: Projecti
     const angle = Math.atan2(targetPoint.y - projectile.y, targetPoint.x - projectile.x);
     projectile.vx = Math.cos(angle) * nextSpeed;
     projectile.vy = Math.sin(angle) * nextSpeed;
-    projectile.body.rotation = angle;
+    runtime.presentation.rotation(projectile, angle);
     return;
   }
 
@@ -363,7 +367,7 @@ function updateHomingProjectile(runtime: ProjectileRuntime, projectile: Projecti
     projectile.vx *= speedScale;
     projectile.vy *= speedScale;
   }
-  projectile.body.rotation = Math.atan2(projectile.vy, projectile.vx);
+  runtime.presentation.rotation(projectile, Math.atan2(projectile.vy, projectile.vx));
 }
 
 function resolveHomingTarget(runtime: ProjectileRuntime, projectile: Projectile) {
@@ -401,7 +405,7 @@ function getHomingProjectileHit(
   return undefined;
 }
 
-function buildDirectProjectileTargets(enemies: Enemy[]): DirectProjectileTargets {
+function buildDirectProjectileTargets(enemies: Enemy[], directProjectileTargetBuffers: DirectProjectileTargets): DirectProjectileTargets {
   for (const targets of directProjectileTargetBuffers) {
     targets.length = 0;
   }
@@ -513,7 +517,7 @@ function projectileEnemyHitTime(
     segmentEnemyHitTime(enemy, x - enemy.x, y - enemy.y, projectile.x - enemy.x, projectile.y - enemy.y, radius);
 }
 
-function buildEnemyProjectileTransientTargets(towers: Tower[]): EnemyProjectileTransientTargets {
+function buildEnemyProjectileTransientTargets(towers: Tower[], enemyProjectileTransientTargetBuffers: EnemyProjectileTransientTargets): EnemyProjectileTransientTargets {
   for (const targets of enemyProjectileTransientTargetBuffers) {
     targets.length = 0;
   }
@@ -573,9 +577,9 @@ function occupiedTowerAtColumn(occupied: Map<string, Tower>, lane: number, colum
   return column >= 0 && column < COLUMNS ? occupied.get(gridCellKey(lane, column)) : undefined;
 }
 
-function removeEnemyProjectile(projectiles: EnemyProjectile[], projectile: EnemyProjectile) {
-  Phaser.Utils.Array.Remove(projectiles, projectile);
-  projectile.body.destroy();
+function removeEnemyProjectile(runtime: ProjectileRuntime, projectiles: EnemyProjectile[], projectile: EnemyProjectile) {
+  removeItem(projectiles, projectile);
+  runtime.presentation.remove(projectile);
 }
 
 function radiusFalloffFromDistanceSq(distanceSq: number, radius: number) {
@@ -591,21 +595,22 @@ function radiusFalloffFromDistanceSq(distanceSq: number, radius: number) {
   return 1 - Math.sqrt(distanceSq) / radius;
 }
 
-function bossRadiusFalloff(boss: CubeBoss | null, x: number, y: number, radius: number) {
+function bossRadiusFalloff(runtime: ProjectileRuntime, boss: CubeBoss | null, x: number, y: number, radius: number) {
+  const bossRadiusFalloffResult = scratch(runtime).bossFalloff;
   bossRadiusFalloffResult.falloff = 0;
   bossRadiusFalloffResult.part = undefined;
   if (!boss) {
     return bossRadiusFalloffResult;
   }
 
-  updateBossRadiusFalloffResult(boss, x, y, radius);
+  updateBossRadiusFalloffResult(boss, bossRadiusFalloffResult, x, y, radius);
   for (const part of secondaryBossParts(boss)) {
-    updateBossRadiusFalloffResult(part, x, y, radius);
+    updateBossRadiusFalloffResult(part, bossRadiusFalloffResult, x, y, radius);
   }
   return bossRadiusFalloffResult;
 }
 
-function updateBossRadiusFalloffResult(part: CubeBoss, x: number, y: number, radius: number) {
+function updateBossRadiusFalloffResult(part: CubeBoss, bossRadiusFalloffResult: ProjectileScratch["bossFalloff"], x: number, y: number, radius: number) {
   const falloff = radiusFalloffFromDistanceSq(bossPartDistanceSqToPoint(part, x, y), radius);
   if (falloff > bossRadiusFalloffResult.falloff) {
     bossRadiusFalloffResult.falloff = falloff;
@@ -650,7 +655,7 @@ function damageShiftTowerSelf(runtime: ProjectileRuntime, tower: Tower) {
   runtime.damageTower(tower, damage, definition.selfDamageType ?? "true");
 }
 
-function positionMortarProjectile(projectile: MortarProjectile) {
+function positionMortarProjectile(runtime: ProjectileRuntime, projectile: MortarProjectile) {
   const progress = projectile.progress;
   const inverse = 1 - progress;
   const distance = Math.hypot(projectile.targetX - projectile.fromX, projectile.targetY - projectile.fromY);
@@ -661,22 +666,19 @@ function positionMortarProjectile(projectile: MortarProjectile) {
     inverse * inverse * projectile.fromX + 2 * inverse * progress * controlX + progress * progress * projectile.targetX;
   projectile.y =
     inverse * inverse * projectile.fromY + 2 * inverse * progress * controlY + progress * progress * projectile.targetY;
-  projectile.body.setPosition(projectile.x, projectile.y);
-  projectile.body.rotation = progress * Math.PI * 1.4;
-  projectile.body.setScale(projectileVisualScale(projectile) * (1 + Math.sin(progress * Math.PI) * 0.26));
-  updateProjectileTrail(projectile.body, projectile.x, projectile.y, progress * projectile.duration);
+  runtime.presentation.mortarPosition(projectile);
 }
 
 function detonateEnemyMortar(runtime: ProjectileRuntime, projectile: MortarProjectile) {
-  makeSpellMortarImpact(runtime.scene, projectile.targetX, projectile.targetY, projectile.rangeX, projectile.rangeY, {
+  runtime.presentation.mortarImpact(projectile.targetX, projectile.targetY, projectile.rangeX, projectile.rangeY, {
     color: palette.enemyShot,
     marker: projectile.marker ?? "shell",
     markerText: projectile.markerText,
     markerTextColor: projectile.markerTextColor
   });
 
-  const hitTowers = enemyMortarHitTowersBuffer;
-  const reflectors = enemyMortarReflectorsBuffer;
+  const hitTowers = scratch(runtime).mortarHits;
+  const reflectors = scratch(runtime).reflectors;
   hitTowers.length = 0;
   reflectors.length = 0;
   const targetX = projectile.targetX;
@@ -697,7 +699,7 @@ function detonateEnemyMortar(runtime: ProjectileRuntime, projectile: MortarProje
 
     if (projectile.sourceEnemy?.inPlay) {
       for (let i = reflectors.length - 1; i >= 0; i--) {
-        if (runtime.onTowerAction?.(reflectors[i], { kind: "reflection", projectile })) reflectors.splice(i, 1);
+        if (runtime.onReflection?.(reflectors[i], projectile)) reflectors.splice(i, 1);
       }
     }
     for (const tower of hitTowers) {
@@ -722,13 +724,13 @@ export function reflectEnemyAttack(runtime: ProjectileRuntime, tower: Tower, pro
   const damageType = towerDamageType(tower, projectile.damageType, runtime.battleTime);
   if (!("owner" in projectile)) {
     const incoming = atTower ? { ...projectile, x: tower.x, y: tower.y, sourceLane: tower.lane } : projectile;
-    runtime.projectiles.push(createReflectedProjectile(runtime.scene, incoming, damageType, tower));
-    makeReflectFlash(runtime.scene, incoming.x, incoming.y);
+    runtime.projectiles.push(runtime.createProjectile(reflectedProjectileSpec(incoming, damageType, tower)));
+    runtime.presentation.reflect(incoming.x, incoming.y);
     return;
   }
   const sourceEnemy = projectile.sourceEnemy;
   if (!sourceEnemy?.inPlay) return;
-  runtime.mortarProjectiles.push(createMortarProjectile(runtime.scene, {
+  runtime.mortarProjectiles.push(runtime.createMortar({
     owner: "tower", hitCount: projectile.hitCount,
     partialHitDamage: projectile.partialHitDamage, initialDamageBudget: projectile.initialDamageBudget,
     fromX: tower.x, fromY: tower.y, targetX: sourceEnemy.x, targetY: sourceEnemy.y,
@@ -738,11 +740,11 @@ export function reflectEnemyAttack(runtime: ProjectileRuntime, tower: Tower, pro
     markerTextColor: projectile.marker === "text" ? damageEffectTextColor(damageType) : undefined,
     targetEnemy: sourceEnemy
   }));
-  makeReflectFlash(runtime.scene, tower.x, tower.y);
+  runtime.presentation.reflect(tower.x, tower.y);
 }
 
 function detonateTowerMortar(runtime: ProjectileRuntime, projectile: MortarProjectile) {
-  makeSpellMortarImpact(runtime.scene, projectile.targetX, projectile.targetY, projectile.rangeX, projectile.rangeY, {
+  runtime.presentation.mortarImpact(projectile.targetX, projectile.targetY, projectile.rangeX, projectile.rangeY, {
     color: damageEffectColor(projectile.damageType),
     marker: projectile.marker ?? "shell",
     markerText: projectile.markerText,
@@ -774,7 +776,7 @@ function detonateTowerMortar(runtime: ProjectileRuntime, projectile: MortarProje
     forEachProjectileHit(projectile, damage => {
       if (!enemy.inPlay) return;
       runtime.damageEnemy(enemy, damage, projectile.damageType, projectile.sourceTower);
-      if (enemy.inPlay) applyMortarDebuff(runtime.scene, projectile, enemy, runtime.battleTime);
+      if (enemy.inPlay) applyMortarDebuff(runtime, projectile, enemy, runtime.battleTime);
     });
   });
   const bossPart = bossPartInRect(
@@ -810,11 +812,11 @@ function detonateRadialFalloffTowerMortar(runtime: ProjectileRuntime, projectile
     forEachProjectileHit(projectile, damage => {
       if (!enemy.inPlay) return;
       runtime.damageEnemy(enemy, damage * falloff, projectile.damageType, projectile.sourceTower);
-      if (enemy.inPlay) applyMortarDebuff(runtime.scene, projectile, enemy, runtime.battleTime);
+      if (enemy.inPlay) applyMortarDebuff(runtime, projectile, enemy, runtime.battleTime);
     });
   });
 
-  const bossFalloff = bossRadiusFalloff(runtime.getBoss(), projectile.targetX, projectile.targetY, radius);
+  const bossFalloff = bossRadiusFalloff(runtime, runtime.getBoss(), projectile.targetX, projectile.targetY, radius);
   if (bossFalloff.falloff > 0) {
     const { part, falloff } = bossFalloff;
     forEachProjectileHit(projectile, damage => {
@@ -848,7 +850,7 @@ function detonateSingleTargetTowerMortar(runtime: ProjectileRuntime, projectile:
     forEachProjectileHit(projectile, damage => {
       if (!target.inPlay) return;
       runtime.damageEnemy(target, damage, projectile.damageType, projectile.sourceTower);
-      if (target.inPlay) applyMortarDebuff(runtime.scene, projectile, target, runtime.battleTime);
+      if (target.inPlay) applyMortarDebuff(runtime, projectile, target, runtime.battleTime);
     });
     return;
   }
@@ -861,13 +863,13 @@ function detonateSingleTargetTowerMortar(runtime: ProjectileRuntime, projectile:
   }
 }
 
-function removeMortarProjectile(projectiles: MortarProjectile[], projectile: MortarProjectile) {
-  Phaser.Utils.Array.Remove(projectiles, projectile);
-  projectile.body.destroy();
+function removeMortarProjectile(runtime: ProjectileRuntime, projectiles: MortarProjectile[], projectile: MortarProjectile) {
+  removeItem(projectiles, projectile);
+  runtime.presentation.remove(projectile);
 }
 
-function applyProjectileDebuff(scene: Phaser.Scene, projectile: Projectile, enemy: Enemy, time: number) {
-  applyDebuff(scene, enemy, time, projectile.debuff, projectile.debuffDuration);
+function applyProjectileDebuff(runtime: ProjectileRuntime, projectile: Projectile, enemy: Enemy, time: number) {
+  applyDebuff(runtime, enemy, time, projectile.debuff, projectile.debuffDuration);
 }
 
 function distanceSq(ax: number, ay: number, bx: number, by: number) {
@@ -876,12 +878,12 @@ function distanceSq(ax: number, ay: number, bx: number, by: number) {
   return dx * dx + dy * dy;
 }
 
-function applyMortarDebuff(scene: Phaser.Scene, projectile: MortarProjectile, enemy: Enemy, time: number) {
-  applyDebuff(scene, enemy, time, projectile.debuff, projectile.debuffDuration);
+function applyMortarDebuff(runtime: ProjectileRuntime, projectile: MortarProjectile, enemy: Enemy, time: number) {
+  applyDebuff(runtime, enemy, time, projectile.debuff, projectile.debuffDuration);
 }
 
 function applyDebuff(
-  scene: Phaser.Scene,
+  runtime: ProjectileRuntime,
   enemy: Enemy,
   time: number,
   debuff?: Projectile["debuff"],
@@ -893,6 +895,11 @@ function applyDebuff(
 
   applyStatusEffect(enemy, debuff, debuffDuration, time);
   if (debuff === "stasis") {
-    makeStasisEffect(scene, enemy.x, enemy.y);
+    runtime.presentation.stasis(enemy.x, enemy.y);
   }
+}
+
+function removeItem<T>(items: T[], item: T) {
+  const index = items.indexOf(item);
+  if (index >= 0) items.splice(index, 1);
 }

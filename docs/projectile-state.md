@@ -46,9 +46,11 @@ exercise real rendering adapters, interception, pipeline routing and save resume
 
 ## Remaining Boundaries
 
-This is an incremental split, not a headless battle engine or network protocol.
-Towers now also have [explicit state contracts](tower-state.md); enemies and Bosses
-still use visual exclusion lists. Source/target types still reference live entities.
-Enemy/Boss contracts and stable entity IDs remain future work. Projectile
-movement/collision also still invokes rendering.
-No full-battle FPS improvement is claimed by this pass.
+Towers, enemies and Bosses now also have explicit state contracts and entity IDs.
+Projectile source/target types refer to data states, while live types narrow those
+links to live views. Movement/collision now runs through a
+[renderer-free projectile system](projectile-runtime.md) used by the real scene.
+Top-level projectile relationships still use graph references, not ID records;
+stored action/pipeline relationships also need further migration. Damage and
+removal cascades are still supplied by scene-bound controllers. This is not yet a
+complete headless battle engine, and no full-battle FPS improvement is claimed.

@@ -40,6 +40,12 @@ transport-neutral authority and synchronization gates above.
   use data-state contracts, and aura caches are isolated per battlefield. Battle
   controllers still coordinate live objects; gate 1 is only partial. See
   [combat state and display](combat-state.md).
+  All projectile advancement/collision, mortar trajectories, reflection payloads,
+  Gathering and Orientation targeting now use data-only rules with explicit
+  presentation/factory ports. Bodyless Node tests and actual displayed/detached
+  scene continuations match, including cross-world scratch isolation. Damage,
+  firing and other controllers remain scene-bound; this does not complete the
+  headless simulation gate. See [projectile simulation](projectile-runtime.md).
 - Determinism: the integrated `BattleSession` now owns fixed steps, seeded battle
   RNG, delayed action queue, recording and checkpoint timing. Independent session
   tests and unchanged browser replay checksums verify this extraction. `BattleWorld`

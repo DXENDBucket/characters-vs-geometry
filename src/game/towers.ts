@@ -115,7 +115,7 @@ export function createTower(
     negativeHpFill,
     levelText,
     rangeBorder: rangeBorder ?? undefined
-  }));
+  }) as Tower);
 }
 
 export function toggleTowerFacing(tower: Tower) {

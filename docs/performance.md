@@ -135,6 +135,13 @@ now moved from `GameScene` to an integrated `BattleSession`. The tick delegates 
 [Battle Session Orchestration](battle-session.md) and [World Ownership](battle-world.md).
 This is an ownership change with unchanged replay checksums, not an FPS claim.
 
+Projectile movement, collision and reflection now have a renderer-free runtime
+used by the actual scene. Its target and mortar buffers belong to each runtime
+instead of being shared across battlefields, and the live adapter is cached rather
+than rebuilt each tick. Bodyless rule tests and real displayed/detached battle
+comparisons verify behavior; this is not a full-battle performance measurement.
+See [projectile simulation](projectile-runtime.md).
+
 Status lifecycle, final combat panels and passenger-seat calculations now run
 without rendering dependencies. Numeric caches and aura source/cell buffers are
 isolated per unit or battlefield, while status visuals run once per displayed

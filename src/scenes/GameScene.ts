@@ -60,6 +60,7 @@ import { BoardToolPreview, type BoardToolHint } from "../render/boardToolPreview
 import { executePipelineAction, healPipelineArea, pipelineActionSelfCost } from "../game/pipelineActionEffects";
 import type { TowerActionEvent } from "../game/towerActions";
 import { reflectEnemyAttack } from "../game/projectileRuntime";
+import { projectileSimulationRuntime, type LiveProjectileRuntime } from "../render/projectileRuntime";
 import { detonateSlowAuraTower } from "../game/unitLifecycle";
 import { drawEnemyHealthLinks } from "../render/enemyHealthLinks";
 import { PauseMenu } from "../render/pauseMenu";
@@ -381,7 +382,7 @@ export class GameScene extends Phaser.Scene {
   private combatRuntimeCache!: CombatRuntime;
   private bossRuntimeCache!: BossRuntime;
   private unitLifecycleRuntimeCache!: UnitLifecycleRuntime;
-  private projectileRuntimeCache!: ProjectileRuntime;
+  private projectileRuntimeCache!: LiveProjectileRuntime;
   private readonly projectileMotion = new ProjectileMotionFrame();
   private triggerTowerRuntimeCache!: TriggerTowerRuntime;
   private get tutorial() { return this.world.tutorial; }
@@ -1882,10 +1883,10 @@ export class GameScene extends Phaser.Scene {
     runtime.occupied = this.occupied;
     runtime.battleTime = this.battleTime;
     runtime.slowAuraSources = slowSources;
-    return runtime;
+    return projectileSimulationRuntime(runtime);
   }
 
-  private createProjectileRuntime(): ProjectileRuntime {
+  private createProjectileRuntime(): LiveProjectileRuntime {
     return {
       onTowerAction: this.routeTowerAction,
       routeProjectile: projectile => this.numbers.capture(projectile),

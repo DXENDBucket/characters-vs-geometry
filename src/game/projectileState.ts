@@ -1,4 +1,7 @@
-import type { CardId, CubeBoss, DamageType, Enemy, ProjectileKind, StatusEffectName, Tower } from "../types";
+import type { CardId, DamageType, ProjectileKind, StatusEffectName } from "../types";
+import type { BossState as CubeBoss } from "./bossState";
+import type { EnemyState as Enemy } from "./enemyState";
+import type { TowerState as Tower } from "./towerState";
 import type { ProjectileIntegrity } from "./projectileIntegrity";
 import { towerActionContext, towerBehaviorType } from "./towerIdentity";
 

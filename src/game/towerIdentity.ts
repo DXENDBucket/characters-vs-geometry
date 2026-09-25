@@ -1,4 +1,5 @@
 import type { CardId, NumberTowerState, Tower, TowerFinalStats } from "../types";
+import type { TowerState } from "./towerState";
 import { deploymentCardId } from "./cardIdentity";
 
 export interface TowerBehaviorContext {
@@ -69,7 +70,7 @@ export function numberTowerActionLevel(tower: Pick<Tower, "type" | "copiedType" 
   return numberTowerValue(tower, state) * numberTowerMultiplier(tower, state);
 }
 
-export function towerHasSkillBehavior(tower: Tower, type: CardId) {
+export function towerHasSkillBehavior(tower: TowerState, type: CardId) {
   if (tower.routedSkills?.[type] !== undefined) return false;
   return towerBehaviorType(tower) === type ||
     ((isNumberTower(tower) || isNumericOperatorType(towerFormType(tower))) && tower.imitatedSkills?.includes(type) === true);

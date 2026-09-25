@@ -90,6 +90,21 @@ const triggers = load("src/game/triggerTowers.ts");
 const { cardDefinitions } = load("src/data/cards.ts");
 const definition = cardDefinitions.find((card) => card.id === "r");
 
+function projectilePorts() {
+  const { createTowerProjectileState, createMortarProjectileState } = load("src/game/projectileState.ts");
+  return {
+    createProjectile: createTowerProjectileState,
+    createMortar: createMortarProjectileState,
+    presentation: {
+      ...load("src/game/projectilePresentation.ts").NO_PROJECTILE_PRESENTATION,
+      position: projectile => projectile.body.setPosition(projectile.x, projectile.y),
+      rotation: (projectile, angle) => { projectile.body.rotation = angle; },
+      mortarPosition: projectile => projectile.body.setPosition(projectile.x, projectile.y),
+      remove: projectile => projectile.body.destroy()
+    }
+  };
+}
+
 function uiVisual() {
   const object = { x: 0, y: 0, width: 42, alpha: 1, visible: true, scaleX: 1, scaleY: 1 };
   const proxy = new Proxy(object, {
@@ -144,6 +159,7 @@ function extractionFixture() {
   const pending = new (load("src/game/battleActions.ts").BattleActionQueue)();
   const removed = [];
   const state = {
+    ...projectilePorts(),
     scene: { add: new Proxy({}, { get: () => () => uiVisual() }), tweens: { add: noop } },
     towers: [], occupied: new Map(), chars: 10_000, battleTime: 0, unlimitedFirepower: false,
     autoUpgradeEnabled: true, autoUpgradeReserveChars: 0, autoUpgradeReserveInputFocused: false,
@@ -1400,6 +1416,7 @@ function tower(overrides = {}) {
 }
 function runtime(enemies = [], boss = null) {
   const state = {
+    ...projectilePorts(),
     enemies, boss, battleTime: 1000, gameOver: false, scene: {},
     getBoss: () => boss, getDefinition: () => definition,
     removeTower: (unit) => { unit.inPlay = false; unit.mirrorLevelBonus = 0; },

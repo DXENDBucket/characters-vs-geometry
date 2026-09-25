@@ -3,6 +3,9 @@ import { EventEmitter } from "node:events";
 import fs from "node:fs";
 import { test } from "node:test";
 import ts from "typescript";
+import { createTypeScriptLoader } from "./helpers/load-typescript.mjs";
+
+const load = createTypeScriptLoader();
 
 const { outputText } = ts.transpileModule(
   fs.readFileSync(new URL("../src/render/combatEffects.ts", import.meta.url), "utf8"),
@@ -24,6 +27,7 @@ const effects = {};
 new Function("require", "exports", outputText)(name => {
   if (name === "phaser") return { default: {} };
   if (name === "../config") return { palette: { white: 0xffffff, black: 0, green: 0x48ff88 } };
+  if (name === "../data/damageColors") return load("src/data/damageColors.ts");
   if (name === "../i18n") return { EFFECT_SYMBOLS: { chars: "Aa" } };
   if (name === "../bosses/cubeBoss") return {};
   if (name === "./projectileTrail") return trails;

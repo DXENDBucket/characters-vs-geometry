@@ -261,8 +261,8 @@ export interface CardView {
   displayTime: number;
 }
 
-export interface TowerHealthPool {
-  members: Tower[];
+export interface TowerHealthPool<Member = Tower> {
+  members: Member[];
   hp: number;
   maxHp: number;
   linkCount: number;
@@ -277,6 +277,9 @@ export interface NumberTowerState {
 }
 
 export interface Tower extends TowerState {
+  parenthesisGuard?: Tower;
+  parenthesisInner?: Tower;
+  healthPool?: TowerHealthPool;
   body: Phaser.GameObjects.Container;
   border: Phaser.GameObjects.Graphics;
   label: Phaser.GameObjects.Text;
@@ -315,6 +318,9 @@ export interface Enemy extends EnemyState {
 }
 
 export interface Projectile extends ProjectileState {
+  targetEnemy?: Enemy;
+  targetBossPart?: CubeBoss;
+  sourceTower?: Tower;
   body: Phaser.GameObjects.Shape | Phaser.GameObjects.Text;
 }
 
@@ -353,6 +359,10 @@ export interface EnemyProjectile extends EnemyProjectileState {
 }
 
 export interface MortarProjectile extends MortarProjectileState {
+  sourceEnemy?: Enemy;
+  sourceTower?: Tower;
+  targetEnemy?: Enemy;
+  targetTower?: Tower;
   body: Phaser.GameObjects.Shape | Phaser.GameObjects.Text;
 }
 

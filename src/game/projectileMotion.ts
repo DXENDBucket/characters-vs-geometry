@@ -1,5 +1,6 @@
-import type { Enemy, Projectile } from "../types";
-import { parenthesisHalfSpan } from "./enemyContainers";
+import type { EnemyState as Enemy } from "./enemyState";
+import type { ProjectileState as Projectile } from "./projectileState";
+import { parenthesisHalfSpan } from "./enemyContainerRules";
 import { segmentBoxHitTime } from "./oscillatingMovement";
 
 export function segmentEnemyHitTime(enemy: Enemy, x: number, y: number, endX: number, endY: number, radius: number) {

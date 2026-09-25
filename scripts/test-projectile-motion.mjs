@@ -11,7 +11,7 @@ const load = createTypeScriptLoader({
   "src/registry/cards.ts": {},
   "src/registry/enemies.ts": { enemyIsBossCompanion: () => false },
   "src/render/combatEffects.ts": { makeHitShards: noop },
-  "src/game/projectiles.ts": { isTowerProjectileOutOfBounds: (_p, limit) => limit },
+  "src/game/projectileBounds.ts": { isTowerProjectileOutOfBounds: (_p, limit) => limit },
   "src/game/slowAura.ts": { slowAuraSources: () => [], movementSpeedMultiplier: () => 1 },
   "src/game/orientation.ts": {},
   "src/game/gathering.ts": { gatheringIsActive: () => false },
@@ -31,6 +31,7 @@ const makeProjectile = (extras = {}) => ({
 function runtime(enemies, projectiles) {
   const hits = [];
   return {
+    presentation: { ...load("src/game/projectilePresentation.ts").NO_PROJECTILE_PRESENTATION },
     enemies, projectiles, towers: [], scene: {}, battleTime: 100,
     projectileMotion: new ProjectileMotionFrame(), getBoss: () => null,
     hits, damageEnemy: (enemy, damage) => hits.push({ enemy, damage })

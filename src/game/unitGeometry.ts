@@ -1,5 +1,6 @@
 import { BOSS_HITBOX_HEIGHT, BOSS_HITBOX_WIDTH, CELL_HEIGHT, CELL_WIDTH } from "../config";
 import type { CubeBoss } from "../types";
+import type { BossState } from "./bossState";
 
 export interface UnitPosition {
   x: number;
@@ -29,15 +30,19 @@ export function bossBounds(boss: BossHitbox): RectBounds {
   };
 }
 
-export function bossParts(boss: CubeBoss | null) {
+export function bossParts(boss: CubeBoss | null): CubeBoss[];
+export function bossParts(boss: BossState | null): BossState[];
+export function bossParts(boss: BossState | null) {
   return boss ? [boss, ...secondaryBossParts(boss)] : [];
 }
 
-export function secondaryBossParts(boss: CubeBoss) {
+export function secondaryBossParts(boss: CubeBoss): CubeBoss[];
+export function secondaryBossParts(boss: BossState): BossState[];
+export function secondaryBossParts(boss: BossState) {
   return boss.delLaneSweep?.parts ?? boss.octahedronCopies ?? [];
 }
 
-export function findBossPart(boss: CubeBoss | null, predicate: (part: CubeBoss) => boolean) {
+export function findBossPart<T extends BossState>(boss: T | null, predicate: (part: T) => boolean): T | undefined {
   if (!boss) {
     return undefined;
   }
@@ -46,7 +51,7 @@ export function findBossPart(boss: CubeBoss | null, predicate: (part: CubeBoss) 
     return boss;
   }
 
-  for (const part of secondaryBossParts(boss)) {
+  for (const part of secondaryBossParts(boss) as T[]) {
     if (predicate(part)) {
       return part;
     }
@@ -55,13 +60,13 @@ export function findBossPart(boss: CubeBoss | null, predicate: (part: CubeBoss) 
   return undefined;
 }
 
-export function forEachBossPart(boss: CubeBoss | null, visit: (part: CubeBoss) => void) {
+export function forEachBossPart<T extends BossState>(boss: T | null, visit: (part: T) => void) {
   if (!boss) {
     return;
   }
 
   visit(boss);
-  for (const part of secondaryBossParts(boss)) {
+  for (const part of secondaryBossParts(boss) as T[]) {
     visit(part);
   }
 }
@@ -143,11 +148,13 @@ export function towerIntersectsBoss(tower: UnitPosition, boss: BossHitbox) {
   );
 }
 
-export function isPointInBossHitbox(boss: CubeBoss | null, x: number, y: number) {
+export function isPointInBossHitbox(boss: BossState | null, x: number, y: number) {
   return Boolean(bossPartAtPoint(boss, x, y));
 }
 
-export function bossPartAtPoint(boss: CubeBoss | null, x: number, y: number) {
+export function bossPartAtPoint(boss: CubeBoss | null, x: number, y: number): CubeBoss | undefined;
+export function bossPartAtPoint(boss: BossState | null, x: number, y: number): BossState | undefined;
+export function bossPartAtPoint(boss: BossState | null, x: number, y: number) {
   if (!boss) {
     return undefined;
   }
@@ -165,11 +172,13 @@ export function bossPartAtPoint(boss: CubeBoss | null, x: number, y: number) {
   return undefined;
 }
 
-export function isBossInRadius(boss: CubeBoss | null, x: number, y: number, radius: number) {
+export function isBossInRadius(boss: BossState | null, x: number, y: number, radius: number) {
   return Boolean(bossPartInRadius(boss, x, y, radius));
 }
 
-export function bossPartInRadius(boss: CubeBoss | null, x: number, y: number, radius: number) {
+export function bossPartInRadius(boss: CubeBoss | null, x: number, y: number, radius: number): CubeBoss | undefined;
+export function bossPartInRadius(boss: BossState | null, x: number, y: number, radius: number): BossState | undefined;
+export function bossPartInRadius(boss: BossState | null, x: number, y: number, radius: number) {
   if (!boss) {
     return undefined;
   }
@@ -188,11 +197,13 @@ export function bossPartInRadius(boss: CubeBoss | null, x: number, y: number, ra
   return undefined;
 }
 
-export function isBossInRect(boss: CubeBoss | null, x: number, y: number, width: number, height: number) {
+export function isBossInRect(boss: BossState | null, x: number, y: number, width: number, height: number) {
   return Boolean(bossPartInRect(boss, x, y, width, height));
 }
 
-export function bossPartInRect(boss: CubeBoss | null, x: number, y: number, width: number, height: number) {
+export function bossPartInRect(boss: CubeBoss | null, x: number, y: number, width: number, height: number): CubeBoss | undefined;
+export function bossPartInRect(boss: BossState | null, x: number, y: number, width: number, height: number): BossState | undefined;
+export function bossPartInRect(boss: BossState | null, x: number, y: number, width: number, height: number) {
   if (!boss) {
     return undefined;
   }

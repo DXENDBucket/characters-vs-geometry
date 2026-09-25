@@ -11,6 +11,8 @@ import {
 import { BOSS_HITBOX_HEIGHT, BOSS_HITBOX_WIDTH, CELL_HEIGHT, palette } from "../config";
 import { EFFECT_SYMBOLS } from "../i18n";
 import type { DamageType, Enemy, Tower } from "../types";
+import { damageEffectColor, damageEffectTextColor } from "../data/damageColors";
+export { damageEffectColor, damageEffectTextColor } from "../data/damageColors";
 
 interface CollapseRotation {
   x: number;
@@ -325,14 +327,6 @@ function spellMortarMarkerTextStyle(color: string): Phaser.Types.GameObjects.Tex
   };
   spellMortarMarkerTextStyleCache.set(color, style);
   return style;
-}
-
-export function damageEffectColor(damageType: DamageType) {
-  return damageType === "magic" ? palette.magic : palette.white;
-}
-
-export function damageEffectTextColor(damageType: DamageType) {
-  return damageType === "magic" ? "#9fdcff" : "#f5f5f5";
 }
 
 export function makeHitShards(scene: Phaser.Scene, x: number, y: number, damageType: DamageType) {

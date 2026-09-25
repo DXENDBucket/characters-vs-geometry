@@ -1,5 +1,5 @@
 import { COLUMNS, LANES } from "../config";
-import type { Tower } from "../types";
+import type { TowerState as Tower } from "./towerState";
 
 export interface TowerCell { lane: number; column: number }
 interface Topology { logical: TowerCell[]; physical: TowerCell[]; signature: string }
@@ -39,7 +39,7 @@ export function physicalTowerCell(anchor: Tower, cell: TowerCell): TowerCell {
 export function logicalTowerCell(anchor: Tower, cell: TowerCell): TowerCell {
   return validTowerCell(cell) ? contexts.get(anchor)?.logical[index(cell)] ?? cell : cell;
 }
-export function towerAtCell(occupied: Map<string, Tower>, anchor: Tower, lane: number, column: number) {
+export function towerAtCell<T extends Tower>(occupied: Map<string, T>, anchor: Tower, lane: number, column: number) {
   const cell = physicalTowerCell(anchor, { lane, column });
   return occupied.get(`${cell.lane}:${cell.column}`);
 }

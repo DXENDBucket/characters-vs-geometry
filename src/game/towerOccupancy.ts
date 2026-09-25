@@ -1,17 +1,22 @@
 import type { CardId, Tower } from "../types";
+import type { TowerState } from "./towerState";
 import { deploymentCardId } from "./cardIdentity";
 
 const key = (lane: number, column: number) => `${lane}:${column}`;
 export const isTowerShellType = (type: unknown): type is "()" | "[]" => type === "()" || type === "[]";
 export const isParenthesisTower = (tower: Pick<Tower, "type">) => isTowerShellType(tower.type);
-const sameCell = (a: Tower, b: Tower) => a.lane === b.lane && a.column === b.column;
+const sameCell = (a: TowerState, b: TowerState) => a.lane === b.lane && a.column === b.column;
 
-export function towerDamageReceiver(tower: Tower): Tower {
+export function towerDamageReceiver(tower: Tower): Tower;
+export function towerDamageReceiver(tower: TowerState): TowerState;
+export function towerDamageReceiver(tower: TowerState) {
   const guard = tower.parenthesisGuard;
   return guard?.inPlay && sameCell(tower, guard) ? guard : tower;
 }
 
-export function parenthesisInner(tower: Tower) {
+export function parenthesisInner(tower: Tower): Tower | undefined;
+export function parenthesisInner(tower: TowerState): TowerState | undefined;
+export function parenthesisInner(tower: TowerState) {
   const inner = tower.parenthesisInner;
   return inner?.inPlay && sameCell(tower, inner) ? inner : undefined;
 }
@@ -49,7 +54,7 @@ export function towerInPlacementLayer(occupied: Map<string, Tower>, lane: number
 
 // Resolve before dealing any damage: breaking a shell must not add a second hit
 // on its former occupant to the same area attack.
-export function towerAreaTargets(towers: readonly Tower[]) {
+export function towerAreaTargets<T extends TowerState>(towers: readonly T[]) {
   return towers.filter(tower => tower.inPlay && !parenthesisInner(tower));
 }
 

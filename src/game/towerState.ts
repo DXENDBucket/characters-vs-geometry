@@ -1,6 +1,6 @@
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH } from "../config";
 import type { CardDefinition, CardId, EquationAxis, NumberTowerState, SkillState, StatusEffect,
-  StoredTowerShot, Tower, TowerBaseStats, TowerFinalStats, TowerHealthPool } from "../types";
+  StoredTowerShot, TowerBaseStats, TowerFinalStats, TowerHealthPool } from "../types";
 import { deploymentCardId } from "./cardIdentity";
 import { initialTowerSkillStates } from "./towerSkillRules";
 
@@ -10,8 +10,8 @@ export interface TowerState extends NumberTowerState {
   nullifiedUntil?: number;
   deployedAt?: number;
   nextNullificationAt?: number;
-  parenthesisGuard?: Tower;
-  parenthesisInner?: Tower;
+  parenthesisGuard?: TowerState;
+  parenthesisInner?: TowerState;
   projectileBank?: { shots: StoredTowerShot[]; remaining: number; nextAt: number; outletIndex: number };
   projectileNode?: {
     input: StoredTowerShot[];
@@ -33,7 +33,7 @@ export interface TowerState extends NumberTowerState {
   copiedType?: CardId;
   sourceCardId?: CardId;
   copyRevision?: number;
-  healthPool?: TowerHealthPool;
+  healthPool?: TowerHealthPool<TowerState>;
   unyieldingRatio?: number;
   id: string;
   type: CardId;

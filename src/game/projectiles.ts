@@ -3,7 +3,7 @@ import { CHEVRON_LEADER } from "../data/chevronLeader";
 import { drawIonOrb } from "../render/chevronLeader";
 import { attachProjectileTrail } from "../render/projectileTrail";
 import { enemyFacingDirection, enemyMovementDirection } from "./rules/reversal";
-import { BOARD_HEIGHT, BOARD_WIDTH, BOARD_X, BOARD_Y, CELL_WIDTH, palette } from "../config";
+import { CELL_WIDTH, palette } from "../config";
 import { enemyFamily } from "../registry/enemies";
 import { damageEffectColor, damageEffectTextColor } from "../render/combatEffects";
 import type {
@@ -24,10 +24,11 @@ import { createTowerProjectileState, createHomingTowerProjectileState, createMor
   type ProjectileState, type EnemyProjectileState } from "./projectileState";
 
 export type { TowerProjectileSpec, HomingTowerProjectileSpec, MortarProjectileSpec } from "./projectileState";
+export { isTowerProjectileOutOfBounds, isEnemyProjectileOutOfBounds } from "./projectileBounds";
 
 export function createTowerProjectile(scene: Phaser.Scene, spec: TowerProjectileSpec): Projectile {
   const state = createTowerProjectileState(spec);
-  return identifyBattleEntity(scene, "projectile", Object.assign(state, { body: createTowerProjectileBody(scene, state, spec.angleDegrees) }));
+  return identifyBattleEntity(scene, "projectile", Object.assign(state, { body: createTowerProjectileBody(scene, state, spec.angleDegrees) }) as Projectile);
 }
 
 function createTowerProjectileBody(scene: Phaser.Scene, spec: ProjectileState, angleDegrees: number) {
@@ -57,7 +58,7 @@ function createTowerProjectileBody(scene: Phaser.Scene, spec: ProjectileState, a
 
 export function createHomingTowerProjectile(scene: Phaser.Scene, spec: HomingTowerProjectileSpec): Projectile {
   const state = createHomingTowerProjectileState(spec);
-  return identifyBattleEntity(scene, "projectile", Object.assign(state, { body: createTowerProjectileBody(scene, state, homingProjectileAngleDegrees(spec)) }));
+  return identifyBattleEntity(scene, "projectile", Object.assign(state, { body: createTowerProjectileBody(scene, state, homingProjectileAngleDegrees(spec)) }) as Projectile);
 }
 
 export function createEnemyProjectile(scene: Phaser.Scene, enemy: Enemy, time: number, hitCount = 1): EnemyProjectile {
@@ -122,7 +123,7 @@ export function createMortarProjectile(scene: Phaser.Scene, spec: MortarProjecti
   attachProjectileTrail(scene, body, trailColor, 119);
   body.setScale(projectileVisualScale(spec));
 
-  return identifyBattleEntity(scene, "mortar", Object.assign(createMortarProjectileState(spec), { body }));
+  return identifyBattleEntity(scene, "mortar", Object.assign(createMortarProjectileState(spec), { body }) as MortarProjectile);
 }
 
 export function createReflectedProjectile(
@@ -132,20 +133,6 @@ export function createReflectedProjectile(
   sourceTower?: Tower
 ): Projectile {
   return createTowerProjectile(scene, reflectedProjectileSpec(projectile, damageType, sourceTower));
-}
-
-export function isTowerProjectileOutOfBounds(projectile: Projectile, reachedLimitX: boolean) {
-  return (
-    reachedLimitX ||
-    projectile.x < BOARD_X - 60 ||
-    projectile.x > BOARD_X + BOARD_WIDTH + 52 ||
-    projectile.y < BOARD_Y - 60 ||
-    projectile.y > BOARD_Y + BOARD_HEIGHT + 60
-  );
-}
-
-export function isEnemyProjectileOutOfBounds(projectile: EnemyProjectile) {
-  return projectile.x < BOARD_X - 60 || projectile.x > BOARD_X + BOARD_WIDTH + 60;
 }
 
 function projectileText(type: ProjectileKind) {
