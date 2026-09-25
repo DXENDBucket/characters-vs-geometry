@@ -16,7 +16,7 @@ import { syncTowerFinalStats, towerFinalStats } from "./unitStats";
 import type { TowerAuraSources } from "./towerAuras";
 import { effectiveUpgradeDelta } from "./upgrades";
 import { setAlphaIfChanged, setPositionIfChanged, setScaleIfChanged, setVisibleIfChanged } from "./visualGuards";
-import { towerIsFlying, towerHasTrueDamage } from "./towerRules";
+import { towerIsFlying, towerHasTrueDamage, settleTowerMoveVisual } from "./towerRules";
 import { syncTowerFacingVisual } from "../render/towerFacing";
 
 export { towerFacingDirection, effectiveTowerLevel, getProductionAmount, getHitProductionAmount,
@@ -281,6 +281,11 @@ export function applyTowerTrueDamage(tower: Tower, battleTime: number, level: nu
 }
 
 export function syncTowerFlyingVisual(tower: Tower, time: number) {
+  settleTowerMoveVisual(tower, time);
+  syncTowerFlyingPositionVisual(tower, time);
+}
+
+export function syncTowerFlyingPositionVisual(tower: Tower, time: number) {
   let x = tower.x;
   let y = tower.y;
   if (tower.moveVisual) {
@@ -289,7 +294,6 @@ export function syncTowerFlyingVisual(tower: Tower, time: number) {
     const eased = progress * progress * (3 - 2 * progress);
     x = move.fromX + (x - move.fromX) * eased;
     y = move.fromY + (y - move.fromY) * eased;
-    if (progress >= 1) tower.moveVisual = undefined;
   }
   const active = towerIsFlying(tower);
   setVisibleIfChanged(tower.flyingHalo, active);

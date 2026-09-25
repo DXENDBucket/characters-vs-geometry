@@ -1,6 +1,11 @@
 import type { CubeBoss, DamageType, Enemy, EnemyKind, Tower } from "../types";
 import type { ImitationBehavior, TowerActionEvent } from "./towerActions";
 import type { EnemyState } from "./enemyState";
+import type { TowerState } from "./towerState";
+
+export type TowerVolleyAction = { type: "volley"; tower: TowerState; hitCount: number; copyRevision?: number; behavior?: ImitationBehavior };
+export type TowerShockAction = { type: "shock"; tower: TowerState; x: number; y: number; rangeX: number; rangeY: number; damage: number; damageType: DamageType };
+export type TowerSpellMortarAction = { type: "spellMortar"; tower: TowerState; targetX: number; targetY: number; damage: number; damageType: DamageType };
 
 export type EnemyAttackAction = {
   type: "enemyShot" | "enemyLaser" | "enemyMortar"; enemy: EnemyState; time: number; hitCount: number;
@@ -16,10 +21,10 @@ export type BattleAction =
   | BossAttackAction
   | EnemyAttackAction
   | { type: "imitation"; tower: Tower; behavior: ImitationBehavior; event: TowerActionEvent }
-  | { type: "volley"; tower: Tower; hitCount: number; copyRevision?: number; behavior?: ImitationBehavior }
+  | TowerVolleyAction
   | { type: "targetedEffect"; tower: Tower }
-  | { type: "shock"; tower: Tower; x: number; y: number; rangeX: number; rangeY: number; damage: number; damageType: DamageType }
-  | { type: "spellMortar"; tower: Tower; targetX: number; targetY: number; damage: number; damageType: DamageType };
+  | TowerShockAction
+  | TowerSpellMortarAction;
 
 export type ScheduleBattleAction = (delay: number, action: BattleAction) => void;
 export interface ScheduledBattleAction { at: number; action: BattleAction }
@@ -45,7 +50,7 @@ export class BattleActionQueue {
   }
 
   snapshot() { return this.pending.slice(); }
-  delayTowerActions(towers: readonly Tower[], durationMs: number) {
+  delayTowerActions(towers: readonly TowerState[], durationMs: number) {
     const paused = new Set(towers);
     for (const entry of this.pending) {
       if ("tower" in entry.action && paused.has(entry.action.tower)) entry.at += durationMs;

@@ -21,10 +21,10 @@ export function parenthesisInner(tower: TowerState) {
   return inner?.inPlay && sameCell(tower, inner) ? inner : undefined;
 }
 
-export function towerCellMembers(tower: Tower | undefined): Tower[] {
+export function towerCellMembers<T extends TowerState>(tower: T | undefined): T[] {
   if (!tower) return [];
   const inner = parenthesisInner(tower), guard = towerDamageReceiver(tower);
-  return inner ? [inner, tower] : guard !== tower ? [tower, guard] : [tower];
+  return (inner ? [inner, tower] : guard !== tower ? [tower, guard] : [tower]) as T[];
 }
 
 // Keep the ordinary tower as the cell representative so skills, pipes and friendly
@@ -45,11 +45,11 @@ export function syncTowerOccupancy<T extends TowerState>(towers: T[], occupied: 
   }
 }
 
-export function towerInPlacementLayer(occupied: Map<string, Tower>, lane: number, column: number, type: CardId) {
+export function towerInPlacementLayer<T extends TowerState>(occupied: Map<string, T>, lane: number, column: number, type: CardId): T | undefined {
   const tower = occupied.get(key(lane, column));
   if (!tower) return undefined;
-  return isTowerShellType(deploymentCardId(type)) ? (isParenthesisTower(tower) ? tower : tower.parenthesisGuard)
-    : isParenthesisTower(tower) ? parenthesisInner(tower) : tower;
+  return (isTowerShellType(deploymentCardId(type)) ? (isParenthesisTower(tower) ? tower : tower.parenthesisGuard)
+    : isParenthesisTower(tower) ? parenthesisInner(tower) : tower) as T | undefined;
 }
 
 // Resolve before dealing any damage: breaking a shell must not add a second hit

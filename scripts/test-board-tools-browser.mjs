@@ -70,8 +70,8 @@ try {
     click(at(5)); check(inner.column === 3 && !s.shifter.hasSelection() && s.shifter.isReady(), "Invalid move mutated state or consumed cooldown");
 
     start(); inner = place("A", 3); shell = place("()", 3); const a2 = place("A", 5); place("1", 7);
-    const edge = { type: "=", axis: "horizontal", lane: 3, column: 3, level: 1 };
-    const edge2 = { type: "=", axis: "vertical", lane: 1, column: 2, level: 1 };
+    const edge = s.world.entityIds.identify("edge", { type: "=", axis: "horizontal", lane: 3, column: 3, level: 1 });
+    const edge2 = s.world.entityIds.identify("edge", { type: "=", axis: "vertical", lane: 1, column: 2, level: 1 });
     s.edgeTowers.push(edge, edge2); s.numbers.sync();
     s.autoUpgradeMode = true;
     check(hint(stroke(shell))[0]?.shape === "parenthesis", "Auto preview favored edge over bracket");
@@ -93,22 +93,23 @@ try {
     click(stroke(shell)); check(!shell.inPlay && inner.inPlay && s.edgeTowers.includes(edge), "Erase did not match shell hint");
     s.eraserMode = true; click(edgePoint); check(!s.edgeTowers.includes(edge) && inner.inPlay, "Erase did not match edge hint");
     s.eraserMode = true;
-    for (const flag of ["gameOver", "menuOpen", "reselectOpen"]) {
+    for (const flag of ["menuOpen", "reselectOpen"]) {
       s[flag] = true; check(hint(at(3)).length === 0, `${flag} leaked tool hint`); s[flag] = false;
     }
     check(hint({ x: 0, y: 0 }).length === 0, "Outside-board hint leaked");
+    s.world.finish("defeat"); check(hint(at(3)).length === 0, "gameOver leaked tool hint");
     start(); inner = place("A"); shell = place("()"); place("A", 5);
     s.autoUpgradeMode = true;
     window.__hintPoint = stroke(shell);
     window.__centerPoint = at(3);
-    game.loop.wake();
+    game.loop.start(game.step.bind(game));
   });
   const at = async key => page.evaluate(key => {
-    const rect = window.__testGame.canvas.getBoundingClientRect(), point = window[key];
-    return { x: rect.x + point.x * rect.width / 1280, y: rect.y + point.y * rect.height / 760 };
+    const game = window.__testGame, rect = game.canvas.getBoundingClientRect(), point = window[key];
+    return { x: rect.x + point.x * rect.width / game.scale.width, y: rect.y + point.y * rect.height / game.scale.height };
   }, key);
   for (const width of [1440, 960]) {
-    await page.setViewportSize({ width, height: width === 1440 ? 960 : 640 }); await page.waitForTimeout(100);
+    await page.setViewportSize({ width, height: width === 1440 ? 960 : 640 }); await page.waitForTimeout(650);
     await page.evaluate(() => {
       const s = window.__testGame.scene.getScene("GameScene"); s.autoUpgradeMode = true; s.eraserMode = false; s.shifter.deactivate();
     });

@@ -1,10 +1,12 @@
-import type { CardId, Tower } from "../types";
-import type { TowerActionEvent } from "./towerActions";
+import type { CardId } from "../types";
+import type { TowerState as Tower } from "./towerState";
+import type { TowerSkillPresentation } from "./towerSkillPresentation";
+import type { TowerActionDataEvent as TowerActionEvent } from "./towerActions";
 import { TOWER_SKILL_CARD_IDS, TOWER_SKILLS, type TowerSkillCardId, type TowerSkillData } from "../data/towerAbilities";
 import type { RegisteredSkillDefinition } from "./skillRegistry";
-import { activateOrientation, orientationIsReady, resetOrientation, updateOrientation } from "./orientation";
-import { activateGathering, gatheringIsReady, resetGathering, updateGathering } from "./gathering";
-import { pushIsReady, resetPushSkill, updatePushSkill } from "./pushSkill";
+import { activateOrientation, orientationIsReady, resetOrientation, updateOrientation } from "./orientationSkillRules";
+import { activateGathering, gatheringIsReady, resetGathering, updateGathering } from "./gatheringSkillRules";
+import { pushIsReady, resetPushSkill, updatePushSkill } from "./pushSkillRules";
 
 export interface TowerSkillActivation {
   x: number;
@@ -14,7 +16,7 @@ export interface TowerSkillActivation {
 
 export interface ManualTowerSkill {
   isReady: (tower: Tower, time: number) => boolean;
-  activate: (towers: Tower[], input: TowerSkillActivation, time: number) => void;
+  activate?: (towers: Tower[], input: TowerSkillActivation, time: number) => void;
   supportsGroup?: boolean;
   requiresTarget?: boolean;
 }
@@ -40,36 +42,34 @@ export interface TowerSkillActions {
   isClockTowerReady: ManualTowerSkill["isReady"];
   activateClockTower: (tower: Tower) => void;
   isSpellMortarReady: ManualTowerSkill["isReady"];
-  activateSpellMortars: (towers: Tower[], x: number, y: number) => void;
   isAirPatrolReady: ManualTowerSkill["isReady"];
   activateAirPatrolTower: (tower: Tower) => void;
-  beginPush: (tower: Tower) => void;
 }
 
-export function createTowerSkillRegistry(actions: TowerSkillActions): Partial<Record<CardId, TowerSkillDefinition>> {
+export function createTowerSkillRegistry(actions: TowerSkillActions, presentation: () => TowerSkillPresentation): Partial<Record<CardId, TowerSkillDefinition>> {
   const behaviors = {
     "#": {
       imitate: actions.imitatePush,
-      update: updatePushSkill, reset: resetPushSkill,
+      update: (tower, state, seconds, time) => updatePushSkill(tower, state, seconds, time, presentation()),
+      reset: (tower, state) => resetPushSkill(tower, state, presentation()),
       manual: {
-        isReady: tower => pushIsReady(tower) && !tower.moveVisual,
-        activate: ([tower]) => actions.beginPush(tower)
+        isReady: tower => pushIsReady(tower) && !tower.moveVisual
       }
     },
     j: {
-      update: updateGathering,
-      reset: resetGathering,
+      update: (tower, state, seconds, time) => updateGathering(tower, state, seconds, time, presentation()),
+      reset: (tower, state) => resetGathering(tower, state, presentation()),
       manual: {
         isReady: gatheringIsReady,
-        activate: ([tower], _input, time) => { if (activateGathering(tower, time)) actions.onAction?.(tower); }
+        activate: ([tower], _input, time) => { if (activateGathering(tower, time, presentation())) actions.onAction?.(tower); }
       }
     },
     o: {
-      update: updateOrientation,
-      reset: resetOrientation,
+      update: (tower, state, seconds, time) => updateOrientation(tower, state, seconds, time, presentation()),
+      reset: (tower, state) => resetOrientation(tower, state, presentation()),
       manual: {
         isReady: orientationIsReady,
-        activate: ([tower], _input, time) => { if (activateOrientation(tower, time)) actions.onAction?.(tower); }
+        activate: ([tower], _input, time) => { if (activateOrientation(tower, time, presentation())) actions.onAction?.(tower); }
       }
     },
     c: {
@@ -89,8 +89,7 @@ export function createTowerSkillRegistry(actions: TowerSkillActions): Partial<Re
       update: actions.updateSpellMortarTower,
       reset: actions.resetSpellMortarTower,
       manual: {
-        isReady: actions.isSpellMortarReady,
-        activate: (towers, input) => actions.activateSpellMortars(towers, input.x, input.y)
+        isReady: actions.isSpellMortarReady
       }
     },
     w: {

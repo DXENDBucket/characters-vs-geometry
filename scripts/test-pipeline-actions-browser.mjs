@@ -100,7 +100,8 @@ try {
 
     start(); const caster = place("S", 1), spellBank = place("0", 2), spellOutlet = place("1", 4);
     connect(1, 4); getTowerSkillState(caster, "spellMortar").sp = c.SPELL_MORTAR_SKILL_MAX;
-    scene.towerSkills.fireSpellMortar(caster, spellOutlet.x + 100, spellOutlet.y);
+    check(scene.towerSkills.activateManualSkills([caster], "S", { x: spellOutlet.x + 100, y: spellOutlet.y }) === "handled",
+      "S command was rejected");
     flush();
     check(getTowerSkillState(caster, "spellMortar").sp === 0 && !scene.towerSkills.snapshotFlights().length &&
       spellBank.projectileBank.shots.length === 1, "S failed to pay SP or fired before pipeline output");

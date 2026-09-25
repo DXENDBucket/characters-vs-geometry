@@ -62,7 +62,8 @@ try {
       tower.body.destroy();
     }
     const source = place("A", 1), bank = place("0", 2); place("1", 3);
-    scene.edgeTowers.push({ type: "=", axis: "horizontal", column: 1, lane: 3 }, { type: "=", axis: "horizontal", column: 2, lane: 3 });
+    scene.edgeTowers.push(...[1, 2].map(column => scene.world.entityIds.identify("edge",
+      { type: "=", axis: "horizontal", column, lane: 3 })));
     scene.numbers.sync();
     attach(source);
     check(Math.abs(scene.effectiveChars() - money + 200) < 1e-6 && source.continuousAttack && scene.towers.length === 3,
@@ -100,7 +101,8 @@ try {
     check(!place("A", col, lane).continuousAttack, "Attachment leaked to a replacement tower");
     start();
     const visual = place("E", 1, 3, 3); place("0", 2); place("+", 3);
-    scene.edgeTowers.push({ type: "=", axis: "horizontal", column: 1, lane: 3 }, { type: "=", axis: "horizontal", column: 2, lane: 3 });
+    scene.edgeTowers.push(...[1, 2].map(column => scene.world.entityIds.identify("edge",
+      { type: "=", axis: "horizontal", column, lane: 3 })));
     scene.numbers.sync(); attach(visual);
     scene.submitBattleCommand({ type: "selectCard", id: "A" }); scene.battlePaused = true;
     scene.syncPlacementGhost(); scene.updateHud(); scene.updateCards();

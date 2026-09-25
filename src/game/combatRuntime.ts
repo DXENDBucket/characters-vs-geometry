@@ -5,6 +5,7 @@ import type { ProjectileMotionFrame } from "./projectileMotion";
 import type { CardDefinition, CardId, CubeBoss, DamageType, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower } from "../types";
 
 export interface CombatRuntime {
+  getDefinition: (id: CardId) => CardDefinition;
   enemyHpMultiplier?: () => number;
   onTowerAction?: TowerActionListener;
   projectileMotion?: ProjectileMotionFrame;

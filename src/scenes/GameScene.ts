@@ -7,7 +7,7 @@ import { canUpgradeTowerWithCard, supportsTowerAutoUpgrade, towerBehaviorType, t
 import { syncTowerTopology, inFriendlyRange, towerCell, physicalTowerCell } from "../game/towerTopology";
 import { TowerTopologyController } from "../game/towerTopologyController";
 import { syncFriendlyRangeVisual, syncTowerAutoUpgradeVisual } from "../game/towers";
-import { effectiveTowerLevel, getHitProductionAmount, towerFacingDirection } from "../game/towerRules";
+import { getHitProductionAmount, towerFacingDirection } from "../game/towerRules";
 import { syncTowerCopies } from "../game/towerCopy";
 import { syncTowerFormVisual } from "../game/towers";
 import { BATTLE_RULES_VERSION, setBattleRandom, setBattlePlayback } from "../game/battleSimulation";
@@ -100,7 +100,8 @@ import { enemyIsBossCompanion } from "../registry/enemies";
 import { chapterIdForLevelId } from "../data/chapters";
 import { getLevelConfig } from "../data/levels";
 import { updateBossRuntime, executeBossAttack, initializeDodecahedronCompanions, initializeOctahedronSolarBombs, type BossRuntime } from "../game/bossRuntime";
-import { idleCardBehavior, projectileCardBehavior, slowAuraCardBehavior } from "../game/cardBehaviors";
+import { advanceTowerAttacks, executeTowerVolley } from "../game/towerCombat";
+import { towerAttackRuntime } from "../render/towerCombat";
 import type { CombatRuntime } from "../game/combatRuntime";
 import { advanceEnemies, executeEnemyAttack, spawnEnemyAt } from "../game/enemyRuntime";
 import {
@@ -156,10 +157,6 @@ import {
   triggerTrapTower as runTriggerTrapTower,
   type TriggerTowerRuntime
 } from "../game/triggerTowers";
-import { towerFinalStats } from "../game/unitStats";
-import { volleyInterval, volleyShotCount } from "../game/upgrades";
-import { volleyHitsAt, volleyTimingCount } from "../game/volley";
-import { attackIntervalMs } from "../game/attackSpeed";
 import { t } from "../i18n";
 import { isCardUnlocked, isLevelCompleted, unlockedCardSlotCount } from "../progress";
 import { makeEraseMark, makeProductionPulse, makeShellBurst, makeShockPulse, makeTowerPipelineShield } from "../render/combatEffects";
@@ -178,7 +175,6 @@ import {
   type GameHudElements,
   type GameOverlayElements
 } from "../render/gameUi";
-import { getCardBehavior } from "../registry/cards";
 import { allCardDefinitions, defaultCardLoadout, getCardDefinition, hasCardDefinition } from "../registry/cardDefinitions";
 import {
   CONTROL_SLOT_COUNT,
@@ -1803,6 +1799,7 @@ export class GameScene extends Phaser.Scene {
 
   private createCombatRuntime(): CombatRuntime {
     return {
+      getDefinition: id => this.getDefinition(id),
       enemyHpMultiplier: () => endlessEnemyHpMultiplier(this.levelConfig, this.wave),
       onTowerAction: this.routeTowerAction,
       scheduleBattleAction: this.scheduleBattleAction,
@@ -2022,50 +2019,7 @@ export class GameScene extends Phaser.Scene {
   };
 
   private updateTowers(time: number) {
-    const runtime = this.combatRuntime();
-    for (const tower of this.towers) {
-      const behavior = getCardBehavior(towerBehaviorType(tower));
-      if (behavior === idleCardBehavior) {
-        continue;
-      }
-
-      const attackInterval = this.towerAttackInterval(tower);
-      if (!this.towerAttackReady(tower, time, attackInterval)) {
-        continue;
-      }
-
-      const definition = this.getDefinition(towerBehaviorType(tower));
-      if (!behavior.canUse(tower, definition, time, runtime, true)) {
-        continue;
-      }
-
-      this.startTowerVolley(tower, time, attackInterval);
-    }
-  }
-
-  private towerAttackInterval(tower: Tower) {
-    return attackIntervalMs(towerFinalStats(tower).attackSpeed);
-  }
-
-  private towerAttackReady(tower: Tower, time: number, attackInterval: number) {
-    return time >= tower.lastFire + attackInterval;
-  }
-
-  private startTowerVolley(
-    tower: Tower,
-    time: number,
-    attackInterval: number
-  ) {
-    const totalHits = volleyShotCount(towerBehaviorType(tower), effectiveTowerLevel(tower));
-    const shots = volleyTimingCount(totalHits);
-    const interval = volleyInterval(attackInterval, shots);
-
-    for (let shotIndex = 0; shotIndex < shots; shotIndex += 1) {
-      const hitCount = volleyHitsAt(totalHits, shotIndex);
-      this.scheduleBattleAction(shotIndex * interval, { type: "volley", tower, hitCount, copyRevision: tower.copyRevision });
-    }
-
-    tower.lastFire = time + (shots - 1) * interval;
+    advanceTowerAttacks(towerAttackRuntime(this.combatRuntime()), time);
   }
 
   private updateEnemies(time: number, seconds: number) {
@@ -2816,19 +2770,7 @@ export class GameScene extends Phaser.Scene {
       case "companionLaser": case "companionMortar": case "bossDeathLaser": case "bossDeathMortar": case "bossReinforcements":
         executeBossAttack(this.bossRuntime(), action); break;
       case "enemyShot": case "enemyLaser": case "enemyMortar": executeEnemyAttack(this.combatRuntime(), action); break;
-      case "volley":
-        if (action.behavior) break;
-        if (action.tower.inPlay && action.copyRevision === action.tower.copyRevision) {
-          const execute = () => {
-            const type = towerBehaviorType(action.tower);
-            const behavior = getCardBehavior(type);
-            if (behavior !== projectileCardBehavior && behavior !== slowAuraCardBehavior &&
-              this.routeTowerAction(action.tower, { kind: "attack", hitCount: action.hitCount })) return;
-            getCardBehavior(type).execute(action.tower, this.getDefinition(type), this.combatRuntime(), action.hitCount);
-          };
-          execute();
-        }
-        break;
+      case "volley": executeTowerVolley(towerAttackRuntime(this.combatRuntime()), action); break;
       case "targetedEffect": this.targetedEffects.resolvePendingEffectCard(action.tower); break;
       case "shock": executeShockPulse(this.triggerTowerRuntime(), action); break;
       case "spellMortar": this.towerSkills.launchSpellMortar(action); break;

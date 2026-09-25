@@ -5,7 +5,7 @@ import { createTypeScriptLoader } from "./helpers/load-typescript.mjs";
 const files = {
   types: read("src/types.ts"),
   cards: read("src/data/cards.ts"),
-  cardBehaviors: read("src/game/cardBehaviors.ts"),
+  cardBehaviors: read("src/game/cardBehaviorRules.ts"),
   cardUnlocks: read("src/data/cardUnlocks.ts"),
   levels: read("src/data/levels.ts"),
   waveReference: read("wave-reference.md")

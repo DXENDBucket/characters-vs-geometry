@@ -1,23 +1,11 @@
 import type { SkillState, Tower } from "../types";
-import { getTowerSkillState } from "./skillState";
-import { TOWER_SKILLS } from "../data/towerAbilities";
-import { chargeTowerSkill, resetTowerSkillCharge, towerSkillIsReady } from "./towerSkillRules";
-import { effectiveTowerLevel } from "./towerRules";
-import { towerBehaviorType } from "./towerIdentity";
-
-export const PUSH_MAX_SP = TOWER_SKILLS["#"].maxSp;
-export const PUSH_DURATION = TOWER_SKILLS["#"].duration;
-
-export function pushIsReady(tower: Tower) {
-  return tower.inPlay && !tower.transient && towerBehaviorType(tower) === "#" && towerSkillIsReady("#", getTowerSkillState(tower, "push"), 0);
-}
+import { TOWER_SKILL_INDICATORS } from "../render/towerSkillIndicators";
+import { updatePushSkill as update, resetPushSkill as reset } from "./pushSkillRules";
+export { PUSH_MAX_SP, PUSH_DURATION, pushIsReady } from "./pushSkillRules";
 
 export function updatePushSkill(tower: Tower, state: SkillState, seconds: number, time: number) {
-  chargeTowerSkill("#", state, seconds, time, effectiveTowerLevel(tower));
-  tower.border.setAlpha(state.sp >= PUSH_MAX_SP ? 0.7 + Math.sin(time / 90) * 0.3 : 1);
+  update(tower, state, seconds, time, TOWER_SKILL_INDICATORS);
 }
-
 export function resetPushSkill(tower: Tower, state: SkillState) {
-  resetTowerSkillCharge("#", state);
-  tower.border.setAlpha(1);
+  reset(tower, state, TOWER_SKILL_INDICATORS);
 }

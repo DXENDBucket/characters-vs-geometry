@@ -158,6 +158,13 @@ overlays drawn once per displayed frame. These timings are diagnostic and are
 not mixed-combat FPS or evidence of a speedup from this extraction.
 See [enemy simulation](enemy-simulation.md).
 
+Tower targeting, attacks, one-shot triggers and skill simulation now also run on
+data-only states. Healing/laser/relocation scratch buffers are isolated per
+runtime and live adapters are cached. Local aiming is no longer owned by skill
+simulation. Bodyless tests, actual display-detached/restored scenes and connected
+clients preserve behavior. This improves ownership and multi-world isolation;
+it is not a measured full-battle FPS gain. See [tower simulation](tower-simulation.md).
+
 Status lifecycle, final combat panels and passenger-seat calculations now run
 without rendering dependencies. Numeric caches and aura source/cell buffers are
 isolated per unit or battlefield, while status visuals run once per displayed

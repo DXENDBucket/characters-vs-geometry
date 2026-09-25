@@ -7,6 +7,10 @@ import { towerActionContext, towerBehaviorType, supportsTowerAutoUpgrade } from 
 import { scaledByEffectiveUpgrades } from "./upgrades";
 
 const SHOCK_TOWER_IDS = new Set<CardId>(["F", "f", "i", "l", "r"]);
+export function settleTowerMoveVisual(tower: TowerState, time: number) {
+  if (tower.moveVisual && time >= tower.moveVisual.startedAt + tower.moveVisual.duration) tower.moveVisual = undefined;
+}
+
 export function isShockTower<T extends TowerState>(tower: T | undefined): tower is T {
   return tower !== undefined && SHOCK_TOWER_IDS.has(towerBehaviorType(tower));
 }

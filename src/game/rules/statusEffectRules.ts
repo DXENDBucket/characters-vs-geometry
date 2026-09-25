@@ -78,6 +78,14 @@ export function refreshStatusEffect(unit: EffectHolder, name: StatusEffectName, 
   const existing = unit.statusEffects.find(effect => effect.name === name && !effect.source &&
     (name !== "power" || effectAttackMultiplier(effect) === power));
   if (existing) {
+    // Snapshots omit undefined modifiers. Reserve their original positions before
+    // a refresh fills them, so restored effects retain the same replay hash.
+    if (!Object.hasOwn(existing, "speedMultiplier") || !Object.hasOwn(existing, "attackMultiplier")) {
+      const { speedMultiplier, attackMultiplier, showHalo, physicalDamageTaken } = existing;
+      delete existing.speedMultiplier; delete existing.attackMultiplier;
+      delete existing.showHalo; delete existing.physicalDamageTaken;
+      Object.assign(existing, { speedMultiplier, attackMultiplier, showHalo, physicalDamageTaken });
+    }
     existing.expiresAt = name === "sunder" ? expiresAt : Math.max(existing.expiresAt, expiresAt);
     existing.speedMultiplier = Math.max(effectSpeedMultiplier(existing), speedMultiplier ?? statusEffectDefinitions[name].speed);
     existing.attackMultiplier = Math.max(effectAttackMultiplier(existing), attackMultiplier ?? statusEffectDefinitions[name].attack ?? 1);

@@ -97,10 +97,10 @@ const visual = () => ({ alpha: 1, visible: true, setAlpha(alpha) { this.alpha = 
 const runtimeLoad = createTypeScriptLoader({
   phaser: { default: { Utils: { Array: { Remove: (items, value) => items.splice(items.indexOf(value), 1) } } } },
   "src/game/towers.ts": {
-    syncTowerFlyingVisual() {}, syncNumberSkillRange() {}
+    syncTowerFlyingVisual() {}, syncTowerFlyingPositionVisual() {}, syncNumberSkillRange() {}
   },
-  "src/game/unitStats.ts": { towerFinalStats: tower => tower.finalStats, towerAttackAmount: () => 500 },
-  "src/game/towerHealth.ts": { changeTowerHealth: (tower, amount) => {
+  "src/game/unitStatRules.ts": { towerFinalStats: tower => tower.finalStats, towerAttackAmount: () => 500 },
+  "src/game/towerHealthRules.ts": { changeTowerHealth: (tower, amount) => {
     const before = tower.hp; tower.hp = Math.min(tower.finalStats.maxHp, tower.hp + amount); return tower.hp - before;
   } },
   "src/render/combatEffects.ts": { makeHealParticles() {}, makeShiftEffect() {} }
@@ -122,7 +122,8 @@ function controller(towers, extra = {}) {
 test("skill registry metadata follows the catalog, including targeted/group/automatic dispatch", () => {
   const { createTowerSkillRegistry } = runtimeLoad("src/game/towerSkillRegistry.ts");
   const actions = new Proxy({}, { get: (_object, key) => () => key });
-  const registry = createTowerSkillRegistry(actions);
+  const { NO_TOWER_SKILL_PRESENTATION } = runtimeLoad("src/game/towerSkillPresentation.ts");
+  const registry = createTowerSkillRegistry(actions, () => NO_TOWER_SKILL_PRESENTATION);
   assert.deepEqual(Object.keys(registry).sort(), [...TOWER_SKILL_CARD_IDS].sort());
   for (const id of TOWER_SKILL_CARD_IDS) {
     const definition = registry[id], data = TOWER_SKILLS[id];

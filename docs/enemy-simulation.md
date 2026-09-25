@@ -61,9 +61,10 @@ checkpoint restoration.
 
 ## Remaining Work
 
-This does not make the entire game headless. Live callbacks still connect tower
-attacks, traps, pipelines and Boss orchestration; those must use the same
-separation. Relationships still use state graph references rather than stable-ID
+This does not make the entire game headless. Tower attacks, triggers and skills
+now have the same separation; see [tower simulation](tower-simulation.md).
+Live callbacks still connect pipelines and Boss orchestration.
+Relationships still use state graph references rather than stable-ID
 wire records. Participant resource/ownership policies and production UI/transport
 lifetime handling are separate unfinished work.
 

@@ -24,6 +24,8 @@ try {
     const { createEnemy } = await import("/src/game/enemyFactory.ts");
     const { towerFinalStats } = await import("/src/game/unitStats.ts");
     const { volleyShotCount } = await import("/src/game/upgrades.ts");
+    const { advanceTowerAttacks } = await import("/src/game/towerCombat.ts");
+    const { towerAttackRuntime } = await import("/src/render/towerCombat.ts");
     const { removeTower } = await import("/src/game/unitLifecycle.ts");
     const { captureBattleSnapshot, restoreBattleSnapshot } = await import("/src/game/battleSnapshot.ts");
     const { validateSurvivalSave } = await import("/src/survivalSaves.ts");
@@ -40,7 +42,7 @@ try {
       x: c.BOARD_X + (column + .5) * c.CELL_WIDTH, y: c.BOARD_Y + (lane + .5) * c.CELL_HEIGHT, ctrl: false, shift: false, right } });
     const link = (swap, column, lane = 3) => { scene.topology.begin(swap); click(column, lane); };
     const flush = () => { for (let i = 0; i < 5; i++) { scene.battleTime += 100; scene.actionQueue.update(scene.battleTime, action => scene.executeBattleAction(action)); } };
-    const attack = tower => scene.startTowerVolley(tower, scene.battleTime, scene.towerAttackInterval(tower));
+    const attack = tower => advanceTowerAttacks({ ...towerAttackRuntime(scene.combatRuntime()), towers: [tower] }, scene.battleTime);
 
     start();
     const healer = place("e", 2), remote = place("A", 10, 6);
@@ -94,7 +96,7 @@ try {
 
     start("IF-1");
     const savedSwap = place("&", 3); place("e", 2); place("A", 10, 6); link(savedSwap, 10, 6);
-    const savedA = place("A", 0, 0); attack(savedA);
+    const savedA = place("A", 0, 0); savedA.continuousAttack = true; attack(savedA);
     const snapshot = JSON.parse(JSON.stringify(captureBattleSnapshot(scene.battleState())));
     validateSurvivalSave({ version: 1, levelId: "IF-1", wave: scene.wave, savedAt: 1, difficulty: scene.difficulty,
       unlimitedFirepower: false, selectedCards: ["&", "+", "=", "1", "A", "e", "E"], graph: snapshot });
