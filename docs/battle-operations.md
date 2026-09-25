@@ -58,20 +58,20 @@ Normal full-SP aiming, skill costs, charge timing and delayed volleys are preser
 Automatic ! activation, collision triggers and routed skill effects remain combat
 rules, not player requests requiring a new command or permission check each tick.
 
-The current scene registers only the trusted single-player `local` participant
-with shared cards/currency. Unknown actors are rejected. The pure gate supports
-injected participant and authorization policies; a multiplayer participant
-registry, ownership state and per-player resource model are **not** implemented
-yet. Passing an actor string is not authentication and this API must not be
-exposed directly to an untrusted transport.
+The scene defaults to the trusted single-player `local` participant. Hosts can now
+configure immutable participant capability tables on the session, and these are
+preserved in snapshots/replay. Cards/currency remain shared; per-tower ownership
+and per-player resources are **not** implemented yet. Passing an actor string is
+not authentication. Remote callers must use host-bound handles through the
+[command authority](battle-authority.md), not these privileged APIs directly.
 
 ## Replay And Remaining Work
 
 Explicit calls are recorded as `{ type: "operation", actorId, operation }` through
 the real `BattleSession`. JSON cloning, tick order, checkpoint references and
 playback use the existing session. Failed but well-formed attempts may appear in
-trusted recordings; the future authority protocol must validate, bound and
-acknowledge requests before accepting remote traffic.
+recordings. The integrated authority validates bounded requests and assigns
+execution order/receipts before returning results to host-bound connections.
 
 The live mouse/keyboard/card/HUD adapters now record only explicit operations and
 controls. Local selection and aiming do not enter the battle log. The deprecated
@@ -115,4 +115,5 @@ players can yet use independent UI state in the complete battle.
   baselines when normalized to the previous checksum format.
 
 See [multiplayer readiness](multiplayer-readiness.md) for the complete goal. This
-is a shared operation boundary, not an authority server or network protocol.
+is a shared operation boundary; the authority ingress is separate and there is
+not yet a production transport server or full client synchronization layer.

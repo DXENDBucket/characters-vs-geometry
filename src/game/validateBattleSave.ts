@@ -12,6 +12,7 @@ import { CHEVRON_LEADER } from "../data/chevronLeader";
 import { delLaneSweepConfig, DEL_ECHO_HITBOX_CELLS } from "../data/delBoss";
 import { LANES, COLUMNS, CELL_WIDTH, CELL_HEIGHT } from "../config";
 import { restoreBattleEntityIds } from "./battleEntityGraph";
+import { validBattleParticipants } from "./battleParticipants";
 
 export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossKind?: BossKind) {
   const units = new Map<NodeKind, Set<object>>();
@@ -93,6 +94,7 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
     require(record(simulation) && canRestoreBattleVersion(simulation.version) && validBattleClock(simulation.clock) &&
       Number.isInteger(simulation.randomState) && simulation.randomState >= 0 && simulation.randomState <= 0xffffffff &&
       Number.isSafeInteger(simulation.mirrorNextGroupId) && simulation.mirrorNextGroupId >= 1);
+    require(simulation.participants === undefined || validBattleParticipants(simulation.participants));
   }
   for (const key of ["levelElapsed", "battleTime", "cardTime", "nextNaturalProduceAt", "chars", "baseIntegrity",
     "wave", "enemiesDefeated", "towerOrder", "gameSpeed", "autoUpgradeReserveChars", "extraction"] as const) {

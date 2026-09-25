@@ -1,0 +1,111 @@
+# Battle Command Authority
+
+`game/battleAuthority.ts` is the transport-neutral command ingress used by the real
+single-player UI and explicit participant commands. It wraps the existing session,
+operation and control executors; it does not implement another combat simulation.
+Rules remain version 7. The command protocol has its own version, currently 1.
+
+## Trust Boundary
+
+- The trusted host configures up to 16 participants and their capabilities when
+  creating the scene/session. Configuration is copied, validated and frozen.
+  Omitted configuration means the original all-capabilities `local` participant.
+- A transport must authenticate a connection before the host calls
+  `commandAuthority.connect(actorId)`. This returns an opaque host-local handle;
+  neither `connect` nor the authority object is a remotely callable endpoint.
+- Bind the authenticated transport connection to that handle, then pass incoming
+  JSON text to `receiveText(handle, text)`. Requests cannot supply an actor ID,
+  damage, resources, simulation tick or global command sequence.
+- `submitPlayerOperation`, `submitPlayerControl`, `submitTrusted` and the deprecated
+  raw-input adapter are privileged host APIs, not alternatives to authentication.
+- Capability checks are executed by the real operation/control gates, including
+  existing whole-target-group preflight. This does not yet add per-tower ownership
+  or separate player wallets: cards, cooldowns and currency are still shared.
+
+An example request is:
+
+```json
+{
+  "version": 1,
+  "battleId": "host-generated-battle-id",
+  "sequence": 0,
+  "intent": {
+    "type": "operation",
+    "operation": {
+      "type": "deploy",
+      "card": "A",
+      "cell": { "lane": 3, "column": 0 },
+      "expected": null
+    }
+  }
+}
+```
+
+## Ordering And Retries
+
+`describe(handle)` supplies protocol/rules versions, battle ID, current host tick,
+the actor's next request sequence and the oldest retained receipt. Sequences start
+at zero independently for each actor. The host alone assigns execution tick and
+the globally ordered session command index.
+
+- A well-formed next request is evaluated once. Its receipt has `status: executed`
+  and a game-rule `result`, which may be a rejection such as `cooldown`, `stale` or
+  `forbidden`. These evaluated requests consume a sequence and enter the replay.
+- An identical retry returns the original receipt without recording or executing
+  again. JSON property order does not affect identity. Reusing a sequence for a
+  different intention is a conflict, not a correction.
+- A future sequence is rejected as a gap, with the expected sequence. There is no
+  hidden out-of-order queue. An evicted old request is rejected as expired; it is
+  never re-executed. A cached receipt's sequence hint is historical; use `describe`
+  for the current position after reconnect.
+- Only the newest connected handle for an actor remains valid. Disconnect removes
+  the handle but retains its actor's sequence and receipts in the live authority.
+- Repeated requests can retrieve a cached result after the game has ended.
+  Scene shutdown, restart or save restoration closes the old authority. A fresh
+  battle ID prevents old input from being applied to a restored/rewound world.
+- A throwing game handler fails the authority closed because the world may already
+  have changed. There is no automatic retry or claim of transactional rollback.
+
+Input is limited to 64 KiB of UTF-8 JSON, exact bounded schemas and 64 retained
+receipts per actor. Remote execution is limited to 128 evaluated requests per
+actor per 1000 ms host-ingress window. That injected clock is independent of the
+simulation clock, so pause cannot deadlock rate-limit recovery. It never affects
+combat timing or replay. Trusted local input is not network-rate-limited. Transport
+connection/flood limits are still the transport's responsibility.
+
+## Persistence And Limits
+
+Participant capabilities are included in new configured-session snapshots and
+replay headers. Replay uses those capabilities, not the current local defaults;
+checkpoint policies must match the recording. Old single-player snapshots and
+recordings retain the default participant and their unchanged checksums.
+
+The authority's request ledger, channel handles and ingress time are intentionally
+outside combat checksums. The ledger currently survives only reconnect to the same
+live authority, not process loss or loading a save. There is no production network
+adapter, client snapshot synchronization, late join, host migration or durable
+reconnect yet. Local menus still pause the single-player scene; resource/unlock
+and modal-pause policies need further work before exposing a multiplayer mode.
+In particular, reselection slot/card unlock checks still read local progress in
+live play and allow the full registry in playback. Those access rules must become
+captured session policy before arbitrary rejected reselections can replay reliably;
+the participant replay fixture here uses an already-unlocked host.
+
+## Verification
+
+- `test-battle-authority.mjs`: schemas, frozen participants, impersonation, capability
+  enforcement, global/per-actor ordering, retry/conflict/expired/gap behavior,
+  same-host reconnect, bounds, paused rate-limit recovery, lifecycle invalidation,
+  reentrancy, failing handlers and replay/checkpoint policy restoration. Runs in
+  Node without Phaser, as part of `test:rules`.
+- `test-battle-authority-browser.mjs`: two authenticated peer handles and an observer
+  act on the actual game alongside local UI. Checks real tower costs/cooldowns,
+  stable-target rejection, skill authorization, commands during a local menu,
+  retries/reconnect, validated snapshots and full/checkpoint 30/144 Hz replay.
+  The fixture reaches 1800 ticks with checksum `bc486ec6`.
+- Existing board/skill/control/tutorial browser tests and the seven-stage replay
+  suite remain passing. All seven default-participant checksums are unchanged.
+
+The browser test uses in-memory serialized requests and real battle scenes, not
+two connected UI clients. It is evidence for this authority boundary, not completion
+of the full [multiplayer acceptance gates](multiplayer-readiness.md).

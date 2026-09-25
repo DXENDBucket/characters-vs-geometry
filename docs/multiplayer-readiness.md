@@ -61,7 +61,9 @@ transport-neutral authority and synchronization gates above.
   actual card slots/cooldowns/reselection now belong to a renderer-free world
   loadout. Live comparisons with no card views preserve the complete battle,
   including continued attacks, auto-upgrades, reselect, saves and replay. See
-  [loadout state](battle-loadout.md). Independent participant resource policies
+  [loadout state](battle-loadout.md). Participant capabilities are now configured
+  on the session, immutable during a battle and preserved in snapshots/replay.
+  Independent participant resource policies
   have not been implemented;
   gates 2-3 remain open. See [global controls](battle-controls.md),
   [semantic operations](battle-operations.md),
@@ -72,12 +74,19 @@ transport-neutral authority and synchronization gates above.
   semantic operations use these IDs; remaining commands and serialized combat
   relationships still need migration. Gate 4 remains open. See
   [entity identity](battle-entity-identity.md).
-- Networking: no authority protocol, participant policy, acknowledgment/resync
-  implementation or two-client integration test yet. Gates 5-7 are open.
+- Networking: the real single-player path now uses a transport-neutral authority
+  with host-bound participant handles, versioned/bounded semantic requests,
+  capability checks, ordered execution, acknowledgments, bounded retry receipts
+  and same-live-host reconnect. Real battle tests cover two peer handles plus an
+  observer, real costs/skills/cooldowns, snapshots and different-frame-rate replay.
+  This is an in-memory ingress test, not two connected clients. Transport
+  authentication, durable reconnect, join/resync and complete two-client testing
+  remain missing. Gate 5 is partial; gates 6-7 remain open. See
+  [command authority](battle-authority.md).
 
 Next: complete participant/resource and local-modal pause policies,
-finish simulation/presentation ports, then
-implement transport authority and reconnect. Validate each increment against the
+finish simulation/presentation ports, and build snapshot synchronization and
+reconnect on the new authority boundary. Validate each increment against the
 real battle path; green isolated tests are not proof of full readiness.
 
 See [existing replay contracts](multiplayer-preparation.md),

@@ -14,6 +14,8 @@ import { validateReplay, type BattleCommand, type BattlePointer, type BattleRepl
 import { createTutorialInteraction, sameTutorialInteraction, type TutorialInteraction } from "../game/tutorialInteraction";
 import type { BattleAction, ScheduleBattleAction } from "../game/battleActions";
 import { BattleSession, type BattleSessionRuntime } from "../game/battleSession";
+import { BattleAuthority } from "../game/battleAuthority";
+import type { BattleOperationActor } from "../game/battleParticipants";
 import { BattleWorld, type BattleWorldSystems } from "../game/battleWorld";
 import { battleCardTime, type BattleCardState } from "../game/battleLoadout";
 import { battleChecksum } from "../game/battleChecksum";
@@ -246,6 +248,8 @@ export class GameScene extends Phaser.Scene {
   private circuitEdges!: Phaser.GameObjects.Graphics;
   private enemyHealthLinks!: Phaser.GameObjects.Graphics;
   private session!: BattleSession;
+  private authority!: BattleAuthority;
+  get commandAuthority() { return this.authority; }
   private get simulation() { return this.session.clock; }
   private get playback() { return this.session?.playback; }
   private get actionQueue() { return this.session.actions; }
@@ -415,7 +419,7 @@ export class GameScene extends Phaser.Scene {
     super(key);
   }
 
-  init(data: { levelId?: string; chapterId?: string; selectedCards?: CardId[]; difficulty?: number; unlimitedFirepower?: boolean; resume?: boolean; seed?: number; replay?: BattleReplay }) {
+  init(data: { levelId?: string; chapterId?: string; selectedCards?: CardId[]; difficulty?: number; unlimitedFirepower?: boolean; resume?: boolean; seed?: number; replay?: BattleReplay; participants?: readonly BattleOperationActor[] }) {
     const playback = data.replay ? structuredClone(data.replay) : undefined;
     if (playback) {
       validateReplay(playback);
@@ -445,7 +449,8 @@ export class GameScene extends Phaser.Scene {
     this.session = new BattleSession({ version: BATTLE_RULES_VERSION, levelId: this.levelId, difficulty: this.difficulty,
       difficultyVersion: DIFFICULTY_VERSION,
       unlimitedFirepower: this.unlimitedFirepower, selectedCards,
-      seed, debug: this.debugModeEnabled }, playback);
+      seed, debug: this.debugModeEnabled, ...(data.participants ? { participants: data.participants } : {}) }, playback);
+    this.resetCommandAuthority();
     setBattleRandom(this, this.session.random);
     setBattlePlayback(this, Boolean(playback));
     this.world = new BattleWorld<LiveBattleEntities>({ levelId: this.levelId, level: this.levelConfig,
@@ -666,6 +671,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private cleanupSceneHandlers() {
+    this.authority?.close();
     soundPlayer.stop("battle");
     window.removeEventListener("pagehide", this.saveOnPageHide);
     this.cardList?.destroy();
@@ -1012,11 +1018,21 @@ export class GameScene extends Phaser.Scene {
     return executeLiveBattleOperation(this.createPlayerOperationRuntime(), actorId, operation);
   }
 
+  private resetCommandAuthority() {
+    this.authority?.close();
+    this.authority = new BattleAuthority(crypto.randomUUID(), this.session, {
+      available: () => !this.gameOver,
+      inputTime: () => performance.now(),
+      execute: command => command.type === "operation" ? this.applyPlayerOperation(command.actorId, command.operation) :
+        this.applyPlayerControl(command.actorId, command.control)
+    });
+  }
+
   private createPlayerOperationRuntime(): LiveBattleOperationRuntime {
     return {
       towers: this.towers, edges: this.edgeTowers, occupied: this.occupied, cards: this.cardStates,
       unlimitedFirepower: this.unlimitedFirepower, autoUpgradeEnabled: this.autoUpgradeEnabled, ended: this.gameOver,
-      actor: id => id === LOCAL_BATTLE_ACTOR.id ? LOCAL_BATTLE_ACTOR : undefined,
+      actor: id => this.session.actor(id),
       authorize: () => true,
       deployment: this.deployment, targetedEffects: this.targetedEffects, edgeControls: this.edgeControls, shifter: this.shifter,
       skills: this.towerSkills, push: this.towerPush, topology: this.topology,
@@ -1034,11 +1050,7 @@ export class GameScene extends Phaser.Scene {
   submitPlayerOperation(actorId: string, operation: BattleOperation): BattleOperationResult {
     if (!validBattleActorId(actorId) || !validBattleOperation(operation)) return "invalid";
     if (this.playback || this.gameOver) return "unavailable";
-    let result: BattleOperationResult = "unavailable";
-    this.session.submit({ type: "operation", actorId, operation }, accepted => {
-      if (accepted.type === "operation") result = this.applyPlayerOperation(accepted.actorId, accepted.operation);
-    });
-    return result;
+    return this.authority.submitTrusted(actorId, { type: "operation", operation });
   }
 
   private applyPlayerControl(actorId: string, control: BattleControl): BattleOperationResult {
@@ -1048,7 +1060,7 @@ export class GameScene extends Phaser.Scene {
   private createPlayerControlRuntime(): BattleControlRuntime {
     return {
       state: this.controls, ended: this.gameOver,
-      actor: id => id === LOCAL_BATTLE_ACTOR.id ? LOCAL_BATTLE_ACTOR : undefined,
+      actor: id => this.session.actor(id),
       authorize: () => true,
       slotCount: this.playback ? CARD_SLOT_COUNT : unlockedCardSlotCount(),
       cardAllowed: id => hasCardDefinition(id) && (Boolean(this.playback) || isCardUnlocked(id)),
@@ -1082,11 +1094,7 @@ export class GameScene extends Phaser.Scene {
     if (!validBattleActorId(actorId) || !validBattleControl(control)) return "invalid";
     // A local menu must not reject an already-authorized control from another participant.
     if (this.playback || this.gameOver) return "unavailable";
-    let result: BattleOperationResult = "unavailable";
-    this.session.submit({ type: "control", actorId, control }, command => {
-      if (command.type === "control") result = this.applyPlayerControl(command.actorId, command.control);
-    });
-    return result;
+    return this.authority.submitTrusted(actorId, { type: "control", control });
   }
 
   private requestControl(control: BattleControl) {
@@ -2925,6 +2933,7 @@ export class GameScene extends Phaser.Scene {
     this.updateHud();
     drawEnemyHealthLinks(this.enemyHealthLinks, this.enemies, this.battleTime);
     if (!this.playback) this.session.startRecordingFromCheckpoint(captureBattleSnapshot(this.battleState()), this.selectedCardIds);
+    this.resetCommandAuthority();
   }
 
   private localInputBlocked() {

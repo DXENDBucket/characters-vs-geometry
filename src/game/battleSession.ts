@@ -6,11 +6,13 @@ import {
   type BattleClockState, canRestoreBattleVersion, validBattleClock
 } from "./battleSimulation";
 import type { SaveGraph } from "./saveGraph";
+import { copyBattleParticipants, sameBattleParticipants, type BattleOperationActor } from "./battleParticipants";
 
 export interface BattleSessionSnapshot {
   version: number;
   clock: BattleClockState;
   randomState: number;
+  participants?: readonly BattleOperationActor[];
 }
 
 export type BattleSessionOptions = Omit<BattleReplay, "commands" | "endTick" | "checkpoint">;
@@ -32,6 +34,8 @@ export class BattleSession {
   private replayCursor = 0;
   private executing = false;
   private advancing = false;
+  private actors: readonly BattleOperationActor[];
+  private epoch = 0;
 
   constructor(options: BattleSessionOptions, playback?: BattleReplay) {
     this.recording = { ...structuredClone(options), endTick: 0, commands: [] };
@@ -41,10 +45,14 @@ export class BattleSession {
       this.replay = structuredClone(playback);
     }
     this.random = new BattleRandom(this.replay?.seed ?? options.seed);
+    this.actors = copyBattleParticipants((this.replay ?? this.recording).participants);
   }
 
   get playback(): Readonly<BattleReplay> | undefined { return this.replay; }
   get executingCommand() { return this.executing; }
+  get nextCommandSequence() { return this.recording.commands.length; }
+  get commandEpoch() { return this.epoch; }
+  actor(id: string) { return this.actors.find(actor => actor.id === id); }
   get playbackComplete() { return !!this.replay && this.clock.tick >= this.replay.endTick; }
 
   // False means playback was already complete; no simulation or render refresh is needed.
@@ -90,7 +98,9 @@ export class BattleSession {
   }
 
   snapshot(): BattleSessionSnapshot {
-    return { version: BATTLE_RULES_VERSION, clock: this.clock.snapshot(), randomState: this.random.state };
+    const participants = (this.replay ?? this.recording).participants;
+    return { version: BATTLE_RULES_VERSION, clock: this.clock.snapshot(), randomState: this.random.state,
+      ...(participants ? { participants: structuredClone(this.actors) } : {}) };
   }
 
   restore(state: BattleSessionSnapshot | undefined, battleTime: number) {
@@ -101,16 +111,25 @@ export class BattleSession {
     if (state && (!Number.isSafeInteger(state.randomState) || state.randomState < 0 || state.randomState > 0xffffffff)) {
       throw new Error("Invalid battle random state");
     }
+    const actors = copyBattleParticipants(state?.participants);
+    if (this.replay && !sameBattleParticipants(actors, this.actors)) throw new Error("Replay participants differ from checkpoint");
     if (this.replay && (this.replay.endTick < clock.tick || this.replay.commands.some(entry => entry.tick < clock.tick))) {
       throw new Error("Replay predates checkpoint");
     }
     this.clock.restore(clock);
+    this.actors = actors;
+    if (!this.replay) {
+      if (state?.participants) this.recording.participants = structuredClone(actors);
+      else delete this.recording.participants;
+    }
     if (state) this.random.state = state.randomState;
     this.replayCursor = 0;
+    this.epoch++;
   }
 
   startRecordingFromCheckpoint(checkpoint: SaveGraph, selectedCards: readonly CardId[]) {
     if (this.replay) return;
+    this.epoch++;
     this.recording = { ...this.recording, selectedCards: [...selectedCards],
       checkpoint: structuredClone(checkpoint), commands: [] };
   }

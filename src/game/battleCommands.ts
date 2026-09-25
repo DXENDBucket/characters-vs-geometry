@@ -5,6 +5,7 @@ import { BATTLE_RULES_VERSION } from "./battleSimulation";
 import { validStoredDifficulty } from "../config";
 import { validBattleActorId, validBattleOperation, type BattleOperation } from "./battleOperations";
 import { validBattleControl, type BattleControl } from "./battleControls";
+import { validBattleParticipants, type BattleOperationActor } from "./battleParticipants";
 
 export interface BattlePointer {
   x: number;
@@ -40,6 +41,7 @@ export interface BattleReplay {
   endTick: number;
   commands: RecordedBattleCommand[];
   checkpoint?: SaveGraph;
+  participants?: readonly BattleOperationActor[];
 }
 
 export function validateReplay(replay: BattleReplay) {
@@ -50,7 +52,8 @@ export function validateReplay(replay: BattleReplay) {
       replay.selectedCards.some(id => typeof id !== "string") ||
       replay.version !== BATTLE_RULES_VERSION || !Number.isSafeInteger(replay.seed) || replay.seed < 0 ||
       replay.seed > 0xffffffff || !Number.isSafeInteger(replay.endTick) || replay.endTick < 0 ||
-      !Array.isArray(replay.commands)) throw new Error("Unsupported battle replay");
+      !Array.isArray(replay.commands) ||
+      (replay.participants !== undefined && !validBattleParticipants(replay.participants))) throw new Error("Unsupported battle replay");
   let tick = -1;
   replay.commands.forEach((entry, index) => {
     if (!Number.isSafeInteger(entry.tick) || entry.tick < tick || entry.tick > replay.endTick || entry.sequence !== index)
