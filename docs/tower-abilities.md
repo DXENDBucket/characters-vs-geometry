@@ -32,8 +32,10 @@ its charge when upgraded; # clears charge but never used an active deadline.
 
 Recovery boundaries intentionally preserve the previous rules: o/j charge only
 the inactive portion of a tick crossing their active deadline; w/c/S charge a
-whole tick once no longer active. S also pauses while aiming. Canceling aim costs
-no SP. h and # do not pause recovery during their effects.
+whole tick once no longer active. S aiming is local display state only; it cannot
+pause recovery if another actor casts the tower while the picker stays open.
+Normal aiming starts at full SP; canceling aim costs no SP. h and # do not pause
+recovery during their effects.
 
 Charge helpers do not select targets, spend automatically or invoke effects.
 Guardian waits at full SP for an injured target. ! can trigger ready untargeted
@@ -44,6 +46,12 @@ numeric outlets finish routed skills but do not passively recharge them.
 Existing state keys and snapshot shapes are unchanged. No replay rules version
 change is needed for this refactor. Changes to charge arithmetic or actual timing
 in future are balance/compatibility changes, not harmless metadata cleanup.
+
+Manual player actions now execute through [semantic operations](battle-operations.md).
+Read-only target queries and local picker setup are separate from explicit group
+activation. The controller preflights all members before spending, including copied
+behavior identity and SP readiness. Automatic activation and pipeline imitation
+remain simulation actions rather than remote player commands.
 
 ## Extending And Checking
 

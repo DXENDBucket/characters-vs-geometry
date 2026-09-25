@@ -7,8 +7,12 @@ import type { TowerDeploymentController } from "./towerDeployment";
 import type { TargetedEffectCardController } from "./targetedEffectCards";
 import type { EdgeTowerControls } from "./edgeTowerControls";
 import type { TowerShifterController } from "./towerShifter";
+import type { TowerSkillController } from "./towerSkills";
+import type { TowerPushController } from "./towerPush";
+import type { TowerTopologyController } from "./towerTopologyController";
 import { towerInPlacementLayer } from "./towerOccupancy";
-import { canUpgradeTowerWithCard, supportsTowerAutoUpgrade } from "./towerIdentity";
+import { canUpgradeTowerWithCard, supportsTowerAutoUpgrade, towerBehaviorType } from "./towerIdentity";
+import { isShockTower } from "./triggerTowers";
 import { setTowerAutoUpgradeState } from "./towers";
 import { edgeKey, edgePosition } from "./projectileCircuit";
 
@@ -26,6 +30,10 @@ export interface LiveBattleOperationRuntime {
   targetedEffects: TargetedEffectCardController;
   edgeControls: EdgeTowerControls;
   shifter: TowerShifterController;
+  skills: TowerSkillController;
+  push: TowerPushController;
+  topology: TowerTopologyController;
+  triggerShockTower(tower: Tower): void;
   mirrorGroupFor(tower: Tower): Tower[];
   removeTower(tower: Tower): void;
   erasedAt(x: number, y: number): void;
@@ -57,6 +65,15 @@ export function executeLiveBattleOperation(runtime: LiveBattleOperationRuntime, 
         }
       } else if (op.type === "effect") {
         for (const tower of runtime.targetedEffects.deploymentTargets(op.cell.lane, op.cell.column, primary.towers[0])) towers.add(tower);
+      } else if (op.type === "trigger") {
+        for (const tower of runtime.mirrorGroupFor(primary.towers[0])) if (tower.inPlay) towers.add(tower);
+      } else if (op.type === "push") {
+        for (const move of runtime.push.plan(primary.towers[0], op.cell.lane, op.cell.column)?.moves ?? []) towers.add(move.tower);
+      } else if (op.type === "topology") {
+        const source = primary.towers[0];
+        for (const tower of runtime.towers) if (tower.inPlay &&
+          ((tower.lane === source.lane && tower.column === source.column) ||
+           (tower.lane === op.cell.lane && tower.column === op.cell.column))) towers.add(tower);
       }
       return { towers: [...towers], edges: primary.edges };
     },
@@ -101,6 +118,22 @@ export function executeLiveBattleOperation(runtime: LiveBattleOperationRuntime, 
           return "handled";
         case "edgeMode":
           primary.edges[0].mode = op.mode; runtime.refreshEdges(); return "handled";
+        case "skill": {
+          const result = runtime.skills.activateManualSkills(primary.towers, op.skill, op.point);
+          if (result === "handled") runtime.updateCards();
+          return result;
+        }
+        case "trigger": {
+          const tower = primary.towers[0];
+          if (towerBehaviorType(tower) !== op.behavior) return "stale";
+          if (!isShockTower(tower)) return "invalid";
+          runtime.triggerShockTower(tower); return "handled";
+        }
+        case "push":
+          if (towerBehaviorType(primary.towers[0]) !== "#") return "invalid";
+          return runtime.push.push(primary.towers[0], op.cell.lane, op.cell.column) ? "handled" : "unavailable";
+        case "topology":
+          return runtime.topology.connect(primary.towers[0], op.cell.lane, op.cell.column) ? "handled" : "unavailable";
         case "move":
           return runtime.shifter.executeMove({ type: "moveTowers", destination: op.destination,
             sources: op.sources.map((source, index) => ({ towerId: primary.towers[index].id, lane: source.lane, column: source.column })) }, false);

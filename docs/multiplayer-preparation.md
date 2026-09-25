@@ -44,7 +44,7 @@ rules from browser input and rendering, not a multiplayer implementation.
   tutorial progression. Commands run between ticks, ordered by tick and sequence.
   These are single-player session commands; tool/selection state is not yet
   independent per player. The existing movement planner remains reusable.
-- Seven board mutations additionally support explicit `operation` commands with
+- Board mutations and manual skills support explicit `operation` commands with
   stable target references and a shared validation/authorization gate. The mouse
   path uses the same executor while retaining its old recording format. See
   [Semantic Battle Operations](battle-operations.md) for the remaining boundary.

@@ -45,10 +45,13 @@ transport-neutral authority and synchronization gates above.
   tests and unchanged browser replay checksums verify this extraction. `BattleWorld`
   now owns rosters/progress, tick order, resource/wave rules and phase state. Three
   real local worlds pass interleaved advancement, checkpoint and restart isolation.
-  Its live system ports still depend on scene controllers/rendering. Seven board
-  mutations now share a semantic gate with explicit entity targets, capability
+  Its live system ports still depend on scene controllers/rendering. Board
+  mutations and manual skills now share a semantic gate with explicit entity targets, capability
   checks and a host authorization port; direct operation recordings replay too.
-  Mouse recordings still contain UI intent, remaining skills/global controls and
+  Skills, one-shot triggers, push directions and topology destinations have explicit
+  commands, whole-group preflight and live UI/save/replay coverage. A local S picker
+  no longer affects authoritative SP recovery. Mouse recordings still contain UI
+  intent; global controls, complete local UI state separation and
   multi-player policies need migration; gates 2-3 remain open. See
   [semantic operations](battle-operations.md),
   [session boundaries](battle-session.md) and [world ownership](battle-world.md).
@@ -61,7 +64,7 @@ transport-neutral authority and synchronization gates above.
 - Networking: no authority protocol, participant policy, acknowledgment/resync
   implementation or two-client integration test yet. Gates 5-7 are open.
 
-Next: finish migrating skill/global commands and separate local UI state, complete
+Next: finish migrating global commands and separate local UI state, complete
 participant/resource policies and simulation/presentation ports, then
 implement transport authority and reconnect. Validate each increment against the
 real battle path; green isolated tests are not proof of full readiness.

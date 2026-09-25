@@ -10,17 +10,18 @@ export class TowerTopologyController {
   private visualKey = "";
   constructor(private scene: Phaser.Scene, private runtime: () => TopologyRuntime) {}
   isTargeting() { return !!this.source?.inPlay; }
+  selectedSource() { return this.source; }
   begin(tower: Tower) {
     if (!tower.inPlay || tower.type !== "&" || tower.topologyTarget) return false;
     this.source = tower; this.update(); return true;
   }
   cancel() { this.source = undefined; this.update(); }
-  choose(lane: number, column: number) {
-    const tower = this.source, target = { lane, column };
-    if (!tower?.inPlay || !validTowerCell(target) || (tower.lane === lane && tower.column === column)) return false;
+  connect(tower: Tower, lane: number, column: number) {
+    const target = { lane, column };
+    if (!tower.inPlay || tower.transient || tower.nullified || tower.type !== "&" || tower.topologyTarget ||
+        !validTowerCell(target) || (tower.lane === lane && tower.column === column)) return false;
     tower.topologyTarget = target;
     tower.topologyOrder = this.runtime().battleTime;
-    this.source = undefined;
     syncTowerTopology(this.runtime().towers);
     this.runtime().onChanged(); this.update(); return true;
   }

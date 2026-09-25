@@ -194,13 +194,70 @@ test("guardian waits at full SP for injured targets, then spends once and heals"
   assert.equal(ally.hp, 1300);
 });
 
-test("S targeting pauses recovery without spending and resumes normally on cancellation", () => {
+test("local S targeting cannot pause authoritative SP recovery", () => {
   const unit = tower("S"), { skills } = controller([unit]);
   const state = getTowerSkillState(unit, "spellMortar"); state.sp = 10;
   skills.spellMortarTargetingTowers.push(unit); skills.spellMortarTargetingTowerSet.add(unit);
-  skills.update(5, 5000); assert.equal(state.sp, 10);
-  skills.cancelSpellMortarTargeting(); assert.equal(state.sp, 10);
-  skills.update(5, 10000); assert.equal(state.sp, 15);
+  skills.update(5, 5000); assert.equal(state.sp, 15);
+  skills.cancelSpellMortarTargeting(); assert.equal(state.sp, 15);
+  skills.update(5, 10000); assert.equal(state.sp, 20);
+});
+
+test("explicit skills preflight all sources and never spend a subset or switch a copied behavior", () => {
+  const a = tower("c"), b = tower("@", "c"), { skills } = controller([a, b]);
+  getTowerSkillState(a, "clock").sp = 20;
+  assert.equal(skills.activateManualSkills([a, b], "c", null), "cooldown");
+  assert.equal(a.skills.clock.sp, 20); assert.deepEqual(b.skills, {}, "Readiness must not initialize a rejected target");
+  getTowerSkillState(b, "clock").sp = 20;
+  b.copiedType = "w";
+  assert.equal(skills.activateManualSkills([a, b], "c", null), "stale");
+  b.copiedType = "c"; b.nullified = true;
+  assert.equal(skills.activateManualSkills([a, b], "c", null), "cooldown");
+  assert.equal(a.skills.clock.sp, 20); assert.equal(b.skills.clock.sp, 20);
+  b.nullified = false;
+  assert.deepEqual(skills.manualSkillTargets(a, true), [a, b]);
+  assert.equal(skills.activateManualSkills([a, b], "c", null), "handled");
+  assert.equal(a.skills.clock.sp, 0); assert.equal(b.skills.clock.sp, 0);
+  assert.equal(skills.activateManualSkills([a, b], "c", null), "cooldown");
+});
+
+test("explicit skill shape matches the registered ability, without invoking a target picker", () => {
+  const units = ["w", "c", "S", "#", "h"].map(id => tower(id));
+  const { skills } = controller(units, { prepareSkillTargeting() { throw Error("Player UI was used by execution"); } });
+  for (const unit of units) getTowerSkillState(unit, TOWER_SKILLS[unit.type].stateKey).sp = TOWER_SKILLS[unit.type].maxSp;
+  for (const [targets, id, point] of [
+    [[], "c", null], [[units[1], units[1]], "c", null], [[units[0]], "w", { x: 500, y: 400 }],
+    [[units[2]], "S", null], [[units[3]], "#", null], [[units[4]], "h", null],
+    [[units[0], tower("w")], "w", null]
+  ]) assert.equal(skills.activateManualSkills(targets, id, point), "invalid");
+  assert.equal(skills.activateManualSkills([units[0]], "w", null), "handled");
+});
+
+test("explicit mortar commands schedule real volleys and preserve another player's local aiming", () => {
+  const a = tower("S"), b = tower("@", "S"), events = [];
+  const { skills, runtime } = controller([a, b], { scheduleBattleAction: (delay, action) => events.push({ delay, action }) });
+  for (const unit of [a, b]) getTowerSkillState(unit, "spellMortar").sp = 30;
+  skills.spellMortarTargetingTowers.push(b); skills.spellMortarTargetingTowerSet.add(b);
+  assert.equal(skills.activateManualSkills([a], "S", { x: 700, y: 400 }), "handled");
+  assert.equal(events.length, 3); assert.deepEqual(events.map(event => event.delay), [0, 500, 1000]);
+  assert.ok(events.every(({ action }) => action.tower === a && action.targetX === 700 && action.targetY === 400));
+  assert.deepEqual(skills.selectedSpellMortars(), [b]); assert.equal(b.skills.spellMortar.sp, 30);
+  // A remote activation of the locally aimed tower must not inhibit subsequent SP recovery.
+  assert.equal(skills.activateManualSkills([b], "S", { x: 800, y: 400 }), "handled");
+  runtime.battleTime = 2000; skills.update(1, 2000);
+  assert.equal(a.skills.spellMortar.sp, 1); assert.equal(b.skills.spellMortar.sp, 1);
+  assert.equal(skills.hasSpellMortarTargeting(), true); assert.deepEqual(skills.selectedSpellMortars(), []);
+});
+
+test("manual target queries are read-only and filter stale, NUL and transient group members", () => {
+  const units = [tower("c"), tower("c"), tower("@", "c"), tower("c"), tower("c"), tower("c")];
+  const { skills } = controller(units);
+  const before = JSON.stringify(units);
+  assert.deepEqual(skills.manualSkillTargets(units[0], true), []);
+  assert.equal(JSON.stringify(units), before);
+  for (const unit of units) getTowerSkillState(unit, "clock").sp = 20;
+  units[3].inPlay = false; units[4].nullified = true; units[5].transient = true;
+  assert.deepEqual(skills.manualSkillTargets(units[0], true), units.slice(0, 3));
 });
 
 test("routed active skills keep their duration without acting locally; numeric outlets do not recharge", () => {

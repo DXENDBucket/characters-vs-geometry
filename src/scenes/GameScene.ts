@@ -822,13 +822,22 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.topology.isTargeting()) {
-      if (this.isInsideBoard(x, y)) this.topology.choose(Math.floor((y - BOARD_Y) / CELL_HEIGHT), Math.floor((x - BOARD_X) / CELL_WIDTH));
-      else this.topology.cancel();
+      const source = this.topology.selectedSource();
+      if (this.isInsideBoard(x, y) && source) {
+        const result = this.applyPlayerOperation(LOCAL_BATTLE_ACTOR.id, { type: "topology", target: towerOperationRef(source),
+          cell: { lane: Math.floor((y - BOARD_Y) / CELL_HEIGHT), column: Math.floor((x - BOARD_X) / CELL_WIDTH) } });
+        if (result === "handled" || result === "stale") this.topology.cancel();
+      } else this.topology.cancel();
       return;
     }
     if (this.towerPush.isTargeting()) {
       if (this.isInsideBoard(x, y)) {
-        this.towerPush.choose(Math.floor((y - BOARD_Y) / CELL_HEIGHT), Math.floor((x - BOARD_X) / CELL_WIDTH));
+        const source = this.towerPush.selectedSource();
+        if (source) {
+          const result = this.applyPlayerOperation(LOCAL_BATTLE_ACTOR.id, { type: "push", target: towerOperationRef(source),
+            cell: { lane: Math.floor((y - BOARD_Y) / CELL_HEIGHT), column: Math.floor((x - BOARD_X) / CELL_WIDTH) } });
+          if (result === "handled" || result === "stale") this.towerPush.cancel();
+        }
       } else {
         this.towerPush.cancel();
       }
@@ -837,7 +846,9 @@ export class GameScene extends Phaser.Scene {
 
     if (this.towerSkills.hasSpellMortarTargeting()) {
       if (this.isInsideBoard(x, y)) {
-        this.towerSkills.fireSelectedSpellMortars(x, y);
+        const targets = this.towerSkills.selectedSpellMortars().map(towerOperationRef);
+        this.towerSkills.cancelSpellMortarTargeting();
+        if (targets.length) this.applyPlayerOperation(LOCAL_BATTLE_ACTOR.id, { type: "skill", skill: "S", targets, point: { x, y } });
       } else {
         this.towerSkills.cancelSpellMortarTargeting();
       }
@@ -944,15 +955,22 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    if (existingTower && this.towerSkills.tryActivateManualSkill(existingTower, {
-      x, y, allReady: this.isShiftPointer(pointer)
-    })) {
-      this.updateCards();
-      return;
+    if (existingTower) {
+      const targets = this.towerSkills.manualSkillTargets(existingTower, this.isShiftPointer(pointer));
+      if (targets.length) {
+        if (this.towerSkills.requiresManualSkillTarget(existingTower)) {
+          this.towerSkills.beginManualSkillTargeting(targets, { x, y, allReady: this.isShiftPointer(pointer) });
+        } else {
+          this.applyPlayerOperation(LOCAL_BATTLE_ACTOR.id, { type: "skill", skill: towerBehaviorType(existingTower),
+            targets: targets.map(towerOperationRef), point: null });
+        }
+        this.updateCards();
+        return;
+      }
     }
 
     if (this.isManualShockTower(existingTower)) {
-      this.triggerShockTower(existingTower);
+      this.applyPlayerOperation(LOCAL_BATTLE_ACTOR.id, { type: "trigger", target: towerOperationRef(existingTower), behavior: towerBehaviorType(existingTower) });
       return;
     }
 
@@ -1001,6 +1019,8 @@ export class GameScene extends Phaser.Scene {
       actor: id => id === LOCAL_BATTLE_ACTOR.id ? LOCAL_BATTLE_ACTOR : undefined,
       authorize: () => true,
       deployment: this.deployment, targetedEffects: this.targetedEffects, edgeControls: this.edgeControls, shifter: this.shifter,
+      skills: this.towerSkills, push: this.towerPush, topology: this.topology,
+      triggerShockTower: tower => this.triggerShockTower(tower),
       mirrorGroupFor: tower => this.mirrors.mirrorGroupFor(tower),
       removeTower: tower => removeTower(this.unitLifecycleRuntime(), tower),
       erasedAt: (x, y) => { makeEraseMark(this, x, y); playSound("erase"); },

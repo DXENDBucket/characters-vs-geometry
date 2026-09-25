@@ -25,6 +25,7 @@ export class TowerPushController {
   constructor(private readonly scene: Phaser.Scene, private readonly runtime: () => PushRuntime) {}
 
   isTargeting() { return Boolean(this.source); }
+  selectedSource() { return this.source; }
 
   begin(tower: Tower) {
     if (!pushIsReady(tower) || tower.moveVisual) return false;
@@ -63,16 +64,8 @@ export class TowerPushController {
     });
   }
 
-  choose(lane: number, column: number) {
-    const source = this.source;
-    if (!source || !pushIsReady(source) || source.moveVisual) { this.cancel(); return false; }
-    const result = this.push(source, lane, column);
-    if (result) this.cancel();
-    return result;
-  }
-
-  push(source: Tower, lane: number, column: number, free = false) {
-    if (!source.inPlay || source.moveVisual || (!free && !pushIsReady(source))) return false;
+  plan(source: Tower, lane: number, column: number) {
+    if (!source.inPlay || source.nullified || source.moveVisual) return null;
     const runtime = this.runtime();
     const byId = new Map(runtime.towers.map(tower => [tower.id, tower]));
     const origin = towerCell(source), target = logicalTowerCell(source, { lane, column });
@@ -83,7 +76,7 @@ export class TowerPushController {
       occupantAt: (row, col) => { const cell = physicalTowerCell(source, { lane: row, column: col }); return runtime.occupied.get(gridCellKey(cell.lane, cell.column))?.id; },
       isCellDeployable: (row, col) => { const cell = physicalTowerCell(source, { lane: row, column: col }); return runtime.isCellDeployable?.(cell.lane, cell.column) ?? true; }
     });
-    if (!plan || plan.some(move => byId.get(move.towerId)?.moveVisual)) return false;
+    if (!plan) return null;
     const moves = plan.map(move => {
       const from = physicalTowerCell(source, { lane: move.fromLane, column: move.fromColumn });
       const to = physicalTowerCell(source, { lane: move.toLane, column: move.toColumn });
@@ -93,6 +86,15 @@ export class TowerPushController {
       const companion = move.tower.parenthesisGuard ?? parenthesisInner(move.tower);
       if (companion && !moves.some(item => item.tower === companion)) moves.push({ ...move, towerId: companion.id, tower: companion });
     }
+    if (moves.some(move => !move.tower.inPlay || move.tower.nullified || move.tower.moveVisual)) return null;
+    return { moves, origin, target };
+  }
+
+  push(source: Tower, lane: number, column: number, free = false) {
+    if (!source.inPlay || source.nullified || source.moveVisual || (!free && (!source.skills.push || !pushIsReady(source)))) return false;
+    const plan = this.plan(source, lane, column);
+    if (!plan) return false;
+    const { moves, origin, target } = plan, runtime = this.runtime();
     if (!free) spendTowerSkill("#", getTowerSkillState(source, "push"));
     if (!free && runtime.onTowerAction?.(source, { kind: "skill", laneOffset: target.lane - origin.lane, columnOffset: target.column - origin.column })) return true;
     source.border.setAlpha(1);

@@ -6,7 +6,7 @@ const load = createTypeScriptLoader();
 const { validBattleOperation, executeBattleOperation, towerOperationRef, edgeOperationRef, LOCAL_BATTLE_ACTOR } = load("src/game/battleOperations.ts");
 const { BattleSession } = load("src/game/battleSession.ts");
 const { BATTLE_RULES_VERSION } = load("src/game/battleSimulation.ts");
-const { LANES, COLUMNS } = load("src/config.ts");
+const { LANES, COLUMNS, BOARD_X, BOARD_Y, BOARD_WIDTH, BOARD_HEIGHT } = load("src/config.ts");
 const towerRef = id => ({ kind: "tower", id: `tower:${id}` });
 const edgeRef = id => ({ kind: "edge", id: `edge:${id}` });
 const clone = value => JSON.parse(JSON.stringify(value));
@@ -17,7 +17,12 @@ const operations = () => [
   { type: "erase", target: towerRef(1) },
   { type: "autoUpgrade", targets: [towerRef(1), edgeRef(4)], enabled: true },
   { type: "edgeMode", target: edgeRef(4), mode: "<" },
-  { type: "move", sources: [{ target: towerRef(1), lane: 1, column: 2 }], destination: { lane: 2, column: 4 } }
+  { type: "move", sources: [{ target: towerRef(1), lane: 1, column: 2 }], destination: { lane: 2, column: 4 } },
+  { type: "skill", skill: "S", targets: [towerRef(1), towerRef(2)], point: { x: BOARD_X + .5, y: BOARD_Y + .5 } },
+  { type: "skill", skill: "w", targets: [towerRef(1)], point: null },
+  { type: "trigger", target: towerRef(1), behavior: "i" },
+  { type: "push", target: towerRef(1), cell: { lane: 1, column: 3 } },
+  { type: "topology", target: towerRef(1), cell: { lane: 5, column: 6 } }
 ];
 function fixture() {
   const towers = [1, 2].map((id, index) => ({ entityId: `tower:${id}`, id: `tower:${id - 1}`, type: "A",
@@ -25,7 +30,7 @@ function fixture() {
   const edges = [{ type: "=", entityId: "edge:4", axis: "horizontal", lane: 1, column: 2 }];
   const applied = [], authorized = [];
   const actors = new Map([["local", LOCAL_BATTLE_ACTOR], ["builder", { id: "builder", permissions: ["build"] }],
-    ["viewer", { id: "viewer", permissions: [] }], ["peer", { id: "peer", permissions: ["build", "edit", "move"] }]]);
+    ["viewer", { id: "viewer", permissions: [] }], ["peer", { id: "peer", permissions: ["build", "edit", "move", "skill"] }]]);
   const denied = new Set();
   const runtime = {
     ended: false, actor: id => actors.get(id), tower: id => towers.find(tower => tower.entityId === id),
@@ -118,7 +123,7 @@ test("deployment explicitly distinguishes empty placement from upgrading a speci
 test("removed, transient, NUL or moved targets cannot be operated on by stale commands", () => {
   for (const change of [{ inPlay: false }, { transient: true }, { nullified: true }, { entityId: "tower:99" }]) {
     const f = fixture(); Object.assign(f.towers[0], change);
-    for (const op of [operations()[1], operations()[3], operations()[4], operations()[6]]) {
+    for (const op of [operations()[1], operations()[3], operations()[4], operations()[6], ...operations().slice(7)]) {
       assert.equal(executeBattleOperation("local", op, f.runtime), "stale");
     }
     assert.equal(f.applied.length, 0);
@@ -127,6 +132,39 @@ test("removed, transient, NUL or moved targets cannot be operated on by stale co
   assert.equal(executeBattleOperation("local", operations()[1], f.runtime), "stale");
   assert.equal(executeBattleOperation("local", operations()[6], f.runtime), "stale");
   assert.equal(f.applied.length, 0);
+});
+
+test("skill commands bound world points, require tower-only groups and reject client-computed effects", () => {
+  const skill = operations()[7];
+  const invalid = [
+    { ...skill, targets: [edgeRef(4)] }, { ...skill, targets: [towerRef(1), towerRef(1)] },
+    { ...skill, targets: [] }, { ...skill, targets: Array(2) }, { ...skill, skill: "S".repeat(17) },
+    { ...skill, point: { x: BOARD_X, y: BOARD_Y, damage: 100 } }, { ...skill, damage: 1000 },
+    { ...skill, cooldown: 0 }, { ...skill, point: undefined },
+    { ...operations()[9], behavior: "" }, { ...operations()[10], cell: { lane: 1.5, column: 0 } }
+  ];
+  for (const x of [NaN, Infinity, "300", BOARD_X - .01, BOARD_X + BOARD_WIDTH]) invalid.push({ ...skill, point: { x, y: BOARD_Y } });
+  for (const y of [NaN, -Infinity, BOARD_Y - .01, BOARD_Y + BOARD_HEIGHT]) invalid.push({ ...skill, point: { x: BOARD_X, y } });
+  for (const operation of invalid) {
+    const f = fixture();
+    assert.equal(executeBattleOperation("local", operation, f.runtime), "invalid", JSON.stringify(operation));
+    assert.equal(f.applied.length, 0);
+  }
+});
+
+test("skill capability and whole-group authorization are independent of build/edit/move permission", () => {
+  const f = fixture();
+  f.actors.set("operator", { id: "operator", permissions: ["build", "edit", "move"] });
+  f.actors.set("caster", { id: "caster", permissions: ["skill"] });
+  for (const operation of operations().slice(7, 11)) {
+    assert.equal(executeBattleOperation("operator", operation, f.runtime), "forbidden");
+    assert.equal(executeBattleOperation("caster", operation, f.runtime), "handled");
+  }
+  assert.equal(executeBattleOperation("caster", operations().at(-1), f.runtime), "forbidden");
+  f.denied.add("tower:2");
+  const count = f.applied.length;
+  assert.equal(executeBattleOperation("caster", operations()[7], f.runtime), "forbidden");
+  assert.equal(f.applied.length, count);
 });
 
 test("edge reconstruction at the same position and wrong-kind references cannot steal an old operation", () => {

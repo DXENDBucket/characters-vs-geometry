@@ -1,9 +1,10 @@
-import { COLUMNS, LANES } from "../config";
+import { BOARD_X, BOARD_Y, BOARD_WIDTH, BOARD_HEIGHT, COLUMNS, LANES } from "../config";
 import type { CardDefinition, CardId, EdgeTower } from "../types";
 import type { TowerState } from "./towerState";
 import { parseBattleEntityId, type BattleEntityRef } from "./battleEntityIds";
 
 export interface BattleCell { lane: number; column: number }
+export interface BattlePoint { x: number; y: number }
 export type BattleControlTarget = BattleEntityRef<"tower" | "edge">;
 export type BattleEdgePosition = Pick<EdgeTower, "axis" | "lane" | "column">;
 export type BattleOperation =
@@ -13,12 +14,16 @@ export type BattleOperation =
   | { type: "erase"; target: BattleControlTarget }
   | { type: "autoUpgrade"; targets: BattleControlTarget[]; enabled: boolean }
   | { type: "edgeMode"; target: BattleEntityRef<"edge">; mode: NonNullable<EdgeTower["mode"]> }
+  | { type: "skill"; skill: CardId; targets: BattleEntityRef<"tower">[]; point: BattlePoint | null }
+  | { type: "trigger"; target: BattleEntityRef<"tower">; behavior: CardId }
+  | { type: "push"; target: BattleEntityRef<"tower">; cell: BattleCell }
+  | { type: "topology"; target: BattleEntityRef<"tower">; cell: BattleCell }
   | { type: "move"; sources: Array<BattleCell & { target: BattleEntityRef<"tower"> }>; destination: BattleCell };
 
-export type BattleOperationPermission = "build" | "edit" | "move";
+export type BattleOperationPermission = "build" | "edit" | "move" | "skill";
 export interface BattleOperationActor { id: string; permissions: readonly BattleOperationPermission[] }
 export const LOCAL_BATTLE_ACTOR: BattleOperationActor = Object.freeze({ id: "local",
-  permissions: Object.freeze(["build", "edit", "move"] as const) });
+  permissions: Object.freeze(["build", "edit", "move", "skill"] as const) });
 export type BattleOperationResult = "deployed" | "handled" | "moved" | "invalid" | "forbidden" | "unavailable" |
   "stale" | "occupied" | "cooldown" | "noChars" | "empty";
 export interface BattleOperationTargets<T extends TowerState = TowerState> { towers: T[]; edges: EdgeTower[] }
@@ -46,6 +51,9 @@ const coordinate = (value: unknown, max: number) => Number.isSafeInteger(value) 
 export const validBattleActorId = (value: unknown): value is string => typeof value === "string" && /^[a-zA-Z0-9_-]{1,64}$/.test(value);
 const cardId = (value: unknown) => typeof value === "string" && value.length > 0 && value.length <= 16;
 const cell = (value: unknown) => fields(value, ["lane", "column"]) && coordinate(value.lane, LANES) && coordinate(value.column, COLUMNS);
+const point = (value: unknown) => fields(value, ["x", "y"]) && typeof value.x === "number" && typeof value.y === "number" &&
+  Number.isFinite(value.x) && Number.isFinite(value.y) && value.x >= BOARD_X && value.x < BOARD_X + BOARD_WIDTH &&
+  value.y >= BOARD_Y && value.y < BOARD_Y + BOARD_HEIGHT;
 const reference = (value: unknown, kinds: readonly string[]) => {
   if (!fields(value, ["kind", "id"]) || typeof value.id !== "string" || value.id.length > 40) return false;
   const parsed = parseBattleEntityId(value.id);
@@ -74,6 +82,10 @@ export function validBattleOperation(value: unknown): value is BattleOperation {
     case "autoUpgrade": return fields(value, ["type", "targets", "enabled"]) && targets(value.targets) && typeof value.enabled === "boolean";
     case "edgeMode": return fields(value, ["type", "target", "mode"]) && reference(value.target, ["edge"]) &&
       ["=", ">", "<", "!="].includes(value.mode as string);
+    case "skill": return fields(value, ["type", "skill", "targets", "point"]) && cardId(value.skill) && targets(value.targets) &&
+      (value.targets as unknown[]).every(target => reference(target, ["tower"])) && (value.point === null || point(value.point));
+    case "trigger": return fields(value, ["type", "target", "behavior"]) && reference(value.target, ["tower"]) && cardId(value.behavior);
+    case "push": case "topology": return fields(value, ["type", "target", "cell"]) && reference(value.target, ["tower"]) && cell(value.cell);
     case "move": return fields(value, ["type", "sources", "destination"]) && cell(value.destination) && Array.isArray(value.sources) &&
       value.sources.length > 0 && value.sources.length <= LANES * COLUMNS * 2 && Array.from(value.sources).every(source =>
         fields(source, ["target", "lane", "column"]) && reference(source.target, ["tower"]) &&
@@ -90,7 +102,8 @@ export function executeBattleOperation<T extends TowerState>(actorId: string, op
   if (runtime.ended) return "unavailable";
   const actor = runtime.actor(actorId);
   const permission: BattleOperationPermission = operation.type === "move" ? "move" :
-    ["deploy", "effect", "edgeCard"].includes(operation.type) ? "build" : "edit";
+    ["deploy", "effect", "edgeCard"].includes(operation.type) ? "build" :
+    ["skill", "trigger", "push"].includes(operation.type) ? "skill" : "edit";
   if (!actor || actor.id !== actorId || !actor.permissions.includes(permission)) return "forbidden";
   if ("card" in operation && !runtime.card(operation.card)) return "forbidden";
 
@@ -127,8 +140,9 @@ export function executeBattleOperation<T extends TowerState>(actorId: string, op
       if (operation.expected && !add(operation.expected)) return "stale";
       break;
     }
-    case "erase": case "edgeMode": if (!add(operation.target)) return "stale"; break;
-    case "autoUpgrade": if (!operation.targets.every(add)) return "stale"; break;
+    case "erase": case "edgeMode": case "trigger": case "push": case "topology":
+      if (!add(operation.target)) return "stale"; break;
+    case "autoUpgrade": case "skill": if (!operation.targets.every(add)) return "stale"; break;
     case "move":
       for (const source of operation.sources) {
         if (!add(source.target)) return "stale";

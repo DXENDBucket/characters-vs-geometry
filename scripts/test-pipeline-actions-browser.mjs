@@ -13,14 +13,16 @@ try {
   await page.goto(option("url") ?? "http://127.0.0.1:5173");
   await page.waitForFunction(() => window.__testGame?.scene.getScenes(true).length);
   const result = await page.evaluate(async () => {
-    const progress = await import("/src/progress.ts"), c = await import("/src/config.ts");
-    const { captureBattleSnapshot, restoreBattleSnapshot } = await import("/src/game/battleSnapshot.ts");
-    const { validateSurvivalSave } = await import("/src/survivalSaves.ts");
-    const { createEnemy } = await import("/src/game/enemyFactory.ts");
-    const { getTowerSkillState } = await import("/src/game/skillState.ts");
-    const { towerHasSkillBehavior } = await import("/src/game/towerIdentity.ts");
-    const { removeTower } = await import("/src/game/unitLifecycle.ts");
-    const { createTowerProjectile } = await import("/src/game/projectiles.ts");
+    const mod = path => import(performance.getEntriesByType("resource").map(e => e.name)
+      .find(url => new URL(url).pathname === path) ?? path);
+    const progress = await mod("/src/progress.ts"), c = await mod("/src/config.ts");
+    const { captureBattleSnapshot, restoreBattleSnapshot } = await mod("/src/game/battleSnapshot.ts");
+    const { validateSurvivalSave } = await mod("/src/survivalSaves.ts");
+    const { createEnemy } = await mod("/src/game/enemyFactory.ts");
+    const { getTowerSkillState } = await mod("/src/game/skillState.ts");
+    const { towerHasSkillBehavior } = await mod("/src/game/towerIdentity.ts");
+    const { removeTower } = await mod("/src/game/unitLifecycle.ts");
+    const { createTowerProjectile } = await mod("/src/game/projectiles.ts");
     const game = window.__testGame; game.loop.stop(); progress.unlockAllCards(); progress.completeAllLevels();
     const check = (ok, text) => { if (!ok) throw Error(text); };
     const selectedCards = ["A", "0", "1", "=", "+", "-", "b", "t", "!", "S"];
@@ -32,7 +34,8 @@ try {
     };
     const place = (type, col, lane = 3, level = 1) => scene.spawnGeneratedTower(type, lane, col, level);
     const connect = (from, to) => {
-      for (let column = from; column < to; column++) scene.edgeTowers.push({ type: "=", column, lane: 3, axis: "horizontal", mode: ">", level: 10 });
+      for (let column = from; column < to; column++) scene.edgeTowers.push(scene.world.entityIds.identify("edge",
+        { type: "=", column, lane: 3, axis: "horizontal", mode: ">", level: 10 }));
       scene.numbers.sync();
     };
     const tick = (dt = 40) => { scene.battleTime += dt; scene.numbers.update(); };

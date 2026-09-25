@@ -3,6 +3,7 @@ import { inFriendlyRange } from "./towerTopology";
 import { isNumberTower, numberTowerActionLevel, towerBehaviorType, withTowerActionContext } from "./towerIdentity";
 import type { TowerActionEvent, TowerActionListener } from "./towerActions";
 import type { BattleAction, ScheduleBattleAction } from "./battleActions";
+import type { BattlePoint, BattleOperationResult } from "./battleOperations";
 import { changeTowerHealth } from "./towerHealth";
 import { activateOrientation, orientationIsReady } from "./orientation";
 import { activateGathering, gatheringIsReady } from "./gathering";
@@ -141,8 +142,8 @@ export class TowerSkillController {
       const state = getTowerSkillState(tower, definition.stateKey);
       definition.update(tower, state, seconds, time, undefined);
       if (tower.continuousAttack && definition.manual && !definition.manual.requiresTarget &&
-          !tower.nullified && !this.runtime().battlePaused && !this.runtime().gameOver) {
-        this.tryActivateManualSkill(tower, { x: tower.x, y: tower.y, allReady: false });
+          !this.runtime().battlePaused && !this.runtime().gameOver && this.manualSkillReady(tower, definition)) {
+        this.activateManualSkills([tower], towerBehaviorType(tower), null);
       }
       if (towerBehaviorType(tower) === "c" && !tower.routedSkills?.c && time < state.activeUntil) {
         activeClockLevelSum += effectiveTowerLevel(tower);
@@ -181,19 +182,52 @@ export class TowerSkillController {
   }
 
   tryActivateManualSkill(tower: Tower, input: TowerSkillActivation) {
-    const runtime = this.runtime();
+    const targets = this.manualSkillTargets(tower, input.allReady);
+    if (!targets.length) return false;
+    return this.requiresManualSkillTarget(tower) ? this.beginManualSkillTargeting(targets, input) :
+      this.activateManualSkills(targets, towerBehaviorType(tower), null) === "handled";
+  }
+
+  // This query may be used by a local picker; it must not initialize battle state.
+  manualSkillTargets(tower: Tower, allReady = false): Tower[] {
     const definition = this.skillDefinitions[towerBehaviorType(tower)];
     const manual = definition?.manual;
-    if (!tower.inPlay || tower.transient || !manual?.isReady(tower, runtime.battleTime)) return false;
+    if (!manual || !this.manualSkillReady(tower, definition)) return [];
+    return allReady && manual.supportsGroup
+      ? this.runtime().towers.filter(candidate => this.skillDefinitions[towerBehaviorType(candidate)] === definition &&
+        this.manualSkillReady(candidate, definition)) : [tower];
+  }
 
-    // Original and copied towers resolve to the same definition, including group activation.
-    const targets = input.allReady && manual.supportsGroup
-      ? runtime.towers.filter(candidate => candidate.inPlay && !candidate.transient &&
-        this.skillDefinitions[towerBehaviorType(candidate)] === definition && manual.isReady(candidate, runtime.battleTime))
-      : [tower];
-    if (manual.requiresTarget) runtime.prepareSkillTargeting();
-    manual.activate(targets, input, runtime.battleTime);
+  requiresManualSkillTarget(tower: Tower) {
+    return !!this.skillDefinitions[towerBehaviorType(tower)]?.manual?.requiresTarget;
+  }
+
+  beginManualSkillTargeting(towers: Tower[], input: TowerSkillActivation) {
+    const definition = towers.length ? this.skillDefinitions[towerBehaviorType(towers[0])] : undefined;
+    const manual = definition?.manual;
+    if (!definition || !manual?.requiresTarget || (towers.length > 1 && !manual.supportsGroup) ||
+        towers.some(tower => this.skillDefinitions[towerBehaviorType(tower)] !== definition || !this.manualSkillReady(tower, definition))) return false;
+    this.runtime().prepareSkillTargeting();
+    manual.activate(towers, input, this.runtime().battleTime);
     return true;
+  }
+
+  activateManualSkills(towers: Tower[], skill: CardId, point: BattlePoint | null): BattleOperationResult {
+    const definition = this.skillDefinitions[skill], manual = definition?.manual;
+    if (!manual || !towers.length || new Set(towers).size !== towers.length ||
+        (towers.length > 1 && !manual.supportsGroup) || skill === "#" ||
+        (manual.requiresTarget ? skill !== "S" || !point : point !== null)) return "invalid";
+    if (towers.some(tower => towerBehaviorType(tower) !== skill)) return "stale";
+    if (towers.some(tower => !this.manualSkillReady(tower, definition))) return "cooldown";
+    // Validate the entire group before spending any member's SP. No local selection is read or cleared.
+    if (point) for (const tower of towers) this.fireSpellMortar(tower, point.x, point.y);
+    else manual.activate(towers, { x: towers[0].x, y: towers[0].y, allReady: false }, this.runtime().battleTime);
+    return "handled";
+  }
+
+  private manualSkillReady(tower: Tower, definition: TowerSkillDefinition) {
+    return tower.inPlay && !tower.transient && !tower.nullified && !!tower.skills[definition.stateKey] &&
+      !!definition.manual?.isReady(tower, this.runtime().battleTime);
   }
 
   activateClockTower(tower: Tower) {
@@ -268,19 +302,8 @@ export class TowerSkillController {
     this.runtime().onTargetingChanged();
   }
 
-  fireSelectedSpellMortars(targetX: number, targetY: number) {
-    const towers = this.readySpellMortarTowers(this.spellMortarTargetingTowers);
-    if (towers.length === 0) {
-      this.cancelSpellMortarTargeting();
-      return;
-    }
-
-    this.setSpellMortarTargetingTowers([]);
-    this.destroySpellMortarReticle();
-    for (const tower of towers) {
-      this.fireSpellMortar(tower, targetX, targetY);
-    }
-    this.runtime().onTargetingChanged();
+  selectedSpellMortars() {
+    return this.readySpellMortarTowers(this.spellMortarTargetingTowers);
   }
 
   updateSpellMortarReticlePosition(x: number, y: number) {
@@ -303,7 +326,7 @@ export class TowerSkillController {
   private readySpellMortarTowers(towers: Tower[]) {
     const readyTowers: Tower[] = [];
     for (const tower of towers) {
-      if (this.isSpellMortarReady(tower)) {
+      if (towerBehaviorType(tower) === "S" && this.manualSkillReady(tower, this.skillDefinitions.S!)) {
         readyTowers.push(tower);
       }
     }
@@ -444,7 +467,7 @@ export class TowerSkillController {
   }
 
   private updateSpellMortarTower(tower: Tower, state: SkillState, seconds: number, time: number) {
-    if (time < state.activeUntil || this.spellMortarTargetingTowerSet.has(tower)) {
+    if (time < state.activeUntil) {
       setTowerBorderVisible(tower, true);
       setTowerBorderAlpha(tower, 0.35 + Math.sin(time / 70) * 0.32 + 0.32);
       return;
@@ -453,6 +476,7 @@ export class TowerSkillController {
     setTowerBorderAlpha(tower, 1);
     if (state.sp >= SPELL_MORTAR_SKILL_MAX) {
       setTowerBorderVisible(tower, true);
+      if (this.spellMortarTargetingTowerSet.has(tower)) setTowerBorderAlpha(tower, 0.35 + Math.sin(time / 70) * 0.32 + 0.32);
       return;
     }
 
