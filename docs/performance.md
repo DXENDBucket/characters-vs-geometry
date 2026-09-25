@@ -129,8 +129,9 @@ Selection order, damage rules and replay checksums remain unchanged.
    replay checks at each step, before introducing multiplayer authority rules.
 
 Session timing, randomness, command recording and checkpoint orchestration have
-now moved from `GameScene` to an integrated `BattleSession`. The actual world tick
-is still a scene callback. See [Battle Session Orchestration](battle-session.md).
+now moved from `GameScene` to an integrated `BattleSession`. The tick delegates to
+`BattleWorld`, whose system ports still call live runtime adapters. See
+[Battle Session Orchestration](battle-session.md) and [World Ownership](battle-world.md).
 This is an ownership change with unchanged replay checksums, not an FPS claim.
 
 Status lifecycle, final combat panels and passenger-seat calculations now run

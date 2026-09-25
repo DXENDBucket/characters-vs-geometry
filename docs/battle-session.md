@@ -4,8 +4,8 @@
 delayed-action queue, command recording, replay cursor and execution guard.
 The real `GameScene` uses this session; there is no alternate simulation path.
 
-The scene supplies a `BattleSessionRuntime` with three operations: advance world
-systems once, execute an input command, and report whether simulation may continue.
+The scene supplies a `BattleSessionRuntime` with three operations: advance the
+integrated `BattleWorld` once, execute an input command, and report whether simulation may continue.
 It supplies frame time already adjusted for local playback speed. Initial pause,
 menu and reselection handling remains in the scene for UI refresh; the session also
 respects the continuation policy before advancing and between catch-up ticks.
@@ -29,9 +29,11 @@ respects the continuation policy before advancing and between catch-up ticks.
 
 ## Still Open
 
-This is session orchestration, not a complete headless battle engine. `stepBattle`
-and command interpretation still belong to `GameScene`; actions still hold live
-unit references. The runtime currently calls visual adapters during simulation.
+This is session orchestration, not a complete headless battle engine. Tick order,
+entity collections, resource/wave rules and phase progress now belong to
+[BattleWorld](battle-world.md). The scene supplies required system ports, whose
+live controllers/runtime still call visual adapters. Command interpretation remains
+in `GameScene`, and actions still hold live unit references.
 Commands still express single-player UI intent. `submit` is a trusted local API,
 not an authorized network endpoint. Session identity, per-player semantic commands,
 ownership policy, bounded network schemas, acknowledgments and reconnect are future

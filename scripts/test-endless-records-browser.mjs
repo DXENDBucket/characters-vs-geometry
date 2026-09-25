@@ -42,7 +42,7 @@ try {
     }
     const waves = start("GameScene", { levelId: "IF-1", difficulty: 7, seed: 811, selectedCards: [] });
     waves.wave = 23;
-    waves.updateWaveSchedule(0, 0);
+    waves.world.updateWaveSchedule(0, 0, waves.worldSystems);
     check(progress.bestWaveForLevel("IF-1", 7) === 23, "Battle used incorrect wave difficulty");
     check(progress.bestWaveForLevel("IF-1", 3) === 40, "Battle overwrote another difficulty");
     const bosses = start("GameScene", { levelId: "IF-BE-1", difficulty: 7, seed: 811, selectedCards: [] });

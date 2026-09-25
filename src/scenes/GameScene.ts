@@ -6,13 +6,14 @@ import { canUpgradeTowerWithCard, supportsTowerAutoUpgrade, towerBehaviorType, t
 import { syncTowerTopology, inFriendlyRange, towerCell, physicalTowerCell } from "../game/towerTopology";
 import { TowerTopologyController } from "../game/towerTopologyController";
 import { syncFriendlyRangeVisual, syncTowerAutoUpgradeVisual } from "../game/towers";
-import { effectiveTowerLevel, getHitProductionAmount, getProductionAmount, towerFacingDirection } from "../game/towerRules";
+import { effectiveTowerLevel, getHitProductionAmount, towerFacingDirection } from "../game/towerRules";
 import { syncTowerCopies } from "../game/towerCopy";
 import { syncTowerFormVisual } from "../game/towers";
-import { BATTLE_STEP_MS, BATTLE_RULES_VERSION, setBattleRandom, setBattlePlayback } from "../game/battleSimulation";
+import { BATTLE_RULES_VERSION, setBattleRandom, setBattlePlayback } from "../game/battleSimulation";
 import { validateReplay, type BattleCommand, type BattlePointer, type BattleReplay } from "../game/battleCommands";
 import type { BattleAction, ScheduleBattleAction } from "../game/battleActions";
 import { BattleSession, type BattleSessionRuntime } from "../game/battleSession";
+import { BattleWorld, type BattleWorldSystems } from "../game/battleWorld";
 import { battleChecksum } from "../game/battleChecksum";
 import { syncEnemyStatusVisuals } from "../render/enemyStatus";
 import { syncHexArmorAuras } from "../render/enemySupport";
@@ -28,7 +29,7 @@ import { deleteSurvivalSave, readSurvivalSave, writeSurvivalSave, type SurvivalS
 import { endlessEnemyHpMultiplier } from "../game/endlessEnvironment";
 import { syncTowerHealthNetworks } from "../game/towerHealth";
 import { detachEnemyHealth } from "../game/enemyHealth";
-import { destroyContainedEnemies, enemiesWithPassengers, enemyIsActive } from "../game/enemyContainers";
+import { destroyContainedEnemies, enemiesWithPassengers } from "../game/enemyContainers";
 import { ProjectileCircuitController, edgeAtPoint, edgePosition } from "../game/projectileCircuit";
 import { drawCircuitEdges } from "../render/circuitEdges";
 import { EdgeTowerControls } from "../game/edgeTowerControls";
@@ -61,7 +62,6 @@ import {
   CELL_HEIGHT,
   CELL_WIDTH,
   COLUMNS,
-  CUBE_BOSS_STATS,
   DEFAULT_DIFFICULTY,
   DIFFICULTY_VERSION,
   DEFAULT_GAME_SPEED,
@@ -69,9 +69,6 @@ import {
   GAME_SPEED_MAX,
   GAME_SPEED_MIN,
   LANES,
-  NATURAL_PRODUCE_AMOUNT,
-  NATURAL_PRODUCE_INTERVAL,
-  STARTING_CHARS,
   clampDifficulty,
   migrateDifficulty,
   getDifficultyConfig,
@@ -87,7 +84,7 @@ import { getLevelConfig } from "../data/levels";
 import { updateBossRuntime, executeBossAttack, initializeDodecahedronCompanions, initializeOctahedronSolarBombs, type BossRuntime } from "../game/bossRuntime";
 import { idleCardBehavior, projectileCardBehavior, slowAuraCardBehavior } from "../game/cardBehaviors";
 import type { CombatRuntime } from "../game/combatRuntime";
-import { advanceEnemies, executeEnemyAttack, spawnEnemyAt, spawnWaveEnemies } from "../game/enemyRuntime";
+import { advanceEnemies, executeEnemyAttack, spawnEnemyAt } from "../game/enemyRuntime";
 import {
   updateEnemyProjectiles,
   updateMortarProjectiles,
@@ -127,7 +124,7 @@ import {
 import { createTutorialController, tutorialLoadout } from "../game/tutorialRegistry";
 import { towerAuraSources } from "../game/towerAuras";
 import { slowAuraSources, type SlowAuraSources } from "../game/slowAura";
-import { charsAreSoftcapped, rawCharsForSoftcapped, softcapChars } from "../game/charSoftcap";
+import { charsAreSoftcapped } from "../game/charSoftcap";
 import {
   damageBoss,
   damageEnemy,
@@ -148,7 +145,6 @@ import {
 import { towerFinalStats } from "../game/unitStats";
 import { volleyInterval, volleyShotCount } from "../game/upgrades";
 import { volleyHitsAt, volleyTimingCount } from "../game/volley";
-import { waveScheduleAction } from "../game/waves";
 import { attackIntervalMs } from "../game/attackSpeed";
 import { t } from "../i18n";
 import { completeLevel, isCardUnlocked, isLevelCompleted, recordBossSeen, recordCompletedWaves, recordDefeatedBossRank, unlockedCardSlotCount } from "../progress";
@@ -191,7 +187,6 @@ import type {
   Enemy,
   EnemyProjectile,
   EdgeTower,
-  LevelConfig,
   MortarProjectile,
   Projectile,
   Tower,
@@ -230,14 +225,16 @@ const HAS_TIMED_PRODUCER_CARDS = allCardDefinitions.some((definition) =>
   Boolean(definition.produceEvery && definition.produceAmount)
 );
 
-function combineDamageReduction(baseReduction: number, extraReduction: number) {
-  return 1 - (1 - baseReduction) * (1 - extraReduction);
-}
+type LiveBattleEntities = { tower: Tower; enemy: Enemy; boss: CubeBoss; projectile: Projectile;
+  enemyProjectile: EnemyProjectile; mortar: MortarProjectile };
 
 export class GameScene extends Phaser.Scene {
+  private world!: BattleWorld<LiveBattleEntities>;
+  private worldSystems!: BattleWorldSystems<LiveBattleEntities>;
   private topology!: TowerTopologyController;
   private numbers!: ProjectileCircuitController;
-  private edgeTowers: EdgeTower[] = [];
+  private get edgeTowers() { return this.world.edgeTowers; }
+  private set edgeTowers(value: EdgeTower[]) { this.world.edgeTowers = value; }
   private edgeControls!: EdgeTowerControls;
   private circuitEdges!: Phaser.GameObjects.Graphics;
   private enemyHealthLinks!: Phaser.GameObjects.Graphics;
@@ -265,41 +262,65 @@ export class GameScene extends Phaser.Scene {
   private difficultyConfig = getDifficultyConfig(DEFAULT_DIFFICULTY);
   private unlimitedFirepower = false;
   private selectedCardIds: CardId[] = [...defaultCardLoadout];
-  private levelElapsed = 0;
-  private battleTime = 0;
-  private cardTime = 0;
-  private nextNaturalProduceAt = NATURAL_PRODUCE_INTERVAL;
+  private get levelElapsed() { return this.world.levelElapsed; }
+  private set levelElapsed(value: number) { this.world.levelElapsed = value; }
+  private get battleTime() { return this.world.battleTime; }
+  private set battleTime(value: number) { this.world.battleTime = value; }
+  private get cardTime() { return this.world.cardTime; }
+  private set cardTime(value: number) { this.world.cardTime = value; }
+  private get nextNaturalProduceAt() { return this.world.nextNaturalProduceAt; }
+  private set nextNaturalProduceAt(value: number) { this.world.nextNaturalProduceAt = value; }
   private cardStates: CardState[] = [];
   private cardList?: BattleCardList;
   private battlefield!: BattlefieldLayer;
   private cardStatesById = new Map<CardId, CardState>();
   private selectedCardId: CardId = "X";
-  private towers: Tower[] = [];
-  private enemies: Enemy[] = [];
-  private boss: CubeBoss | null = null;
-  private bossPhaseIndex = 0;
-  private bossPhaseStartedAt = 0;
-  private bossHomePosition: { x: number; y: number } | null = null;
-  private projectiles: Projectile[] = [];
-  private enemyProjectiles: EnemyProjectile[] = [];
-  private mortarProjectiles: MortarProjectile[] = [];
-  private occupied = new Map<string, Tower>();
-  private sealedCells = new Set<string>();
-  private timedCellSeals = new TimedCellSeals();
+  private get towers() { return this.world.towers; }
+  private set towers(value: Tower[]) { this.world.towers = value; }
+  private get enemies() { return this.world.enemies; }
+  private set enemies(value: Enemy[]) { this.world.enemies = value; }
+  private get boss() { return this.world.boss; }
+  private set boss(value: CubeBoss | null) { this.world.boss = value; }
+  private get bossPhaseIndex() { return this.world.bossPhaseIndex; }
+  private set bossPhaseIndex(value: number) { this.world.bossPhaseIndex = value; }
+  private get bossPhaseStartedAt() { return this.world.bossPhaseStartedAt; }
+  private set bossPhaseStartedAt(value: number) { this.world.bossPhaseStartedAt = value; }
+  private get bossHomePosition() { return this.world.bossHomePosition; }
+  private set bossHomePosition(value: { x: number; y: number } | null) { this.world.bossHomePosition = value; }
+  private get projectiles() { return this.world.projectiles; }
+  private set projectiles(value: Projectile[]) { this.world.projectiles = value; }
+  private get enemyProjectiles() { return this.world.enemyProjectiles; }
+  private set enemyProjectiles(value: EnemyProjectile[]) { this.world.enemyProjectiles = value; }
+  private get mortarProjectiles() { return this.world.mortarProjectiles; }
+  private set mortarProjectiles(value: MortarProjectile[]) { this.world.mortarProjectiles = value; }
+  private get occupied() { return this.world.occupied; }
+  private set occupied(value: Map<string, Tower>) { this.world.occupied = value; }
+  private get sealedCells() { return this.world.sealedCells; }
+  private set sealedCells(value: Set<string>) { this.world.sealedCells = value; }
+  private get timedCellSeals() { return this.world.timedCellSeals; }
+  private set timedCellSeals(value: TimedCellSeals) { this.world.timedCellSeals = value; }
   private timedCellSealGraphics!: Phaser.GameObjects.Graphics;
   private nullification!: TowerNullificationController;
   private nullifiedTowerGraphics!: Phaser.GameObjects.Graphics;
   private timedCellWarningGraphics!: Phaser.GameObjects.Graphics;
   private sealedCellMarks = new Map<string, Phaser.GameObjects.Text>();
   // Stored as raw resources; affordability and spending use the softcapped effective value.
-  private chars = STARTING_CHARS;
-  private baseIntegrity = BASE_INTEGRITY;
-  private flawlessRun = true;
-  private wave = 0;
-  private waveTracker: WaveTracker | null = null;
-  private enemiesDefeated = 0;
-  private towerOrder = 0;
-  private gameOver = false;
+  private get chars() { return this.world.chars; }
+  private set chars(value: number) { this.world.chars = value; }
+  private get baseIntegrity() { return this.world.baseIntegrity; }
+  private set baseIntegrity(value: number) { this.world.baseIntegrity = value; }
+  private get flawlessRun() { return this.world.flawlessRun; }
+  private set flawlessRun(value: boolean) { this.world.flawlessRun = value; }
+  private get wave() { return this.world.wave; }
+  private set wave(value: number) { this.world.wave = value; }
+  private get waveTracker() { return this.world.waveTracker; }
+  private set waveTracker(value: WaveTracker | null) { this.world.waveTracker = value; }
+  private get enemiesDefeated() { return this.world.enemiesDefeated; }
+  private set enemiesDefeated(value: number) { this.world.enemiesDefeated = value; }
+  private get towerOrder() { return this.world.towerOrder; }
+  private set towerOrder(value: number) { this.world.towerOrder = value; }
+  private get gameOver() { return this.world.gameOver; }
+  private set gameOver(value: boolean) { this.world.gameOver = value; }
   private battlePaused = false;
   private gameSpeed = DEFAULT_GAME_SPEED;
   private eraserMode = false;
@@ -378,8 +399,8 @@ export class GameScene extends Phaser.Scene {
     }
   };
 
-  constructor() {
-    super("GameScene");
+  constructor(key = "GameScene") {
+    super(key);
   }
 
   init(data: { levelId?: string; chapterId?: string; selectedCards?: CardId[]; difficulty?: number; unlimitedFirepower?: boolean; resume?: boolean; seed?: number; replay?: BattleReplay }) {
@@ -414,29 +435,12 @@ export class GameScene extends Phaser.Scene {
       seed, debug: this.debugModeEnabled }, playback);
     setBattleRandom(this, this.session.random);
     setBattlePlayback(this, Boolean(playback));
+    this.world = new BattleWorld<LiveBattleEntities>({ levelId: this.levelId, level: this.levelConfig,
+      difficulty: this.difficultyConfig, unlimitedFirepower: this.unlimitedFirepower, resumed: !!this.resumeSave }, this.session.random);
+    this.worldSystems = this.createWorldSystems();
     this.setCardStates([]);
     this.selectedCardId = this.selectedCardIds.includes("X") ? "X" : this.selectedCardIds[0];
-    this.towers = [];
-    this.enemies = [];
-    this.boss = null;
-    this.bossPhaseIndex = 0;
-    this.bossPhaseStartedAt = 0;
-    this.bossHomePosition = null;
-    this.projectiles = [];
-    this.enemyProjectiles = [];
-    this.mortarProjectiles = [];
-    this.occupied = new Map<string, Tower>();
-    this.sealedCells = new Set<string>();
-    this.timedCellSeals = new TimedCellSeals();
     this.sealedCellMarks = new Map<string, Phaser.GameObjects.Text>();
-    this.chars = this.startingCharsForLevel();
-    this.baseIntegrity = BASE_INTEGRITY;
-    this.flawlessRun = !this.unlimitedFirepower && !this.resumeSave;
-    this.wave = 0;
-    this.waveTracker = null;
-    this.enemiesDefeated = 0;
-    this.towerOrder = 0;
-    this.gameOver = false;
     this.menuOpen = false;
     this.reselectOpen = false;
     this.reselection = new LoadoutReselection();
@@ -459,7 +463,6 @@ export class GameScene extends Phaser.Scene {
     this.autoUpgradeReserveInputFocused = false;
     this.tutorial = null;
     this.targetedEffects = new TargetedEffectCardController(() => this.targetedEffectCardRuntime());
-    this.edgeTowers = [];
     this.edgeControls = new EdgeTowerControls(() => ({ edges: this.edgeTowers, card: this.cardStatesById.get("="),
       time: this.battleTime, cardTime: this.cardTimeFor("="), chars: this.effectiveChars(),
       autoEnabled: this.autoUpgradeEnabled, reserve: this.autoUpgradeReserveChars, reserveFocused: this.autoUpgradeReserveInputFocused,
@@ -534,10 +537,6 @@ export class GameScene extends Phaser.Scene {
     this.unitLifecycleRuntimeCache = this.createUnitLifecycleRuntime();
     this.projectileRuntimeCache = this.createProjectileRuntime();
     this.triggerTowerRuntimeCache = this.createTriggerTowerRuntime();
-    this.levelElapsed = 0;
-    this.battleTime = 0;
-    this.cardTime = 0;
-    this.nextNaturalProduceAt = NATURAL_PRODUCE_INTERVAL;
   }
 
   create() {
@@ -708,47 +707,58 @@ export class GameScene extends Phaser.Scene {
     this.updateHud();
   }
 
-  private stepBattle() {
-    const scaledDelta = BATTLE_STEP_MS;
-    const seconds = scaledDelta / 1000;
-    this.levelElapsed += scaledDelta;
-    this.battleTime += scaledDelta;
-    this.nullification.update(this.battleTime, this.levelConfig.periodicTowerNullification);
-    if (this.timedCellSeals.update(this.battleTime, (lane, column) => {
-      if (this.eraseTowersInCell(lane, column)) this.updateLevelAuras();
-    })) this.syncPlacementGhost(this.input.activePointer);
-    this.syncCopiedTowers();
-    this.actionQueue.update(this.battleTime, action => this.executeBattleAction(action));
-    this.towerSkills.update(seconds, this.battleTime);
-    this.towerPush.update(this.battleTime);
-    this.topology.update();
-    this.mirrors.syncMirrors();
-    this.updateLevelAurasIfNeeded();
-    this.cardTime += scaledDelta * this.cardCooldownMultiplier();
-    this.updateNaturalProduction();
-    if (HAS_TIMED_PRODUCER_CARDS) {
-      this.updateProducers(this.battleTime);
-    }
-    this.updateArmingTowers(this.battleTime);
-    this.storage.update();
-    updateBossRuntime(this.bossRuntime(), seconds);
-    this.projectileMotion.begin(this.projectiles);
-    this.updateEnemies(this.battleTime, seconds);
-    this.updateTowers(this.battleTime);
-    this.numbers.update();
-    const projectileRuntime = this.projectileRuntime(slowAuraSources(this.towers));
-    updateTowerProjectiles(projectileRuntime, seconds);
-    this.projectileMotion.finish();
-    updateEnemyProjectiles(projectileRuntime, seconds);
-    projectileRuntime.slowAuraSources = slowAuraSources(this.towers);
-    updateMortarProjectiles(projectileRuntime, seconds);
-    if (this.tutorial) {
-      this.battlefield.ui(() => this.tutorial!.update());
-    }
-    if (!this.tutorial || this.tutorial.usesWaveSchedule) {
-      this.updateWaveSchedule(this.levelElapsed, this.battleTime);
-    }
-    this.attemptAutoUpgrades();
+  private stepBattle() { this.world.step(this.worldSystems); }
+
+  private createWorldSystems(): BattleWorldSystems<LiveBattleEntities> {
+    let projectiles: ProjectileRuntime;
+    return {
+      updateNullification: (time, periodic) => this.nullification.update(time, periodic),
+      eraseSealedCell: (lane, column) => this.eraseTowersInCell(lane, column),
+      updateLevelAuras: () => this.updateLevelAuras(),
+      sealsChanged: () => this.syncPlacementGhost(this.input.activePointer),
+      syncCopiedTowers: () => this.syncCopiedTowers(),
+      updateActions: time => this.actionQueue.update(time, action => this.executeBattleAction(action)),
+      updateTowerSkills: (seconds, time) => this.towerSkills.update(seconds, time),
+      updateTowerPush: time => this.towerPush.update(time),
+      updateTopology: () => this.topology.update(),
+      syncMirrors: () => this.mirrors.syncMirrors(),
+      updateLevelAurasIfNeeded: () => this.updateLevelAurasIfNeeded(),
+      cardCooldownMultiplier: () => this.towerSkills.cardCooldownMultiplier(),
+      gainChars: (amount, x, y) => this.gainChars(amount, x, y),
+      hasTimedProducers: HAS_TIMED_PRODUCER_CARDS,
+      getDefinition: id => this.getDefinition(id),
+      routeProduction: tower => this.routeTowerAction(tower, { kind: "production" }),
+      updateArmingTowers: time => this.updateArmingTowers(time),
+      updateStorage: () => this.storage.update(),
+      updateBoss: seconds => updateBossRuntime(this.bossRuntime(), seconds),
+      beginProjectileMotion: () => this.projectileMotion.begin(this.projectiles),
+      updateEnemies: (time, seconds) => this.updateEnemies(time, seconds),
+      updateTowerAttacks: time => this.updateTowers(time),
+      updateCircuit: () => this.numbers.update(),
+      updateTowerProjectiles: seconds => {
+        projectiles = this.projectileRuntime(slowAuraSources(this.towers));
+        updateTowerProjectiles(projectiles, seconds);
+      },
+      finishProjectileMotion: () => this.projectileMotion.finish(),
+      updateEnemyProjectiles: seconds => updateEnemyProjectiles(projectiles, seconds),
+      updateMortarProjectiles: seconds => {
+        projectiles.slowAuraSources = slowAuraSources(this.towers);
+        updateMortarProjectiles(projectiles, seconds);
+      },
+      updateTutorial: () => { if (this.tutorial) this.battlefield.ui(() => this.tutorial!.update()); },
+      usesWaveSchedule: () => !this.tutorial || !!this.tutorial.usesWaveSchedule,
+      autoUpgrade: () => this.attemptAutoUpgrades(),
+      storedEnemyCount: () => this.storage.count,
+      earliestStoredWave: () => this.storage.earliestWaveNumber,
+      completedWaves: waves => { if (!this.playback) recordCompletedWaves(this.levelId, waves, this.difficulty); },
+      completeLevel: () => this.endLevel(),
+      spawnEnemy: options => spawnEnemyAt(this.combatRuntime(), options),
+      sealColumn: column => this.sealColumn(column),
+      waveStarted: (wave, isFlag) => {
+        playSound(isFlag ? "flag" : "wave");
+        this.showToast(isFlag ? `${t("label.flag")} ${wave / this.levelConfig.wavesPerFlag}` : `${t("label.wave")} ${wave}`);
+      }
+    };
   }
 
   private syncBattleOverlays() {
@@ -1213,32 +1223,6 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private updateProducers(time: number) {
-    for (const tower of this.towers) {
-      if (time < tower.nextProduceAt) {
-        continue;
-      }
-
-      const definition = this.getDefinition(towerBehaviorType(tower));
-      if (!definition.produceEvery || !definition.produceAmount) {
-        continue;
-      }
-
-      while (time >= tower.nextProduceAt) {
-        const amount = getProductionAmount(tower, definition);
-        tower.nextProduceAt += definition.produceEvery;
-        if (!this.routeTowerAction(tower, { kind: "production" })) this.gainChars(amount, tower.x, tower.y - 28);
-      }
-    }
-  }
-
-  private updateNaturalProduction() {
-    while (this.levelElapsed >= this.nextNaturalProduceAt) {
-      this.nextNaturalProduceAt += NATURAL_PRODUCE_INTERVAL;
-      this.gainChars(NATURAL_PRODUCE_AMOUNT, 172, 96);
-    }
-  }
-
   private updateArmingTowers(time: number) {
     for (const tower of this.towers) {
       if (tower.statusEffects.length > 0) {
@@ -1267,9 +1251,6 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private cardCooldownMultiplier() {
-    return this.towerSkills.cardCooldownMultiplier();
-  }
 
   private updateLevelAurasIfNeeded() {
     if (syncTowerTopology(this.towers) || this.levelAuraStateChanged()) {
@@ -1414,21 +1395,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   private gainChars(amount: number, x: number, y: number) {
-    const previousEffectiveChars = this.effectiveChars();
-    this.chars += amount;
-    const gainedEffectiveChars = Math.max(0, this.effectiveChars() - previousEffectiveChars);
+    const gainedEffectiveChars = this.world.gainChars(amount);
     makeProductionPulse(this, x, y, Math.floor(gainedEffectiveChars));
     this.attemptAutoUpgrades();
   }
 
-  private effectiveChars() {
-    return softcapChars(this.chars);
-  }
+  private effectiveChars() { return this.world.effectiveChars(); }
 
-  private spendChars(amount: number) {
-    const nextEffectiveChars = Math.max(0, this.effectiveChars() - amount);
-    this.chars = rawCharsForSoftcapped(nextEffectiveChars);
-  }
+  private spendChars(amount: number) { this.world.spendChars(amount); }
 
   private handleTowerDamaged(tower: Tower) {
     const definition = this.getDefinition(towerBehaviorType(tower));
@@ -1458,32 +1432,11 @@ export class GameScene extends Phaser.Scene {
     this.towerSkills.cancelSpellMortarTargeting();
   }
 
-  private startingCharsForLevel() {
-    return this.levelConfig.startingChars ?? (this.levelId.startsWith("1-") ? 300 : STARTING_CHARS);
-  }
 
-  private currentBossPhaseConfig() {
-    return this.levelConfig.bossPhases?.[this.bossPhaseIndex];
-  }
+  private currentBossPhaseConfig() { return this.world.currentBossPhaseConfig(); }
 
-  private activeLevelConfig(): LevelConfig {
-    const phase = this.currentBossPhaseConfig();
-    if (!phase) {
-      return this.levelConfig;
-    }
+  private activeLevelConfig() { return this.world.activeLevelConfig(); }
 
-    return {
-      ...this.levelConfig,
-      enemyKinds: phase.enemyKinds,
-      waveWeightCap: phase.waveWeightCap ?? this.levelConfig.waveWeightCap,
-      totalWaves: undefined,
-      endless: true
-    };
-  }
-
-  private currentPhaseElapsed(levelElapsed: number) {
-    return Math.max(0, levelElapsed - this.bossPhaseStartedAt);
-  }
 
   private adjustDifficultyForUnlimitedFirepower(difficultyConfig: DifficultyConfig): DifficultyConfig {
     if (!this.unlimitedFirepower) {
@@ -1523,24 +1476,7 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private applyBossPhaseStats(boss: CubeBoss) {
-    const phase = this.currentBossPhaseConfig();
-    if (!phase) {
-      return;
-    }
-
-    boss.baseStats.maxHp = phase.maxHp * (this.unlimitedFirepower ? 10 : 1);
-    const defaultStats = CUBE_BOSS_STATS[boss.kind];
-    boss.baseStats.armor = phase.armor ?? defaultStats.armor;
-    boss.baseStats.magicResistance = phase.magicResistance ?? defaultStats.magicResistance;
-    boss.baseStats.speed = defaultStats.speed;
-    boss.baseStats.finalDamageReduction = combineDamageReduction(
-      this.difficultyConfig.finalDamageReduction,
-      phase.finalDamageReduction ?? 0
-    );
-    syncBossBaseStats(boss);
-    boss.hp = boss.finalStats.maxHp;
-  }
+  private applyBossPhaseStats(boss: CubeBoss) { this.world.applyBossPhaseStats(boss); }
 
   private applyBossPhaseSkillState(boss: CubeBoss) {
     applyBossPhaseSkillState(boss, this.bossPhaseIndex);
@@ -1898,11 +1834,7 @@ export class GameScene extends Phaser.Scene {
     };
   }
 
-  private nextTowerOrder() {
-    const order = this.towerOrder;
-    this.towerOrder += 1;
-    return order;
-  }
+  private nextTowerOrder() { return this.world.nextTowerOrder(); }
 
   private spawnGeneratedTower(id: CardId, lane: number, column: number, level: number, facingDirection: -1 | 1 = 1) {
     if (!this.cellIsDeployable(lane, column) || towerInPlacementLayer(this.occupied, lane, column, id)) {
@@ -1991,8 +1923,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handleEnemyReachedBase(enemy: Enemy) {
-    this.flawlessRun = false;
-    this.baseIntegrity -= 1;
+    this.world.registerBreach();
     removeEnemy(this.unitLifecycleRuntime(), enemy, false);
     this.cameras.main.shake(110, 0.004);
     playSound("breach");
@@ -2003,53 +1934,8 @@ export class GameScene extends Phaser.Scene {
     return false;
   }
 
-  private updateWaveSchedule(levelElapsed: number, gameTime: number) {
-    const activeLevelConfig = this.activeLevelConfig();
-    if (activeLevelConfig.survival && !activeLevelConfig.bossEndless) {
-      let earliestWave = Math.min(this.wave + 1, this.storage.earliestWaveNumber);
-      for (const enemy of enemiesWithPassengers(this.enemies)) {
-        if (enemyIsActive(enemy)) earliestWave = Math.min(earliestWave, enemy.waveNumber);
-      }
-      if (!this.playback) recordCompletedWaves(this.levelId, Math.max(0, earliestWave - 1), this.difficulty);
-    }
-    const action = waveScheduleAction(
-      activeLevelConfig,
-      this.wave,
-      this.waveTracker,
-      this.enemies.length + this.storage.count,
-      this.currentPhaseElapsed(levelElapsed)
-    );
 
-    if (action === "complete") {
-      this.endLevel();
-      return;
-    }
-
-    if (action === "spawn") {
-      this.spawnWave(levelElapsed, gameTime);
-    }
-  }
-
-  private spawnWave(levelElapsed: number, gameTime: number) {
-    const activeLevelConfig = this.activeLevelConfig();
-    const waveNumber = this.wave + 1;
-    this.wave = waveNumber;
-    this.waveTracker = spawnWaveEnemies(this.combatRuntime(), {
-      levelConfig: activeLevelConfig,
-      difficultyConfig: this.difficultyConfig,
-      waveNumber,
-      levelElapsed: this.currentPhaseElapsed(levelElapsed),
-      gameTime
-    });
-    this.applyWaveStartMechanics();
-    playSound(waveNumber % activeLevelConfig.wavesPerFlag === 0 ? "flag" : "wave");
-
-    this.showToast(
-      waveNumber % activeLevelConfig.wavesPerFlag === 0
-        ? `${t("label.flag")} ${waveNumber / activeLevelConfig.wavesPerFlag}`
-        : `${t("label.wave")} ${waveNumber}`
-    );
-  }
+  private spawnWave(levelElapsed: number, gameTime: number) { this.world.spawnWave(levelElapsed, gameTime, this.worldSystems); }
 
   private spawnTutorialWave(spawns: TutorialEnemySpawn[]) {
     const waveNumber = this.wave + 1;
@@ -2115,13 +2001,7 @@ export class GameScene extends Phaser.Scene {
       return true;
     }
     const phases = this.levelConfig.bossPhases;
-    if (!phases || this.bossPhaseIndex + 1 >= phases.length) {
-      return false;
-    }
-
-    this.bossPhaseIndex += 1;
-    this.bossPhaseStartedAt = this.levelElapsed;
-    this.waveTracker = null;
+    if (!phases || !this.world.beginNextBossPhase()) return false;
     this.clearEnemiesForBossPhaseTransition();
     this.resetBossForPhase(boss);
     this.applyBossPhaseStats(boss);
@@ -2157,52 +2037,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private resetBossForPhase(boss: CubeBoss) {
-    const home = this.bossHomePosition ?? { x: boss.x, y: boss.y };
-    boss.x = home.x;
-    boss.y = home.y;
-    boss.body.setPosition(home.x, home.y);
-    boss.movementAxis = "x";
-    boss.movementDirection = -1;
-    boss.contactAttackBuffer = 0;
-    boss.chargeExpiresAt = 0;
-    boss.halfHpTriggered = false;
-    boss.criticalHpTriggered = false;
-    boss.pendingCriticalSummon = false;
-    boss.invincibleUntil = 0;
-    boss.bossHasteUntil = 0;
-    boss.companionsInitialized = false;
-    boss.companionDeathsHandled = 0;
-    for (const copy of boss.octahedronCopies ?? []) {
-      copy.body.destroy();
-    }
-    boss.octahedronCopies = [];
-    boss.pendingCopies = [];
+    const copies = boss.octahedronCopies ?? [];
+    this.world.resetBossForPhase(boss);
+    boss.body.setPosition(boss.x, boss.y);
+    for (const copy of copies) copy.body.destroy();
     clearBossCopyWarnings(boss);
-    boss.octahedronSolarBombsInitialized = false;
-    boss.octahedronSpawn75Triggered = false;
-    boss.octahedronSpawn50Triggered = false;
-    boss.octahedronSpawn25Triggered = false;
-  }
-
-  private applyWaveStartMechanics() {
-    if (this.levelConfig.specialMechanic !== "rightColumnSeal") {
-      return;
-    }
-
-    this.applyRightColumnSeal();
-  }
-
-  private applyRightColumnSeal() {
-    if (this.wave % 4 !== 0) {
-      return;
-    }
-
-    const column = COLUMNS - this.wave / 4;
-    if (column < 0 || column >= COLUMNS) {
-      return;
-    }
-
-    this.sealColumn(column);
   }
 
   private sealColumn(column: number) {
@@ -2882,11 +2721,7 @@ export class GameScene extends Phaser.Scene {
       edgeTowers: this.edgeTowers,
       simulation: { ...this.session.snapshot(),
         mirrorNextGroupId: this.mirrors.snapshotNextGroupId() },
-      bossPhaseIndex: this.bossPhaseIndex, bossPhaseStartedAt: this.bossPhaseStartedAt, bossHomePosition: this.bossHomePosition,
-      levelElapsed: this.levelElapsed, battleTime: this.battleTime, cardTime: this.cardTime,
-      nextNaturalProduceAt: this.nextNaturalProduceAt, chars: this.chars, baseIntegrity: this.baseIntegrity,
-      wave: this.wave, waveTracker: this.waveTracker, enemiesDefeated: this.enemiesDefeated,
-      towerOrder: this.towerOrder, gameSpeed: this.gameSpeed, selectedCardId: this.selectedCardId,
+      ...this.world.progressSnapshot(), gameSpeed: this.gameSpeed, selectedCardId: this.selectedCardId,
       cardDeadlines: this.cardStates.map(card => ({ id: card.definition.id, readyAt: card.readyAt })),
       autoUpgradeEnabled: this.autoUpgradeEnabled, autoUpgradeReserveChars: this.autoUpgradeReserveChars,
       towers: this.towers, enemies: this.enemies, boss: this.boss, projectiles: this.projectiles,
@@ -2916,18 +2751,7 @@ export class GameScene extends Phaser.Scene {
 
   private applyBattleSave(state: BattleSaveState) {
     this.session.restore(state.simulation, state.battleTime);
-    this.bossPhaseIndex = state.bossPhaseIndex ?? 0;
-    this.bossPhaseStartedAt = state.bossPhaseStartedAt ?? 0;
-    this.levelElapsed = state.levelElapsed;
-    this.battleTime = state.battleTime;
-    this.cardTime = state.cardTime;
-    this.nextNaturalProduceAt = state.nextNaturalProduceAt;
-    this.chars = state.chars;
-    this.baseIntegrity = state.baseIntegrity;
-    this.wave = state.wave;
-    this.waveTracker = state.waveTracker;
-    this.enemiesDefeated = state.enemiesDefeated;
-    this.towerOrder = state.towerOrder;
+    this.world.restoreProgress(state);
     this.selectedCardId = state.selectedCardId;
     this.autoUpgradeEnabled = state.autoUpgradeEnabled;
     this.autoUpgradeReserveChars = state.autoUpgradeReserveChars;

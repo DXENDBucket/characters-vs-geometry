@@ -37,7 +37,7 @@ import {
   makeShiftEffect,
   makeShockPulse
 } from "../render/combatEffects";
-import type { CubeBoss, DifficultyConfig, Enemy, EnemyKind, LevelConfig, Tower, WaveTracker } from "../types";
+import type { CubeBoss, Enemy, EnemyKind, Tower, WaveTracker } from "../types";
 import type { EnemyAdvanceRuntime, EnemySpawnRuntime } from "./combatRuntime";
 import { splitSpawnKind, splitSpawnLanes, syncEnemyFacingVisual, syncEnemyVisualScale } from "./enemyBehaviors";
 import {
@@ -81,34 +81,14 @@ import { isTrapArmed, towerDamageType } from "./towerRules";
 import { towerAttackAmount, towerFinalStats } from "./unitStats";
 import { volleyInterval } from "./upgrades";
 import { repeatHits, volleyHitsAt, volleyTimingCount } from "./volley";
-import { buildWaveKinds, waveWeightLimit } from "./waves";
-import { buildInfiniteWaveKinds, infiniteLeaderKinds } from "./infiniteWaves";
 import { oscillationTarget, commitOscillation } from "./oscillatingMovement";
 
-interface SpawnEnemyOptions {
-  kind: EnemyKind;
-  waveNumber: number;
-  time: number;
-  lane: number;
-  x: number;
-  waveWeight: number;
-  finalDamageReduction: number;
-  movementDirection?: -1 | 1;
-  maceFacingDirection?: -1 | 1;
-}
-
-interface SpawnWaveOptions {
-  levelConfig: LevelConfig;
-  difficultyConfig: DifficultyConfig;
-  waveNumber: number;
-  levelElapsed: number;
-  gameTime: number;
-}
+import { spawnBattleWave, type EnemySpawnOptions, type WaveSpawnRequest } from "./waveSpawner";
 
 const lockedAttackBlockedCountsBuffer = new Map<string, number>();
 const enemyLaserHitTowersBuffer: Tower[] = [];
 
-export function spawnEnemyAt(runtime: EnemySpawnRuntime, options: SpawnEnemyOptions) {
+export function spawnEnemyAt(runtime: EnemySpawnRuntime, options: EnemySpawnOptions) {
   const enemy = createEnemy(runtime.scene, { ...options, environmentHpMultiplier: runtime.enemyHpMultiplier?.() });
   addEnemyToField(runtime.enemies, enemy);
   initializeEnemyHealthLinks(enemy, runtime.enemies);
@@ -116,83 +96,8 @@ export function spawnEnemyAt(runtime: EnemySpawnRuntime, options: SpawnEnemyOpti
   return options.waveWeight;
 }
 
-export function spawnWaveEnemies(runtime: EnemySpawnRuntime, options: SpawnWaveOptions): WaveTracker {
-  const random = battleRandom(runtime.scene);
-  const weightLimit = waveWeightLimit(options.levelConfig, options.difficultyConfig, options.waveNumber);
-  const kinds = options.levelConfig.unlimitedRankFamilies
-    ? buildInfiniteWaveKinds(options.levelConfig.unlimitedRankFamilies, weightLimit, options.waveNumber,
-      options.levelConfig.wavesPerFlag, length => random.between(0, length - 1))
-    : buildWaveKinds(
-    options.levelConfig.enemyKinds,
-    getEnemyDefinition,
-    weightLimit,
-    options.waveNumber,
-    options.levelConfig.wavesPerFlag,
-    (length) => random.between(0, length - 1),
-    options.levelConfig.ignoreEnemyMinFlag
-  );
-  let totalWeight = 0;
-
-  kinds.forEach((kind, index) => {
-    const lanes = options.levelConfig.spawnLanes;
-    const lane = lanes?.length ? lanes[random.between(0, lanes.length - 1)]
-      : random.between(0, LANES - (enemyFamily(kind) === "tilde" ? 2 : 1));
-    const x = BOARD_X + BOARD_WIDTH + 46 + random.between(0, 18) + (index % 3) * 5;
-    totalWeight += spawnEnemyAt(runtime, {
-      kind,
-      waveNumber: options.waveNumber,
-      time: options.gameTime,
-      lane,
-      x,
-      waveWeight: getEnemyDefinition(kind).weight,
-      finalDamageReduction: options.difficultyConfig.finalDamageReduction
-    });
-  });
-
-  const leaders = options.levelConfig.unlimitedRankFamilies
-    ? infiniteLeaderKinds(options.levelConfig.enemyKinds.filter(enemyIsLeader), options.waveNumber, options.levelConfig.wavesPerFlag)
-    : flagLeaderKinds(options.levelConfig.enemyKinds, options.waveNumber, options.levelConfig.wavesPerFlag);
-  leaders.forEach((kind, index) => {
-    const lanes = options.levelConfig.spawnLanes;
-    const lane = lanes?.length ? lanes[random.between(0, lanes.length - 1)] : random.between(0, LANES - 1);
-    const x = BOARD_X + BOARD_WIDTH + 58 + random.between(0, 16) + index * 8;
-    spawnEnemyAt(runtime, {
-      kind,
-      waveNumber: options.waveNumber,
-      time: options.gameTime,
-      lane,
-      x,
-      waveWeight: 0,
-      finalDamageReduction: options.difficultyConfig.finalDamageReduction
-    });
-  });
-
-  for (const [index, spawn] of (options.levelConfig.extraWaveSpawns ?? []).entries()) {
-    spawnEnemyAt(runtime, {
-      ...spawn,
-      lane: spawn.lane ?? random.between(0, LANES - (enemyFamily(spawn.kind) === "tilde" ? 2 : 1)),
-      waveNumber: options.waveNumber,
-      time: options.gameTime,
-      x: BOARD_X + BOARD_WIDTH + 58 + index * 8,
-      waveWeight: 0,
-      finalDamageReduction: options.difficultyConfig.finalDamageReduction
-    });
-  }
-
-  return {
-    number: options.waveNumber,
-    totalWeight,
-    defeatedWeight: 0,
-    spawnedAt: options.levelElapsed
-  };
-}
-
-function flagLeaderKinds(enemyKinds: EnemyKind[], waveNumber: number, wavesPerFlag: number) {
-  if (waveNumber % wavesPerFlag !== 0) {
-    return [];
-  }
-
-  return enemyKinds.filter(enemyIsLeader);
+export function spawnWaveEnemies(runtime: EnemySpawnRuntime, options: WaveSpawnRequest): WaveTracker {
+  return spawnBattleWave(options, battleRandom(runtime.scene), spawn => spawnEnemyAt(runtime, spawn));
 }
 
 export function spawnSplitEnemies(

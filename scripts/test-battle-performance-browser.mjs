@@ -37,7 +37,7 @@ try {
       for (const scene of game.scene.getScenes(true)) game.scene.stop(scene.sys.settings.key);
       game.scene.start("GameScene", { levelId: "AE-7", seed: 12345, selectedCards: ["A", "B", "X"], difficulty: 3 });
       const scene = game.scene.getScene("GameScene");
-      scene.updateWaveSchedule = () => {};
+      scene.worldSystems.usesWaveSchedule = () => false;
       return scene;
     };
     const spawn = (scene, kind, lane, x) => {

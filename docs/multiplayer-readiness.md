@@ -42,9 +42,12 @@ transport-neutral authority and synchronization gates above.
   [combat state and display](combat-state.md).
 - Determinism: the integrated `BattleSession` now owns fixed steps, seeded battle
   RNG, delayed action queue, recording and checkpoint timing. Independent session
-  tests and unchanged browser replay checksums verify this extraction. World
-  simulation still runs in the scene callback, and recordings contain single-player
-  UI intent; gates 2-3 are open. See [session boundaries](battle-session.md).
+  tests and unchanged browser replay checksums verify this extraction. `BattleWorld`
+  now owns rosters/progress, tick order, resource/wave rules and phase state. Three
+  real local worlds pass interleaved advancement, checkpoint and restart isolation.
+  Its live system ports still depend on scene controllers/rendering, and recordings
+  contain single-player UI intent; gates 2-3 remain open. See
+  [session boundaries](battle-session.md) and [world ownership](battle-world.md).
 - Identity: tower placement IDs exist, but remaining units and Boss parts need a
   common identity lifecycle. Gate 4 is open.
 - Networking: no authority protocol, participant policy, acknowledgment/resync

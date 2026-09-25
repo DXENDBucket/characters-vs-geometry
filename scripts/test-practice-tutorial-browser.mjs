@@ -49,13 +49,13 @@ try {
     scene.tutorialAdvance();
     const budgets = [];
     for (let wave = 1; wave <= 5; wave++) {
-      scene.updateWaveSchedule(30000 + wave * 30000, wave * 30000);
+      scene.world.updateWaveSchedule(30000 + wave * 30000, wave * 30000, scene.worldSystems);
       if (scene.wave !== wave || !scene.enemies.length || scene.enemies.some(enemy => enemy.lane !== 3 || !["circle", "triangle"].includes(enemy.kind))) throw Error("Incorrect practice wave");
       budgets.push(scene.waveTracker.totalWeight);
       for (const enemy of scene.enemies) enemy.body.destroy();
       scene.enemies = []; scene.waveTracker.defeatedWeight = scene.waveTracker.totalWeight;
     }
-    scene.updateWaveSchedule(210000, 210000);
+    scene.world.updateWaveSchedule(210000, 210000, scene.worldSystems);
     if (!scene.gameOver) throw Error("Practice did not finish after five cleared waves");
     return budgets;
   });
