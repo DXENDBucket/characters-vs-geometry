@@ -92,6 +92,7 @@ node scripts/test-headless-host-browser.mjs
 It accepts `--url`, `--playwright`, `--engines=firefox,webkit` and an optional
 `--browser` executable for Chromium. It does not access the player's browser profile.
 
-Participant ownership/resource policies, durable host recovery, real remote-input
+The [durable host](durable-battle-host.md) now adds atomic checkpoint/receipt commits
+and process-restart recovery. Participant ownership/resource policies, real remote-input
 UI/transport lifecycle and crowded synchronization profiling remain open. This
 entry completes the independent simulation path, not the whole multiplayer goal.

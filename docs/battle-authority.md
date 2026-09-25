@@ -82,9 +82,11 @@ participant configuration use the default participant. Save migration does not
 make old rule-version recordings playable: rules 9 reject earlier recordings.
 
 The authority's request ledger, channel handles and ingress time are intentionally
-outside combat checksums. The ledger currently survives only reconnect to the same
-live authority, not process loss or loading a save. There is no production network
-adapter, host migration or durable reconnect yet. The new
+outside combat checksums. Ordinary single-player saves still create a fresh
+authority; the [durable host](durable-battle-host.md) separately persists the ledger
+and combat snapshot atomically and restores them after process loss. Handles and
+process-relative ingress time are never serialized. Production network adapters
+and host migration remain open. The
 [synchronization layer](battle-synchronization.md) adds client snapshots, late join,
 checksummed command frames and same-live-host reconnect. Slot/card access and the local-modal pause choice now come from
 [captured session policy](battle-policy.md); replay no longer grants access that

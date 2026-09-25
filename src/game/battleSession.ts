@@ -44,6 +44,7 @@ export class BattleSession {
   private actors: readonly BattleOperationActor[];
   private epoch = 0;
   private savedPolicy?: BattlePolicy;
+  private commandOffset = 0;
 
   constructor(options: BattleSessionOptions, playback?: BattleReplay, readonly replica = false) {
     if (replica && playback) throw new Error("A replica cannot also play a recording");
@@ -63,7 +64,7 @@ export class BattleSession {
   get playback(): Readonly<BattleReplay> | undefined { return this.replay; }
   get executingCommand() { return this.executing; }
   get atBoundary() { return !this.advancing && !this.executing; }
-  get nextCommandSequence() { return this.recording.commands.length; }
+  get nextCommandSequence() { return this.commandOffset + this.recording.commands.length; }
   get commandEpoch() { return this.epoch; }
   actor(id: string) { return this.actors.find(actor => actor.id === id); }
   get policy() { return this.savedPolicy ?? LEGACY_BATTLE_POLICY; }
@@ -134,9 +135,18 @@ export class BattleSession {
   }
 
   recordedCommands(from: number, limit = MAX_REPLICA_FRAME_COMMANDS) {
-    if (!Number.isSafeInteger(from) || from < 0 || from > this.recording.commands.length ||
+    if (!Number.isSafeInteger(from) || from < this.commandOffset || from > this.nextCommandSequence ||
         !Number.isSafeInteger(limit) || limit < 0 || limit > MAX_REPLICA_FRAME_COMMANDS) throw new Error("Invalid command range");
-    return structuredClone(this.recording.commands.slice(from, from + limit));
+    return structuredClone(this.recording.commands.slice(from - this.commandOffset, from - this.commandOffset + limit)
+      .map(entry => ({ ...entry, sequence: entry.sequence + this.commandOffset })));
+  }
+
+  // A durable host restores its global command cursor; the new replay stays checkpoint-relative.
+  restoreCommandOffset(sequence: number) {
+    if (!this.atBoundary || this.replay || this.replica || this.recording.commands.length || !this.recording.checkpoint ||
+        !Number.isSafeInteger(sequence) || sequence < 0 || sequence >= Number.MAX_SAFE_INTEGER) throw new Error("Invalid restored command cursor");
+    this.commandOffset = sequence;
+    this.epoch++;
   }
 
   checkpointReplay(checkpoint: SaveGraph, selectedCards: readonly CardId[]): BattleReplay {
@@ -198,6 +208,7 @@ export class BattleSession {
   startRecordingFromCheckpoint(checkpoint: SaveGraph, selectedCards: readonly CardId[]) {
     if (this.replay) return;
     this.epoch++;
+    this.commandOffset = 0;
     this.recording = { ...this.recording, selectedCards: [...selectedCards],
       checkpoint: structuredClone(checkpoint), commands: [] };
   }

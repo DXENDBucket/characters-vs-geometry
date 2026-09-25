@@ -48,7 +48,7 @@ must be addressed before calling the full multiplayer goal complete.
   actual GameScene, then runs 3600 ticks with checks every 300 ticks and an
   additional Node wire-checkpoint continuation at tick 1500. Eleven scenarios cover
   1-9, 2-10, 5-5, all four 5-10 phases, AE-5, AE-10, AE-EX-2 and IF-BE-4.
-- The rule suite passes 675 tests plus four math tests in its pretest hook.
+- The rule suite passes 675 tests plus four math and twelve durable-host tests in its pretest hook.
   Seven audio tests, data validation and the TypeScript/Vite build also pass;
   the existing large-bundle warning remains.
 
@@ -76,5 +76,7 @@ Do not round checksums to conceal numerical divergence or teach the simulation
 cache about a particular test. Relationship serialization/checksums now have a
 canonical contract and approximated math has a pinned deterministic implementation.
 Platform/content coverage still needs expansion. Participant ownership/resources,
-durable recovery and production transport/player
+production transport/player
 UI remain unfinished; these passing fixtures do not complete the multiplayer goal.
+Atomic process-restart recovery is now covered by the separate
+[durable host](durable-battle-host.md), not by ordinary single-player save loading.

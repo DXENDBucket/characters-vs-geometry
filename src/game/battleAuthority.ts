@@ -1,7 +1,7 @@
 import type { BattleCommand } from "./battleCommands";
 import { validBattleControl, type BattleControl } from "./battleControls";
 import { validBattleOperation, type BattleOperation, type BattleOperationResult } from "./battleOperations";
-import { validBattleActorId } from "./battleParticipants";
+import { validBattleActorId, MAX_BATTLE_PARTICIPANTS } from "./battleParticipants";
 import type { BattleSession } from "./battleSession";
 import { BATTLE_RULES_VERSION } from "./battleSimulation";
 
@@ -49,6 +49,14 @@ interface ActorRequests {
   count: number;
   receipts: Map<number, { intent: string; receipt: BattleReceipt }>;
 }
+export interface BattleAuthorityCheckpoint {
+  version: typeof BATTLE_PROTOCOL_VERSION;
+  rulesVersion: typeof BATTLE_RULES_VERSION;
+  battleId: string;
+  tick: number;
+  commandSequence: number;
+  actors: { id: string; next: number; count: number; receipts: { intent: string; receipt: BattleReceipt }[] }[];
+}
 const fields = (value: unknown, keys: readonly string[]): value is Record<string, unknown> =>
   !!value && Object.getPrototypeOf(value) === Object.prototype && Object.keys(value).length === keys.length &&
   keys.every(key => Object.hasOwn(value, key));
@@ -60,6 +68,20 @@ export function validBattleRequest(value: unknown): value is BattleRequest {
   return fields(value, ["version", "battleId", "sequence", "intent"]) && value.version === BATTLE_PROTOCOL_VERSION &&
     validBattleActorId(value.battleId) && Number.isSafeInteger(value.sequence) && (value.sequence as number) >= 0 &&
     (value.sequence as number) < Number.MAX_SAFE_INTEGER && validBattleIntent(value.intent);
+}
+const natural = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) >= 0 && (value as number) < Number.MAX_SAFE_INTEGER;
+export function validBattleReceipt(value: unknown): value is BattleReceipt {
+  const receipt = value as BattleReceipt;
+  const keys = ["version", "battleId", "requestSequence", "nextSequence", "status"];
+  if (!receipt || receipt.version !== BATTLE_PROTOCOL_VERSION || !validBattleActorId(receipt.battleId) ||
+      !(receipt.requestSequence === null || natural(receipt.requestSequence)) ||
+      !(receipt.nextSequence === null || natural(receipt.nextSequence))) return false;
+  if (receipt.status === "executed") return fields(receipt, [...keys, "tick", "commandSequence", "result"]) &&
+    natural(receipt.tick) && natural(receipt.commandSequence) && receipt.requestSequence !== null &&
+    receipt.nextSequence === receipt.requestSequence + 1 &&
+    ["deployed", "handled", "moved", "invalid", "forbidden", "unavailable", "stale", "occupied", "cooldown", "noChars", "empty"].includes(receipt.result);
+  return receipt.status === "rejected" && fields(receipt, [...keys, "reason"]) &&
+    ["invalid", "forbidden", "wrongBattle", "gap", "expired", "conflict", "busy", "unavailable", "faulted"].includes(receipt.reason);
 }
 // Only called after the bounded schema check; property order is not part of request identity.
 function canonical(value: unknown): string {
@@ -80,9 +102,51 @@ export class BattleAuthority {
   private failed = false;
   private executing = false;
 
-  constructor(readonly battleId: string, private readonly session: BattleSession, private readonly runtime: BattleAuthorityRuntime) {
+  constructor(readonly battleId: string, private readonly session: BattleSession, private readonly runtime: BattleAuthorityRuntime,
+    checkpoint?: BattleAuthorityCheckpoint) {
     if (!validBattleActorId(battleId)) throw new Error("Invalid battle authority ID");
     this.epoch = session.commandEpoch;
+    if (checkpoint) this.restore(checkpoint);
+  }
+
+  snapshot(): BattleAuthorityCheckpoint {
+    if (this.unavailable() || this.failed || this.executing || !this.session.atBoundary) throw new Error("Authority cannot checkpoint");
+    return { version: BATTLE_PROTOCOL_VERSION, rulesVersion: BATTLE_RULES_VERSION, battleId: this.battleId,
+      tick: this.session.clock.tick, commandSequence: this.session.nextCommandSequence,
+      actors: [...this.actors].map(([id, state]) => ({ id, next: state.next, count: state.count,
+        receipts: structuredClone([...state.receipts.values()]) })) };
+  }
+
+  private restore(value: BattleAuthorityCheckpoint) {
+    if (!fields(value, ["version", "rulesVersion", "battleId", "tick", "commandSequence", "actors"]) ||
+        value.version !== BATTLE_PROTOCOL_VERSION || value.rulesVersion !== BATTLE_RULES_VERSION || value.battleId !== this.battleId ||
+        value.tick !== this.session.clock.tick || value.commandSequence !== this.session.nextCommandSequence ||
+        !Array.isArray(value.actors) || value.actors.length > MAX_BATTLE_PARTICIPANTS) throw new Error("Invalid authority checkpoint");
+    const now = this.runtime.inputTime(), commandIds = new Set<number>();
+    let total = 0;
+    if (!Number.isFinite(now) || now < 0) throw new Error("Invalid authority ingress clock");
+    for (const actor of value.actors) {
+      if (!fields(actor, ["id", "next", "count", "receipts"]) || !validBattleActorId(actor.id) || !this.session.actor(actor.id) ||
+          this.actors.has(actor.id) || !natural(actor.next) || !natural(actor.count) || actor.count > MAX_BATTLE_REQUESTS_PER_WINDOW || actor.count > actor.next ||
+          !Array.isArray(actor.receipts) || actor.receipts.length !== Math.min(actor.next, BATTLE_RECEIPT_WINDOW)) throw new Error("Invalid authority actor");
+      const receipts: ActorRequests["receipts"] = new Map();
+      let lastCommand = -1, lastTick = -1;
+      for (const [index, entry] of actor.receipts.entries()) {
+        if (!fields(entry, ["intent", "receipt"]) || typeof entry.intent !== "string" || entry.intent.length > MAX_BATTLE_REQUEST_BYTES ||
+            !validBattleReceipt(entry.receipt)) throw new Error("Invalid authority receipt");
+        const intent = JSON.parse(entry.intent), receipt = entry.receipt;
+        if (!validBattleIntent(intent) || canonical(intent) !== entry.intent || receipt.status !== "executed" ||
+            receipt.battleId !== this.battleId || receipt.requestSequence !== actor.next - actor.receipts.length + index ||
+            receipt.tick > value.tick || receipt.tick < lastTick || receipt.commandSequence >= value.commandSequence ||
+            receipt.commandSequence <= lastCommand || commandIds.has(receipt.commandSequence)) throw new Error("Inconsistent authority receipt");
+        lastTick = receipt.tick; lastCommand = receipt.commandSequence; commandIds.add(lastCommand);
+        receipts.set(receipt.requestSequence!, structuredClone(entry));
+      }
+      // Do not persist process-relative timestamps or reset an exhausted quota on restart.
+      this.actors.set(actor.id, { next: actor.next, count: actor.count, windowStartedAt: now, receipts });
+      total += actor.next;
+    }
+    if (!Number.isSafeInteger(total) || total > value.commandSequence) throw new Error("Invalid authority request totals");
   }
 
   connect(actorId: string): BattleChannel | undefined {

@@ -120,12 +120,14 @@ This is connected-client evidence, not merely multiple scenes in one browser.
 See [authority](battle-authority.md), [synchronization](battle-synchronization.md).
 
 **Gates 5-7 remain partial.** The relay is test infrastructure, not a production
-connection/lobby or player-input UI. Durable host recovery, broader content/fault
-coverage and crowded-battle synchronization cost measurements remain unfinished.
+connection/lobby or player-input UI. [Durable host recovery](durable-battle-host.md)
+now covers atomic file replacement, killed-process restart and real browser
+reconnection. Broader content/fault coverage, distributed failover and crowded
+battle synchronization/storage cost measurements remain unfinished.
 
 ## Next Work
 
-1. Finish participant/resource policies and durable authority recovery.
+1. Finish participant/resource policies and independent player input routing.
 2. Integrate client input and transport lifetime handling, then broaden fault and
    content coverage and profile crowded host/replica execution.
 3. Retain exact cross-engine numeric gates while expanding content/platform coverage.

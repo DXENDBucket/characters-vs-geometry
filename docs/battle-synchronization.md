@@ -57,8 +57,11 @@ transport adapter schedules retries; this module does not start timers itself.
 Reconnect retains a pending request's original sequence. If the host executed it
 but the receipt was lost, retry retrieves the authority's cached receipt instead
 of spending resources again. Only the latest handle for an actor remains valid.
-The ledger survives reconnect to the same live host, not process loss, save reload
-or host migration. Expired requests are rejected rather than silently reissued.
+The plain sync host retains its ledger in memory. The optional
+[durable host](durable-battle-host.md) persists it together with the world before
+publishing, supporting process-loss recovery with the same battle ID. Ordinary
+single-player save reloads and cross-machine host migration are separate paths.
+Expired requests are rejected rather than silently reissued.
 
 Checksums detect divergence; they are not cryptographic authentication. The client
 trusts its authenticated host for combat results. A failed command or restore is
@@ -108,11 +111,14 @@ No desktop packaging is needed.
 
 ## Remaining Work
 
-The complete shared runtime is data-only, but independent control ingress and
-legacy display hydration still need adapters. Entity wire relationships now use
+The [independent entry](independent-battle.md) now shares startup, control execution
+and logical restoration with the scene. Legacy pointer recordings still require
+the local adapter. Entity wire relationships use
 IDs. Wallets, loadouts and cooldowns remain shared; ownership/resource
 policies for different multiplayer modes are not implemented. Production transport,
-join UI, latency handling, reconnect UI and durable authority recovery remain open.
+join UI, latency handling and reconnect UI remain open. Durable authority recovery
+now has file/process and real browser tests; distributed failover and storage
+throughput tuning remain separate work.
 Full-state checksum and snapshot cost need broader profiling on crowded battlefields;
 the wire-state document records an initial Node-only static benchmark, not full
 battle FPS. No performance improvement is claimed by this synchronization work. See the

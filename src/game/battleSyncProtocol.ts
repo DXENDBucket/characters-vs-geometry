@@ -2,7 +2,7 @@ import { DIFFICULTY_VERSION } from "../config";
 import { levelConfigs } from "../data/levels";
 import { isLoadoutCardId } from "./cardEligibility";
 import { uniqueLoadout } from "./cardIdentity";
-import { BATTLE_PROTOCOL_VERSION, validBattleIntent, type BattleReceipt, type BattleRequest } from "./battleAuthority";
+import { BATTLE_PROTOCOL_VERSION, validBattleIntent, validBattleReceipt, type BattleReceipt, type BattleRequest } from "./battleAuthority";
 import { BATTLE_RULES_VERSION } from "./battleSimulation";
 import { MAX_REPLICA_FRAME_COMMANDS, MAX_REPLICA_FRAME_TICKS } from "./battleSession";
 import { validateReplay, type BattleReplay, type RecordedBattleCommand } from "./battleCommands";
@@ -104,17 +104,8 @@ export function decodeSyncMessage(value: unknown): DecodedBattleSyncMessage {
     return message;
   }
   if (message.type === "receipt") {
-    const receipt = message.receipt;
-    const receiptKeys = ["version", "battleId", "requestSequence", "nextSequence", "status"];
-    if (!exactSyncFields(value, [...common, "receipt"]) || !receipt || receipt.version !== BATTLE_PROTOCOL_VERSION ||
-        receipt.battleId !== message.battleId || !(receipt.requestSequence === null || natural(receipt.requestSequence)) ||
-        !(receipt.nextSequence === null || natural(receipt.nextSequence))) throw new Error("Invalid sync receipt");
-    if (receipt.status === "executed" && exactSyncFields(receipt, [...receiptKeys, "tick", "commandSequence", "result"]) &&
-        natural(receipt.tick) && natural(receipt.commandSequence) && receipt.requestSequence !== null &&
-        receipt.nextSequence === receipt.requestSequence + 1 &&
-        ["deployed", "handled", "moved", "invalid", "forbidden", "unavailable", "stale", "occupied", "cooldown", "noChars", "empty"].includes(receipt.result)) return message;
-    if (receipt.status === "rejected" && exactSyncFields(receipt, [...receiptKeys, "reason"]) &&
-        ["invalid", "forbidden", "wrongBattle", "gap", "expired", "conflict", "busy", "unavailable", "faulted"].includes(receipt.reason)) return message;
+    if (exactSyncFields(value, [...common, "receipt"]) && validBattleReceipt(message.receipt) &&
+        message.receipt.battleId === message.battleId) return message;
   }
   throw new Error("Invalid battle sync message");
 }

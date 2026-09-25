@@ -29,11 +29,15 @@ export class BattleSyncHost {
   private closed = false;
 
   constructor(private readonly session: BattleSession, private readonly authority: BattleAuthority,
-    private readonly runtime: BattleSyncHostRuntime) {
+    private readonly runtime: BattleSyncHostRuntime, stream = 0) {
     if (session.replica || session.playback) throw new Error("Only a live authority can host battle sync");
+    if (!Number.isSafeInteger(stream) || stream < 0 || stream >= Number.MAX_SAFE_INTEGER - 1) throw new Error("Invalid sync stream cursor");
+    this.stream = stream;
     this.epoch = session.commandEpoch;
     this.cursor = this.currentCursor();
   }
+
+  get streamCursor() { return this.stream; }
 
   private currentCursor() { return { tick: this.session.clock.tick, sequence: this.session.nextCommandSequence }; }
   private live() { return !this.closed && this.epoch === this.session.commandEpoch && this.session.atBoundary; }
@@ -69,6 +73,7 @@ export class BattleSyncHost {
     if (!hello) return;
     const replay = this.runtime.checkpoint();
     if (!replay.checkpoint) throw new Error("Battle sync requires a checkpoint");
+    if (this.stream >= Number.MAX_SAFE_INTEGER - 1) throw new Error("Battle sync stream exhausted");
     peer.stream = ++this.stream;
     const snapshot: BattleSyncSnapshot = { version: BATTLE_PROTOCOL_VERSION, battleId: this.authority.battleId,
       stream: peer.stream, type: "snapshot", cursor: { ...this.cursor }, nextRequest: hello.nextSequence,

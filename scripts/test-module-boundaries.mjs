@@ -105,7 +105,7 @@ test("data, geometry, support queries and snapshot capture cannot pull in scenes
     "projectileCircuitRules", "pipelineRouting", "pipelineRules", "pipelineActionRules", "pipelineActionPayload",
     "targetedEffectRules", "towerAttachmentRules", "towerUpgradeRules", "towerDeploymentRules",
     "towerMirrorRules", "towerCopy", "towerTopology", "towerBoard", "towerShifterRules", "towerPushRules",
-    "battleOperationRuntime", "edgeTowerControls", "battleControlRuntime", "battleSetup", "independentBattle", "restoreBattleData"];
+    "battleOperationRuntime", "edgeTowerControls", "battleControlRuntime", "battleSetup", "independentBattle", "restoreBattleData", "durableBattleHost"];
   for (const entry of [...entries, "../registry/cardDefinitions"]) {
     const seen = new Set();
     const visit = (name, chain) => {
@@ -144,6 +144,7 @@ test("independent battle boot, controls and restoration have no browser or wall-
     for (const child of graph.get(name) ?? []) visit(child);
   };
   visit("src/game/independentBattle.ts");
+  visit("src/game/durableBattleHost.ts");
   assert.ok(seen.size > 100);
 });
 

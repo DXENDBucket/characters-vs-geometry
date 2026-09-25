@@ -222,3 +222,10 @@ circles, observes one overlay draw per frame and bounds unused glyph retention.
 This local run measured 66.5 ms spawn time and 0.44 ms median simulation tick.
 It remains a synthetic circle fixture, not a populated pipeline/Boss battlefield
 or a synchronized-client frame-time measurement.
+
+The optional durable host serializes checkpoint writes and releases network
+output only after commit. It is isolated from existing single-player frame work.
+Full snapshots are still written per transaction; do not infer low-latency
+multiplayer performance from its correctness tests. Serialization, commit batching
+and storage backpressure need a populated-battle profile before deployment. See
+[durable host](durable-battle-host.md).
