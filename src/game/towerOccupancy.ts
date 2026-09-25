@@ -29,9 +29,9 @@ export function towerCellMembers(tower: Tower | undefined): Tower[] {
 
 // Keep the ordinary tower as the cell representative so skills, pipes and friendly
 // adjacency continue to find it. The protective layer redirects damage separately.
-export function syncTowerOccupancy(towers: Tower[], occupied: Map<string, Tower>) {
+export function syncTowerOccupancy<T extends TowerState>(towers: T[], occupied: Map<string, T>) {
   occupied.clear();
-  const guards = new Map<string, Tower>();
+  const guards = new Map<string, T>();
   for (const tower of towers) {
     delete tower.parenthesisGuard; delete tower.parenthesisInner;
     if (!tower.inPlay || tower.transient) continue;

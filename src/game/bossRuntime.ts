@@ -267,6 +267,7 @@ export function updateBossRuntime(runtime: BossRuntime, seconds: number) {
   startDelSweep(boss, runtime.battleTime);
   startDelLaneSweep(boss, runtime.battleTime);
   if (boss.delLaneSweep && boss.delLaneSweep.phase !== "complete") advanceDelLaneSweep(boss, runtime.battleTime, {
+    removeEcho: part => (part as CubeBoss).body.destroy(),
     createEcho: (x, y) => {
       const echo = createCubeBoss(runtime.scene, "del", runtime.finalDamageReduction, { x, y });
       echo.delEcho = true;

@@ -1,6 +1,7 @@
 import { BOARD_X, BOARD_Y, BOARD_WIDTH, CELL_WIDTH, CELL_HEIGHT, COLUMNS } from "../config";
 import { delLaneSweepConfig, DEL_ECHO_HITBOX_CELLS } from "../data/delBoss";
-import type { CubeBoss, EnemyKind } from "../types";
+import type { EnemyKind } from "../types";
+import type { BossState as CubeBoss } from "./bossState";
 import { delSweepActive } from "./delSweep";
 
 export function delLaneSweepInvincible(boss: CubeBoss) {
@@ -21,6 +22,7 @@ export function startDelLaneSweep(boss: CubeBoss, time: number) {
 
 export function advanceDelLaneSweep(boss: CubeBoss, time: number, callbacks: {
   createEcho: (x: number, y: number) => CubeBoss;
+  removeEcho: (part: CubeBoss) => void;
   sealCell: (lane: number, column: number, durationMs: number) => void;
   summon: (lane: number, kind: EnemyKind) => void;
 }) {
@@ -53,7 +55,7 @@ export function advanceDelLaneSweep(boss: CubeBoss, time: number, callbacks: {
       part.x = nextX;
     }
     if (time < exitedAt) return;
-    for (const part of state.parts) part.body.destroy();
+    for (const part of state.parts) callbacks.removeEcho(part);
     state.parts = [];
     state.phase = "summoning";
     boss.invincibleUntil = state.previousInvincibleUntil;

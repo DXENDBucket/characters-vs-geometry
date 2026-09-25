@@ -5,14 +5,12 @@ import { syncEnemyFacingVisual } from "../render/enemyFacing";
 import { battleRandom, isBattlePlayback } from "./battleSimulation";
 import { cubePromotionKind } from "../bosses/bossRanks";
 import { observeBattleEnemy } from "./battleDiscovery";
-import { LANES } from "../config";
 import { createEnemyStatusVisuals } from "../render/enemyStatusVisuals";
 import {
   enemyFamily,
   enemyIsMace,
   enemyPromotionKind,
   enemyRank,
-  enemySplitSpawnKind,
   getEnemyDefinition
 } from "../registry/enemies";
 import { createEnemyShape } from "../render/unitShapes";
@@ -28,17 +26,6 @@ export { enemyAttackSpeed, enemyAttackInterval, enemyIsBurrowed, enemyIsHighFlyi
   canEnemyMelee, enemyIgnoresLeaderRestrictedMechanics, enemyVolleyShotCount,
   randomizedEnemySpeed, siegeRamSpeed } from "./enemyCombatRules";
 export { initialEnemySkillStates } from "./enemySkillRules";
-
-const SPLIT_SPAWN_LANES: number[][] = [];
-for (let lane = 0; lane < LANES; lane += 1) {
-  const lanes: number[] = [];
-  for (let candidate = lane - 1; candidate <= lane + 1; candidate += 1) {
-    if (candidate >= 0 && candidate < LANES) {
-      lanes.push(candidate);
-    }
-  }
-  SPLIT_SPAWN_LANES.push(lanes);
-}
 
 export function enemyScaleFromHp(hpRatio: number) {
   return 0.4 + Phaser.Math.Clamp(hpRatio, 0, 1) * 0.6;
@@ -143,10 +130,4 @@ export function applyEnemyPromotion(scene: Phaser.Scene, enemy: Enemy, kind: Ene
   syncEnemyVisualScale(enemy);
 }
 
-export function splitSpawnKind(kind: EnemyKind) {
-  return enemySplitSpawnKind(kind);
-}
-
-export function splitSpawnLanes(lane: number) {
-  return SPLIT_SPAWN_LANES[lane] ?? [];
-}
+export { splitSpawnKind, splitSpawnLanes } from "./enemySplitRules";

@@ -208,6 +208,7 @@ test("DEL half-health sweep shields once, covers only lanes 2/6 and summons thre
   const cells = [], summons = [], echoes = [];
   const callbacks = {
     createEcho: (x,y) => { const echo = { x,y,body: { destroy: () => destroyed++ } }; echoes.push(echo); return echo; },
+    removeEcho: echo => echo.body.destroy(),
     sealCell: (lane,col,ms) => { assert.equal(ms,40000); cells.push(`${lane}:${col}`); },
     summon: lane => summons.push(lane)
   };
@@ -252,6 +253,7 @@ test("DEL quarter-health sweep follows the half event, seals outer lanes and sum
   let destroyed = 0;
   const callbacks = {
     createEcho: (x,y) => { const echo = { x,y,body: { destroy: () => destroyed++ } }; echoes.push(echo); return echo; },
+    removeEcho: echo => echo.body.destroy(),
     sealCell: (lane,col,ms) => { assert.equal(ms,40000); cells.push(`${lane}:${col}`); },
     summon: (lane,kind) => summons.push([lane,kind])
   };

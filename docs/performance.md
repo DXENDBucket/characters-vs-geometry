@@ -142,6 +142,14 @@ than rebuilt each tick. Bodyless rule tests and real displayed/detached battle
 comparisons verify behavior; this is not a full-battle performance measurement.
 See [projectile simulation](projectile-runtime.md).
 
+Damage/removal and shared-health rules now use data-only states with explicit
+presentation ports. Tower aura buffers are isolated per roster and the live
+lifecycle adapter is cached; health observers are reused rather than created
+per hit/stat refresh. Rules, real presentation-detached scenes, checkpoint
+continuation and connected-client regressions preserve battle behavior. This is
+an ownership/allocation change, not a full-battle FPS measurement.
+See [damage and unit lifecycle](unit-lifecycle.md).
+
 Status lifecycle, final combat panels and passenger-seat calculations now run
 without rendering dependencies. Numeric caches and aura source/cell buffers are
 isolated per unit or battlefield, while status visuals run once per displayed

@@ -27,6 +27,7 @@ try {
     const { drawNullifiedTowers }=await moduleFor("/src/render/nullifiedTowers.ts");
     const { captureBattleSnapshot, restoreBattleSnapshot }=await moduleFor("/src/game/battleSnapshot.ts");
     const { validateBattleSave }=await moduleFor("/src/game/validateBattleSave.ts");
+    const { identifyBattleEntity }=await moduleFor("/src/game/battleEntityIds.ts");
     const { removeTower }=await moduleFor("/src/game/unitLifecycle.ts");
     const game=window.__testGame; game.loop.stop();
     for(const active of game.scene.getScenes(true)) game.scene.stop(active.sys.settings.key);
@@ -43,6 +44,7 @@ try {
     a.mirrorGroupId=b.mirrorGroupId=99;
     syncTowerOccupancy(scene.towers,scene.occupied); scene.updateLevelAuras();
     const edge={type:"=",axis:"horizontal",lane:3,column:3,mode:"=",level:1,autoUpgrade:false};
+    identifyBattleEntity(scene,"edge",edge);
     scene.edgeTowers.push(edge); scene.numbers.sync();
     const enemy=createEnemy(scene,{kind:"circle",lane:3,x:a.x+25,time:0,waveNumber:0,waveWeight:0,finalDamageReduction:0});
     scene.enemies.push(enemy);

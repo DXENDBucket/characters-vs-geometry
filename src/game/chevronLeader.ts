@@ -1,7 +1,7 @@
 import { CHEVRON_LEADER } from "../data/chevronLeader";
 import { enemyFamily, enemyIsMace } from "../registry/enemies";
-import type { Enemy } from "../types";
-import { applyEnemyBaseStats } from "./unitStats";
+import type { EnemyState as Enemy } from "./enemyState";
+import { applyEnemyBaseStats } from "./unitStatRules";
 
 export function enemyUsesMaceMovement(enemy: Enemy) {
   return enemyIsMace(enemy.kind) || (enemyFamily(enemy.kind) === "chevronLeader" && !!enemy.chevronAssault);

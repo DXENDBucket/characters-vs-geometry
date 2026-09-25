@@ -1,19 +1,21 @@
 import { COLUMNS, LANES } from "../config";
 import { towerFormType } from "./towerIdentity";
-import type { Tower } from "../types";
+import type { TowerState as Tower } from "./towerState";
 import { inFriendlyRange, towerCell } from "./towerTopology";
 
 export const ZEAL_ATTACK_SPEED_MULTIPLIER = 1.35;
 const ZEAL_RADIUS_CELLS = 2;
 const BOARD_CELL_COUNT = COLUMNS * LANES;
 export const UNYIELDING_PERCENT_PER_LEVEL = 15;
-const unyieldingCells = new Float64Array(BOARD_CELL_COUNT);
+const unyieldingBuffers = new WeakMap<Tower[], Float64Array>();
 
 export function isInCentered3x3Aura(source: Tower, target: Tower) {
   return inFriendlyRange(source, target, 1);
 }
 
 export function syncUnyieldingAuras(towers: Tower[]) {
+  let unyieldingCells = unyieldingBuffers.get(towers);
+  if (!unyieldingCells) { unyieldingCells = new Float64Array(BOARD_CELL_COUNT); unyieldingBuffers.set(towers, unyieldingCells); }
   unyieldingCells.fill(0);
   for (const tower of towers) {
     if (!tower.inPlay || tower.transient || towerFormType(tower) !== "g") continue;
@@ -41,12 +43,14 @@ export interface TowerAuraSources {
   hasZeal: boolean;
 }
 
-const towerAuraSourcesBuffer: TowerAuraSources = {
-  zealCells: new Uint8Array(BOARD_CELL_COUNT),
-  hasZeal: false
-};
+const auraBuffers = new WeakMap<Tower[], TowerAuraSources>();
 
 export function towerAuraSources(towers: Tower[]): TowerAuraSources {
+  let towerAuraSourcesBuffer = auraBuffers.get(towers);
+  if (!towerAuraSourcesBuffer) {
+    towerAuraSourcesBuffer = { zealCells: new Uint8Array(BOARD_CELL_COUNT), hasZeal: false };
+    auraBuffers.set(towers, towerAuraSourcesBuffer);
+  }
   towerAuraSourcesBuffer.hasZeal = false;
   for (const tower of towers) {
     if (isZealSource(tower)) {

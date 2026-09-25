@@ -61,6 +61,7 @@ import { executePipelineAction, healPipelineArea, pipelineActionSelfCost } from 
 import type { TowerActionEvent } from "../game/towerActions";
 import { reflectEnemyAttack } from "../game/projectileRuntime";
 import { projectileSimulationRuntime, type LiveProjectileRuntime } from "../render/projectileRuntime";
+import { unitLifecycleSimulationRuntime, type LiveUnitLifecycleRuntime } from "../render/unitLifecycle";
 import { detonateSlowAuraTower } from "../game/unitLifecycle";
 import { drawEnemyHealthLinks } from "../render/enemyHealthLinks";
 import { PauseMenu } from "../render/pauseMenu";
@@ -381,7 +382,7 @@ export class GameScene extends Phaser.Scene {
   private towerDeploymentRuntimeCache!: TowerDeploymentRuntime;
   private combatRuntimeCache!: CombatRuntime;
   private bossRuntimeCache!: BossRuntime;
-  private unitLifecycleRuntimeCache!: UnitLifecycleRuntime;
+  private unitLifecycleRuntimeCache!: LiveUnitLifecycleRuntime;
   private projectileRuntimeCache!: LiveProjectileRuntime;
   private readonly projectileMotion = new ProjectileMotionFrame();
   private triggerTowerRuntimeCache!: TriggerTowerRuntime;
@@ -1920,10 +1921,10 @@ export class GameScene extends Phaser.Scene {
     runtime.bossPhaseIndex = this.bossPhaseIndex;
     runtime.battleTime = this.battleTime;
     runtime.finalDamageReduction = this.difficultyConfig.finalDamageReduction;
-    return runtime;
+    return unitLifecycleSimulationRuntime(runtime);
   }
 
-  private createUnitLifecycleRuntime(): UnitLifecycleRuntime {
+  private createUnitLifecycleRuntime(): LiveUnitLifecycleRuntime {
     return {
       enemyHpMultiplier: () => endlessEnemyHpMultiplier(this.levelConfig, this.wave),
       onTowerAction: this.routeTowerAction,

@@ -43,9 +43,15 @@ transport-neutral authority and synchronization gates above.
   All projectile advancement/collision, mortar trajectories, reflection payloads,
   Gathering and Orientation targeting now use data-only rules with explicit
   presentation/factory ports. Bodyless Node tests and actual displayed/detached
-  scene continuations match, including cross-world scratch isolation. Damage,
-  firing and other controllers remain scene-bound; this does not complete the
+  scene continuations match, including cross-world scratch isolation. Firing
+  and other controllers remain scene-bound; this does not complete the
   headless simulation gate. See [projectile simulation](projectile-runtime.md).
+  Actual damage/removal, shared-health arithmetic, passenger release, death splits
+  and lethal-lock decisions now also run on data-only states through the same
+  live path. Bodyless rules and displayed/detached/restored battle scenes verify
+  their ordering. Gameplay callbacks still connect mirror/pipeline and Boss phase
+  controllers that need extraction; the whole simulation is not headless yet.
+  See [damage and unit lifecycle](unit-lifecycle.md).
 - Determinism: the integrated `BattleSession` now owns fixed steps, seeded battle
   RNG, delayed action queue, recording and checkpoint timing. Independent session
   tests and unchanged browser replay checksums verify this extraction. `BattleWorld`

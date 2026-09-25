@@ -96,6 +96,8 @@ function projectilePorts() {
     createProjectile: createTowerProjectileState,
     createMortar: createMortarProjectileState,
     presentation: {
+      ...load("src/game/unitLifecyclePresentation.ts").NO_UNIT_LIFECYCLE_PRESENTATION,
+      towerHealth: load("src/render/towerHealth.ts").syncHealthBar,
       ...load("src/game/projectilePresentation.ts").NO_PROJECTILE_PRESENTATION,
       position: projectile => projectile.body.setPosition(projectile.x, projectile.y),
       rotation: (projectile, angle) => { projectile.body.rotation = angle; },

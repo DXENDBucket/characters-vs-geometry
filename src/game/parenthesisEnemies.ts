@@ -1,7 +1,9 @@
+import { releaseParenthesisPassengers as releasePassengers } from "./enemyReleaseRules";
+import { enemyReleasePresentation } from "../render/enemyRelease";
 import type { Enemy } from "../types";
-import { addEnemyToField, removeEnemyAt } from "./enemyRoster";
+import { removeEnemyAt } from "./enemyRoster";
 import { enemyFamily, enemyRank } from "../registry/enemies";
-import { canJoinEnemyGroup, enemyMaximumHp, parenthesisHalfSpan, PASSENGER_STAT_RATIO, syncPassengerPositions } from "./enemyContainers";
+import { canJoinEnemyGroup, enemyMaximumHp, parenthesisHalfSpan, PASSENGER_STAT_RATIO } from "./enemyContainers";
 import { enemyIsBurrowed, enemyIsHighFlying } from "./enemyCombatRules";
 import { applyStatusEffect, effectSpeedMultiplier, hasUnexpiredStatusEffect, removeStatusEffect, statusMultipliers } from "./statusEffects";
 import { syncEnemyBodyPosition } from "../render/enemyStatus";
@@ -58,22 +60,7 @@ export function collectParenthesisPassengers(carrier: Enemy, enemies: Enemy[], t
 }
 
 export function releaseParenthesisPassengers(carrier: Enemy, enemies: Enemy[], time: number) {
-  if (!carrier.parenthesisCargo?.length) return;
-  syncPassengerPositions(carrier);
-  const cargo = carrier.parenthesisCargo ?? [];
-  carrier.parenthesisCargo = [];
-  for (const passenger of cargo) {
-    passenger.parenthesisCarrier = undefined;
-    passenger.inPlay = true;
-    for (const effect of carrier.statusEffects) {
-      if (effect.name === "flying" && effect.expiresAt > time) {
-        applyStatusEffect(passenger, "flying", effect.expiresAt - time, time, effect.speedMultiplier, effect.showHalo);
-      }
-    }
-    passenger.body.setVisible(true).setAlpha(1);
-    syncEnemyBodyPosition(passenger);
-    addEnemyToField(enemies, passenger);
-  }
+  releasePassengers(carrier, enemies, time, enemyReleasePresentation);
 }
 
 export function passengerMovementStatus(passenger: Enemy, carrier: Enemy, time: number) {

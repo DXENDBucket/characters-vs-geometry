@@ -3,7 +3,8 @@ import type { Enemy } from "../types";
 import { enemyFamily } from "../registry/enemies";
 import { hasStatusEffectName } from "../game/rules/statusEffectRules";
 import { enemyStatusRevision } from "../game/statusEffects";
-import { syncPassengerPositions, syncPassengerVisuals } from "../game/enemyContainers";
+import { syncPassengerVisuals } from "../game/enemyContainers";
+import { syncPassengerPositionState } from "../game/enemyContainerRules";
 import { setPositionIfChanged, setScaleIfChanged, setVisibleIfChanged } from "../game/visualGuards";
 import { syncEnemyFacingVisual } from "./enemyFacing";
 
@@ -21,8 +22,13 @@ function visualCache(enemy: Enemy) {
 }
 
 export function syncEnemyBodyPosition(enemy: Enemy) {
+  syncPassengerPositionState(enemy);
+  syncEnemyPositionVisual(enemy);
+}
+
+export function syncEnemyPositionVisual(enemy: Enemy) {
   setPositionIfChanged(enemy.body, enemy.x, enemy.y + enemyDisplayOffsetY(enemy));
-  syncPassengerPositions(enemy);
+  syncPassengerVisuals(enemy);
   invalidateStatusVisuals(enemy);
 }
 

@@ -69,6 +69,8 @@ use graph references; this is not yet the stable-ID relationship migration.
 - Dependency guards prevent these simulation modules from importing rendering.
 
 This removes direct rendering dependencies from projectile advancement, but the
-full battle is not headless yet. Damage/removal cascades, firing, enemy/Boss controllers,
-pipeline execution and other skills still need their remaining display/factory
-dependencies separated. No full-battle FPS gain is claimed.
+full battle is not headless yet. Damage/removal now also has a data-only runtime,
+verified together with real projectile hits; see [unit lifecycle](unit-lifecycle.md).
+Its external gameplay callbacks, firing, enemy/Boss controllers, pipeline execution
+and other skills still need their remaining display/factory dependencies separated.
+No full-battle FPS gain is claimed.

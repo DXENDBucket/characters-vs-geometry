@@ -229,6 +229,11 @@ export function createCubeBoss(
   return identifyBattleEntity(scene, "boss", boss);
 }
 
+export function syncCubeBossVisual(boss: CubeBoss, time: number) {
+  boss.body.setPosition(boss.x, boss.y);
+  drawCubeBoss(boss, time);
+}
+
 export function updateCubeBossMotion(boss: CubeBoss, seconds: number, movementMultiplier = 1, time = 0) {
   advanceBossPosition(boss, seconds, movementMultiplier, time);
   boss.body.setPosition(boss.x, boss.y);

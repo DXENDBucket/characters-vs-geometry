@@ -12,7 +12,7 @@ const actionContexts = new WeakMap<object, TowerBehaviorContext>();
 
 export function towerActionContext(tower: object) { return actionContexts.get(tower); }
 
-export function withTowerActionContext<T>(tower: Tower, context: TowerBehaviorContext, run: () => T): T {
+export function withTowerActionContext<T>(tower: TowerState, context: TowerBehaviorContext, run: () => T): T {
   const previous = actionContexts.get(tower);
   actionContexts.set(tower, context);
   try { return run(); }

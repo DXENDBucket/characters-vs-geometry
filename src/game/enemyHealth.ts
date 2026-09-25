@@ -1,6 +1,9 @@
-import type { Enemy, EnemyHealthPool } from "../types";
+import type { EnemyHealthPool as HealthPool } from "../types";
+import type { EnemyState as Enemy } from "./enemyState";
 import { getEnemyDefinition } from "../registry/enemies";
-import { canJoinEnemyGroup, enemyMaximumHp } from "./enemyContainers";
+import { canJoinEnemyGroup, enemyMaximumHp } from "./enemyContainerRules";
+
+type EnemyHealthPool = HealthPool<Enemy>;
 
 function syncPool(pool: EnemyHealthPool) {
   const ratio = pool.maxHp > 0 ? Math.max(0, Math.min(1, pool.hp / pool.maxHp)) : 0;

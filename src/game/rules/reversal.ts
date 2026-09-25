@@ -1,4 +1,5 @@
-import type { Enemy, StatusEffect } from "../../types";
+import type { StatusEffect } from "../../types";
+import type { EnemyState as Enemy } from "../enemyState";
 import type { BossState } from "../bossState";
 
 export interface StatusHolder {

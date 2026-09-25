@@ -47,7 +47,7 @@ try {
     check(newer.environmentHpMultiplier === 1.35 && newer.hp / enemyMaximumHp(newer) === .5, "Promotion lost spawn multiplier");
     scene.wave = 21;
     const split = spawn("circle2", 2, 8);
-    spawnSplitEnemies(scene.unitLifecycleRuntime(), split, 0, 0);
+    spawnSplitEnemies(scene.combatRuntime(), split, 0, 0);
     check(scene.enemies.slice(-3).every(enemy => enemy.environmentHpMultiplier === 1.7), "Splits lost environment");
     const carrier = spawn("parentheses", 6, 8), passenger = spawn("triangle", 6, 8);
     collectParenthesisPassengers(carrier, scene.enemies, 0);

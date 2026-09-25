@@ -1,5 +1,6 @@
 import type { Enemy } from "../types";
-import { containedEnemies, syncPassengerPositionState } from "./enemyContainerRules";
+import { syncPassengerPositionState } from "./enemyContainerRules";
+import { destroyContainedEnemies as destroyContents } from "./enemyReleaseRules";
 export { PASSENGER_STAT_RATIO, canJoinEnemyGroup, enemyCanBeLoaded, enemyIsActive,
   enemiesWithPassengers, containedEnemies, enemyMaximumHp, parenthesisHalfSpan } from "./enemyContainerRules";
 
@@ -18,12 +19,5 @@ export function syncPassengerPositions(carrier: Enemy) {
 }
 
 export function destroyContainedEnemies(enemy: Enemy) {
-  for (const cargo of containedEnemies(enemy)) {
-    destroyContainedEnemies(cargo);
-    cargo.parenthesisCarrier = undefined;
-    cargo.inPlay = false;
-    cargo.body.destroy();
-  }
-  enemy.burrowCargo = [];
-  enemy.parenthesisCargo = [];
+  destroyContents(enemy, cargo => (cargo as Enemy).body.destroy());
 }

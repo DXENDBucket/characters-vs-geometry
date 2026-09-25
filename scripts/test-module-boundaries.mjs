@@ -91,7 +91,9 @@ test("data, geometry, support queries and snapshot capture cannot pull in scenes
     "tutorial", "tutorialRegistry", "tutorialState", "tutorialPresentation", "battleLifecycle", "battleDiscovery",
     "battleSession", "battleAuthority", "battleSyncProtocol", "battleSyncHost", "battleSyncClient", "battleParticipants", "battlePolicy", "battleChecksum", "battleLoadout", "loadoutReselection", "unitGeometry", "enemySupport",
     "combatStats", "statusEffects", "enemyContainerRules", "slowAura", "battleWorld", "waveSpawner", "rules/statusEffectRules",
-    "projectileRuntime", "projectileMotion", "projectileBounds", "projectilePresentation", "gatheringRules", "orientationRules"];
+    "projectileRuntime", "projectileMotion", "projectileBounds", "projectilePresentation", "gatheringRules", "orientationRules",
+    "unitLifecycle", "unitLifecyclePresentation", "towerHealthRules", "enemyHealth", "unitStatRules", "towerAuras",
+    "enemyReleaseRules", "enemySplitRules", "solarBombRules", "delLaneSweep", "chevronLeader"];
   for (const entry of [...entries, "../registry/cardDefinitions"]) {
     const seen = new Set();
     const visit = (name, chain) => {

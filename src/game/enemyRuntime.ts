@@ -1,3 +1,6 @@
+import { spawnSplitEnemies as spawnEnemySplits } from "./enemySplitRules";
+import { releaseBurrowCargo as releaseCargo } from "./enemyReleaseRules";
+import { enemyReleasePresentation } from "../render/enemyRelease";
 import Phaser from "phaser";
 import { addEnemyToField, removeEnemyFromField } from "./enemyRoster";
 import { advanceIonCharge, enemyUsesMaceMovement, updateChevronPhase } from "./chevronLeader";
@@ -39,7 +42,7 @@ import {
 } from "../render/combatEffects";
 import type { CubeBoss, Enemy, EnemyKind, Tower, WaveTracker } from "../types";
 import type { EnemyAdvanceRuntime, EnemySpawnRuntime } from "./combatRuntime";
-import { splitSpawnKind, splitSpawnLanes, syncEnemyFacingVisual, syncEnemyVisualScale } from "./enemyBehaviors";
+import { syncEnemyFacingVisual, syncEnemyVisualScale } from "./enemyBehaviors";
 import {
   canEnemyMelee, enemyIgnoresLeaderRestrictedMechanics, enemyIsBurrowed, enemyIsHighFlying,
   enemyVolleyShotCount, shouldEnemyShoot, siegeRamSpeed
@@ -100,104 +103,8 @@ export function spawnWaveEnemies(runtime: EnemySpawnRuntime, options: WaveSpawnR
   return spawnBattleWave(options, battleRandom(runtime.scene), spawn => spawnEnemyAt(runtime, spawn));
 }
 
-export function spawnSplitEnemies(
-  runtime: EnemySpawnRuntime,
-  enemy: Enemy,
-  battleTime: number,
-  finalDamageReduction: number
-) {
-  const family = enemyFamily(enemy.kind);
-  if (family === "hexMace") {
-    spawnHexMaceSplit(runtime, enemy, battleTime);
-    return;
-  }
-
-  if (family === "angelPentagonRam") {
-    spawnAngelPentagonRamSplit(runtime, enemy, battleTime);
-    return;
-  }
-
-  if (enemyIsSiegeRam(enemy.kind)) {
-    spawnSiegeRamTriangles(runtime, enemy, battleTime);
-    return;
-  }
-
-  const spawnKind = splitSpawnKind(enemy.kind);
-  if (!spawnKind) {
-    return;
-  }
-
-  for (const lane of splitSpawnLanes(enemy.lane)) {
-    spawnEnemyAt(runtime, {
-      kind: spawnKind,
-      waveNumber: enemy.waveNumber,
-      time: battleTime,
-      lane,
-      x: enemy.x,
-      waveWeight: 0,
-      finalDamageReduction
-    });
-  }
-}
-
-function spawnSiegeRamTriangles(runtime: EnemySpawnRuntime, enemy: Enemy, time: number) {
-  const spawnKind = enemyKindAtRank("triangle", enemyRank(enemy.kind));
-  const direction = enemyFacingDirection(enemy);
-  const offsets = [-18, 18];
-  for (const offset of offsets) {
-    spawnEnemyAt(runtime, {
-      kind: spawnKind,
-      waveNumber: enemy.waveNumber,
-      time,
-      lane: enemy.lane,
-      x: enemy.x + offset,
-      waveWeight: 0,
-      finalDamageReduction: enemy.baseStats.finalDamageReduction,
-      movementDirection: direction
-    });
-  }
-}
-
-function spawnAngelPentagonRamSplit(runtime: EnemySpawnRuntime, enemy: Enemy, time: number) {
-  const rank = enemyRank(enemy.kind);
-  const direction = enemyFacingDirection(enemy);
-  const spawns: Array<{ kind: EnemyKind; offset: number }> = [
-    { kind: enemyKindAtRank("angelPentagon", rank), offset: direction * 18 },
-    { kind: enemyKindAtRank("pentagon", rank), offset: -direction * 18 }
-  ];
-  for (const spawn of spawns) {
-    spawnEnemyAt(runtime, {
-      kind: spawn.kind,
-      waveNumber: enemy.waveNumber,
-      time,
-      lane: enemy.lane,
-      x: enemy.x + spawn.offset,
-      waveWeight: 0,
-      finalDamageReduction: enemy.baseStats.finalDamageReduction,
-      movementDirection: direction
-    });
-  }
-}
-
-function spawnHexMaceSplit(runtime: EnemySpawnRuntime, enemy: Enemy, time: number) {
-  const rank = enemyRank(enemy.kind);
-  const direction = enemyFacingDirection(enemy);
-  const spawns: Array<{ kind: EnemyKind; offset: number }> = [
-    { kind: enemyKindAtRank("chargingHexagon", rank), offset: direction * 18 },
-    { kind: enemyKindAtRank("hexagon", rank), offset: -direction * 18 }
-  ];
-  for (const spawn of spawns) {
-    spawnEnemyAt(runtime, {
-      kind: spawn.kind,
-      waveNumber: enemy.waveNumber,
-      time,
-      lane: enemy.lane,
-      x: enemy.x + spawn.offset,
-      waveWeight: 0,
-      finalDamageReduction: enemy.baseStats.finalDamageReduction,
-      movementDirection: direction
-    });
-  }
+export function spawnSplitEnemies(runtime: EnemySpawnRuntime, enemy: Enemy, time: number, reduction: number) {
+  spawnEnemySplits(options => { spawnEnemyAt(runtime, options); }, enemy, time, reduction);
 }
 
 export function advanceEnemies(runtime: EnemyAdvanceRuntime, time: number, seconds: number) {
@@ -865,35 +772,9 @@ function emergeBurrowArrow(runtime: EnemyAdvanceRuntime, carrier: Enemy) {
   releaseBurrowCargo(runtime, carrier, { reverseDirection: true });
 }
 
-export function releaseBurrowCargo(
-  runtime: EnemySpawnRuntime,
-  carrier: Enemy,
-  options: { reverseDirection?: boolean } = {}
-) {
-  const cargo = carrier.burrowCargo ?? [];
-  carrier.burrowCargo = [];
-  cargo.forEach((enemy, index) => {
-    if (enemy.inPlay) {
-      return;
-    }
-
-    enemy.inPlay = true;
-    enemy.lane = carrier.lane;
-    enemy.y = carrier.y;
-    enemy.x = carrier.x + 22 + index * 10;
-    if (options.reverseDirection) {
-      enemy.movementDirection = 1;
-    }
-    syncEnemyFacingVisual(enemy);
-    enemy.blockedByTowerId = undefined;
-    enemy.blockedSince = undefined;
-    enemy.body.setVisible(true);
-    enemy.body.setAlpha(1);
-    enemy.body.setDepth(60 + enemy.lane);
-    syncEnemyBodyPosition(enemy);
-    addEnemyToField(runtime.enemies, enemy);
-    makeShiftEffect(runtime.scene, carrier.x, carrier.y, enemy.x, enemy.y);
-  });
+export function releaseBurrowCargo(runtime: EnemySpawnRuntime, carrier: Enemy,
+  options: { reverseDirection?: boolean } = {}) {
+  releaseCargo({ enemies: runtime.enemies, presentation: enemyReleasePresentation }, carrier, options);
 }
 
 function burrowCargoCapacity(enemy: Enemy) {

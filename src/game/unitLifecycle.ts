@@ -1,54 +1,50 @@
-import Phaser from "phaser";
 import { removeEnemyFromField } from "./enemyRoster";
+import { syncPassengerPositionState } from "./enemyContainerRules";
 import { syncTowerTopology } from "./towerTopology";
-import type { TowerActionListener } from "./towerActions";
 import { towerBehaviorType } from "./towerIdentity";
 import {
-  CELL_HEIGHT,
-  CELL_WIDTH,
   TETRAHEDRON_BOSS_HASTE_DURATION,
   TETRAHEDRON_BOSS_HASTE_MULTIPLIER,
   TETRAHEDRON_BOSS_INVINCIBLE_DURATION
 } from "../config";
-import { updateCubeBossMotion } from "../bosses/cubeBoss";
-import { isIcosahedronBoss, isTetrahedronBoss } from "./bossRules";
+import { advanceBossPosition, isIcosahedronBoss, isTetrahedronBoss } from "./bossRules";
 import { startDelSweep, delSweepActive } from "./delSweep";
 import { startDelLaneSweep, delLaneSweepInvincible } from "./delLaneSweep";
-import { syncDelSweepWarning } from "../render/delSweepWarning";
-import { makeBossHitFlash, makeBossInvincibleFlash, makeEnemyInvincibleFlash, makeShockPulse } from "../render/combatEffects";
-import type { CubeBoss, DamageType, Enemy, EnemyProjectile, MortarProjectile, Projectile, Tower, WaveTracker } from "../types";
+import type { DamageType, WaveTracker } from "../types";
+import type { BossState as CubeBoss } from "./bossState";
+import type { EnemyState as Enemy } from "./enemyState";
+import type { TowerState as Tower } from "./towerState";
+import type { ProjectileState as Projectile, EnemyProjectileState as EnemyProjectile, MortarProjectileState as MortarProjectile } from "./projectileState";
+import type { UnitLifecyclePresentation } from "./unitLifecyclePresentation";
+import type { EnemySpawnOptions } from "./waveSpawner";
 import { bossFinalStats, enemyDefenseStats } from "./combatStats";
 import { calculateDamage } from "./damage";
 import { changeEnemyHealth, detachEnemyHealth } from "./enemyHealth";
 import { updateChevronPhase } from "./chevronLeader";
-import { syncChevronVisual } from "../render/chevronLeader";
-import { destroyContainedEnemies } from "./enemyContainers";
-import { releaseParenthesisPassengers } from "./parenthesisEnemies";
-import { syncEnemyVisualScale } from "./enemyBehaviors";
+import { destroyContainedEnemies, releaseParenthesisPassengers, releaseBurrowCargo } from "./enemyReleaseRules";
 import { enemyIsHighFlying } from "./enemyCombatRules";
-import { releaseBurrowCargo, spawnSplitEnemies } from "./enemyRuntime";
+import { spawnSplitEnemies } from "./enemySplitRules";
 import { isPointInSlowAura } from "./slowAura";
 import {
   bounceSolarBombFromPoint,
   depleteSolarBomb,
   solarBombDamageMultiplier,
-  solarBombIsDepleted,
-  syncSolarBombVisual
-} from "./solarBomb";
+  solarBombIsDepleted
+} from "./solarBombRules";
 import { enemyIsSolarBomb } from "./enemyIdentity";
 import { addFrozenPhysicalDamage, applyStatusEffect, hasStatusEffect } from "./statusEffects";
-import { syncEnemyBodyPosition } from "../render/enemyStatus";
-import { gridCellKey } from "./targeting";
 import { bossParts, secondaryBossParts, forEachBossPart } from "./unitGeometry";
-import { changeTowerHealth, syncHealthBar, syncTowerHealthNetworks, towerHealthDepleted } from "./towerHealth";
+import { changeTowerHealth, syncTowerHealthNetworks, towerHealthDepleted } from "./towerHealthRules";
 import { syncUnyieldingAuras } from "./towerAuras";
-import { towerFinalStats } from "./unitStats";
+import { towerFinalStats } from "./unitStatRules";
 import { syncTowerOccupancy, towerDamageReceiver } from "./towerOccupancy";
 
+const gridCellKey = (lane: number, column: number) => `${lane}:${column}`;
+
 export interface UnitLifecycleRuntime {
-  enemyHpMultiplier?: () => number;
-  onTowerAction?: TowerActionListener;
-  scene: Phaser.Scene;
+  presentation: UnitLifecyclePresentation;
+  spawnEnemy: (options: EnemySpawnOptions) => void;
+  onDetonation?: (tower: Tower) => boolean;
   enemies: Enemy[];
   towers: Tower[];
   projectiles: Projectile[];
@@ -87,7 +83,7 @@ export function settleTowerHealth(runtime: UnitLifecycleRuntime) {
         if (tower.inPlay && towerHealthDepleted(tower)) {
           for (const member of tower.healthPool?.members ?? [tower]) defeated.add(member);
         }
-        syncHealthBar(tower);
+        runtime.presentation.towerHealth(tower);
       }
       if (defeated.size === 0) break;
       removed = true;
@@ -109,7 +105,7 @@ export function damageTower(runtime: UnitLifecycleRuntime, tower: Tower, damage:
   const mitigatedDamage = calculateDamage(damage, damageType, stats.armor, stats.magicResistance);
   const actualDamage = damageType !== "true"
     ? runtime.absorbTowerDamage?.(tower, mitigatedDamage, damageType) ?? mitigatedDamage : mitigatedDamage;
-  changeTowerHealth(tower, -actualDamage);
+  changeTowerHealth(tower, -actualDamage, runtime.presentation.towerHealth);
   const defeated = towerHealthDepleted(tower) ? [...(tower.healthPool?.members ?? [tower])] : undefined;
   runtime.onTowerDamaged(tower);
   if (defeated) {
@@ -132,7 +128,7 @@ export function damageBoss(
   if (damagedPart !== boss && !secondaryBossParts(boss).includes(damagedPart)) return false;
   if (damagedPart.invincibleUntil > runtime.battleTime) {
     if (!delSweepActive(damagedPart) && !delLaneSweepInvincible(damagedPart)) {
-      makeBossInvincibleFlash(runtime.scene, damagedPart.x, damagedPart.y, damagedPart.hitboxWidth, damagedPart.hitboxHeight);
+      runtime.presentation.bossInvincible(damagedPart);
     }
     return false;
   }
@@ -150,8 +146,8 @@ export function damageBoss(
       part.invincibleUntil = runtime.battleTime + ICOSAHEDRON_FINAL_LOCK_DURATION;
     });
     syncBossCopyHp(boss);
-    makeBossHitFlash(runtime.scene, damagedPart.x, damagedPart.y, damageType, damagedPart.hitboxWidth, damagedPart.hitboxHeight);
-    makeBossInvincibleFlash(runtime.scene, damagedPart.x, damagedPart.y, damagedPart.hitboxWidth, damagedPart.hitboxHeight);
+    runtime.presentation.bossHit(damagedPart, damageType);
+    runtime.presentation.bossInvincible(damagedPart);
     return true;
   }
 
@@ -164,18 +160,18 @@ export function damageBoss(
     boss.nextBossHasteTrailAt = runtime.battleTime;
     boss.hp = nextHp <= 0 ? 1 : boss.maxHp * 0.1;
     syncBossCopyHp(boss);
-    makeBossHitFlash(runtime.scene, damagedPart.x, damagedPart.y, damageType, damagedPart.hitboxWidth, damagedPart.hitboxHeight);
-    makeBossInvincibleFlash(runtime.scene, damagedPart.x, damagedPart.y, damagedPart.hitboxWidth, damagedPart.hitboxHeight);
+    runtime.presentation.bossHit(damagedPart, damageType);
+    runtime.presentation.bossInvincible(damagedPart);
     return true;
   }
 
   boss.hp = nextHp;
   if (startDelSweep(boss, runtime.battleTime) || startDelLaneSweep(boss, runtime.battleTime)) {
-    updateCubeBossMotion(boss, 0, 0, runtime.battleTime);
-    syncDelSweepWarning(boss, runtime.battleTime);
+    advanceBossPosition(boss, 0, 0, runtime.battleTime);
+    runtime.presentation.bossSweepStarted(boss, runtime.battleTime);
   }
   syncBossCopyHp(boss);
-  makeBossHitFlash(runtime.scene, damagedPart.x, damagedPart.y, damageType, damagedPart.hitboxWidth, damagedPart.hitboxHeight);
+  runtime.presentation.bossHit(damagedPart, damageType);
 
   if (boss.hp <= 0) {
     boss.hp = 0;
@@ -218,7 +214,8 @@ export function damageEnemy(
 
   if (enemyIsSolarBomb(enemy) && sourceTower) {
     bounceSolarBombFromPoint(enemy, sourceTower.x, sourceTower.y);
-    syncEnemyBodyPosition(enemy);
+    syncPassengerPositionState(enemy);
+    runtime.presentation.enemyPosition(enemy);
   }
 
   if (enemyIsHighFlying(enemy)) {
@@ -226,13 +223,13 @@ export function damageEnemy(
   }
 
   if (solarBombIsDepleted(enemy)) {
-    makeEnemyInvincibleFlash(runtime.scene, enemy.x, enemy.y);
-    syncSolarBombVisual(enemy);
+    runtime.presentation.enemyInvincible(enemy);
+    runtime.presentation.solarBomb(enemy);
     return false;
   }
 
   if (hasStatusEffect(enemy, "invincible", runtime.battleTime)) {
-    makeEnemyInvincibleFlash(runtime.scene, enemy.x, enemy.y);
+    runtime.presentation.enemyInvincible(enemy);
     return false;
   }
 
@@ -246,19 +243,22 @@ export function damageEnemy(
     hasStatusEffect(enemy, "frozen", runtime.battleTime) &&
     addFrozenPhysicalDamage(enemy, actualDamage, runtime.battleTime)
   ) {
-    syncEnemyBodyPosition(enemy);
+    syncPassengerPositionState(enemy);
+    runtime.presentation.enemyPosition(enemy);
   }
   changeEnemyHealth(enemy, -actualDamage);
-  if (updateChevronPhase(enemy)) syncChevronVisual(enemy);
+  if (updateChevronPhase(enemy)) runtime.presentation.enemyForm(enemy);
   if (enemyIsSolarBomb(enemy) && enemy.hp <= 0) {
     depleteSolarBomb(enemy);
-    syncEnemyBodyPosition(enemy);
+    runtime.presentation.solarBomb(enemy);
+    syncPassengerPositionState(enemy);
+    runtime.presentation.enemyPosition(enemy);
     return true;
   }
 
-  syncSolarBombVisual(enemy);
+  runtime.presentation.solarBomb(enemy);
   const affected = enemy.healthPool?.members ?? [enemy];
-  for (const member of affected) syncEnemyVisualScale(member);
+  for (const member of affected) runtime.presentation.enemyScale(member);
 
   if (enemy.hp <= 0) {
     // Snapshot before removals detach members and destroy the shared pool.
@@ -269,9 +269,9 @@ export function damageEnemy(
         waveTracker.defeatedWeight += member.weight;
       }
       runtime.onEnemyDefeated();
-      releaseParenthesisPassengers(member, runtime.enemies, runtime.battleTime);
+      releaseParenthesisPassengers(member, runtime.enemies, runtime.battleTime, runtime.presentation);
       releaseBurrowCargo(runtime, member);
-      spawnSplitEnemies(runtime, member, runtime.battleTime, runtime.finalDamageReduction);
+      spawnSplitEnemies(runtime.spawnEnemy, member, runtime.battleTime, runtime.finalDamageReduction);
       removeEnemy(runtime, member, true);
     }
   }
@@ -284,38 +284,17 @@ export function removeBoss(runtime: UnitLifecycleRuntime, animate = true) {
     return;
   }
 
-  const bodies = bossParts(boss).map((part) => part.body);
+  const parts = bossParts(boss);
   runtime.setBoss(null);
-  if (!animate) {
-    for (const body of bodies) body.destroy();
-    return;
-  }
-  runtime.scene.tweens.add({
-    targets: bodies,
-    alpha: 0,
-    scale: 0.82,
-    duration: 260,
-    ease: "Quad.easeOut",
-    onComplete: () => bodies.forEach((body) => body.destroy())
-  });
+  runtime.presentation.removeBoss(parts, animate);
 }
 
 export function removeEnemy(runtime: UnitLifecycleRuntime, enemy: Enemy, animate: boolean) {
   detachEnemyHealth(enemy);
   enemy.inPlay = false;
   removeEnemyFromField(runtime.enemies, enemy);
-  destroyContainedEnemies(enemy);
-  if (animate) {
-    runtime.scene.tweens.add({
-      targets: enemy.body,
-      alpha: 0,
-      duration: 140,
-      onComplete: () => enemy.body.destroy()
-    });
-    return;
-  }
-
-  enemy.body.destroy();
+  destroyContainedEnemies(enemy, cargo => runtime.presentation.removeEnemy(cargo, false));
+  runtime.presentation.removeEnemy(enemy, animate);
 }
 
 export function removeTower(runtime: UnitLifecycleRuntime, tower: Tower) {
@@ -324,10 +303,11 @@ export function removeTower(runtime: UnitLifecycleRuntime, tower: Tower) {
   }
 
   if (towerBehaviorType(tower) === "T") {
-    if (!runtime.onTowerAction?.(tower, { kind: "detonation" })) detonateSlowAuraTower(runtime, tower);
+    if (!runtime.onDetonation?.(tower)) detonateSlowAuraTower(runtime, tower);
   }
 
-  Phaser.Utils.Array.Remove(runtime.towers, tower);
+  const index = runtime.towers.indexOf(tower);
+  if (index !== -1) runtime.towers.splice(index, 1);
   tower.inPlay = false;
   delete tower.parenthesisGuard; delete tower.parenthesisInner;
   syncTowerOccupancy(runtime.towers, runtime.occupied);
@@ -335,26 +315,21 @@ export function removeTower(runtime: UnitLifecycleRuntime, tower: Tower) {
     runtime.occupied.delete(gridCellKey(tower.lane, tower.column));
   }
   if (tower.type === "&") syncTowerTopology(runtime.towers);
-  syncTowerHealthNetworks(runtime.towers);
+  syncTowerHealthNetworks(runtime.towers, runtime.presentation.towerHealth);
   runtime.onTowerRemoved?.(tower);
   settleTowerHealth(runtime);
-  runtime.scene.tweens.add({
-    targets: tower.body,
-    alpha: 0,
-    y: tower.y + 8,
-    duration: 130,
-    onComplete: () => tower.body.destroy()
-  });
+  runtime.presentation.removeTower(tower);
 }
 
 export function detonateSlowAuraTower(runtime: UnitLifecycleRuntime, tower: Tower) {
-  makeShockPulse(runtime.scene, tower.x, tower.y, CELL_WIDTH * 2.5, CELL_HEIGHT * 2.5);
-  clearProjectilesInSlowAura(runtime.projectiles, tower);
-  clearProjectilesInSlowAura(runtime.enemyProjectiles, tower);
-  clearProjectilesInSlowAura(runtime.mortarProjectiles, tower);
+  runtime.presentation.slowAuraPulse(tower);
+  clearProjectilesInSlowAura(runtime, runtime.projectiles, tower);
+  clearProjectilesInSlowAura(runtime, runtime.enemyProjectiles, tower);
+  clearProjectilesInSlowAura(runtime, runtime.mortarProjectiles, tower);
 }
 
-function clearProjectilesInSlowAura<T extends { x: number; y: number; body: Phaser.GameObjects.GameObject }>(
+function clearProjectilesInSlowAura<T extends { x: number; y: number }>(
+  runtime: UnitLifecycleRuntime,
   projectiles: T[],
   tower: Tower
 ) {
@@ -362,7 +337,7 @@ function clearProjectilesInSlowAura<T extends { x: number; y: number; body: Phas
   for (let readIndex = 0; readIndex < projectiles.length; readIndex += 1) {
     const projectile = projectiles[readIndex];
     if (isPointInSlowAura(tower, projectile.x, projectile.y)) {
-      projectile.body.destroy();
+      runtime.presentation.removeProjectile(projectile);
       continue;
     }
 
