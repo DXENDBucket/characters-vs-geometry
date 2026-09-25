@@ -12,12 +12,7 @@ const load = createTypeScriptLoader({
   "src/registry/enemies.ts": { enemyIsBossCompanion: () => false },
   "src/render/combatEffects.ts": { makeHitShards: noop },
   "src/game/projectiles.ts": { isTowerProjectileOutOfBounds: (_p, limit) => limit },
-  "src/game/enemyBehaviors.ts": {
-    enemyIsBurrowed: e => e.burrowed,
-    enemyIsHighFlying: e => e.highFlying
-  },
   "src/game/slowAura.ts": { slowAuraSources: () => [], movementSpeedMultiplier: () => 1 },
-  "src/game/solarBomb.ts": { enemyIsSolarBomb: () => false },
   "src/game/orientation.ts": {},
   "src/game/gathering.ts": { gatheringIsActive: () => false },
   "src/game/statusEffects.ts": {},
@@ -28,7 +23,7 @@ const load = createTypeScriptLoader({
 const { ProjectileMotionFrame, segmentCircleHitTime } = load("src/game/projectileMotion.ts");
 const { updateTowerProjectiles } = load("src/game/projectileRuntime.ts");
 const { BOARD_Y, CELL_HEIGHT } = load("src/config.ts");
-const makeEnemy = (x, extras = {}) => ({ x, y: 0, lane: 0, inPlay: true, statusEffects: [], ...extras });
+const makeEnemy = (x, extras = {}) => ({ kind: "circle", x, y: 0, lane: 0, inPlay: true, statusEffects: [], ...extras });
 const makeProjectile = (extras = {}) => ({
   x: 0, y: 0, vx: 100, vy: 0, lane: 0, type: "bolt", damage: 100, damageType: "physical",
   hitCount: 1, limitDirection: 1, maxX: 10000, body: { setPosition: noop, destroy: noop }, ...extras
@@ -85,7 +80,7 @@ test("new shots do not retroactively hit old paths; teleports and stale frames a
 });
 
 test("high flying and burrowed enemies remain immune to direct projectiles", () => {
-  for (const state of [{ highFlying: true }, { burrowed: true }]) {
+  for (const state of [{ highFlightUntil: 1000 }, { burrowed: true }]) {
     const e = makeEnemy(-1000, state), p = makeProjectile();
     const r = runtime([e], [p]);
     r.projectileMotion.begin(r.projectiles);

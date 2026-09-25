@@ -3,7 +3,7 @@ import { ENEMY_SKILLS } from "../data/enemyAbilities";
 import { enemyIsBossCompanion, enemyRank } from "../registry/enemies";
 import type { Enemy } from "../types";
 import { enemyIsActive } from "./enemyContainers";
-import { enemyIgnoresLeaderRestrictedMechanics } from "./enemyBehaviors";
+import { enemyIgnoresLeaderRestrictedMechanics } from "./enemyCombatRules";
 import type { EnemySkillDefinition } from "./enemySkillRegistry";
 import { spendSkillSp } from "./skillState";
 import { chargeEnemySkill } from "./enemySkillRules";

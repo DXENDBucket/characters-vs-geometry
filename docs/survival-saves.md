@@ -8,7 +8,7 @@
 
 ## Data Boundaries
 
-`BattleSaveState` is the session data contract. `saveGraph` encodes references and non-finite timer sentinels; `captureBattleSnapshot` captures data without loading Phaser, while `battleSnapshot` recreates Phaser units and connects the data graph. No display objects, callbacks or controller instances are serialized. Projectile and tower data now have explicit snapshot fields; see [Projectile State Boundary](projectile-state.md) and [Tower State Boundary](tower-state.md) for compatibility and remaining live-entity dependencies.
+`BattleSaveState` is the session data contract. `saveGraph` encodes references and non-finite timer sentinels; `captureBattleSnapshot` captures data without loading Phaser, while `battleSnapshot` recreates Phaser units and connects the data graph. No display objects, callbacks or controller instances are serialized. Projectile, tower and enemy data now have explicit snapshot fields; see [Projectile State Boundary](projectile-state.md), [Tower State Boundary](tower-state.md) and [Enemy State Boundary](enemy-state.md) for compatibility and remaining live-entity dependencies.
 
 The graph preserves shared health pools, mirror group IDs, projectile targets and sources, removed attack sources, and enemies held by small q. Supported Boss nodes preserve rank, HP, status effects, SP, position and rotation, including projectile references to defeated Bosses. Tetrahedron also retains threshold triggers, pending critical summons, Charge and invincibility/haste deadlines. Controllers expose narrow state export/restore methods for cooldowns, extraction, storage and skill flights.
 

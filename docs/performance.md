@@ -104,9 +104,15 @@ render adapter; status effects and targeting no longer pull in the whole tower
 rendering module. See [Tower State Boundary](tower-state.md). This preserves battle
 behavior and snapshot compatibility; no full-battle FPS improvement is claimed.
 
+The seventh pass separated enemy state/initialization, pure combat queries and
+status-effect calculations from their live visual adapters. Enemy snapshot fields
+are explicit and type-checked. See [Enemy State Boundary](enemy-state.md). The core
+runtime dependency cycle shrank from eight modules to three: combat stats,
+enemy support and targeting. No battle FPS improvement is claimed for this pass.
+
 1. Move remaining pure visual updates to a frame-level rendering adapter while
    preserving simulation-owned positions, deadlines and random streams.
-2. Extend explicit snapshot contracts from projectiles and towers to enemies and
+2. Extend explicit snapshot contracts from projectiles, towers and enemies to
    Bosses, then introduce stable entity IDs instead of live object references.
 3. Continue consolidating tower aura, Boss events, scaling and encyclopedia metadata;
    named enemy, tower and Boss SP skills now share their numeric definitions.

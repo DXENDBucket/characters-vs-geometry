@@ -23,7 +23,7 @@ import {
 } from "../config";
 import { makeHealParticles, makeSpellMortarImpact, makeSpellMortarShot } from "../render/combatEffects";
 import type { CardDefinition, CardId, CubeBoss, DamageType, Enemy, SkillState, Tower } from "../types";
-import { enemyIsHighFlying } from "./enemyBehaviors";
+import { enemyIsHighFlying } from "./enemyCombatRules";
 import { forEachSnapshot } from "./iteration";
 import { getTowerSkillState } from "./skillState";
 import { TOWER_SKILLS } from "../data/towerAbilities";

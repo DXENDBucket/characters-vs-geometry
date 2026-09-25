@@ -2,8 +2,9 @@ import { palette } from "../config";
 import { enemyMaximumHp } from "./enemyContainers";
 import { syncSolarBombShape } from "../render/unitShapes";
 import type { DamageType, Enemy } from "../types";
+import { enemyIsSolarBomb } from "./enemyIdentity";
 
-export const SOLAR_BOMB_KIND = "solarBomb" as const;
+export { SOLAR_BOMB_KIND, isSolarBombKind, enemyIsSolarBomb } from "./enemyIdentity";
 export const SOLAR_BOMB_COLLISION_DAMAGE = 900;
 export const SOLAR_BOMB_SHIELD_BREAK_AOE_DAMAGE = 2_900;
 export const SOLAR_BOMB_SHIELD_BREAK_AOE_RADIUS_CELLS = 2.6;
@@ -15,14 +16,6 @@ export const SOLAR_BOMB_ROTATION_SPEED = Math.PI * 0.9;
 type RotatableShape = {
   rotation: number;
 };
-
-export function isSolarBombKind(kind: string) {
-  return kind === SOLAR_BOMB_KIND;
-}
-
-export function enemyIsSolarBomb(enemy: Enemy) {
-  return isSolarBombKind(enemy.kind);
-}
 
 export function solarBombIsDepleted(enemy: Enemy) {
   return enemyIsSolarBomb(enemy) && (enemy.solarBombDepleted === true || enemy.hp <= 1);

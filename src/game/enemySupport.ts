@@ -4,7 +4,7 @@ import { enemiesWithPassengers, enemyIsActive } from "./enemyContainers";
 import { CELL_HEIGHT, CELL_WIDTH, LANES } from "../config";
 import type { CubeBoss, Enemy } from "../types";
 import { enemyFamily, enemyRank } from "../registry/enemies";
-import { enemyIsHighFlying } from "./enemyBehaviors";
+import { enemyIsHighFlying } from "./enemyCombatRules";
 import { bossPartDistanceSqToPoint } from "./targeting";
 import { setPositionIfChanged, setVisibleIfChanged } from "./visualGuards";
 

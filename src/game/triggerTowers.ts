@@ -5,7 +5,7 @@ import type { BattleAction, ScheduleBattleAction } from "./battleActions";
 import { BOARD_HEIGHT, BOARD_WIDTH, BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH } from "../config";
 import { makeFreezePulse, makeReversalPulse, makeShockPulse, makeTrapBurst } from "../render/combatEffects";
 import type { CardDefinition, CardId, CubeBoss, DamageType, Enemy, Tower } from "../types";
-import { enemyIsBurrowed, enemyIsHighFlying } from "./enemyBehaviors";
+import { enemyIsBurrowed, enemyIsHighFlying } from "./enemyCombatRules";
 import { forEachSnapshot } from "./iteration";
 import { applyStatusEffect } from "./statusEffects";
 import { bossPartDistanceSqToPoint, bossPartInRect, forEachBossPart } from "./targeting";

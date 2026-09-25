@@ -23,17 +23,18 @@ import { updateChevronPhase } from "./chevronLeader";
 import { syncChevronVisual } from "../render/chevronLeader";
 import { destroyContainedEnemies } from "./enemyContainers";
 import { releaseParenthesisPassengers } from "./parenthesisEnemies";
-import { enemyIsHighFlying, syncEnemyVisualScale } from "./enemyBehaviors";
+import { syncEnemyVisualScale } from "./enemyBehaviors";
+import { enemyIsHighFlying } from "./enemyCombatRules";
 import { releaseBurrowCargo, spawnSplitEnemies } from "./enemyRuntime";
 import { isPointInSlowAura } from "./slowAura";
 import {
   bounceSolarBombFromPoint,
   depleteSolarBomb,
-  enemyIsSolarBomb,
   solarBombDamageMultiplier,
   solarBombIsDepleted,
   syncSolarBombVisual
 } from "./solarBomb";
+import { enemyIsSolarBomb } from "./enemyIdentity";
 import { addFrozenPhysicalDamage, applyStatusEffect, hasStatusEffect, syncEnemyBodyPosition } from "./statusEffects";
 import { bossParts, secondaryBossParts, forEachBossPart, gridCellKey } from "./targeting";
 import { changeTowerHealth, syncHealthBar, syncTowerHealthNetworks, towerHealthDepleted } from "./towerHealth";

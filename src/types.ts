@@ -3,6 +3,7 @@ import type { TowerActionEvent } from "./game/towerActions";
 import type { ProjectileIntegrity } from "./game/projectileIntegrity";
 import type { EnemyProjectileState, MortarProjectileState, ProjectileState } from "./game/projectileState";
 import type { TowerState } from "./game/towerState";
+import type { EnemyState } from "./game/enemyState";
 
 export type CardId =
   | "?"
@@ -296,59 +297,7 @@ export interface EnemyHealthPool {
   maxHp: number;
 }
 
-export interface Enemy {
-  healthPool?: EnemyHealthPool;
-  healthLinksInitialized?: boolean;
-  kind: EnemyKind;
-  waveNumber: number;
-  weight: number;
-  lane: number;
-  spawnX: number;
-  x: number;
-  y: number;
-  hp: number;
-  baseStats: EnemyBaseStats;
-  finalStats: EnemyFinalStats;
-  maxHp: number;
-  armor: number;
-  magicResistance: number;
-  speed: number;
-  movementDirection?: -1 | 1;
-  maceVelocity?: number;
-  chevronAssault?: boolean;
-  ionChargeMs?: number;
-  maceFacingDirection?: -1 | 1;
-  solarBombVelocityX?: number;
-  solarBombVelocityY?: number;
-  solarBombDepleted?: boolean;
-  solarBombLastCollisionAt?: number;
-  burrowAt?: number;
-  burrowed?: boolean;
-  burrowUnloaded?: boolean;
-  burrowCargo?: Enemy[];
-  parenthesisCargo?: Enemy[];
-  parenthesisCarrier?: Enemy;
-  parenthesisHpBonus?: number;
-  environmentHpMultiplier?: number;
-  slopeFacingDirection?: -1 | 1;
-  highFlightStartedAt?: number;
-  highFlightUntil?: number;
-  highFlightStartX?: number;
-  highFlightStartY?: number;
-  highFlightTargetX?: number;
-  highFlightTargetY?: number;
-  highFlightPeakHeight?: number;
-  damage: number;
-  damageType: DamageType;
-  finalDamageReduction: number;
-  attackSpeed: number;
-  attackInterval: number;
-  attackAt: number;
-  blockedByTowerId?: string;
-  blockedSince?: number;
-  angelRamWingsTriggered?: boolean;
-  skills: Record<string, SkillState>;
-  statusEffects: StatusEffect[];
+export interface Enemy extends EnemyState {
   statusMultiplierCache: {
     reversed?: boolean;
     speed: number;
@@ -365,18 +314,8 @@ export interface Enemy {
   armorIcon: Phaser.GameObjects.Image;
   magicResistanceIcon: Phaser.GameObjects.Image;
   flyingHalo: Phaser.GameObjects.Ellipse;
-  nextHasteTrailAt: number;
-  inPlay: boolean;
   body: Phaser.GameObjects.Container;
   shape: Phaser.GameObjects.GameObject & { setScale(scale: number): unknown };
-  bossOrbitAngle?: number;
-  bossOrbitRadius?: number;
-  bossCompanionIndex?: number;
-  bossCompanionNextActionAt?: number;
-  oscillationCenterY?: number;
-  oscillationPhase?: number;
-  oscillationLastY?: number;
-  bossCompanionActionPhase?: BossCompanionActionPhase;
 }
 
 export interface Projectile extends ProjectileState {

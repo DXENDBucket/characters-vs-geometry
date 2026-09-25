@@ -24,11 +24,13 @@ const stubs = new Map(Object.entries({
     enemyFamily: (kind) => kind.replace(/[23]$/, ""), enemyIsBossCompanion: () => false,
     getEnemyRegistration: kind => load("src/data/enemyArchetypes.ts").enemyArchetypes[kind.replace(/[23]$/, "")]
   },
-  "src/game/enemyBehaviors.ts": {
+  "src/game/enemyBehaviors.ts": { syncEnemyVisualScale: noop },
+  "src/game/enemyCombatRules.ts": {
     enemyIsBurrowed: (enemy) => !!enemy.burrowed,
     enemyIsHighFlying: (enemy) => enemy.highFlightUntil !== undefined || enemy.statusEffects.some((effect) => effect.name === "highFlying"),
-    syncEnemyVisualScale: noop,
-    siegeRamSpeed: () => 10,
+    siegeRamSpeed: () => 10
+  },
+  "src/render/enemyFacing.ts": {
     syncEnemyFacingVisual: (enemy) => { enemy.visualDirection = rules.enemyFacingDirection(enemy); }
   },
   "src/game/enemyRuntime.ts": { releaseBurrowCargo: noop, spawnSplitEnemies: noop },

@@ -25,7 +25,7 @@ import {
 import type { CardBehaviorRuntime, CardReadinessRuntime } from "./combatRuntime";
 import { enemyDefenseStats, enemyMovementSpeed } from "./combatStats";
 import { enemySupportSources } from "./enemySupport";
-import { enemyIsBurrowed, enemyIsHighFlying, siegeRamSpeed } from "./enemyBehaviors";
+import { enemyIsBurrowed, enemyIsHighFlying, siegeRamSpeed } from "./enemyCombatRules";
 import { forEachSnapshot } from "./iteration";
 import { attackIntervalMs } from "./attackSpeed";
 import {
@@ -56,7 +56,8 @@ import {
   hasLaneRepelTarget,
   hasShiftTarget
 } from "./targeting";
-import { applyStatusEffect, hasStatusEffectName, syncEnemyBodyPosition } from "./statusEffects";
+import { applyStatusEffect, syncEnemyBodyPosition } from "./statusEffects";
+import { hasStatusEffectName } from "./rules/statusEffectRules";
 import { effectiveTowerLevel, getProductionAmount, towerDamageType, towerFacingDirection } from "./towerRules";
 import { changeTowerHealth } from "./towerHealth";
 import { repeatHits } from "./volley";

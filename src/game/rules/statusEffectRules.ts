@@ -3,6 +3,63 @@ import type { StatusEffect, StatusEffectName } from "../../types";
 
 type EffectHolder = { statusEffects: StatusEffect[] };
 
+export interface StatusMultipliers { speed: number; attack: number; armor: number }
+
+export function statusEffectByName(unit: EffectHolder, name: StatusEffectName) {
+  for (const effect of unit.statusEffects) if (effect.name === name) return effect;
+  return undefined;
+}
+
+export function hasStatusEffectName(unit: EffectHolder, name: StatusEffectName) {
+  return Boolean(statusEffectByName(unit, name));
+}
+
+export function removeStatusEffectState(unit: EffectHolder, name: StatusEffectName) {
+  let writeIndex = 0;
+  const effects = unit.statusEffects, initialLength = effects.length;
+  for (let readIndex = 0; readIndex < effects.length; readIndex++) {
+    const effect = effects[readIndex];
+    if (effect.name === name) continue;
+    if (writeIndex !== readIndex) effects[writeIndex] = effect;
+    writeIndex++;
+  }
+  effects.length = writeIndex;
+  return writeIndex !== initialLength;
+}
+
+export function expireStatusEffects(unit: EffectHolder, time: number) {
+  let writeIndex = 0;
+  const effects = unit.statusEffects, initialLength = effects.length;
+  for (let readIndex = 0; readIndex < effects.length; readIndex++) {
+    const effect = effects[readIndex];
+    if (effect.expiresAt <= time) continue;
+    if (writeIndex !== readIndex) effects[writeIndex] = effect;
+    writeIndex++;
+  }
+  if (writeIndex < effects.length) effects.length = writeIndex;
+  return writeIndex !== initialLength;
+}
+
+// The caller owns expiry and visual invalidation; reuse its output to avoid per-hit allocations.
+export function calculateStatusMultipliers<T extends StatusMultipliers>(unit: EffectHolder, out: T): T {
+  let speed = 1, attack = 1, armor = 1, power = 1;
+  for (const effect of unit.statusEffects) {
+    speed *= effectSpeedMultiplier(effect);
+    if (effect.name === "power") power = Math.max(power, effectAttackMultiplier(effect));
+    else attack *= effectAttackMultiplier(effect);
+    armor *= statusEffectDefinitions[effect.name].armor ?? 1;
+  }
+  out.speed = speed; out.attack = attack * power; out.armor = armor;
+  return out;
+}
+
+export function addFrozenPhysicalDamageState(unit: EffectHolder & { maxHp: number }, damage: number) {
+  const frozen = statusEffectByName(unit, "frozen");
+  if (!frozen) return false;
+  frozen.physicalDamageTaken = (frozen.physicalDamageTaken ?? 0) + damage;
+  return frozen.physicalDamageTaken >= unit.maxHp * 0.5 && removeStatusEffectState(unit, "frozen");
+}
+
 export type StatusEffectModifiers = Pick<StatusEffect, "speedMultiplier" | "attackMultiplier">;
 
 export function effectAttackMultiplier(effect: StatusEffect) {

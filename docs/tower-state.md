@@ -57,5 +57,6 @@ save continuation with actual display objects.
 
 This is not yet a renderer-free battle engine. Pool/shell/projectile references
 still use live entity types; health updates still synchronize bars, and deployment,
-copy switching and upgrades still have visual effects. Enemy/Boss state contracts,
+copy switching and upgrades still have visual effects. Enemy state now has its own
+[data boundary](enemy-state.md); Boss state contracts,
 stable entity IDs and a scene-independent battle session remain future work.

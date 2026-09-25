@@ -55,14 +55,15 @@ import type { BossCompanionActionPhase, BossSkill, CubeBoss, DamageType, Enemy, 
 import { syncBossCopyWarnings } from "../render/bossCopyWarnings";
 import { createBossSkillRegistry, runRegisteredBossSkills } from "./bossSkillRegistry";
 import { enemyAttackMultiplier } from "./combatStats";
-import { applyEnemyPromotion, enemyIsHighFlying, findPromotionTargets } from "./enemyBehaviors";
+import { applyEnemyPromotion, findPromotionTargets } from "./enemyBehaviors";
+import { enemyIsHighFlying } from "./enemyCombatRules";
 import { cubePromotionKind, tetrahedronChargeSpeedAtRank, dodecahedronAttacksAtRank } from "../bosses/bossRanks";
 import type { BossAttackAction, ScheduleBattleAction } from "./battleActions";
 import { enemyKindAtRank } from "./enemyIdentity";
 import { spawnEnemyAt } from "./enemyRuntime";
 import { forEachSnapshot } from "./iteration";
 import { createMortarProjectile } from "./projectiles";
-import { SOLAR_BOMB_KIND } from "./solarBomb";
+import { SOLAR_BOMB_KIND } from "./enemyIdentity";
 import { triggerAngelWings } from "./enemySkills";
 import { makeWingPulse } from "../render/enemySkillEffects";
 import { applyStatusEffect, hasStatusEffect } from "./statusEffects";

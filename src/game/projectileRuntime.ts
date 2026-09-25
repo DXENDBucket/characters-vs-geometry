@@ -26,12 +26,12 @@ import {
   isEnemyProjectileOutOfBounds,
   isTowerProjectileOutOfBounds
 } from "./projectiles";
-import { enemyIsBurrowed, enemyIsHighFlying } from "./enemyBehaviors";
+import { enemyIsBurrowed, enemyIsHighFlying } from "./enemyCombatRules";
 import { forEachInitial, forEachSnapshot } from "./iteration";
 import { repeatHits } from "./volley";
 import { forEachProjectileHit, projectileVisualScale } from "./projectileIntegrity";
 import { movementSpeedMultiplier, slowAuraSources, type SlowAuraSources } from "./slowAura";
-import { enemyIsSolarBomb } from "./solarBomb";
+import { enemyIsSolarBomb } from "./enemyIdentity";
 import { redirectOrientedTarget } from "./orientation";
 import { gatherProjectile, gatheringIsActive } from "./gathering";
 import { applyStatusEffect } from "./statusEffects";

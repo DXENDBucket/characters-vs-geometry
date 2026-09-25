@@ -4,7 +4,6 @@ import type {
   CubeBoss,
   Enemy,
   EnemyBaseStats,
-  EnemyDefinition,
   Tower
 } from "../types";
 import { enemyMaximumHp } from "./enemyContainers";
@@ -14,13 +13,13 @@ import {
   upgradedAttackMultiplier,
   maxHpGainForEffectiveUpgrades
 } from "./upgrades";
-import { attackIntervalMs } from "./attackSpeed";
 import { inheritTowerTopology } from "./towerTopology";
 import { towerFormType, towerActionContext, withTowerActionContext } from "./towerIdentity";
 import { syncTowerHealthCapacity } from "./towerHealth";
 import { syncEnemyHealthCapacity } from "./enemyHealth";
 import { towerZealAttackSpeedMultiplier, type TowerAuraSources } from "./towerAuras";
 import { towerBaseStatsFromDefinition } from "./towerState";
+export { enemyBaseStatsFromDefinition } from "./enemyState";
 export { towerBaseStatsFromDefinition } from "./towerState";
 
 export function syncTowerFinalStats(
@@ -86,24 +85,6 @@ export function effectiveTowerStatLevel(tower: Tower) {
   return Math.max(1, tower.level + tower.levelBonus + tower.mirrorLevelBonus);
 }
 
-export function enemyBaseStatsFromDefinition(
-  definition: EnemyDefinition,
-  options: { speed: number; attackSpeed: number; finalDamageReduction: number }
-): EnemyBaseStats {
-  return {
-    maxHp: definition.hp,
-    armor: definition.armor,
-    magicResistance: definition.magicResistance,
-    speed: options.speed,
-    damage: definition.damage,
-    attackPower: definition.attackPower,
-    attackMultiplier: definition.attackMultiplier,
-    damageType: definition.damageType,
-    finalDamageReduction: options.finalDamageReduction,
-    attackSpeed: options.attackSpeed,
-    attackInterval: attackIntervalMs(options.attackSpeed)
-  };
-}
 
 export function applyEnemyBaseStats(
   enemy: Enemy,

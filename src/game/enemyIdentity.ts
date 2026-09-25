@@ -1,6 +1,10 @@
 import { enemyArchetypes } from "../data/enemyArchetypes";
 import type { EnemyFamily, EnemyKind } from "../types";
 
+export const SOLAR_BOMB_KIND = "solarBomb" as const;
+export function isSolarBombKind(kind: string) { return kind === SOLAR_BOMB_KIND; }
+export function enemyIsSolarBomb(enemy: { kind: EnemyKind }) { return isSolarBombKind(enemy.kind); }
+
 export interface EnemyIdentity {
   family: EnemyFamily;
   rank: number;

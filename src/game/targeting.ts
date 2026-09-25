@@ -16,10 +16,10 @@ import {
 import type { CardDefinition, CubeBoss, Enemy, Tower } from "../types";
 import { enemyIsBossCompanion, getEnemyRegistration } from "../registry/enemies";
 import { enemyAttackDamage } from "./combatStats";
-import { enemyIsBurrowed, enemyIsHighFlying } from "./enemyBehaviors";
-import { enemyIsSolarBomb } from "./solarBomb";
+import { enemyIsBurrowed, enemyIsHighFlying } from "./enemyCombatRules";
+import { enemyIsSolarBomb } from "./enemyIdentity";
 import { getCardAttackArea, type AttackAreaConfig } from "./cardAttackConfigs";
-import { hasStatusEffectName } from "./statusEffects";
+import { hasStatusEffectName } from "./rules/statusEffectRules";
 import { towerFacingDirection, towerIsFlying } from "./towerRules";
 import { towerFinalStats } from "./unitStats";
 import { segmentBoxHitTime } from "./oscillatingMovement";

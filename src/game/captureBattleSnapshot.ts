@@ -1,4 +1,5 @@
-import type { CubeBoss, Enemy } from "../types";
+import type { CubeBoss } from "../types";
+import type { EnemyState } from "./enemyState";
 import type { TowerState } from "./towerState";
 import type { BattleSaveState } from "./battleSaveState";
 import type { EnemyProjectileState, MortarProjectileState, ProjectileState } from "./projectileState";
@@ -21,8 +22,24 @@ const towerFields = new Set(Object.keys({
   mirroredEffect: true, turnTargetId: true, placedOrder: true, inPlay: true,
   trueDamageUntil: true, flyingUntil: true, numberMemory: true, numberValue: true, equationLevel: true
 } satisfies Record<keyof TowerState, true>));
-const enemyVisuals = new Set<string>(["body", "shape", "statusBorder", "frozenBorder", "powerIcon", "sunderIcon",
-  "armorIcon", "magicResistanceIcon", "flyingHalo", "statusMultiplierCache"] satisfies (keyof Enemy)[]);
+const enemyFields = new Set(Object.keys({
+  healthPool: true, healthLinksInitialized: true, kind: true, waveNumber: true,
+  weight: true, lane: true, spawnX: true, x: true,
+  y: true, hp: true, baseStats: true, finalStats: true,
+  maxHp: true, armor: true, magicResistance: true, speed: true,
+  movementDirection: true, maceVelocity: true, chevronAssault: true, ionChargeMs: true,
+  maceFacingDirection: true, solarBombVelocityX: true, solarBombVelocityY: true, solarBombDepleted: true,
+  solarBombLastCollisionAt: true, burrowAt: true, burrowed: true, burrowUnloaded: true,
+  burrowCargo: true, parenthesisCargo: true, parenthesisCarrier: true, parenthesisHpBonus: true,
+  environmentHpMultiplier: true, slopeFacingDirection: true, highFlightStartedAt: true, highFlightUntil: true,
+  highFlightStartX: true, highFlightStartY: true, highFlightTargetX: true, highFlightTargetY: true,
+  highFlightPeakHeight: true, damage: true, damageType: true, finalDamageReduction: true,
+  attackSpeed: true, attackInterval: true, attackAt: true, blockedByTowerId: true,
+  blockedSince: true, angelRamWingsTriggered: true, skills: true, statusEffects: true,
+  nextHasteTrailAt: true, inPlay: true, bossOrbitAngle: true, bossOrbitRadius: true,
+  bossCompanionIndex: true, bossCompanionNextActionAt: true, oscillationCenterY: true, oscillationPhase: true,
+  oscillationLastY: true, bossCompanionActionPhase: true
+} satisfies Record<keyof EnemyState, true>));
 const bossVisuals = new Set<string>(["body", "frame", "labelText"] satisfies (keyof CubeBoss)[]);
 
 // Record covers optional fields too. Filtering retains the original object's field order and graph IDs.
@@ -52,7 +69,7 @@ export function captureBattleSnapshot(state: BattleSaveState) {
   return encodeSaveGraph(state, object => {
     const value = object as Record<string, unknown>;
     if (typeof value.id === "string" && value.id.startsWith("tower:")) return { kind: "tower", include: towerFields };
-    if ("kind" in value && "waveNumber" in value) return { kind: "enemy", omit: enemyVisuals };
+    if ("kind" in value && "waveNumber" in value) return { kind: "enemy", include: enemyFields };
     if ("advanceMinionKind" in value && "rank" in value) {
       if (!rankedBossFamily(value.kind) && value.kind !== "icosahedron" && value.kind !== "del") throw new Error("Unsupported boss save");
       return { kind: "boss", omit: bossVisuals };

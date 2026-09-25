@@ -4,14 +4,7 @@ import { createTypeScriptLoader } from "./helpers/load-typescript.mjs";
 
 const load = createTypeScriptLoader({
   phaser: { default: {} },
-  "src/registry/enemies.ts": { enemyIsBossCompanion: kind => kind === "companion" },
-  "src/game/enemyBehaviors.ts": {
-    enemyIsBurrowed: enemy => enemy.burrowed,
-    enemyIsHighFlying: enemy => enemy.highFlying
-  },
-  "src/game/solarBomb.ts": { enemyIsSolarBomb: enemy => enemy.kind === "solarBomb" },
   "src/game/cardAttackConfigs.ts": {},
-  "src/game/statusEffects.ts": { hasStatusEffectName: enemy => !!enemy.flying },
   "src/game/unitStats.ts": {}
 });
 const { BOARD_X, BOARD_Y, CELL_WIDTH, CELL_HEIGHT, COLUMNS } = load("src/config.ts");
@@ -22,7 +15,7 @@ const tower = (column, extras = {}) => ({
   inPlay: true, transient: false, flyingUntil: 0, ...extras
 });
 const occupied = (...towers) => new Map(towers.map(t => [`${t.lane}:${t.column}`, t]));
-const enemy = (x, extras = {}) => ({ kind: "triangle10000", lane: 0, x, ...extras });
+const enemy = (x, extras = {}) => ({ kind: "triangle10000", lane: 0, x, statusEffects: [], ...extras });
 
 test("heart lane relocation resets a tilde's oscillation center and phase rather than shifting an old path", () => {
   const { relocateEnemyToLane, oscillationTarget, OSCILLATION_AMPLITUDE } = load("src/game/oscillatingMovement.ts");
@@ -58,8 +51,8 @@ test("sweeps preserve ground and flying blocking rules", () => {
   const ground = tower(2), airborne = tower(8, { flyingUntil: 1000 });
   const cells = occupied(ground, airborne);
   assert.equal(sweep(cells, enemy(1e9), -1e9).tower, ground);
-  assert.equal(sweep(cells, enemy(1e9, { flying: true }), -1e9).tower, airborne);
-  for (const state of [{ highFlying: true }, { burrowed: true }, { kind: "companion" }, { kind: "solarBomb" }]) {
+  assert.equal(sweep(cells, enemy(1e9, { statusEffects: [{ name: "flying", expiresAt: 1000 }] }), -1e9).tower, airborne);
+  for (const state of [{ highFlightUntil: 1000 }, { burrowed: true }, { kind: "dodecahedronCompanion" }, { kind: "solarBomb" }]) {
     assert.equal(sweep(cells, enemy(1e9, state), -1e9), undefined);
   }
 });

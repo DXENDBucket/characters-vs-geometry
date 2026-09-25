@@ -39,19 +39,11 @@ import {
 } from "../render/combatEffects";
 import type { CubeBoss, DifficultyConfig, Enemy, EnemyKind, LevelConfig, Tower, WaveTracker } from "../types";
 import type { EnemyAdvanceRuntime, EnemySpawnRuntime } from "./combatRuntime";
+import { splitSpawnKind, splitSpawnLanes, syncEnemyFacingVisual, syncEnemyVisualScale } from "./enemyBehaviors";
 import {
-  canEnemyMelee,
-  enemyIgnoresLeaderRestrictedMechanics,
-  enemyIsBurrowed,
-  enemyIsHighFlying,
-  enemyVolleyShotCount,
-  shouldEnemyShoot,
-  siegeRamSpeed,
-  splitSpawnKind,
-  splitSpawnLanes,
-  syncEnemyFacingVisual,
-  syncEnemyVisualScale
-} from "./enemyBehaviors";
+  canEnemyMelee, enemyIgnoresLeaderRestrictedMechanics, enemyIsBurrowed, enemyIsHighFlying,
+  enemyVolleyShotCount, shouldEnemyShoot, siegeRamSpeed
+} from "./enemyCombatRules";
 import { createEnemy } from "./enemyFactory";
 import { detachEnemyHealth, initializeEnemyHealthLinks } from "./enemyHealth";
 import { createEnemyProjectile, createIonProjectile, createMortarProjectile } from "./projectiles";
@@ -74,21 +66,17 @@ import {
   SOLAR_BOMB_SHIELD_BREAK_AOE_DAMAGE,
   SOLAR_BOMB_SHIELD_BREAK_AOE_RADIUS_CELLS,
   bounceSolarBombFromPoint,
-  enemyIsSolarBomb,
   rotateSolarBombVisual,
   solarBombIsDepleted,
   syncSolarBombVisual,
   vectorLength
 } from "./solarBomb";
+import { enemyIsSolarBomb } from "./enemyIdentity";
 import { slowAuraSources, type SlowAuraSources } from "./slowAura";
 import {
-  applyStatusEffect,
-  hasStatusEffectName,
-  hasUnexpiredStatusEffect,
-  statusMultipliers,
-  type StatusMultipliers,
-  syncEnemyBodyPosition
+  applyStatusEffect, hasUnexpiredStatusEffect, statusMultipliers, type StatusMultipliers, syncEnemyBodyPosition
 } from "./statusEffects";
+import { hasStatusEffectName } from "./rules/statusEffectRules";
 import {
   bossBounds,
   forEachBossPart,

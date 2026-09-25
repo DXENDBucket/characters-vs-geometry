@@ -1,23 +1,15 @@
 import Phaser from "phaser";
 import { enemyMaximumHp } from "./enemyContainers";
 import { syncParenthesisVisual } from "../render/parenthesisEnemy";
-import { syncChevronVisual } from "../render/chevronLeader";
+import { syncEnemyFacingVisual } from "../render/enemyFacing";
 import { battleRandom, isBattlePlayback } from "./battleSimulation";
 import { cubePromotionKind } from "../bosses/bossRanks";
 import { recordEnemySeen } from "../progress";
-import { enemyFacingDirection } from "./rules/reversal";
-import { CELL_WIDTH, ENEMY_SPEED, ENEMY_SPEED_VARIANCE, LANES } from "../config";
+import { LANES } from "../config";
 import { createEnemyStatusVisuals } from "../render/enemyStatusVisuals";
 import {
   enemyFamily,
-  enemyIsBlockedDetonator,
-  enemyIsBossCompanion,
-  enemyIsLaser,
-  enemyIsLeader,
   enemyIsMace,
-  enemyIsMortar,
-  enemyIsRanged,
-  enemyIsSiegeRam,
   enemyPromotionKind,
   enemyRank,
   enemySplitSpawnKind,
@@ -25,14 +17,16 @@ import {
 } from "../registry/enemies";
 import { createEnemyShape } from "../render/unitShapes";
 import type { CubeBoss, Enemy, EnemyKind } from "../types";
-import { enemyAttackSpeed } from "./enemyCombatRules";
+import { enemyAttackSpeed, enemyIsHighFlying, randomizedEnemySpeed } from "./enemyCombatRules";
 import { initialEnemySkillStates } from "./enemySkillRules";
-import { enemyIsSolarBomb, isSolarBombKind } from "./solarBomb";
-import { hasStatusEffectName } from "./statusEffects";
+import { enemyIsSolarBomb } from "./enemyIdentity";
 import { applyEnemyBaseStats, enemyBaseStatsFromDefinition } from "./unitStats";
 import { setScaleIfChanged } from "./visualGuards";
 
-export { enemyAttackSpeed, enemyAttackInterval } from "./enemyCombatRules";
+export { syncEnemyFacingVisual } from "../render/enemyFacing";
+export { enemyAttackSpeed, enemyAttackInterval, enemyIsBurrowed, enemyIsHighFlying, shouldEnemyShoot,
+  canEnemyMelee, enemyIgnoresLeaderRestrictedMechanics, enemyVolleyShotCount,
+  randomizedEnemySpeed, siegeRamSpeed } from "./enemyCombatRules";
 export { initialEnemySkillStates } from "./enemySkillRules";
 
 const SPLIT_SPAWN_LANES: number[][] = [];
@@ -66,52 +60,6 @@ export function syncEnemyVisualScale(enemy: Enemy) {
   }
 
   setScaleIfChanged(enemy.shape, enemyVisualScale(enemy));
-}
-
-export function syncEnemyFacingVisual(enemy: Enemy) {
-  const facingScale = enemyFacingDirection(enemy) > 0 ? -1 : 1;
-  const shape = enemy.shape as Phaser.GameObjects.GameObject & { list?: Phaser.GameObjects.GameObject[] };
-  for (const child of shape.list ?? []) {
-    if (child instanceof Phaser.GameObjects.Text || child.getData("enemyRankLabel") === true) {
-      const label = child as Phaser.GameObjects.Text | Phaser.GameObjects.Image;
-      const baseX = label.getData("facingBaseX") as number | undefined;
-      const x = baseX ?? label.x;
-      if (baseX === undefined) {
-        label.setData("facingBaseX", x);
-      }
-      label.setX(x * facingScale);
-      continue;
-    }
-
-    const scalable = child as Phaser.GameObjects.GameObject & {
-      scaleX?: number;
-      scaleY?: number;
-      setScale?: (x: number, y?: number) => unknown;
-      getData?: (key: string) => unknown;
-      setData?: (key: string, value: unknown) => unknown;
-    };
-    if (!scalable.setScale) {
-      continue;
-    }
-
-    const baseScaleX = (scalable.getData?.("facingBaseScaleX") as number | undefined) ?? scalable.scaleX ?? 1;
-    const baseScaleY = (scalable.getData?.("facingBaseScaleY") as number | undefined) ?? scalable.scaleY ?? 1;
-    if (scalable.getData?.("facingBaseScaleX") === undefined) {
-      scalable.setData?.("facingBaseScaleX", baseScaleX);
-      scalable.setData?.("facingBaseScaleY", baseScaleY);
-    }
-    setScaleIfChanged(scalable, baseScaleX * facingScale, baseScaleY);
-  }
-  syncChevronVisual(enemy);
-}
-
-export function enemyIsBurrowed(enemy: Enemy) {
-  return enemy.burrowed === true;
-}
-
-export function enemyIsHighFlying(enemy: Enemy) {
-  if (enemy.parenthesisCarrier) return enemyIsHighFlying(enemy.parenthesisCarrier);
-  return enemy.highFlightUntil !== undefined || hasStatusEffectName(enemy, "highFlying");
 }
 
 export function promotedKind(kind: EnemyKind) {
@@ -201,61 +149,4 @@ export function splitSpawnKind(kind: EnemyKind) {
 
 export function splitSpawnLanes(lane: number) {
   return SPLIT_SPAWN_LANES[lane] ?? [];
-}
-
-export function shouldEnemyShoot(enemy: Enemy, time: number) {
-  return (enemyIsRanged(enemy.kind) || enemyIsMortar(enemy.kind) || enemyIsLaser(enemy.kind)) && time >= enemy.attackAt;
-}
-
-export function canEnemyMelee(enemy: Enemy) {
-  const kind = enemy.kind;
-  if (
-    enemyIsRanged(kind) ||
-    enemyIsMortar(kind) ||
-    enemyIsLaser(kind) ||
-    enemyIsBlockedDetonator(kind) ||
-    enemyIsSiegeRam(kind) ||
-    enemyIsMace(kind) ||
-    enemyIsSolarBomb(enemy) ||
-    enemyIsBossCompanion(kind)
-  ) {
-    return false;
-  }
-
-  const family = enemyFamily(kind);
-  return family !== "heart" && family !== "slopeTriangle" && family !== "chevronLeader";
-}
-
-export function enemyIgnoresLeaderRestrictedMechanics(enemy: Enemy) {
-  return enemyIsLeader(enemy.kind) || enemyIsSolarBomb(enemy);
-}
-
-export function enemyVolleyShotCount(enemy: Enemy) {
-  return enemyIsRanged(enemy.kind) || enemyIsMortar(enemy.kind) || enemyIsLaser(enemy.kind) ? enemyRank(enemy.kind) : 1;
-}
-
-export function randomizedEnemySpeed(kind: EnemyKind, random: () => number) {
-  const definition = getEnemyDefinition(kind);
-  const baseSpeed = ENEMY_SPEED * (definition.speedMultiplier ?? 1);
-  if (enemyIsLeader(kind)) {
-    return baseSpeed;
-  }
-
-  if (isSolarBombKind(kind)) {
-    return baseSpeed;
-  }
-
-  return baseSpeed * (1 - ENEMY_SPEED_VARIANCE + random() * 2 * ENEMY_SPEED_VARIANCE);
-}
-
-export function siegeRamSpeed(enemy: Enemy) {
-  if (!enemyIsSiegeRam(enemy.kind)) {
-    return enemy.baseStats.speed;
-  }
-
-  const accelerationDistance = 7 * CELL_WIDTH;
-  const traveled = Math.max(0, enemy.spawnX - enemy.x);
-  const progress = Phaser.Math.Clamp(traveled / accelerationDistance, 0, 1);
-  const multiplier = Math.sqrt(1 + 15 * progress);
-  return enemy.baseStats.speed * multiplier;
 }

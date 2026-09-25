@@ -2,21 +2,16 @@ import { CELL_HEIGHT, FLYING_DISPLAY_OFFSET_Y, palette } from "../config";
 import { syncPassengerPositions } from "./enemyContainers";
 import { enemyFamily } from "../registry/enemies";
 import type { CubeBoss, Enemy, StatusEffectName, Tower } from "../types";
-import { syncEnemyFacingVisual } from "./enemyBehaviors";
+import { syncEnemyFacingVisual } from "../render/enemyFacing";
 import { applyReversalEffect } from "./rules/reversal";
 import { syncTowerFacingVisual } from "../render/towerFacing";
 import { setPositionIfChanged, setScaleIfChanged, setVisibleIfChanged } from "./visualGuards";
-import { statusEffectDefinitions } from "../data/statusEffects";
-import { effectAttackMultiplier, effectSpeedMultiplier, refreshStatusEffect, type StatusEffectModifiers } from "./rules/statusEffectRules";
-export { effectSpeedMultiplier } from "./rules/statusEffectRules";
+import { addFrozenPhysicalDamageState, calculateStatusMultipliers, expireStatusEffects,
+  hasStatusEffectName, refreshStatusEffect, removeStatusEffectState,
+  type StatusEffectModifiers, type StatusMultipliers } from "./rules/statusEffectRules";
+export { effectSpeedMultiplier, hasStatusEffectName, type StatusMultipliers } from "./rules/statusEffectRules";
 
 const BURROW_DISPLAY_OFFSET_Y = CELL_HEIGHT * 0.55;
-
-export interface StatusMultipliers {
-  speed: number;
-  attack: number;
-  armor: number;
-}
 
 export function applyStatusEffect(
   enemy: Enemy,
@@ -83,20 +78,7 @@ export function statusMultipliers(enemy: Enemy, time: number): StatusMultipliers
   }
 
   syncStatusVisuals(enemy, time);
-  let speed = 1;
-  let attack = 1;
-  let armor = 1;
-  let power = 1;
-  for (const effect of enemy.statusEffects) {
-    speed *= effectSpeedMultiplier(effect);
-    if (effect.name === "power") power = Math.max(power, effectAttackMultiplier(effect));
-    else attack *= effectAttackMultiplier(effect);
-    armor *= statusEffectDefinitions[effect.name].armor ?? 1;
-  }
-  multipliers.speed = speed;
-  multipliers.attack = attack * power;
-  multipliers.armor = armor;
-  return multipliers;
+  return calculateStatusMultipliers(enemy, multipliers);
 }
 
 export function hasStatusEffect(enemy: Enemy, name: StatusEffectName, time: number) {
@@ -112,48 +94,16 @@ export function hasUnexpiredStatusEffect(enemy: Enemy, name: StatusEffectName, t
   return hasStatusEffectName(enemy, name);
 }
 
-export function hasStatusEffectName(enemy: Enemy, name: StatusEffectName) {
-  return Boolean(statusEffectByName(enemy, name));
-}
-
 export function removeStatusEffect(enemy: Enemy, name: StatusEffectName) {
-  let writeIndex = 0;
-  let removed = false;
-  for (let readIndex = 0; readIndex < enemy.statusEffects.length; readIndex += 1) {
-    const effect = enemy.statusEffects[readIndex];
-    if (effect.name === name) {
-      removed = true;
-      continue;
-    }
-
-    if (writeIndex !== readIndex) {
-      enemy.statusEffects[writeIndex] = effect;
-    }
-    writeIndex += 1;
-  }
-  enemy.statusEffects.length = writeIndex;
-  if (removed) {
-    invalidateStatusVisuals(enemy);
-  }
+  if (removeStatusEffectState(enemy, name)) invalidateStatusVisuals(enemy);
 }
 
 export function addFrozenPhysicalDamage(enemy: Enemy, damage: number, time: number) {
   removeExpiredStatusEffects(enemy, time);
-  const frozen = statusEffectByName(enemy, "frozen");
-  if (!frozen) {
-    syncStatusVisuals(enemy, time);
-    return false;
-  }
-
-  frozen.physicalDamageTaken = (frozen.physicalDamageTaken ?? 0) + damage;
-  if (frozen.physicalDamageTaken >= enemy.maxHp * 0.5) {
-    removeStatusEffect(enemy, "frozen");
-    syncStatusVisuals(enemy, time);
-    return true;
-  }
-
+  const removed = addFrozenPhysicalDamageState(enemy, damage);
+  if (removed) invalidateStatusVisuals(enemy);
   syncStatusVisuals(enemy, time);
-  return false;
+  return removed;
 }
 
 export function isEnemyFlying(enemy: Enemy, time: number) {
@@ -167,36 +117,9 @@ export function syncEnemyBodyPosition(enemy: Enemy) {
 }
 
 function removeExpiredStatusEffects(enemy: Enemy, time: number) {
-  const initialLength = enemy.statusEffects.length;
-  let writeIndex = 0;
-  for (let readIndex = 0; readIndex < enemy.statusEffects.length; readIndex += 1) {
-    const effect = enemy.statusEffects[readIndex];
-    if (effect.expiresAt <= time) {
-      continue;
-    }
-
-    if (writeIndex !== readIndex) {
-      enemy.statusEffects[writeIndex] = effect;
-    }
-    writeIndex += 1;
-  }
-
-  if (writeIndex < enemy.statusEffects.length) {
-    enemy.statusEffects.length = writeIndex;
-  }
-  if (writeIndex !== initialLength) {
-    invalidateStatusVisuals(enemy);
-  }
-  return writeIndex !== initialLength;
-}
-
-function statusEffectByName(enemy: Enemy, name: StatusEffectName) {
-  for (const effect of enemy.statusEffects) {
-    if (effect.name === name) {
-      return effect;
-    }
-  }
-  return undefined;
+  const removed = expireStatusEffects(enemy, time);
+  if (removed) invalidateStatusVisuals(enemy);
+  return removed;
 }
 
 function syncStatusVisuals(enemy: Enemy, time: number) {

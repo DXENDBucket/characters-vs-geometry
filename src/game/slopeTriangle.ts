@@ -6,9 +6,10 @@ import { makeShiftEffect, makeShockPulse } from "../render/combatEffects";
 import type { Enemy, Tower } from "../types";
 import type { EnemyAdvanceRuntime } from "./combatRuntime";
 import { enemyMovementSpeed } from "./combatStats";
-import { enemyIgnoresLeaderRestrictedMechanics, enemyIsBurrowed, enemyIsHighFlying, siegeRamSpeed } from "./enemyBehaviors";
+import { enemyIgnoresLeaderRestrictedMechanics, enemyIsBurrowed, enemyIsHighFlying, siegeRamSpeed } from "./enemyCombatRules";
 import { forEachSnapshot } from "./iteration";
-import { applyStatusEffect, hasStatusEffectName, removeStatusEffect, statusSpeedMultiplier, syncEnemyBodyPosition } from "./statusEffects";
+import { applyStatusEffect, removeStatusEffect, statusSpeedMultiplier, syncEnemyBodyPosition } from "./statusEffects";
+import { hasStatusEffectName } from "./rules/statusEffectRules";
 
 const SLOPE_TOUCH_RANGE_X = CELL_WIDTH * 0.58;
 const SLOPE_TOUCH_RANGE_Y = CELL_HEIGHT * 0.55;
