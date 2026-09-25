@@ -72,18 +72,21 @@ test("durability barrier gates join snapshots, frames and receipts and serialize
   await f.host.close();
 });
 
-test("durable publication shares one checksum per transaction but never across commands, frames or reconnects", async () => {
-  let calculations = 0;
+test("durable publication shares one checksum and capture per transaction, never across commands, frames or reconnects", async () => {
+  let calculations = 0, captures = 0;
   const measuredLoad = createTypeScriptLoader({ "src/game/battleChecksum.ts": {
     battleChecksum: (...args) => { calculations++; return battleChecksum(...args); }
+  }, "src/game/captureBattleSnapshot.ts": {
+    captureBattleSnapshot: (...args) => { captures++; return captureBattleSnapshot(...args); }
   } });
   const { DurableBattleHost: MeasuredHost } = measuredLoad("src/game/durableBattleHost.ts");
   const host = await MeasuredHost.create("durable", options(), { inputTime: () => 0, save: async () => {} });
   const messages = [];
   const expectOne = async operation => {
-    const before = calculations;
+    const before = calculations, beforeCaptures = captures;
     const result = await operation();
     assert.equal(calculations - before, 1);
+    assert.equal(captures - beforeCaptures, 1);
     const snapshot = decodeSyncMessage(JSON.parse(host.checkpointText).snapshot);
     const restored = createIndependentBattle(snapshot.replay, { checkpoint: snapshot.replay.checkpoint });
     assert.equal(battleChecksum(restored.snapshot("A")), snapshot.checksum);
@@ -94,6 +97,7 @@ test("durable publication shares one checksum per transaction but never across c
   };
   try {
     assert.equal(calculations, 1);
+    assert.equal(captures, 1);
     const peer = await expectOne(() => host.connect("local", message => messages.push(message)));
     const stream = JSON.parse(host.checkpointText).stream;
     await expectOne(() => host.receiveText(peer, envelope(stream, 0, deploy)));

@@ -8,6 +8,7 @@ import { battleChecksum } from "./battleChecksum";
 import type { BattleSessionOptions } from "./battleSession";
 import type { BattleRuntime } from "./battleRuntime";
 import type { BattleHostTiming, ScheduledBattleHost } from "./battleHostLoop";
+import type { BattleReplay } from "./battleCommands";
 
 export const MAX_HOST_CHECKPOINT_BYTES = 32 * 1024 * 1024;
 export const MAX_PENDING_HOST_TASKS = 64;
@@ -35,6 +36,7 @@ export class DurableBattleHost implements ScheduledBattleHost {
   private committed = "";
   private committedTiming?: BattleHostTiming;
   private checksumCache?: { tick: number; sequence: number; value: string };
+  private replayCache?: { tick: number; sequence: number; value: BattleReplay };
 
   private constructor(private readonly runtime: BattleRuntime, battleId: string, private readonly ports: DurableBattleHostPorts,
     saved?: HostCheckpoint) {
@@ -79,8 +81,12 @@ export class DurableBattleHost implements ScheduledBattleHost {
   }
 
   private replay() {
-    return this.runtime.session.checkpointReplay(captureBattleSnapshot(this.runtime.snapshot(this.runtime.world.loadout.ids[0])),
-      this.runtime.world.loadout.ids);
+    const tick = this.runtime.session.clock.tick, sequence = this.runtime.session.nextCommandSequence;
+    if (this.replayCache?.tick === tick && this.replayCache.sequence === sequence) return this.replayCache.value;
+    const value = this.runtime.session.captureCheckpointReplay(
+      () => captureBattleSnapshot(this.runtime.snapshot(this.runtime.world.loadout.ids[0])), this.runtime.world.loadout.ids);
+    this.replayCache = { tick, sequence, value };
+    return value;
   }
   private checksum() {
     // Sync publication and durable commit inspect the same command boundary. Never
@@ -111,6 +117,7 @@ export class DurableBattleHost implements ScheduledBattleHost {
     const task = this.tail.then(async () => {
       if (this.stopped) throw new Error("Durable host is closed");
       this.checksumCache = undefined;
+      this.replayCache = undefined;
       try {
         const result = action();
         const text = this.checkpoint();
@@ -128,6 +135,7 @@ export class DurableBattleHost implements ScheduledBattleHost {
         throw error;
       } finally {
         this.checksumCache = undefined;
+        this.replayCache = undefined;
       }
     });
     this.tail = task.then(() => { this.pending--; }, () => { this.pending--; });

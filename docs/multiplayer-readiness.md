@@ -144,6 +144,10 @@ costly full-state commits and crowded-client stalls. Transaction-local checksum
 reuse and fused wire conversion remove duplicate work with unchanged bytes and
 validation, but do not settle load/latency readiness. Broader content/fault coverage, distributed
 failover and production load/latency readiness remain unfinished.
+Fresh replay capture also removes the immediate clone of a newly detached graph;
+transaction-local capture reuse avoids duplicate join/resync work. Mixed benchmark
+comparisons retain identical replay bytes and storage/replica checks. Full-state
+commit and crowded-rendering costs still require further work.
 
 The outer `BattleHostLoop` now bounds timer-driven advancement to one pending
 commit, drains fixed-tick remainder, skips idle paused writes and explicitly stops

@@ -28,7 +28,8 @@ assert.ok(counts.every(n => Number.isSafeInteger(n) && n > 0 && n <= 5000));
 assert.ok(Number.isSafeInteger(samples) && samples >= 3 && samples <= 100);
 const hash = runtime => battleChecksum(runtime.snapshot(CROWDED_CARDS[0]));
 const capture = runtime => captureBattleSnapshot(runtime.snapshot(CROWDED_CARDS[0]));
-const replay = runtime => runtime.session.checkpointReplay(capture(runtime), runtime.world.loadout.ids);
+const legacyReplay = runtime => runtime.session.checkpointReplay(capture(runtime), runtime.world.loadout.ids);
+const replay = runtime => runtime.session.captureCheckpointReplay(() => capture(runtime), runtime.world.loadout.ids);
 const summary = values => {
   const sorted = [...values].sort((a, b) => a - b);
   return { samples: sorted.length, medianMs: sorted[Math.floor(sorted.length / 2)],
@@ -79,6 +80,7 @@ try {
     const initial = crowdedCensus(runtime), graph = capture(runtime), wire = encodeBattleWireGraph(graph);
     assert.equal(JSON.stringify(wire), JSON.stringify(legacyWire(graph)), "Wire bytes changed");
     const checkpoint = replay(runtime);
+    assert.equal(JSON.stringify(checkpoint), JSON.stringify(legacyReplay(runtime)), "Replay bytes changed");
     const authority = new BattleAuthority("profile", runtime.session, { inputTime: () => 0,
       available: () => !runtime.world.gameOver, execute: command => runtime.executeCommand(command) });
     const ledger = authority.snapshot();
@@ -87,6 +89,7 @@ try {
       cursor: { tick: ledger.tick, sequence: ledger.commandSequence }, nextRequest: 0,
       replay: { ...checkpoint, checkpoint: wire }, checksum: hash(runtime) } });
     const staticCosts = { capture: measure(() => capture(runtime)), checksum: measure(() => hash(runtime)),
+      legacyReplay: measure(() => legacyReplay(runtime)), replay: measure(() => replay(runtime)),
       legacyEncode: measure(() => legacyWire(graph)), encode: measure(() => encodeBattleWireGraph(graph)),
       decode: measure(() => decodeBattleWireGraph(wire)) };
     const sync = new BattleSyncHost(runtime.session, authority, { inputTime: () => 0,

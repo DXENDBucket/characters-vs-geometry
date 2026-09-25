@@ -80,6 +80,13 @@ The [mixed-battle profile](performance.md#mixed-battle-and-durable-host-profile)
 shows full checkpoints cannot sustain per-tick commits in crowded battles.
 Checksum reuse within one transaction removes duplicate publication/commit work;
 the cache is invalidated for every transaction and fenced by tick/command cursor.
+Replay capture now has the same transaction-local lifetime. Join/resync snapshots
+and persistence reuse a detached capture at the same cursor, but never reuse it
+across transactions. `captureCheckpointReplay` accepts a fresh capture callback
+without immediately cloning its entire graph a second time. The original
+`checkpointReplay(graph, cards)` still copies borrowed input. Replay headers and
+card lists remain independent, peer delivery still clones messages, and the wire
+encoder still validates the graph. No version or stored/wire bytes change.
 Large-state serialization, commit batching/journaling and overloaded-host recovery
 still need improvement before deployment. Reject floods
 and oversized requests at the transport before allocating/queueing them.
@@ -96,8 +103,8 @@ and oversized requests at the transport before allocating/queueing them.
   requests, malformed checkpoints, paused and terminal states, participant
   isolation, queue saturation, close behavior, atomic file replacement and retained
   owner-only tower permissions after replacement of the host. Checksum cache
-  coverage verifies single calculation per transaction without stale commands,
-  frames, resyncs or reconnects.
+  and replay capture coverage verify single calculation/capture per transaction
+  without stale commands, frames, resyncs or reconnects.
 - A child-process test kills a Node host after an actual file flush but before
   acknowledgment, starts a new process, and retries deployment. There is one tower,
   one debit, the same receipt and a higher stream ID.

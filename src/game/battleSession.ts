@@ -152,8 +152,13 @@ export class BattleSession {
   }
 
   checkpointReplay(checkpoint: SaveGraph, selectedCards: readonly CardId[]): BattleReplay {
+    return this.captureCheckpointReplay(() => structuredClone(checkpoint), selectedCards);
+  }
+
+  // The capture port returns a newly owned graph, already detached from live state.
+  captureCheckpointReplay(capture: () => SaveGraph, selectedCards: readonly CardId[]): BattleReplay {
     const { commands: _commands, checkpoint: _checkpoint, endTick: _endTick, ...header } = this.recording;
-    return structuredClone({ ...header, selectedCards: [...selectedCards], checkpoint, commands: [], endTick: this.clock.tick });
+    return { ...structuredClone(header), selectedCards: [...selectedCards], checkpoint: capture(), commands: [], endTick: this.clock.tick };
   }
 
   private applyReplayCommands(execute: BattleCommandExecutor) {

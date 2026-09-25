@@ -2166,7 +2166,7 @@ export class GameScene extends Phaser.Scene {
 
   startSynchronization() {
     return this.syncHost ??= new BattleSyncHost(this.session, this.authority, {
-      checkpoint: () => this.session.checkpointReplay(captureBattleSnapshot(this.battleState()), this.world.loadout.ids),
+      checkpoint: () => this.session.captureCheckpointReplay(() => captureBattleSnapshot(this.battleState()), this.world.loadout.ids),
       checksum: () => this.battleChecksum(), inputTime: () => performance.now()
     });
   }

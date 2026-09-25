@@ -60,9 +60,31 @@ test("sync checkpoint export does not reset command ordering, and range reads re
   assert.deepEqual(exported.commands, []); assert.equal(exported.endTick, 1);
   assert.deepEqual(exported.selectedCards, ["B"]); assert.equal(session.commandEpoch, epoch);
   exported.checkpoint.nodes.length = 0;
+  assert.ok(checkpoint.nodes.length > 0, "Borrowed checkpoints must still be copied");
   const entries = session.recordedCommands(0); entries[0].command.control.value = 10;
   assert.deepEqual(session.exportReplay(), before);
   for (const [from, limit] of [[-1, 1], [2, 1], [0, 257], [0, -1]]) assert.throws(() => session.recordedCommands(from, limit));
+});
+
+test("fresh checkpoint capture transfers only its detached graph and copies replay metadata", () => {
+  const session = new BattleSession(options()), cards = ["B"];
+  session.advance(BATTLE_STEP_MS, idle);
+  const state = { simulation: session.snapshot(), chars: 123 }, graph = captureBattleSnapshot(state);
+  const expected = session.checkpointReplay(graph, cards);
+  let calls = 0;
+  const actual = session.captureCheckpointReplay(() => { calls++; return graph; }, cards);
+  assert.equal(calls, 1); assert.equal(actual.checkpoint, graph);
+  assert.equal(JSON.stringify(actual), JSON.stringify(expected));
+  state.chars = 999; cards.push("X");
+  assert.deepEqual(actual.selectedCards, ["B"]);
+  assert.equal(JSON.stringify(actual.checkpoint), JSON.stringify(expected.checkpoint));
+  const before = session.exportReplay();
+  actual.selectedCards.push("D"); actual.commands.push({ invalid: true }); actual.checkpoint.nodes.length = 0;
+  assert.deepEqual(session.exportReplay(), before);
+  const next = session.captureCheckpointReplay(() => captureBattleSnapshot(state), ["B"]);
+  assert.ok(next.checkpoint.nodes.length > 0);
+  assert.throws(() => session.captureCheckpointReplay(() => { throw Error("capture failed"); }, cards), /capture failed/);
+  assert.deepEqual(session.exportReplay(), before);
 });
 
 test("the session owns pause and speed even when the scene runtime always permits ticking", () => {

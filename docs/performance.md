@@ -299,3 +299,23 @@ Next profiles should isolate warmed rendering/allocation hotspots, saturated
 pipelines/mortars and long sessions, plus remote browser frame application. The
 optional durable host is isolated from existing single-player frame work; its
 storage costs do not explain single-player stalls. See [durable host](durable-battle-host.md).
+
+### Detached Replay Capture
+
+Replay construction previously cloned a freshly captured graph in its entirety.
+The session now provides `captureCheckpointReplay`, whose callback produces a new,
+detached graph owned by the returned replay; the borrowed-input API still clones.
+The durable host also reuses replay capture within one transaction (not across
+commands/transactions), avoiding duplicate captures on join and resync. The scene's
+host snapshot port uses the fresh-capture API as well. Neither ordinary rendering
+nor routine client command-frame application uses this new path.
+
+The benchmark asserts equal serialized replay bytes for both paths and measures
+`legacyReplay` and `replay` on the same static state. A local 24-sample run measured
+medians of 1.91 -> 0.43 ms (100 enemies), 7.51 -> 1.53 ms (400), and 16.14 -> 4.09 ms
+(800). Consecutive before/after full six-tick durable-commit medians were
+10.94 -> 9.29 / 31.61 -> 26.22 / 66.67 -> 53.90 ms. Persisted sizes and fixture
+censuses matched. These full-commit comparisons include storage/JIT/GC variance;
+the side-by-side replay comparison isolates the removed graph clone more directly.
+Checksum cost, wire validation, atomic storage and durability barriers remain.
+This is not proof of production latency or a fix for crowded-client long frames.

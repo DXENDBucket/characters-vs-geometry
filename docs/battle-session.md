@@ -37,6 +37,15 @@ can refresh paused UI without advancing simulation or draining delayed attacks.
 
 ## Paused Checkpoints
 
+`checkpointReplay(graph, cards)` copies a caller-owned graph. For immediate
+capture, `captureCheckpointReplay(() => captureBattleSnapshot(state), cards)`
+avoids a second graph clone. Its callback must return a fresh detached graph and
+must not mutate the session/world; ownership of that graph passes to the replay.
+Both paths copy replay metadata and card lists, preserve command ordering and
+produce the same bytes for equivalent inputs. The session does not retain the
+returned checkpoint. This contract is for trusted capture ports, not incoming
+network data; validation at restore/wire boundaries remains mandatory.
+
 `simulation.controls` stores pause, speed, auto-upgrade enablement, reserve and
 debug enablement. Existing top-level settings remain compatibility mirrors emitted
 from the same session state. A modern restore uses the nested controls; old saves
