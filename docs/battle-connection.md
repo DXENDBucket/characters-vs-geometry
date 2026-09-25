@@ -61,6 +61,13 @@ and limitations in [performance](performance.md#sliced-replica-application).
 - Input remains blocked until a validated snapshot reconstructs the exact state.
   Pending operations block additional input. Reconnection preserves deduplication
   and pending completion; final close discards them and clears all timers.
+- Restoration, frame following, checksum and send callbacks may retire/replace
+  the connection synchronously. Both the client operation generation and transport
+  epoch fence subsequent state writes/errors. An old callback's exception cannot
+  close the replacement link or request resync through it. Closing in a receipt
+  observer cancels the retired completion callback.
+- Input is also blocked throughout unsolicited checkpoint restoration, not only
+  the initial handshake. No request is accepted before its checksum validates.
 - A connection is scoped to one battle ID. Use a new owner for a different battle.
 
 ## Scene Ownership
@@ -97,6 +104,11 @@ tower from leaving a lesson stuck waiting for the shifter to be deselected.
   Sliced cases cover boundary commands, pause/resume, queued receipts, the maximum
   600-tick gap, final checksum repair, mid-slice disconnect/reentrant replacement,
   malformed later commands and bounded inbox overflow.
+  Callback-reentry cases also cover snapshot/immediate-frame/checksum replacement,
+  obsolete send exceptions, nested raw-client snapshots, disposal in receipt
+  observers and input availability during unsolicited checkpoint validation.
+  The same-link send-error case also verifies that synchronously receiving a new
+  checkpoint does not hide a genuine transport failure.
 - `test-headless-host-browser.mjs --connection`: independent Node authority plus
   Firefox/WebKit render and mouse/keyboard loops over authenticated HTTP. Includes
   pending-receipt disconnect, automatic reconnect, old-link messages, repeated

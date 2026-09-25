@@ -137,7 +137,7 @@ export class BattleConnection implements BattleInputPort {
           this.client.connect(message => {
             if (epoch !== this.epoch) return;
             try { this.transport!.send(JSON.stringify(message)); }
-            catch { this.lost(true); }
+            catch { if (epoch === this.epoch) this.lost(true); }
           });
           this.refresh();
         }),
@@ -172,10 +172,16 @@ export class BattleConnection implements BattleInputPort {
     const epoch = this.epoch;
     this.processing = true;
     try {
-      if (this.client.applying && this.client.continueFrame() === "invalid") { this.lost(false); return; }
+      if (this.client.applying) {
+        const result = this.client.continueFrame();
+        if (epoch !== this.epoch) return;
+        if (result === "invalid") { this.lost(false); return; }
+      }
       while (epoch === this.epoch && !this.client.applying && this.inbox.length) {
         const text = this.inbox.shift()!; this.inboxCharacters -= text.length;
-        if (this.client.receiveText(text) === "invalid") { this.lost(false); return; }
+        const result = this.client.receiveText(text);
+        if (epoch !== this.epoch) return;
+        if (result === "invalid") { this.lost(false); return; }
       }
       if (epoch !== this.epoch) return;
       if (this.client.applying) this.scheduleDrain();

@@ -66,6 +66,15 @@ not committed at intermediate ticks. Requests/retries wait during application.
 Disconnect/resync clears pending frame work. Omit the second constructor argument
 to retain synchronous execution. [BattleConnection](battle-connection.md) owns the
 bounded ordered queue, scheduling and lifetime fencing for real remote scenes.
+The raw client fences restore/follow/checksum results by operation generation:
+connect, disconnect, resync or a newer snapshot invalidate older in-flight work
+before it commits a cursor or readiness. Such retired work returns `ignored`.
+Send errors instead use a separate transport generation: an old sender cannot
+disconnect its replacement, but a current sender's failure still disconnects even
+if it synchronously delivered a newer snapshot first. Snapshot reconstruction and
+checksum validation keep input disabled until the validated state is committed.
+This is lifecycle protection, not rollback of a runtime callback that already
+mutated its old scene.
 
 Reconnect retains a pending request's original sequence. If the host executed it
 but the receipt was lost, retry retrieves the authority's cached receipt instead

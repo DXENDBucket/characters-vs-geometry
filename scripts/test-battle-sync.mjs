@@ -181,3 +181,58 @@ test("a failing client send preserves its pending identity until transport recon
   f.reconnect(); f.pump(); assert.equal(f.client.ready, true); assert.equal(f.client.pendingRequest, undefined);
   assert.equal(f.session.nextCommandSequence, 1); assert.equal(f.copy().controls.reserveChars, 90);
 });
+
+test("a raw client sender's stale exception does not disconnect a replacement sender", () => {
+  const f = fixture(); f.pump();
+  f.reconnect(() => { f.reconnect(); f.pump(); throw Error("obsolete send"); }); f.pump();
+  f.client.request(intent(123));
+  assert.equal(f.client.ready, true); assert.equal(f.client.busy, false);
+  assert.equal(f.copy().controls.reserveChars, 123);
+  assert.equal(f.session.nextCommandSequence, 1);
+});
+
+test("a newer snapshot restored inside the old restore callback remains authoritative", () => {
+  const f = fixture(), old = f.outbound.shift();
+  const restore = f.client.runtime.restore;
+  f.client.runtime.restore = message => {
+    restore(message); f.client.runtime.restore = restore;
+    f.reconnect(); f.pump(); throw Error("retired snapshot callback");
+  };
+  assert.equal(f.client.receiveText(old), "ignored");
+  assert.equal(f.client.ready, true);
+  f.client.request(intent(55)); f.pump();
+  assert.equal(f.copy().controls.reserveChars, 55); assert.equal(f.session.nextCommandSequence, 1);
+});
+
+test("disposal in a receipt observer cancels the retired completion callback", () => {
+  const f = fixture(); f.pump();
+  f.client.runtime.receipt = () => f.client.dispose();
+  f.client.request(intent(65), () => assert.fail("Completion called after disposal")); f.pump();
+  assert.equal(f.client.ready, false); assert.equal(f.client.busy, false);
+  assert.equal(f.session.nextCommandSequence, 1);
+  assert.equal(f.copy().controls.reserveChars, 65);
+});
+
+test("an unsolicited checkpoint blocks input throughout restoration and checksum validation", () => {
+  const f = fixture(); f.pump();
+  const restore = f.client.runtime.restore, checksum = f.client.runtime.checksum;
+  f.client.runtime.restore = message => {
+    assert.equal(f.client.ready, false);
+    assert.equal(f.client.request(intent(999)), false);
+    restore(message);
+  };
+  f.client.runtime.checksum = () => { assert.equal(f.client.ready, false); return checksum(); };
+  f.advance(601); f.host.publish(); f.pump();
+  assert.equal(f.client.ready, true); assert.equal(f.session.nextCommandSequence, 0);
+});
+
+test("a send failure on the same link still disconnects after synchronous resync", () => {
+  const f = fixture(); f.pump();
+  f.reconnect(message => {
+    f.host.receiveText(f.peer(), JSON.stringify(message));
+    while (f.outbound.length) f.client.receiveText(f.outbound.shift());
+    throw Error("current sender failed after delivering a snapshot");
+  });
+  f.pump(); f.client.resync();
+  assert.equal(f.client.ready, false);
+});

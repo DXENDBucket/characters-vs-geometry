@@ -188,11 +188,25 @@ timers/tweens after repeated shutdown. This adds actual rendered lifecycle evide
 to accelerated Node continuation, not a retained-heap audit or sustained network
 load guarantee; see [continuous pressure](performance.md#continuous-browser-pressure).
 
+The connection-lifetime audit found and reproduced stale synchronous callback
+failures in snapshot restoration, immediate frame application and transport sends.
+Client generations and transport epochs now prevent old results/errors from
+retiring a replacement link. Additional regressions cover nested restore/checksum
+callbacks, receipt-observer disposal and unsolicited snapshots accepting input too
+early. Invalid current-generation messages still fail closed; schema/checksum
+validation and protocol versions are unchanged.
+After these fixes, the 36 connection/sync tests pass. The independent Node host
+with Firefox/WebKit connection/input clients still agrees at checksum `b5f44682`;
+real tutorial and targeted-skill input in Chromium/Firefox/WebKit agrees at
+`d03152c3`. These are regression checks for this boundary, not a complete content
+or production transport acceptance claim.
+
 ## Next Work
 
-1. Address full-checkpoint commit overhead without weakening durability; isolate
-   warmed rendering/allocation and remote-client application hotspots. Broaden
-   mixed profiles to rendered saturated pipelines/mortars and wall-clock long sessions.
+1. Address full-checkpoint commit overhead without weakening durability and
+   remaining crowded-rendering/catch-up hotspots. Rendered saturated pipelines,
+   mortars and repeated wall-clock sessions now have regression coverage; retained
+   heap growth and sustained network catch-up still need separate evidence.
 2. Broaden fault and content coverage, especially targeted skill/tutorial input,
    while retaining exact cross-engine numeric gates.
 3. Audit the full acceptance gates against current implementation and evidence.

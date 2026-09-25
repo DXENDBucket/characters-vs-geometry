@@ -94,18 +94,26 @@ explicit snapshot fields now cover towers, enemies, projectiles and Bosses;
 the single-player game now shares a complete data-only runtime. Entity wire
 relationships use stable IDs rather than local graph traversal indices.
 
-1. Isolate participant UI instances and local-modal versus battle pause policy;
-   define configurable participant/resource policies without requiring a specific
-   multiplayer mode to have been chosen.
-2. Complete independent input/checkpoint adapters and legacy display hydration.
-   Keep semantic commands and authoritative progression separate from local views.
-3. Complete ownership, currencies and cooldown policies. Extend existing authority
-   and synchronization from same-live-host reconnect to durable host recovery,
-   and integrate transport lifetime handling with actual player input.
+The earlier boundary work is now implemented, with verification limits recorded
+in the linked documents:
+
+- Participant views, local-modal/battle pause policies, ownership, wallets and
+  card/tool resources are configurable without selecting a game mode. See
+  [player resources](battle-player-resources.md) and [policy](battle-policy.md).
+- Independent checkpoint adapters and actual remote scene input share semantic
+  commands with single-player. `RemoteBattleSession` owns view replacement and
+  pending completion routing; see [connection lifetime](battle-connection.md).
+- Durable host recovery persists both battle state and request deduplication
+  before publication. A bounded single-flight host loop owns advancement; see
+  [durable host](durable-battle-host.md).
+
+Remaining work is integration acceptance, not another implementation of those
+systems: full-state commit/catch-up costs, broader content and failure coverage,
+and a requirement-by-requirement audit of the actual runtime and player UI.
 
 Authority and synchronization now exist, and independent browser processes
 exercise actual battles over an authenticated test relay. There is still no
-production transport/lobby or player-facing connection flow. The relay is test
+production transport/lobby or player-facing lobby/join flow. The relay is test
 infrastructure, not a deployable game service. Remaining gaps are tracked in the
 readiness document; replay commands never replace transport authentication.
 

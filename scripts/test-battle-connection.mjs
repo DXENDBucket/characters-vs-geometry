@@ -31,6 +31,7 @@ function clock() {
     } };
 }
 function fixture({ open = true, snapshots = true, frameSliceTicks } = {}) {
+  const hooks = {};
   const time = clock(), links = [], results = [], statuses = [];
   const hostRuntime = createIndependentBattle({ version: BATTLE_RULES_VERSION, levelId: "1-1", difficultyVersion: 2,
     difficulty: 3, unlimitedFirepower: false, seed: 113, debug: true, selectedCards: ["A"], policy: LEGACY_BATTLE_POLICY });
@@ -42,9 +43,9 @@ function fixture({ open = true, snapshots = true, frameSliceTicks } = {}) {
     checksum: () => hash(hostRuntime), inputTime: () => time.now });
   let replica, dropReceipt = false, throwSend = false, restorations = 0;
   const connection = new BattleConnection({
-    restore: ({ replay }) => { restorations++; replica = createIndependentBattle(replay, { replica: true, checkpoint: replay.checkpoint }); },
-    follow: (tick, commands) => replica.session.followFrame(tick, commands, replica.sessionRuntime),
-    checksum: () => hash(replica), receipt: receipt => results.push(receipt)
+    restore: ({ replay }) => { restorations++; replica = createIndependentBattle(replay, { replica: true, checkpoint: replay.checkpoint }); hooks.restore?.(); },
+    follow: (tick, commands) => { replica.session.followFrame(tick, commands, replica.sessionRuntime); hooks.follow?.(); },
+    checksum: () => { hooks.checksum?.(); return hash(replica); }, receipt: receipt => results.push(receipt)
   }, events => {
     const link = { events, closed: 0, sent: [], received: [], peer: undefined,
       send(text) {
@@ -63,7 +64,7 @@ function fixture({ open = true, snapshots = true, frameSliceTicks } = {}) {
   }, { scheduler: time, retryMs: 1000, reconnectMs: 100, timeoutMs: 3000, frameSliceTicks });
   connection.subscribe(status => statuses.push(status));
   const intent = value => ({ type: "control", control: { type: "reserve", value } });
-  return { time, connection, links, results, statuses, intent, hostRuntime, host,
+  return { time, connection, links, results, statuses, intent, hostRuntime, host, hooks,
     get replica() { return replica; }, get restorations() { return restorations; },
     loseReceipt(value) { dropReceipt = value; }, failSend() { throwSend = true; },
     same: () => assert.equal(hash(hostRuntime), hash(replica)) };
@@ -77,6 +78,67 @@ test("synchronous open and snapshot are queued until the transport exists; repea
   assert.equal(f.connection.request(f.intent(123), receipt => completed.push(receipt.result)), true);
   assert.deepEqual(completed, ["handled"]); assert.equal(f.connection.busy, false); f.same();
   f.connection.close(); assert.equal(f.links[0].closed, 1); assert.equal(f.time.size, 0);
+});
+
+test("a retired snapshot callback cannot fail a replacement connection", () => {
+  const f = fixture();
+  f.hooks.restore = () => { delete f.hooks.restore; f.connection.reconnect(); throw Error("retired snapshot view"); };
+  f.connection.start(); f.time.advance(1);
+  assert.equal(f.connection.status, "ready"); assert.equal(f.restorations, 2);
+  assert.equal(f.links[1].sent.length, 0); f.same();
+  f.connection.close(); assert.equal(f.time.size, 0);
+});
+
+test("a retired immediate frame cannot request resync on a replacement link", () => {
+  const f = fixture(); f.connection.start();
+  f.hooks.follow = () => { delete f.hooks.follow; f.connection.reconnect(); throw Error("retired immediate view"); };
+  let completed = 0;
+  f.connection.request(f.intent(42), () => completed++); f.time.advance(1);
+  assert.equal(f.connection.ready, true); assert.equal(completed, 1);
+  assert.deepEqual(f.links[1].sent.map(text => JSON.parse(text).type), ["request"]);
+  f.same(); f.connection.close(); assert.equal(f.time.size, 0);
+});
+
+test("a send that replaces its link before throwing cannot retire the new link", () => {
+  const f = fixture(); f.connection.start();
+  f.links[0].send = () => { f.connection.reconnect(); throw Error("old sender failed"); };
+  let completed = 0;
+  f.connection.request(f.intent(84), () => completed++);
+  assert.equal(f.connection.ready, true); assert.equal(completed, 1);
+  assert.equal(f.links.length, 2); assert.equal(f.links[1].closed, 0);
+  assert.equal(f.hostRuntime.session.nextCommandSequence, 1);
+  f.same(); f.connection.close(); assert.equal(f.time.size, 0);
+});
+
+test("closing during snapshot restoration skips all further old-view callbacks", () => {
+  const f = fixture();
+  f.hooks.restore = () => f.connection.close();
+  f.hooks.checksum = () => assert.fail("Checksum called after scene disposal");
+  f.connection.start();
+  assert.equal(f.connection.status, "closed"); assert.equal(f.time.size, 0);
+});
+
+test("checksum reentry fences snapshots, immediate frames, duplicates and sliced final validation", () => {
+  for (const mode of ["snapshot", "immediate", "duplicate", "sliced"]) for (const throws of [false, true]) {
+    const f = fixture({ frameSliceTicks: mode === "sliced" ? 2 : undefined });
+    const replace = () => {
+      delete f.hooks.checksum; f.connection.reconnect();
+      if (throws) throw Error("old checksum view");
+    };
+    if (mode === "snapshot") f.hooks.checksum = replace;
+    f.connection.start();
+    if (mode !== "snapshot") {
+      if (mode !== "duplicate") f.hooks.checksum = replace;
+      f.hostRuntime.session.advance(BATTLE_STEP_MS * 6, f.hostRuntime.sessionRuntime); f.host.publish();
+      if (mode === "duplicate") {
+        f.hooks.checksum = replace; f.links[0].events.message(f.links[0].received.at(-1));
+      }
+    }
+    f.time.advance(10);
+    assert.equal(f.connection.ready, true, `${mode}/${throws}`);
+    assert.equal(f.links.length, 2); assert.equal(f.links[1].sent.length, 0);
+    f.same(); f.connection.close(); assert.equal(f.time.size, 0);
+  }
 });
 
 test("sliced frames preserve commands at boundaries and withhold readiness until final checksum", () => {

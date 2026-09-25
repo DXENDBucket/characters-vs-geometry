@@ -33,6 +33,9 @@ export class BattleSyncClient {
   private synchronized = false;
   private resyncRequested = false;
   private frame?: { message: BattleSyncFrame; tick: number; index: number };
+  private epoch = 0;
+  // A snapshot replaces state without replacing its sender; current-link send failures still matter.
+  private transportEpoch = 0;
 
   constructor(private readonly runtime: BattleSyncClientRuntime, private readonly frameSliceTicks?: number) {
     if (frameSliceTicks !== undefined && (!Number.isSafeInteger(frameSliceTicks) || frameSliceTicks < 1 ||
@@ -45,14 +48,16 @@ export class BattleSyncClient {
   get position() { return this.cursor ? { ...this.cursor } : undefined; }
 
   connect(send: (message: BattleSyncInput) => void) {
+    this.epoch++; this.transportEpoch++;
     this.frame = undefined; this.send = send; this.synchronized = false; this.resyncRequested = false;
   }
-  disconnect() { this.frame = undefined; this.send = undefined; this.synchronized = false; this.resyncRequested = false; }
+  disconnect() { this.epoch++; this.transportEpoch++; this.frame = undefined; this.send = undefined; this.synchronized = false; this.resyncRequested = false; }
   dispose() { this.disconnect(); this.pending = undefined; this.completed = undefined; }
 
   private transmit(message: BattleSyncInput) {
+    const epoch = this.transportEpoch;
     try { this.send?.(message); }
-    catch { this.disconnect(); }
+    catch { if (epoch === this.transportEpoch) this.disconnect(); }
   }
 
   request(intent: BattleIntent, completed?: (receipt: BattleReceipt) => void) {
@@ -69,6 +74,7 @@ export class BattleSyncClient {
   }
 
   resync() {
+    this.epoch++;
     this.frame = undefined;
     this.synchronized = false;
     if (this.send && this.cursor && !this.resyncRequested) {
@@ -79,15 +85,23 @@ export class BattleSyncClient {
   receiveText(text: string): BattleSyncResult {
     if (!this.send) return "ignored";
     if (this.applying) return "invalid"; // Ordered callers must retain later messages until this frame completes.
+    let epoch = this.epoch;
     let message: ReturnType<typeof decodeSyncMessage>;
     try { message = decodeSyncMessage(parseBoundedSyncText(text)); } catch { return "invalid"; }
     if (message.type === "snapshot") {
       if (this.battleId && message.battleId !== this.battleId) return "invalid";
       if (message.stream <= this.stream) return "ignored";
+      epoch = ++this.epoch;
+      this.synchronized = false;
       try {
         this.runtime.restore(message);
+        if (epoch !== this.epoch) return "ignored";
         if (this.runtime.checksum() !== message.checksum) throw new Error("Snapshot reconstruction differs");
-      } catch { this.synchronized = false; return "invalid"; }
+      } catch {
+        if (epoch !== this.epoch) return "ignored";
+        this.synchronized = false; return "invalid";
+      }
+      if (epoch !== this.epoch) return "ignored";
       this.battleId = message.battleId; this.stream = message.stream; this.cursor = { ...message.cursor };
       this.baseSequence = message.cursor.sequence; this.nextRequest = message.nextRequest;
       this.synchronized = true; this.resyncRequested = false;
@@ -105,13 +119,22 @@ export class BattleSyncClient {
         this.completed = undefined;
       }
       this.runtime.receipt?.(receipt);
+      if (epoch !== this.epoch) return "ignored";
+      const transportEpoch = this.transportEpoch;
       if (receipt.status === "rejected" && ["gap", "expired", "conflict", "wrongBattle", "faulted"].includes(receipt.reason)) this.resync();
-      completed?.(receipt);
+      if (transportEpoch === this.transportEpoch) completed?.(receipt);
       return "applied";
     }
     if (!this.synchronized) return "ignored";
     if (olderSyncCursor(message.to, this.cursor)) {
-      if (sameSyncCursor(message.to, this.cursor) && this.runtime.checksum() !== message.checksum) { this.resync(); return "resync"; }
+      if (sameSyncCursor(message.to, this.cursor)) {
+        try {
+          if (this.runtime.checksum() !== message.checksum) throw new Error("Battle checksum mismatch");
+        } catch {
+          if (epoch !== this.epoch) return "ignored";
+          this.resync(); return "resync";
+        }
+      }
       return "ignored";
     }
     if (!sameSyncCursor(message.from, this.cursor)) { this.resync(); return "resync"; }
@@ -121,8 +144,13 @@ export class BattleSyncClient {
     }
     try {
       this.runtime.follow(message.to.tick, message.commands.map(entry => ({ ...entry, sequence: entry.sequence - this.baseSequence })));
+      if (epoch !== this.epoch) return "ignored";
       if (this.runtime.checksum() !== message.checksum) throw new Error("Battle checksum mismatch");
-    } catch { this.resync(); return "resync"; }
+    } catch {
+      if (epoch !== this.epoch) return "ignored";
+      this.resync(); return "resync";
+    }
+    if (epoch !== this.epoch) return "ignored";
     this.cursor = { ...message.to };
     return "applied";
   }
