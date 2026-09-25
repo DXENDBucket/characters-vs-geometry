@@ -1,4 +1,5 @@
 import { CELL_HEIGHT, CELL_WIDTH } from "../config";
+import * as battleMath from "../game/battleMath";
 import { TOWER_SKILLS } from "./towerAbilities";
 import { getCardAttackArea } from "../game/cardAttackConfigs";
 import type { CardDefinition, CardId } from "../types";
@@ -50,7 +51,7 @@ export function towerRanges(card: CardDefinition): TowerRanges {
       const horizontal = area.direction === "forward";
       ranges.attack = { shape: { kind: "fan", direction: horizontal ? "right" : area.direction as "up" | "down",
         halfWidth: area.halfWidth / (horizontal ? CELL_HEIGHT : CELL_WIDTH),
-        slope: (area.spreadSlope ?? Math.tan(area.spreadDegrees * Math.PI / 180)) *
+        slope: (area.spreadSlope ?? battleMath.tan(area.spreadDegrees * Math.PI / 180)) *
           (horizontal ? CELL_WIDTH / CELL_HEIGHT : CELL_HEIGHT / CELL_WIDTH) } };
     } else {
       const length = ("rangeCells" in area ? area.rangeCells : undefined) ?? card.rangeCells;

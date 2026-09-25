@@ -1,0 +1,6 @@
+This distribution includes pure-JavaScript numeric kernels from stdlib.
+
+Copyright (c) 2016-2026 The Stdlib Authors.
+
+Full bundled dependency licenses are in THIRD-PARTY-LICENSES.md.
+Additional upstream implementation notices are preserved in the JavaScript assets.

@@ -47,32 +47,33 @@ must be addressed before calling the full multiplayer goal complete.
   actual GameScene, then runs 3600 ticks with checks every 300 ticks and an
   additional Node wire-checkpoint continuation at tick 1500. Eleven scenarios cover
   1-9, 2-10, 5-5, all four 5-10 phases, AE-5, AE-10, AE-EX-2 and IF-BE-4.
-- The complete rule suite passes 665 tests; seven audio tests, data validation
-  and the TypeScript/Vite build pass. The existing large-bundle warning remains.
+- The rule suite passes 667 tests plus four math tests in its pretest hook.
+  Seven audio tests, data validation and the TypeScript/Vite build also pass;
+  the existing large-bundle warning remains.
 
-This last script is deliberately a **diagnostic**, not a passing gate for strict
-cross-engine synchronization. It checks exact data for Node-to-Node continuation,
-permits only coordinate differences no greater than 1e-10 for Node versus Edge,
-and compares canonical graphs without tolerating key-order checksum errors. Run with
-`--case=5-10:P3 --strict=true` to reproduce the unresolved exact checksum failure.
+The complete-runtime script is now an **exact gate**: no numeric tolerance or
+optional strict mode. `--engine=chromium`, `--engine=firefox` and `--engine=webkit`
+each pass all eleven cases against independent Node simulation and restoration.
+Only Chromium uses an optional `--browser` executable path. See
+[deterministic math](battle-math.md) for vector/bundle checks and runtime limits.
 
 ## New Findings
 
-1. Node 22 and the installed Edge produce slightly different native trigonometric
+1. **Resolved in rules 9:** Node 22 and the installed Edge produced different native trigonometric
    results. At tick 600 of the P3 fixture, a companion y coordinate is
    186.624576969851 versus 186.62457696985103. Two sampled coordinate discrepancies
-   occur across the complete fixture. No observed count/health/action difference
-   in this short run proves that a longer run cannot diverge at a hit boundary.
+   occurred across the fixture. The pure-JavaScript kernels remove these differences.
+   All three tested browser engines now match the exact Node P3 checksum `00fe9c83`.
 2. **Resolved in protocol 2:** In AE-EX-2 with mirror shells, restoring a checkpoint causes the first board
    cache refresh to reinsert occupancy relationships after
    `nextNullificationAt`. Values and graph references agree, but the current
    old checksum serialized property insertion order. The original diagnostic recorded
    28 order discrepancies. Canonical capture now removes this false mismatch;
-   AE-EX-2 passes `--case=AE-EX-2 --strict=true`. See [wire state](battle-wire-state.md).
+   AE-EX-2 passes exact comparison. See [wire state](battle-wire-state.md).
 
 Do not round checksums to conceal numerical divergence or teach the simulation
 cache about a particular test. Relationship serialization/checksums now have a
-canonical contract. Native transcendental operations still need a deterministic
-implementation or an explicitly enforced matching engine/runtime requirement.
-The numeric requirement remains open along with participant ownership/resources, fully independent
-control ingress, durable recovery and production transport/player UI.
+canonical contract and approximated math has a pinned deterministic implementation.
+Platform/content coverage still needs expansion. Participant ownership/resources,
+fully independent control ingress, durable recovery and production transport/player
+UI remain unfinished; these passing fixtures do not complete the multiplayer goal.

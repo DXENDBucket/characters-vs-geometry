@@ -1,3 +1,4 @@
+import * as battleMath from "../battleMath";
 export interface GridPosition {
   lane: number;
   column: number;
@@ -91,7 +92,7 @@ export function planTowerMove(command: MoveTowersCommand, board: MovementBoard):
     moves.push({ towerId: source.towerId, fromLane: source.lane, fromColumn: source.column, toLane, toColumn });
   }
 
-  return { valid: true, moves, cooldownMs: SHIFTER_BASE_COOLDOWN * 1.2 ** (moves.length - 1) };
+  return { valid: true, moves, cooldownMs: SHIFTER_BASE_COOLDOWN * battleMath.pow(1.2, moves.length - 1) };
 }
 
 function isGridPosition(position: GridPosition) {

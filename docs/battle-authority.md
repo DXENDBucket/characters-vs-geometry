@@ -77,8 +77,9 @@ connection/flood limits are still the transport's responsibility.
 
 Participant capabilities are included in new configured-session snapshots and
 replay headers. Replay uses those capabilities, not the current local defaults;
-checkpoint policies must match the recording. Old single-player snapshots and
-recordings retain the default participant and their unchanged checksums.
+checkpoint policies must match the recording. Single-player headers without
+participant configuration use the default participant. Save migration does not
+make old rule-version recordings playable: rules 9 reject earlier recordings.
 
 The authority's request ledger, channel handles and ingress time are intentionally
 outside combat checksums. The ledger currently survives only reconnect to the same
@@ -103,11 +104,12 @@ have actual browser restore/replay coverage; see [session state](battle-session.
   act on the actual game alongside local UI. Checks real tower costs/cooldowns,
   stable-target rejection, skill authorization, commands during a local menu,
   retries/reconnect, validated snapshots and full/checkpoint 30/144 Hz replay.
-  The fixture reaches 1800 ticks with protocol-2 checksum `ededb3fc`, including captured access policy and lifecycle.
+  The fixture reaches 1800 ticks with rules-9/protocol-3 checksum `ea01e9d7`, including captured access policy and lifecycle.
 - Existing board/skill/control/tutorial browser tests and the seven-stage replay
   suite remain passing. All seven pre-policy combat baselines remain unchanged
-  under the frozen test-only historical hash. Current checksums use canonical
-  serialization and additionally cover access/modal policy.
+  with the test-only native-math route and historical hash. Default rules-9 tests
+  use new exact baselines. Current checksums use canonical serialization and
+  additionally cover access/modal policy and signed zero.
 
 The authority browser test uses in-memory serialized requests and real battle
 scenes. A separate synchronization browser suite now exercises two independent

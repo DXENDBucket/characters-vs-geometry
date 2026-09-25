@@ -1,10 +1,11 @@
 # Battle Wire State
 
-Protocol 2 uses `BattleWireGraph` version 1 inside synchronization checkpoints.
+Protocol 3 uses `BattleWireGraph` version 2 inside synchronization checkpoints.
 The host converts its local `SaveGraph` at transmission; the client validates and
 decodes the wire graph once before passing a normal checkpoint to its restore
-adapter. Local saves and replay checkpoints retain their existing format. Combat
-rules remain version 8; protocol-1 peers are rejected rather than silently mixed.
+adapter. Local saves and replay checkpoints retain their graph format, with an
+additional `-0` numeric tag. Combat rules are version 9; older protocol/wire peers
+are rejected rather than silently mixed. See [deterministic math](battle-math.md).
 
 ## Identity And Order
 
@@ -41,10 +42,10 @@ game-speed mirror retain their existing exclusions. No coordinate rounding or
 numeric tolerance is used in production checksums. This is divergence detection,
 not message authentication or a cryptographic proof.
 
-Historical pre-protocol-2 hashes are verified by a frozen **test-only** helper;
-live continuation, replay and network comparisons use the new checksum. Native
-Node/Edge trigonometric discrepancies remain real mismatches, not hidden by this
-change. Cross-engine numeric guarantees are still unfinished.
+Historical pre-protocol-2 hashes are verified by a frozen **test-only** helper and
+native-math diagnostic route; live continuation, replay and network comparisons
+use current math and checksums. Rules 9 resolve the observed native Node/Edge
+trigonometric discrepancies, without tolerating or rounding numeric differences.
 
 ## Evidence And Cost
 
@@ -55,15 +56,16 @@ change. Cross-engine numeric guarantees are still unfinished.
   join and continue commands without a checksum mismatch.
 - The complete-runtime AE-EX-2 regression compares live, local-save and wire-save
   continuation through first occupancy refresh and NUL timing for 4,200 ticks.
-- Node/browser diagnostics continue for 3,600 ticks in eleven scenarios, restoring
-  a Node runtime through the wire format at tick 1,500. AE-EX-2 now passes strict
-  equality. P3 still exposes two sampled native-trigonometric coordinate differences.
-- The authenticated HTTP browser fixture uses actual protocol-2 messages between
-  a host and two isolated clients, including pipeline actions and layered movement.
+- Strict Node/browser comparisons continue for 3,600 ticks in eleven scenarios,
+  restoring a Node runtime through the wire format at tick 1,500. Chromium,
+  Firefox and WebKit agree exactly, including P3 and AE-EX-2.
+- The authenticated HTTP browser fixture uses actual protocol-3 messages between
+  separate Chromium/Firefox/WebKit processes, including pipeline actions and
+  layered movement. Identity tests also preserve signed zero through JSON.
 
 `node scripts/benchmark-battle-serialization.mjs` measures a static 800-circle
 state in Node, not mixed-combat frame time or complete synchronization cost. A
-local run produced a 950,965-byte checkpoint, about 10.0 ms median checksum time
+protocol-2 local run produced a 950,965-byte checkpoint, about 10.0 ms median checksum time
 (old noncanonical checksum 7.5 ms), 13.3 ms wire conversion and 14.1 ms wire decoding.
 An initial implementation with a second graph traversal took about 16.9 ms for
 the checksum. These figures are diagnostics, not portable performance guarantees;

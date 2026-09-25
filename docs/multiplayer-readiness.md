@@ -67,10 +67,10 @@ capture/restore also use that assembly. Local targeting controllers bind its
 existing simulation objects rather than constructing parallel ones.
 
 **Gates 1-2 remain incomplete.** Control/UI ingress and legacy display hydration
-still need independent adapters. Node/Edge comparisons expose native
-trigonometric coordinate differences not covered by earlier same-browser agreement.
-Property-order-sensitive checksums are now fixed by canonical capture. See the
-runtime and [wire state](battle-wire-state.md) documents for diagnostic limits.
+still need independent adapters. Canonical capture fixes property-order-sensitive
+checksums. Rules-9 deterministic math now passes exact Node/Chromium/Firefox/WebKit
+comparisons for eleven complete-runtime fixtures; see [math](battle-math.md) and
+[wire state](battle-wire-state.md) for the contract and verification limits.
 
 ### Session, Commands And Profile Isolation
 
@@ -97,7 +97,7 @@ policies and independently usable player input UI are unfinished.
 
 Battle-local IDs cover towers, enemies, Boss bodies, projectiles and edges.
 Allocator history survives snapshots and legacy-save adoption. Semantic commands
-and protocol-2 serialized entity relationships use stable IDs, including historical
+and protocol-3 serialized entity relationships use stable IDs, including historical
 sources retained by actions. Local-save graph compatibility is preserved by the
 wire adapter; shared non-entity objects retain graph identity. **Gate 4 is
 implemented**, with identity/codec, complete-runtime and connected-client evidence.
@@ -108,8 +108,8 @@ host-bound participant handles, ordered execution, acknowledgments, retry receip
 and same-live-host reconnect. The synchronization layer transports snapshots,
 command frames and checksums, handles joining and repairs divergence.
 
-One real host and two isolated browser contexts communicate through an authenticated
-local HTTP relay. Tests cover duplicate/reordered messages, lost receipts,
+One real host and two clients in separate Chromium, Firefox and WebKit processes
+communicate through an authenticated local HTTP relay. Tests cover duplicate/reordered messages, lost receipts,
 reconnect, forged identity, paused actions, profile isolation and terminal resync,
 plus selected normal/Boss/ASCII content, mirror/shared-health relationships,
 stored removed-source actions, topology/copy changes and layered movement.
@@ -123,11 +123,11 @@ coverage and crowded-battle synchronization cost measurements remain unfinished.
 ## Next Work
 
 1. Complete independent control/checkpoint adapters around the shared runtime;
-   resolve cross-engine numeric guarantees.
+   retain exact cross-engine numeric gates while expanding content/platform coverage.
 2. Finish participant/resource policies and durable authority recovery.
 3. Integrate client input and transport lifetime handling, then broaden fault and
    content coverage and profile crowded host/replica execution.
 
-Rules version 8 fixes layered mirror movement; older saves remain loadable, while
-older replay rule versions are rejected. The full goal is still active. See
+Rules version 9 adds deterministic math and signed-zero preservation; older saves
+remain loadable, while older replay rule versions are rejected. The full goal is still active. See
 [replay compatibility](multiplayer-preparation.md) and [performance](performance.md).

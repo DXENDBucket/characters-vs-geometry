@@ -202,10 +202,23 @@ isolated per unit or battlefield, while status visuals run once per displayed
 frame. New tests cover cross-battle isolation, same-tick changes and read-only
 overlay rendering. See [Combat State And Status Display](combat-state.md).
 
-Protocol-2 checksums use canonical capture directly instead of copying and
+Since protocol 2, checksums use canonical capture directly instead of copying and
 validating a second graph each time. A Node-only 800-circle benchmark measured
 about 10.0 ms median checksum time versus 7.5 ms for the old order-sensitive
 checksum, with a 950,965-byte wire snapshot. This is still a significant cost;
 it is not full browser synchronization/frame-time evidence. Broader mixed-content
 profiling remains open. Reproduce with `node scripts/benchmark-battle-serialization.mjs`;
 see [wire state](battle-wire-state.md) for format and diagnostic limits.
+
+Rules 9 replace core native trigonometry/power/hypot with pinned deterministic
+JavaScript kernels. Cross-engine correctness now has exact gates, including a
+minified bundle and a mixed-engine host/client test. This is not evidence of a
+performance gain. The prior static timings above predate this change; mixed-battle
+profiles must include the kernels and the complete synchronization path. See
+[math](battle-math.md) for compatibility and verification.
+
+The rules-9 browser performance regression still adds five textures for 800
+circles, observes one overlay draw per frame and bounds unused glyph retention.
+This local run measured 66.5 ms spawn time and 0.44 ms median simulation tick.
+It remains a synthetic circle fixture, not a populated pipeline/Boss battlefield
+or a synchronized-client frame-time measurement.

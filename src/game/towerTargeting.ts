@@ -1,3 +1,4 @@
+import * as battleMath from "./battleMath";
 import { towerCellMembers } from "./towerOccupancy";
 import { towerAtCell, towerCell } from "./towerTopology";
 import { towerBehaviorType } from "./towerIdentity";
@@ -486,7 +487,7 @@ function enemyIsInAttackArea(
 }
 
 function fanSpreadSlope(area: Extract<AttackAreaConfig, { kind: "fan" }>) {
-  return area.spreadSlope ?? Math.tan(area.spreadDegrees * (Math.PI / 180));
+  return area.spreadSlope ?? battleMath.tan(area.spreadDegrees * (Math.PI / 180));
 }
 
 function attackTargetPriority(query: AttackTargetQuery, enemy: Enemy) {

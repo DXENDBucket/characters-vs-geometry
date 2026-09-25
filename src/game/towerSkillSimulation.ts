@@ -1,3 +1,4 @@
+import * as battleMath from "./battleMath";
 import { inFriendlyRange } from "./towerTopology";
 import { isNumberTower, numberTowerActionLevel, towerBehaviorType, withTowerActionContext } from "./towerIdentity";
 import type { TowerActionDataEvent as TowerActionEvent, TowerActionDataListener } from "./towerActions";
@@ -250,7 +251,7 @@ export class TowerSkillSimulation {
   private updateClockTower(tower: Tower, state: SkillState, seconds: number, time: number) {
     if (time < state.activeUntil) {
       this.runtime().presentation.borderVisible(tower, true);
-      this.runtime().presentation.borderAlpha(tower, 0.35 + Math.sin(time / 70) * 0.32 + 0.32);
+      this.runtime().presentation.borderAlpha(tower, 0.35 + battleMath.sin(time / 70) * 0.32 + 0.32);
       return;
     }
 
@@ -279,7 +280,7 @@ export class TowerSkillSimulation {
 
     const targets = this.guardianHealTargets(tower);
     if (targets.length === 0) {
-      this.runtime().presentation.borderAlpha(tower, 0.62 + Math.sin(time / 90) * 0.28);
+      this.runtime().presentation.borderAlpha(tower, 0.62 + battleMath.sin(time / 90) * 0.28);
       return;
     }
 
@@ -308,7 +309,7 @@ export class TowerSkillSimulation {
 
     if (state.sp >= AIR_PATROL_SKILL_MAX) {
       this.runtime().presentation.borderVisible(tower, true);
-      this.runtime().presentation.borderAlpha(tower, 0.62 + Math.sin(time / 90) * 0.28);
+      this.runtime().presentation.borderAlpha(tower, 0.62 + battleMath.sin(time / 90) * 0.28);
       return;
     }
 
@@ -365,7 +366,7 @@ export class TowerSkillSimulation {
   private updateSpellMortarTower(tower: Tower, state: SkillState, seconds: number, time: number) {
     if (time < state.activeUntil) {
       this.runtime().presentation.borderVisible(tower, true);
-      this.runtime().presentation.borderAlpha(tower, 0.35 + Math.sin(time / 70) * 0.32 + 0.32);
+      this.runtime().presentation.borderAlpha(tower, 0.35 + battleMath.sin(time / 70) * 0.32 + 0.32);
       return;
     }
 

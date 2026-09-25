@@ -1,3 +1,4 @@
+import * as battleMath from "./battleMath";
 import { CHEVRON_LEADER } from "../data/chevronLeader";
 import { towerAreaTargets, towerDamageReceiver } from "./towerOccupancy";
 import { towerBehaviorType } from "./towerIdentity";
@@ -344,7 +345,7 @@ function canEnemyBeDirectlyHit(enemy: Enemy) {
 
 function updateHomingProjectile(runtime: ProjectileRuntime, projectile: Projectile, seconds: number) {
   const target = resolveHomingTarget(runtime, projectile);
-  const currentSpeed = projectile.speed ?? Math.hypot(projectile.vx, projectile.vy);
+  const currentSpeed = projectile.speed ?? battleMath.hypot(projectile.vx, projectile.vy);
   const maxSpeed = projectile.maxSpeed ?? currentSpeed;
   const acceleration = projectile.acceleration ?? 0;
   const nextSpeed = Math.min(maxSpeed, currentSpeed + acceleration * seconds);
@@ -352,9 +353,9 @@ function updateHomingProjectile(runtime: ProjectileRuntime, projectile: Projecti
 
   if (target) {
     const targetPoint = homingTargetPoint(projectile, target);
-    const angle = Math.atan2(targetPoint.y - projectile.y, targetPoint.x - projectile.x);
-    projectile.vx = Math.cos(angle) * nextSpeed;
-    projectile.vy = Math.sin(angle) * nextSpeed;
+    const angle = battleMath.atan2(targetPoint.y - projectile.y, targetPoint.x - projectile.x);
+    projectile.vx = battleMath.cos(angle) * nextSpeed;
+    projectile.vy = battleMath.sin(angle) * nextSpeed;
     runtime.presentation.rotation(projectile, angle);
     return;
   }
@@ -367,7 +368,7 @@ function updateHomingProjectile(runtime: ProjectileRuntime, projectile: Projecti
     projectile.vx *= speedScale;
     projectile.vy *= speedScale;
   }
-  runtime.presentation.rotation(projectile, Math.atan2(projectile.vy, projectile.vx));
+  runtime.presentation.rotation(projectile, battleMath.atan2(projectile.vy, projectile.vx));
 }
 
 function resolveHomingTarget(runtime: ProjectileRuntime, projectile: Projectile) {
@@ -592,7 +593,7 @@ function radiusFalloffFromDistanceSq(distanceSq: number, radius: number) {
     return 0;
   }
 
-  return 1 - Math.sqrt(distanceSq) / radius;
+  return 1 - battleMath.sqrt(distanceSq) / radius;
 }
 
 function bossRadiusFalloff(runtime: ProjectileRuntime, boss: CubeBoss | null, x: number, y: number, radius: number) {
@@ -658,7 +659,7 @@ function damageShiftTowerSelf(runtime: ProjectileRuntime, tower: Tower) {
 function positionMortarProjectile(runtime: ProjectileRuntime, projectile: MortarProjectile) {
   const progress = projectile.progress;
   const inverse = 1 - progress;
-  const distance = Math.hypot(projectile.targetX - projectile.fromX, projectile.targetY - projectile.fromY);
+  const distance = battleMath.hypot(projectile.targetX - projectile.fromX, projectile.targetY - projectile.fromY);
   const controlX = (projectile.fromX + projectile.targetX) / 2;
   const controlY = Math.min(projectile.fromY, projectile.targetY) - 420 - distance * 0.4;
 

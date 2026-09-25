@@ -1,7 +1,5 @@
 import assert from "node:assert/strict";
-import fs from "node:fs";
 import { test } from "node:test";
-import ts from "typescript";
 import { createTypeScriptLoader } from "./helpers/load-typescript.mjs";
 
 test("battlefield clipping extends symmetrically to both wave labels without exposing the card rail", () => {
@@ -381,16 +379,8 @@ test("O specializes in magic resistance without changing its cost, health or coo
 });
 
 // Load the pure rules with the project's compiler, without a browser or Phaser.
-const source = fs.readFileSync(new URL("../src/game/rules/towerMovement.ts", import.meta.url), "utf8");
-const { outputText } = ts.transpileModule(source, {
-  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 }
-});
-const { planTowerMove } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
-
-const pushModule = ts.transpileModule(fs.readFileSync(new URL("../src/game/rules/towerPush.ts", import.meta.url), "utf8"), {
-  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 }
-});
-const { planTowerPush } = await import(`data:text/javascript;base64,${Buffer.from(pushModule.outputText).toString("base64")}`);
+const { planTowerMove } = createTypeScriptLoader()("src/game/rules/towerMovement.ts");
+const { planTowerPush } = createTypeScriptLoader()("src/game/rules/towerPush.ts");
 
 test("box push moves contiguous chains in all four directions, leaving the source and towers beyond gaps unchanged", () => {
   for (const [dy, dx] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {

@@ -282,7 +282,7 @@ test("wire decoding rejects missing, duplicate, hidden, mismatched and unreachab
     w => w.entities[0].id = "boss:0", w => w.entities[0].data.entityId = w.entities[0].id,
     w => w.entities[0].data.body = 1,
     w => w.entities[0].data.x = { entity: w.entities[0].id, extra: 1 },
-    w => w.entities[0].data.x = { number: "-0" }, w => w.entities[0].data.x = NaN,
+    w => w.entities[0].data.x = { number: "+0" }, w => w.entities[0].data.x = NaN,
     w => w.entities[0].data.x = { object: -1 },
     w => w.entities[0].data.x = Object.assign(Object.create({}), { entity: w.entities[0].id }),
     w => w.objects.push({ kind: "object", data: {} }),
@@ -311,4 +311,18 @@ test("canonical graph traversal handles deep cycles without recursion and retain
   assert.equal(current, restored);
   assert.equal(canonical.nodes.length, 12000);
   assert.deepEqual(captureBattleSnapshot(restored, { canonical: true }), canonical);
+});
+
+test("signed zero survives local and wire JSON checkpoints and affects authoritative checksums", () => {
+  const f = fixture(); f.enemy.x = -0; f.enemy.y = 0;
+  const graph = captureBattleSnapshot(f.state), expected = battleChecksum(f.state);
+  for (const encoded of [JSON.parse(JSON.stringify(graph)),
+    decodeBattleWireGraph(JSON.parse(JSON.stringify(encodeBattleWireGraph(graph))))]) {
+    const state = decodeSaveGraph(encoded, () => ({}));
+    assert.ok(Object.is(state.enemies[0].x, -0));
+    assert.ok(Object.is(state.enemies[0].y, 0));
+    assert.equal(battleChecksum(state), expected);
+  }
+  f.enemy.x = 0;
+  assert.notEqual(battleChecksum(f.state), expected);
 });

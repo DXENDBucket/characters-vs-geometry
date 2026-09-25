@@ -1,8 +1,8 @@
 import { classifyBattleData } from "./battleDataSchema";
 import { parseBattleEntityId, type BattleEntityKind } from "./battleEntityIds";
-import { canonicalSaveGraph, validateSaveGraph, type GraphNode, type SaveGraph, type Value } from "./saveGraph";
+import { canonicalSaveGraph, validateSaveGraph, type GraphNode, type SaveGraph, type Value, type NumberTag } from "./saveGraph";
 
-export const BATTLE_WIRE_VERSION = 1;
+export const BATTLE_WIRE_VERSION = 2;
 const MAX_NODES = 250000, MAX_FIELDS = 2000000;
 type WireValue = Exclude<Value, { ref: number }> | { entity: string } | { object: number };
 interface WireObject { kind: "object" | "array"; data: Record<string, WireValue> }
@@ -78,7 +78,7 @@ export function decodeBattleWireGraph(value: unknown): SaveGraph {
   }
   const decode = (child: unknown): Value => {
     if (child === null || typeof child === "string" || typeof child === "boolean" || typeof child === "number" && Number.isFinite(child)) return child;
-    if (fields(child, ["number"]) && ["Infinity", "-Infinity", "NaN"].includes(child.number as string)) return { number: child.number as "Infinity" | "-Infinity" | "NaN" };
+    if (fields(child, ["number"]) && ["Infinity", "-Infinity", "NaN", "-0"].includes(child.number as string)) return { number: child.number as NumberTag };
     if (fields(child, ["object"]) && Number.isSafeInteger(child.object) && (child.object as number) >= 0 && (child.object as number) < objects.length) return { ref: child.object as number };
     if (fields(child, ["entity"]) && typeof child.entity === "string" && ids.has(child.entity)) return { ref: ids.get(child.entity)! };
     throw new Error("Invalid battle wire reference or value");

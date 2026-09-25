@@ -1,3 +1,4 @@
+import * as battleMath from "./battleMath";
 import type { SkillState } from "../types";
 import type { TowerState as Tower } from "./towerState";
 import type { TowerSkillPresentation } from "./towerSkillPresentation";
@@ -16,7 +17,7 @@ export function pushIsReady(tower: Tower) {
 
 export function updatePushSkill(tower: Tower, state: SkillState, seconds: number, time: number, presentation: Pick<TowerSkillPresentation, "borderAlpha" | "rangeAlpha">) {
   chargeTowerSkill("#", state, seconds, time, effectiveTowerLevel(tower));
-  presentation.borderAlpha(tower, state.sp >= PUSH_MAX_SP ? 0.7 + Math.sin(time / 90) * 0.3 : 1);
+  presentation.borderAlpha(tower, state.sp >= PUSH_MAX_SP ? 0.7 + battleMath.sin(time / 90) * 0.3 : 1);
 }
 
 export function resetPushSkill(tower: Tower, state: SkillState, presentation: Pick<TowerSkillPresentation, "borderAlpha" | "rangeAlpha">) {

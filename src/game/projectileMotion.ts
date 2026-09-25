@@ -1,3 +1,4 @@
+import * as battleMath from "./battleMath";
 import type { EnemyState as Enemy } from "./enemyState";
 import type { ProjectileState as Projectile } from "./projectileState";
 import { parenthesisHalfSpan } from "./enemyContainerRules";
@@ -23,7 +24,7 @@ export function segmentCircleHitTime(x: number, y: number, endX: number, endY: n
   if (a === 0 || b >= 0) return Infinity;
   const discriminant = b * b - a * c;
   if (discriminant < 0) return Infinity;
-  const t = c / (-b + Math.sqrt(discriminant));
+  const t = c / (-b + battleMath.sqrt(discriminant));
   return t <= 1 ? t : Infinity;
 }
 

@@ -1,3 +1,4 @@
+import * as battleMath from "./battleMath";
 import type { CardDefinition, CardId, StoredTowerShot } from "../types";
 import type { TowerState as Tower } from "./towerState";
 import type { NativeTowerActionDataEvent, TowerActionDataEvent } from "./towerActions";
@@ -106,7 +107,7 @@ export function emitPipelineShot(shot: StoredTowerShot, outlet: Tower, runtime: 
   }
   const direction = towerFacingDirection(outlet), x = outlet.x + direction * 26;
   const projectile = runtime.combat.createProjectile({ ...shot, x, y: outlet.y, lane: outlet.lane,
-    speed: Math.hypot(shot.vx, shot.vy), angleDegrees: Math.atan2(shot.vy, shot.vx * direction) * 180 / Math.PI,
+    speed: battleMath.hypot(shot.vx, shot.vy), angleDegrees: battleMath.atan2(shot.vy, shot.vx * direction) * 180 / Math.PI,
     maxX: x + direction * shot.remainingRange, limitDirection: direction });
   projectile.sourceBehaviorType = shot.sourceBehaviorType;
   projectile.circuitChecked = true;

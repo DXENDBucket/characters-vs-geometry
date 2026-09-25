@@ -5,7 +5,7 @@ import { validBattleActorId } from "./battleParticipants";
 import type { BattleSession } from "./battleSession";
 import { BATTLE_RULES_VERSION } from "./battleSimulation";
 
-export const BATTLE_PROTOCOL_VERSION = 2;
+export const BATTLE_PROTOCOL_VERSION = 3;
 export const MAX_BATTLE_REQUEST_BYTES = 65536;
 export const BATTLE_RECEIPT_WINDOW = 64;
 export const MAX_BATTLE_REQUESTS_PER_WINDOW = 128;

@@ -1,3 +1,4 @@
+import * as battleMath from "./battleMath";
 import { invalidateEnemyRoster } from "./enemyRoster";
 import { DEL_DELETE_STACK, DEL_FORMAT, DEL_ECHO_HITBOX_CELLS } from "../data/delBoss";
 import { ENDLESS_WINGS_EFFECT } from "../data/bossAbilities";
@@ -777,8 +778,8 @@ function dodecahedronCompanionOrbitPosition(companion: Enemy, boss: CubeBoss) {
   const angle = companion.bossOrbitAngle ?? Math.PI;
   const radius = companion.bossOrbitRadius ?? DODECAHEDRON_COMPANION_ORBIT_RADIUS;
   return {
-    x: boss.x + Math.cos(angle) * radius,
-    y: boss.y + Math.sin(angle) * radius
+    x: boss.x + battleMath.cos(angle) * radius,
+    y: boss.y + battleMath.sin(angle) * radius
   };
 }
 

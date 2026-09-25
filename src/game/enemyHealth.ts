@@ -1,3 +1,4 @@
+import * as battleMath from "./battleMath";
 import type { EnemyHealthPool as HealthPool } from "../types";
 import type { EnemyState as Enemy } from "./enemyState";
 import { getEnemyDefinition } from "../registry/enemies";
@@ -37,7 +38,7 @@ export function initializeEnemyHealthLinks(owner: Enemy, enemies: readonly Enemy
   const capacity = getEnemyDefinition(owner.kind).healthLinkCapacity ?? 0;
   if (capacity <= 0 || owner.healthLinksInitialized) return;
   owner.healthLinksInitialized = true;
-  const distance = (enemy: Enemy) => (enemy.x - owner.x) ** 2 + (enemy.y - owner.y) ** 2;
+  const distance = (enemy: Enemy) => battleMath.square(enemy.x - owner.x) + battleMath.square(enemy.y - owner.y);
   const targets = enemies.filter(enemy => enemy !== owner && canJoinEnemyGroup(enemy))
     .sort((a, b) => distance(a) - distance(b))
     .slice(0, capacity);

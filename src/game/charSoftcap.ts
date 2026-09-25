@@ -1,3 +1,4 @@
+import * as battleMath from "./battleMath";
 export const CHAR_SOFTCAP_THRESHOLD = 9_999;
 export const CHAR_SOFTCAP_EXPONENT_BASE = 0.7;
 
@@ -52,7 +53,7 @@ function activeSoftcapLayers(rawChars: number) {
 }
 
 function rawThresholdForLayer(layer: number) {
-  return 10 ** (layer + 3) - 1;
+  return battleMath.pow(10, layer + 3) - 1;
 }
 
 function applySoftcapLayer(value: number, threshold: number) {
@@ -60,5 +61,5 @@ function applySoftcapLayer(value: number, threshold: number) {
     return value;
   }
 
-  return Math.pow(value, CHAR_SOFTCAP_EXPONENT_BASE) * Math.pow(threshold, 1 - CHAR_SOFTCAP_EXPONENT_BASE);
+  return battleMath.pow(value, CHAR_SOFTCAP_EXPONENT_BASE) * battleMath.pow(threshold, 1 - CHAR_SOFTCAP_EXPONENT_BASE);
 }

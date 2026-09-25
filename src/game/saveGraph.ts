@@ -1,5 +1,6 @@
 export type NodeKind = "object" | "array" | "tower" | "enemy" | "boss" | "projectile" | "enemyProjectile" | "mortar";
-export type Value = null | boolean | string | number | { ref: number } | { number: "Infinity" | "-Infinity" | "NaN" };
+export type NumberTag = "Infinity" | "-Infinity" | "NaN" | "-0";
+export type Value = null | boolean | string | number | { ref: number } | { number: NumberTag };
 export interface GraphNode { kind: NodeKind; data: Record<string, Value> }
 export interface SaveGraph { root: Value; nodes: GraphNode[] }
 const forbidden = new Set(["__proto__", "prototype", "constructor"]);
@@ -25,7 +26,7 @@ export function encodeSaveGraph(root: unknown, classify: (object: object) => {
   function encode(value: unknown): Value {
     if (value === null || typeof value === "string" || typeof value === "boolean") return value;
     if (typeof value === "number") {
-      return Number.isFinite(value) ? value : { number: String(value) as "Infinity" | "-Infinity" | "NaN" };
+      return Object.is(value, -0) ? { number: "-0" } : Number.isFinite(value) ? value : { number: String(value) as NumberTag };
     }
     if (typeof value !== "object") throw new Error("Unsupported save value");
     const existing = ids.get(value);
@@ -54,7 +55,7 @@ export function validateSaveGraph(value: unknown): asserts value is SaveGraph {
     if (typeof value === "number") return Number.isFinite(value);
     if (!value || typeof value !== "object" || Object.keys(value).length !== 1) return false;
     if ("ref" in value) return Number.isInteger(value.ref) && value.ref >= 0 && value.ref < graph.nodes.length;
-    return "number" in value && ["Infinity", "-Infinity", "NaN"].includes(value.number);
+    return "number" in value && ["Infinity", "-Infinity", "NaN", "-0"].includes(value.number);
   };
   if (!validValue(graph.root)) throw new Error("Invalid save root");
   for (const node of graph.nodes) {

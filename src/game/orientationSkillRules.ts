@@ -1,3 +1,4 @@
+import * as battleMath from "./battleMath";
 import type { SkillState } from "../types";
 import type { TowerState as Tower } from "./towerState";
 import type { TowerSkillPresentation } from "./towerSkillPresentation";
@@ -38,6 +39,6 @@ function syncOrientationVisual(tower: Tower, state: SkillState, time: number, pr
   const active = time < state.activeUntil && !tower.routedSkills?.o;
   const rangeAlpha = active ? 0.9 : 0.22;
   presentation.rangeAlpha(tower, rangeAlpha);
-  const borderAlpha = !active && state.sp >= ORIENTATION_MAX_SP ? 0.62 + Math.sin(time / 90) * 0.28 : 1;
+  const borderAlpha = !active && state.sp >= ORIENTATION_MAX_SP ? 0.62 + battleMath.sin(time / 90) * 0.28 : 1;
   presentation.borderAlpha(tower, borderAlpha);
 }

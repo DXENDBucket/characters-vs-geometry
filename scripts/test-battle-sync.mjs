@@ -75,7 +75,7 @@ test("snapshot join, ordered frames and duplicate frames converge using the real
 
 test("wire record order cannot change snapshot validation or restored command continuation", () => {
   const f = fixture(), message = f.snapshot(), graph = message.replay.checkpoint;
-  assert.equal(message.version, 2);
+  assert.equal(message.version, BATTLE_PROTOCOL_VERSION);
   assert.equal(graph.nodes, undefined, "Legacy numeric entity graph must not be sent on the wire");
   const remap = value => value && typeof value === "object" && "object" in value
     ? { object: graph.objects.length - value.object - 1 } : value;

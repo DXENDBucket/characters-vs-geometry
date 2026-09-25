@@ -1,3 +1,4 @@
+import * as battleMath from "./battleMath";
 import { towerInPlacementLayer } from "./towerOccupancy";
 import { inFriendlyRange, physicalTowerCell, towerCell } from "./towerTopology";
 import { towerBehaviorType } from "./towerIdentity";
@@ -938,7 +939,7 @@ function fireTowerProjectiles(tower: Tower, definition: CardDefinition, runtime:
   for (const shot of pattern.shots) {
     const angleDegrees = mirrored ? 180 - shot.angleDegrees : shot.angleDegrees;
     const muzzle = projectileMuzzlePoint(tower, shot.muzzle ?? pattern.defaultMuzzle, mirrored);
-    const limitDirection = Math.cos(angleDegrees * (Math.PI / 180)) < 0 ? -1 : 1;
+    const limitDirection = battleMath.cos(angleDegrees * (Math.PI / 180)) < 0 ? -1 : 1;
     runtime.projectiles.push(
       runtime.createProjectile({
         type: pattern.projectileKind,

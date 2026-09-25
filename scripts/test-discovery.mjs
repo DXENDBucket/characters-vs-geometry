@@ -1,11 +1,7 @@
 import assert from "node:assert/strict";
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import ts from "typescript";
+import { createTypeScriptLoader } from "./helpers/load-typescript.mjs";
 
-const root = fileURLToPath(new URL("../", import.meta.url));
 const storageKey = "characters-vs-geometry-progress-v1";
 
 test("v unlocks after 3-4 rather than 2-9", () => {
@@ -93,21 +89,7 @@ function fixture(saved) {
     setItem: (key, value) => { storage.set(key, value); writes++; },
     removeItem: key => storage.delete(key)
   } };
-  const modules = new Map();
-  function load(name) {
-    const filename = path.resolve(root, name);
-    if (modules.has(filename)) return modules.get(filename);
-    const exports = {};
-    modules.set(filename, exports);
-    const { outputText } = ts.transpileModule(fs.readFileSync(filename, "utf8"), {
-      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
-    });
-    new Function("require", "exports", "window", "navigator", outputText)(
-      specifier => load(path.resolve(path.dirname(filename), `${specifier}.ts`)),
-      exports, window, { language: "en" }
-    );
-    return exports;
-  }
+  const load = createTypeScriptLoader({}, { window });
   return {
     progress: load("src/progress.ts"), visibility: load("src/encyclopediaVisibility.ts"),
     levels: load("src/data/levels.ts"), chapters: load("src/data/chapters.ts"),

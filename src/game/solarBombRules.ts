@@ -1,3 +1,4 @@
+import * as battleMath from "./battleMath";
 import { enemyMaximumHp } from "./enemyContainerRules";
 import type { DamageType } from "../types";
 import type { EnemyState as Enemy } from "./enemyState";
@@ -63,5 +64,5 @@ export function bounceSolarBombFromPoint(enemy: Enemy, sourceX: number, sourceY:
 }
 
 export function vectorLength(x: number, y: number) {
-  return Math.sqrt(x * x + y * y);
+  return battleMath.sqrt(x * x + y * y);
 }

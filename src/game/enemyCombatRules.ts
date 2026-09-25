@@ -1,3 +1,4 @@
+import * as battleMath from "./battleMath";
 import { ATTACK_INTERVAL, CELL_WIDTH, ENEMY_SPEED, ENEMY_SPEED_VARIANCE } from "../config";
 import { CHEVRON_LEADER } from "../data/chevronLeader";
 import {
@@ -51,7 +52,7 @@ export function siegeRamSpeed(enemy: EnemyState) {
   const accelerationDistance = 7 * CELL_WIDTH;
   const traveled = Math.max(0, enemy.spawnX - enemy.x);
   const progress = Math.max(0, Math.min(1, traveled / accelerationDistance));
-  return enemy.baseStats.speed * Math.sqrt(1 + 15 * progress);
+  return enemy.baseStats.speed * battleMath.sqrt(1 + 15 * progress);
 }
 
 export function enemyAttackSpeed(kind: EnemyKind) {

@@ -1,3 +1,4 @@
+import * as battleMath from "./battleMath";
 import { BOARD_Y, CELL_HEIGHT, LANES } from "../config";
 import type { EnemyState as Enemy } from "./enemyState";
 
@@ -19,7 +20,7 @@ export function oscillationTarget(enemy: Enemy, seconds: number) {
   // Teleports move the path's center instead of snapping the unit back on its next tick.
   enemy.oscillationCenterY += enemy.y - (enemy.oscillationLastY ?? enemy.y);
   const phase = (enemy.oscillationPhase ?? 0) + seconds * Math.PI * 2 / OSCILLATION_PERIOD;
-  return { y: enemy.oscillationCenterY + OSCILLATION_AMPLITUDE * Math.sin(phase), phase };
+  return { y: enemy.oscillationCenterY + OSCILLATION_AMPLITUDE * battleMath.sin(phase), phase };
 }
 
 export function commitOscillation(enemy: Enemy, y: number, phase: number) {

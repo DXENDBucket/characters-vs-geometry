@@ -1,3 +1,4 @@
+import * as battleMath from "./battleMath";
 import { enemyFacingDirection, enemyMovementDirection } from "./rules/reversal";
 import { CELL_HEIGHT, CELL_WIDTH } from "../config";
 import { enemyFamily, enemyIsBossCompanion, enemyIsMace } from "../registry/enemies";
@@ -52,7 +53,7 @@ export function advanceHighFlyingEnemy(enemy: Enemy, time: number, presentation:
   const targetX = enemy.highFlightTargetX ?? enemy.x;
   const targetY = enemy.highFlightTargetY ?? enemy.y;
   const peakHeight = enemy.highFlightPeakHeight ?? CELL_HEIGHT;
-  const arcOffset = Math.sin(progress * Math.PI) * peakHeight;
+  const arcOffset = battleMath.sin(progress * Math.PI) * peakHeight;
 
   enemy.x = linear(startX, targetX, progress);
   enemy.y = linear(startY, targetY, progress) - arcOffset;

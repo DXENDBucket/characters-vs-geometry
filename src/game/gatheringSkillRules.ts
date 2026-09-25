@@ -1,3 +1,4 @@
+import * as battleMath from "./battleMath";
 import { towerBehaviorType } from "./towerIdentity";
 import type { SkillState } from "../types";
 import type { TowerState as Tower } from "./towerState";
@@ -38,6 +39,6 @@ function syncGatheringVisual(tower: Tower, state: SkillState, time: number, pres
   const active = time < state.activeUntil && !tower.routedSkills?.j;
   const rangeAlpha = active ? 0.9 : 0.22;
   presentation.rangeAlpha(tower, rangeAlpha);
-  const borderAlpha = !active && state.sp >= GATHERING_MAX_SP ? 0.62 + Math.sin(time / 90) * 0.28 : 1;
+  const borderAlpha = !active && state.sp >= GATHERING_MAX_SP ? 0.62 + battleMath.sin(time / 90) * 0.28 : 1;
   presentation.borderAlpha(tower, borderAlpha);
 }

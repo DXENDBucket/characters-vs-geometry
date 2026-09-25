@@ -13,7 +13,9 @@ export function legacyBattleChecksum(capture, state, options = {}) {
       "targetVelocityX", "targetVelocityY", "targetVelocityZ", "nextTurnIn"]) delete node.data[key];
   }
   let hash = 2166136261;
-  const text = JSON.stringify(graph);
+  // The old JSON codec lost negative zero. Keep that behavior only in this diagnostic.
+  const text = JSON.stringify(graph, (_key, value) => value && typeof value === "object" &&
+    Object.keys(value).length === 1 && value.number === "-0" ? 0 : value);
   for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 16777619);
   return (hash >>> 0).toString(16).padStart(8, "0");
 }

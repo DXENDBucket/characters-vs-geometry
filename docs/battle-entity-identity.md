@@ -64,7 +64,7 @@ Default battle checksums include IDs and allocator history. The explicit
 it must not be used as an authoritative synchronization checksum.
 
 Local saves still use graph references, and combat actions hold local data-object
-references. Semantic operations use IDs. Protocol 2 now serializes all entity
+references. Semantic operations use IDs. Protocol 3 serializes all entity
 relationships by ID, preserving cyclic/shared non-entity state through object
 records; see [wire state](battle-wire-state.md). The identity and wire parts of
 readiness gate 4 are implemented. This is not completion of the overall goal:

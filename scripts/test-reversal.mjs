@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import ts from "typescript";
+import { loadExternal } from "./helpers/load-typescript.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const noop = () => {};
@@ -68,7 +69,7 @@ function load(name) {
       const index = array.indexOf(value);
       if (index >= 0) array.splice(index, 1);
     } } } } };
-    return load(path.resolve(path.dirname(filename), `${specifier}.ts`));
+    return specifier.startsWith(".") ? load(path.resolve(path.dirname(filename), `${specifier}.ts`)) : loadExternal(specifier);
   }, exports);
   return exports;
 }

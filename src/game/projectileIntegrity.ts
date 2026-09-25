@@ -1,3 +1,4 @@
+import * as battleMath from "./battleMath";
 /** Damage is also a projectile's interception budget; judgments remain separate. */
 export interface ProjectileIntegrity {
   damage: number;
@@ -35,8 +36,8 @@ export function forEachProjectileHit(shot: ProjectileIntegrity, hit: (damage: nu
 export function projectileVisualScale(shot: ProjectileIntegrity) {
   const remaining = projectileDamageBudget(shot), initial = shot.initialDamageBudget ?? remaining;
   if (initial <= 0) return .65;
-  const base = Math.min(2.5, Math.max(.65, (initial / 400) ** .2));
-  return base * (.25 + .75 * Math.sqrt(Math.max(0, remaining / initial)));
+  const base = Math.min(2.5, Math.max(.65, battleMath.pow(initial / 400, .2)));
+  return base * (.25 + .75 * battleMath.sqrt(Math.max(0, remaining / initial)));
 }
 
 export function segmentInInterceptionRange(from: { x: number; y: number }, to: { x: number; y: number },
@@ -45,5 +46,5 @@ export function segmentInInterceptionRange(from: { x: number; y: number }, to: {
   const dx = (to.x - from.x) / width, dy = (to.y - from.y) / height;
   const length = dx * dx + dy * dy;
   const t = length ? Math.max(0, Math.min(1, -(x * dx + y * dy) / length)) : 0;
-  return (x + dx * t) ** 2 + (y + dy * t) ** 2 <= radius * radius;
+  return battleMath.square(x + dx * t) + battleMath.square(y + dy * t) <= radius * radius;
 }

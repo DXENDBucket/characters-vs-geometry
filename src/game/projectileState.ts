@@ -1,3 +1,4 @@
+import * as battleMath from "./battleMath";
 import type { CardId, DamageType, ProjectileKind, StatusEffectName } from "../types";
 import type { BossState as CubeBoss } from "./bossState";
 import type { EnemyState as Enemy } from "./enemyState";
@@ -136,15 +137,15 @@ export function createTowerProjectileState(spec: TowerProjectileSpec): Projectil
     lane: spec.lane,
     x: spec.x,
     y: spec.y,
-    vx: Math.cos(angle) * spec.speed,
-    vy: Math.sin(angle) * spec.speed,
+    vx: battleMath.cos(angle) * spec.speed,
+    vy: battleMath.sin(angle) * spec.speed,
     damage: spec.damage,
     damageType: spec.damageType,
     debuff: spec.debuff,
     debuffDuration: spec.debuffDuration,
     splashRadius: spec.splashRadius,
     maxX: spec.maxX,
-    limitDirection: spec.limitDirection ?? (Math.cos(angle) < 0 ? -1 : 1),
+    limitDirection: spec.limitDirection ?? (battleMath.cos(angle) < 0 ? -1 : 1),
     sourceTower: spec.sourceTower,
     sourceBehaviorType: spec.sourceTower && (spec.sourceTower.type === "@" || towerActionContext(spec.sourceTower))
       ? towerBehaviorType(spec.sourceTower) : undefined
@@ -153,7 +154,7 @@ export function createTowerProjectileState(spec: TowerProjectileSpec): Projectil
 
 export function homingProjectileAngleDegrees(spec: HomingTowerProjectileSpec) {
   const target = spec.targetEnemy ?? spec.targetBossPart;
-  return (target ? Math.atan2(target.y - spec.y, target.x - spec.x) : 0) * (180 / Math.PI);
+  return (target ? battleMath.atan2(target.y - spec.y, target.x - spec.x) : 0) * (180 / Math.PI);
 }
 
 export function createHomingTowerProjectileState(spec: HomingTowerProjectileSpec): ProjectileState {

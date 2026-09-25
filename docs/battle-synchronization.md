@@ -27,7 +27,7 @@ production transport or renderer-free authoritative server.
 
 ## Stream And Recovery
 
-Protocol version 2 messages identify the battle and snapshot stream. A cursor
+Protocol version 3 messages identify the battle and snapshot stream. A cursor
 contains the absolute simulation tick and next global command sequence. New
 connections and resync snapshots receive a new stream; old-stream messages cannot
 rewind the client. A new battle needs a new client/transport scope.
@@ -39,8 +39,9 @@ execution, maps global command indices into its checkpoint-relative recording an
 follows the host's ticks using the existing executor, RNG and action queue. Pause
 and speed remain battle state, not client rendering decisions. The client decodes
 the validated wire graph before invoking its restore adapter; local replay/save
-formats are unchanged. Checksums use canonical property/reference order. Protocol-1
-peers are rejected; the combat rules version is unchanged.
+formats retain their graph structure, with signed-zero preservation. Checksums use
+canonical property/reference order. Older protocol peers are rejected; rules 9
+introduce [deterministic math](battle-math.md).
 
 The host publishes commands immediately and coalesces command-free advancement
 to at least six ticks per update (about 10 Hz at normal speed). A frame is bounded
@@ -70,8 +71,8 @@ or terminating the connection.
   joining, frames, retries, resync, malformed messages, bounded inputs, transport
   failures and obsolete authority epochs. Its small world fixture is not evidence
   of a complete headless battle simulation.
-- `test-battle-sync-browser.mjs` runs one host and two independent browser contexts
-  with isolated local storage over an authenticated local HTTP relay. All three
+- `test-battle-sync-browser.mjs` runs a Chromium host and Firefox/WebKit clients
+  in independent processes with isolated storage over an authenticated local HTTP relay. All three
   instantiate the actual `GameScene` and exchange serialized network messages.
 - The browser fixture exercises real deployments, costs, delayed attacks, paused
   commands, speed changes, duplicate input, reordered frames, lost receipts,
@@ -83,15 +84,15 @@ or terminating the connection.
 - Pipeline coverage joins with a consumed one-shot source still referenced by its
   stored payload, submits a targeted attachment through the real authority,
   reconnects before the pending action executes, and opens connector edges by ID.
-  Both clients retain the host's 600-tick result (rules 8, protocol 2: `b15f3a9d`), including
+  Both clients retain the host's 600-tick result (rules 9, protocol 3: `94cd927e`), including
   attachment application and the stored explosion.
 - AE-4 adds remote topology connection using a tower ID, a copied w on a distant
   logical cell and resynchronization after that form change. The three worlds
-  match at rules-8/protocol-2 checksum `8a1b318a` after 600 further ticks.
+  match at rules-9/protocol-3 checksum `ba7fcfd7` after 600 further ticks.
 - A movement fixture submits layered pushes and mirror-group shifts by entity ID,
   rejects an unauthorized actor and a stale repeat, resyncs during interpolation,
   and verifies inherited generated-tower level/facing. All three worlds agree at
-  `0e59f424` after 600 further ticks (rules 8, protocol 2).
+  `d370331b` after 600 further ticks (rules 9, protocol 3).
 - Rules 8 fixes supported mirror shells disappearing on movement. Version metadata
   changes raw hashes; historical combat fixtures still match after version
   normalization. Current-version full/checkpoint replay tests agree. Session,
@@ -100,6 +101,9 @@ or terminating the connection.
 
 With Vite running, use `node scripts/test-battle-sync-browser.mjs`; it accepts
 `--url`, `--playwright` and `--browser` in the same form as the other browser tests.
+`--browser` only selects Chromium's executable. `--engines=chromium,chromium,chromium`
+is available for same-engine diagnostics, but does not replace the default mixed-
+engine gate. Install Playwright Firefox and WebKit for the default test.
 No desktop packaging is needed.
 
 ## Remaining Work

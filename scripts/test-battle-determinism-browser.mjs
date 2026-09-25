@@ -4,19 +4,24 @@ import { pathToFileURL } from "node:url";
 
 const option = name => process.argv.find(value => value.startsWith(`--${name}=`))?.slice(name.length + 3);
 const modulePath = option("playwright");
+const legacyMath = option("legacy-math") === "true";
 const { chromium } = await import(modulePath ? pathToFileURL(modulePath).href : "playwright");
 const browser = await chromium.launch({ executablePath: option("browser"), headless: true });
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 760 } });
   const errors = [];
   page.on("pageerror", error => errors.push(error.message));
+  // Test-only isolation of the intentional rules-9 math change. Never a runtime option.
+  if (legacyMath) await page.route("**/src/game/battleMath.ts*", route => route.fulfill({
+    contentType: "text/javascript", body: "export const {sin,cos,tan,atan2,hypot,pow,sqrt}=Math; export const square=x=>x**2;"
+  }));
   await page.route("**/src/main.ts*", async route => {
     const response = await route.fetch();
     await route.fulfill({ response, body: await response.text() + "\nwindow.__testGame=game;" });
   });
   await page.goto(option("url") ?? "http://127.0.0.1:5173");
   await page.waitForFunction(() => window.__testGame?.scene.getScenes(true).length);
-  const results = await page.evaluate(async () => {
+  const results = await page.evaluate(async legacyMath => {
     const config = await import("/src/config.ts");
     const progress = await import("/src/progress.ts");
     const { captureBattleSnapshot, restoreBattleSnapshot } = await import("/src/game/battleSnapshot.ts");
@@ -72,26 +77,29 @@ try {
       go(scene, 3600, [1000 / 60]);
       const replay = scene.exportReplay();
       const expected = scene.battleChecksum();
-      // These fixtures have no mirrored shells. Normalize only the version field
-      // when checking historical hashes; playback and restore still use current rules.
+      const rules9Baselines = { "1-9": "232ce3e1", "2-10": "17582ca9", "5-5": "1769f20b", "5-10": "aa3b5e4b",
+        "AE-1": "f9fa0bed", "IF-1": "d2eaad4e", "IF-BE-4": "9ac383db" };
+      if (!legacyMath && expected !== rules9Baselines[levelId]) throw Error(`${levelId}: rules-9 baseline changed: ${expected}`);
+      // Native-math diagnostic retains historical format hashes. Normal playback
+      // checks the rules-9 baseline and exact continuation above/below instead.
       const preLifecycleState = { ...scene.battleState(), simulation: { ...scene.battleState().simulation, version: 7 } };
       delete preLifecycleState.lifecycle;
       const preLifecycleHash = historicalChecksum(preLifecycleState);
       const lifecycleBaselines = { "1-9": "ab86ccd2", "2-10": "20169cdd", "5-5": "93ce4080", "5-10": "b5504280",
         "AE-1": "0ba61674", "IF-1": "7dd5f41d", "IF-BE-4": "6ee2b889" };
-      if (preLifecycleHash !== lifecycleBaselines[levelId]) throw Error(`${levelId}: combat changed beyond lifecycle snapshot`);
+      if (legacyMath && preLifecycleHash !== lifecycleBaselines[levelId]) throw Error(`${levelId}: combat changed beyond lifecycle snapshot`);
       const preControlState = { ...preLifecycleState, simulation: { ...preLifecycleState.simulation } };
       delete preControlState.simulation.controls;
       const preControlHash = historicalChecksum(preControlState);
       const controlBaselines = { "1-9": "adaf7865", "2-10": "866c6a85", "5-5": "821e8819", "5-10": "f5a1fd95",
         "AE-1": "8930ca8a", "IF-1": "d5134628", "IF-BE-4": "95442e9b" };
-      if (preControlHash !== controlBaselines[levelId]) throw Error(`${levelId}: combat changed beyond control snapshot`);
+      if (legacyMath && preControlHash !== controlBaselines[levelId]) throw Error(`${levelId}: combat changed beyond control snapshot`);
       const prePolicyState = { ...preControlState, simulation: { ...preControlState.simulation } };
       delete prePolicyState.simulation.policy;
       const prePolicyHash = historicalChecksum(prePolicyState);
       const baselines = { "1-9": "f565a778", "2-10": "d86b747e", "5-5": "8eb6d943", "5-10": "bcbf8d7f",
         "AE-1": "c1deb289", "IF-1": "fa677515", "IF-BE-4": "f07464fc" };
-      if (prePolicyHash !== baselines[levelId]) throw Error(`${levelId}: combat changed beyond captured policy`);
+      if (legacyMath && prePolicyHash !== baselines[levelId]) throw Error(`${levelId}: combat changed beyond captured policy`);
       const behaviorHash = historicalChecksum(prePolicyState, { includeEntityIds: false });
       const previousFormat = { ...prePolicyState, simulation: { ...prePolicyState.simulation, version: 6 } };
       delete previousFormat.debugModeEnabled;
@@ -159,7 +167,7 @@ try {
     go(tutorial, 120, [1000 / 60]);
     checkReplay(tutorial.exportReplay(), tutorial.battleChecksum());
     return results;
-  });
-  console.log(JSON.stringify(results, null, 2));
+  }, legacyMath);
+  console.log(JSON.stringify({ legacyMath, results }, null, 2));
   assert.deepEqual(errors, []);
 } finally { await browser.close(); }

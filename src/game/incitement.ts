@@ -1,3 +1,4 @@
+import * as battleMath from "./battleMath";
 import { INCITEMENT } from "../data/incitement";
 import { ENEMY_SKILLS } from "../data/enemyAbilities";
 import { enemyIsBossCompanion, enemyRank } from "../registry/enemies";
@@ -10,7 +11,7 @@ import { chargeEnemySkill } from "./enemySkillRules";
 import { applyStatusEffect } from "./statusEffects";
 
 export function incitementTargets(caster: Enemy, enemies: readonly Enemy[]) {
-  const distance = (enemy: Enemy) => (enemy.x - caster.x) ** 2 + (enemy.y - caster.y) ** 2;
+  const distance = (enemy: Enemy) => battleMath.square(enemy.x - caster.x) + battleMath.square(enemy.y - caster.y);
   return enemies.filter(enemy => enemy !== caster && enemyIsActive(enemy) && enemy.hp > 0 &&
     !enemyIgnoresLeaderRestrictedMechanics(enemy) && !enemyIsBossCompanion(enemy.kind))
     .sort((a, b) => distance(a) - distance(b))

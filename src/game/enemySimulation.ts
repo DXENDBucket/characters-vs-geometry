@@ -1,3 +1,4 @@
+import * as battleMath from "./battleMath";
 import { releaseBurrowCargo, destroyContainedEnemies } from "./enemyReleaseRules";
 import { syncPassengerPositionState } from "./enemyContainerRules";
 import { addEnemyToField, removeEnemyFromField } from "./enemyRoster";
@@ -779,7 +780,7 @@ function fireLeaderAreaAttack(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: 
       continue;
     }
 
-    const distance = Math.sqrt(distanceSq);
+    const distance = battleMath.sqrt(distanceSq);
     const falloff = 1 - distance / radius;
     runtime.damageTower(tower, enemyAttackDamage(enemy, time) * falloff, enemy.damageType);
   }

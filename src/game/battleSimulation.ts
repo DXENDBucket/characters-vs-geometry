@@ -1,9 +1,9 @@
 export const BATTLE_STEP_MS = 1000 / 60;
-export const BATTLE_RULES_VERSION = 8;
+export const BATTLE_RULES_VERSION = 9;
 
 // Older snapshots retain their current units; future simulation uses current rules.
 export function canRestoreBattleVersion(version: unknown) {
-  return version === 1 || version === 2 || version === 3 || version === 4 || version === 5 || version === 6 || version === 7 || version === BATTLE_RULES_VERSION;
+  return version === 1 || version === 2 || version === 3 || version === 4 || version === 5 || version === 6 || version === 7 || version === 8 || version === BATTLE_RULES_VERSION;
 }
 
 export class BattleRandom {

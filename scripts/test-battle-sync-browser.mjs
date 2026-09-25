@@ -4,7 +4,10 @@ import { randomUUID } from "node:crypto";
 import { pathToFileURL } from "node:url";
 
 const option = name => process.argv.find(value => value.startsWith(`--${name}=`))?.slice(name.length + 3);
-const { chromium } = await import(option("playwright") ? pathToFileURL(option("playwright")).href : "playwright");
+const playwright = await import(option("playwright") ? pathToFileURL(option("playwright")).href : "playwright");
+const engines = (option("engines") ?? "chromium,firefox,webkit").split(",");
+assert.equal(engines.length, 3, "Provide an engine for host and each of the two peers");
+for (const engine of engines) assert.ok(["chromium", "firefox", "webkit"].includes(engine));
 const url = option("url") ?? "http://127.0.0.1:5173";
 const roles = ["host", "a", "b"], tokens = Object.fromEntries(roles.map(role => [role, randomUUID()]));
 const mail = Object.fromEntries(roles.map(role => [role, []]));
@@ -37,10 +40,13 @@ const relay = createServer(async (req, res) => {
 });
 await new Promise(resolve => relay.listen(0, "127.0.0.1", resolve));
 const relayUrl = `http://127.0.0.1:${relay.address().port}`;
-const browser = await chromium.launch({ executablePath: option("browser"), headless: true });
+const browsers = [];
 const pages = {}, errors = [];
 try {
   for (const role of roles) {
+    const engine = engines[roles.indexOf(role)];
+    const browser = await playwright[engine].launch({ executablePath: engine === "chromium" ? option("browser") : undefined, headless: true });
+    browsers.push(browser);
     const context = await browser.newContext({ viewport: { width: 1280, height: 760 } });
     const page = pages[role] = await context.newPage();
     page.on("pageerror", error => errors.push(`${role}: ${error.message}`));
@@ -379,5 +385,8 @@ try {
     assert.equal(await pages[role].evaluate(() => window.syncTest.scene.submitPlayerControl("local", { type: "debugChars" })), "unavailable");
   }
   assert.deepEqual(errors, []);
-  console.log("Three independent browser contexts synchronized over authenticated HTTP", { initial, running, recovered, terminal, content });
-} finally { await browser.close(); await new Promise(resolve => relay.close(resolve)); }
+  console.log("Three independent browser processes synchronized over authenticated HTTP", { engines, initial, running, recovered, terminal, content });
+} finally {
+  for (const browser of browsers) await browser.close();
+  await new Promise(resolve => relay.close(resolve));
+}

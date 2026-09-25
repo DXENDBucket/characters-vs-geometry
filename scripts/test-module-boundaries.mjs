@@ -127,3 +127,32 @@ test("combat code cannot write a player's persistent profile", () => {
     assert.ok(!dependencies.includes("src/progress.ts") && !dependencies.includes("src/battleProfile.ts"), name);
   }
 });
+
+test("the independent battle graph cannot use implementation-approximated native math", () => {
+  const allowed = new Set(["abs", "ceil", "clz32", "floor", "fround", "imul", "max", "min", "round", "sign", "sqrt", "trunc",
+    "E", "LN10", "LN2", "LOG10E", "LOG2E", "PI", "SQRT1_2", "SQRT2"]);
+  const seen = new Set();
+  const visit = name => {
+    if (seen.has(name) || !sources.has(name)) return;
+    seen.add(name);
+    const ast = ts.createSourceFile(name, sources.get(name), ts.ScriptTarget.Latest, true);
+    const walk = node => {
+      if (ts.isIdentifier(node) && node.text === "Math") {
+        assert.ok((ts.isPropertyAccessExpression(node.parent) || ts.isElementAccessExpression(node.parent)) &&
+          node.parent.expression === node, `${name}: do not alias or destructure native Math in combat`);
+      }
+      if ((ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)) &&
+        ts.isIdentifier(node.expression) && node.expression.text === "Math") {
+        const key = ts.isPropertyAccessExpression(node) ? node.name.text :
+          ts.isStringLiteralLike(node.argumentExpression) ? node.argumentExpression.text : undefined;
+        assert.ok(allowed.has(key), `${name}: ${node.getText(ast)}; use battleMath for approximated operations`);
+      }
+      assert.notEqual(node.kind, ts.SyntaxKind.AsteriskAsteriskToken, `${name}: use battleMath.pow or square`);
+      ts.forEachChild(node, walk);
+    };
+    walk(ast);
+    for (const child of graph.get(name) ?? []) visit(child);
+  };
+  visit("src/game/battleRuntime.ts");
+  assert.ok(seen.size > 100);
+});

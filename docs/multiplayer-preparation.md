@@ -8,8 +8,8 @@ rules from browser input and rendering, not a multiplayer implementation.
 - `src/game/rules/towerMovement.ts` has no Phaser, DOM, storage, or wall-clock
   dependencies. It accepts a movement command and a read-only board interface.
 - Commands contain tower IDs, expected source cells, and an anchor destination.
-  They can be serialized as JSON. A command is internal typed data, not an
-  untrusted network packet; a future transport must validate incoming schemas.
+  They can be serialized as JSON. Internal commands are not a transport trust
+  boundary: the integrated authority validates schema, identity and ordering.
 - `TowerShifterController.createMoveCommand()` captures local selection.
   `executeMove()` resolves those IDs against the current battle, checks cooldown,
   revalidates the complete move, applies it, and emits the applied moves.
@@ -19,12 +19,11 @@ rules from browser input and rendering, not a multiplayer implementation.
 - Only a successful move consumes cooldown. All selected towers are validated
   before any cell is changed. Selected towers may enter one another's vacated
   cells. The existing topmost-then-leftmost anchor rule is preserved.
-- The scene handles mirror-network removal and aura refresh through `onMoved`,
-  so these effects also run for moves executed without the mouse handler.
-- Tower IDs use the battle's monotonically increasing placement order. Paused
-  placement, transient effect cards, mirror creation, and same-cell rebuilding
-  no longer share an ID just because their coordinates and time match.
-  IDs are unique within a battle, not across restarts or independent peers.
+- The shared runtime handles mirror removal and aura refresh, including moves
+  without a display or mouse handler.
+- IDs use a battle-local allocator, independent of coordinates and timestamps.
+  Paused placement, transient cards, mirrors and same-cell rebuilding have distinct
+  identities. Snapshots preserve allocator history and relationship IDs.
 
 ## Deterministic Battle Foundation
 
@@ -37,8 +36,8 @@ rules from browser input and rendering, not a multiplayer implementation.
 - All modes now use `BattleActionQueue` for delayed combat. S projectile progress
   and impacts are simulation-owned, not Phaser tween completion callbacks.
 - `BattleSession` owns the clock, RNG, action queue, command ordering and recording
-  for the actual single-player scene. World simulation is still supplied by the
-  scene callback. See [Battle Session Orchestration](battle-session.md).
+  for the actual single-player scene. World simulation is supplied by the shared
+  data-only [BattleRuntime](battle-runtime.md), also usable in Node.
 - Live input records semantic `BattleCommand` operations and controls: explicit
   cells/targets, skills, erasure, reserve changes, reselection, debug actions and
   tutorial progression. Commands run between ticks, ordered by tick and sequence.
@@ -50,7 +49,7 @@ rules from browser input and rendering, not a multiplayer implementation.
   [Semantic Battle Operations](battle-operations.md) for the remaining boundary.
 - Global controls use explicit `control` commands with separate host capabilities.
   Reserve edits are local drafts and selected cards are excluded from checksums.
-  Rules v7 continues to read v1-6 saves but rejects old-version recordings; see
+  Rules v9 reads v1-8 saves but rejects old-version recordings; see
   [Battle Controls](battle-controls.md) for compatibility and live verification.
 - New endless saves retain the clock remainder, random state and mirror ID
   counter. Older saves can still resume, but their pre-save random history cannot
@@ -81,32 +80,34 @@ attacks, but exclude purely visual Boss rotation and the render-time accumulator
 
 Recordings require the same game rules and data. Bump `BATTLE_RULES_VERSION` when
 changing gameplay semantics or balance in an incompatible way. The checksum is a
-diagnostic, not authentication. Verification currently covers Chromium at multiple
-render rates; bit-identical floating-point results across different JS engines,
-architectures or game versions are not promised.
+diagnostic, not authentication. Rules 9 use pinned deterministic math with exact
+Node/Chromium/Firefox/WebKit gates, including production-minified kernel vectors.
+Tested platforms and coverage limits are documented in [math](battle-math.md);
+arbitrary engine versions, CPU architectures and different rule versions are not
+implicitly interchangeable.
 
 ## Next Boundaries
 
 The complete integration acceptance gates and current gaps are tracked in
 [Multiplayer Readiness](multiplayer-readiness.md). Pure state construction and
 explicit snapshot fields now cover towers, enemies, projectiles and Bosses;
-live runtime orchestration and object relationships still need separation.
+the single-player game now shares a complete data-only runtime. Entity wire
+relationships use stable IDs rather than local graph traversal indices.
 
 1. Isolate participant UI instances and local-modal versus battle pause policy;
    define configurable participant/resource policies without requiring a specific
    multiplayer mode to have been chosen.
-2. Separate simulation state from Phaser objects in towers, enemies, projectiles,
-   card cooldowns, and boss parts. Stable IDs now exist for all entity factories.
-   Publish data snapshots and visual events instead of serializing game objects.
-3. Implement mode-neutral ownership, currencies, cooldowns, pause/speed policies
-   and the authoritative simulation. Add session IDs,
-   command sequence numbers, duplicate rejection, schema validation, snapshots,
-   and reconnect support at the transport boundary.
+2. Complete independent input/checkpoint adapters and legacy display hydration.
+   Keep semantic commands and authoritative progression separate from local views.
+3. Complete ownership, currencies and cooldown policies. Extend existing authority
+   and synchronization from same-live-host reconnect to durable host recovery,
+   and integrate transport lifetime handling with actual player input.
 
-There is still no server, lobby, rollback, network authorization, synchronization
-or reconnect protocol. The rendering adapter still requires Phaser; the entire
-battle is not yet a headless simulation. Replay commands are not a network trust
-boundary, and transport-level validation/authority must not be skipped.
+Authority and synchronization now exist, and independent browser processes
+exercise actual battles over an authenticated test relay. There is still no
+production transport/lobby or player-facing connection flow. The relay is test
+infrastructure, not a deployable game service. Remaining gaps are tracked in the
+readiness document; replay commands never replace transport authentication.
 
 ## Verification
 

@@ -1,3 +1,4 @@
+import * as battleMath from "./battleMath";
 import { CELL_HEIGHT, CELL_WIDTH } from "../config";
 import type { CardId, ProjectileKind } from "../types";
 
@@ -137,5 +138,5 @@ export function getProjectilePattern(type: CardId) {
 }
 
 function angleSlope(degrees: number) {
-  return Math.tan((degrees * Math.PI) / 180);
+  return battleMath.tan((degrees * Math.PI) / 180);
 }

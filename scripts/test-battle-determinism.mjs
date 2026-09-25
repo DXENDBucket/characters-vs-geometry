@@ -69,8 +69,9 @@ test("replay commands retain same-tick ordering and reject malformed input or in
   assert.throws(() => validateReplay({ ...replay, version: 4 }), "Old manual-only skills cannot be replayed with automatic attachments");
   assert.throws(() => validateReplay({ ...replay, version: 5 }), "Tutorial IDs now refer to different operations");
   assert.throws(() => validateReplay({ ...replay, version: 7 }), "Layered mirror movement now retains supported shells");
+  assert.throws(() => validateReplay({ ...replay, version: 8 }), "Pinned numeric kernels change exact trajectories");
   const { canRestoreBattleVersion } = load("src/game/battleSimulation.ts");
-  for (const version of [1, 2, 3, 4, 5, 6, 7, BATTLE_RULES_VERSION]) assert.equal(canRestoreBattleVersion(version), true);
+  for (const version of [1, 2, 3, 4, 5, 6, 7, 8, BATTLE_RULES_VERSION]) assert.equal(canRestoreBattleVersion(version), true);
   const { migrateDifficulty } = load("src/config.ts");
   for (let difficulty = 1; difficulty <= 8; difficulty++) {
     assert.doesNotThrow(() => validateReplay({ ...replay, difficulty }));
