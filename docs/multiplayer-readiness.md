@@ -234,6 +234,12 @@ now reproduces this with the original mixed roster: exact final state and retry
 semantics, but a failed 3.5-second recovery budget and up to 159 ticks of lag in
 the measured run. Remote view refreshes are coalesced per display update; this
 does not yet close that performance gap.
+An actual browser CPU profile now identifies the greater-than charge's repeated
+filled-circle rendering as a large cost. Sharing those static fills retains
+cross-engine visual/lifecycle and combat checks, but the non-profiled crowded
+recovery gate still fails (observed peak lag 117 ticks). See
+[ion charge rendering](performance.md#ion-charge-rendering); this is partial
+render-cost reduction, not completed load acceptance.
 
 1. Address full-checkpoint commit overhead without weakening durability and
    remaining crowded-rendering/catch-up hotspots. Rendered saturated pipelines,

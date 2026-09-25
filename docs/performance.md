@@ -655,3 +655,43 @@ Firefox at 800x600 and WebKit at 1410x900 also pass the 15-second durable regres
 with lag p95 12 and 11 ticks respectively. Actual Firefox tutorial, shifter and
 targeted S/# input regression still agrees with the host at checksum `d03152c3`.
 More work on catch-up throughput and input availability remains necessary.
+
+### Ion Charge Rendering
+
+The network pressure script now accepts Chromium-only
+`--profile=logs/network-crowded.cpuprofile`. It records browser CPU samples and
+Graphics rendering costs grouped by enemy owner; the profile is saved even if a
+later acceptance check fails. Profiling adds overhead, so profiled runs do not
+establish ordinary latency or FPS. Use the unchanged non-profiled command for
+acceptance. Raw observations are printed before the crowded acceptance checks.
+
+The mixed-scene profile identified the greater-than leader's charge graphics as
+the largest enemy Graphics cost: about 2.69 seconds in the instrumented run,
+versus about 0.26 seconds for parenthesis outlines. Full rendering also outweighed
+simulation and checksumming in the browser CPU trace. These costs overlap and
+are not additive stage timings.
+
+The charge's three filled circles now use a single shared high-DPI white disk
+texture with individual tint/alpha/scale. Keeping them separate preserves alpha
+composition when the disks overlap. The outline, rotating arcs, orbiting dots,
+charge ticks and flash lines retain the original live geometry and timing.
+Projectile orb rendering is unchanged. Facing changes retain the current charge
+radius, and reset/assault state hides the disks. The cache is scene-owned and
+rank-independent, not a texture for every charge frame or enemy instance.
+
+`test-ion-charge-render-browser.mjs` compares actual rendered pixels against the
+original all-vector path at five charge times and repeated left/right turns. It
+checks nonblank output, bounded raster error, one texture across fifty ranks,
+reset/assault hiding and exact texture-baseline cleanup. Chromium, Firefox and
+WebKit pass; maximum normalized RGBA difference in the charge region is roughly
+0.6%, 3.3% and 0.8%, within the 5% raster budget. The existing chevron gameplay,
+save/restore and framerate-independence browser suite also passes; desktop and
+small-screen screenshots were inspected.
+
+A subsequent instrumented run attributes about 1.64 seconds to the remaining
+charge Graphics work, but the new images also have render cost. In a separate
+non-profiled 800-enemy run, peak sampled lag is 117 ticks (earlier observation:
+159), with the unchanged final hash `0ad135ee`. This is a local observation, not a
+controlled throughput guarantee. **The receive-pause recovery gate still fails.**
+Static fill caching alone does not settle catch-up or input availability; path
+rendering, total main-thread load and continuation scheduling remain candidates.

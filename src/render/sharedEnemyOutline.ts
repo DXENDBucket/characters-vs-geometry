@@ -1,12 +1,12 @@
 import Phaser from "phaser";
 import { MAX_RENDER_SCALE } from "./renderResolution";
 
-type OutlineKind = "heart" | "tilde";
+type OutlineKind = "heart" | "tilde" | "ionDisk";
 const SIZE = 72;
 const caches = new WeakMap<Phaser.Scene, Map<OutlineKind, string>>();
 let nextTextureId = 0;
 
-// Only fixed, rank-independent outlines belong here. Animated parts remain live geometry.
+// Only fixed, rank-independent graphics belong here. Animated paths remain live geometry.
 export function createSharedEnemyOutline(scene: Phaser.Scene, kind: OutlineKind,
   draw: (graphics: Phaser.GameObjects.Graphics) => void) {
   let cache = caches.get(scene);

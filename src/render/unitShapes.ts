@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { drawParentheses } from "./parenthesisEnemy";
-import { drawChevronFrame } from "./chevronLeader";
+import { createIonChargeOrb, drawChevronFrame } from "./chevronLeader";
 import {
   DODECAHEDRON_EDGES,
   DODECAHEDRON_UNIT_VERTICES,
@@ -95,9 +95,10 @@ export function createEnemyShape(scene: Phaser.Scene, kind: EnemyKind, options: 
     const shape = scene.add.container(0, 0);
     const frame = scene.add.graphics();
     const charge = scene.add.graphics().setPosition(-12, 0);
+    const orb = createIonChargeOrb(scene).setPosition(-12, 0);
     drawChevronFrame(frame);
-    shape.setData("chevronFrame", frame).setData("ionCharge", charge);
-    shape.add([frame, charge, createEnemyLabel(scene, 0, -39, kind)]);
+    shape.setData("chevronFrame", frame).setData("ionCharge", charge).setData("ionChargeOrb", orb);
+    shape.add([frame, orb, charge, createEnemyLabel(scene, 0, -39, kind)]);
     return shape;
   }
   if (family === "dollar") {

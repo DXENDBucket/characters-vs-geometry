@@ -3,6 +3,21 @@ import { CHEVRON_LEADER } from "../data/chevronLeader";
 import { enemyFamily } from "../registry/enemies";
 import type { Enemy } from "../types";
 import { enemyFacingDirection } from "../game/rules/reversal";
+import { createSharedEnemyOutline } from "./sharedEnemyOutline";
+
+const ION_DISK_RADIUS = 16;
+
+export function createIonChargeOrb(scene: Phaser.Scene) {
+  const orb = scene.add.container(0, 0).setVisible(false);
+  for (const [radius, alpha, color] of [[1.75, .06, CHEVRON_LEADER.color], [1.25, .14, CHEVRON_LEADER.color], [.35, 1, 0xeefff5]]) {
+    const disk = createSharedEnemyOutline(scene, "ionDisk", graphics => {
+      graphics.fillStyle(0xffffff, 1).fillCircle(0, 0, ION_DISK_RADIUS);
+    }).setTint(color).setAlpha(alpha);
+    disk.setScale(disk.scaleX * radius, disk.scaleY * radius);
+    orb.add(disk);
+  }
+  return orb;
+}
 
 export function drawChevronFrame(frame: Phaser.GameObjects.Graphics, assault = false) {
   const direction = assault ? -1 : 1;
@@ -22,8 +37,10 @@ export function syncChevronVisual(enemy: Enemy) {
   if (enemyFamily(enemy.kind) !== "chevronLeader") return;
   const frame = enemy.shape.getData("chevronFrame") as Phaser.GameObjects.Graphics | undefined;
   const charge = enemy.shape.getData("ionCharge") as Phaser.GameObjects.Graphics | undefined;
+  const orb = enemy.shape.getData("ionChargeOrb") as Phaser.GameObjects.Container | undefined;
   if (!frame || !charge) return;
   charge.setX(enemyFacingDirection(enemy) > 0 ? 12 : -12);
+  orb?.setX(charge.x);
   if (frame.getData("assault") !== !!enemy.chevronAssault) {
     drawChevronFrame(frame, enemy.chevronAssault);
     frame.setData("assault", !!enemy.chevronAssault);
@@ -33,11 +50,18 @@ export function syncChevronVisual(enemy: Enemy) {
   const tick = enemy.chevronAssault ? -1 : Math.floor(elapsed / 33);
   if (charge.getData("tick") === tick) return;
   charge.setData("tick", tick).clear();
+  orb?.setVisible(!enemy.chevronAssault && elapsed > 0);
   if (enemy.chevronAssault || elapsed <= 0) return;
   const progress = Math.min(1, elapsed / CHEVRON_LEADER.chargeMs);
   const angle = elapsed * .002;
   const radius = 18 - progress * 5;
-  drawIonOrb(charge, 2 + progress * 7, .25 + progress * .75);
+  const orbRadius = 2 + progress * 7, orbAlpha = .25 + progress * .75;
+  if (orb) {
+    // Keep layers separate: group alpha must multiply each overlapping disk.
+    const scale = orbRadius / ION_DISK_RADIUS;
+    orb.setScale(scale).setAlpha(orbAlpha).setData("facingBaseScaleX", scale).setData("facingBaseScaleY", scale);
+    charge.lineStyle(1.4, CHEVRON_LEADER.color, orbAlpha).strokeCircle(0, 0, orbRadius);
+  } else drawIonOrb(charge, orbRadius, orbAlpha);
   charge.lineStyle(1, CHEVRON_LEADER.color, .3 + progress * .6);
   for (let i = 0; i < 3; i++) {
     const start = angle + i * Math.PI * 2 / 3;

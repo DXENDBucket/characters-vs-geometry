@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { randomUUID } from "node:crypto";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
@@ -13,6 +13,8 @@ import { CROWDED_CARDS, populateCrowdedBattle, crowdedCensus } from "./helpers/c
 const option = name => process.argv.find(value => value.startsWith(`--${name}=`))?.slice(name.length + 3);
 const seconds = Number(option("seconds") ?? 60), delay = Number(option("delay") ?? 25);
 const engine = option("engine") ?? "chromium", small = process.argv.includes("--small");
+const profilePath = option("profile");
+assert.ok(!profilePath || engine === "chromium", "CPU profiling requires Chromium");
 const durable = process.argv.includes("--durable");
 const uncompressed = process.argv.includes("--uncompressed");
 const crowded = Number(option("crowded") ?? 0);
@@ -47,7 +49,13 @@ for (let tick = 0; tick < (crowded ? 0 : 720); tick++) runtime.session.advance(B
 const hash = () => battleChecksum(runtime.snapshot(cards[0]));
 const errors = [], outbound = [], token = randomUUID();
 let peer, linkId = 0, bytes = 0, queuedBytes = 0, peakQueue = 0, snapshots = 0, dropReceipt = false, dropped = 0, browser, watchdog;
-let diskHost, store, directory, loop, recovery, storage;
+let diskHost, store, directory, loop, recovery, storage, profiler, profiling = false;
+async function saveProfile() {
+  if (!profiling) return;
+  profiling = false;
+  const { profile } = await profiler.send("Profiler.stop");
+  await writeFile(profilePath, JSON.stringify(profile));
+}
 const writeTimes = [], commitTimes = [];
 let writtenBytes = 0, logicalBytes = 0, peakCheckpointBytes = 0, peakStoredBytes = 0, writing = false;
 const ports = { inputTime: () => performance.now(), save: async text => {
@@ -137,7 +145,7 @@ try {
     const response = await route.fetch(); await route.fulfill({ response, body: await response.text() + "\nwindow.__testGame=game;" });
   });
   await page.goto(url); await page.waitForFunction(() => window.__testGame?.scene.getScenes(true).length);
-  await page.evaluate(async ({ token, relay }) => {
+  await page.evaluate(async ({ token, relay, profile }) => {
     const { RemoteBattleSession } = await import("/src/render/remoteBattleSession.ts");
     const game = window.__testGame;
     for (const scene of game.scene.getScenes(true)) game.scene.stop(scene.sys.settings.key);
@@ -146,7 +154,8 @@ try {
       game: listeners(game.events), input: listeners(game.input.events) });
     const state = window.networkPressure = { tail: Promise.resolve(), errors: [], statuses: [], receipts: [], completions: 0,
       jobs: new Set(), links: [], holdUntil: 0, frames: 0, intervals: [], litPixels: 0, peakMortars: 0, peakTrails: 0,
-      peakEnemyProjectiles: 0, profile: JSON.stringify(localStorage), baseline: resources(), resources };
+      peakEnemyProjectiles: 0, profile: JSON.stringify(localStorage), baseline: resources(), resources,
+      graphicsCosts: {}, measuredGraphics: new WeakSet() };
     const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
     state.remote = new RemoteBattleSession(game, { actorId: "local", onExit() {},
       receipt: receipt => state.receipts.push(receipt), scheduler: {
@@ -195,6 +204,27 @@ try {
       sampled = now;
       const scene = state.remote.scene;
       if (!scene) return;
+      if (profile) {
+        const enemies = [...scene.runtime.world.enemies];
+        for (let i = 0; i < enemies.length; i++) {
+          const enemy = enemies[i];
+          enemies.push(...(enemy.parenthesisCargo ?? []));
+          const objects = [enemy.body];
+          for (let j = 0; j < objects.length; j++) {
+            const object = objects[j];
+            if (Array.isArray(object.list)) objects.push(...object.list);
+            if (object.type !== "Graphics" || state.measuredGraphics.has(object)) continue;
+            state.measuredGraphics.add(object);
+            const key = enemy.kind + ":" + (object === enemy.shape.getData("ionCharge") ? "charge" : "outline");
+            const render = object.renderWebGL;
+            object.renderWebGL = function (...args) {
+              const started = performance.now();
+              try { return render.apply(this, args); }
+              finally { state.graphicsCosts[key] = (state.graphicsCosts[key] ?? 0) + performance.now() - started; }
+            };
+          }
+        }
+      }
       state.peakMortars = Math.max(state.peakMortars, scene.runtime.world.mortarProjectiles.length);
       state.peakEnemyProjectiles = Math.max(state.peakEnemyProjectiles, scene.runtime.world.enemyProjectiles.length);
       const objects = [...scene.children.list];
@@ -208,7 +238,7 @@ try {
       state.litPixels = Math.max(state.litPixels, lit);
     };
     game.events.on("postrender", state.render); state.remote.start();
-  }, { token, relay: `http://127.0.0.1:${server.address().port}` });
+  }, { token, relay: `http://127.0.0.1:${server.address().port}`, profile: !!profilePath });
   await page.waitForFunction(() => window.networkPressure.remote.connection.ready);
   const viewBatch = await page.evaluate(() => {
     const scene = window.networkPressure.remote.scene;
@@ -227,6 +257,12 @@ try {
   });
   assert.deepEqual(viewBatch, { before: 0, after: 1, immediate: 2 });
   const initial = census(runtime), samples = [];
+  if (profilePath) {
+    profiler = await page.context().newCDPSession(page);
+    await profiler.send("Profiler.enable");
+    await profiler.send("Profiler.start");
+    profiling = true;
+  }
   writeTimes.length = 0; writtenBytes = 0; logicalBytes = 0; peakCheckpointBytes = 0; peakStoredBytes = 0;
   const start = performance.now(); let heldAt, requested = false, disconnectedAt, terminal;
   // The mixed battle ends naturally in about twelve seconds. Seed the retry fault
@@ -272,6 +308,8 @@ try {
     } else assert.equal(loop.status, "running");
   }
   await loop.stop();
+  if (profilePath) console.log(JSON.stringify({ diagnostic: "Graphics render CPU by owner (instrumented run)",
+    costs: await page.evaluate(() => window.networkPressure.graphicsCosts) }));
   if (diskHost) await diskHost.advance(BATTLE_STEP_MS * 6);
   else host.publish();
   await page.waitForFunction(tick => {
@@ -296,12 +334,6 @@ try {
     assert.equal(hash(), snapshot.checksum);
   }
   const final = census(runtime);
-  if (crowded) {
-    assert.ok(initial.enemies === crowded && final.enemies + final.passengers >= crowded * .9 &&
-      samples.every(sample => sample.enemies + sample.passengers >= crowded * .9), "Crowded workload did not remain populated");
-    assert.ok(terminal && final.gameOver && samples.at(-1).gameOver, "Natural terminal state did not reach the client");
-    assert.ok(terminal.tick - initial.tick >= terminal.elapsed * .05, "Crowded host did not keep real time before defeat");
-  }
   const observed = await page.evaluate(() => {
     const s = window.networkPressure;
     return { hash: s.remote.scene.battleChecksum(), errors: s.errors, frames: s.frames, intervals: s.intervals,
@@ -309,9 +341,16 @@ try {
       litPixels: s.litPixels, statuses: s.statuses,
       completions: s.completions, receipts: s.receipts, links: s.links.length, profileUnchanged: JSON.stringify(localStorage) === s.profile };
   });
+  await saveProfile();
   if (crowded) console.log(JSON.stringify({ diagnostic: "Mixed-battle terminal observations before acceptance checks",
     initial, final, terminal, samples, frames: observed.frames, peakEnemyProjectiles: observed.peakEnemyProjectiles,
     heldAt, disconnectedAt, snapshots, receipts: observed.receipts, checksum: observed.hash, hostChecksum: hash() }));
+  if (crowded) {
+    assert.ok(initial.enemies === crowded && final.enemies + final.passengers >= crowded * .9 &&
+      samples.every(sample => sample.enemies + sample.passengers >= crowded * .9), "Crowded workload did not remain populated");
+    assert.ok(terminal && final.gameOver && samples.at(-1).gameOver, "Natural terminal state did not reach the client");
+    assert.ok(terminal.tick - initial.tick >= terminal.elapsed * .05, "Crowded host did not keep real time before defeat");
+  }
   assert.equal(observed.hash, hash()); assert.equal(runtime.session.nextCommandSequence, 1);
   assert.equal(runtime.session.controls.reserveChars, 1234); assert.equal(dropped, 1);
   assert.equal(observed.completions, 1); assert.equal(observed.links, 2); assert.equal(observed.profileUnchanged, true);
@@ -376,6 +415,7 @@ try {
     peakMortars: observed.peakMortars, peakTrails: observed.peakTrails, peakEnemyProjectiles: observed.peakEnemyProjectiles,
     peakQueue, bytes, samples, cleanup: "baseline restored" }));
 } finally {
+  try { await saveProfile(); } catch (error) { console.error("CPU profile could not be saved:", error.message); }
   clearTimeout(watchdog); await loop?.stop(); await diskHost?.close(); await recovery?.close(); host.close(); authority.close();
   await browser?.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve));
   if (directory) {
