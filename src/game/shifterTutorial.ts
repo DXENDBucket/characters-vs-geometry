@@ -97,6 +97,7 @@ interface PlacementHint {
 }
 
 export class ShifterTutorialController {
+  readonly usesToolInteraction = true;
   private step: TutorialStep = "intro";
   private readonly view: GuidedTutorialView;
   private readonly placementHints: PlacementHint[];

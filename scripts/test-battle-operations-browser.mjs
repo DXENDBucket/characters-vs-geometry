@@ -17,6 +17,7 @@ try {
     const mod = path => import(performance.getEntriesByType("resource").map(e => e.name)
       .find(url => new URL(url).pathname === path) ?? path);
     const { GameScene } = await mod("/src/scenes/GameScene.ts");
+    const { dispatchBattleUi: input, assertSemanticRecording } = await import("/scripts/helpers/battle-ui.mjs");
     const config = await mod("/src/config.ts"), progress = await mod("/src/progress.ts");
     const { battleChecksum } = await mod("/src/game/battleChecksum.ts");
     const { towerOperationRef, edgeOperationRef } = await mod("/src/game/battleOperations.ts");
@@ -41,20 +42,19 @@ try {
     const edgePointer = (lane, column, extra = {}) => pointer(lane, column, {
       x: config.BOARD_X + (column + 1) * config.CELL_WIDTH, ...extra
     });
-    const tool = (scene, action) => scene.submitBattleCommand({ type: "tool", action: `tool:${action}` });
+    const tool = (scene, action) => input(scene, { type: "tool", action: `tool:${action}` });
     const tower = (scene, type, lane, column) => scene.towers.find(t => t.inPlay && t.type === type && t.lane === lane && t.column === column);
     const send = (operation, expected = "handled", actor = "local") => {
       const result = b.submitPlayerOperation(actor, JSON.parse(JSON.stringify(operation)));
       check(result === expected, `${operation.type}: expected ${expected}, got ${result}`); return result;
     };
-    // Selection is still retained in legacy save UI data; normalize only that local preference for this comparison.
-    const hash = scene => battleChecksum({ ...scene.battleState(), selectedCardId: "A" });
+    const hash = scene => battleChecksum(scene.battleState());
     const equal = label => check(hash(a) === hash(b), `UI/operation mismatch after ${label}: ${hash(a)} / ${hash(b)}`);
-    for (const scene of [a, b]) { scene.submitBattleCommand({ type: "debugMode", enabled: true }); tool(scene, "debugChars"); }
+    for (const scene of [a, b]) { input(scene, { type: "debugMode", enabled: true }); tool(scene, "debugChars"); }
     const resetCards = () => { tool(a, "debugChars"); tool(b, "debugChars"); };
     const deploy = (card, lane, column, expected = null) => {
-      a.submitBattleCommand({ type: "selectCard", id: card }); a.submitBattleCommand(pointer(lane, column));
-      b.submitBattleCommand({ type: "selectCard", id: "B" });
+      input(a, { type: "selectCard", id: card }); input(a, pointer(lane, column));
+      input(b, { type: "selectCard", id: "B" });
       send({ type: "deploy", card, cell: { lane, column }, expected }, "deployed"); equal(`deploy ${card}`);
     };
     deploy("A", 3, 1); deploy("()", 3, 1);
@@ -67,40 +67,40 @@ try {
     check(executeLiveBattleOperation(restricted, "local", { type: "deploy", card: "A", cell: { lane: 3, column: 1 },
       expected: towerOperationRef(tower(b, "A", 3, 1)) }) === "forbidden", "Mirror upgrade skipped authorization of the other member");
     check(b.battleChecksum() === beforeDeniedUpgrade, "Denied mirror upgrade mutated state");
-    a.submitBattleCommand({ type: "selectCard", id: "b" }); a.submitBattleCommand(pointer(3, 1));
+    input(a, { type: "selectCard", id: "b" }); input(a, pointer(3, 1));
     send({ type: "effect", card: "b", cell: { lane: 3, column: 1 }, target: towerOperationRef(tower(b, "A", 3, 1)) });
     equal("targeted effect");
-    a.submitBattleCommand({ type: "selectCard", id: "=" }); a.submitBattleCommand(edgePointer(0, 0));
+    input(a, { type: "selectCard", id: "=" }); input(a, edgePointer(0, 0));
     send({ type: "edgeCard", card: "=", position: { axis: "horizontal", lane: 0, column: 0 }, expected: null });
     equal("edge placement");
     resetCards();
-    a.submitBattleCommand({ type: "selectCard", id: "=" }); a.submitBattleCommand(edgePointer(0, 0));
+    input(a, { type: "selectCard", id: "=" }); input(a, edgePointer(0, 0));
     send({ type: "edgeCard", card: "=", position: { axis: "horizontal", lane: 0, column: 0 }, expected: edgeOperationRef(b.edgeTowers[0]) });
     equal("edge upgrade");
-    a.submitBattleCommand({ type: "selectCard", id: "B" }); a.submitBattleCommand(edgePointer(0, 0));
+    input(a, { type: "selectCard", id: "B" }); input(a, edgePointer(0, 0));
     send({ type: "edgeMode", target: edgeOperationRef(b.edgeTowers[0]), mode: ">" }); equal("edge direction");
-    tool(a, "autoUpgrade"); a.submitBattleCommand(pointer(3, 1, { shift: true }));
+    tool(a, "autoUpgrade"); input(a, pointer(3, 1, { shift: true }));
     send({ type: "autoUpgrade", enabled: true, targets: b.towers.filter(t => t.inPlay && t.type === "A").map(towerOperationRef) });
     equal("group auto upgrade");
-    a.submitBattleCommand(pointer(3, 1, { shift: true }));
+    input(a, pointer(3, 1, { shift: true }));
     send({ type: "autoUpgrade", enabled: false, targets: b.towers.filter(t => t.inPlay && t.type === "A").map(towerOperationRef) });
     equal("disable group auto upgrade");
     tool(a, "shifter");
-    for (let column = 1; column <= 3; column++) a.submitBattleCommand(pointer(3, column, { ctrl: column > 1 }));
+    for (let column = 1; column <= 3; column++) input(a, pointer(3, column, { ctrl: column > 1 }));
     const sources = [1, 2, 3].map(column => {
       const target = b.towers.find(t => t.inPlay && t.lane === 3 && t.column === column && t.type !== "()");
       return { target: towerOperationRef(target), lane: 3, column };
     });
-    a.submitBattleCommand(pointer(5, 4));
+    input(a, pointer(5, 4));
     b.shifter.setActive(true); b.shifter.handlePointer(0, 5, tower(b, "1", 0, 5), false);
     send({ type: "move", sources, destination: { lane: 5, column: 4 } }, "moved"); equal("mirror move");
     check(b.shifter.isActive() && b.shifter.selectedTowers()[0] === tower(b, "1", 0, 5), "Explicit move cleared unrelated local selection");
     b.shifter.deactivate();
     const edge = edgeOperationRef(b.edgeTowers[0]);
-    tool(a, "erase"); a.submitBattleCommand(edgePointer(0, 0));
+    tool(a, "erase"); input(a, edgePointer(0, 0));
     send({ type: "erase", target: edge }); equal("edge erase");
     const original = towerOperationRef(tower(b, "A", 5, 4));
-    tool(a, "erase"); a.submitBattleCommand(pointer(5, 4));
+    tool(a, "erase"); input(a, pointer(5, 4));
     send({ type: "erase", target: original }); equal("mirror erase");
     check(!b.towers.some(t => t.inPlay && t.type === "A"), "Mirror erase did not propagate");
     const before = b.battleChecksum();
@@ -118,12 +118,14 @@ try {
     const step = 1000 / 60;
     for (let i = 0; i < 240; i++) { a.update(0, step); b.update(0, step); }
     equal("continued combat");
-    const expected = b.battleChecksum(), replay = b.exportReplay();
+    const expected = b.battleChecksum(), replay = b.exportReplay(), uiReplay = assertSemanticRecording(a);
     check(replay.commands.some(entry => entry.command.type === "operation"), "Semantic commands were not recorded");
-    for (const [index, delta] of [1000 / 30, 1000 / 144].entries()) {
-      const scene = start(`Replay${index}`, { replay });
-      for (let i = 0; scene.simulation.tick < replay.endTick && i < 3000; i++) scene.update(0, delta);
-      check(scene.battleChecksum() === expected, "Semantic replay diverged");
+    for (const [mode, recording] of [["UI", uiReplay], ["API", replay]]) {
+      for (const [index, delta] of [1000 / 30, 1000 / 144].entries()) {
+        const scene = start(`Replay${mode}${index}`, { replay: recording });
+        for (let i = 0; scene.simulation.tick < recording.endTick && i < 3000; i++) scene.update(0, delta);
+        check(scene.battleChecksum() === expected, `${mode} semantic replay diverged`);
+      }
     }
     const checkpoint = JSON.parse(JSON.stringify(captureBattleSnapshot(b.battleState()))), c = start("RestoredOperations");
     c.applyBattleSave(restoreBattleSnapshot(c, checkpoint)); c.battlePaused = false;
@@ -131,7 +133,7 @@ try {
     check(c.submitPlayerOperation("local", request) === b.submitPlayerOperation("local", request), "Restored explicit target did not resolve");
     check(c.battleChecksum() === b.battleChecksum(), "Restored operation changed identity or state");
     const unlimited = start("ColumnAuthorization", { ...data, unlimitedFirepower: true });
-    unlimited.submitBattleCommand({ type: "debugMode", enabled: true }); tool(unlimited, "debugChars");
+    input(unlimited, { type: "debugMode", enabled: true }); tool(unlimited, "debugChars");
     check(unlimited.submitPlayerOperation("local", { type: "deploy", card: "A", cell: { lane: 3, column: 2 }, expected: null }) === "deployed",
       "Unlimited deployment failed");
     check(unlimited.towers.filter(t => t.type === "A").length === config.LANES, "Missing column fixture");

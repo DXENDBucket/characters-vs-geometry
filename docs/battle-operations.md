@@ -73,17 +73,18 @@ playback use the existing session. Failed but well-formed attempts may appear in
 trusted recordings; the future authority protocol must validate, bound and
 acknowledge requests before accepting remote traffic.
 
-The current mouse adapter still records legacy pointer/card/tool intent and calls
-the same gate during its execution. It does not record a second operation that
-would apply the mutation twice. Legacy command forms coexist with explicit
-operations within current-version recordings. Rules version 7 rejects older
+The live mouse/keyboard/card/HUD adapters now record only explicit operations and
+controls. Local selection and aiming do not enter the battle log. The deprecated
+`submitBattleCommand` adapter still accepts legacy pointer/card/tool commands for
+existing current-version recordings and diagnostic fixtures. Those execute through
+the same gate without recording a second mutation. Rules version 7 rejects older
 recordings; version 1-6 saves still restore under the current rules. See
 [control compatibility](battle-controls.md) for the changed input/checksum semantics.
 
 Global configuration/debug/tutorial actions now use a separate
 [control gate](battle-controls.md), including explicit pause/speed settings.
-Gate 3 remains open: multiplayer policies and complete separation of local UI
-from recording still need work. Selected-card preferences remain in local saves
+Gate 3 remains open: multiplayer policies, participant-owned UI instances and
+local-menu versus authoritative pause separation still need work. Selected-card preferences remain in local saves
 but no longer in combat checksums. This pass does not claim that two
 players can yet use independent UI state in the complete battle.
 
@@ -98,12 +99,14 @@ players can yet use independent UI state in the complete battle.
   no currency/cooldown mutation, different-frame-rate operation replay, and using
   the same stable target after save/restore. Live adapter policy tests reject
   mirror and unlimited-column changes before partial execution, and explicit
-  moves preserve an unrelated local selection.
+  moves preserve an unrelated local selection. Both live-input recordings and
+  explicit-API recordings are replayed, with no selected-card checksum adjustment.
 - `test-battle-skill-operations-browser.mjs` compares S/c/w/o/j, copied skills,
   topology, pushes and mirrored one-shot triggers against real mouse flows. It
   checks authorization before partial group/shell movement or SP spending, NUL
   rejection, remote activation while locally aiming, saved in-flight volleys,
-  stable targets after restore, and complete 30/144 Hz command playback.
+  stable targets after restore, and complete 30/144 Hz command playback for both
+  actual input recordings and explicit API calls.
 - `test-pipeline-actions-browser.mjs` covers consumption/routing, saved attacks
   after source removal, routed SP skills and different-frame-rate continuation.
   Its synthetic edge fixtures use the world's allocator just like live edges.

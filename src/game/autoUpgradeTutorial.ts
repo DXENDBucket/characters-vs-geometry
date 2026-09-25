@@ -78,6 +78,7 @@ const TARGET = { lane: 3, column: 4 };
 const PEER = { lane: 4, column: 4 };
 
 export class AutoUpgradeTutorialController {
+  readonly usesToolInteraction = true;
   private step: TutorialStep = "intro";
   private readonly view: GuidedTutorialView;
   private tower: Tower | null = null;

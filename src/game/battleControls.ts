@@ -1,6 +1,7 @@
 import { DEFAULT_GAME_SPEED, GAME_SPEED_MAX, GAME_SPEED_MIN } from "../config";
 import type { CardId } from "../types";
 import { cardCooldownKey } from "./cardIdentity";
+import { validTutorialInteraction, type TutorialInteraction } from "./tutorialInteraction";
 import { validBattleActorId, validBattlePoint, type BattleOperationActor, type BattleOperationPermission,
   type BattleOperationResult, type BattlePoint } from "./battleOperations";
 
@@ -25,11 +26,12 @@ export type BattleControl =
   | { type: "debugMode"; enabled: boolean }
   | { type: "debugChars" }
   | { type: "debugDamage"; mode: "normal" | "super"; point: BattlePoint }
-  | { type: "tutorialAdvance" };
+  | { type: "tutorialAdvance" }
+  | { type: "tutorialInput"; input: TutorialInteraction };
 
 const permission: Record<BattleControl["type"], BattleOperationPermission> = {
   pause: "time", speed: "time", autoUpgradeEnabled: "settings", reserve: "settings",
-  reselect: "loadout", debugMode: "debug", debugChars: "debug", debugDamage: "debug", tutorialAdvance: "tutorial"
+  reselect: "loadout", debugMode: "debug", debugChars: "debug", debugDamage: "debug", tutorialAdvance: "tutorial", tutorialInput: "tutorial"
 };
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" &&
   Object.getPrototypeOf(value) === Object.prototype;
@@ -50,6 +52,7 @@ export function validBattleControl(value: unknown): value is BattleControl {
         typeof id === "string" && id.length > 0 && id.length <= 16 && id !== "?") &&
       new Set((value.cards as CardId[]).map(cardCooldownKey)).size === value.cards.length;
     case "debugChars": case "tutorialAdvance": return fields(value, ["type"]);
+    case "tutorialInput": return fields(value, ["type", "input"]) && validTutorialInteraction(value.input);
     case "debugDamage": return fields(value, ["type", "mode", "point"]) &&
       (value.mode === "normal" || value.mode === "super") && validBattlePoint(value.point);
     default: return false;
@@ -69,6 +72,7 @@ export interface BattleControlRuntime {
   reselect(cards: readonly CardId[]): boolean;
   tutorialAvailable: boolean;
   tutorialAdvance(): void;
+  tutorialInput(input: TutorialInteraction): BattleOperationResult;
   pauseChanged(): void;
   speedChanged(): void;
   autoUpgradeChanged(): void;
@@ -112,6 +116,9 @@ export function executeBattleControl(actorId: string, value: unknown, runtime: B
     case "tutorialAdvance":
       if (!runtime.tutorialAvailable) return "unavailable";
       runtime.tutorialAdvance(); break;
+    case "tutorialInput":
+      if (!runtime.tutorialAvailable) return "unavailable";
+      return runtime.tutorialInput(value.input);
   }
   return "handled";
 }

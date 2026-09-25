@@ -10,11 +10,13 @@ const { battleChecksum } = load("src/game/battleChecksum.ts");
 const { captureBattleSnapshot } = load("src/game/captureBattleSnapshot.ts");
 const { BATTLE_RULES_VERSION, BATTLE_STEP_MS } = load("src/game/battleSimulation.ts");
 const { BOARD_X, BOARD_Y, BOARD_WIDTH, GAME_SPEED_MIN, GAME_SPEED_MAX } = load("src/config.ts");
+const { createTutorialInteraction, validTutorialInteraction, sameTutorialInteraction } = load("src/game/tutorialInteraction.ts");
 const controls = () => [
   { type: "pause", paused: true }, { type: "speed", speed: 2.5 }, { type: "autoUpgradeEnabled", enabled: false },
   { type: "reserve", value: 1234 }, { type: "reselect", cards: ["A", "?A"] },
   { type: "debugMode", enabled: true }, { type: "debugChars" },
-  { type: "debugDamage", mode: "super", point: { x: BOARD_X + 1.5, y: BOARD_Y + 20 } }, { type: "tutorialAdvance" }
+  { type: "debugDamage", mode: "super", point: { x: BOARD_X + 1.5, y: BOARD_Y + 20 } }, { type: "tutorialAdvance" },
+  { type: "tutorialInput", input: { tool: "shifter", selected: ["tower:1"] } }
 ];
 function fixture() {
   const state = createBattleControlState(), calls = [], actors = new Map([["local", LOCAL_BATTLE_ACTOR]]);
@@ -22,6 +24,7 @@ function fixture() {
     slotCount: 10, cardAllowed: id => ["A", "B", "?A", "?B"].includes(id),
     reselectAvailable: true, reselectReady: true, reselect: cards => { calls.push(["reselect", [...cards]]); return true; },
     tutorialAvailable: true, tutorialAdvance: () => calls.push(["tutorial"]), pauseChanged: () => calls.push(["pause"]),
+    tutorialInput: input => { calls.push(["tutorialInput", structuredClone(input)]); return "handled"; },
     speedChanged: () => calls.push(["speed"]), autoUpgradeChanged: () => calls.push(["auto"]),
     debugChanged: () => calls.push(["debug"]), debugChars: () => calls.push(["chars"]),
     debugDamage: (point, mode) => calls.push(["damage", { ...point }, mode]) };
@@ -126,4 +129,21 @@ test("local selected card is saved but is not part of the authoritative combat c
   assert.notDeepEqual(captureBattleSnapshot(a), captureBattleSnapshot(b)); assert.deepEqual(a, before);
   assert.notEqual(battleChecksum(a), battleChecksum({ ...a, autoUpgradeReserveChars: 501 }));
   assert.notEqual(battleChecksum(a), battleChecksum({ ...a, debugModeEnabled: true }));
+});
+
+test("tutorial interactions are bounded lesson input with stable tower IDs, gated by tutorial policy", () => {
+  const a = createTutorialInteraction(), b = createTutorialInteraction();
+  assert.equal(sameTutorialInteraction(a, b), true);
+  a.tool = "shifter"; a.selected.push("tower:1");
+  assert.deepEqual(b, { tool: "none", selected: [] });
+  assert.equal(sameTutorialInteraction(a, b), false);
+  assert.equal(sameTutorialInteraction(a, structuredClone(a)), true);
+  assert.equal(validTutorialInteraction(a), true);
+  for (const input of [null, {}, { tool: "erase", selected: ["tower:1"] }, { tool: "debug", selected: [] },
+    { tool: "shifter", selected: ["enemy:1"] }, { tool: "shifter", selected: Array(1) },
+    { tool: "shifter", selected: ["tower:1", "tower:1"] }, { tool: "none", selected: [], x: 123 }]) {
+    assert.equal(validBattleControl({ type: "tutorialInput", input }), false, JSON.stringify(input));
+  }
+  const f = fixture(); f.runtime.tutorialAvailable = false;
+  assert.equal(f.send({ type: "tutorialInput", input: a }), "unavailable"); assert.deepEqual(f.calls, []);
 });

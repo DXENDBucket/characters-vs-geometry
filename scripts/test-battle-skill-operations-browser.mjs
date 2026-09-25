@@ -17,6 +17,7 @@ try {
     const mod = path => import(performance.getEntriesByType("resource").map(e => e.name)
       .find(url => new URL(url).pathname === path) ?? path);
     const { GameScene } = await mod("/src/scenes/GameScene.ts");
+    const { dispatchBattleUi: input, assertSemanticRecording } = await import("/scripts/helpers/battle-ui.mjs");
     const cfg = await mod("/src/config.ts"), progress = await mod("/src/progress.ts");
     const { battleChecksum } = await mod("/src/game/battleChecksum.ts");
     const { towerOperationRef: ref } = await mod("/src/game/battleOperations.ts");
@@ -36,18 +37,18 @@ try {
     a.applyPlayerOperation = (actor, operation) => { calls.push(operation.type); return apply(actor, operation); };
     const cellPoint = (lane, column) => ({ x: cfg.BOARD_X + (column + .5) * cfg.CELL_WIDTH,
       y: cfg.BOARD_Y + (lane + .5) * cfg.CELL_HEIGHT });
-    const click = (scene, lane, column, shift = false) => scene.submitBattleCommand({ type: "pointer",
+    const click = (scene, lane, column, shift = false) => input(scene, { type: "pointer",
       pointer: { ...cellPoint(lane, column), shift, ctrl: false, right: false } });
-    const select = (scene, id) => scene.submitBattleCommand({ type: "selectCard", id });
+    const select = (scene, id) => input(scene, { type: "selectCard", id });
     const unit = (scene, type, lane, column) => scene.towers.find(t => t.inPlay && t.type === type && t.lane === lane && t.column === column);
     const send = (operation, expected = "handled", scene = b) => {
       const result = scene.submitPlayerOperation("local", JSON.parse(JSON.stringify(operation)));
       check(result === expected, `${operation.type}: expected ${expected}, got ${result}`);
     };
-    const hash = scene => battleChecksum({ ...scene.battleState(), selectedCardId: "S" });
+    const hash = scene => battleChecksum(scene.battleState());
     const equal = label => check(hash(a) === hash(b), `${label}: ${hash(a)} / ${hash(b)}`);
-    const debug = () => { for (const scene of [a, b]) scene.submitBattleCommand({ type: "tool", action: "tool:debugChars" }); };
-    for (const scene of [a, b]) scene.submitBattleCommand({ type: "debugMode", enabled: true });
+    const debug = () => { for (const scene of [a, b]) input(scene, { type: "tool", action: "tool:debugChars" }); };
+    for (const scene of [a, b]) input(scene, { type: "debugMode", enabled: true });
     debug(); debug();
     const deploy = (card, lane, column) => {
       select(a, card); click(a, lane, column);
@@ -128,16 +129,18 @@ try {
     for (const kind of ["skill", "push", "topology", "trigger"]) check(calls.includes(kind), `UI bypassed ${kind} gate`);
     for (let i = 0; i < 120; i++) { a.update(0, 1000 / 60); b.update(0, 1000 / 60); }
     equal("final");
-    const expected = b.battleChecksum(), replay = b.exportReplay();
-    for (const [index, delta] of [1000 / 30, 1000 / 144].entries()) {
-      const scene = start(`SkillReplay${index}`, { replay });
-      for (let i = 0; scene.simulation.tick < replay.endTick && i < 15000; i++) scene.update(0, delta);
-      check(scene.battleChecksum() === expected, `Explicit skill replay diverged at ${delta}ms: ${scene.battleChecksum()} / ${expected}`);
+    const expected = b.battleChecksum(), replay = b.exportReplay(), uiReplay = assertSemanticRecording(a);
+    for (const [mode, recording] of [["UI", uiReplay], ["API", replay]]) {
+      for (const [index, delta] of [1000 / 30, 1000 / 144].entries()) {
+        const scene = start(`SkillReplay${mode}${index}`, { replay: recording });
+        for (let i = 0; scene.simulation.tick < recording.endTick && i < 15000; i++) scene.update(0, delta);
+        check(scene.battleChecksum() === expected, `${mode} skill replay diverged at ${delta}ms: ${scene.battleChecksum()} / ${expected}`);
+      }
     }
     const layers = start("LayerSkillAuthorization", { ...data, selectedCards: ["#", "B", "()", "&"] });
-    layers.submitBattleCommand({ type: "debugMode", enabled: true });
+    input(layers, { type: "debugMode", enabled: true });
     for (const [card, lane, column] of [["#", 3, 0], ["B", 3, 1], ["()", 3, 1], ["&", 1, 0], ["&", 2, 0]]) {
-      layers.submitBattleCommand({ type: "tool", action: "tool:debugChars" });
+      input(layers, { type: "tool", action: "tool:debugChars" });
       send({ type: "deploy", card, cell: { lane, column }, expected: null }, "deployed", layers);
     }
     for (let i = 0; i < 1900; i++) layers.update(0, 1000 / 60);

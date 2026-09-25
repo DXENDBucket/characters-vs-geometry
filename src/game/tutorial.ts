@@ -53,6 +53,7 @@ export interface TutorialRuntime {
 
 export interface TutorialController {
   usesWaveSchedule?: boolean;
+  usesToolInteraction?: boolean;
   update: () => void;
   destroy: () => void;
 }

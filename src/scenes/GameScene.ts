@@ -11,6 +11,7 @@ import { syncTowerCopies } from "../game/towerCopy";
 import { syncTowerFormVisual } from "../game/towers";
 import { BATTLE_RULES_VERSION, setBattleRandom, setBattlePlayback } from "../game/battleSimulation";
 import { validateReplay, type BattleCommand, type BattlePointer, type BattleReplay } from "../game/battleCommands";
+import { createTutorialInteraction, sameTutorialInteraction, type TutorialInteraction } from "../game/tutorialInteraction";
 import type { BattleAction, ScheduleBattleAction } from "../game/battleActions";
 import { BattleSession, type BattleSessionRuntime } from "../game/battleSession";
 import { BattleWorld, type BattleWorldSystems } from "../game/battleWorld";
@@ -379,6 +380,7 @@ export class GameScene extends Phaser.Scene {
   private readonly projectileMotion = new ProjectileMotionFrame();
   private triggerTowerRuntimeCache!: TriggerTowerRuntime;
   private tutorial: TutorialController | null = null;
+  private tutorialInteraction = createTutorialInteraction();
   private ui!: GameHudElements;
   private overlay!: GameOverlayElements;
   private pauseMenu!: PauseMenu;
@@ -387,7 +389,7 @@ export class GameScene extends Phaser.Scene {
   private reselection = new LoadoutReselection();
   private extraction = new TowerExtractionPool();
   private reselectShade?: Phaser.GameObjects.Rectangle;
-  private readonly scenePointerDownHandler = (pointer: Phaser.Input.Pointer) => this.handlePointerDown(pointer);
+  private readonly scenePointerDownHandler = (pointer: Phaser.Input.Pointer) => this.localInput(() => this.handlePointerDown(pointer));
   private readonly scenePointerMoveHandler = (pointer: Phaser.Input.Pointer) => {
     this.towerSkills.updateSpellMortarReticlePosition(pointer.x, pointer.y);
     this.syncPlacementGhost(pointer);
@@ -402,13 +404,10 @@ export class GameScene extends Phaser.Scene {
       if (!event.repeat) this.openPauseMenu();
       return;
     }
-    if (this.handleAutoUpgradeReserveKey(event)) {
-      return;
-    }
-
-    if (this.handleGameKey(event)) {
-      event.preventDefault();
-    }
+    this.localInput(() => {
+      if (this.handleAutoUpgradeReserveKey(event)) return;
+      if (this.handleGameKey(event)) event.preventDefault();
+    });
   };
 
   constructor(key = "GameScene") {
@@ -425,6 +424,7 @@ export class GameScene extends Phaser.Scene {
     }
     const seed = (data.seed ?? crypto.getRandomValues(new Uint32Array(1))[0]) >>> 0;
     this.tutorialAdvance = undefined;
+    this.tutorialInteraction = createTutorialInteraction();
     this.rewardEncyclopedia = undefined;
     this.resumeRequested = Boolean(data.resume);
     this.resumeSave = data.resume && data.levelId ? readSurvivalSave(data.levelId) : undefined;
@@ -580,17 +580,17 @@ export class GameScene extends Phaser.Scene {
     this.enemyHealthLinks = this.add.graphics().setDepth(59);
     this.ui = this.battlefield.ui(() => createGameHud(this, this.levelId, this.difficulty, {
       onMenu: () => this.openPauseMenu(),
-      onDebug: () => this.grantDebugChars(),
-      onDebugDamage: () => this.toggleDebugDamageMode(),
-      onSuperDebugDamage: () => this.toggleSuperDebugDamageMode(),
-      onShifter: () => this.toggleShifterMode(),
+      onDebug: () => this.localInput(() => this.grantDebugChars()),
+      onDebugDamage: () => this.localInput(() => this.toggleDebugDamageMode()),
+      onSuperDebugDamage: () => this.localInput(() => this.toggleSuperDebugDamageMode()),
+      onShifter: () => this.localInput(() => this.toggleShifterMode()),
       onReselect: () => this.openReselection(),
-      onAutoUpgrade: () => this.toggleAutoUpgradeMode(),
-      onAutoUpgradeEnabled: () => this.toggleAutoUpgradeEnabled(),
-      onAutoUpgradeReserveFocus: () => this.focusAutoUpgradeReserveInput(),
-      onGameSpeedChange: (speed) => this.requestGameSpeed(speed),
-      canChangeGameSpeed: () => !this.gameOver && !this.menuOpen && !this.reselectOpen,
-      onErase: () => this.toggleEraser()
+      onAutoUpgrade: () => this.localInput(() => this.toggleAutoUpgradeMode()),
+      onAutoUpgradeEnabled: () => this.localInput(() => this.toggleAutoUpgradeEnabled()),
+      onAutoUpgradeReserveFocus: () => this.localInput(() => this.focusAutoUpgradeReserveInput()),
+      onGameSpeedChange: (speed) => this.localInput(() => this.requestGameSpeed(speed)),
+      canChangeGameSpeed: () => !this.localInputBlocked(),
+      onErase: () => this.localInput(() => this.toggleEraser())
     }, this.debugModeEnabled));
     this.pauseMenu = new PauseMenu({
       resume: () => this.closePauseMenu(),
@@ -633,7 +633,7 @@ export class GameScene extends Phaser.Scene {
       const runtime: TutorialRuntime = {
         registerAdvance: action => {
           this.tutorialAdvance = action;
-          return () => { this.command({ type: "tutorialAdvance" }); };
+          return () => this.localInput(() => { this.requestControl({ type: "tutorialAdvance" }); });
         },
         scene: this,
         getCardState: (id) => this.cardStatesById.get(id),
@@ -642,12 +642,12 @@ export class GameScene extends Phaser.Scene {
         getBattleTime: () => this.battleTime,
         getToolBounds: (id) => this.tutorialToolBounds(id),
         getToolState: () => ({
-          eraserMode: this.eraserMode,
-          autoUpgradeMode: this.autoUpgradeMode,
+          eraserMode: this.tutorialInteraction.tool === "erase",
+          autoUpgradeMode: this.tutorialInteraction.tool === "autoUpgrade",
           autoUpgradeEnabled: this.autoUpgradeEnabled,
-          shifterMode: this.shifter.isActive(),
+          shifterMode: this.tutorialInteraction.tool === "shifter",
           shifterReadyRatio: this.shifter.cooldownRatio(),
-          shifterSelection: this.shifter.selectedTowers()
+          shifterSelection: this.towers.filter(tower => tower.inPlay && !tower.nullified && this.tutorialInteraction.selected.includes(tower.entityId!))
         }),
         spawnWave: (spawns) => this.battlefield.world(() => this.spawnTutorialWave(spawns)),
         finish: () => this.endLevel()
@@ -686,7 +686,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createCardList() {
-    this.cardList = this.battlefield.ui(() => new BattleCardList(this, this.selectedCardIds, (id) => this.selectCard(id),
+    this.cardList = this.battlefield.ui(() => new BattleCardList(this, this.selectedCardIds, (id) => this.localInput(() => this.selectCard(id)),
       () => !this.gameOver && !this.menuOpen && !this.reselectOpen));
     this.setCardStates(this.cardList.cards);
     this.cardList.ensureVisible(this.selectedCardId);
@@ -811,8 +811,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handlePointerDown(pointer: Phaser.Input.Pointer) {
-    if (this.command({ type: "pointer", pointer: { x: pointer.x, y: pointer.y,
-      shift: this.isShiftPointer(pointer), ctrl: this.isCtrlPointer(pointer), right: this.isRightPointer(pointer) } })) return;
+    if (this.localInputBlocked()) return;
     const x = pointer.x;
     const y = pointer.y;
     if (this.gameOver || this.menuOpen || this.reselectOpen) {
@@ -834,7 +833,7 @@ export class GameScene extends Phaser.Scene {
     if (this.topology.isTargeting()) {
       const source = this.topology.selectedSource();
       if (this.isInsideBoard(x, y) && source) {
-        const result = this.applyPlayerOperation(LOCAL_BATTLE_ACTOR.id, { type: "topology", target: towerOperationRef(source),
+        const result = this.requestOperation({ type: "topology", target: towerOperationRef(source),
           cell: { lane: Math.floor((y - BOARD_Y) / CELL_HEIGHT), column: Math.floor((x - BOARD_X) / CELL_WIDTH) } });
         if (result === "handled" || result === "stale") this.topology.cancel();
       } else this.topology.cancel();
@@ -844,7 +843,7 @@ export class GameScene extends Phaser.Scene {
       if (this.isInsideBoard(x, y)) {
         const source = this.towerPush.selectedSource();
         if (source) {
-          const result = this.applyPlayerOperation(LOCAL_BATTLE_ACTOR.id, { type: "push", target: towerOperationRef(source),
+          const result = this.requestOperation({ type: "push", target: towerOperationRef(source),
             cell: { lane: Math.floor((y - BOARD_Y) / CELL_HEIGHT), column: Math.floor((x - BOARD_X) / CELL_WIDTH) } });
           if (result === "handled" || result === "stale") this.towerPush.cancel();
         }
@@ -858,7 +857,7 @@ export class GameScene extends Phaser.Scene {
       if (this.isInsideBoard(x, y)) {
         const targets = this.towerSkills.selectedSpellMortars().map(towerOperationRef);
         this.towerSkills.cancelSpellMortarTargeting();
-        if (targets.length) this.applyPlayerOperation(LOCAL_BATTLE_ACTOR.id, { type: "skill", skill: "S", targets, point: { x, y } });
+        if (targets.length) this.requestOperation({ type: "skill", skill: "S", targets, point: { x, y } });
       } else {
         this.towerSkills.cancelSpellMortarTargeting();
       }
@@ -866,7 +865,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.debugDamageMode) {
-      this.applyPlayerControl(LOCAL_BATTLE_ACTOR.id, { type: "debugDamage", mode: this.debugDamageMode, point: { x, y } });
+      this.requestControl({ type: "debugDamage", mode: this.debugDamageMode, point: { x, y } });
       return;
     }
 
@@ -886,7 +885,7 @@ export class GameScene extends Phaser.Scene {
 
     if (this.eraserMode) {
       if (existingEdge) {
-        this.applyPlayerOperation(LOCAL_BATTLE_ACTOR.id, { type: "erase", target: edgeOperationRef(existingEdge) });
+        this.requestOperation({ type: "erase", target: edgeOperationRef(existingEdge) });
         this.eraserMode = false; this.updateCards(); this.syncPlacementGhost(pointer); return;
       }
       if (!existingTower) {
@@ -894,7 +893,7 @@ export class GameScene extends Phaser.Scene {
         return;
       }
 
-      this.applyPlayerOperation(LOCAL_BATTLE_ACTOR.id, { type: "erase", target: towerOperationRef(existingTower) });
+      this.requestOperation({ type: "erase", target: towerOperationRef(existingTower) });
       this.eraserMode = false;
       this.updateCards();
       return;
@@ -902,12 +901,12 @@ export class GameScene extends Phaser.Scene {
 
     if (existingEdge && !this.shifter.isActive()) {
       if (this.autoUpgradeMode) {
-        this.applyPlayerOperation(LOCAL_BATTLE_ACTOR.id, { type: "autoUpgrade", enabled: !existingEdge.autoUpgrade,
+        this.requestOperation({ type: "autoUpgrade", enabled: !existingEdge.autoUpgrade,
           targets: (this.isShiftPointer(pointer) ? this.edgeTowers : [existingEdge]).map(edgeOperationRef) });
       } else if (deploymentCardId(this.selectedCardId) === "=") this.useEdgeCard(existingEdge, existingEdge);
       else {
         const modes = ["=", ">", "<", "!="] as const;
-        this.applyPlayerOperation(LOCAL_BATTLE_ACTOR.id, { type: "edgeMode", target: edgeOperationRef(existingEdge),
+        this.requestOperation({ type: "edgeMode", target: edgeOperationRef(existingEdge),
           mode: modes[(modes.indexOf(existingEdge.mode ?? "=") + 1) % modes.length] });
       }
       this.syncPlacementGhost(pointer); return;
@@ -921,7 +920,7 @@ export class GameScene extends Phaser.Scene {
 
       if (!supportsTowerAutoUpgrade(existingTower)) return;
       const nextState = !existingTower.autoUpgrade;
-      this.applyPlayerOperation(LOCAL_BATTLE_ACTOR.id, { type: "autoUpgrade", enabled: nextState,
+      this.requestOperation({ type: "autoUpgrade", enabled: nextState,
         targets: (this.isShiftPointer(pointer) ? this.towers.filter(tower => tower.type === existingTower.type && tower.inPlay && !tower.transient && supportsTowerAutoUpgrade(tower))
           : [existingTower]).map(towerOperationRef) });
       this.showToast(nextState ? t("toast.autoOn") : t("toast.autoOff"));
@@ -954,7 +953,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.targetedEffects.canHandle(definition.id)) {
-      const result = this.applyPlayerOperation(LOCAL_BATTLE_ACTOR.id, { type: "effect", card: definition.id,
+      const result = this.requestOperation({ type: "effect", card: definition.id,
         cell: { lane, column }, target: existingTower ? towerOperationRef(existingTower) : null });
       this.handleTargetedEffectCardResult(result);
       return;
@@ -971,7 +970,7 @@ export class GameScene extends Phaser.Scene {
         if (this.towerSkills.requiresManualSkillTarget(existingTower)) {
           this.towerSkills.beginManualSkillTargeting(targets, { x, y, allReady: this.isShiftPointer(pointer) });
         } else {
-          this.applyPlayerOperation(LOCAL_BATTLE_ACTOR.id, { type: "skill", skill: towerBehaviorType(existingTower),
+          this.requestOperation({ type: "skill", skill: towerBehaviorType(existingTower),
             targets: targets.map(towerOperationRef), point: null });
         }
         this.updateCards();
@@ -980,7 +979,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.isManualShockTower(existingTower)) {
-      this.applyPlayerOperation(LOCAL_BATTLE_ACTOR.id, { type: "trigger", target: towerOperationRef(existingTower), behavior: towerBehaviorType(existingTower) });
+      this.requestOperation({ type: "trigger", target: towerOperationRef(existingTower), behavior: towerBehaviorType(existingTower) });
       return;
     }
 
@@ -1011,7 +1010,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private useEdgeCard(position: EdgeTower, existing?: EdgeTower) {
-    this.handleTargetedEffectCardResult(this.applyPlayerOperation(LOCAL_BATTLE_ACTOR.id, {
+    this.handleTargetedEffectCardResult(this.requestOperation({
       type: "edgeCard", card: this.selectedCardId,
       position: { axis: position.axis, lane: position.lane, column: position.column },
       expected: existing ? edgeOperationRef(existing) : null
@@ -1043,7 +1042,7 @@ export class GameScene extends Phaser.Scene {
 
   submitPlayerOperation(actorId: string, operation: BattleOperation): BattleOperationResult {
     if (!validBattleActorId(actorId) || !validBattleOperation(operation)) return "invalid";
-    if (this.playback || this.gameOver || this.menuOpen || this.reselectOpen) return "unavailable";
+    if (this.playback || this.gameOver) return "unavailable";
     let result: BattleOperationResult = "unavailable";
     this.session.submit({ type: "operation", actorId, operation }, accepted => {
       if (accepted.type === "operation") result = this.applyPlayerOperation(accepted.actorId, accepted.operation);
@@ -1067,6 +1066,12 @@ export class GameScene extends Phaser.Scene {
       reselect: cards => this.applyReselection(cards),
       tutorialAvailable: !!this.tutorialAdvance,
       tutorialAdvance: () => this.battlefield.ui(() => this.tutorialAdvance?.()),
+      tutorialInput: input => {
+        if (!this.tutorial?.usesToolInteraction) return "unavailable";
+        if (input.selected.some(id => !this.towers.some(tower => tower.entityId === id && tower.inPlay && !tower.transient && !tower.nullified))) return "stale";
+        this.tutorialInteraction = { tool: input.tool, selected: [...input.selected] };
+        return "handled";
+      },
       pauseChanged: () => {
         if (!this.battlePaused) this.flushPausedActions();
         this.updateCards(); this.updateHud();
@@ -1098,6 +1103,11 @@ export class GameScene extends Phaser.Scene {
       this.submitPlayerControl(LOCAL_BATTLE_ACTOR.id, control);
   }
 
+  private requestOperation(operation: BattleOperation) {
+    return this.session.executingCommand ? this.applyPlayerOperation(LOCAL_BATTLE_ACTOR.id, operation) :
+      this.submitPlayerOperation(LOCAL_BATTLE_ACTOR.id, operation);
+  }
+
   private deploySelectedCard(
     definition: CardDefinition,
     lane: number,
@@ -1105,7 +1115,7 @@ export class GameScene extends Phaser.Scene {
     pointer: Phaser.Input.Pointer
   ) {
     const target = towerInPlacementLayer(this.occupied, lane, column, definition.id);
-    const result = this.applyPlayerOperation(LOCAL_BATTLE_ACTOR.id, { type: "deploy", card: definition.id,
+    const result = this.requestOperation({ type: "deploy", card: definition.id,
       cell: { lane, column }, expected: target ? towerOperationRef(target) : null });
     if (result !== "deployed") {
       this.showToast(t(`toast.${result === "cooldown" || result === "noChars" ? result : "occupied"}`));
@@ -1121,7 +1131,7 @@ export class GameScene extends Phaser.Scene {
 
   private handleShifterPointer(pointer: Phaser.Input.Pointer, lane: number, column: number, existingTower?: Tower, explicitSelection = false) {
     const action = this.shifter.pointerAction(lane, column, existingTower, this.isCtrlPointer(pointer), explicitSelection);
-    const result = action === "move" ? this.applyPlayerOperation(LOCAL_BATTLE_ACTOR.id, { type: "move",
+    const result = action === "move" ? this.requestOperation({ type: "move",
       sources: this.shifter.selectedTowers().map(tower => ({ target: towerOperationRef(tower), lane: tower.lane, column: tower.column })),
       destination: { lane, column } }) : this.shifter.handlePointer(lane, column, existingTower, this.isCtrlPointer(pointer), explicitSelection);
     if (result === "cooldown") {
@@ -2262,7 +2272,6 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    this.command({ type: "cancelTargeting" });
     this.reselectOpen = true;
     this.autoUpgradeReserveInputFocused = false;
     this.cancelSpellMortarTargeting();
@@ -2286,7 +2295,7 @@ export class GameScene extends Phaser.Scene {
   private closeReselection(cards?: CardId[]) {
     if (!this.reselectOpen) return;
     this.reselectOpen = false;
-    if (cards?.length) this.command({ type: "reselect", cards });
+    if (cards?.length) this.requestControl({ type: "reselect", cards });
     this.reselectShade?.destroy();
     this.reselectShade = undefined;
     this.scene.resume();
@@ -2307,7 +2316,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private grantDebugChars() {
-    if (this.command({ type: "tool", action: "tool:debugChars" })) return;
+    if (this.localInputBlocked()) return;
     if (!this.debugModeEnabled || this.gameOver) {
       return;
     }
@@ -2335,7 +2344,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private toggleEraser() {
-    if (this.command({ type: "tool", action: "tool:erase" })) return;
+    if (this.localInputBlocked()) return;
     if (this.gameOver) {
       return;
     }
@@ -2354,7 +2363,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private toggleShifterMode() {
-    if (this.command({ type: "tool", action: "tool:shifter" })) return;
+    if (this.localInputBlocked()) return;
     if (this.gameOver) {
       return;
     }
@@ -2379,7 +2388,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private toggleAutoUpgradeMode() {
-    if (this.command({ type: "tool", action: "tool:autoUpgrade" })) return;
+    if (this.localInputBlocked()) return;
     if (this.gameOver) {
       return;
     }
@@ -2398,7 +2407,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private toggleAutoUpgradeEnabled() {
-    if (this.command({ type: "tool", action: "tool:autoUpgradeEnabled" })) return;
+    if (this.localInputBlocked()) return;
     if (this.gameOver) {
       return;
     }
@@ -2408,7 +2417,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private focusAutoUpgradeReserveInput() {
-    if (this.command({ type: "tool", action: "tool:autoUpgradeReserve" })) return;
+    if (this.localInputBlocked()) return;
     if (this.gameOver) {
       return;
     }
@@ -2430,7 +2439,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private toggleDebugDamageMode() {
-    if (this.command({ type: "tool", action: "tool:debugDamage" })) return;
+    if (this.localInputBlocked()) return;
     if (!this.debugModeEnabled || this.gameOver) {
       return;
     }
@@ -2440,7 +2449,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private toggleSuperDebugDamageMode() {
-    if (this.command({ type: "tool", action: "tool:superDebugDamage" })) return;
+    if (this.localInputBlocked()) return;
     if (!this.debugModeEnabled || this.gameOver) {
       return;
     }
@@ -2673,7 +2682,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private setAutoUpgradeReserve(value: number) {
-    if (this.command({ type: "reserve", value })) return;
+    if (this.localInputBlocked()) return;
     this.requestControl({ type: "reserve", value });
   }
 
@@ -2778,7 +2787,7 @@ export class GameScene extends Phaser.Scene {
 
   private selectCard(id: CardId) {
     if (id === "?") id = this.selectedCardIds.find(isImitatorCard) ?? id;
-    if (this.command({ type: "selectCard", id })) return;
+    if (this.localInputBlocked()) return;
     if (!this.selectedCardIds.includes(id)) {
       return;
     }
@@ -2943,23 +2952,35 @@ export class GameScene extends Phaser.Scene {
     if (!this.playback) this.session.startRecordingFromCheckpoint(captureBattleSnapshot(this.battleState()), this.selectedCardIds);
   }
 
-  /** Commands execute between ticks; sequence preserves multiple operations on the same tick. */
-  private command(command: BattleCommand) {
-    if (this.session.executingCommand) return false;
-    if (this.playback || this.gameOver || this.menuOpen || this.reselectOpen) return true;
-    this.submitBattleCommand(command);
-    return true;
+  private localInputBlocked() {
+    return !this.session.executingCommand && (!!this.playback || this.gameOver || this.menuOpen || this.reselectOpen);
   }
 
+  private localInput(action: () => void) {
+    if (this.localInputBlocked()) return;
+    action();
+    if (!this.tutorial?.usesToolInteraction || this.gameOver) return;
+    const input: TutorialInteraction = {
+      tool: this.eraserMode ? "erase" : this.autoUpgradeMode ? "autoUpgrade" : this.shifter.isActive() ? "shifter" : "none",
+      selected: this.shifter.isActive() ? this.shifter.selectedTowers().map(tower => towerOperationRef(tower).id) : []
+    };
+    if (!sameTutorialInteraction(this.tutorialInteraction, input)) this.requestControl({ type: "tutorialInput", input });
+  }
+
+  /** Legacy input adapter for current-version recordings and diagnostic fixtures. */
   submitBattleCommand(command: BattleCommand) {
     if (this.playback || this.gameOver || this.menuOpen || this.reselectOpen) return;
     this.session.submit(command, this.sessionRuntime.executeCommand);
   }
 
   private executeCommand(command: BattleCommand) {
+    if (command.type === "control") return this.applyPlayerControl(command.actorId, command.control);
+    if (command.type === "operation") return this.applyPlayerOperation(command.actorId, command.operation);
+    this.localInput(() => this.executeLegacyInput(command));
+  }
+
+  private executeLegacyInput(command: Exclude<BattleCommand, { type: "control" | "operation" }>) {
     switch (command.type) {
-      case "control": return this.applyPlayerControl(command.actorId, command.control);
-      case "operation": return this.applyPlayerOperation(command.actorId, command.operation);
       case "tutorialAdvance": this.applyPlayerControl(LOCAL_BATTLE_ACTOR.id, { type: "tutorialAdvance" }); break;
       case "cancelTargeting": this.cancelSpellMortarTargeting(); break;
       case "debugMode":

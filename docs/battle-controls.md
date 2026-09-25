@@ -1,8 +1,8 @@
 # Battle Controls And Local UI
 
-`battleControls.ts` is a renderer-free semantic boundary for nine control intents:
+`battleControls.ts` is a renderer-free semantic boundary for ten control intents:
 pause, speed, auto-upgrade enablement, reserve, reselection, debug enablement,
-debug resources, debug damage and tutorial advancement. The real scene uses it
+debug resources, debug damage, tutorial advancement and tutorial interactions. The real scene uses it
 from both UI adapters and `GameScene.submitPlayerControl(actorId, control)`.
 
 ## Validation And Policy
@@ -45,10 +45,19 @@ Cosmetic rotation, clock remainder and playback speed remain normalized.
 Debug enablement is now saved explicitly so a recording resumed from a checkpoint
 does not inherit unrelated local settings.
 
-Actual controls are recordable as `{ type: "control", actorId, control }`. Legacy
-pointer/tool commands still execute through the same operation/control gates, but
-are not yet removed from local recordings. Complete per-player selection objects
-and recording only semantic commands remain next work.
+Actual controls are recorded as `{ type: "control", actorId, control }`. Live
+mouse, keyboard, card-list and HUD adapters now record only operations/controls.
+Card selection, aim previews, tool toggles and reserve keystrokes are local.
+`submitBattleCommand` remains a deprecated privileged input adapter for legacy
+current-version recordings and fixtures, not the path used by the live UI.
+
+The auto-upgrade and shifter lessons deliberately observe tool choice and selected
+tower IDs. Their `tutorialInput` control carries a bounded tool/ID observation;
+the tutorial reads this separate state rather than the local player's selection.
+Other levels reject it. It does not activate tools, select towers or move anything.
+Full 30/144 Hz tutorial replay therefore works while local tools stay inactive.
+Tutorial controller state and rendering still need their own headless/snapshot
+boundary before tutorial checkpoint synchronization can be claimed.
 
 Replay drains already-due commands before checking whether ticks can advance.
 This permits a same-tick resume control to release a restored paused session.
@@ -68,6 +77,10 @@ explicitly rejected rather than silently interpreted with new input semantics.
   cards, tools and input focus; tower and edge auto-upgrades; stale display clocks;
   reselection; debug operations; menu controls; checkpoint restore; and full
   30/144 Hz replay through 14,620 ticks.
+- `test-battle-input-browser.mjs`: unrecorded local selection, paused construction,
+  local-modal input rejection versus explicit host execution, and complete semantic
+  replays of the auto-upgrade and shifter lessons without changing local tools or
+  persistent progress.
 - The broader replay suite covers seven normal/Boss/endless/ASCII levels, tutorial
   progression, all finale phases and the older pointer input adapter. Its
   `v6FormatHash` is a diagnostic normalization to separate checksum-format changes

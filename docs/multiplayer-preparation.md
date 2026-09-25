@@ -39,14 +39,14 @@ rules from browser input and rendering, not a multiplayer implementation.
 - `BattleSession` owns the clock, RNG, action queue, command ordering and recording
   for the actual single-player scene. World simulation is still supplied by the
   scene callback. See [Battle Session Orchestration](battle-session.md).
-- `BattleCommand` records normalized board coordinates, modifiers, card/tool
-  selection, skills, erasure, reserve changes, reselection, debug actions and
+- Live input records semantic `BattleCommand` operations and controls: explicit
+  cells/targets, skills, erasure, reserve changes, reselection, debug actions and
   tutorial progression. Commands run between ticks, ordered by tick and sequence.
-  These are single-player session commands; tool/selection state is not yet
-  independent per player. The existing movement planner remains reusable.
+  Local card/tool selection and aiming stay out of the combat log. Tutorial tool
+  observations have their own bounded lesson command, not shared UI selection.
 - Board mutations and manual skills support explicit `operation` commands with
   stable target references and a shared validation/authorization gate. The mouse
-  path uses the same executor while retaining its old recording format. See
+  path uses the same executor and records explicit commands. See
   [Semantic Battle Operations](battle-operations.md) for the remaining boundary.
 - Global controls use explicit `control` commands with separate host capabilities.
   Reserve edits are local drafts and selected cards are excluded from checksums.
@@ -67,11 +67,11 @@ const recording = scene.exportReplay(); // JSON-serializable
 const checksum = scene.battleChecksum();
 game.scene.start("GameScene", { replay: recording });
 
-// Same input adapter used by the local UI; accepted between simulation ticks.
-scene.submitBattleCommand({ type: "selectCard", id: "A" });
-scene.submitBattleCommand({ type: "pointer", pointer: {
-  x: 400, y: 300, ctrl: false, shift: false, right: false
-} });
+// Trusted semantic API, also used by local input; not a network authentication boundary.
+scene.submitPlayerOperation("local", {
+  type: "deploy", card: "A", cell: { lane: 3, column: 2 }, expected: null
+});
+scene.submitPlayerControl("local", { type: "reserve", value: 500 });
 ```
 
 Playback stops at `endTick`. Pause and speed controls are recorded at battle ticks,
@@ -92,7 +92,7 @@ The complete integration acceptance gates and current gaps are tracked in
 explicit snapshot fields now cover towers, enemies, projectiles and Bosses;
 live runtime orchestration and object relationships still need separation.
 
-1. Finish splitting UI intent into semantic commands and local selection state;
+1. Isolate participant UI instances and local-modal versus battle pause policy;
    define configurable participant/resource policies without requiring a specific
    multiplayer mode to have been chosen.
 2. Separate simulation state from Phaser objects in towers, enemies, projectiles,
