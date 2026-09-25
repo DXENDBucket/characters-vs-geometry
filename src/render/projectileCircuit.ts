@@ -3,7 +3,7 @@ import type { CircuitRuntime } from "../game/projectileCircuit";
 import type { CircuitPresentation } from "../game/projectileCircuitRules";
 import { projectileVisualScale } from "../game/projectileIntegrity";
 
-export function circuitPresentation(live: () => CircuitRuntime): CircuitPresentation {
+export function circuitPresentation(live: () => Pick<CircuitRuntime, "changed" | "shielded" | "intercepted">): CircuitPresentation {
   return {
     captured: projectile => (projectile as Projectile).body.destroy(),
     changed: tower => live().changed(tower as Tower),

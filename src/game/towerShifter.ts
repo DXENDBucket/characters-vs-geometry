@@ -32,8 +32,9 @@ export class TowerShifterController {
   private readonly previewPositions: TowerShifterMovePosition[] = [];
   private readonly previewResult: TowerShifterMovePreview = { valid: false, positions: this.previewPositions };
 
-  constructor(private readonly runtime: () => TowerShifterRuntime) {
-    this.simulation = new TowerShifterSimulation(runtime, shifterPresentation);
+  constructor(private readonly runtime: () => TowerShifterRuntime, simulation?: TowerShifterSimulation<Tower>) {
+    this.simulation = simulation ?? new TowerShifterSimulation(runtime);
+    this.simulation.presentation = shifterPresentation;
   }
 
   snapshot() { return this.simulation.snapshot(); }

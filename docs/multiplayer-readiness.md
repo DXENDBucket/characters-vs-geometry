@@ -60,10 +60,17 @@ ports. Node integrations run without Phaser; selected real displayed, display-
 disabled and restored scenes agree. Scratch state is per-world/runtime and module
 guards reject rendering imports and dependency cycles.
 
-**Gates 1-2 are not complete.** The complete runtime/factory/callback graph and
-world-system assembly still live in GameScene. Individual pure systems plus
-presentation-disabled scenes are not proof of a complete independent headless
-host. The next priority is assembling that host and making the scene use it.
+The complete combat runtime/factory/callback graph and world-system assembly now
+live in a shared [BattleRuntime](battle-runtime.md), used by the actual GameScene
+and independent Node integrations. Semantic operation wiring and resolved-state
+capture/restore also use that assembly. Local targeting controllers bind its
+existing simulation objects rather than constructing parallel ones.
+
+**Gates 1-2 remain incomplete.** Control/UI ingress and legacy display hydration
+still need independent adapters. New Node/Edge comparisons expose native
+trigonometric coordinate differences and property-order-sensitive checksums;
+neither is covered by earlier same-browser agreement. See the runtime document
+for exact reproduction and diagnostic limits.
 
 ### Session, Commands And Profile Isolation
 
@@ -112,8 +119,8 @@ coverage and crowded-battle synchronization cost measurements remain unfinished.
 
 ## Next Work
 
-1. Assemble a complete renderer-free host from the extracted systems; wire actual
-   single-player to that same assembly and compare full battle/save/replay runs.
+1. Complete independent control/checkpoint adapters around the shared runtime;
+   resolve canonical serialization/checksums and cross-engine numeric guarantees.
 2. Finish ID-based relationship serialization and participant/resource policies.
 3. Integrate client input and transport lifetime handling, then broaden fault and
    content coverage and profile crowded host/replica execution.

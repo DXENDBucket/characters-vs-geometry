@@ -9,7 +9,7 @@ import { syncTowerTrueDamageVisual } from "../game/towers";
 import { syncTowerLevelText } from "../game/towers";
 import { syncHealthBar } from "./towerHealth";
 
-export function targetedEffectPresentation(live: () => TargetedEffectCardRuntime): TargetedEffectPresentation {
+export function targetedEffectPresentation(live: () => Pick<TargetedEffectCardRuntime, "scene" | "updateCards">): TargetedEffectPresentation {
   return {
     attachment: tower => syncTowerAttachmentVisual(live().scene, tower as Tower),
     turned: tower => { syncTowerFacingVisual(tower as Tower); makeTurnCardPulse(live().scene, tower as Tower); },

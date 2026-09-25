@@ -4,6 +4,11 @@ import type { TriggerTowerRuntime as LiveRuntime } from "../game/triggerTowers";
 import type { TriggerTowerRuntime } from "../game/triggerTowerRules";
 import { makeFreezePulse, makeReversalPulse, makeShockPulse, makeTrapBurst } from "./combatEffects";
 const adapters = new WeakMap<LiveRuntime, TriggerTowerRuntime>();
+export function bindTriggerTowerRuntime(live: LiveRuntime, runtime: TriggerTowerRuntime) {
+  runtime.presentation = triggerTowerRuntime(live).presentation;
+  adapters.set(live, runtime);
+}
+
 export function triggerTowerRuntime(live: LiveRuntime): TriggerTowerRuntime {
   let runtime = adapters.get(live);
   if (!runtime) {

@@ -79,6 +79,11 @@ export function enemySimulationPresentation(scene: Phaser.Scene): EnemySimulatio
 
 const runtimes = new WeakMap<EnemyAdvanceRuntime, EnemySimulationRuntime>();
 
+export function bindEnemySimulationRuntime(live: EnemyAdvanceRuntime, runtime: EnemySimulationRuntime) {
+  runtime.presentation = enemySimulationRuntime(live).presentation;
+  runtimes.set(live, runtime);
+}
+
 export function enemySimulationRuntime(live: EnemyAdvanceRuntime): EnemySimulationRuntime {
   let runtime = runtimes.get(live);
   if (!runtime) {

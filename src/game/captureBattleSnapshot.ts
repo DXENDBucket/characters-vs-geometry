@@ -1,11 +1,11 @@
-import type { BattleSaveState } from "./battleSaveState";
+import type { BattleSaveData } from "./battleSaveState";
 import { classifyBattleData } from "./battleDataSchema";
 import { parseBattleEntityId, validateBattleEntityIdState } from "./battleEntityIds";
 import { encodeSaveGraph } from "./saveGraph";
 
 const identityFields = new Set(["entityId"]);
 
-export function captureBattleSnapshot(state: BattleSaveState, options: { includeEntityIds?: boolean } = {}) {
+export function captureBattleSnapshot(state: BattleSaveData, options: { includeEntityIds?: boolean } = {}) {
   const includeIds = options.includeEntityIds !== false;
   const allocator = includeIds ? state.entityIds : undefined;
   if (allocator !== undefined) validateBattleEntityIdState(allocator);

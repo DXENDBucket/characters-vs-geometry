@@ -16,9 +16,13 @@ import { syncEnemyStatusVisuals } from "../render/enemyStatus";
 export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): Enemy {
   if (!isBattlePlayback(scene)) observeBattleEnemy(scene, options.kind);
   const state = createEnemyState(options, () => battleRandom(scene).next());
-  const body = scene.add.container(state.x, state.y).setDepth(60 + options.lane);
+  return createEnemyVisual(scene, state, options.time);
+}
+
+export function createEnemyVisual(scene: Phaser.Scene, state: ReturnType<typeof createEnemyState>, time: number): Enemy {
+  const body = scene.add.container(state.x, state.y).setDepth(60 + state.lane);
   const visuals = createEnemyStatusVisuals(scene);
-  const shape = createEnemyShape(scene, options.kind, { squareSize: 42, shootingNoseX: -24 });
+  const shape = createEnemyShape(scene, state.kind, { squareSize: 42, shootingNoseX: -24 });
   body.add([visuals.frozenBorder, visuals.statusBorder, visuals.flyingHalo, shape,
     visuals.powerIcon, visuals.sunderIcon, visuals.armorIcon, visuals.magicResistanceIcon]);
 
@@ -30,8 +34,8 @@ export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): E
   } as Enemy;
 
   if (enemyFamily(enemy.kind) === "archangelHeptagon") {
-    statusSpeedMultiplier(enemy, options.time);
-    syncEnemyStatusVisuals(enemy, options.time);
+    statusSpeedMultiplier(enemy, time);
+    syncEnemyStatusVisuals(enemy, time);
     enemy.body.setDepth(85 + enemy.lane);
   }
   if (enemyIsSolarBomb(enemy)) syncSolarBombVisual(enemy);

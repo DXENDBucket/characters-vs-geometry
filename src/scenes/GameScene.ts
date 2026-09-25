@@ -1,79 +1,7 @@
 import Phaser from "phaser";
-import { GuidedTutorialView } from "../render/guidedTutorialView";
-import { playSound, soundPlayer } from "../audio/player";
 import { bindBattleAudio } from "../audio/battleAudio";
-import { canUpgradeTowerWithCard, supportsTowerAutoUpgrade, towerBehaviorType, towerFormType } from "../game/towerIdentity";
-import { syncTowerTopology, inFriendlyRange, towerCell, physicalTowerCell } from "../game/towerTopology";
-import { TowerTopologyController } from "../game/towerTopologyController";
-import { syncFriendlyRangeVisual, syncTowerAutoUpgradeVisual } from "../game/towers";
-import { getHitProductionAmount, towerFacingDirection } from "../game/towerRules";
-import { TowerBoardSimulation } from "../game/towerBoard";
-import { towerBoardPresentation } from "../render/towerBoard";
-import { BATTLE_RULES_VERSION, setBattleRandom, setBattlePlayback } from "../game/battleSimulation";
-import { validateReplay, type BattleCommand, type BattlePointer, type BattleReplay, type RecordedBattleCommand } from "../game/battleCommands";
-import type { SaveGraph } from "../game/saveGraph";
-import { BattleSyncHost } from "../game/battleSyncHost";
-import { sameTutorialInteraction, type TutorialInteraction } from "../game/tutorialInteraction";
-import type { BattleAction, ScheduleBattleAction } from "../game/battleActions";
-import { BattleSession, type BattleSessionRuntime } from "../game/battleSession";
-import { BattleAuthority } from "../game/battleAuthority";
-import type { BattleOperationActor } from "../game/battleParticipants";
-import { battleCardAllowed, copyBattlePolicy, LEGACY_BATTLE_POLICY, type BattlePolicy } from "../game/battlePolicy";
-import { BattleWorld, type BattleWorldSystems } from "../game/battleWorld";
-import { BattleEncounter } from "../game/battleEncounter";
-import { BattlefieldCells } from "../game/battlefieldCells";
-import { battleEncounterPresentation } from "../render/battleEncounter";
-import { bossSimulationRuntime } from "../render/bossSimulation";
-import { battleCardTime, type BattleCardState } from "../game/battleLoadout";
-import { battleChecksum } from "../game/battleChecksum";
-import { syncEnemyStatusVisuals } from "../render/enemyStatus";
-import { syncHexArmorAuras } from "../render/enemySupport";
-import { TimedCellSeals } from "../game/timedCellSeals";
-import { drawTimedCellSeals } from "../render/timedCellSeals";
-import { createCellSealMark } from "../render/cellSealMark";
-import { TowerNullificationController } from "../game/towerNullification";
-import { drawNullifiedTowers } from "../render/nullifiedTowers";
-import type { BattleSaveState } from "../game/battleSaveState";
-import { captureBattleSnapshot } from "../game/captureBattleSnapshot";
-import { restoreBattleSnapshot } from "../game/battleSnapshot";
-import { setBattleEntityIds } from "../game/battleEntityIds";
-import { restoreBattleEntityIds } from "../game/battleEntityGraph";
-import { LOCAL_BATTLE_ACTOR, towerOperationRef, edgeOperationRef, validBattleActorId, validBattleOperation,
-  type BattleOperation, type BattleOperationResult } from "../game/battleOperations";
-import { executeLiveBattleOperation, type LiveBattleOperationRuntime } from "../game/battleOperationRuntime";
-import { executeBattleControl, validBattleControl, validReserveChars,
-  type BattleControl, type BattleControlRuntime } from "../game/battleControls";
-import { readSurvivalSave, writeSurvivalSave, type SurvivalSave } from "../survivalSaves";
+import { playSound, soundPlayer } from "../audio/player";
 import { BattleProfile, type BattleRewards } from "../battleProfile";
-import type { BattleResult } from "../game/battleLifecycle";
-import { setBattleDiscoveryObserver } from "../game/battleDiscovery";
-import { endlessEnemyHpMultiplier } from "../game/endlessEnvironment";
-import { enemiesWithPassengers } from "../game/enemyContainers";
-import { ProjectileCircuitController, edgeAtPoint, edgePosition } from "../game/projectileCircuit";
-import { drawCircuitEdges } from "../render/circuitEdges";
-import { EdgeTowerControls } from "../game/edgeTowerControls";
-import { deploymentCardId, isImitatorCard, uniqueLoadout } from "../game/cardIdentity";
-import { createTowerProjectile } from "../game/projectiles";
-import { drawTowerShellBorder } from "../render/parenthesisTower";
-import { isParenthesisTower, isTowerShellType, syncTowerOccupancy, towerInPlacementLayer } from "../game/towerOccupancy";
-import { boardPointerTarget } from "../game/boardPointerTarget";
-import { BoardToolPreview, type BoardToolHint } from "../render/boardToolPreview";
-import { emitPipelineShot, healPipelineArea } from "../game/pipelineActionEffects";
-import { routePipelineTowerAction } from "../game/pipelineActionRules";
-import type { TowerActionEvent } from "../game/towerActions";
-import { reflectEnemyAttack } from "../game/projectileRuntime";
-import { projectileSimulationRuntime, type LiveProjectileRuntime } from "../render/projectileRuntime";
-import { unitLifecycleSimulationRuntime, type LiveUnitLifecycleRuntime } from "../render/unitLifecycle";
-import { detonateSlowAuraTower } from "../game/unitLifecycle";
-import { drawEnemyHealthLinks } from "../render/enemyHealthLinks";
-import { PauseMenu } from "../render/pauseMenu";
-import { EncyclopediaPanel } from "../render/encyclopediaPanel";
-import { BattleCardList } from "../render/battleCardList";
-import { BattlefieldLayer, useBattlefieldCanvas } from "../render/battlefieldLayer";
-import { TowerExtractionPool } from "../game/towerExtraction";
-import { RESELECT_UNLOCK_LEVEL } from "../game/loadoutReselection";
-import { TowerStorageController } from "../game/towerStorage";
-import { expireReversalEffect } from "../game/rules/reversal";
 import {
   BOARD_HEIGHT,
   BOARD_WIDTH,
@@ -90,85 +18,138 @@ import {
   GAME_SPEED_MIN,
   LANES,
   clampDifficulty,
-  migrateDifficulty,
   getDifficultyConfig,
+  migrateDifficulty,
   palette
 } from "../config";
-import { createCubeBoss } from "../bosses/cubeBoss";
-import { applyBossPhaseSkillState } from "../game/bossSkillRules";
 import { chapterIdForLevelId } from "../data/chapters";
 import { getLevelConfig } from "../data/levels";
-import { updateBossRuntime, executeBossAttack, type BossRuntime } from "../game/bossRuntime";
-import { advanceTowerAttacks, executeTowerVolley } from "../game/towerCombat";
-import { towerAttackRuntime } from "../render/towerCombat";
-import type { CombatRuntime } from "../game/combatRuntime";
-import { advanceEnemies, executeEnemyAttack, spawnEnemyAt } from "../game/enemyRuntime";
+import type { BattleAction, ScheduleBattleAction } from "../game/battleActions";
+import { BattleAuthority } from "../game/battleAuthority";
+import { battleChecksum } from "../game/battleChecksum";
+import { validateReplay, type BattleCommand, type BattlePointer, type BattleReplay, type RecordedBattleCommand } from "../game/battleCommands";
 import {
-  updateEnemyProjectiles,
-  updateMortarProjectiles,
-  updateTowerProjectiles,
+  executeBattleControl, validBattleControl, validReserveChars,
+  type BattleControl, type BattleControlRuntime
+} from "../game/battleControls";
+import { setBattleDiscoveryObserver } from "../game/battleDiscovery";
+import { BattleEncounter } from "../game/battleEncounter";
+import { setBattleEntityIds } from "../game/battleEntityIds";
+import type { BattleResult } from "../game/battleLifecycle";
+import { battleCardTime, type BattleCardState } from "../game/battleLoadout";
+import { type LiveBattleOperationRuntime } from "../game/battleOperationRuntime";
+import {
+  LOCAL_BATTLE_ACTOR,
+  edgeOperationRef,
+  towerOperationRef,
+  validBattleActorId, validBattleOperation,
+  type BattleOperation, type BattleOperationResult
+} from "../game/battleOperations";
+import type { BattleOperationActor } from "../game/battleParticipants";
+import { LEGACY_BATTLE_POLICY, battleCardAllowed, copyBattlePolicy, type BattlePolicy } from "../game/battlePolicy";
+import type { BattleSaveState } from "../game/battleSaveState";
+import { BattleSession, type BattleSessionRuntime } from "../game/battleSession";
+import { BATTLE_RULES_VERSION, setBattlePlayback, setBattleRandom } from "../game/battleSimulation";
+import { restoreBattleSnapshot } from "../game/battleSnapshot";
+import { BattleSyncHost } from "../game/battleSyncHost";
+import { BattleWorld, type BattleWorldSystems } from "../game/battleWorld";
+import { BattlefieldCells } from "../game/battlefieldCells";
+import { boardPointerTarget } from "../game/boardPointerTarget";
+import { type BossRuntime } from "../game/bossRuntime";
+import { applyBossPhaseSkillState } from "../game/bossSkillRules";
+import { captureBattleSnapshot } from "../game/captureBattleSnapshot";
+import { deploymentCardId, isImitatorCard, uniqueLoadout } from "../game/cardIdentity";
+import { charsAreSoftcapped } from "../game/charSoftcap";
+import type { CombatRuntime } from "../game/combatRuntime";
+import { EdgeTowerControls } from "../game/edgeTowerControls";
+import { endlessEnemyHpMultiplier } from "../game/endlessEnvironment";
+import { enemiesWithPassengers } from "../game/enemyContainers";
+import { advanceEnemies } from "../game/enemyRuntime";
+import { forEachSnapshot } from "../game/iteration";
+import { RESELECT_UNLOCK_LEVEL } from "../game/loadoutReselection";
+import { ProjectileCircuitController, edgeAtPoint, edgePosition } from "../game/projectileCircuit";
+import {
   type ProjectileRuntime
 } from "../game/projectileRuntime";
-import { forEachSnapshot } from "../game/iteration";
-import { ProjectileMotionFrame } from "../game/projectileMotion";
-import { gridCellKey } from "../game/targeting";
-import { isBossInRect } from "../game/unitGeometry";
+import type { SaveGraph } from "../game/saveGraph";
+import { type SlowAuraSources } from "../game/slowAura";
 import {
-  syncTowerFacingVisual,
+  TargetedEffectCardController
+} from "../game/targetedEffectCards";
+import { gridCellKey } from "../game/targeting";
+import { TimedCellSeals } from "../game/timedCellSeals";
+import type { TowerActionEvent } from "../game/towerActions";
+import { TowerBoardSimulation } from "../game/towerBoard";
+import { advanceTowerAttacks } from "../game/towerCombat";
+import { TowerDeploymentController } from "../game/towerDeployment";
+import { TowerExtractionPool } from "../game/towerExtraction";
+import { canUpgradeTowerWithCard, supportsTowerAutoUpgrade, towerBehaviorType } from "../game/towerIdentity";
+import { TowerMirrorController } from "../game/towerMirrors";
+import { TowerNullificationController } from "../game/towerNullification";
+import { isParenthesisTower, isTowerShellType, towerInPlacementLayer } from "../game/towerOccupancy";
+import { TowerPushController } from "../game/towerPush";
+import { TowerShifterController, type TowerShifterRuntime } from "../game/towerShifter";
+import { TowerSkillController, type TowerSkillRuntime } from "../game/towerSkills";
+import { TowerStorageController } from "../game/towerStorage";
+import { physicalTowerCell, towerCell } from "../game/towerTopology";
+import { TowerTopologyController } from "../game/towerTopologyController";
+import {
+  syncFriendlyRangeVisual, syncTowerAutoUpgradeVisual, syncTowerFacingVisual,
   syncTowerLevelText,
   syncTowerTrueDamageVisual
 } from "../game/towers";
 import {
-  TargetedEffectCardController,
-  type TargetedEffectCardRuntime
-} from "../game/targetedEffectCards";
-import { TowerDeploymentController, type TowerDeploymentRuntime } from "../game/towerDeployment";
-import { TowerMirrorController, type TowerMirrorRuntime } from "../game/towerMirrors";
-import { TowerShifterController, type TowerShifterRuntime } from "../game/towerShifter";
-import { TowerPushController } from "../game/towerPush";
-import { TowerSkillController, type TowerSkillRuntime } from "../game/towerSkills";
+  isShockTower,
+  type TriggerTowerRuntime
+} from "../game/triggerTowers";
 import {
   isTutorialMechanic,
-  type TutorialRuntime,
   type TutorialToolId
 } from "../game/tutorial";
+import { sameTutorialInteraction, type TutorialInteraction } from "../game/tutorialInteraction";
 import { createTutorialController, tutorialLoadout } from "../game/tutorialRegistry";
-import { slowAuraSources, type SlowAuraSources } from "../game/slowAura";
-import { charsAreSoftcapped } from "../game/charSoftcap";
+import { isBossInRect } from "../game/unitGeometry";
 import {
   damageBoss,
   damageEnemy,
-  damageTower,
-  removeTower,
-  settleTowerHealth,
   type UnitLifecycleRuntime
 } from "../game/unitLifecycle";
-import {
-  isShockTower,
-  executeShockPulse,
-  triggerShockTower as runTriggerShockTower,
-  triggerTrapTower as runTriggerTrapTower,
-  type TriggerTowerRuntime
-} from "../game/triggerTowers";
 import { t } from "../i18n";
 import { isCardUnlocked, isLevelCompleted, unlockedCardSlotCount } from "../progress";
-import { makeEraseMark, makeProductionPulse, makeShellBurst, makeShockPulse, makeTowerPipelineShield } from "../render/combatEffects";
-import { createUnitBorder } from "../render/unitShapes";
+import { allCardDefinitions, defaultCardLoadout, getCardDefinition, hasCardDefinition } from "../registry/cardDefinitions";
+import { BattleCardList } from "../render/battleCardList";
+import { battleEncounterPresentation } from "../render/battleEncounter";
+import { attachBoardPresentation, attachCombatPresentation, createLiveBattleRuntime, type LiveBattlePorts, type LiveBattleRuntime } from "../render/battleRuntime";
+import { BattlefieldLayer, useBattlefieldCanvas } from "../render/battlefieldLayer";
+import { BoardToolPreview, type BoardToolHint } from "../render/boardToolPreview";
+import { createCellSealMark } from "../render/cellSealMark";
+import { drawCircuitEdges } from "../render/circuitEdges";
+import { makeEraseMark, makeProductionPulse, makeShellBurst, makeShockPulse } from "../render/combatEffects";
+import { EncyclopediaPanel } from "../render/encyclopediaPanel";
+import { drawEnemyHealthLinks } from "../render/enemyHealthLinks";
+import { syncEnemyStatusVisuals } from "../render/enemyStatus";
+import { syncHexArmorAuras } from "../render/enemySupport";
 import {
-  updateReselectButtonState,
-  updateExtractionPool,
   createGameHud,
-  refreshGameHudSettings,
   createGameOverlay,
+  refreshGameHudSettings,
   showGameOverlay,
   showToast as showUiToast,
   updateCardViews,
+  updateExtractionPool,
   updateGameHud,
+  updateReselectButtonState,
   updateToolButtonStates,
   type GameHudElements,
   type GameOverlayElements
 } from "../render/gameUi";
-import { allCardDefinitions, defaultCardLoadout, getCardDefinition, hasCardDefinition } from "../registry/cardDefinitions";
+import { GuidedTutorialView } from "../render/guidedTutorialView";
+import { drawNullifiedTowers } from "../render/nullifiedTowers";
+import { drawTowerShellBorder } from "../render/parenthesisTower";
+import { PauseMenu } from "../render/pauseMenu";
+import { drawTimedCellSeals } from "../render/timedCellSeals";
+import { towerAttackRuntime } from "../render/towerCombat";
+import { createUnitBorder } from "../render/unitShapes";
 import {
   CONTROL_SLOT_COUNT,
   cardControlAction,
@@ -181,14 +162,15 @@ import {
   type ToolControlAction
 } from "../settings/keybindings";
 import { isDebugModeEnabled } from "../settings/preferences";
+import { readSurvivalSave, writeSurvivalSave, type SurvivalSave } from "../survivalSaves";
 import type {
   CardDefinition,
   CardId,
   CubeBoss,
   DifficultyConfig,
+  EdgeTower,
   Enemy,
   EnemyProjectile,
-  EdgeTower,
   MortarProjectile,
   Projectile,
   Tower,
@@ -213,15 +195,14 @@ type DebugDamageMode = "normal" | "super" | null;
 const BOSS_PHASE_BAR_COLORS = [palette.heart, 0xff9f43, palette.magic, palette.gold];
 const BOSS_PHASE_BAR_BACK = palette.magic;
 const BOSS_PHASE_FINAL_BAR_BACK = palette.dim;
-const HAS_TIMED_PRODUCER_CARDS = allCardDefinitions.some((definition) =>
-  Boolean(definition.produceEvery && definition.produceAmount)
-);
 
 type LiveBattleEntities = { tower: Tower; enemy: Enemy; boss: CubeBoss; projectile: Projectile;
   enemyProjectile: EnemyProjectile; mortar: MortarProjectile };
 
 export class GameScene extends Phaser.Scene {
   private world!: BattleWorld<LiveBattleEntities>;
+  private runtime!: LiveBattleRuntime;
+  private livePorts!: LiveBattlePorts;
   private worldSystems!: BattleWorldSystems<LiveBattleEntities>;
   private topology!: TowerTopologyController;
   private numbers!: ProjectileCircuitController;
@@ -352,18 +333,10 @@ export class GameScene extends Phaser.Scene {
   private storage!: TowerStorageController;
   private deployment!: TowerDeploymentController;
   private towerSkillRuntimeCache!: TowerSkillRuntime;
-  private targetedEffectCardRuntimeCache!: TargetedEffectCardRuntime;
   private towerShifterRuntimeCache!: TowerShifterRuntime;
-  private towerMirrorRuntimeCache!: TowerMirrorRuntime;
-  private towerDeploymentRuntimeCache!: TowerDeploymentRuntime;
-  private combatRuntimeCache!: CombatRuntime;
-  private bossRuntimeCache!: BossRuntime;
   private encounter!: BattleEncounter<LiveBattleEntities>;
   private battleCells!: BattlefieldCells<Tower>;
-  private unitLifecycleRuntimeCache!: LiveUnitLifecycleRuntime;
-  private projectileRuntimeCache!: LiveProjectileRuntime;
-  private readonly projectileMotion = new ProjectileMotionFrame();
-  private triggerTowerRuntimeCache!: TriggerTowerRuntime;
+  private get projectileMotion() { return this.runtime.projectileMotion; }
   private get tutorial() { return this.world.tutorial; }
   private set tutorial(value: ReturnType<typeof createTutorialController>) { this.world.tutorial = value; }
   private get tutorialInteraction() { return this.world.tutorialInteraction; }
@@ -455,13 +428,11 @@ export class GameScene extends Phaser.Scene {
       difficulty: this.difficultyConfig, unlimitedFirepower: this.unlimitedFirepower },
       this.session.random, selectedCards.map(id => this.getDefinition(id)));
     setBattleEntityIds(this, this.world.entityIds);
-    this.worldSystems = this.createWorldSystems();
     this.selectedCardId = this.selectedCardIds.includes("X") ? "X" : this.selectedCardIds[0];
     this.sealedCellMarks = new Map<string, Phaser.GameObjects.Text>();
     this.menuOpen = false;
     this.battleSettingsOpen = false;
     this.reselectOpen = false;
-    this.extraction = new TowerExtractionPool();
     this.reselectShade = undefined;
     this.eraserMode = false;
     this.placementGhosts = [];
@@ -471,129 +442,68 @@ export class GameScene extends Phaser.Scene {
     this.autoUpgradeReserveInputFocused = false;
     this.autoUpgradeReserveDraft = 0;
     this.tutorial = null;
-    this.targetedEffects = new TargetedEffectCardController(() => this.targetedEffectCardRuntime());
-    this.edgeControls = new EdgeTowerControls(() => ({ edges: this.edgeTowers, card: this.cardStatesById.get("="),
-      identify: edge => this.world.entityIds.identify("edge", edge),
-      time: this.battleTime, cardTime: this.cardTimeFor("="), chars: this.effectiveChars(),
-      autoEnabled: this.autoUpgradeEnabled, reserve: this.autoUpgradeReserveChars,
-      spend: cost => this.spendChars(cost), changed: () => { this.numbers.sync(); this.updateCards(); } }));
-    const pipelineScene = this;
-    const pipelineActions: import("../game/pipelineActionEffects").PipelineActionRuntime = {
-      get combat() { return pipelineScene.combatRuntime(); }, get trigger() { return pipelineScene.triggerTowerRuntime(); },
-      getDefinition: id => this.getDefinition(id), skill: (tower, event) => { this.towerSkills.imitateSkill(tower, event); },
-      targeted: (type, tower, level) => this.targetedEffects.imitate(type, tower, level),
-      detonate: tower => detonateSlowAuraTower(this.unitLifecycleRuntime(), tower),
-      reflect: (tower, projectile) => reflectEnemyAttack(this.projectileRuntime(), tower, projectile, true)
-    };
-    const circuitRuntime: import("../game/projectileCircuit").CircuitRuntime = {
-      get towers() { return pipelineScene.towers; }, get edges() { return pipelineScene.edgeTowers; },
-      get battleTime() { return pipelineScene.battleTime; }, getDefinition: id => this.getDefinition(id),
-      heal: (tower, amount) => healPipelineArea(tower, amount, this.combatRuntime()),
-      shielded: (tower, damageType) => makeTowerPipelineShield(this, tower, damageType),
-      changed: tower => { syncTowerLevelText(tower); syncTowerAutoUpgradeVisual(tower, this.autoUpgradeEnabled); },
-      intercepted: (tower, target) => {
-        const flash = this.add.graphics().setDepth(121);
-        flash.lineStyle(2, 0x8ce4ba, .85).lineBetween(tower.x, tower.y, target.x, target.y);
-        flash.strokeCircle(target.x, target.y, 10);
-        this.tweens.add({ targets: flash, alpha: 0, duration: 160, onComplete: () => flash.destroy() });
+    this.runtime = createLiveBattleRuntime(this, this.world, this.session, {
+      cards: () => this.updateCards(),
+      erased: (x, y) => { makeEraseMark(this, x, y); playSound("erase"); },
+      autoUpgrade: (tower, active) => syncTowerAutoUpgradeVisual(tower as Tower, active),
+      placement: () => this.syncPlacementGhost(this.input.activePointer),
+      topology: () => this.topology.update(),
+      push: time => this.towerPush.update(time),
+      arming: time => this.updateArmingTowers(time),
+      suspended: () => {
+        this.shifter.clearSelection(); this.cancelSpellMortarTargeting(); this.towerPush.cancel(); this.topology.cancel();
       },
-      emit: (shot, outlet) => emitPipelineShot(shot, outlet, pipelineActions)
-    };
-    this.numbers = new ProjectileCircuitController(() => circuitRuntime);
+      nullification: () => drawNullifiedTowers(this.nullifiedTowerGraphics, this.nullification.snapshot(), this.battleTime),
+      production: (amount, x, y) => makeProductionPulse(this, x, y, amount),
+      waveStarted: (wave, isFlag) => {
+        playSound(isFlag ? "flag" : "wave");
+        this.showToast(isFlag ? `${t("label.flag")} ${wave / this.levelConfig.wavesPerFlag}` : `${t("label.wave")} ${wave}`);
+      },
+      enemySeen: kind => this.profile.enemySeen(kind), bossSeen: kind => this.profile.bossSeen(kind),
+      completedWaves: waves => this.profile.completedWaves(waves), defeatedBoss: rank => this.profile.defeatedBoss(rank),
+      finished: result => this.battlefield.ui(() => {
+        const rewards = this.profile.settle(result);
+        playSound(result.outcome); this.showBattleResult(result, rewards);
+      })
+    });
+    this.worldSystems = this.runtime.systems as BattleWorldSystems<LiveBattleEntities>;
+    this.extraction = this.runtime.extraction;
+    this.targetedEffects = this.runtime.targetedEffects as TargetedEffectCardController;
+    this.edgeControls = this.runtime.edgeControls;
+    this.numbers = this.runtime.circuit;
+    this.mirrors = this.runtime.mirrors as TowerMirrorController;
+    this.storage = this.runtime.storage as TowerStorageController;
+    this.nullification = this.runtime.nullification as TowerNullificationController;
+    this.deployment = this.runtime.deployment as TowerDeploymentController;
+    this.towerBoard = this.runtime.board as TowerBoardSimulation<Tower>;
+    this.encounter = this.runtime.encounter as BattleEncounter<LiveBattleEntities>;
+    this.battleCells = this.runtime.cells as BattlefieldCells<Tower>;
     this.topology = new TowerTopologyController(this, () => ({ towers: this.towers, battleTime: this.battleTime,
       onChanged: () => { this.updateLevelAuras(); this.mirrors.syncMirrors(); this.clearPlacementGhosts(); } }));
-    this.towerSkills = new TowerSkillController(this, () => this.towerSkillRuntime());
-    this.shifter = new TowerShifterController(() => this.towerShifterRuntime());
-    const pushRuntime = {
-      scene: this,
-      get towers() { return pipelineScene.towers; }, get occupied() { return pipelineScene.occupied; },
-      get cardTime() { return pipelineScene.battleTime; }, get battleTime() { return pipelineScene.battleTime; },
-      isCellDeployable: (lane: number, column: number) => this.cellIsDeployable(lane, column),
-      onMoved: (moves: import("../game/towerShifter").AppliedTowerMove[]) => this.towerShifterRuntime().onMoved(moves),
-      onTowerAction: this.routeTowerAction,
-      eraseTower: (tower: Tower) => removeTower(this.unitLifecycleRuntime(), tower)
-    };
-    this.towerPush = new TowerPushController(this, () => pushRuntime);
-    this.mirrors = new TowerMirrorController(() => this.towerMirrorRuntime());
-    this.storage = new TowerStorageController(() => this.combatRuntime());
-    this.nullification = new TowerNullificationController(() => ({
-      towers: this.towers, occupied: this.occupied,
-      suspended: (towers, durationMs) => {
-        this.actionQueue.delayTowerActions(towers, durationMs);
-        this.storage.delayCarriers(towers, durationMs);
-        this.shifter.clearSelection();
-        this.cancelSpellMortarTargeting();
-        this.towerPush.cancel();
-        this.topology.cancel();
-      },
-      changed: () => {
-        syncTowerTopology(this.towers);
-        this.updateLevelAuras();
-        this.numbers.sync();
-        this.topology.update();
-        this.towerSkills.update(0, this.battleTime);
-        this.clearPlacementGhosts();
-        drawNullifiedTowers(this.nullifiedTowerGraphics, this.nullification.snapshot(), this.battleTime);
-      }
-    }));
-    this.deployment = new TowerDeploymentController(() => this.towerDeploymentRuntime());
+    this.towerSkills = new TowerSkillController(this, () => this.towerSkillRuntime(), this.runtime);
+    this.shifter = new TowerShifterController(() => this.towerShifterRuntime(),
+      this.runtime.shifter as import("../game/towerShifterRules").TowerShifterSimulation<Tower>);
+    this.towerPush = new TowerPushController(this, () => ({
+      scene: this, towers: this.towers, occupied: this.occupied, cardTime: this.battleTime, battleTime: this.battleTime,
+      isCellDeployable: (lane, column) => this.cellIsDeployable(lane, column),
+      onMoved: moves => this.runtime.towersMoved(moves), onTowerAction: this.routeTowerAction,
+      eraseTower: tower => this.runtime.removeTower(tower)
+    }), this.runtime.push as import("../game/towerPushRules").TowerPushSimulation<Tower>);
     this.towerSkillRuntimeCache = this.createTowerSkillRuntime();
-    this.targetedEffectCardRuntimeCache = this.createTargetedEffectCardRuntime();
     this.towerShifterRuntimeCache = this.createTowerShifterRuntime();
-    this.towerMirrorRuntimeCache = this.createTowerMirrorRuntime();
-    this.towerDeploymentRuntimeCache = this.createTowerDeploymentRuntime();
-    this.combatRuntimeCache = this.createCombatRuntime();
-    this.bossRuntimeCache = this.createBossRuntime();
-    this.unitLifecycleRuntimeCache = this.createUnitLifecycleRuntime();
-    this.projectileRuntimeCache = this.createProjectileRuntime();
-    this.triggerTowerRuntimeCache = this.createTriggerTowerRuntime();
-    const towerBoardRuntime: import("../game/towerBoard").TowerBoardRuntime<Tower> = {
-      get towers() { return pipelineScene.towers; }, get occupied() { return pipelineScene.occupied; },
-      get battleTime() { return pipelineScene.battleTime; }, getDefinition: id => this.getDefinition(id),
-      syncMirrorLevelBonuses: () => this.mirrors.syncMirrorLevelBonuses(),
-      settleHealth: () => settleTowerHealth(this.unitLifecycleRuntime()),
-      syncCircuits: () => this.numbers.sync()
-    };
-    this.towerBoard = new TowerBoardSimulation(() => towerBoardRuntime, towerBoardPresentation(this));
-    this.encounter = new BattleEncounter<LiveBattleEntities>({
-      world: this.world,
-      bossRuntime: () => bossSimulationRuntime(this.bossRuntime()),
-      lifecycle: () => this.unitLifecycleRuntime(),
-      createBoss: (kind, reduction, options) => createCubeBoss(this, kind, reduction, options),
-      clearStorage: () => this.storage.clear(),
-      bossSeen: kind => this.profile.bossSeen(kind),
-      defeatedBoss: rank => this.profile.defeatedBoss(rank),
-      endGame: () => this.endGame()
-    }, battleEncounterPresentation(this, {
-      changed: () => this.updateHud(),
-      phaseChanged: (phase, total) => this.showToast(`PHASE ${phase}/${total}`)
-    }));
-    this.battleCells = new BattlefieldCells({
-      world: this.world,
-      removeTower: tower => removeTower(this.unitLifecycleRuntime(), tower),
-      updateLevelAuras: () => this.updateLevelAuras()
-    }, {
+    this.livePorts = attachCombatPresentation(this, this.runtime);
+    attachBoardPresentation(this, this.runtime, { updateCards: () => this.updateCards(), onFeedback: kind => playSound(kind) });
+    this.encounter.presentation = battleEncounterPresentation(this, {
+      changed: () => this.updateHud(), phaseChanged: (phase, total) => this.showToast(`PHASE ${phase}/${total}`)
+    });
+    this.battleCells.presentation = {
       erase: tower => makeEraseMark(this, tower.x, tower.y),
       permanentSeal: (lane, column) => {
         this.sealedCellMarks.set(gridCellKey(lane, column), createCellSealMark(this, lane, column));
       },
       timedSeals: () => drawTimedCellSeals(this.timedCellSealGraphics, this.timedCellSeals.entries, this.battleTime, this.timedCellWarningGraphics),
       changed: () => this.syncPlacementGhost(this.input.activePointer)
-    });
-    const tutorialRuntime: TutorialRuntime = {
-      getTowers: () => this.towers, getEnemies: () => this.enemies, getBattleTime: () => this.battleTime,
-      getToolState: () => ({
-        eraserMode: this.tutorialInteraction.tool === "erase",
-        autoUpgradeMode: this.tutorialInteraction.tool === "autoUpgrade",
-        autoUpgradeEnabled: this.autoUpgradeEnabled,
-        shifterMode: this.tutorialInteraction.tool === "shifter",
-        shifterReadyRatio: this.shifter.cooldownRatio(),
-        shifterSelection: this.towers.filter(tower => tower.inPlay && !tower.nullified && this.tutorialInteraction.selected.includes(tower.entityId!))
-      }),
-      spawnWave: spawns => this.battlefield.world(() => this.world.spawnTutorialWave(spawns, this.worldSystems)),
-      finish: () => this.battlefield.ui(() => this.endLevel())
     };
-    this.tutorial = createTutorialController(this.levelConfig.specialMechanic, tutorialRuntime);
   }
 
   create() {
@@ -766,57 +676,7 @@ export class GameScene extends Phaser.Scene {
     if (this.tutorialView && this.tutorial) this.battlefield.ui(() => this.tutorialView!.sync(this.tutorial!.presentation));
   }
 
-  private stepBattle() { this.world.step(this.worldSystems); }
-
-  private createWorldSystems(): BattleWorldSystems<LiveBattleEntities> {
-    let projectiles: ProjectileRuntime;
-    return {
-      updateNullification: (time, periodic) => this.nullification.update(time, periodic),
-      eraseSealedCell: (lane, column) => this.eraseTowersInCell(lane, column),
-      updateLevelAuras: () => this.updateLevelAuras(),
-      sealsChanged: () => this.syncPlacementGhost(this.input.activePointer),
-      syncCopiedTowers: () => this.syncCopiedTowers(),
-      updateActions: time => this.actionQueue.update(time, action => this.executeBattleAction(action)),
-      updateTowerSkills: (seconds, time) => this.towerSkills.update(seconds, time),
-      updateTowerPush: time => this.towerPush.update(time),
-      updateTopology: () => this.topology.update(),
-      syncMirrors: () => this.mirrors.syncMirrors(),
-      updateLevelAurasIfNeeded: () => this.updateLevelAurasIfNeeded(),
-      cardCooldownMultiplier: () => this.towerSkills.cardCooldownMultiplier(),
-      gainChars: (amount, x, y) => this.gainChars(amount, x, y),
-      hasTimedProducers: HAS_TIMED_PRODUCER_CARDS,
-      getDefinition: id => this.getDefinition(id),
-      routeProduction: tower => this.routeTowerAction(tower, { kind: "production" }),
-      updateArmingTowers: time => this.updateArmingTowers(time),
-      updateStorage: () => this.storage.update(),
-      updateBoss: seconds => updateBossRuntime(this.bossRuntime(), seconds),
-      beginProjectileMotion: () => this.projectileMotion.begin(this.projectiles),
-      updateEnemies: (time, seconds) => this.updateEnemies(time, seconds),
-      updateTowerAttacks: time => this.updateTowers(time),
-      updateCircuit: () => this.numbers.update(),
-      updateTowerProjectiles: seconds => {
-        projectiles = this.projectileRuntime(slowAuraSources(this.towers));
-        updateTowerProjectiles(projectiles, seconds);
-      },
-      finishProjectileMotion: () => this.projectileMotion.finish(),
-      updateEnemyProjectiles: seconds => updateEnemyProjectiles(projectiles, seconds),
-      updateMortarProjectiles: seconds => {
-        projectiles.slowAuraSources = slowAuraSources(this.towers);
-        updateMortarProjectiles(projectiles, seconds);
-      },
-      autoUpgrade: () => this.attemptAutoUpgrades(),
-      storedEnemyCount: () => this.storage.count,
-      earliestStoredWave: () => this.storage.earliestWaveNumber,
-      completedWaves: waves => this.profile.completedWaves(waves),
-      completeLevel: () => this.endLevel(),
-      spawnEnemy: options => spawnEnemyAt(this.combatRuntime(), options),
-      sealColumn: column => this.sealColumn(column),
-      waveStarted: (wave, isFlag) => {
-        playSound(isFlag ? "flag" : "wave");
-        this.showToast(isFlag ? `${t("label.flag")} ${wave / this.levelConfig.wavesPerFlag}` : `${t("label.wave")} ${wave}`);
-      }
-    };
-  }
+  private stepBattle() { this.runtime.step(); }
 
   private syncBattleOverlays() {
     this.syncTutorialView();
@@ -1061,7 +921,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private applyPlayerOperation(actorId: string, operation: BattleOperation) {
-    return executeLiveBattleOperation(this.createPlayerOperationRuntime(), actorId, operation);
+    return this.runtime.executeOperation(actorId, operation);
   }
 
   private resetCommandAuthority() {
@@ -1076,23 +936,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createPlayerOperationRuntime(): LiveBattleOperationRuntime {
-    return {
-      towers: this.towers, edges: this.edgeTowers, occupied: this.occupied, cards: this.cardStates,
-      unlimitedFirepower: this.unlimitedFirepower, autoUpgradeEnabled: this.autoUpgradeEnabled, ended: this.gameOver,
-      actor: id => this.session.actor(id),
-      authorize: () => true,
-      deployment: this.deployment, targetedEffects: this.targetedEffects, edgeControls: this.edgeControls, shifter: this.shifter,
-      skills: this.towerSkills, push: this.towerPush, topology: this.topology,
-      triggerShockTower: tower => this.triggerShockTower(tower),
-      mirrorGroupFor: tower => this.mirrors.mirrorGroupFor(tower),
-      removeTower: tower => removeTower(this.unitLifecycleRuntime(), tower),
-      erasedAt: (x, y) => { makeEraseMark(this, x, y); playSound("erase"); },
-      autoUpgradeChanged: (tower, active) => syncTowerAutoUpgradeVisual(tower, active),
-      refreshPlacement: () => { this.mirrors.syncMirrors(); this.updateLevelAuras(); },
-      refreshEdges: () => { this.numbers.sync(); this.updateCards(); },
-      updateLevelAuras: () => this.updateLevelAuras(), updateCards: () => this.updateCards(),
-      attemptAutoUpgrades: () => this.attemptAutoUpgrades()
-    };
+    return this.runtime.operationRuntime() as LiveBattleOperationRuntime;
   }
 
   submitPlayerOperation(actorId: string, operation: BattleOperation): BattleOperationResult {
@@ -1399,7 +1243,6 @@ export class GameScene extends Phaser.Scene {
   private updateArmingTowers(time: number) {
     for (const tower of this.towers) {
       if (tower.statusEffects.length > 0) {
-        expireReversalEffect(tower, time);
         syncTowerFacingVisual(tower);
       }
       if (tower.trueDamageUntil > 0 || tower.trueDamageBorder.visible) {
@@ -1433,27 +1276,11 @@ export class GameScene extends Phaser.Scene {
     return battleCardTime(this.getDefinition(id), this.world);
   }
 
-  private gainChars(amount: number, x: number, y: number) {
-    const gainedEffectiveChars = this.world.gainChars(amount);
-    makeProductionPulse(this, x, y, Math.floor(gainedEffectiveChars));
-    this.attemptAutoUpgrades();
-  }
+  private gainChars(amount: number, x: number, y: number) { this.runtime.gainChars(amount, x, y); }
 
   private effectiveChars() { return this.world.effectiveChars(); }
 
   private spendChars(amount: number) { this.world.spendChars(amount); }
-
-  private handleTowerDamaged(tower: Tower) {
-    const definition = this.getDefinition(towerBehaviorType(tower));
-    if (!definition.hitProduceAmount) {
-      return;
-    }
-
-    const amount = getHitProductionAmount(tower, definition);
-    if (amount > 0) {
-      if (!this.routeTowerAction(tower, { kind: "hitProduction" })) this.gainChars(amount, tower.x, tower.y - 28);
-    }
-  }
 
   private prepareSkillTargeting() {
     this.topology.cancel();
@@ -1531,36 +1358,6 @@ export class GameScene extends Phaser.Scene {
     };
   }
 
-  private targetedEffectCardRuntime(): TargetedEffectCardRuntime {
-    const runtime = this.targetedEffectCardRuntimeCache;
-    runtime.towers = this.towers;
-    runtime.cardStates = this.cardStates;
-    runtime.battleTime = this.battleTime;
-    runtime.unlimitedFirepower = this.unlimitedFirepower;
-    return runtime;
-  }
-
-  private createTargetedEffectCardRuntime(): TargetedEffectCardRuntime {
-    return {
-      onTowerAction: this.routeTowerAction,
-      scheduleBattleAction: this.scheduleBattleAction,
-      extraction: this.extraction,
-      scene: this,
-      towers: this.towers,
-      cardStates: this.cardStates,
-      battleTime: this.battleTime,
-      getDefinition: (id) => this.getDefinition(id),
-      cardTimeFor: (id) => this.cardTimeFor(id),
-      getChars: () => this.effectiveChars(),
-      spendChars: (amount) => this.spendChars(amount),
-      nextTowerOrder: () => this.nextTowerOrder(),
-      removeTower: (tower) => removeTower(this.unitLifecycleRuntime(), tower),
-      runMirrorGroupEvent: (tower, action) => this.mirrors.runMirrorGroupEvent(tower, action),
-      updateLevelAuras: () => this.updateLevelAuras(),
-      updateCards: () => this.updateCards()
-    };
-  }
-
   private towerShifterRuntime(): TowerShifterRuntime {
     const runtime = this.towerShifterRuntimeCache;
     runtime.towers = this.towers;
@@ -1578,260 +1375,17 @@ export class GameScene extends Phaser.Scene {
       cardTime: this.battleTime,
       battleTime: this.battleTime,
       isCellDeployable: (lane, column) => this.cellIsDeployable(lane, column),
-      onMoved: (moves) => {
-        syncTowerTopology(this.towers);
-        this.mirrors.handleTowersShifted(moves, (tower) => removeTower(this.unitLifecycleRuntime(), tower));
-        this.updateLevelAuras();
-      }
+      onMoved: moves => this.runtime.towersMoved(moves)
     };
   }
 
-  private towerMirrorRuntime(): TowerMirrorRuntime {
-    const runtime = this.towerMirrorRuntimeCache;
-    runtime.towers = this.towers;
-    runtime.occupied = this.occupied;
-    runtime.battleTime = this.battleTime;
-    return runtime;
-  }
-
-  private createTowerMirrorRuntime(): TowerMirrorRuntime {
-    return {
-      scene: this,
-      towers: this.towers,
-      occupied: this.occupied,
-      battleTime: this.battleTime,
-      getDefinition: (id) => this.getDefinition(id),
-      nextTowerOrder: () => this.nextTowerOrder(),
-      isCellDeployable: (lane, column) => this.cellIsDeployable(lane, column),
-      createTargetedEffectMirror: (source, target) => this.targetedEffects.createMirroredEffect(source, target),
-      updateLevelAuras: () => this.updateLevelAuras()
-    };
-  }
-
-  private towerDeploymentRuntime(): TowerDeploymentRuntime {
-    const runtime = this.towerDeploymentRuntimeCache;
-    runtime.towers = this.towers;
-    runtime.occupied = this.occupied;
-    runtime.cardStates = this.cardStates;
-    runtime.battleTime = this.battleTime;
-    runtime.unlimitedFirepower = this.unlimitedFirepower;
-    runtime.autoUpgradeEnabled = this.autoUpgradeEnabled;
-    runtime.autoUpgradeReserveChars = this.autoUpgradeReserveChars;
-    return runtime;
-  }
-
-  private createTowerDeploymentRuntime(): TowerDeploymentRuntime {
-    return {
-      extraction: this.extraction,
-      scene: this,
-      towers: this.towers,
-      occupied: this.occupied,
-      cardStates: this.cardStates,
-      battleTime: this.battleTime,
-      unlimitedFirepower: this.unlimitedFirepower,
-      autoUpgradeEnabled: this.autoUpgradeEnabled,
-      autoUpgradeReserveChars: this.autoUpgradeReserveChars,
-      getDefinition: (id) => this.getDefinition(id),
-      cardTimeFor: (id) => this.cardTimeFor(id),
-      getChars: () => this.effectiveChars(),
-      spendChars: (amount) => this.spendChars(amount),
-      nextTowerOrder: () => this.nextTowerOrder(),
-      resetTowerSkill: (tower) => this.towerSkills.resetTowerSkill(tower),
-      mirrorGroupFor: (tower) => this.mirrors.mirrorGroupFor(tower),
-      isCellDeployable: (lane, column) => this.cellIsDeployable(lane, column),
-      updateLevelAuras: () => this.updateLevelAuras(),
-      updateCards: () => this.updateCards(),
-      onFeedback: (kind) => playSound(kind)
-    };
-  }
-
-  private combatRuntime(): CombatRuntime {
-    const runtime = this.combatRuntimeCache;
-    runtime.enemies = this.enemies;
-    runtime.towers = this.towers;
-    runtime.boss = this.boss;
-    runtime.occupied = this.occupied;
-    runtime.battleTime = this.battleTime;
-    runtime.projectiles = this.projectiles;
-    runtime.enemyProjectiles = this.enemyProjectiles;
-    runtime.mortarProjectiles = this.mortarProjectiles;
-    return runtime;
-  }
-
-  private createCombatRuntime(): CombatRuntime {
-    return {
-      getDefinition: id => this.getDefinition(id),
-      enemyHpMultiplier: () => endlessEnemyHpMultiplier(this.levelConfig, this.wave),
-      onTowerAction: this.routeTowerAction,
-      scheduleBattleAction: this.scheduleBattleAction,
-      scene: this,
-      enemies: this.enemies,
-      towers: this.towers,
-      boss: this.boss,
-      occupied: this.occupied,
-      battleTime: this.battleTime,
-      projectiles: this.projectiles,
-      enemyProjectiles: this.enemyProjectiles,
-      mortarProjectiles: this.mortarProjectiles,
-      damageEnemy: (enemy, damage, damageType, sourceTower) =>
-        damageEnemy(this.unitLifecycleRuntime(), enemy, damage, damageType, sourceTower),
-      damageBoss: (damage, damageType, targetPart) => damageBoss(this.unitLifecycleRuntime(), damage, damageType, targetPart),
-      damageTower: (tower, damage, damageType) => damageTower(this.unitLifecycleRuntime(), tower, damage, damageType),
-      storeBlockedEnemies: (tower, definition) => this.storage.storeBlockedEnemies(tower, definition),
-      gainChars: (amount, x, y) => this.gainChars(amount, x, y),
-      spawnTower: (id, lane, column, level, facingDirection) => this.spawnGeneratedTower(id, lane, column, level, facingDirection),
-      isCellDeployable: (lane, column) => this.cellIsDeployable(lane, column),
-      triggerTrapTower: (tower, target) => this.triggerTrapTower(tower, target),
-      triggerShockTower: (tower) => this.triggerShockTower(tower),
-      onEnemyReachedBase: (enemy) => this.handleEnemyReachedBase(enemy),
-      projectileMotion: this.projectileMotion
-    };
-  }
-
-  private bossRuntime(): BossRuntime {
-    const runtime = this.bossRuntimeCache;
-    runtime.enemies = this.enemies;
-    runtime.towers = this.towers;
-    runtime.mortarProjectiles = this.mortarProjectiles;
-    runtime.wave = this.wave;
-    runtime.bossPhaseIndex = this.bossPhaseIndex;
-    runtime.battleTime = this.battleTime;
-    runtime.finalDamageReduction = this.difficultyConfig.finalDamageReduction;
-    return runtime;
-  }
-
-  private createBossRuntime(): BossRuntime {
-    return {
-      nullifyTowers: durationMs => { this.nullification.start(this.battleTime, durationMs); },
-      sealCell: (lane, column, durationMs) => this.battleCells.sealTimedCell(lane, column, durationMs),
-      warnCellSeal: (lane, column, warningMs, durationMs, leadInMs) =>
-        this.battleCells.warnCell(lane, column, warningMs, durationMs, leadInMs),
-      enemyHpMultiplier: () => endlessEnemyHpMultiplier(this.levelConfig, this.wave),
-      scheduleBattleAction: this.scheduleBattleAction,
-      scene: this,
-      enemies: this.enemies,
-      towers: this.towers,
-      mortarProjectiles: this.mortarProjectiles,
-      getBoss: () => this.boss,
-      wave: this.wave,
-      bossPhaseIndex: this.bossPhaseIndex,
-      battleTime: this.battleTime,
-      finalDamageReduction: this.difficultyConfig.finalDamageReduction,
-      damageTower: (tower, damage, damageType) => damageTower(this.unitLifecycleRuntime(), tower, damage, damageType),
-      triggerTrapTower: (tower, target) => this.triggerTrapTower(tower, target),
-      triggerShockTower: (tower) => this.triggerShockTower(tower),
-      endGame: () => this.endGame()
-    };
-  }
-
+  private combatRuntime(): CombatRuntime { return this.livePorts.combat; }
+  private bossRuntime(): BossRuntime { return this.livePorts.boss; }
+  private unitLifecycleRuntime(): UnitLifecycleRuntime { return this.runtime.lifecycle; }
+  private triggerTowerRuntime(): TriggerTowerRuntime { return this.livePorts.trigger; }
   private projectileRuntime(slowSources?: SlowAuraSources): ProjectileRuntime {
-    const runtime = this.projectileRuntimeCache;
-    runtime.projectiles = this.projectiles;
-    runtime.enemyProjectiles = this.enemyProjectiles;
-    runtime.mortarProjectiles = this.mortarProjectiles;
-    runtime.enemies = this.enemies;
-    runtime.towers = this.towers;
-    runtime.occupied = this.occupied;
-    runtime.battleTime = this.battleTime;
-    runtime.slowAuraSources = slowSources;
-    return projectileSimulationRuntime(runtime);
-  }
-
-  private createProjectileRuntime(): LiveProjectileRuntime {
-    return {
-      onTowerAction: this.routeTowerAction,
-      routeProjectile: projectile => this.numbers.capture(projectile),
-      interceptProjectile: (projectile, from) => this.numbers.intercept(projectile, from),
-      projectileMotion: this.projectileMotion,
-      scene: this,
-      projectiles: this.projectiles,
-      enemyProjectiles: this.enemyProjectiles,
-      mortarProjectiles: this.mortarProjectiles,
-      enemies: this.enemies,
-      towers: this.towers,
-      occupied: this.occupied,
-      battleTime: this.battleTime,
-      slowAuraSources: undefined,
-      getBoss: () => this.boss,
-      damageEnemy: (enemy, damage, damageType, sourceTower) =>
-        damageEnemy(this.unitLifecycleRuntime(), enemy, damage, damageType, sourceTower),
-      damageBoss: (damage, damageType, targetPart) => damageBoss(this.unitLifecycleRuntime(), damage, damageType, targetPart),
-      damageTower: (tower, damage, damageType) => damageTower(this.unitLifecycleRuntime(), tower, damage, damageType)
-    };
-  }
-
-  private unitLifecycleRuntime(): UnitLifecycleRuntime {
-    const runtime = this.unitLifecycleRuntimeCache;
-    runtime.enemies = this.enemies;
-    runtime.towers = this.towers;
-    runtime.projectiles = this.projectiles;
-    runtime.enemyProjectiles = this.enemyProjectiles;
-    runtime.mortarProjectiles = this.mortarProjectiles;
-    runtime.occupied = this.occupied;
-    runtime.bossPhaseIndex = this.bossPhaseIndex;
-    runtime.battleTime = this.battleTime;
-    runtime.finalDamageReduction = this.difficultyConfig.finalDamageReduction;
-    return unitLifecycleSimulationRuntime(runtime);
-  }
-
-  private createUnitLifecycleRuntime(): LiveUnitLifecycleRuntime {
-    return {
-      enemyHpMultiplier: () => endlessEnemyHpMultiplier(this.levelConfig, this.wave),
-      onTowerAction: this.routeTowerAction,
-      scene: this,
-      enemies: this.enemies,
-      towers: this.towers,
-      projectiles: this.projectiles,
-      enemyProjectiles: this.enemyProjectiles,
-      mortarProjectiles: this.mortarProjectiles,
-      occupied: this.occupied,
-      getBoss: () => this.boss,
-      setBoss: (boss) => {
-        this.boss = boss;
-      },
-      getWaveTracker: () => this.waveTracker,
-      bossPhaseIndex: this.bossPhaseIndex,
-      battleTime: this.battleTime,
-      finalDamageReduction: this.difficultyConfig.finalDamageReduction,
-      onEnemyDefeated: () => {
-        this.enemiesDefeated += 1;
-      },
-      onTowerDamaged: (tower) => this.handleTowerDamaged(tower),
-      absorbTowerDamage: (tower, damage, damageType) => this.numbers.absorbDamage(tower, damage, damageType),
-      onTowerRemoved: (tower) => {
-        syncTowerTopology(this.towers);
-        this.mirrors.handleTowerRemoved(tower, (linkedTower) => removeTower(this.unitLifecycleRuntime(), linkedTower));
-        this.numbers.sync();
-      },
-      onBossDefeated: (boss) => this.handleBossDefeated(boss),
-      endLevel: () => this.endLevel()
-    };
-  }
-
-  private triggerTowerRuntime(): TriggerTowerRuntime {
-    const runtime = this.triggerTowerRuntimeCache;
-    runtime.enemies = this.enemies;
-    runtime.boss = this.boss;
-    runtime.battleTime = this.battleTime;
-    runtime.gameOver = this.gameOver;
-    return runtime;
-  }
-
-  private createTriggerTowerRuntime(): TriggerTowerRuntime {
-    return {
-      onTowerAction: this.routeTowerAction,
-      scheduleBattleAction: this.scheduleBattleAction,
-      scene: this,
-      enemies: this.enemies,
-      boss: this.boss,
-      battleTime: this.battleTime,
-      gameOver: this.gameOver,
-      getDefinition: (id) => this.getDefinition(id),
-      removeTower: (tower) => removeTower(this.unitLifecycleRuntime(), tower),
-      damageEnemy: (enemy, damage, damageType, sourceTower) =>
-        damageEnemy(this.unitLifecycleRuntime(), enemy, damage, damageType, sourceTower),
-      damageBoss: (damage, damageType, targetPart) => damageBoss(this.unitLifecycleRuntime(), damage, damageType, targetPart)
-    };
+    this.runtime.projectiles.slowAuraSources = slowSources;
+    return this.runtime.projectiles;
   }
 
   private nextTowerOrder() { return this.world.nextTowerOrder(); }
@@ -1841,7 +1395,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private routeTowerAction = (tower: Tower, event: TowerActionEvent) => {
-    return routePipelineTowerAction(tower, event, this.numbers, towerAttackRuntime(this.combatRuntime()), getCardDefinition);
+    return this.runtime.routeTowerAction(tower, event);
   };
 
   private updateTowers(time: number) {
@@ -1891,11 +1445,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private triggerShockTower(tower: Tower) {
-    this.mirrors.runMirrorGroupEvent(tower, (member) => runTriggerShockTower(this.triggerTowerRuntime(), member));
+    this.runtime.triggerShockTower(tower);
   }
 
   private triggerTrapTower(tower: Tower, target: Enemy | CubeBoss | "boss") {
-    this.mirrors.runMirrorGroupEvent(tower, (member) => runTriggerTrapTower(this.triggerTowerRuntime(), member, target));
+    this.runtime.triggerTrapTower(tower, target);
   }
 
   private updateCards() {
@@ -2101,10 +1655,7 @@ export class GameScene extends Phaser.Scene {
     this.updateCards();
   }
 
-  private attemptAutoUpgrades() {
-    this.deployment.attemptAutoUpgrades();
-    for (const card of this.cardStates) if (deploymentCardId(card.definition.id) === "=") this.edgeControls.attemptAutoUpgrade(card);
-  }
+  private attemptAutoUpgrades() { this.runtime.autoUpgrade(); }
 
   private toggleDebugDamageMode() {
     if (this.localInputBlocked()) return;
@@ -2269,13 +1820,7 @@ export class GameScene extends Phaser.Scene {
     this.finishBattle("victory");
   }
 
-  private finishBattle(outcome: BattleResult["outcome"]) {
-    if (!this.world.finish(outcome)) return;
-    const result = this.world.result!;
-    const rewards = this.profile.settle(result);
-    playSound(outcome);
-    this.showBattleResult(result, rewards);
-  }
+  private finishBattle(outcome: BattleResult["outcome"]) { this.runtime.finish(outcome); }
 
   private showBattleResult(result: BattleResult, rewards: BattleRewards = { cards: [] }) {
     soundPlayer.stop("battle");
@@ -2491,42 +2036,9 @@ export class GameScene extends Phaser.Scene {
     return fallback;
   }
 
-  private executeBattleAction(action: BattleAction) {
-    if (this.gameOver) return;
-    switch (action.type) {
-      case "imitation":
-        // Old saves may contain queued imitations; the projectile circuit never executes them.
-        break;
-      case "companionLaser": case "companionMortar": case "bossDeathLaser": case "bossDeathMortar": case "bossReinforcements":
-        executeBossAttack(this.bossRuntime(), action); break;
-      case "enemyShot": case "enemyLaser": case "enemyMortar": executeEnemyAttack(this.combatRuntime(), action); break;
-      case "volley": executeTowerVolley(towerAttackRuntime(this.combatRuntime()), action); break;
-      case "targetedEffect": this.targetedEffects.resolvePendingEffectCard(action.tower as Tower); break;
-      case "shock": executeShockPulse(this.triggerTowerRuntime(), action); break;
-      case "spellMortar": this.towerSkills.launchSpellMortar(action); break;
-    }
-  }
+  private executeBattleAction(action: BattleAction) { this.runtime.executeAction(action); }
 
-  private battleState(): BattleSaveState {
-    return {
-      ...(this.tutorial ? { tutorial: this.world.tutorialSnapshot() } : {}),
-      nullifiedTowers: this.nullification.snapshot(),
-      edgeTowers: this.edgeTowers,
-      simulation: { ...this.session.snapshot(),
-        mirrorNextGroupId: this.mirrors.snapshotNextGroupId() },
-      ...this.world.progressSnapshot(), gameSpeed: this.gameSpeed, selectedCardId: this.selectedCardId,
-      debugModeEnabled: this.debugModeEnabled,
-      cardDeadlines: this.world.loadout.deadlines(),
-      autoUpgradeEnabled: this.autoUpgradeEnabled, autoUpgradeReserveChars: this.autoUpgradeReserveChars,
-      towers: this.towers, enemies: this.enemies, boss: this.boss, projectiles: this.projectiles,
-      enemyProjectiles: this.enemyProjectiles, mortarProjectiles: this.mortarProjectiles,
-      actions: this.actionQueue.snapshot(), storage: this.storage.snapshot(), shifter: this.shifter.snapshot(),
-      reselection: this.reselection.snapshot(), extraction: this.extraction.value,
-      spellMortarFlights: this.towerSkills.snapshotFlights(), sealedCells: [...this.sealedCells],
-      timedCellSeals: this.timedCellSeals.snapshot(), entityIds: this.world.entityIds.snapshot(),
-      lifecycle: this.world.lifecycleSnapshot()
-    };
-  }
+  private battleState(): BattleSaveState { return this.runtime.snapshot(this.selectedCardId) as BattleSaveState; }
 
   private saveSurvivalBattle() {
     if (!this.profile.enabled) return true;
@@ -2545,64 +2057,18 @@ export class GameScene extends Phaser.Scene {
   }
 
   private applyBattleSave(state: BattleSaveState) {
-    this.world.validateTutorial(state.tutorial);
-    this.world.validateLifecycle(state.lifecycle, state.battleTime, state.baseIntegrity);
-    restoreBattleEntityIds(state, this.world.entityIds);
-    this.session.restore(state.simulation, state.battleTime, {
-      paused: false, speed: state.gameSpeed, debugEnabled: state.debugModeEnabled ?? this.debugModeEnabled,
-      autoUpgradeEnabled: state.autoUpgradeEnabled, reserveChars: state.autoUpgradeReserveChars
-    });
-    this.world.restoreProgress(state);
-    this.world.restoreLifecycle(state.lifecycle, state.battleTime, state.baseIntegrity);
+    this.runtime.restore(state);
     this.selectedCardId = state.selectedCardId;
-    this.towers = state.towers;
-    this.nullification.restore(state.nullifiedTowers);
+    this.shifter.clearSelection();
     drawNullifiedTowers(this.nullifiedTowerGraphics, this.nullification.snapshot(), this.battleTime);
-    this.edgeTowers = state.edgeTowers ?? [];
-    // Grid-based equals from old saves cannot remain attackable special towers.
-    this.towers = this.towers.filter(tower => {
-      if (tower.type !== "=") return true;
-      this.chars += this.getDefinition("=").cost * tower.level;
-      tower.inPlay = false; tower.body.destroy(); return false;
-    });
-    for (const tower of this.towers) {
-      delete tower.numberMemory; delete tower.numberChannels; delete tower.numberValue; delete tower.equationLevel;
-      if (!tower.pipelineSkillContexts) {
-        if (tower.imitatedSkills?.length) { tower.skills = {}; tower.flyingUntil = 0; }
-        delete tower.imitatedSkills; delete tower.imitatedSkillLevels;
-      }
-      syncTowerLevelText(tower);
-      syncTowerAutoUpgradeVisual(tower, this.autoUpgradeEnabled);
-    }
-    this.enemies = state.enemies;
-    this.boss = state.boss ?? null;
-    this.bossHomePosition = state.bossHomePosition ?? (this.boss ? { x: this.boss.x, y: this.boss.y } : null);
-    this.projectiles = state.projectiles;
-    this.enemyProjectiles = state.enemyProjectiles;
-    this.mortarProjectiles = state.mortarProjectiles;
-    this.occupied.clear();
-    syncTowerOccupancy(this.towers, this.occupied);
-    this.sealedCells = new Set(state.sealedCells);
-    this.timedCellSeals.restore(state.timedCellSeals);
     drawTimedCellSeals(this.timedCellSealGraphics, this.timedCellSeals.entries, this.battleTime, this.timedCellWarningGraphics);
-    this.storage.restore(state.storage);
-    this.shifter.restore(state.shifter);
-    this.reselection.restore(state.reselection);
-    this.extraction.restore(state.extraction);
-    this.actionQueue.restore(state.actions);
-    this.mirrors.restoreGroups(state.simulation?.mirrorNextGroupId);
-    syncTowerTopology(this.towers);
-    this.numbers.sync();
-    for (const tower of this.towers) syncFriendlyRangeVisual(tower);
+    for (const tower of this.towers) {
+      syncTowerLevelText(tower); syncTowerAutoUpgradeVisual(tower, this.autoUpgradeEnabled); syncFriendlyRangeVisual(tower);
+    }
     this.topology.update();
-    this.world.loadout.restoreDeadlines(state.cardDeadlines);
-    for (const flight of state.spellMortarFlights) this.towerSkills.restoreSpellMortarFlight(flight);
     this.setGameSpeed(this.gameSpeed);
-    this.syncAutoUpgradeBorders();
-    this.updateCards();
-    this.updateHud();
+    this.syncAutoUpgradeBorders(); this.updateCards(); this.updateHud();
     drawEnemyHealthLinks(this.enemyHealthLinks, this.enemies, this.battleTime);
-    this.world.restoreTutorial(state.tutorial);
     this.syncTutorialView();
     if (!this.playback) this.session.startRecordingFromCheckpoint(captureBattleSnapshot(this.battleState()), this.selectedCardIds);
     this.resetCommandAuthority();
@@ -2690,11 +2156,7 @@ export class GameScene extends Phaser.Scene {
     return x >= BOARD_X && x < BOARD_X + BOARD_WIDTH && y >= BOARD_Y && y < BOARD_Y + BOARD_HEIGHT;
   }
 
-  private cellIsDeployable(lane: number, column: number) {
-    return lane >= 0 && lane < LANES && column >= 0 && column < COLUMNS &&
-      !this.nullification.isOccupied(lane, column) &&
-      !this.sealedCells.has(gridCellKey(lane, column)) && !this.timedCellSeals.isSealed(lane, column);
-  }
+  private cellIsDeployable(lane: number, column: number) { return this.runtime.cellIsDeployable(lane, column); }
 
   private isShiftPointer(pointer: Phaser.Input.Pointer) {
     const event = pointer.event as MouseEvent | undefined;

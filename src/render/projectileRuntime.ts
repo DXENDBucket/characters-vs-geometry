@@ -61,6 +61,11 @@ const adapters = new WeakMap<LiveProjectileRuntime, ProjectileRuntime>();
 
 // Every entity in this adapter comes from the live factories or restored live graph.
 // The simulation only sees data; display casts are confined to this boundary.
+export function bindProjectileRuntime(live: LiveProjectileRuntime, runtime: ProjectileRuntime) {
+  runtime.presentation = projectileSimulationRuntime(live).presentation;
+  adapters.set(live, runtime);
+}
+
 export function projectileSimulationRuntime(live: LiveProjectileRuntime): ProjectileRuntime {
   let adapter = adapters.get(live);
   if (adapter) return adapter;

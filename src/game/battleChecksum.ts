@@ -1,7 +1,7 @@
-import type { BattleSaveState } from "./battleSaveState";
+import type { BattleSaveData } from "./battleSaveState";
 import { captureBattleSnapshot } from "./captureBattleSnapshot";
 
-export function battleChecksum(state: BattleSaveState, options: { includeEntityIds?: boolean; includeLocalUi?: boolean } = {}) {
+export function battleChecksum(state: BattleSaveData, options: { includeEntityIds?: boolean; includeLocalUi?: boolean } = {}) {
   // Normalize presentation state without mutating a checkpoint supplied by the caller.
   const graph = captureBattleSnapshot({
     ...state,

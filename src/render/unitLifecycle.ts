@@ -78,6 +78,11 @@ export function createUnitLifecyclePresentation(scene: Phaser.Scene): UnitLifecy
 const adapters = new WeakMap<LiveUnitLifecycleRuntime, UnitLifecycleRuntime>();
 
 // Only live factories/restoration enter here. The rules never require a display object.
+export function bindUnitLifecycleRuntime(live: LiveUnitLifecycleRuntime, runtime: UnitLifecycleRuntime) {
+  runtime.presentation = unitLifecycleSimulationRuntime(live).presentation;
+  adapters.set(live, runtime);
+}
+
 export function unitLifecycleSimulationRuntime(live: LiveUnitLifecycleRuntime): UnitLifecycleRuntime {
   let adapter = adapters.get(live);
   if (adapter) return adapter;

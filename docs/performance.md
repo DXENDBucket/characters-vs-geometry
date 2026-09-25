@@ -138,9 +138,12 @@ gain. See [Boss simulation](boss-simulation.md).
 
 Session timing, randomness, command recording and checkpoint orchestration have
 now moved from `GameScene` to an integrated `BattleSession`. The tick delegates to
-`BattleWorld`, whose system ports still call live runtime adapters. See
+`BattleWorld`; the shared `BattleRuntime` now assembles its pure system ports,
+with display factories and observers attached separately. See
 [Battle Session Orchestration](battle-session.md) and [World Ownership](battle-world.md).
-This is an ownership change with unchanged replay checksums, not an FPS claim.
+This is an ownership change with unchanged existing browser replay checksums,
+not an FPS claim. Independent Node comparisons and their newly exposed numeric
+and checksum limitations are documented in [BattleRuntime](battle-runtime.md).
 
 Projectile movement, collision and reflection now have a renderer-free runtime
 used by the actual scene. Its target and mortar buffers belong to each runtime

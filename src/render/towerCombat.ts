@@ -59,6 +59,12 @@ export function towerCombatRuntime(live: CardBehaviorRuntime): TowerCombatRuntim
 }
 
 const attacks = new WeakMap<CombatRuntime, TowerAttackRuntime>();
+export function bindTowerAttackRuntime(live: CombatRuntime, runtime: TowerAttackRuntime) {
+  runtime.presentation = towerAttackRuntime(live).presentation;
+  attacks.set(live, runtime);
+  runtimes.set(live, runtime);
+}
+
 export function towerAttackRuntime(live: CombatRuntime): TowerAttackRuntime {
   let runtime = attacks.get(live);
   if (!runtime) {

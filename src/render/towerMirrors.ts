@@ -3,7 +3,7 @@ import type { TowerMirrorRuntime } from "../game/towerMirrors";
 import type { MirrorPresentation } from "../game/towerMirrorRules";
 import { syncTowerFacingVisual, syncTowerLevelText, towerUpgradePresentation } from "../game/towers";
 
-export function mirrorPresentation(live: () => TowerMirrorRuntime): MirrorPresentation {
+export function mirrorPresentation(live: () => Pick<TowerMirrorRuntime, "scene">): MirrorPresentation {
   return {
     ...towerUpgradePresentation,
     level: tower => syncTowerLevelText(tower as Tower),

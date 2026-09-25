@@ -414,6 +414,12 @@ export class TowerSkillSimulation {
     return true;
   }
 
+  restoreFlights(flights: readonly SpellMortarFlight[]) {
+    for (const flight of this.spellMortarFlights) this.runtime().presentation.flightRemoved(flight);
+    this.spellMortarFlights.clear();
+    for (const flight of flights) this.restoreSpellMortarFlight(flight);
+  }
+
   snapshotFlights(): SpellMortarFlight[] {
     return [...this.spellMortarFlights.keys()].map(flight => ({ ...flight }));
   }

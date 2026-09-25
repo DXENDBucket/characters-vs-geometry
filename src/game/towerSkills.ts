@@ -36,8 +36,9 @@ export class TowerSkillController {
   private spellMortarReticle: Phaser.GameObjects.Container | null = null;
   readonly simulation: TowerSkillSimulation;
   readonly simulationRuntime: TowerSkillSimulationRuntime;
-  constructor(private readonly scene: Phaser.Scene, private readonly runtime: () => TowerSkillRuntime) {
-    this.simulationRuntime = createTowerSkillRuntime(runtime, createTowerSkillPresentation(scene, {
+  constructor(private readonly scene: Phaser.Scene, private readonly runtime: () => TowerSkillRuntime,
+    binding?: { skills: TowerSkillSimulation; skillRuntime: TowerSkillSimulationRuntime }) {
+    const presentation = createTowerSkillPresentation(scene, {
       beforeTowerUpdates: () => this.syncSpellMortarTargetingTowers(),
       isMortarSelected: tower => this.spellMortarTargetingTowerSet.has(tower as Tower),
       resetMortar: state => {
@@ -47,8 +48,10 @@ export class TowerSkillController {
         if (index >= 0) this.spellMortarTargetingTowers.splice(index, 1);
         if (this.spellMortarTargetingTowers.length === 0) this.destroySpellMortarReticle();
       }
-    }));
-    this.simulation = new TowerSkillSimulation(() => this.simulationRuntime);
+    });
+    this.simulationRuntime = binding?.skillRuntime ?? createTowerSkillRuntime(runtime, presentation);
+    this.simulationRuntime.presentation = presentation;
+    this.simulation = binding?.skills ?? new TowerSkillSimulation(() => this.simulationRuntime);
   }
 
   update(seconds: number, time: number) { return this.simulation.update(seconds, time); }

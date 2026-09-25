@@ -24,6 +24,11 @@ import {
 
 const runtimes = new WeakMap<BossRuntime, BossSimulationRuntime>();
 
+export function bindBossSimulationRuntime(live: BossRuntime, runtime: BossSimulationRuntime) {
+  runtime.presentation = bossSimulationRuntime(live).presentation;
+  runtimes.set(live, runtime);
+}
+
 export function bossSimulationRuntime(live: BossRuntime): BossSimulationRuntime {
   let runtime = runtimes.get(live);
   if (!runtime) {

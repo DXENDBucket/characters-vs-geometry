@@ -63,9 +63,10 @@ Protocol and save-graph schemas are unchanged.
 
 ## Remaining Boundary
 
-Factories and cross-system callback assembly still live in GameScene. These
-tests do not prove a complete standalone headless host. That assembly must be
-extracted and used by both the real scene and independent host, followed by
-ID-based relationship wire records, configurable participant resources/ownership
-and transport/player-UI lifetime integration. See
+Factories and cross-system callbacks now assemble in the shared
+[BattleRuntime](battle-runtime.md), used by the real scene and independent Node
+tests. Complete standalone host integration still needs independent control
+ingress, canonical relationship wire records/checksums, numeric guarantees,
+configurable participant resources/ownership and transport/player-UI lifetime
+integration. See
 [multiplayer readiness](multiplayer-readiness.md).

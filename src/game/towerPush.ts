@@ -21,7 +21,7 @@ export class TowerPushController {
   readonly simulation: TowerPushSimulation<Tower>;
   private readonly presentation: TowerPushPresentation;
 
-  constructor(private readonly scene: Phaser.Scene, private readonly runtime: () => PushRuntime) {
+  constructor(private readonly scene: Phaser.Scene, private readonly runtime: () => PushRuntime, simulation?: TowerPushSimulation<Tower>) {
     this.presentation = new TowerPushPresentation(scene);
     const rules: TowerPushRuntime<Tower> = {
       get towers() { return runtime().towers; }, get occupied() { return runtime().occupied; },
@@ -29,7 +29,8 @@ export class TowerPushController {
       onMoved: moves => runtime().onMoved(moves), eraseTower: tower => runtime().eraseTower(tower),
       onTowerAction: (tower, event) => runtime().onTowerAction?.(tower, event as TowerActionEvent)
     };
-    this.simulation = new TowerPushSimulation(() => rules, this.presentation);
+    this.simulation = simulation ?? new TowerPushSimulation(() => rules);
+    this.simulation.presentation = this.presentation;
   }
 
   isTargeting() { return Boolean(this.source); }

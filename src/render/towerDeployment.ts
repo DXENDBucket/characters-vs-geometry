@@ -4,7 +4,7 @@ import type { DeploymentPresentation } from "../game/towerDeploymentRules";
 import { syncTowerAutoUpgradeVisual, syncTowerFacingVisual, syncTowerLevelText, towerUpgradePresentation } from "../game/towers";
 import { makeAutoUpgradePulse } from "./combatEffects";
 
-export function deploymentPresentation(live: () => TowerDeploymentRuntime): DeploymentPresentation {
+export function deploymentPresentation(live: () => Pick<TowerDeploymentRuntime, "scene" | "updateCards" | "onFeedback">): DeploymentPresentation {
   return {
     ...towerUpgradePresentation,
     generated: tower => { syncTowerLevelText(tower as Tower); syncTowerFacingVisual(tower as Tower); },
