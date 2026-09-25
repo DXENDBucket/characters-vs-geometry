@@ -29,6 +29,7 @@ import { migrateAttackStats } from "./attackStatsMigration";
 import { withoutBattleEntityAllocation } from "./battleEntityIds";
 import { restoreBattleEntityIds } from "./battleEntityGraph";
 import { battleRandom, isBattlePlayback, setBattlePlayback } from "./battleSimulation";
+import { restoredBattleLifecycle } from "./battleLifecycle";
 
 export { captureBattleSnapshot } from "./captureBattleSnapshot";
 
@@ -83,9 +84,10 @@ export function restoreBattleSnapshot(scene: Phaser.Scene, graph: SaveGraph): Ba
       bodies.push(projectile.body); shots.push(projectile);
       return projectile;
     }));
-    if (!Array.isArray(state.towers) || !Array.isArray(state.enemies) || !Number.isFinite(state.battleTime) || state.baseIntegrity <= 0) {
+    if (!Array.isArray(state.towers) || !Array.isArray(state.enemies)) {
       throw new Error("Invalid battle state");
     }
+    restoredBattleLifecycle(state.lifecycle, state.battleTime, state.baseIntegrity);
     restoreBattleEntityIds(state);
     migrateAttackStats(state.simulation?.version, towers, enemies);
     const nullified = new Set(state.nullifiedTowers?.towers ?? []);

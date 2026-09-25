@@ -21,6 +21,7 @@ import { getEnemyDefinition } from "../registry/enemies";
 import type { TutorialController, TutorialEnemySpawn } from "./tutorial";
 import { createTutorialInteraction } from "./tutorialInteraction";
 import { copyTutorialCheckpoint, type TutorialCheckpoint } from "./tutorialState";
+import { createBattleLifecycle, restoredBattleLifecycle, type BattleLifecycleState, type BattleResult } from "./battleLifecycle";
 
 export interface BattleEntities {
   tower: TowerState;
@@ -36,7 +37,6 @@ export interface BattleWorldOptions {
   level: LevelConfig;
   difficulty: DifficultyConfig;
   unlimitedFirepower: boolean;
-  resumed?: boolean;
 }
 
 export interface BattleWorldProgress {
@@ -128,8 +128,7 @@ export class BattleWorld<E extends BattleEntities = BattleEntities> implements B
   waveTracker: WaveTracker | null = null;
   enemiesDefeated = 0;
   towerOrder = 0;
-  gameOver = false;
-  flawlessRun: boolean;
+  private lifecycle: BattleLifecycleState;
   readonly options: BattleWorldOptions;
   private stepping = false;
 
@@ -137,11 +136,40 @@ export class BattleWorld<E extends BattleEntities = BattleEntities> implements B
     this.loadout = new BattleLoadout(cards);
     this.options = structuredClone(options);
     this.chars = options.level.startingChars ?? (options.levelId.startsWith("1-") ? 300 : STARTING_CHARS);
-    this.flawlessRun = !options.unlimitedFirepower && !options.resumed;
+    this.lifecycle = createBattleLifecycle(!options.unlimitedFirepower);
+  }
+
+  get gameOver() { return this.lifecycle.result !== null; }
+  get flawlessRun() { return this.lifecycle.flawlessEligible; }
+  get result() { return this.lifecycle.result; }
+  lifecycleSnapshot() { return this.lifecycle; }
+
+  invalidateFlawless() {
+    if (!this.gameOver && this.flawlessRun) this.lifecycle = createBattleLifecycle(false);
+  }
+
+  finish(outcome: BattleResult["outcome"]) {
+    if (this.gameOver) return false;
+    this.lifecycle = Object.freeze({ ...this.lifecycle, result: Object.freeze({ outcome, endedAt: this.battleTime,
+      flawless: outcome === "victory" && this.flawlessRun && this.baseIntegrity >= BASE_INTEGRITY && !this.options.level.survival }) });
+    return true;
+  }
+
+  validateLifecycle(value: unknown, battleTime: number, baseIntegrity: number) {
+    const state = restoredBattleLifecycle(value, battleTime, baseIntegrity);
+    if ((this.options.unlimitedFirepower && state.flawlessEligible) || (this.options.level.survival && state.result?.flawless)) {
+      throw new Error("Battle lifecycle differs from configuration");
+    }
+    return state;
+  }
+
+  restoreLifecycle(value: unknown, battleTime: number, baseIntegrity: number) {
+    this.lifecycle = this.validateLifecycle(value, battleTime, baseIntegrity);
   }
 
   step(systems: BattleWorldSystems<E>) {
     if (this.stepping) throw new Error("Battle world is already stepping");
+    if (this.gameOver) return;
     this.stepping = true;
     try {
       const delta = BATTLE_STEP_MS, seconds = delta / 1000;
@@ -193,8 +221,9 @@ export class BattleWorld<E extends BattleEntities = BattleEntities> implements B
   nextTowerOrder() { return this.towerOrder++; }
 
   registerBreach() {
-    this.flawlessRun = false;
-    this.baseIntegrity -= 1;
+    if (this.gameOver) return this.result!.outcome === "defeat";
+    this.invalidateFlawless();
+    this.baseIntegrity = Math.max(0, this.baseIntegrity - 1);
     return this.baseIntegrity <= 0;
   }
 

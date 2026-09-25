@@ -88,7 +88,7 @@ test("combat controllers schedule data actions rather than engine timers or paus
 test("data, geometry, support queries and snapshot capture cannot pull in scenes or rendering", () => {
   const entries = ["enemyState", "towerState", "projectileState", "bossState", "bossRules", "bossSkillRules", "enemyCombatRules", "towerRules",
     "captureBattleSnapshot", "battleDataSchema", "battleEntityIds", "battleEntityGraph", "battleOperations", "battleControls", "tutorialInteraction",
-    "tutorial", "tutorialRegistry", "tutorialState", "tutorialPresentation",
+    "tutorial", "tutorialRegistry", "tutorialState", "tutorialPresentation", "battleLifecycle", "battleDiscovery",
     "battleSession", "battleAuthority", "battleParticipants", "battlePolicy", "battleChecksum", "battleLoadout", "loadoutReselection", "unitGeometry", "enemySupport",
     "combatStats", "statusEffects", "enemyContainerRules", "slowAura", "battleWorld", "waveSpawner", "rules/statusEffectRules"];
   for (const entry of [...entries, "../registry/cardDefinitions"]) {
@@ -103,5 +103,12 @@ test("data, geometry, support queries and snapshot capture cannot pull in scenes
     const name = path.posix.normalize("src/game/" + entry + ".ts");
     assert.ok(graph.has(name), name);
     visit(name, []);
+  }
+});
+
+test("combat code cannot write a player's persistent profile", () => {
+  for (const [name, dependencies] of graph) {
+    if (!name.startsWith("src/game/") && !name.startsWith("src/bosses/")) continue;
+    assert.ok(!dependencies.includes("src/progress.ts") && !dependencies.includes("src/battleProfile.ts"), name);
   }
 });

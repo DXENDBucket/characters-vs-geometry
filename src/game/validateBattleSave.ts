@@ -16,6 +16,7 @@ import { validBattleParticipants } from "./battleParticipants";
 import { validBattlePolicy } from "./battlePolicy";
 import { copyBattleControlState } from "./battleControls";
 import { copyTutorialCheckpoint } from "./tutorialState";
+import { restoredBattleLifecycle } from "./battleLifecycle";
 
 export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossKind?: BossKind) {
   const units = new Map<NodeKind, Set<object>>();
@@ -106,13 +107,15 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
     "wave", "enemiesDefeated", "towerOrder", "gameSpeed", "autoUpgradeReserveChars", "extraction"] as const) {
     require(finite(state[key]) && state[key] >= 0);
   }
-  require(state.wave === wave && state.baseIntegrity > 0 && state.gameSpeed > 0 && typeof state.autoUpgradeEnabled === "boolean");
+  const lifecycle = restoredBattleLifecycle(state.lifecycle, state.battleTime, state.baseIntegrity);
+  require(state.wave === wave && state.gameSpeed > 0 && typeof state.autoUpgradeEnabled === "boolean");
   require(state.debugModeEnabled === undefined || typeof state.debugModeEnabled === "boolean");
-  require(expectedBossKind ? member("boss")(state.boss) && state.boss!.hp > 0 : !state.boss);
+  require(expectedBossKind ? (lifecycle.result && !state.boss) ||
+    member("boss")(state.boss) && (state.boss!.hp > 0 || lifecycle.result !== null) : !state.boss);
   for (const object of units.get("boss") ?? []) {
     const boss = object as Record<string, unknown>;
-    const family = rankedBossFamily(boss.kind) ?? (boss.kind === "del" ? "del" : undefined);
-    const expectedFamily = rankedBossFamily(expectedBossKind) ?? (expectedBossKind === "del" ? "del" : undefined);
+    const family = rankedBossFamily(boss.kind) ?? (["del", "icosahedron"].includes(boss.kind as string) ? boss.kind : undefined);
+    const expectedFamily = rankedBossFamily(expectedBossKind) ?? (["del", "icosahedron"].includes(expectedBossKind ?? "") ? expectedBossKind : undefined);
     require(expectedBossKind && family && family === expectedFamily);
     require(Number.isSafeInteger(boss.rank) && (boss.rank as number) >= 1);
     require(finite(boss.hp) && boss.hp >= 0 && finite(boss.maxHp) && boss.maxHp > 0 && boss.hp <= boss.maxHp);
@@ -147,24 +150,27 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
     for (const key of ["maxHp", "armor", "magicResistance", "speed", "finalDamageReduction"]) {
       require(finite(boss.baseStats[key]) && finite(boss.finalStats[key]));
     }
-    const skillKeys = ["promotion", "advance", ...(family === "tetrahedron"
-      ? ["charge", "impact", "suppression", "desperation"] : family === "dodecahedron" ? ["endlessWings"] :
-        family === "del" ? [...(boss.skills.deleteStack !== undefined ? ["deleteStack"] : []),
-          ...(boss.skills.deleteFormat !== undefined ? ["deleteFormat"] : [])] : [])];
+    const skillKeys = ["promotion", "advance",
+      ...(family === "tetrahedron" || family === "icosahedron" ? ["charge", "impact", "suppression", "desperation"] : []),
+      ...(family === "dodecahedron" || family === "icosahedron" ? ["endlessWings"] : []),
+      ...(family === "icosahedron" ? ["ultimateAdvance", "heartbeatAlpha", "heartbeatBeta", "leap"] : []),
+      ...(family === "del" ? [...(boss.skills.deleteStack !== undefined ? ["deleteStack"] : []),
+        ...(boss.skills.deleteFormat !== undefined ? ["deleteFormat"] : [])] : [])];
     for (const key of skillKeys) {
       const skill = boss.skills[key];
       require(record(skill) && [skill.sp, skill.spBuffer, skill.activeUntil, skill.maxSp, skill.cost].every(finite));
     }
     require(array(boss.statusEffects, effect => record(effect) && typeof effect.name === "string" && timestamp(effect.expiresAt)));
-    if (family === "octahedron") {
-      if (boss.pendingCopies !== undefined) require(Array.isArray(boss.pendingCopies) && boss.pendingCopies.length <= 3 &&
-        boss.pendingCopies.length + (Array.isArray(boss.octahedronCopies) ? boss.octahedronCopies.length : 0) <= 3 && array(boss.pendingCopies, spawn => record(spawn) &&
+    if (family === "octahedron" || family === "icosahedron") {
+      const copyLimit = family === "icosahedron" ? 4 : 3;
+      if (boss.pendingCopies !== undefined) require(Array.isArray(boss.pendingCopies) && boss.pendingCopies.length <= copyLimit &&
+        boss.pendingCopies.length + (Array.isArray(boss.octahedronCopies) ? boss.octahedronCopies.length : 0) <= copyLimit && array(boss.pendingCopies, spawn => record(spawn) &&
           finite(spawn.x) && finite(spawn.y) && finite(spawn.startedAt) && finite(spawn.readyAt) && spawn.readyAt > spawn.startedAt &&
           Number.isInteger(spawn.phaseIndex) && (spawn.phaseIndex as number) >= 0 &&
           ["x", "y"].includes(spawn.movementAxis as string) && (spawn.movementDirection === -1 || spawn.movementDirection === 1) &&
           (spawn.invincibleUntil === undefined || finite(spawn.invincibleUntil)) &&
           (spawn.triggerReinforcements === undefined || typeof spawn.triggerReinforcements === "boolean")));
-      require(!boss.octahedronCopies || (Array.isArray(boss.octahedronCopies) && boss.octahedronCopies.length <= 3 &&
+      require(!boss.octahedronCopies || (Array.isArray(boss.octahedronCopies) && boss.octahedronCopies.length <= copyLimit &&
         new Set(boss.octahedronCopies).size === boss.octahedronCopies.length && boss.octahedronCopies.every(copy =>
           member("boss")(copy) && copy !== boss && copy.rank === boss.rank && copy.kind === boss.kind &&
           copy.hp === boss.hp && copy.maxHp === boss.maxHp && !copy.octahedronCopies?.length && !copy.pendingCopies?.length)));
@@ -178,17 +184,17 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
     require(boss.advanceMinionKind === ((boss.rank as number) === 1 ? "square" : `square${boss.rank}`));
     for (const key of ["hitboxWidth", "hitboxHeight", "rotationX", "rotationY", "rotationZ", "velocityX", "velocityY", "velocityZ",
       "targetVelocityX", "targetVelocityY", "targetVelocityZ", "nextTurnIn", "contactAttackBuffer"]) require(finite(boss[key]));
-    require(finite(boss.invincibleUntil) || ((family === "octahedron" ||
+    require(finite(boss.invincibleUntil) || ((family === "octahedron" || family === "icosahedron" ||
       family === "del" && (boss.delEcho || record(boss.delSweep) && boss.delSweep.phase !== "complete" ||
         record(boss.delLaneSweep) && ["warning", "sweeping"].includes(boss.delLaneSweep.phase as string))) && boss.invincibleUntil === Infinity));
-    if (family === "tetrahedron") {
+    if (family === "tetrahedron" || family === "icosahedron") {
       for (const key of ["halfHpTriggered", "criticalHpTriggered", "pendingCriticalSummon"]) require(typeof boss[key] === "boolean");
       for (const key of ["chargeExpiresAt", "bossHasteUntil", "nextBossHasteTrailAt"]) require(finite(boss[key]));
     }
-    if (family === "dodecahedron") {
+    if (family === "dodecahedron" || family === "icosahedron") {
       require(typeof boss.companionsInitialized === "boolean");
       require(Number.isInteger(boss.companionDeathsHandled) && (boss.companionDeathsHandled as number) >= 0 &&
-        (boss.companionDeathsHandled as number) <= 3);
+        (boss.companionDeathsHandled as number) <= (family === "icosahedron" ? 7 : 3));
     }
   }
   require(array(state.towers, member("tower")) && array(state.enemies, member("enemy")) &&

@@ -4,7 +4,7 @@ import { syncParenthesisVisual } from "../render/parenthesisEnemy";
 import { syncEnemyFacingVisual } from "../render/enemyFacing";
 import { battleRandom, isBattlePlayback } from "./battleSimulation";
 import { cubePromotionKind } from "../bosses/bossRanks";
-import { recordEnemySeen } from "../progress";
+import { observeBattleEnemy } from "./battleDiscovery";
 import { LANES } from "../config";
 import { createEnemyStatusVisuals } from "../render/enemyStatusVisuals";
 import {
@@ -103,7 +103,7 @@ export function findPromotionTargets(boss: CubeBoss, enemies: Enemy[], maxRank: 
 }
 
 export function applyEnemyPromotion(scene: Phaser.Scene, enemy: Enemy, kind: EnemyKind, battleTime: number) {
-  if (!isBattlePlayback(scene)) recordEnemySeen(kind);
+  if (!isBattlePlayback(scene)) observeBattleEnemy(scene, kind);
   const hpRatio = Phaser.Math.Clamp(enemy.hp / enemyMaximumHp(enemy), 0, 1);
   const definition = getEnemyDefinition(kind);
   const baseStats = enemyBaseStatsFromDefinition(definition, {

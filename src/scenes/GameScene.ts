@@ -38,7 +38,10 @@ import { LOCAL_BATTLE_ACTOR, towerOperationRef, edgeOperationRef, validBattleAct
 import { executeLiveBattleOperation, type LiveBattleOperationRuntime } from "../game/battleOperationRuntime";
 import { executeBattleControl, validBattleControl, validReserveChars,
   type BattleControl, type BattleControlRuntime } from "../game/battleControls";
-import { deleteSurvivalSave, readSurvivalSave, writeSurvivalSave, type SurvivalSave } from "../survivalSaves";
+import { readSurvivalSave, writeSurvivalSave, type SurvivalSave } from "../survivalSaves";
+import { BattleProfile, type BattleRewards } from "../battleProfile";
+import type { BattleResult } from "../game/battleLifecycle";
+import { setBattleDiscoveryObserver } from "../game/battleDiscovery";
 import { endlessEnemyHpMultiplier } from "../game/endlessEnvironment";
 import { syncTowerHealthNetworks } from "../game/towerHealth";
 import { detachEnemyHealth } from "../game/enemyHealth";
@@ -66,7 +69,6 @@ import { RESELECT_UNLOCK_LEVEL } from "../game/loadoutReselection";
 import { TowerStorageController } from "../game/towerStorage";
 import { expireReversalEffect } from "../game/rules/reversal";
 import {
-  BASE_INTEGRITY,
   BOARD_HEIGHT,
   BOARD_WIDTH,
   BOARD_X,
@@ -155,7 +157,7 @@ import { volleyInterval, volleyShotCount } from "../game/upgrades";
 import { volleyHitsAt, volleyTimingCount } from "../game/volley";
 import { attackIntervalMs } from "../game/attackSpeed";
 import { t } from "../i18n";
-import { completeLevel, isCardUnlocked, isLevelCompleted, recordBossSeen, recordCompletedWaves, recordDefeatedBossRank, unlockedCardSlotCount } from "../progress";
+import { isCardUnlocked, isLevelCompleted, unlockedCardSlotCount } from "../progress";
 import { makeEraseMark, makeProductionPulse, makeShellBurst, makeShockPulse, makeTowerPipelineShield } from "../render/combatEffects";
 import { createUnitBorder } from "../render/unitShapes";
 import {
@@ -317,8 +319,6 @@ export class GameScene extends Phaser.Scene {
   private set chars(value: number) { this.world.chars = value; }
   private get baseIntegrity() { return this.world.baseIntegrity; }
   private set baseIntegrity(value: number) { this.world.baseIntegrity = value; }
-  private get flawlessRun() { return this.world.flawlessRun; }
-  private set flawlessRun(value: boolean) { this.world.flawlessRun = value; }
   private get wave() { return this.world.wave; }
   private set wave(value: number) { this.world.wave = value; }
   private get waveTracker() { return this.world.waveTracker; }
@@ -328,7 +328,7 @@ export class GameScene extends Phaser.Scene {
   private get towerOrder() { return this.world.towerOrder; }
   private set towerOrder(value: number) { this.world.towerOrder = value; }
   private get gameOver() { return this.world.gameOver; }
-  private set gameOver(value: boolean) { this.world.gameOver = value; }
+  private profile!: BattleProfile;
   private get controls() { return this.session.controls; }
   private get battlePaused() { return this.controls.paused; }
   private set battlePaused(value: boolean) { this.controls.paused = value; }
@@ -420,7 +420,7 @@ export class GameScene extends Phaser.Scene {
     super(key);
   }
 
-  init(data: { levelId?: string; chapterId?: string; selectedCards?: CardId[]; difficulty?: number; unlimitedFirepower?: boolean; resume?: boolean; seed?: number; replay?: BattleReplay; participants?: readonly BattleOperationActor[]; policy?: BattlePolicy }) {
+  init(data: { levelId?: string; chapterId?: string; selectedCards?: CardId[]; difficulty?: number; unlimitedFirepower?: boolean; resume?: boolean; seed?: number; replay?: BattleReplay; participants?: readonly BattleOperationActor[]; policy?: BattlePolicy; persistProgress?: boolean }) {
     const playback = data.replay ? structuredClone(data.replay) : undefined;
     if (playback) {
       validateReplay(playback);
@@ -458,8 +458,10 @@ export class GameScene extends Phaser.Scene {
     this.resetCommandAuthority();
     setBattleRandom(this, this.session.random);
     setBattlePlayback(this, Boolean(playback));
+    this.profile = new BattleProfile(!playback && data.persistProgress !== false, this.levelId, this.difficulty, !!this.levelConfig.survival);
+    setBattleDiscoveryObserver(this, kind => this.profile.enemySeen(kind));
     this.world = new BattleWorld<LiveBattleEntities>({ levelId: this.levelId, level: this.levelConfig,
-      difficulty: this.difficultyConfig, unlimitedFirepower: this.unlimitedFirepower, resumed: !!this.resumeSave },
+      difficulty: this.difficultyConfig, unlimitedFirepower: this.unlimitedFirepower },
       this.session.random, selectedCards.map(id => this.getDefinition(id)));
     setBattleEntityIds(this, this.world.entityIds);
     this.worldSystems = this.createWorldSystems();
@@ -635,7 +637,7 @@ export class GameScene extends Phaser.Scene {
         selectedCards: [...this.selectedCardIds],
         difficulty: this.difficulty,
         unlimitedFirepower: this.unlimitedFirepower,
-        policy: this.session.policy, participants: this.session.snapshot().participants
+        policy: this.session.policy, participants: this.session.snapshot().participants, persistProgress: this.profile.enabled
       }),
       exit: () => this.handleOverlayAction()
     });
@@ -655,7 +657,7 @@ export class GameScene extends Phaser.Scene {
     } else if (this.playback?.checkpoint) {
       this.applyBattleSave(restoreBattleSnapshot(this, this.playback.checkpoint));
     } else if (this.levelConfig.survival && !this.playback) {
-      deleteSurvivalSave(this.levelId);
+      this.profile.clearSurvivalSave();
     }
     if (this.tutorial) {
       this.tutorialView = this.battlefield.ui(() => new GuidedTutorialView({
@@ -672,10 +674,11 @@ export class GameScene extends Phaser.Scene {
     bindBattleAudio(this, !!this.levelConfig.bossKind, () => ({
       paused: this.battlePaused || this.menuOpen || this.reselectOpen, finished: this.gameOver
     }));
-    if (this.resumeRequested && !this.playback) this.openPauseMenu();
+    if (this.resumeRequested && !this.playback && !this.gameOver) this.openPauseMenu();
   }
 
   private cleanupSceneHandlers() {
+    setBattleDiscoveryObserver(this);
     this.authority?.close();
     if (this.reselectOpen) this.scene.stop("CardSelectScene");
     if (this.battleSettingsOpen) this.scene.stop("SettingsScene");
@@ -775,7 +778,7 @@ export class GameScene extends Phaser.Scene {
       autoUpgrade: () => this.attemptAutoUpgrades(),
       storedEnemyCount: () => this.storage.count,
       earliestStoredWave: () => this.storage.earliestWaveNumber,
-      completedWaves: waves => { if (!this.playback) recordCompletedWaves(this.levelId, waves, this.difficulty); },
+      completedWaves: waves => this.profile.completedWaves(waves),
       completeLevel: () => this.endLevel(),
       spawnEnemy: options => spawnEnemyAt(this.combatRuntime(), options),
       sealColumn: column => this.sealColumn(column),
@@ -1582,7 +1585,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.boss = createCubeBoss(this, this.levelConfig.bossKind, this.difficultyConfig.finalDamageReduction, { rank });
-    if (!this.playback) recordBossSeen(this.levelConfig.bossKind);
+    this.profile.bossSeen(this.levelConfig.bossKind);
     this.bossHomePosition = { x: this.boss.x, y: this.boss.y };
     if (this.levelConfig.bossEndless && isDodecahedronBoss(this.boss)) {
       initializeDodecahedronCompanions(this.bossRuntime(), this.boss);
@@ -2074,7 +2077,7 @@ export class GameScene extends Phaser.Scene {
 
   private handleBossDefeated(boss: CubeBoss) {
     if (this.levelConfig.bossEndless) {
-      if (!this.playback) recordDefeatedBossRank(this.levelId, boss.rank, this.difficulty);
+      this.profile.defeatedBoss(boss.rank);
       if (isOctahedronBoss(boss)) {
         forEachSnapshot(this.enemies, enemy => {
           if (enemy.kind === "solarBomb") removeEnemy(this.unitLifecycleRuntime(), enemy, false);
@@ -2290,7 +2293,7 @@ export class GameScene extends Phaser.Scene {
   private applyDebugChars() {
     this.world.loadout.resetCooldowns(this.world);
     this.baseIntegrity += 1_000;
-    this.flawlessRun = false;
+    this.world.invalidateFlawless();
     this.gainChars(10_000, this.ui.debugButton.x, this.ui.debugButton.y + 34);
     this.showToast(t("toast.debugChars"));
     this.updateCards();
@@ -2426,7 +2429,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private applyDebugDamage(x: number, y: number, mode: "normal" | "super") {
-    this.flawlessRun = false;
+    this.world.invalidateFlawless();
     const rangeX = CELL_WIDTH / 2;
     const rangeY = CELL_HEIGHT / 2;
     const damage = mode === "super" ? 105_000 : 15_000;
@@ -2548,35 +2551,32 @@ export class GameScene extends Phaser.Scene {
   }
 
   private endGame() {
-    soundPlayer.stop("battle");
-    playSound("defeat");
-    this.gameOver = true;
-    this.dismissBattleModals();
-    this.clearPlacementGhosts();
-    if (this.levelConfig.survival && !this.playback) deleteSurvivalSave(this.levelId);
-    showGameOverlay(this.overlay, t("overlay.breach"), t("button.menu"));
+    this.finishBattle("defeat");
   }
 
   private endLevel() {
+    this.finishBattle("victory");
+  }
+
+  private finishBattle(outcome: BattleResult["outcome"]) {
+    if (!this.world.finish(outcome)) return;
+    const result = this.world.result!;
+    const rewards = this.profile.settle(result);
+    playSound(outcome);
+    this.showBattleResult(result, rewards);
+  }
+
+  private showBattleResult(result: BattleResult, rewards: BattleRewards = { cards: [] }) {
     soundPlayer.stop("battle");
-    playSound("victory");
-    this.gameOver = true;
     this.dismissBattleModals();
     this.clearPlacementGhosts();
-    const reselectUnlocked = this.levelId === RESELECT_UNLOCK_LEVEL && !isLevelCompleted(RESELECT_UNLOCK_LEVEL);
-    const previousCardSlotCount = unlockedCardSlotCount();
-    const flawless = this.flawlessRun && this.baseIntegrity >= BASE_INTEGRITY && !this.levelConfig.survival && !this.playback;
-    const unlockedCardIds = this.playback ? [] : completeLevel(this.levelId, { difficulty: this.difficulty, flawless });
-    const currentCardSlotCount = unlockedCardSlotCount();
     showGameOverlay(
       this.overlay,
-      t(flawless ? "overlay.flawless" : "overlay.clear"),
+      t(result.outcome === "defeat" ? "overlay.breach" : result.flawless ? "overlay.flawless" : "overlay.clear"),
       t("button.menu"),
-      unlockedCardIds,
-      currentCardSlotCount > previousCardSlotCount
-        ? { current: currentCardSlotCount, total: CARD_SLOT_COUNT }
-        : undefined,
-      reselectUnlocked ? t("toast.reselectUnlocked") : undefined,
+      rewards.cards,
+      rewards.slots,
+      rewards.reselect ? t("toast.reselectUnlocked") : undefined,
       id => {
         this.rewardEncyclopedia ??= this.battlefield.ui(() => new EncyclopediaPanel(this));
         this.rewardEncyclopedia.openTower(id);
@@ -2824,12 +2824,13 @@ export class GameScene extends Phaser.Scene {
       actions: this.actionQueue.snapshot(), storage: this.storage.snapshot(), shifter: this.shifter.snapshot(),
       reselection: this.reselection.snapshot(), extraction: this.extraction.value,
       spellMortarFlights: this.towerSkills.snapshotFlights(), sealedCells: [...this.sealedCells],
-      timedCellSeals: this.timedCellSeals.snapshot(), entityIds: this.world.entityIds.snapshot()
+      timedCellSeals: this.timedCellSeals.snapshot(), entityIds: this.world.entityIds.snapshot(),
+      lifecycle: this.world.lifecycleSnapshot()
     };
   }
 
   private saveSurvivalBattle() {
-    if (this.playback) return true;
+    if (!this.profile.enabled) return true;
     if (!this.levelConfig.survival || this.gameOver) return false;
     try {
       return writeSurvivalSave({ version: 1, levelId: this.levelId, savedAt: Date.now(), wave: this.wave,
@@ -2846,12 +2847,14 @@ export class GameScene extends Phaser.Scene {
 
   private applyBattleSave(state: BattleSaveState) {
     this.world.validateTutorial(state.tutorial);
+    this.world.validateLifecycle(state.lifecycle, state.battleTime, state.baseIntegrity);
     restoreBattleEntityIds(state, this.world.entityIds);
     this.session.restore(state.simulation, state.battleTime, {
       paused: false, speed: state.gameSpeed, debugEnabled: state.debugModeEnabled ?? this.debugModeEnabled,
       autoUpgradeEnabled: state.autoUpgradeEnabled, reserveChars: state.autoUpgradeReserveChars
     });
     this.world.restoreProgress(state);
+    this.world.restoreLifecycle(state.lifecycle, state.battleTime, state.baseIntegrity);
     this.selectedCardId = state.selectedCardId;
     this.towers = state.towers;
     this.nullification.restore(state.nullifiedTowers);
@@ -2904,6 +2907,9 @@ export class GameScene extends Phaser.Scene {
     this.syncTutorialView();
     if (!this.playback) this.session.startRecordingFromCheckpoint(captureBattleSnapshot(this.battleState()), this.selectedCardIds);
     this.resetCommandAuthority();
+    this.profile.restored(this.world.result);
+    if (this.world.result) this.showBattleResult(this.world.result);
+    else this.overlay.container.setVisible(false);
   }
 
   private localInputBlocked() {

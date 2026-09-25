@@ -13,6 +13,9 @@ view recreation does not rebuild battle state. See [loadout state](battle-loadou
 Tutorial models and semantic lesson observations also belong to the world. Their
 step/reference snapshots are separate from scalar progress, and rendering consumes
 derived instructions. See [tutorial state](tutorial-state.md).
+Terminal outcome and flawless eligibility also belong to the world and have their
+own versioned snapshot record. Only the first finish is accepted; restore never
+re-awards a local clear. See [battle lifecycle](battle-lifecycle.md).
 
 `BattleSession` still owns fixed ticks, RNG, queued actions and recordings. The
 world uses the session's exact RNG object. Battle configuration is copied once at
@@ -36,8 +39,8 @@ Preserve this order. In particular:
 - Swept projectile hits resolve before deferred base breaches.
 - Mortars refresh slow-aura sources after earlier damage may remove a tower.
 - A terminal event retains the original remainder of the current tick. The
-  session's continuation policy stops subsequent ticks; this extraction does not
-  add an early return halfway through a tick.
+  session's continuation policy stops subsequent ticks and the world rejects new
+  steps once ended. No early return is added halfway through the active tick.
 
 The world itself implements natural/timed production, raw/effective resource math,
 wave completion/progress, wave-start column seals, phase selection, phase-state
@@ -58,8 +61,8 @@ entire battle even if every individual random distribution looks equivalent.
 ## Save Compatibility
 
 `progressSnapshot()` is a data view consumed immediately by graph serialization,
-not an independently immutable save. It preserves the existing field order and
-references. No new wrapper node, save migration or rules-version change is added.
+not an independently immutable save. It preserves the existing scalar field order
+and references; lifecycle and tutorial checkpoints are separate snapshot fields.
 `restoreProgress()` restores trusted decoded scalar progress and supplies legacy
 phase defaults. Entity construction, graph reconnection and controller restoration
 remain in the live snapshot adapter. The subsequent identity pass adds optional

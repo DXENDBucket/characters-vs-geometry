@@ -1,6 +1,6 @@
 import type Phaser from "phaser";
 import { battleRandom, isBattlePlayback } from "./battleSimulation";
-import { recordEnemySeen } from "../progress";
+import { observeBattleEnemy } from "./battleDiscovery";
 import { createEnemyStatusVisuals } from "../render/enemyStatusVisuals";
 import { enemyFamily } from "../registry/enemies";
 import { createEnemyShape } from "../render/unitShapes";
@@ -14,7 +14,7 @@ import { statusSpeedMultiplier } from "./statusEffects";
 import { syncEnemyStatusVisuals } from "../render/enemyStatus";
 
 export function createEnemy(scene: Phaser.Scene, options: CreateEnemyOptions): Enemy {
-  if (!isBattlePlayback(scene)) recordEnemySeen(options.kind);
+  if (!isBattlePlayback(scene)) observeBattleEnemy(scene, options.kind);
   const state = createEnemyState(options, () => battleRandom(scene).next());
   const body = scene.add.container(state.x, state.y).setDepth(60 + options.lane);
   const visuals = createEnemyStatusVisuals(scene);

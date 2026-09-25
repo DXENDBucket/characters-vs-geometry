@@ -70,7 +70,13 @@ try {
       go(scene, 3600, [1000 / 60]);
       const replay = scene.exportReplay();
       const expected = scene.battleChecksum();
-      const preControlState = { ...scene.battleState(), simulation: { ...scene.battleState().simulation } };
+      const preLifecycleState = { ...scene.battleState() };
+      delete preLifecycleState.lifecycle;
+      const preLifecycleHash = battleChecksum(preLifecycleState);
+      const lifecycleBaselines = { "1-9": "ab86ccd2", "2-10": "20169cdd", "5-5": "93ce4080", "5-10": "b5504280",
+        "AE-1": "0ba61674", "IF-1": "7dd5f41d", "IF-BE-4": "6ee2b889" };
+      if (preLifecycleHash !== lifecycleBaselines[levelId]) throw Error(`${levelId}: combat changed beyond lifecycle snapshot`);
+      const preControlState = { ...preLifecycleState, simulation: { ...preLifecycleState.simulation } };
       delete preControlState.simulation.controls;
       const preControlHash = battleChecksum(preControlState);
       const controlBaselines = { "1-9": "adaf7865", "2-10": "866c6a85", "5-5": "821e8819", "5-10": "f5a1fd95",
@@ -99,7 +105,7 @@ try {
       go(resumed, 3600, [1000 / 60]);
       if (resumed.battleChecksum() !== expected) throw Error(`${levelId}: save continuation diverged ${expected} / ${resumed.battleChecksum()}`);
       checkReplay(resumed.exportReplay(), expected);
-      results.push({ levelId, ticks: replay.endTick, hash: expected, preControlHash, prePolicyHash, behaviorHash, v6FormatHash, commands: replay.commands.length });
+      results.push({ levelId, ticks: replay.endTick, hash: expected, preLifecycleHash, preControlHash, prePolicyHash, behaviorHash, v6FormatHash, commands: replay.commands.length });
     }
     const reselect = start({ levelId: "IF-1", seed: 51 });
     reselect.submitBattleCommand({ type: "debugMode", enabled: true });

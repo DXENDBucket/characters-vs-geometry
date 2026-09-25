@@ -46,7 +46,7 @@ function systems(world, changes = {}) {
     gainChars: (amount, x, y) => { world.gainChars(amount); events.push(["produce", amount, x, y]); },
     storedEnemyCount: () => 0, earliestStoredWave: () => Infinity,
     completedWaves: wave => events.push(["completed", wave]),
-    completeLevel: () => { world.gameOver = true; events.push(["complete"]); },
+    completeLevel: () => { world.finish("victory"); events.push(["complete"]); },
     spawnEnemy: spawn => {
       world.enemies.push(createEnemyState({ ...spawn,
         environmentHpMultiplier: endlessEnemyHpMultiplier(world.options.level, world.wave) }, () => world.random.next()));
@@ -70,7 +70,7 @@ test("world instances own independent progress, rosters, occupancy, seals and co
   assert.equal(a.nextTowerOrder(), 0); assert.equal(a.nextTowerOrder(), 1); assert.equal(b.nextTowerOrder(), 0);
   assert.equal(makeWorld("5-10").chars, getLevelConfig("5-10").startingChars);
   assert.equal(makeWorld("1-9", { level: { ...getLevelConfig("1-9"), startingChars: undefined } }).chars, 300);
-  assert.equal(makeWorld("IF-1", { resumed: true }).flawlessRun, false);
+  assert.equal(makeWorld("1-9", { unlimitedFirepower: true }).flawlessRun, false);
 });
 
 test("the real tutorial model controls world waves and restores without replaying entry effects", () => {

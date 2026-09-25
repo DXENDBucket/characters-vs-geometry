@@ -65,6 +65,13 @@ transport-neutral authority and synchronization gates above.
   lesson observations in the world. Their presentation is derived data; actual
   browser continuations from 57 checkpoint positions match at 30/144 Hz with the
   tutorial view removed. See [tutorial state](tutorial-state.md).
+  Terminal lifecycle now belongs to the world and is checkpointed, including
+  flawless eligibility and a first-result-wins immutable outcome. Actual terminal
+  replay/restore tests cover wave clear, last-enemy breach, Boss breach and debug
+  Boss kills. Local profile settlement/discovery/records are behind a separate
+  adapter; read-only live scenes and restored finished results do not award progress
+  or delete local saves. This is not a durable multiplayer settlement protocol.
+  See [battle lifecycle](battle-lifecycle.md).
   The session now owns/snapshots authoritative controls and enforces pause/speed;
   restoration no longer overwrites them with local menu state. All deferred combat
   attacks require its saved data queue, with the Phaser timer/paused-closure fallback
@@ -98,7 +105,7 @@ transport-neutral authority and synchronization gates above.
   [command authority](battle-authority.md).
 
 Next: complete participant/resource policies,
-finish simulation/presentation ports, terminal lifecycle state and ID-based relationships, and build snapshot synchronization and
+finish simulation/presentation ports and ID-based relationships, and build snapshot synchronization and
 reconnect on the new authority boundary. Validate each increment against the
 real battle path; green isolated tests are not proof of full readiness.
 
