@@ -115,7 +115,7 @@ test("Symbol Domain Capital follows Symbol Domain and unlocks AE-EX-1 after DEL"
   assert.equal(chapterGroups.groupForChapter("AE2").id, "ascii");
   assert.equal(chapters.chapterIdForLevelId("AE-10"), "AE");
   assert.equal(chapters.chapterIdForLevelId("AE-EX-1"), "AE2");
-  assert.deepEqual(chapters.levelNodesForChapter("AE2").map(node => node.id), ["AE-EX-1", "AE-EX-2", "AE-EX-3", "AE-EX-4", "AE-EX-5", "AE-EX-6", "AE-EX-7"]);
+  assert.deepEqual(chapters.levelNodesForChapter("AE2").map(node => node.id), ["AE-EX-1", "AE-EX-2", "AE-EX-3", "AE-EX-4", "AE-EX-5", "AE-EX-6", "AE-EX-7", "AE-EX-8"]);
   assert.equal(chapters.levelNodesForChapter("AE").length, 10);
   const level = levels.getLevelConfig("AE-EX-1");
   assert.equal(level.totalWaves, 10);
@@ -167,7 +167,13 @@ test("Symbol Domain Capital follows Symbol Domain and unlocks AE-EX-1 after DEL"
   assert.equal(progress.discoveredEnemies().enemies.has("minus"), true);
   assert.equal(progress.discoveredEnemies().enemies.has("minus2"), false);
   assert.equal(progress.discoveredEnemies().enemies.has("minus3"), false);
+  assert.equal(progress.isLevelUnlocked("AE-EX-8"), false);
   progress.completeLevel("AE-EX-7");
+  assert.equal(progress.isChapterCompleted("AE2"), false);
+  assert.equal(progress.isLevelUnlocked("AE-EX-8"), true);
+  assert.equal(progress.discoveredEnemies().enemies.has("minus2"), true);
+  assert.equal(progress.discoveredEnemies().enemies.has("minus3"), false);
+  progress.completeLevel("AE-EX-8");
   assert.equal(progress.isChapterCompleted("AE2"), true);
 });
 
@@ -265,6 +271,26 @@ test("AE-EX-7 introduces only Minus I without inheriting NUL or creating AE-EX-9
   assert.deepEqual(level.enemyKinds, ["circle", "tilde", "tilde2", "tilde3", "equals3", "dollar", "plus", "minus"]);
   assert.deepEqual(levels.levelPreviewEnemyKinds(level), level.enemyKinds);
   assert.equal(levels.levelNodes.some(node => node.id === "AE-EX-9"), false);
+});
+
+test("AE-EX-8 combines DEL with the capital template, requested pool and periodic NUL", () => {
+  const { levels } = fixture();
+  const level = levels.getLevelConfig("AE-EX-8");
+  assert.equal(level.unlockAfter, "AE-EX-7");
+  assert.equal(level.bossKind, "del");
+  assert.equal(level.endless, true);
+  assert.equal(level.survival, undefined);
+  assert.equal(level.bossEndless, undefined);
+  assert.equal(level.totalWaves, undefined);
+  assert.equal(level.startingChars, 2000);
+  assert.deepEqual([level.firstWaveWeight, level.waveWeightIncrement, level.waveWeightIncrementGrowth], [30, 35, 5]);
+  assert.equal(level.wavesPerFlag, 10);
+  assert.equal(level.waveWeightCap, undefined);
+  assert.deepEqual(level.periodicTowerNullification, levels.getLevelConfig("AE-EX-2").periodicTowerNullification);
+  assert.deepEqual(level.enemyKinds, ["circle", "tilde", "tilde2", "tilde3", "invertedTriangle", "invertedTriangle2", "invertedTriangle3",
+    "parentheses", "parentheses2", "parentheses3", "dollar", "dollar2", "plus", "plus2", "minus", "minus2",
+    "chevronLeader3", "hexMace", "hexMace2", "hexMace3"]);
+  assert.deepEqual(levels.levelPreviewEnemyKinds(level), level.enemyKinds);
 });
 
 test("AE-10 unlocks DEL after AE-9 and adds mortar, pentagon and diamond ranks to its Boss battle pool", () => {

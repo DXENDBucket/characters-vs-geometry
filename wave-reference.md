@@ -3122,6 +3122,13 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 - Minus (`-`) shares Plus's combat panel: 20000 HP, 200 armor, 50 MR, 800 ATK, movement speed 10. Its entire weight curve is twice Plus's: 480 / 880 / 1280, with +400 per effective weight upgrade including growth breakpoints. Cannot spawn before flag 1. No SP skill or melee attack; attack speed 60.
 - Each shot emits two accelerating homing projectiles from opposite ends, each dealing 25% ATK magic damage (200 at base). Locks the nearest flying tower at launch, otherwise the nearest tower; after target disappearance retargets the nearest tower to the projectile regardless of flight. Rank adds volleys using the standard five-volley/multi-judgment distribution. Projectile targets and velocity persist through snapshots.
 
+## ASCII Expansion: Symbol Domain Capital / AE-EX-8
+
+- Unlocks after AE-EX-7. DEL Boss battle: waves continue until DEL is defeated, with no fixed wave count; this is not an Infinite Front operation. DEL retains its existing stats and skills.
+- Uses EX defaults: 2000 starting characters, initial weight 30, increment +35, extra increment +5, one flag every 10 waves, no weight cap.
+- Enemy pool: Circle I, Tilde I/II/III, Inverted Triangle I/II/III, Parentheses I/II/III, Dollar I/II, Plus I/II, Minus I/II, Greater-Than Sign III, Hex Mace I/II/III. Existing spawn restrictions and flag-wave leader rules apply.
+- Environment matches AE-EX-2: each grid tower enters NUL for 10 seconds every 60 seconds from its deployment; edge connectors remain exempt. This coexists with DEL's Format skill, using the existing overlapping NUL rules. The environment description appears between the Boss and ordinary enemy previews.
+
 ## ASCII Expansion: AE-10
 
 - Unlocks after AE-9. Boss battle: waves continue until DEL is defeated; not an Infinite Front operation.
