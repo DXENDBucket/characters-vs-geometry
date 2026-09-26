@@ -3094,6 +3094,12 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 - Enemy pool: Circle I, Tilde III/IV/V, Triangle Ram III/IV/V, Angel Pentagon III, Greater-Than Sign I. Ranks IV/V use the existing rank growth rules; natural Triangle Ram spawns remain excluded from waves 1-4. Greater-Than Sign follows normal flag-wave leader spawning.
 - Environment: every wave, including flag waves, additionally spawns exactly one Archangel Heptagon I in a battle-seeded random row without consuming wave weight. The extra archangel is not in the regular pool and does not receive a duplicate flag spawn. Preview/discovery includes the extra leader and the environment description; victory requires clearing the remaining enemies after wave 30.
 
+## ASCII Expansion: Symbol Domain Capital / AE-EX-4
+
+- Unlocks after AE-EX-3; 30 waves. Uses EX defaults: 2000 starting characters, initial weight 30, increment +35, extra increment +5, one flag every 10 waves, no weight cap.
+- Enemy pool: Circle I, Tilde I, Equals I/II/III, Parentheses I/II/III, Hex Mace I/II/III, Shooting Triangle I/II/III, Diamond I/II/III, Shooting Pentagon I/II/III, Mortar Triangle I/II/III, Pentagon I/II/III, Greater-Than Sign III.
+- No additional environment effect. Existing spawn restrictions apply; Greater-Than Sign III follows normal flag-wave leader spawning.
+
 ## ASCII Expansion: AE-10
 
 - Unlocks after AE-9. Boss battle: waves continue until DEL is defeated; not an Infinite Front operation.
