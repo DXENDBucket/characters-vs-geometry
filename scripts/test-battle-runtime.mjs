@@ -23,6 +23,45 @@ const prepared = (level = "1-9", cards = ["A", "B", "X"]) => {
   return runtime;
 };
 
+test("cell seals erase NUL towers and shells permanently, including after restoration", () => {
+  for (const seal of ["timed", "warning", "column"]) {
+    const runtime = prepared("AE-LM-2", ["B", "()"]);
+    const tower = place(runtime, "B", 2, 2), shell = place(runtime, "()", 2, 2);
+    const survivor = place(runtime, "B", 3, 3);
+    runtime.nullification.start(runtime.world.battleTime, 10000);
+    assert.equal(runtime.world.towers.length, 0);
+    if (seal === "timed") runtime.cells.sealTimedCell(2, 2, 5000);
+    else if (seal === "column") runtime.cells.sealColumn(2);
+    else {
+      runtime.cells.warnCell(2, 2, BATTLE_STEP_MS, 5000, 0);
+      assert.equal(tower.nullified, true, "Warnings alone do not erase towers");
+      step(runtime, 2);
+    }
+    assert.equal(tower.inPlay, false); assert.equal(shell.inPlay, false);
+    assert.equal(tower.nullified, undefined); assert.equal(shell.nullified, undefined);
+    assert.equal(runtime.nullification.isOccupied(2, 2), false);
+    assert.deepEqual(runtime.nullification.snapshot().towers, [survivor]);
+    const restored = cloneCheckpoint(runtime);
+    for (let i = 0; i < 660; i++) { step(runtime); step(restored); }
+    assert.equal(checksum(runtime), checksum(restored));
+    assert.equal(runtime.nullification.snapshot(), undefined);
+    assert.deepEqual(runtime.world.towers, [survivor]);
+    assert.equal(runtime.world.occupied.has("2:2"), false);
+  }
+});
+
+test("legacy NUL and sealed-cell overlap is cleaned before recovery", () => {
+  const runtime = prepared("AE-T-2", ["B"]), tower = place(runtime, "B", 2, 2);
+  runtime.nullification.start(0, 10000);
+  runtime.world.sealedCells.add("2:2");
+  const restored = cloneCheckpoint(runtime);
+  step(restored);
+  assert.equal(restored.nullification.snapshot(), undefined);
+  assert.equal(restored.world.towers.length, 0);
+  step(restored, 660);
+  assert.equal(restored.world.towers.length, 0);
+});
+
 test("archive hazards and seals survive validated replay restoration and expire normally", () => {
   const runtime = prepared("AE-LM-1", ["B"]);
   place(runtime, "B", 0, 12);

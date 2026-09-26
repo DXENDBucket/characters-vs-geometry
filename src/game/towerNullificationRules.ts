@@ -27,6 +27,26 @@ export class TowerNullificationSimulation<T extends Tower = Tower> {
   snapshot() { return this.state; }
   isOccupied(lane: number, column: number) { return this.cells.has(`${lane}:${column}`); }
 
+  eraseWhere(matches: (tower: T) => boolean, erase: (tower: T) => void) {
+    if (!this.state) return false;
+    const removed = this.state.towers.filter(matches);
+    if (!removed.length) return false;
+    const selected = new Set(removed);
+    this.state.towers = this.state.towers.filter(tower => !selected.has(tower));
+    if (!this.state.towers.length) this.state = undefined;
+    this.cells.clear();
+    for (const tower of this.state?.towers ?? []) this.cells.add(`${tower.lane}:${tower.column}`);
+    for (const tower of removed) {
+      delete tower.nullified;
+      delete tower.nullifiedUntil;
+      // Permit the normal removal lifecycle without returning the tower to combat.
+      tower.inPlay = true;
+      erase(tower);
+    }
+    this.runtime().changed();
+    return true;
+  }
+
   start(time: number, durationMs: number, targets?: readonly T[]) {
     if (this.state && !targets) return false;
     const runtime = this.runtime();

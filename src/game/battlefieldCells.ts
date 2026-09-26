@@ -15,6 +15,7 @@ export const NO_BATTLEFIELD_CELL_PRESENTATION: BattlefieldCellPresentation = Obj
 export interface BattlefieldCellRuntime<T extends TowerState = TowerState> {
   world: { towers: T[]; sealedCells: Set<string>; timedCellSeals: TimedCellSeals; battleTime: number };
   removeTower(tower: T): void;
+  eraseNullifiedCell?(lane: number, column: number, erase: (tower: T) => void): boolean;
   updateLevelAuras(): void;
 }
 
@@ -30,7 +31,11 @@ export class BattlefieldCells<T extends TowerState = TowerState> {
       this.runtime.removeTower(tower);
       removed = true;
     }
-    return removed;
+    const removedNullified = this.runtime.eraseNullifiedCell?.(lane, column, tower => {
+      this.presentation.erase(tower);
+      this.runtime.removeTower(tower);
+    }) ?? false;
+    return removed || removedNullified;
   }
 
   sealColumn(column: number) {

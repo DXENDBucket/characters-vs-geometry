@@ -367,11 +367,19 @@ export class BattleRuntime {
       defeatedBoss: rank => observers.defeatedBoss?.(rank), endGame: () => this.finish("defeat")
     });
     this.cells = new BattlefieldCells({
-      world, removeTower: tower => this.removeTower(tower), updateLevelAuras: () => this.board.refresh()
+      world, removeTower: tower => this.removeTower(tower), updateLevelAuras: () => this.board.refresh(),
+      eraseNullifiedCell: (lane, column, erase) =>
+        this.nullification.eraseWhere(tower => tower.lane === lane && tower.column === column, erase)
     });
     const playerClockMultiplier = (id: string) => this.skills.cardCooldownMultiplier(id);
     this.systems = {
-      updateNullification: (time, periodic) => this.nullification.update(time, periodic),
+      updateNullification: (time, periodic) => {
+        this.nullification.eraseWhere(tower => world.sealedCells.has(`${tower.lane}:${tower.column}`) ||
+          world.timedCellSeals.isSealed(tower.lane, tower.column), tower => {
+          this.cells.presentation.erase(tower); this.removeTower(tower);
+        });
+        this.nullification.update(time, periodic);
+      },
       eraseSealedCell: (lane, column) => this.cells.eraseCell(lane, column),
       updateLevelAuras: () => this.board.refresh(), sealsChanged: () => observers.placement?.(),
       syncCopiedTowers: () => this.board.syncCopies(),
