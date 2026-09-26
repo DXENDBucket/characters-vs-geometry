@@ -64,6 +64,14 @@ try {
   assert.equal(await page.locator(".replay-menu").evaluate(el => el.scrollWidth <= el.clientWidth), true);
   await page.getByRole("button", { name: "返回", exact: true }).click();
   await page.screenshot({ path: "logs/replays-main-mobile.png" });
+  for (const [itemIndex, sceneKey] of [[0, "ChapterGroupSelectScene"], [3, "SettingsScene"]]) {
+    await page.evaluate(index => window.__testGame.scene.getScene("MainMenuScene").items[index].action(), itemIndex);
+    await page.waitForFunction(key => window.__testGame.scene.isActive(key), sceneKey);
+    await page.evaluate(key => window.__testGame.scene.getScene(key).goBack(), sceneKey);
+    await page.waitForFunction(() => window.__testGame.scene.isActive("MainMenuScene"));
+    assert.equal(await page.locator(".replay-menu").count(), 0, `${sceneKey} return must not reopen replays`);
+    assert.equal(await page.evaluate(() => window.__testGame.scene.getScene("MainMenuScene").input.enabled), true);
+  }
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ result: "recent replay, playback, pause, restart, import/export and mobile layout passed", recordedTick, expected }));
+  console.log(JSON.stringify({ result: "recent replay, playback, pause, restart, import/export, mobile layout and menu return passed", recordedTick, expected }));
 } finally { await browser.close(); }

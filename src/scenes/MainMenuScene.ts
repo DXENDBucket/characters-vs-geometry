@@ -31,7 +31,11 @@ export class MainMenuScene extends Phaser.Scene {
     super("MainMenuScene");
   }
 
-  init(data: { showReplays?: boolean } = {}) { this.showReplays = !!data.showReplays; }
+  init(data: { showReplays?: boolean } = {}) {
+    this.showReplays = !!data.showReplays;
+    // Phaser retains scene data between starts; consume this one-shot navigation request.
+    this.sys.settings.data = {};
+  }
 
   create() {
     this.input.enabled = true;
