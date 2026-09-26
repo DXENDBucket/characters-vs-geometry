@@ -62,8 +62,10 @@ function validateEntry(key: string, raw: string) {
           !Number.isSafeInteger(count) || (count as number) < 0)))) throw new Error("Invalid endless difficulty records");
     }
   } else if (key === PREFERENCES_KEY) {
-    if (Object.keys(value).some(key => key !== "debugMode" && key !== "audio") ||
+    if (Object.keys(value).some(key => key !== "debugMode" && key !== "audio" && key !== "difficulty") ||
         (value.debugMode !== undefined && typeof value.debugMode !== "boolean") ||
+        (value.difficulty !== undefined && (!Number.isInteger(value.difficulty) ||
+          (value.difficulty as number) < DIFFICULTY_MIN || (value.difficulty as number) > DIFFICULTY_MAX)) ||
         (value.audio !== undefined && !validAudioSettings(value.audio))) throw new Error("Invalid preferences");
   } else if (key === BINDINGS_KEY) {
     if (Object.entries(value).some(([action, code]) =>

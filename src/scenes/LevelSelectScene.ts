@@ -6,6 +6,7 @@ import { createPageHeading, createHeaderNavigation } from "../render/pageHeader"
 import { createSelectionMapViewport, drawSelectionMapFrame } from "../render/selectionMap";
 import { createCompletionMarks } from "../render/completionMarks";
 import { readSurvivalSave } from "../survivalSaves";
+import { getSelectedDifficulty, setSelectedDifficulty } from "../settings/preferences";
 import {
   DEFAULT_DIFFICULTY,
   DIFFICULTY_MAX,
@@ -89,7 +90,7 @@ export class LevelSelectScene extends Phaser.Scene {
     this.mapDragTimer = null;
     this.mapDragging = false;
     this.suppressNodeClickUntil = 0;
-    this.difficulty = clampDifficulty(data.difficulty);
+    this.difficulty = clampDifficulty(data.difficulty ?? getSelectedDifficulty());
     this.unlimitedFirepower = Boolean(data.unlimitedFirepower);
     const nodes = this.chapterNodes();
     const selectedNode = nodes.find((node) => node.id === data.selectedLevelId && isLevelUnlocked(node.id));
@@ -693,6 +694,7 @@ export class LevelSelectScene extends Phaser.Scene {
   private setDifficultyFromX(x: number, trackX: number, trackWidth: number) {
     const ratio = Phaser.Math.Clamp((x - trackX) / trackWidth, 0, 1);
     this.difficulty = clampDifficulty(ratio * DIFFICULTY_MAX);
+    setSelectedDifficulty(this.difficulty);
     this.updateDifficultySlider(trackX, trackWidth);
   }
 

@@ -11,6 +11,7 @@ import { RemoteBattleSession } from "../render/remoteBattleSession";
 import { playUiClick } from "../audio/player";
 import { createTowerWord } from "../render/towerWord";
 import type { CardId } from "../types";
+import { getSelectedDifficulty, setSelectedDifficulty } from "../settings/preferences";
 
 export class CoopScene extends Phaser.Scene {
   private root?: HTMLDivElement;
@@ -79,6 +80,9 @@ export class CoopScene extends Phaser.Scene {
           if (!this.active) return;
           client.token = result.token; this.client = client; this.profile = profile; this.actorId = result.actorId; this.state = result.state;
           this.schedulePoll();
+          if (!join && this.state.levelId) {
+            this.state = await client.request<CoopState>("configure", { levelId: this.state.levelId, difficulty: getSelectedDifficulty() });
+          }
         });
       };
       this.button(actions, "创建房间", () => enter(false)); this.button(actions, "加入房间", () => enter(true));
@@ -119,7 +123,10 @@ export class CoopScene extends Phaser.Scene {
     finally { this.busy = false; if (this.active) this.render(); }
   }
   private command(action: string, data: unknown) {
-    return this.run(async () => { this.state = await this.client!.request<CoopState>(action, data); });
+    return this.run(async () => {
+      this.state = await this.client!.request<CoopState>(action, data);
+      if (action === "configure" && this.actorId === "host") setSelectedDifficulty(this.state.difficulty);
+    });
   }
   private schedulePoll() {
     clearTimeout(this.timer);

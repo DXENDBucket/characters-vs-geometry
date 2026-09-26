@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { playUiClick } from "../audio/player";
+import { getSelectedDifficulty } from "../settings/preferences";
 import { bindButtonHover } from "../render/buttonHover";
 import { createPageHeading } from "../render/pageHeader";
 import { enemyArchetypes } from "../data/enemyArchetypes";
@@ -126,7 +127,7 @@ export class CardSelectScene extends Phaser.Scene {
     this.choosingImitation = false;
     this.levelId = data.levelId ?? "1-1";
     this.chapterId = data.chapterId ?? chapterIdForLevelId(this.levelId);
-    this.difficulty = clampDifficulty(data.difficulty);
+    this.difficulty = clampDifficulty(data.difficulty ?? getSelectedDifficulty());
     this.unlimitedFirepower = Boolean(data.unlimitedFirepower);
     this.cardSlotCount = this.reselect?.policy.slotCount ?? unlockedCardSlotCount();
     this.selectedCards = this.reselect ? [...this.reselect.selectedCards] : readStoredLoadout(this.cardSlotCount);

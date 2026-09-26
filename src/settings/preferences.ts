@@ -1,15 +1,24 @@
 import { normalizeAudioSettings, type AudioSettings } from "../audio/settings";
+import { clampDifficulty } from "../config";
 
 const STORAGE_KEY = "characters-vs-geometry-preferences";
 
 interface StoredPreferences {
   debugMode?: boolean;
   audio?: AudioSettings;
+  difficulty?: number;
 }
 
 let cachedPreferences: StoredPreferences | null = null;
 
 export function reloadPreferences() { cachedPreferences = null; }
+
+export function getSelectedDifficulty() { return clampDifficulty(preferences().difficulty); }
+
+export function setSelectedDifficulty(difficulty: number) {
+  const value = clampDifficulty(Number.isFinite(difficulty) ? difficulty : undefined);
+  if (getSelectedDifficulty() !== value) writePreferences({ ...preferences(), difficulty: value });
+}
 
 export function isDebugModeEnabled() {
   return preferences().debugMode === true;
@@ -48,7 +57,8 @@ function readPreferences(): StoredPreferences {
 
     const parsed = JSON.parse(raw) as StoredPreferences | null;
     return parsed && typeof parsed === "object"
-      ? { debugMode: parsed.debugMode === true, audio: normalizeAudioSettings(parsed.audio) }
+      ? { debugMode: parsed.debugMode === true, audio: normalizeAudioSettings(parsed.audio),
+        difficulty: Number.isFinite(parsed.difficulty) ? clampDifficulty(parsed.difficulty) : undefined }
       : {};
   } catch {
     return {};
