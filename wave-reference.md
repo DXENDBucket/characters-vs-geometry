@@ -3143,6 +3143,13 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 - Enemy pool: Circle I, Tilde I/II/III, Parentheses I, Inverted Triangle I/II/III, Dollar I, Greater-Than Sign I.
 - Environment: each tower independently alternates 30 seconds of normal operation and 30 seconds of NUL, starting from deployment. First NUL starts at age 30s; subsequent starts are at 90s, 150s, etc. NUL retains the existing suspension and cell-reservation behavior; edge connectors remain unaffected. Other levels keep their existing NUL cadence.
 
+## ASCII Expansion: Symbol Domain Proving Grounds / AE-T-3
+
+- Unlocks after AE-T-2; 20 waves, 5000 starting characters. EX weight template: initial weight 30, increment +35, extra increment +5, one flag every 10 waves, no weight cap.
+- Regular enemy pool: Circle I, Tilde I/II/III, Inverted Triangle I/II/III, Equals I/II/III, Hex Mace I, Dollar I.
+- Environment: every 15 seconds of battle time, spawns one Archangel Heptagon I from the right edge in row 4, first at 15s. Independent of wave refreshes, consumes no wave weight, pauses with combat and retains cadence after restoration. Surviving reinforcements must also be defeated for victory.
+- Enemy preview/discovery includes the periodic Archangel; other field effects are not inherited from AE-T-2.
+
 ## ASCII Expansion: AE-10
 
 - Unlocks after AE-9. Boss battle: waves continue until DEL is defeated; not an Infinite Front operation.

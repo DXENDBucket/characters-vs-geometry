@@ -229,6 +229,11 @@ export class CardSelectScene extends Phaser.Scene {
         lane: typeof spawn.lane === "number" ? spawn.lane + 1 : 1 });
     });
     if (levelConfig.specialMechanic === "rightColumnSeal") environmentDescriptions.push(t("label.rightColumnSeal"));
+    for (const spawn of levelConfig.periodicEnemySpawns ?? []) {
+      environmentDescriptions.push(t("label.periodicEnemySpawn", {
+        enemy: getEnemyDisplayName(spawn.kind), lane: spawn.lane + 1, interval: spawn.intervalMs / 1000
+      }));
+    }
     if (levelConfig.periodicTowerNullification) environmentDescriptions.push(t(
       levelConfig.periodicTowerNullification.initialDelayMs !== undefined
         ? "label.delayedPeriodicTowerNullification" : "label.periodicTowerNullification", {

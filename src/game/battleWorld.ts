@@ -13,7 +13,7 @@ import { towerBehaviorType } from "./towerIdentity";
 import { getProductionAmount } from "./towerRules";
 import { TimedCellSeals } from "./timedCellSeals";
 import { waveScheduleAction } from "./waves";
-import { spawnBattleWave, type EnemySpawnOptions } from "./waveSpawner";
+import { spawnBattleWave, spawnPeriodicEnemies, type EnemySpawnOptions } from "./waveSpawner";
 import { BattleEntityIds } from "./battleEntityIds";
 import { BattleEntityIndex } from "./battleEntityGraph";
 import { BattleLoadout } from "./battleLoadout";
@@ -206,6 +206,11 @@ export class BattleWorld<E extends BattleEntities = BattleEntities> implements B
       systems.updateMortarProjectiles(seconds);
       this.tutorial?.update();
       if (!this.tutorial || this.tutorial.usesWaveSchedule) this.updateWaveSchedule(this.levelElapsed, this.battleTime, systems);
+      const level = this.options.level;
+      if (!this.gameOver && level.periodicEnemySpawns && (level.totalWaves === undefined || this.wave < level.totalWaves)) {
+        spawnPeriodicEnemies(this.options.level, this.battleTime - delta, this.battleTime,
+          this.wave, this.options.difficulty.finalDamageReduction, options => systems.spawnEnemy(options));
+      }
       systems.autoUpgrade();
     } finally { this.stepping = false; }
   }

@@ -102,6 +102,20 @@ export function spawnBattleWave(options: WaveSpawnRequest, random: BattleRandom,
   };
 }
 
+// Battle-clock boundaries need no additional timer state in snapshots or replays.
+export function spawnPeriodicEnemies(level: LevelConfig, previousTime: number, time: number,
+  waveNumber: number, finalDamageReduction: number, spawnEnemy: (options: EnemySpawnOptions) => number) {
+  for (const [index, spawn] of (level.periodicEnemySpawns ?? []).entries()) {
+    // Fixed steps are fractional milliseconds; tolerate rounding at exact boundaries.
+    const first = Math.floor((previousTime + 1e-6) / spawn.intervalMs) + 1;
+    const last = Math.floor((time + 1e-6) / spawn.intervalMs);
+    for (let occurrence = first; occurrence <= last; occurrence++) {
+      spawnEnemy({ kind: spawn.kind, lane: spawn.lane, waveNumber, time,
+        x: BOARD_X + BOARD_WIDTH + 58 + index * 8, waveWeight: 0, finalDamageReduction });
+    }
+  }
+}
+
 function flagLeaderKinds(enemyKinds: EnemyKind[], waveNumber: number, wavesPerFlag: number) {
   if (waveNumber % wavesPerFlag !== 0) {
     return [];

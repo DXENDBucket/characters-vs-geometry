@@ -122,6 +122,12 @@ for (const level of Object.values(levelConfigs)) {
       errors.push(`Level "${level.id}" has an invalid extra spawn wave.`);
     }
   }
+  for (const spawn of level.periodicEnemySpawns ?? []) {
+    if (!Number.isInteger(spawn.lane) || spawn.lane < 0 || spawn.lane >= LANES ||
+        !Number.isFinite(spawn.intervalMs) || spawn.intervalMs <= 0) {
+      errors.push(`Level "${level.id}" has an invalid periodic enemy spawn.`);
+    }
+  }
 }
 const levelBossKinds = unique(Object.values(levelConfigs).map(level => level.bossKind).filter(Boolean));
 const cardRows = parseWaveReferenceCards(files.waveReference);

@@ -59,6 +59,44 @@ function systems(world, changes = {}) {
   return { ports, events };
 }
 
+test("AE-T-3 timed reinforcements follow the battle clock and stop on the final wave", () => {
+  const world = makeWorld("AE-T-3"), spawned = [];
+  const { ports } = systems(world, { spawnEnemy: spawn => { spawned.push(spawn); return spawn.waveWeight; } });
+  world.wave = 1;
+  world.battleTime = 15000 - BATTLE_STEP_MS * 2;
+  world.step(ports); assert.equal(spawned.length, 0);
+  world.step(ports); assert.equal(spawned.length, 1);
+  assert.equal(spawned[0].kind, "archangelHeptagon");
+  assert.equal(spawned[0].lane, 3);
+  assert.equal(spawned[0].waveWeight, 0);
+  assert.equal(spawned[0].finalDamageReduction, world.options.difficulty.finalDamageReduction);
+  world.step(ports); assert.equal(spawned.length, 1);
+  world.battleTime = 30000 - BATTLE_STEP_MS;
+  world.step(ports); assert.equal(spawned.length, 2);
+  world.wave = 20;
+  world.battleTime = 45000 - BATTLE_STEP_MS;
+  world.step(ports); assert.equal(spawned.length, 2);
+  world.wave = 19;
+  world.battleTime = 60000 - BATTLE_STEP_MS;
+  world.tutorial = null;
+  world.updateWaveSchedule = () => { world.wave = 20; };
+  world.step(ports); assert.equal(spawned.length, 2, "No reinforcement on the same tick as the final wave");
+  world.wave = 1; world.finish("victory");
+  world.battleTime = 75000 - BATTLE_STEP_MS;
+  world.step(ports); assert.equal(spawned.length, 2);
+});
+
+test("periodic reinforcements resume from saved battle time without replaying past spawns", () => {
+  const world = makeWorld("AE-T-3"), spawned = [];
+  const { ports } = systems(world, { spawnEnemy: spawn => { spawned.push(spawn); return spawn.waveWeight; } });
+  world.wave = 8;
+  world.battleTime = 45000;
+  world.step(ports); assert.equal(spawned.length, 0);
+  world.battleTime = 60000 - BATTLE_STEP_MS;
+  world.step(ports); assert.equal(spawned.length, 1);
+  assert.equal(spawned[0].waveNumber, 8);
+});
+
 test("world instances own independent progress, rosters, occupancy, seals and configuration", () => {
   const input = options(), a = new BattleWorld(input, new BattleRandom(1)), b = makeWorld();
   input.level.enemyKinds.length = 0; input.difficulty.weightMultiplier = 999;
@@ -167,7 +205,8 @@ const waveBaselines = [
   ["5-7", 20, "934545a2ebdd455f047b0fba7915186d013996d492ab9e9ee1be8bae302c194d"],
   ["IF-12", 30, "4453abeede8e9c26c3c9cbee5efe696258d8cbe1c735b0ca60de4b277e67b036"],
   ["IF-BE-4", 11, "faaa5b7a64c5503eac1733903f9677cd8adb07a28827ce9ae0f66e68b53aceaf"],
-  ["AE-EX-1", 1, "9058fcd1b1dfce9fe44ef9b19969293fa7405f2f08342c83a6608fe927c3b156"],
+  // Updated for the cannon-form Greater-Than Sign speed reduction from 15 to 5.
+  ["AE-EX-1", 1, "15b43d4bc1f9f29afaa6539adbe63020ca362b640b8fbd6a8d076080288ffdd2"],
   ["0-2", 5, "c682d9e66dfbd3ea50c88822bcecc49869174e8c26eae262656069899e63b48f"],
   ["AE-7", 9, "b72d9bbfac54c64aa8e11f3cdbef6e0d0d92e6f489992c2e45d55631414b496e"]
 ];
