@@ -86,6 +86,15 @@ try {
   await guest.waitForFunction(() => !document.querySelector(".coop-connection")?.hidden);
   await guest.getByRole("button", { name: "退出联机" }).click();
   await guest.waitForFunction(() => window.__testGame.scene.isActive("MainMenuScene"));
+  for (const page of pages) {
+    const count = await page.evaluate(async () => {
+      const { replayLibrary, validateReplayEntry } = await import("/src/replays.ts");
+      const entries = await replayLibrary.recent();
+      for (const entry of entries) validateReplayEntry(entry);
+      return entries.length;
+    });
+    assert.equal(count, 1, "Snapshot replacement must not count as another battle");
+  }
   assert.deepEqual(errors, []);
   console.log(JSON.stringify({ result: "two-player lobby, local cards, deployment, sync and exit passed", ...states[0] }));
 } catch (error) {

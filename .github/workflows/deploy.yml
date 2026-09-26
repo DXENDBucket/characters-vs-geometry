@@ -42,6 +42,9 @@ jobs:
       - name: Test cooperative transport
         run: node --test scripts/test-coop-room.mjs scripts/test-coop-transport.mjs
 
+      - name: Test replay library
+        run: node --test scripts/test-replays.mjs
+
       - name: Build
         run: npm run build
 

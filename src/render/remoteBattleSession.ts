@@ -19,6 +19,7 @@ export class RemoteBattleSession {
   private readonly input: BattleInputPort;
   private currentScene?: GameScene;
   private readonly key = `RemoteBattle-${++nextSession}`;
+  private readonly replayRecordId = crypto.randomUUID();
   private serial = 0;
   private replacing = false;
   private disposed = false;
@@ -81,6 +82,7 @@ export class RemoteBattleSession {
       this.currentScene = scene;
       this.game.scene.add(key, scene, false);
       this.game.scene.start(key, { replica: replay, viewActorId: this.options.actorId,
+        replayRecordId: this.replayRecordId,
         input: this.input, onRemoteExit: () => this.close() });
       scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
         if (!this.replacing && !this.disposed) this.close();

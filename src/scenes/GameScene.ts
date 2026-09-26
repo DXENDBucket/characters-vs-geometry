@@ -28,6 +28,8 @@ import type { BattleAction, ScheduleBattleAction } from "../game/battleActions";
 import { BattleAuthority } from "../game/battleAuthority";
 import { battleChecksum } from "../game/battleChecksum";
 import { validateReplay, type BattleCommand, type BattlePointer, type BattleReplay, type RecordedBattleCommand } from "../game/battleCommands";
+import { replayLibrary, type ReplayEntry } from "../replays";
+import { ReplayControls } from "../render/replayControls";
 import {
   validBattleControl, validReserveChars,
   type BattleControl
@@ -221,6 +223,11 @@ export class GameScene extends Phaser.Scene {
   get commandAuthority() { return this.authority; }
   private get simulation() { return this.session.clock; }
   private get playback() { return this.session?.playback; }
+  private replayControls?: ReplayControls;
+  private replayRecordId?: string;
+  private replayStartedAt = 0;
+  private replaySavedTick = -1;
+  private replayRecordReady = false;
   private get actionQueue() { return this.session.actions; }
   private readonly sessionRuntime: BattleSessionRuntime = {
     step: () => this.stepBattle(),
@@ -230,7 +237,7 @@ export class GameScene extends Phaser.Scene {
   private rewardEncyclopedia?: EncyclopediaPanel;
   private resumeSave?: SurvivalSave;
   private resumeRequested = false;
-  private readonly saveOnPageHide = () => { this.saveSurvivalBattle(); };
+  private readonly saveOnPageHide = () => { this.saveSurvivalBattle(); void this.saveRecentReplay(); };
   private readonly scheduleBattleAction: ScheduleBattleAction = (delay, action) => {
     this.actionQueue.schedule(this.battleTime, delay, action);
   };
@@ -385,7 +392,10 @@ export class GameScene extends Phaser.Scene {
     super(key);
   }
 
-  init(data: { levelId?: string; chapterId?: string; selectedCards?: CardId[]; difficulty?: number; unlimitedFirepower?: boolean; resume?: boolean; seed?: number; replay?: BattleReplay; participants?: readonly BattleOperationActor[]; policy?: BattlePolicy; playerLoadouts?: readonly BattlePlayerLoadout[]; persistProgress?: boolean; replica?: BattleReplay; viewActorId?: string; input?: BattleInputPort; onRemoteExit?: () => void }) {
+  init(data: { levelId?: string; chapterId?: string; selectedCards?: CardId[]; difficulty?: number; unlimitedFirepower?: boolean; resume?: boolean; seed?: number; replay?: BattleReplay; participants?: readonly BattleOperationActor[]; policy?: BattlePolicy; playerLoadouts?: readonly BattlePlayerLoadout[]; persistProgress?: boolean; replica?: BattleReplay; viewActorId?: string; input?: BattleInputPort; onRemoteExit?: () => void; replayRecordId?: string }) {
+    this.replayRecordReady = false; this.replaySavedTick = -1;
+    this.replayStartedAt = Date.now();
+    this.replayRecordId = data.replay || data.persistProgress === false ? undefined : data.replayRecordId ?? crypto.randomUUID();
     this.inputEpoch++;
     this.synchronizedViewsDirty = false;
     if (data.input && !data.replica) throw new Error("Remote input requires a replica");
@@ -486,6 +496,7 @@ export class GameScene extends Phaser.Scene {
       finished: result => this.battlefield.ui(() => {
         const rewards = this.profile.settle(result);
         playSound(result.outcome); this.showBattleResult(result, rewards);
+        queueMicrotask(() => { if (this.scene.isActive()) void this.saveRecentReplay(); });
       })
     });
     this.worldSystems = this.runtime.systems as BattleWorldSystems<LiveBattleEntities>;
@@ -629,8 +640,14 @@ export class GameScene extends Phaser.Scene {
     this.input.on("pointermove", this.scenePointerMoveHandler);
     this.input.keyboard?.on("keydown", this.sceneKeyDownHandler);
     window.addEventListener("pagehide", this.saveOnPageHide);
+    this.replayRecordReady = true;
+    if (this.playback) {
+      this.replayControls = new ReplayControls(() => this.scene.restart({ replay: this.playback, viewActorId: this.playerView.actorId, persistProgress: false }),
+        () => this.handleOverlayAction());
+    }
     bindBattleAudio(this, !!this.levelConfig.bossKind, () => ({
-      paused: this.battlePaused || this.menuOpen || this.reselectOpen, finished: this.gameOver
+      paused: this.battlePaused || this.menuOpen || this.reselectOpen || !!this.replayControls?.paused,
+      finished: this.gameOver || this.session.playbackComplete
     }));
     if (this.resumeRequested && !this.playback && !this.gameOver) this.openPauseMenu();
     if (this.inputPort?.subscribe) {
@@ -649,6 +666,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private cleanupSceneHandlers() {
+    void this.saveRecentReplay(); this.replayRecordReady = false;
+    this.replayControls?.destroy(); this.replayControls = undefined;
     this.events.off("shutdown", this.sceneCleanup);
     this.events.off("destroy", this.sceneCleanup);
     this.inputEpoch++;
@@ -690,6 +709,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number) {
+    if (this.playback && this.replayControls) {
+      this.replayControls.update(this.session.clock.tick, this.playback.endTick, this.session.playbackComplete || this.gameOver);
+      if (this.replayControls.paused) return;
+      delta *= this.replayControls.speed;
+    }
     if (this.synchronizedViewsDirty) {
       this.synchronizedViewsDirty = false;
       this.refreshBattleViews();
@@ -1800,6 +1824,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private openPauseMenu() {
+    if (this.playback) { this.replayControls?.togglePause(); return; }
     if (this.menuOpen || this.reselectOpen) return;
     soundPlayer.stop("battle");
     this.menuOpen = true;
@@ -1866,6 +1891,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handleOverlayAction() {
+    if (this.playback) { this.scene.start("MainMenuScene", { showReplays: true }); return; }
     if (this.session.replica && this.onRemoteExit) { this.onRemoteExit(); return; }
     if (this.levelConfig.survival && !this.gameOver && !this.saveSurvivalBattle()) {
       this.pauseMenu.showError(t("save.failed"));
@@ -2077,7 +2103,8 @@ export class GameScene extends Phaser.Scene {
     } catch { return false; }
   }
 
-  prepareDesktopClose() {
+  async prepareDesktopClose() {
+    await this.saveRecentReplay();
     if (!this.levelConfig.survival || this.gameOver || this.playback) return true;
     return this.saveSurvivalBattle();
   }
@@ -2168,6 +2195,15 @@ export class GameScene extends Phaser.Scene {
 
   exportReplay(): BattleReplay {
     return this.session.exportReplay();
+  }
+
+  private async saveRecentReplay() {
+    if (!this.replayRecordReady || !this.replayRecordId || this.playback || this.session.clock.tick === this.replaySavedTick) return;
+    const replay = this.session.exportReplay();
+    this.replaySavedTick = replay.endTick;
+    const entry: ReplayEntry = { format: "charset-replay", version: 1, id: this.replayRecordId, savedAt: this.replayStartedAt,
+      outcome: this.world.result?.outcome ?? "unfinished", actorId: this.playerView.actorId, replay };
+    if (!await replayLibrary.save(entry) && this.scene.isActive()) this.showToast(t("replay.storageFailed"));
   }
 
   startSynchronization() {

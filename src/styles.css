@@ -118,6 +118,22 @@ canvas {
   display: none;
 }
 
+.replay-menu { width: 620px; }
+.replay-menu h3 { font-size: 15px; color: #b8dbe9; margin: 12px 0; }
+.replay-menu p { font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; color: #ccc; }
+.replay-menu [role="status"]:empty { display: none; }
+.replay-row { border-top: 1px solid #555; padding: 12px 0; overflow-wrap: anywhere; }
+.replay-row p { margin: 6px 0; }
+.replay-actions { display: flex; gap: 12px; }
+.replay-actions button { width: auto; min-width: 80px; }
+.replay-controls { position: fixed; z-index: 90; bottom: 8px; left: 50%; transform: translateX(-50%); display: flex;
+  align-items: center; gap: 8px; max-width: calc(100vw - 16px); padding: 8px; background: #101010; border: 1px solid #888; box-sizing: border-box; }
+.replay-controls button, .replay-controls select { border: 1px solid #777; background: #161616; color: #f5f5f5; height: 34px; cursor: pointer; }
+.replay-controls button { display: grid; place-items: center; width: 34px; flex: 0 0 34px; }
+.replay-controls button:hover, .replay-controls button:focus-visible, .replay-controls select:focus-visible { outline: 2px solid #48ff88; }
+.replay-controls span { font: 13px monospace; min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 480px) { .replay-controls { gap: 5px; width: max-content; } .replay-controls span { max-width: 100px; } }
+
 .coop-screen { position: fixed; inset: 130px 0 0; overflow: auto; background: #050505; z-index: 20; }
 .coop-screen[hidden] { display: none; }
 .coop-content { max-width: 860px; margin: 0 auto; padding: 20px 24px 32px; font-family: monospace; letter-spacing: 0; }

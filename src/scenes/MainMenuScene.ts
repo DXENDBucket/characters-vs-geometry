@@ -4,6 +4,7 @@ import { GAME_HEIGHT, GAME_WIDTH, palette, uiTextColors } from "../config";
 import { t } from "../i18n";
 import { createTowerWord } from "../render/towerWord";
 import { SaveMenu } from "../render/saveMenu";
+import { ReplayMenu } from "../render/replayMenu";
 import type { CardId } from "../types";
 
 interface MenuItem {
@@ -23,10 +24,14 @@ export class MainMenuScene extends Phaser.Scene {
   private exited = false;
   private resizeFrame = 0;
   private saveMenu?: SaveMenu;
+  private replayMenu?: ReplayMenu;
+  private showReplays = false;
 
   constructor() {
     super("MainMenuScene");
   }
+
+  init(data: { showReplays?: boolean } = {}) { this.showReplays = !!data.showReplays; }
 
   create() {
     this.input.enabled = true;
@@ -35,10 +40,12 @@ export class MainMenuScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(palette.black);
     this.root = this.add.container(0, 0);
     this.layout();
+    if (this.showReplays) this.openReplays();
     window.addEventListener("resize", this.handleResize);
     this.input.keyboard?.on("keydown", this.handleKey, this);
     this.events.once("shutdown", () => {
       this.saveMenu?.destroy(); this.saveMenu = undefined;
+      this.replayMenu?.destroy(); this.replayMenu = undefined;
       window.removeEventListener("resize", this.handleResize);
       cancelAnimationFrame(this.resizeFrame);
       this.input.keyboard?.off("keydown", this.handleKey, this);
@@ -82,16 +89,17 @@ export class MainMenuScene extends Phaser.Scene {
     }).setOrigin(0.5));
 
     const portrait = height > width;
-    const spacing = portrait ? 72 : height < 700 ? 52 : 56;
-    const startY = Math.min(Math.max(subtitleY + 65, height * 0.46), height - spacing * 5 - 38);
+    const spacing = portrait ? 72 : height < 700 ? 48 : 52;
+    const startY = Math.min(Math.max(subtitleY + 54, height * 0.43), height - spacing * 6 - 38);
     this.addMenuItem(centerX, startY, t("menu.singlePlayer"), () => this.scene.start("ChapterGroupSelectScene"));
     this.addMenuItem(centerX, startY + spacing, t("menu.multiplayer"), () => this.scene.start("CoopScene"));
     this.addMenuItem(centerX, startY + spacing * 2, t("button.encyclopedia"), () => this.scene.start("EncyclopediaScene"));
     this.addMenuItem(centerX, startY + spacing * 3, t("button.settings"), () => {
       this.scene.start("SettingsScene", { returnScene: "MainMenuScene" });
     });
-    this.addMenuItem(centerX, startY + spacing * 4, t("menu.saves"), () => this.openSaves());
-    this.addMenuItem(centerX, startY + spacing * 5, t("menu.quit"), () => this.quit());
+    this.addMenuItem(centerX, startY + spacing * 4, t("menu.replays"), () => this.openReplays());
+    this.addMenuItem(centerX, startY + spacing * 5, t("menu.saves"), () => this.openSaves());
+    this.addMenuItem(centerX, startY + spacing * 6, t("menu.quit"), () => this.quit());
   }
 
   private drawTitle(centerX: number, y: number, scale: number) {
@@ -113,7 +121,7 @@ export class MainMenuScene extends Phaser.Scene {
   private addMenuItem(x: number, y: number, text: string, action: () => void, enabled = true) {
     const activate = () => { playUiClick(); action(); };
     const index = this.items.length;
-    const hitArea = this.add.rectangle(x, y, 368, 50, palette.white, 0);
+    const hitArea = this.add.rectangle(x, y, 368, 44, palette.white, 0);
     const label = this.add.text(x - 130, y, text, {
       fontFamily: "monospace", fontSize: "24px", fontStyle: "700",
       color: enabled ? uiTextColors.primary : "#666666"
@@ -121,7 +129,7 @@ export class MainMenuScene extends Phaser.Scene {
     const arrow = this.add.text(x - 165, y, ">", {
       fontFamily: "monospace", fontSize: "22px", color: "#48ff88"
     }).setOrigin(0.5).setVisible(false);
-    const divider = this.add.rectangle(x, y + 27, 328, 1, palette.dim, 0.65);
+    const divider = this.add.rectangle(x, y + 24, 328, 1, palette.dim, 0.65);
     this.root.add([hitArea, label, arrow, divider]);
     this.items.push({ hitArea, label, arrow, enabled, action: activate });
     if (enabled) {
@@ -147,7 +155,7 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   private handleKey(event: KeyboardEvent) {
-    if (this.saveMenu) return;
+    if (this.saveMenu || this.replayMenu) return;
     if (event.code === "Escape") {
       if (this.exited) this.resumeMenu();
       else this.select(-1);
@@ -185,6 +193,15 @@ export class MainMenuScene extends Phaser.Scene {
       this.input.enabled = true;
       this.layout();
     });
+  }
+
+  private openReplays() {
+    if (this.replayMenu) return;
+    this.input.enabled = false;
+    this.replayMenu = new ReplayMenu(() => {
+      this.replayMenu?.destroy(); this.replayMenu = undefined;
+      this.input.enabled = true; this.layout();
+    }, entry => this.scene.start("GameScene", { replay: entry.replay, viewActorId: entry.actorId, persistProgress: false }));
   }
 
   private drawExitState(width: number, height: number) {

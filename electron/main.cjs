@@ -33,12 +33,13 @@ async function createWindow() {
       throw new Error("Untrusted save request");
     }
   };
-  ipcMain.handle("charset:export-save", async (event, text) => {
+  ipcMain.handle("charset:export-save", async (event, text, kind = "save") => {
     checkSender(event);
+    if (!["save", "replay"].includes(kind)) throw new Error("Invalid file kind");
     if (typeof text !== "string" || Buffer.byteLength(text, "utf8") > 32 * 1024 * 1024) throw new Error("Invalid save size");
     const { canceled, filePath } = await dialog.showSaveDialog(window, {
-      title: "Export Charset Save", defaultPath: `Charset-save-${new Date().toISOString().slice(0, 10)}.json`,
-      filters: [{ name: "Charset Save", extensions: ["json"] }]
+      title: kind === "replay" ? "Export Charset Replay" : "Export Charset Save", defaultPath: `Charset-${kind}-${new Date().toISOString().slice(0, 10)}.json`,
+      filters: [{ name: kind === "replay" ? "Charset Replay" : "Charset Save", extensions: ["json"] }]
     });
     if (canceled || !filePath) return false;
     const temporary = `${filePath}.${randomUUID()}.tmp`;
@@ -46,10 +47,11 @@ async function createWindow() {
     finally { await fs.rm(temporary, { force: true }); }
     return true;
   });
-  ipcMain.handle("charset:import-save", async event => {
+  ipcMain.handle("charset:import-save", async (event, kind = "save") => {
     checkSender(event);
-    const { canceled, filePaths } = await dialog.showOpenDialog(window, { title: "Import Charset Save",
-      properties: ["openFile"], filters: [{ name: "Charset Save", extensions: ["json"] }] });
+    if (!["save", "replay"].includes(kind)) throw new Error("Invalid file kind");
+    const { canceled, filePaths } = await dialog.showOpenDialog(window, { title: kind === "replay" ? "Import Charset Replay" : "Import Charset Save",
+      properties: ["openFile"], filters: [{ name: kind === "replay" ? "Charset Replay" : "Charset Save", extensions: ["json"] }] });
     if (canceled || !filePaths[0]) return null;
     if ((await fs.stat(filePaths[0])).size > 32 * 1024 * 1024) throw new Error("Save file too large");
     return fs.readFile(filePaths[0], "utf8");
