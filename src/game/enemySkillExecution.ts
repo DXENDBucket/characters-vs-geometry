@@ -1,5 +1,6 @@
 import { ENEMY_SKILLS } from "../data/enemyAbilities";
 import { updateIncitement } from "./incitement";
+import { updateSupportCommand } from "./enemySupportCommand";
 import { changeEnemyHealth } from "./enemyHealth";
 import { relocateEnemyToLane } from "./oscillatingMovement";
 import { enemiesWithPassengers, enemyMaximumHp } from "./enemyContainerRules";
@@ -52,7 +53,8 @@ function createSkillExecutor() {
     wings: updateAngelWings,
     ascension: updateArchangelAscension,
     lead: updateHeartLead,
-    incitement: updateIncitement
+    incitement: updateIncitement,
+    support: updateSupportCommand
   });
   const activeEnemyBuffer: Enemy[] = [];
   const heartLeadReadyCastersBuffer: HeartLeadCaster[] = [];

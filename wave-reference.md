@@ -3100,6 +3100,14 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 - Enemy pool: Circle I, Tilde I, Equals I/II/III, Parentheses I/II/III, Hex Mace I/II/III, Shooting Triangle I/II/III, Diamond I/II/III, Shooting Pentagon I/II/III, Mortar Triangle I/II/III, Pentagon I/II/III, Greater-Than Sign III.
 - No additional environment effect. Existing spawn restrictions apply; Greater-Than Sign III follows normal flag-wave leader spawning.
 
+## ASCII Expansion: Symbol Domain Capital / AE-EX-5
+
+- Unlocks after AE-EX-4; 20 waves. Uses EX defaults: 2000 starting characters, initial weight 30, increment +35, extra increment +5, one flag every 10 waves, no weight cap.
+- Enemy pool: Circle I, Tilde I/II/III/IV/V, Equals I/II/III, Dollar I, Plus I, Triangle Ram I/II/III/IV/V, Angel Pentagon Ram I/II/III, Hex Mace I/II/III. No additional environment effect; existing minimum-wave and flag restrictions apply.
+- Plus (`+`) shares Dollar's panel and growth: 20000 HP, 200 armor, 50 MR, 800 physical ATK, attack speed 60, movement speed 10; weight 240 / 440 / 640 at ranks I/II/III.
+- Command: Support starts at 0/15 SP, recovers 1 SP/s and consumes 15 at full SP. Heals each of the nearest (rank + 1) ordinary enemies for 35% of the caster's current HP at cast time, capped at the target's maximum HP. Excludes itself, all other Plus enemies, leaders, Bosses, companions and Solar Bombs. Selects by distance rather than missing HP; with no eligible targets, retains full SP. Uses existing shared-health healing and heal visuals.
+- Dollar's skill is renamed Command: Incitement (指令：煽动); its behavior is unchanged.
+
 ## ASCII Expansion: AE-10
 
 - Unlocks after AE-9. Boss battle: waves continue until DEL is defeated; not an Infinite Front operation.

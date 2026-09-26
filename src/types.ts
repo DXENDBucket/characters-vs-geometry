@@ -78,6 +78,7 @@ export type CardId =
 export type EnemyFamily =
   | "chevronLeader"
   | "dollar"
+  | "plus"
   | "equals"
   | "parentheses"
   | "tilde"

@@ -95,6 +95,11 @@ export function enemyDetailSections(kind: EnemyKind, description: string): Detai
       l(`选取距离自身最近的 ${INCITEMENT.targetsPerRank * rank} 个其他小怪，赋予 +${power}% 力量和 +${haste}% 加速，均持续 ${s(INCITEMENT.duration)}；施放后技力继续恢复。排除领袖、Boss、眷属及阳炎爆弹。`,
         `Grants +${power}% Power and +${haste}% Haste to the nearest ${INCITEMENT.targetsPerRank * rank} other minions for ${s(INCITEMENT.duration)}. SP recovery continues. Excludes leaders, Bosses, companions and Solar Bombs.`),
       l("满技力，且有合格的其他小怪", "Full SP with another eligible minion"));
+  } else if (family === "plus") {
+    skill("support",
+      l(`为距离自身最近的 ${rank + 1} 个常规敌怪各恢复施法时自身当前生命值的 ${ENEMY_SKILLS.support.healRatio * 100}%。不选自己、其他加号、领袖、Boss、眷属或阳炎爆弹。按距离选取，不优先选择受伤目标。`,
+        `Heals each of the nearest ${rank + 1} ordinary enemies for ${ENEMY_SKILLS.support.healRatio * 100}% of the caster's current HP at cast time. Excludes self, other Plus enemies, leaders, Bosses, companions and Solar Bombs. Selects by distance, not missing HP.`),
+      l("满技力，且有合格的其他小怪", "Full SP with another eligible minion"));
   } else if (family === "hexagon") {
     const armor = ENEMY_AURAS.armor, heal = ENEMY_SKILLS.heal;
     aura("装甲光环", "Armor Aura", armor.range, `+${armor.base + (rank - 1) * armor.perRank} ` + l("护甲", "armor"),

@@ -101,9 +101,9 @@ export function createEnemyShape(scene: Phaser.Scene, kind: EnemyKind, options: 
     shape.add([frame, orb, charge, createEnemyLabel(scene, 0, -39, kind)]);
     return shape;
   }
-  if (family === "dollar") {
+  if (family === "dollar" || family === "plus") {
     const shape = scene.add.container(0, 0);
-    const symbol = scene.add.text(0, 0, "$", { fontFamily: "monospace", fontSize: "52px", color: "#f5f5f5" }).setOrigin(0.5);
+    const symbol = scene.add.text(0, 0, family === "plus" ? "+" : "$", { fontFamily: "monospace", fontSize: "52px", color: "#f5f5f5" }).setOrigin(0.5);
     shape.add([symbol, createEnemyLabel(scene, 0, -36, kind)]);
     return shape;
   }

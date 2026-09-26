@@ -103,6 +103,61 @@ function enemy(kind, lane = 3, column = 5) {
     statusMultiplierCache: { speed: 1, attack: 1, armor: 1, reversed: false } };
 }
 
+test("Plus panels match Dollar at all ranks and Support targets the nearest rank+1 ordinary enemies", () => {
+  const { getEnemyDefinition, enemyKindAtRank } = pure("src/registry/enemies.ts");
+  const { supportCommandTargets } = runtimeLoad("src/game/enemySupportCommand.ts");
+  for (const rank of [1, 2, 3, 21, 100]) {
+    const { kind: _plusKind, ...plus } = getEnemyDefinition(enemyKindAtRank("plus", rank));
+    const { kind: _dollarKind, ...dollar } = getEnemyDefinition(enemyKindAtRank("dollar", rank));
+    assert.deepEqual(plus, dollar);
+  }
+  const caster = enemy("plus"), targets = Array.from({ length: 5 }, (_, i) => enemy("square", 3, 6 + i));
+  const excluded = ["plus", "plus2", "plus3", "heart", "chevronLeader", "solarBomb", "dodecahedronCompanion"].map(kind => enemy(kind));
+  excluded.push({ ...enemy("circle"), hp: 0 }, { ...enemy("circle"), inPlay: false });
+  assert.deepEqual(supportCommandTargets(caster, [caster, ...excluded, ...targets.toReversed()]), targets.slice(0, 2));
+  caster.kind = "plus3";
+  assert.deepEqual(supportCommandTargets(caster, targets), targets.slice(0, 4));
+  const tie = enemy("triangle", 3, 6);
+  assert.deepEqual(supportCommandTargets(caster, [tie, targets[0]]), [tie, targets[0]]);
+});
+
+test("Support charges for 15s, heals from current caster HP, caps health and retains SP without targets", () => {
+  const caster = enemy("plus"), a = enemy("square", 3, 6), b = enemy("triangle", 3, 7), far = enemy("square", 3, 8);
+  caster.hp = 10000; a.hp = 1000; b.hp = 4500; far.hp = 100;
+  const healed = [], scaled = [];
+  const runtime = { enemies: [caster, far, b, a], presentation: { ...presentation,
+    heal: (x, y) => healed.push([x, y]), scale: target => scaled.push(target) } };
+  updateEnemySkills(runtime, 14, 14000);
+  assert.equal(caster.skills.support.sp, 14); assert.equal(a.hp, 1000);
+  updateEnemySkills(runtime, 1, 15000);
+  assert.equal(caster.skills.support.sp, 0);
+  assert.equal(a.hp, 4500); assert.equal(b.hp, 5000); assert.equal(far.hp, 100); assert.equal(caster.hp, 10000);
+  assert.equal(healed.length, 2); assert.deepEqual(scaled, [a, b]);
+  runtime.enemies = [caster];
+  updateEnemySkills(runtime, 15, 30000);
+  assert.equal(caster.skills.support.sp, 15);
+  runtime.enemies.push(a);
+  updateEnemySkills(runtime, 0, 30000);
+  assert.equal(caster.skills.support.sp, 0); assert.equal(a.hp, 8000);
+});
+
+test("Support snapshots caster HP before shared-pool healing and pauses while frozen or high flying", () => {
+  const caster = enemy("plus"), linked = enemy("equals", 3, 6), other = enemy("square", 3, 7);
+  caster.hp = 10000; linked.hp = 6000; other.hp = 1000;
+  const pool = { owner: linked, members: [caster, linked], hp: 16000, maxHp: 32000 };
+  caster.healthPool = pool; linked.healthPool = pool;
+  const runtime = { enemies: [caster, linked, other], presentation };
+  caster.statusEffects = [{ name: "frozen", expiresAt: 1000 }];
+  updateEnemySkills(runtime, 15, 999); assert.equal(caster.skills.support, undefined);
+  caster.statusEffects = []; caster.highFlightUntil = 2000;
+  updateEnemySkills(runtime, 15, 1000); assert.equal(caster.skills.support, undefined);
+  caster.highFlightUntil = undefined;
+  updateEnemySkills(runtime, 15, 2000);
+  assert.equal(pool.hp, 19500);
+  assert.equal(other.hp, 4500, "each target uses the same pre-healing caster HP");
+  assert.equal(caster.skills.support.sp, 0);
+});
+
 test("Wings/Ascension preserve ranges, flight durations, carrier propagation and pause recovery", () => {
   for (const [kind, id, duration] of [["angelPentagon", "wings", 3000], ["archangelHeptagon", "ascension", 6000]]) {
     const caster = enemy(kind), near = enemy("circle"), edge = enemy("circle"), outside = enemy("circle");

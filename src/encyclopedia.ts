@@ -115,6 +115,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
   const equals = getEnemyDefinition("equals");
   const parentheses = getEnemyDefinition("parentheses");
   const dollar = getEnemyDefinition("dollar");
+  const plus = getEnemyDefinition("plus");
   const chevron = getEnemyDefinition("chevronLeader");
 
   return sortEnemyEncyclopediaEntries([
@@ -142,8 +143,19 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
         [t("label.hp"), dollar.hp], [t("label.armor"), dollar.armor],
         [t("label.mr"), dollar.magicResistance], [t("label.atk"), damageText(dollar.attackPower, dollar.damageType)]]),
         zh ? "权重 I/II/III：240 / 440 / 640；移速 10；攻速 60。" : "Weight I/II/III: 240 / 440 / 640; speed 10; attack speed 60."],
-      description: zh ? "煽动：初始 20 技力，上限 25，每秒恢复 1；满技力消耗 20，为最近的 4 × 等级个其他小怪赋予 +30% 力量和 +100% 加速，均持续 15 秒。施放后继续回技，目标不足时作用于全部可选目标。不选择自己、领袖、Boss、Boss 眷属或阳炎爆弹。"
-        : "Incitement: starts at 20/25 SP, regenerates 1 SP/s. At full SP, spends 20 to grant +30% Power and +100% Haste to the nearest 4 x rank other minions for 15s. Recovery continues after casting. Excludes self, leaders, Bosses, Boss companions and Solar Bombs."
+      description: zh ? "指令：煽动。初始 20 技力，上限 25，每秒恢复 1；满技力消耗 20，为最近的 4 × 等级个其他小怪赋予 +30% 力量和 +100% 加速，均持续 15 秒。施放后继续回技，目标不足时作用于全部可选目标。不选择自己、领袖、Boss、Boss 眷属或阳炎爆弹。"
+        : "Command: Incitement. Starts at 20/25 SP, regenerates 1 SP/s. At full SP, spends 20 to grant +30% Power and +100% Haste to the nearest 4 x rank other minions for 15s. Recovery continues after casting. Excludes self, leaders, Bosses, Boss companions and Solar Bombs."
+    },
+    {
+      title: zh ? "加号系列" : "Plus Series",
+      enemyKind: "plus",
+      chapterGroupId: "ascii",
+      lines: [statLine([
+        [t("label.hp"), plus.hp], [t("label.armor"), plus.armor],
+        [t("label.mr"), plus.magicResistance], [t("label.atk"), damageText(plus.attackPower, plus.damageType)]]),
+        zh ? "权重 I/II/III：240 / 440 / 640；移速 10；攻速 60。" : "Weight I/II/III: 240 / 440 / 640; speed 10; attack speed 60."],
+      description: zh ? "指令：支援。初始 0 技力，上限 15，每秒恢复 1，满技力消耗 15。为最近的（等级 + 1）个常规敌怪各恢复自身当前生命值 35% 的生命；不选择自己、其他加号、领袖、Boss、眷属或阳炎爆弹。"
+        : "Command: Support. Starts at 0/15 SP, regenerates 1 SP/s and spends 15 at full SP. Heals each of the nearest (rank + 1) ordinary enemies for 35% of the caster's current HP. Excludes self, other Plus enemies, leaders, Bosses, companions and Solar Bombs."
     },
     {
       title: zh ? "括号系列" : "Parentheses Series",

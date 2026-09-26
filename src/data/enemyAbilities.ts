@@ -61,9 +61,14 @@ export const ENEMY_SKILLS = {
     } }
   },
   incitement: {
-    family: "dollar", name: { zh: "煽动", en: "Incitement" },
+    family: "dollar", name: { zh: "指令：煽动", en: "Command: Incitement" },
     initialSp: INCITEMENT.initialSp, maxSp: INCITEMENT.maxSp, cost: INCITEMENT.cost, regen: INCITEMENT.regen,
     duration: 0, pauseWhileActive: false, range: { shape: { kind: "global" } }
+  },
+  support: {
+    family: "plus", name: { zh: "指令：支援", en: "Command: Support" },
+    initialSp: 0, maxSp: 15, cost: 15, regen: 1, duration: 0, pauseWhileActive: false,
+    range: { shape: { kind: "global" } }, healRatio: 0.35
   }
 } as const satisfies Record<string, EnemySkillData & {
   healRatio?: number; speedMultiplier?: number;
