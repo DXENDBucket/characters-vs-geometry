@@ -37,7 +37,7 @@ export const chapterGroups: ChapterGroupDefinition[] = [{
   unlockAfter: "4-10",
   backgroundSymbol: "@",
   titleRows: [["A", "S", "C", "I", "I"], ["E", "x", "p", "a", "n", "s", "i", "o", "n"]],
-  chapterIds: ["AE", "AE2"]
+  chapterIds: ["AE", "AE2", "AET"]
 }];
 
 export function getChapterGroup(id?: string) {

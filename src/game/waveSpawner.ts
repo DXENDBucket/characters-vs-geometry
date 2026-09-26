@@ -78,15 +78,20 @@ export function spawnBattleWave(options: WaveSpawnRequest, random: BattleRandom,
   });
 
   for (const [index, spawn] of (options.levelConfig.extraWaveSpawns ?? []).entries()) {
-    spawnEnemy({
-      ...spawn,
-      lane: spawn.lane ?? random.between(0, LANES - (enemyFamily(spawn.kind) === "tilde" ? 2 : 1)),
-      waveNumber: options.waveNumber,
-      time: options.gameTime,
-      x: BOARD_X + BOARD_WIDTH + 58 + index * 8,
-      waveWeight: 0,
-      finalDamageReduction: options.difficultyConfig.finalDamageReduction
-    });
+    if (spawn.wave !== undefined && spawn.wave !== options.waveNumber) continue;
+    const lanes = spawn.lane === "all" ? Array.from({ length: LANES }, (_, lane) => lane)
+      : [spawn.lane ?? random.between(0, LANES - (enemyFamily(spawn.kind) === "tilde" ? 2 : 1))];
+    for (const lane of lanes) {
+      spawnEnemy({
+        kind: spawn.kind,
+        lane,
+        waveNumber: options.waveNumber,
+        time: options.gameTime,
+        x: BOARD_X + BOARD_WIDTH + 58 + index * 8,
+        waveWeight: 0,
+        finalDamageReduction: options.difficultyConfig.finalDamageReduction
+      });
+    }
   }
 
   return {

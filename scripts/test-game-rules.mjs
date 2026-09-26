@@ -2,6 +2,43 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createTypeScriptLoader } from "./helpers/load-typescript.mjs";
 
+test("AE-T-1 adds a zero-weight leader column only on wave one without changing regular RNG", () => {
+  const load = createTypeScriptLoader();
+  const { spawnBattleWave } = load("src/game/waveSpawner.ts");
+  const { createEnemyState } = load("src/game/enemyState.ts");
+  const { BattleRandom } = load("src/game/battleSimulation.ts");
+  const { getLevelConfig } = load("src/data/levels.ts");
+  const { getDifficultyConfig, LANES } = load("src/config.ts");
+  const level = getLevelConfig("AE-T-1");
+  const spawn = (levelConfig, waveNumber) => {
+    const enemies = [], random = new BattleRandom(2026);
+    const tracker = spawnBattleWave({ levelConfig, waveNumber, difficultyConfig: getDifficultyConfig(3),
+      gameTime: 5000, levelElapsed: 9000 }, random, enemy => { enemies.push(enemy); return enemy.waveWeight; });
+    return { enemies, tracker, randomState: random.state };
+  };
+  for (let wave = 1; wave <= 10; wave++) {
+    const actual = spawn(level, wave), regular = spawn({ ...level, extraWaveSpawns: undefined }, wave);
+    const leaders = actual.enemies.filter(enemy => enemy.kind === "chevronLeader");
+    assert.equal(leaders.length, wave === 1 ? LANES : 0);
+    assert.deepEqual(actual.enemies.filter(enemy => enemy.kind !== "chevronLeader"), regular.enemies);
+    assert.deepEqual(actual.tracker, regular.tracker);
+    assert.equal(actual.randomState, regular.randomState);
+    if (wave === 1) {
+      assert.deepEqual(leaders.map(enemy => enemy.lane), [0, 1, 2, 3, 4, 5, 6]);
+      assert.equal(new Set(leaders.map(enemy => enemy.x)).size, 1);
+      assert.ok(leaders.every(enemy => enemy.waveWeight === 0 && enemy.time === 5000));
+      for (const roll of [0, 0.5, 1]) {
+        const units = leaders.map(options => createEnemyState(options, () => roll));
+        assert.ok(units.every(enemy => enemy.baseStats.speed === 15 && enemy.speed === 15),
+          "all seven leaders use average base speed without random variance");
+      }
+    }
+  }
+  for (const [id, kind] of [["AE-EX-1", "chevronLeader"], ["AE-EX-3", "archangelHeptagon"]]) {
+    for (const wave of [1, 2, 10]) assert.equal(spawn(getLevelConfig(id), wave).enemies.filter(enemy => enemy.kind === kind).length, 1);
+  }
+});
+
 test("battlefield clipping extends symmetrically to both wave labels without exposing the card rail", () => {
   const load = createTypeScriptLoader({ phaser: {} });
   const c = load("src/config.ts");

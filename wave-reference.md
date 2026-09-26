@@ -3129,6 +3129,14 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 - Enemy pool: Circle I, Tilde I/II/III, Inverted Triangle I/II/III, Parentheses I/II/III, Dollar I/II, Plus I/II, Minus I/II, Greater-Than Sign III, Hex Mace I/II/III. Existing spawn restrictions and flag-wave leader rules apply.
 - Environment matches AE-EX-2: each grid tower enters NUL for 10 seconds every 60 seconds from its deployment; edge connectors remain exempt. This coexists with DEL's Format skill, using the existing overlapping NUL rules. The environment description appears between the Boss and ordinary enemy previews.
 
+## ASCII Expansion: Symbol Domain Proving Grounds / AE-T-1
+
+- New chapter after Symbol Domain Capital. Unlocks after AE-EX-8; 10 waves. Uses the current EX template: 2000 starting characters, initial weight 30, increment +35, extra increment +5, one flag every 10 waves, no weight cap.
+- Regular enemy pool: Circle I/II/III, Tilde I/II/III, Dollar I.
+- Environment: wave 1 additionally spawns one column of Greater-Than Sign I at the right entry edge, one per row (7 total), simultaneously with ordinary wave spawns. These leaders consume no wave weight and never repeat on later waves, including flag waves. Victory still requires defeating surviving enemies.
+- All seven leaders start at the same base movement speed of 15, with no random variance. Existing transformations and movement effects remain unchanged.
+- Pre-battle preview/discovery includes the extra leader; the environment description specifies wave 1 and all rows. Extra-wave spawn data now supports an optional wave number and the all-row lane selector; existing every-wave effects remain unchanged.
+
 ## ASCII Expansion: AE-10
 
 - Unlocks after AE-9. Boss battle: waves continue until DEL is defeated; not an Infinite Front operation.

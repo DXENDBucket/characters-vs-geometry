@@ -113,8 +113,12 @@ for (const level of Object.values(levelConfigs)) {
     errors.push(`Level "${level.id}" has an invalid periodic NUL duration or interval.`);
   }
   for (const spawn of level.extraWaveSpawns ?? []) {
-    if (spawn.lane !== undefined && (!Number.isInteger(spawn.lane) || spawn.lane < 0 || spawn.lane >= LANES)) {
+    if (spawn.lane !== undefined && spawn.lane !== "all" && (!Number.isInteger(spawn.lane) || spawn.lane < 0 || spawn.lane >= LANES)) {
       errors.push(`Level "${level.id}" has an invalid extra wave spawn lane.`);
+    }
+    if (spawn.wave !== undefined && (!Number.isSafeInteger(spawn.wave) || spawn.wave < 1 ||
+        level.totalWaves !== undefined && spawn.wave > level.totalWaves)) {
+      errors.push(`Level "${level.id}" has an invalid extra spawn wave.`);
     }
   }
 }

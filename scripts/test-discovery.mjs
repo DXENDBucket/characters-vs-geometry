@@ -110,7 +110,7 @@ function fixture(saved) {
 
 test("Symbol Domain Capital follows Symbol Domain and unlocks AE-EX-1 after DEL", () => {
   const { progress, chapters, chapterGroups, levels } = fixture();
-  assert.deepEqual(chapterGroups.chaptersInGroup("ascii").map(chapter => chapter.id), ["AE", "AE2"]);
+  assert.deepEqual(chapterGroups.chaptersInGroup("ascii").map(chapter => chapter.id), ["AE", "AE2", "AET"]);
   assert.equal(chapters.getChapterDefinition("AE2").parentId, "AE");
   assert.equal(chapterGroups.groupForChapter("AE2").id, "ascii");
   assert.equal(chapters.chapterIdForLevelId("AE-10"), "AE");
@@ -175,6 +175,31 @@ test("Symbol Domain Capital follows Symbol Domain and unlocks AE-EX-1 after DEL"
   assert.equal(progress.discoveredEnemies().enemies.has("minus3"), false);
   progress.completeLevel("AE-EX-8");
   assert.equal(progress.isChapterCompleted("AE2"), true);
+});
+
+test("Symbol Domain Proving Grounds follows the capital and unlocks AE-T-1 after AE-EX-8", () => {
+  const { progress, chapters, chapterGroups, levels } = fixture();
+  assert.equal(chapters.getChapterDefinition("AET").parentId, "AE2");
+  assert.equal(chapterGroups.groupForChapter("AET").id, "ascii");
+  assert.equal(chapters.chapterIdForLevelId("AE-T-1"), "AET");
+  assert.deepEqual(chapters.levelNodesForChapter("AET").map(node => node.id), ["AE-T-1"]);
+  assert.equal(chapters.levelNodesForChapter("AE").length, 10);
+  const level = levels.getLevelConfig("AE-T-1");
+  assert.equal(level.totalWaves, 10);
+  assert.equal(level.startingChars, 2000);
+  assert.deepEqual([level.firstWaveWeight, level.waveWeightIncrement, level.waveWeightIncrementGrowth], [30, 35, 5]);
+  assert.deepEqual(level.enemyKinds, ["circle", "circle2", "circle3", "tilde", "tilde2", "tilde3", "dollar"]);
+  assert.deepEqual(level.extraWaveSpawns, [{ kind: "chevronLeader", lane: "all", wave: 1 }]);
+  assert.deepEqual(levels.levelPreviewEnemyKinds(level), [...level.enemyKinds, "chevronLeader"]);
+  progress.completeLevel("4-10");
+  assert.equal(progress.isChapterUnlocked("AET"), false);
+  assert.equal(progress.isLevelUnlocked("AE-T-1"), false);
+  progress.completeLevel("AE-EX-8");
+  assert.equal(progress.isChapterUnlocked("AET"), true);
+  assert.equal(progress.isLevelUnlocked("AE-T-1"), true);
+  assert.equal(progress.isChapterCompleted("AET"), false);
+  progress.completeLevel("AE-T-1");
+  assert.equal(progress.isChapterCompleted("AET"), true);
 });
 
 test("AE-EX-2 uses the capital template and periodic per-tower NUL", () => {
