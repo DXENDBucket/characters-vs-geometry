@@ -381,6 +381,36 @@ test("periodic NUL tracks deployment times independently and does not reset on u
   assert.equal(a.nextNullificationAt, 180000); assert.equal(a.lastFire, 20010);
 });
 
+test("AE-T-2 alternates active and NUL periods per deployment, including after restore", () => {
+  const load = createTypeScriptLoader();
+  const { TowerNullificationController } = load("src/game/towerNullification.ts");
+  const rule = load("src/data/levels.ts").getLevelConfig("AE-T-2").periodicTowerNullification;
+  const make = (order, deployedAt) => ({ type: "A", placedOrder: order, deployedAt, lane: 1, column: order,
+    inPlay: true, lastFire: 0, skills: {}, statusEffects: [], body: { setVisible() {} } });
+  const a = make(1, 0), b = make(2, 5000), towers = [a, b];
+  const runtime = () => ({ towers, occupied: new Map(), changed() {}, suspended() {} });
+  let controller = new TowerNullificationController(runtime);
+  controller.update(29999, rule); assert.equal(a.inPlay, true);
+  controller.update(30000, rule);
+  assert.equal(a.nullified, true); assert.equal(b.inPlay, true);
+  assert.equal(a.nextNullificationAt, 90000);
+  controller.update(35000, rule); assert.equal(b.nullified, true);
+  const snapshot = controller.snapshot();
+  controller = new TowerNullificationController(runtime); controller.restore(snapshot);
+  controller.update(59999, rule); assert.equal(a.inPlay, false);
+  controller.update(60000, rule);
+  assert.equal(a.inPlay, true); assert.equal(b.inPlay, false);
+  controller.update(65000, rule); assert.equal(b.inPlay, true);
+  controller.update(89999, rule); assert.equal(a.inPlay, true);
+  controller.update(90000, rule);
+  assert.equal(a.nullified, true); assert.equal(b.inPlay, true);
+  controller.update(95000, rule); assert.equal(b.nullified, true);
+  controller.update(120000, rule); assert.equal(a.inPlay, true);
+  controller.update(125000, rule); assert.equal(b.inPlay, true);
+  controller.update(150000, rule); assert.equal(a.nullified, true);
+  assert.equal(a.nextNullificationAt, 210000);
+});
+
 test("legacy NUL expiry remains independent when a new group joins after restore", () => {
   const { TowerNullificationController } = createTypeScriptLoader()("src/game/towerNullification.ts");
   const make = order => ({ type: "A", placedOrder: order, lane: 1, column: 1, inPlay: true,

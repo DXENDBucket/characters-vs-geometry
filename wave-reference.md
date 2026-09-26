@@ -3137,6 +3137,12 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 - All seven leaders start at the same base movement speed of 5, with no random variance. Existing transformations and movement effects remain unchanged.
 - Pre-battle preview/discovery includes the extra leader; the environment description specifies wave 1 and all rows. Extra-wave spawn data now supports an optional wave number and the all-row lane selector; existing every-wave effects remain unchanged.
 
+## ASCII Expansion: Symbol Domain Proving Grounds / AE-T-2
+
+- Unlocks after AE-T-1; 20 waves. Uses the EX template: 2000 starting characters, initial weight 30, increment +35, extra increment +5, one flag every 10 waves, no weight cap.
+- Enemy pool: Circle I, Tilde I/II/III, Parentheses I, Inverted Triangle I/II/III, Dollar I, Greater-Than Sign I.
+- Environment: each tower independently alternates 30 seconds of normal operation and 30 seconds of NUL, starting from deployment. First NUL starts at age 30s; subsequent starts are at 90s, 150s, etc. NUL retains the existing suspension and cell-reservation behavior; edge connectors remain unaffected. Other levels keep their existing NUL cadence.
+
 ## ASCII Expansion: AE-10
 
 - Unlocks after AE-9. Boss battle: waves continue until DEL is defeated; not an Infinite Front operation.

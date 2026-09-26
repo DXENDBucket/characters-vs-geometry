@@ -182,7 +182,7 @@ test("Symbol Domain Proving Grounds follows the capital and unlocks AE-T-1 after
   assert.equal(chapters.getChapterDefinition("AET").parentId, "AE2");
   assert.equal(chapterGroups.groupForChapter("AET").id, "ascii");
   assert.equal(chapters.chapterIdForLevelId("AE-T-1"), "AET");
-  assert.deepEqual(chapters.levelNodesForChapter("AET").map(node => node.id), ["AE-T-1"]);
+  assert.deepEqual(chapters.levelNodesForChapter("AET").map(node => node.id), ["AE-T-1", "AE-T-2"]);
   assert.equal(chapters.levelNodesForChapter("AE").length, 10);
   const level = levels.getLevelConfig("AE-T-1");
   assert.equal(level.totalWaves, 10);
@@ -199,7 +199,26 @@ test("Symbol Domain Proving Grounds follows the capital and unlocks AE-T-1 after
   assert.equal(progress.isLevelUnlocked("AE-T-1"), true);
   assert.equal(progress.isChapterCompleted("AET"), false);
   progress.completeLevel("AE-T-1");
+  assert.equal(progress.isChapterCompleted("AET"), false);
+  assert.equal(progress.isLevelUnlocked("AE-T-2"), true);
+  progress.completeLevel("AE-T-2");
   assert.equal(progress.isChapterCompleted("AET"), true);
+});
+
+test("AE-T-2 uses the proving grounds template with alternating 30-second NUL", () => {
+  const { levels, progress, chapters } = fixture();
+  const level = levels.getLevelConfig("AE-T-2");
+  assert.equal(chapters.chapterIdForLevelId(level.id), "AET");
+  assert.equal(progress.isLevelUnlocked(level.id), false);
+  assert.equal(level.unlockAfter, "AE-T-1");
+  assert.equal(level.totalWaves, 20);
+  assert.equal(level.startingChars, 2000);
+  assert.deepEqual([level.firstWaveWeight, level.waveWeightIncrement, level.waveWeightIncrementGrowth], [30, 35, 5]);
+  assert.deepEqual(level.periodicTowerNullification, { intervalMs: 60000, initialDelayMs: 30000, durationMs: 30000 });
+  assert.deepEqual(level.enemyKinds, ["circle", "tilde", "tilde2", "tilde3", "parentheses",
+    "invertedTriangle", "invertedTriangle2", "invertedTriangle3", "dollar", "chevronLeader"]);
+  assert.equal(level.extraWaveSpawns, undefined);
+  assert.equal(level.bossKind, undefined);
 });
 
 test("AE-EX-2 uses the capital template and periodic per-tower NUL", () => {

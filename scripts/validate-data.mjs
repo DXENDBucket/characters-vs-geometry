@@ -109,7 +109,8 @@ for (const level of Object.values(levelConfigs)) {
   }
   const nul = level.periodicTowerNullification;
   if (nul && (!Number.isFinite(nul.intervalMs) || !Number.isFinite(nul.durationMs) ||
-      nul.durationMs <= 0 || nul.intervalMs <= nul.durationMs)) {
+      nul.durationMs <= 0 || nul.intervalMs <= nul.durationMs ||
+      nul.initialDelayMs !== undefined && (!Number.isFinite(nul.initialDelayMs) || nul.initialDelayMs <= 0))) {
     errors.push(`Level "${level.id}" has an invalid periodic NUL duration or interval.`);
   }
   for (const spawn of level.extraWaveSpawns ?? []) {

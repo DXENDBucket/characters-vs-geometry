@@ -229,7 +229,10 @@ export class CardSelectScene extends Phaser.Scene {
         lane: typeof spawn.lane === "number" ? spawn.lane + 1 : 1 });
     });
     if (levelConfig.specialMechanic === "rightColumnSeal") environmentDescriptions.push(t("label.rightColumnSeal"));
-    if (levelConfig.periodicTowerNullification) environmentDescriptions.push(t("label.periodicTowerNullification", {
+    if (levelConfig.periodicTowerNullification) environmentDescriptions.push(t(
+      levelConfig.periodicTowerNullification.initialDelayMs !== undefined
+        ? "label.delayedPeriodicTowerNullification" : "label.periodicTowerNullification", {
+      delay: (levelConfig.periodicTowerNullification.initialDelayMs ?? levelConfig.periodicTowerNullification.intervalMs) / 1000,
       interval: levelConfig.periodicTowerNullification.intervalMs / 1000,
       duration: levelConfig.periodicTowerNullification.durationMs / 1000
     }));

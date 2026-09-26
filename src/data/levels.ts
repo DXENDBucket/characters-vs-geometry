@@ -104,12 +104,20 @@ export const levelNodes: LevelNode[] = [
   { id: "AE-EX-7", x: 2420, y: 380 },
   { id: "AE-EX-8", x: 2740, y: 320 },
   { id: "AE-T-1", x: 500, y: 380 },
+  { id: "AE-T-2", x: 820, y: 320 },
   ...Array.from({ length: 8 }, (_, index) => ({
     id: `IF-${index + 5}`, x: 1840 + index * 340, y: index % 2 === 0 ? 430 : 320
   }))
 ];
 
 export const levelConfigs: Record<string, LevelConfig> = {
+  "AE-T-2": {
+    ...EX_LEVEL_DEFAULTS,
+    id: "AE-T-2", unlockAfter: "AE-T-1", totalWaves: 20,
+    enemyKinds: ["circle", "tilde", "tilde2", "tilde3", "parentheses",
+      "invertedTriangle", "invertedTriangle2", "invertedTriangle3", "dollar", "chevronLeader"],
+    periodicTowerNullification: { intervalMs: 60_000, initialDelayMs: 30_000, durationMs: 30_000 }
+  },
   "AE-T-1": {
     ...EX_LEVEL_DEFAULTS,
     id: "AE-T-1", unlockAfter: "AE-EX-8", totalWaves: 10,

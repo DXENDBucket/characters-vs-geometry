@@ -60,7 +60,7 @@ export class TowerNullificationSimulation<T extends Tower = Tower> {
     const due: T[] = [];
     for (const tower of this.runtime().towers) {
       if (!tower.inPlay || tower.transient) continue;
-      tower.nextNullificationAt ??= (tower.deployedAt ?? time) + periodic.intervalMs;
+      tower.nextNullificationAt ??= (tower.deployedAt ?? time) + (periodic.initialDelayMs ?? periodic.intervalMs);
       if (time < tower.nextNullificationAt) continue;
       // Keep the deployment-anchored cadence, including time spent in NUL.
       tower.nextNullificationAt += (Math.floor((time - tower.nextNullificationAt) / periodic.intervalMs) + 1) * periodic.intervalMs;
