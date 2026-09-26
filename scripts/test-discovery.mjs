@@ -219,7 +219,7 @@ test("AE-T-3 has its own funds, pool and timed archangel preview", () => {
   assert.equal(level.startingChars, 5000);
   assert.deepEqual([level.firstWaveWeight, level.waveWeightIncrement, level.waveWeightIncrementGrowth], [30, 35, 5]);
   assert.deepEqual(level.enemyKinds, ["circle", "tilde", "tilde2", "tilde3", "invertedTriangle", "invertedTriangle2",
-    "invertedTriangle3", "equals", "equals2", "equals3", "hexMace", "dollar"]);
+    "invertedTriangle3", "equals", "equals2", "equals3", "hexMace", "dollar", "angelPentagonRam", "angelPentagon"]);
   assert.deepEqual(level.periodicEnemySpawns, [{ kind: "archangelHeptagon", lane: 3, intervalMs: 15000 }]);
   assert.deepEqual(levels.levelPreviewEnemyKinds(level), [...level.enemyKinds, "archangelHeptagon"]);
   assert.equal(level.periodicTowerNullification, undefined);

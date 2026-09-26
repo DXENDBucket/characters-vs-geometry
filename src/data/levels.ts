@@ -116,7 +116,7 @@ export const levelConfigs: Record<string, LevelConfig> = {
     ...EX_LEVEL_DEFAULTS,
     id: "AE-T-3", unlockAfter: "AE-T-2", totalWaves: 20, startingChars: 5000,
     enemyKinds: ["circle", "tilde", "tilde2", "tilde3", "invertedTriangle", "invertedTriangle2",
-      "invertedTriangle3", "equals", "equals2", "equals3", "hexMace", "dollar"],
+      "invertedTriangle3", "equals", "equals2", "equals3", "hexMace", "dollar", "angelPentagonRam", "angelPentagon"],
     periodicEnemySpawns: [{ kind: "archangelHeptagon", lane: 3, intervalMs: 15_000 }]
   },
   "AE-T-2": {

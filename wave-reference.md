@@ -3146,7 +3146,7 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 ## ASCII Expansion: Symbol Domain Proving Grounds / AE-T-3
 
 - Unlocks after AE-T-2; 20 waves, 5000 starting characters. EX weight template: initial weight 30, increment +35, extra increment +5, one flag every 10 waves, no weight cap.
-- Regular enemy pool: Circle I, Tilde I/II/III, Inverted Triangle I/II/III, Equals I/II/III, Hex Mace I, Dollar I.
+- Regular enemy pool: Circle I, Tilde I/II/III, Inverted Triangle I/II/III, Equals I/II/III, Hex Mace I, Dollar I, Angel Pentagon Ram I, Angel Pentagon I.
 - Environment: every 15 seconds of battle time, spawns one Archangel Heptagon I from the right edge in row 4, first at 15s. Independent of wave refreshes, consumes no wave weight, pauses with combat and retains cadence after restoration. Surviving reinforcements must also be defeated for victory.
 - Enemy preview/discovery includes the periodic Archangel; other field effects are not inherited from AE-T-2.
 
