@@ -3114,6 +3114,13 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 - Enemy pool: Circle I, Parentheses I/II, Equals I/II, Dollar I/II, Plus I/II, Inverted Triangle I/II/III/IV/V, Greater-Than Sign I, Archangel Heptagon III. Existing spawn restrictions and flag-wave leader rules apply.
 - Environment matches AE-EX-2: each grid tower enters NUL for 10 seconds every 60 seconds from its own deployment. Edge connectors remain exempt; upgrading or moving does not reset the cycle. Uses the same pre-battle environment description and NUL behavior.
 
+## ASCII Expansion: Symbol Domain Capital / AE-EX-7
+
+- Unlocks after AE-EX-6; 20 waves. Uses EX defaults: 2000 starting characters, initial weight 30, increment +35, extra increment +5, one flag every 10 waves, no weight cap. No additional environment effect.
+- Enemy pool: Circle I, Tilde I/II/III, Equals III, Dollar I, Plus I, Minus I/II/III.
+- Minus (`-`) shares Plus's base panel and weight growth: 20000 HP, 200 armor, 50 MR, 800 ATK, movement speed 10; weight 240 / 440 / 640. Cannot spawn before flag 1. No SP skill or melee attack; attack speed 60.
+- Each shot emits two accelerating homing projectiles from opposite ends, each dealing 25% ATK magic damage (200 at base). Locks the nearest flying tower at launch, otherwise the nearest tower; after target disappearance retargets the nearest tower to the projectile regardless of flight. Rank adds volleys using the standard five-volley/multi-judgment distribution. Projectile targets and velocity persist through snapshots.
+
 ## ASCII Expansion: AE-10
 
 - Unlocks after AE-9. Boss battle: waves continue until DEL is defeated; not an Infinite Front operation.

@@ -64,9 +64,9 @@ export function createEnemyProjectile(scene: Phaser.Scene, enemy: Enemy, time: n
 
 export function restoreEnemyProjectile(scene: Phaser.Scene, state: EnemyProjectileState): EnemyProjectile {
   const isDiamondShot = state.appearance === "star";
-  const body = state.appearance === "ion" ? scene.add.graphics().setPosition(state.x, state.y).setDepth(91) : isDiamondShot
+  const body = state.appearance === "ion" ? scene.add.graphics().setPosition(state.x, state.y).setDepth(91) : isDiamondShot || state.appearance === "chevron"
     ? scene.add
-        .text(state.x, state.y - 1, "*", {
+        .text(state.x, state.y - 1, isDiamondShot ? "*" : ">", {
           color: "#ff6464",
           fontFamily: "monospace",
           fontSize: "22px",
@@ -76,7 +76,7 @@ export function restoreEnemyProjectile(scene: Phaser.Scene, state: EnemyProjecti
         .setDepth(91)
     : scene.add.rectangle(state.x, state.y, 18, 4, palette.enemyShot, 1).setDepth(91);
   if (state.appearance === "ion") drawIonOrb(body as Phaser.GameObjects.Graphics);
-  body.rotation = isDiamondShot ? 0 : state.vx < 0 ? Math.PI : 0;
+  body.rotation = state.appearance === "chevron" ? Math.atan2(state.vy ?? 0, state.vx) : isDiamondShot ? 0 : state.vx < 0 ? Math.PI : 0;
   body.setScale(projectileVisualScale(state));
   return identifyBattleEntity(scene, "enemyProjectile", {
     ...state,

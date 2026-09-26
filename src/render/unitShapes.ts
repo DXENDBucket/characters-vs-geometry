@@ -91,6 +91,13 @@ export function createUnitBorder(
 
 export function createEnemyShape(scene: Phaser.Scene, kind: EnemyKind, options: EnemyShapeOptions = {}) {
   const family = enemyFamily(kind);
+  if (family === "minus") {
+    const shape = scene.add.container(0, 0);
+    const bar = scene.add.graphics().lineStyle(4, palette.white, 1);
+    bar.lineBetween(-24, 0, 24, 0);
+    shape.add([bar, createEnemyLabel(scene, 0, -25, kind)]);
+    return shape;
+  }
   if (family === "chevronLeader") {
     const shape = scene.add.container(0, 0);
     const frame = scene.add.graphics();

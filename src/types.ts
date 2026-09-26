@@ -79,6 +79,7 @@ export type EnemyFamily =
   | "chevronLeader"
   | "dollar"
   | "plus"
+  | "minus"
   | "equals"
   | "parentheses"
   | "tilde"

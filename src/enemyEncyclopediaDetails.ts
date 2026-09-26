@@ -6,6 +6,7 @@ import { CHEVRON_LEADER } from "./data/chevronLeader";
 import { HEART_ATTACK_RADIUS, ENEMY_MORTAR_RANGE_X, ENEMY_MORTAR_RANGE_Y } from "./data/enemyCombatConfig";
 import { getEnemyRegistration } from "./registry/enemies";
 import { enemyAttackSpeed } from "./game/enemyCombatRules";
+import { MINUS_ATTACK } from "./game/enemyHomingProjectiles";
 import { enemySkillCharge } from "./game/enemySkillRules";
 import { attackIntervalMs } from "./game/attackSpeed";
 import { volleyHitsAt, volleyTimingCount } from "./game/volley";
@@ -31,7 +32,8 @@ export function enemyPreviewAttackSpeed(kind: EnemyKind) {
 export function enemyDetailSections(kind: EnemyKind, description: string): DetailSection[] {
   const { definition: stats, family, rank, attackMode: mode, blockedDetonation, leader } = getEnemyRegistration(kind);
   const damageType = l(stats.damageType === "true" ? "真实" : stats.damageType === "magic" ? "法术" : "物理", stats.damageType);
-  const damage = `${n(stats.damage)} ${damageType} · ${n(stats.attackMultiplier * 100)}% ATK`;
+  const attackMultiplier = family === "minus" ? MINUS_ATTACK.multiplier : 1;
+  const damage = `${n(stats.damage * attackMultiplier)} ${damageType} · ${n(stats.attackMultiplier * attackMultiplier * 100)}% ATK`;
   const speed = enemyPreviewAttackSpeed(kind);
   const ranged = ["ranged", "laser", "mortar"].includes(mode);
   const hits = ranged ? rank : 1, shots = volleyTimingCount(hits);
@@ -49,7 +51,7 @@ export function enemyDetailSections(kind: EnemyKind, description: string): Detai
     attack.tag = l("无", "None");
     attack.fields = [f("常规攻击", "Regular attack", l("无；见下方触发机制", "None; see triggered mechanics below"))];
   } else {
-    const range = family === "heart" ? circle(HEART_ATTACK_RADIUS) : mode === "mortar" ? battlefieldRange : ranged ? enemyForwardRange : enemyContactRange;
+    const range = family === "heart" ? circle(HEART_ATTACK_RADIUS) : mode === "mortar" || family === "minus" ? battlefieldRange : ranged ? enemyForwardRange : enemyContactRange;
     attack.ranges = [detailRange(range, l("攻击范围", "Attack range"))];
     if (mode === "mortar") attack.ranges.push(detailRange(enemyMortarRange, l("落点范围", "Impact area")));
     let target = l("攻击阻挡自身的塔", "Attacks its blocker");
@@ -63,9 +65,14 @@ export function enemyDetailSections(kind: EnemyKind, description: string): Detai
       resolution = l("每发重新锁定目标，落点矩形范围伤害", "Reacquires each shell; rectangular impact damage");
     }
     if (family === "heart") { target = l("范围内所有我方塔，无需阻挡", "All player towers in range; no block required"); resolution = l("以自身为中心，伤害随距离线性衰减", "Centered area; damage falls off linearly with distance"); }
+    if (family === "minus") {
+      target = l("发射时优先锁定离自身最近的飞行塔，否则锁最近的塔", "At launch, prefers the nearest flying tower; otherwise the nearest tower");
+      resolution = l("从两端同时发射两颗加速追踪弹，仅命中锁定目标；目标消失后改锁弹幕附近最近的塔，不再优先飞行", "Two accelerating homing shots from opposite ends, hitting only their locked target; on target loss, retarget the nearest tower to the shot without flight priority");
+    }
     attack.fields = [f("目标规则", "Targeting", target), f("攻击速度", "Attack speed", `${n(speed)} · ${s(attackIntervalMs(speed))}`),
       f("单次伤害", "Per hit", damage), f("连发与判定", "Volley / hits", `${shots} ` + l("连发 · 各发判定 ", "shots · hits per shot ") + Array.from({ length: shots }, (_, i) => volleyHitsAt(hits, i)).join("/")),
       f("命中方式", "Resolution", resolution)];
+    if (family === "minus") attack.fields.push(f("每次发射", "Per shot", l("两颗同时发射，每颗独立判定", "Two simultaneous projectiles, resolved independently")));
     if (mode === "mortar") attack.fields.push(f("周期说明", "Cycle", l("整段连发结束后，再等待攻击间隔", "The attack interval starts after the full volley")));
     if (ranged) attack.description = description;
   }

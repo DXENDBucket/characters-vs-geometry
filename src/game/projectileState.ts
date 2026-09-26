@@ -34,13 +34,18 @@ export interface ProjectileState extends ProjectileIntegrity {
 export interface EnemyProjectileState extends ProjectileIntegrity {
   entityId?: string;
   lastGatheredAt?: number;
-  appearance?: "bolt" | "star" | "ion";
+  appearance?: "bolt" | "star" | "ion" | "chevron";
   splashRadius?: number;
   x: number;
   y: number;
   vx: number;
   damageType: DamageType;
   sourceLane: number;
+  vy?: number;
+  targetTower?: Tower;
+  speed?: number;
+  acceleration?: number;
+  maxSpeed?: number;
 }
 
 export interface MortarProjectileState extends ProjectileIntegrity {
@@ -207,16 +212,18 @@ export function createMortarProjectileState(spec: MortarProjectileSpec): MortarP
 
 export function reflectedProjectileSpec(projectile: EnemyProjectileState,
   damageType: DamageType = projectile.damageType, sourceTower?: Tower): TowerProjectileSpec {
-  const reflectedAngle = projectile.vx < 0 ? 0 : 180;
+  const reflectedAngle = projectile.appearance === "chevron"
+    ? battleMath.atan2(-(projectile.vy ?? 0), -projectile.vx) * 180 / Math.PI
+    : projectile.vx < 0 ? 0 : 180;
   return {
     type: projectile.splashRadius ? "shell" : "bolt",
     hitCount: projectile.hitCount,
     partialHitDamage: projectile.partialHitDamage,
     initialDamageBudget: projectile.initialDamageBudget,
     x: projectile.x, y: projectile.y, lane: projectile.sourceLane,
-    speed: Math.abs(projectile.vx), damage: projectile.damage, damageType,
+    speed: projectile.appearance === "chevron" ? battleMath.sqrt(battleMath.square(projectile.vx) + battleMath.square(projectile.vy ?? 0)) : Math.abs(projectile.vx), damage: projectile.damage, damageType,
     splashRadius: projectile.splashRadius ?? 0, angleDegrees: reflectedAngle,
-    maxX: reflectedAngle === 180 ? -Infinity : Infinity,
-    limitDirection: reflectedAngle === 180 ? -1 : 1, sourceTower
+    maxX: Math.abs(reflectedAngle) > 90 ? -Infinity : Infinity,
+    limitDirection: Math.abs(reflectedAngle) > 90 ? -1 : 1, sourceTower
   };
 }

@@ -56,6 +56,7 @@ export function siegeRamSpeed(enemy: EnemyState) {
 }
 
 export function enemyAttackSpeed(kind: EnemyKind) {
+  if (enemyFamily(kind) === "minus") return 60;
   if (enemyIsLaser(kind)) {
     return attackSpeedFromInterval(4_000);
   }

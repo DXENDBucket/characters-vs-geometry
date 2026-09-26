@@ -1,4 +1,5 @@
 import * as battleMath from "./battleMath";
+import { createMinusProjectiles } from "./enemyHomingProjectiles";
 import { releaseBurrowCargo, destroyContainedEnemies } from "./enemyReleaseRules";
 import { syncPassengerPositionState } from "./enemyContainerRules";
 import { addEnemyToField, removeEnemyFromField } from "./enemyRoster";
@@ -946,7 +947,13 @@ function fireEnemyShot(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number,
     return;
   }
 
-  runtime.enemyProjectiles.push(runtime.createProjectile(createEnemyProjectileState(enemy, time, hitCount)));
+  if (enemyFamily(enemy.kind) === "minus") {
+    for (const shot of createMinusProjectiles(enemy, runtime.towers, runtime.battleTime, hitCount)) {
+      runtime.enemyProjectiles.push(runtime.createProjectile(shot));
+    }
+  } else {
+    runtime.enemyProjectiles.push(runtime.createProjectile(createEnemyProjectileState(enemy, time, hitCount)));
+  }
 }
 
 function fireEnemyLaserVolley(runtime: EnemyAdvanceRuntime, enemy: Enemy, time: number) {

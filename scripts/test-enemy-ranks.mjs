@@ -398,7 +398,7 @@ test("every Infinite Front stage has uncapped wave weights while story bosses ke
 });
 
 test("all 66 existing enemy panels and registrations exactly match the pre-refactor snapshot", () => {
-  assert.deepEqual(Object.keys(registry.allEnemyDefinitions).filter(kind => !["tilde", "equals", "parentheses", "dollar", "plus", "chevronLeader"].includes(registry.enemyFamily(kind))), Object.keys(legacy));
+  assert.deepEqual(Object.keys(registry.allEnemyDefinitions).filter(kind => !["tilde", "equals", "parentheses", "dollar", "plus", "minus", "chevronLeader"].includes(registry.enemyFamily(kind))), Object.keys(legacy));
   for (const [kind, expected] of Object.entries(legacy)) {
     const currentExpected = expected.family === "triangleRam"
       ? { ...expected, definition: { ...expected.definition, minWave: 5 } } : expected;
@@ -481,7 +481,7 @@ test("normalized enemy ATK retains Power and passenger damage contributions", ()
 
 test("every minion and leader supports unregistered ranks through the same family growth rules", () => {
   for (const [family, archetype] of Object.entries(enemyArchetypes)) {
-    if (["solarBomb", "dodecahedronCompanion", "tilde", "equals", "parentheses", "dollar", "plus", "chevronLeader"].includes(family)) continue;
+    if (["solarBomb", "dodecahedronCompanion", "tilde", "equals", "parentheses", "dollar", "plus", "minus", "chevronLeader"].includes(family)) continue;
     for (const rank of [4, 10, 100, 10000]) {
       const kind = enemyKindAtRank(family, rank);
       assert.equal(registry.enemyFamily(kind), family);

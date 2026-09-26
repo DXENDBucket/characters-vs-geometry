@@ -225,7 +225,12 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
   }
   for (const object of units.get("enemyProjectile") ?? []) {
     const shot = object as Record<string, unknown>;
-    require(shot.appearance === undefined || ["bolt", "star", "ion"].includes(shot.appearance as string));
+    require(shot.appearance === undefined || ["bolt", "star", "ion", "chevron"].includes(shot.appearance as string));
+    require(shot.targetTower === undefined || member("tower")(shot.targetTower));
+    require(shot.vy === undefined || finite(shot.vy));
+    for (const key of ["speed", "acceleration", "maxSpeed"]) {
+      require(shot[key] === undefined || finite(shot[key]) && (shot[key] as number) >= 0);
+    }
     require(shot.splashRadius === undefined || finite(shot.splashRadius) && shot.splashRadius >= 0);
   }
   for (const kind of ["tower", "enemy"] as const) {

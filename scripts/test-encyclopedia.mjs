@@ -160,6 +160,12 @@ test("enemy rank previews read actual combat stats, SP growth, volley hits and r
     }
   }
   const detail = kind => enemyDetailSections(kind, "");
+  const minus = detail("minus6");
+  assert.match(values(minus[0]), /200.*25% ATK/);
+  assert.match(values(minus[0]), /2\/1\/1\/1\/1/);
+  assert.equal(minus[0].ranges[0].shape.kind, "global");
+  assert.equal(minus.some(section => section.tone === "skill"), false);
+  assert.equal(enemyPreviewAttackSpeed("minus3"), 60);
   assert.match(values(detail("shootingTriangle6")[0]), /2\/1\/1\/1\/1/);
   assert.equal(enemyPreviewAttackSpeed("triangleRam"), undefined);
   assert.equal(enemyPreviewAttackSpeed("slopeTriangle3"), undefined);

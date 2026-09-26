@@ -13,7 +13,7 @@ export interface MortarImpactStyle {
 // Presentation is write-only: no combat decision reads a renderer's state or return value.
 export interface ProjectilePresentation {
   position(projectile: ProjectileDisplayState): void;
-  rotation(projectile: ProjectileState, angle: number): void;
+  rotation(projectile: ProjectileState | EnemyProjectileState, angle: number): void;
   mortarPosition(projectile: MortarProjectileState): void;
   remove(projectile: ProjectileDisplayState): void;
   hit(x: number, y: number, damageType: DamageType): void;

@@ -7,5 +7,6 @@ export function isTowerProjectileOutOfBounds(projectile: ProjectileState, reache
 }
 
 export function isEnemyProjectileOutOfBounds(projectile: EnemyProjectileState) {
-  return projectile.x < BOARD_X - 60 || projectile.x > BOARD_X + BOARD_WIDTH + 60;
+  return projectile.x < BOARD_X - 60 || projectile.x > BOARD_X + BOARD_WIDTH + 60 ||
+    (projectile.appearance === "chevron" && (projectile.y < BOARD_Y - 60 || projectile.y > BOARD_Y + BOARD_HEIGHT + 60));
 }

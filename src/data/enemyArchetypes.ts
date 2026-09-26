@@ -40,6 +40,13 @@ export const enemyArchetypes: Record<EnemyFamily, EnemyArchetype> = {
     attackMode: "melee",
     promotionMaxRank: 3
   },
+  minus: {
+    base: { hp: 20000, armor: 200, magicResistance: 50, damage: 800, damageType: "magic", speedMultiplier: 1, weight: 240, minFlag: 1 },
+    growth: { weight: 200 },
+    catalogRanks: 3,
+    attackMode: "ranged",
+    promotionMaxRank: 3
+  },
   parentheses: {
     base: { hp: 5000, armor: 100, magicResistance: 40, damage: 600, damageType: "physical", speedMultiplier: 1.5, weight: 80 },
     growth: { weight: 120 },

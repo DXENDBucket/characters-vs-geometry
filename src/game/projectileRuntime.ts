@@ -1,4 +1,5 @@
 import * as battleMath from "./battleMath";
+import { enemyHomingHit, steerEnemyHomingProjectile } from "./enemyHomingProjectiles";
 import { CHEVRON_LEADER } from "../data/chevronLeader";
 import { towerAreaTargets, towerDamageReceiver } from "./towerOccupancy";
 import { towerBehaviorType } from "./towerIdentity";
@@ -215,7 +216,12 @@ export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: numb
       : buildEnemyProjectileTransientTargets(runtime.towers, scratch(runtime).transientTargets);
   forEachInitial(runtime.enemyProjectiles, (projectile) => {
     const from = { x: projectile.x, y: projectile.y };
-    projectile.x += projectile.vx * seconds * movementSpeedMultiplier(runtime.towers, projectile.x, projectile.y, slowSources);
+    if (projectile.appearance === "chevron") {
+      runtime.presentation.rotation(projectile, steerEnemyHomingProjectile(projectile, runtime.towers, seconds, runtime.battleTime));
+    }
+    const speedMultiplier = movementSpeedMultiplier(runtime.towers, projectile.x, projectile.y, slowSources);
+    projectile.x += projectile.vx * seconds * speedMultiplier;
+    if (projectile.vy !== undefined) projectile.y += projectile.vy * seconds * speedMultiplier;
     runtime.presentation.position(projectile);
 
     if (runtime.interceptProjectile?.(projectile, from)) {
@@ -225,12 +231,15 @@ export function updateEnemyProjectiles(runtime: ProjectileRuntime, seconds: numb
     if (gatherers.length > 0 && gatherProjectile(runtime, gatherers, projectile, from.x, from.y)) {
       // Linked removals can clear this shot; the lane change itself is not a swept trajectory.
       if (!runtime.enemyProjectiles.includes(projectile)) return;
+      from.x = projectile.x;
+      from.y = projectile.y;
       if (runtime.interceptProjectile?.(projectile, { x: projectile.x, y: projectile.y })) {
         removeEnemyProjectile(runtime, runtime.enemyProjectiles, projectile);
         return;
       }
     }
-    const hit = findEnemyProjectileHitTower(runtime.occupied, projectile, transientTargets);
+    const hit = projectile.appearance === "chevron" ? enemyHomingHit(projectile, from)
+      : findEnemyProjectileHitTower(runtime.occupied, projectile, transientTargets);
 
     if (hit) {
       if (towerBehaviorType(hit) === "N") {

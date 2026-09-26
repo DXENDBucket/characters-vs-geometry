@@ -54,6 +54,54 @@ function fixture(state = {}) {
   return { runtime, hits, snapshot };
 }
 
+test("enemy homing prioritizes flight only at launch, retains targets and saves target references", () => {
+  const { createMinusProjectiles } = load("src/game/enemyHomingProjectiles.ts");
+  const source = enemy(8, 3, "minus"), ground = tower("B", 7), flying = tower("w", 2, 1);
+  flying.flyingUntil = 10000;
+  const [shot] = createMinusProjectiles(source, [ground, flying], 0, 1);
+  assert.equal(shot.targetTower, flying);
+  const f = fixture({ towers: [ground, flying], enemyProjectiles: [shot] });
+  updateEnemyProjectiles(f.runtime, .01);
+  assert.equal(shot.targetTower, flying); assert.ok(shot.speed > 620); assert.ok(shot.vy < 0);
+  const saved = decodeSaveGraph(JSON.parse(JSON.stringify(f.snapshot())), () => ({}));
+  assert.equal(saved.enemyProjectiles[0].targetTower, saved.towers[1]);
+  assert.equal(saved.enemyProjectiles[0].vy, shot.vy);
+  flying.flyingUntil = 0;
+  updateEnemyProjectiles(f.runtime, .01); assert.equal(shot.targetTower, flying);
+  flying.inPlay = false;
+  const otherFlying = tower("w", 0, 0); otherFlying.flyingUntil = 10000; f.runtime.towers.push(otherFlying);
+  updateEnemyProjectiles(f.runtime, .01);
+  assert.equal(shot.targetTower, ground, "retargeting ignores flying priority");
+});
+
+test("enemy homing sweeps only its target, preserves multi-hit budgets and permits interception", () => {
+  const { createMinusProjectiles } = load("src/game/enemyHomingProjectiles.ts");
+  const source = enemy(8, 3, "minus"), target = tower("B", 2, 1), bystander = tower("B", 5, 2);
+  const [shot] = createMinusProjectiles(source, [target], 0, 2);
+  shot.partialHitDamage = 100;
+  const f = fixture({ towers: [target, bystander], enemyProjectiles: [shot] });
+  updateEnemyProjectiles(f.runtime, 1);
+  assert.deepEqual(f.hits.map(hit => [hit.target, hit.amount, hit.type]), [[target, 100, "magic"], [target, 200, "magic"]]);
+  assert.equal(f.runtime.enemyProjectiles.length, 0);
+  const [intercepted] = createMinusProjectiles(source, [target], 0, 1);
+  f.runtime.enemyProjectiles.push(intercepted); f.runtime.interceptProjectile = () => true;
+  updateEnemyProjectiles(f.runtime, .1);
+  assert.equal(f.runtime.enemyProjectiles.length, 0); assert.equal(f.hits.length, 2);
+});
+
+test("enemy homing honors orientation and reflects its actual two-dimensional velocity", () => {
+  const { createMinusProjectiles } = load("src/game/enemyHomingProjectiles.ts");
+  const { reflectedProjectileSpec } = load("src/game/projectileState.ts");
+  const source = enemy(8, 3, "minus"), target = tower("w", 3, 2), guard = tower("o", 4, 2);
+  target.flyingUntil = 10000; guard.skills.orientation = { sp: 0, spBuffer: 0, activeUntil: 10000 };
+  const [shot] = createMinusProjectiles(source, [target, guard], 0, 1);
+  assert.equal(shot.targetTower, guard);
+  const reflected = createTowerProjectileState(reflectedProjectileSpec(shot));
+  assert.ok(Math.abs(reflected.vx + shot.vx) < .001);
+  assert.ok(Math.abs(reflected.vy + shot.vy) < .001);
+  assert.equal(reflected.damageType, "magic");
+});
+
 test("bodyless impacts keep per-judgment armor, partial budgets and status effects", () => {
   const target = enemy(3); target.armor = 300;
   const projectile = shot({ hitCount: 3, partialHitDamage: 100, debuff: "stasis", debuffDuration: 3000 });

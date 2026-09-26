@@ -85,6 +85,32 @@ function fixture(saved = {}) {
     snapshot: () => captureBattleSnapshot(data) };
 }
 
+test("Minus keeps Plus stats, has no skill or melee, and fires paired ranked magic volleys", () => {
+  const { getEnemyDefinition } = load("src/registry/enemies.ts");
+  const { enemyAttackSpeed, canEnemyMelee } = load("src/game/enemyCombatRules.ts");
+  const { initialEnemySkillStates } = load("src/game/enemySkillRules.ts");
+  for (const rank of [1, 2, 3, 6]) {
+    const kind = rank === 1 ? "minus" : `minus${rank}`, e = enemy(kind);
+    const panel = getEnemyDefinition(kind), plus = getEnemyDefinition(rank === 1 ? "plus" : `plus${rank}`);
+    for (const key of ["hp", "armor", "magicResistance", "attackPower", "speedMultiplier", "weight"]) assert.equal(panel[key], plus[key], key);
+    assert.equal(panel.minFlag, 1); assert.equal(enemyAttackSpeed(kind), 60);
+    assert.equal(canEnemyMelee(e), false); assert.deepEqual(initialEnemySkillStates(kind), {});
+    const ground = tower("B", 6), flying = tower("w", 2, 1); flying.flyingUntil = 10000;
+    const f = fixture({ enemies: [e], towers: [ground, flying] }); e.attackAt = 0;
+    advanceEnemies(f.runtime, 0, 0);
+    assert.equal(f.data.pending.length, Math.min(rank, 5));
+    for (const pending of f.data.pending) executeEnemyAttack(f.runtime, pending.action);
+    const shots = f.data.enemyProjectiles;
+    assert.equal(shots.length, Math.min(rank, 5) * 2);
+    assert.equal(shots.reduce((sum, shot) => sum + shot.hitCount, 0), rank * 2);
+    assert.deepEqual(shots.slice(0, 2).map(shot => shot.x), [e.x - 24, e.x + 24]);
+    for (const shot of shots) {
+      assert.equal(shot.targetTower, flying); assert.equal(shot.damage, 200);
+      assert.equal(shot.damageType, "magic"); assert.equal(shot.appearance, "chevron");
+    }
+  }
+});
+
 test("actual high-rank advancement stops at the first crossed tower", () => {
   for (const direction of [-1, 1]) {
     const t = tower(), e = enemy("triangle10000", direction === -1 ? 10 : 0);

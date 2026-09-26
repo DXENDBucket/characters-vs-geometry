@@ -116,6 +116,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
   const parentheses = getEnemyDefinition("parentheses");
   const dollar = getEnemyDefinition("dollar");
   const plus = getEnemyDefinition("plus");
+  const minus = getEnemyDefinition("minus");
   const chevron = getEnemyDefinition("chevronLeader");
 
   return sortEnemyEncyclopediaEntries([
@@ -156,6 +157,17 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
         zh ? "权重 I/II/III：240 / 440 / 640；移速 10；攻速 60。" : "Weight I/II/III: 240 / 440 / 640; speed 10; attack speed 60."],
       description: zh ? "指令：支援。初始 0 技力，上限 15，每秒恢复 1，满技力消耗 15。为最近的（等级 + 1）个常规敌怪各恢复自身当前生命值 35% 的生命；不选择自己、其他加号、领袖、Boss、眷属或阳炎爆弹。"
         : "Command: Support. Starts at 0/15 SP, regenerates 1 SP/s and spends 15 at full SP. Heals each of the nearest (rank + 1) ordinary enemies for 35% of the caster's current HP. Excludes self, other Plus enemies, leaders, Bosses, companions and Solar Bombs."
+    },
+    {
+      title: zh ? "减号系列" : "Minus Series",
+      enemyKind: "minus",
+      chapterGroupId: "ascii",
+      lines: [statLine([
+        [t("label.hp"), minus.hp], [t("label.armor"), minus.armor],
+        [t("label.mr"), minus.magicResistance], [t("label.atk"), damageText(minus.attackPower, minus.damageType)]]),
+        zh ? "权重 I/II/III：240 / 440 / 640；移速 10；攻速 60；一旗前不出现。" : "Weight I/II/III: 240 / 440 / 640; speed 10; attack speed 60; unavailable before the first flag."],
+      description: zh ? "没有技力技能或近战攻击。从减号两端同时发射两颗加速追踪弹，每颗造成攻击力 25% 的法术伤害。发射时优先锁定离自身最近的飞行塔，否则选最近的塔；目标消失后改锁离弹幕最近的塔，不再优先飞行。等级增加连发次数，超过五连发的部分按常规规则分配为独立多判。"
+        : "No SP skill or melee attack. Fires two accelerating homing shots from opposite ends, each dealing 25% ATK magic damage. At launch prefers the nearest flying tower, otherwise the nearest tower. On target loss, retargets the nearest tower to the projectile without flight priority. Rank adds volleys, with hits beyond five volleys distributed as independent judgments."
     },
     {
       title: zh ? "括号系列" : "Parentheses Series",

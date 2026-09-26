@@ -76,7 +76,8 @@ const enemyProjectileFields = new Set(Object.keys({
   entityId: true,
   lastGatheredAt: true, appearance: true, splashRadius: true,
   damage: true, hitCount: true, partialHitDamage: true, initialDamageBudget: true,
-  x: true, y: true, vx: true, damageType: true, sourceLane: true
+  x: true, y: true, vx: true, damageType: true, sourceLane: true,
+  vy: true, targetTower: true, speed: true, acceleration: true, maxSpeed: true
 } satisfies Record<keyof EnemyProjectileState, true>));
 const mortarFields = new Set(Object.keys({
   entityId: true,
