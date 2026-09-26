@@ -39,6 +39,9 @@ jobs:
       - name: Test audio
         run: npm run test:audio
 
+      - name: Test cooperative transport
+        run: node --test scripts/test-coop-room.mjs scripts/test-coop-transport.mjs
+
       - name: Build
         run: npm run build
 

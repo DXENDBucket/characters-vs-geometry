@@ -12,6 +12,12 @@ the port use `npm run coop -- --port=5181`. The process prints local/LAN URLs.
 Keep the process running for the battle. Allow the port through the firewall;
 public reachability/port forwarding is the host's responsibility.
 
+Battle traffic uses an authenticated WebSocket on `/api/coop/socket`, with
+roughly 30 server updates per second. HTTP is only used for the lobby; the old
+polling endpoints remain for older clients. HTTPS addresses automatically use
+WSS. Reverse proxies must allow WebSocket upgrades. Restart the server after
+game updates so its level/card registry and battle rules match the clients.
+
 Both players open the host's URL in a browser, enter Multiplayer, and use the
 same server address. The host creates a room and shares its room code. The guest
 joins by code. The host selects a completed level and difficulty, each player

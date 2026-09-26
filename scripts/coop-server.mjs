@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { networkInterfaces } from "node:os";
 import { build } from "vite";
+import { attachCoopSockets } from "./coop-sockets.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const port = Number(process.argv.find(arg => arg.startsWith("--port="))?.slice(7) ?? 5180);
@@ -83,6 +84,7 @@ const server = createServer(async (req, res) => {
     json(res, 200, room.state());
   } catch (error) { if (!res.headersSent) json(res, 400, { error: error instanceof Error ? error.message : "Request failed" }); }
 });
+const closeSockets = attachCoopSockets(server, sessions);
 server.requestTimeout = 15000;
 const cleanup = setInterval(() => {
   const now = Date.now();
@@ -101,5 +103,6 @@ server.listen(port, "0.0.0.0", () => {
 });
 for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => {
   clearInterval(cleanup); for (const room of rooms.values()) remove(room);
+  closeSockets();
   server.close(); server.closeAllConnections();
 });

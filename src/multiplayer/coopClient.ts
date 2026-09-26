@@ -18,34 +18,32 @@ export class CoopClient {
   transport(): BattleTransportFactory {
     return events => {
       const connection = Array.from(crypto.getRandomValues(new Uint32Array(4))).join("_");
-      let closed = false, timer: ReturnType<typeof setTimeout> | undefined;
-      const abort = new AbortController();
-      let tail = Promise.resolve();
-      const failed = (error: unknown) => {
-        if (!closed) events.closed(!(error instanceof CoopRequestError && [401, 403].includes(error.status)));
+      const url = new URL("/api/coop/socket", this.address);
+      url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+      const socket = new WebSocket(url);
+      let closed = false;
+      const timeout = setTimeout(() => { if (!closed) socket.close(); }, 10000);
+      socket.onopen = () => {
+        if (closed) return;
+        clearTimeout(timeout);
+        // Authenticate inside TLS, never put the session token in a URL/log.
+        socket.send(JSON.stringify({ token: this.token, connection }));
+        events.open();
       };
-      const poll = async () => {
-        try {
-          const messages = await this.request<string[]>(`poll?connection=${connection}`, undefined,
-            AbortSignal.any([abort.signal, AbortSignal.timeout(8000)]));
-          if (closed) return;
-          for (const message of messages) { if (closed) break; events.message(message); }
-          if (!closed) timer = setTimeout(() => void poll(), 35);
-        } catch (error) { failed(error); }
+      socket.onmessage = event => { if (!closed) events.message(event.data); };
+      socket.onerror = () => { /* onclose drives the existing reconnect policy. */ };
+      socket.onclose = event => {
+        clearTimeout(timeout);
+        if (!closed) { closed = true; events.closed(![1008, 4001].includes(event.code)); }
       };
-      tail = this.request("connect", { connection }, AbortSignal.any([abort.signal, AbortSignal.timeout(8000)])).then(() => {
-        if (!closed) { events.open(); void poll(); }
-      }).catch(failed);
       return {
         send: text => {
-          tail = tail.then(async () => {
-            if (!closed) await this.request("send", { connection, text }, AbortSignal.any([abort.signal, AbortSignal.timeout(8000)]));
-          }).catch(failed);
+          if (closed || socket.readyState !== WebSocket.OPEN) throw new Error("Battle connection closed");
+          socket.send(text);
         },
         close: () => {
           if (closed) return;
-          closed = true; clearTimeout(timer); abort.abort();
-          void this.request("disconnect", { connection }).catch(() => {});
+          closed = true; clearTimeout(timeout); socket.close();
         }
       };
     };

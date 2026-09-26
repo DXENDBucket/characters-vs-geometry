@@ -20,7 +20,8 @@ export interface CoopState {
   players: { id: string; name: string; ready: boolean; cards: CardId[]; connected: boolean }[];
 }
 interface Player { id: string; profile: CoopProfile; cards: CardId[]; ready: boolean }
-interface Link { id: string; peer?: BattleSyncPeer; queue: string[]; bytes: number }
+interface PushLink { send(text: string): void; close(): void }
+interface Link { id: string; peer?: BattleSyncPeer; queue: string[]; bytes: number; push?: PushLink }
 
 export function coopLevels(completed: readonly string[]) {
   return levelNodes.filter(node => completed.includes(node.id) && !getLevelConfig(node.id).survival).map(node => node.id);
@@ -113,28 +114,37 @@ export class CoopRoom {
         speed: runtime.session.controls.speed, paused: runtime.session.controls.paused, ended: runtime.world.gameOver }; },
       advance: async delta => {
         if (this.links.size < 2) return;
-        runtime.session.advance(delta, runtime.sessionRuntime); this.sync!.publish(runtime.world.gameOver);
-      } }, { failed: error => { this.error = error.message; this.close(); } });
+        runtime.session.advance(delta, runtime.sessionRuntime); this.sync!.publish();
+      } }, { intervalMs: 1000 / 30, failed: error => { this.error = error.message; this.close(); } });
     if (runLoop) this.loop.start();
   }
-  connect(actor: string, id: string) {
+  connect(actor: string, id: string, push?: PushLink) {
     this.player(actor);
     if (!this.sync || !/^[a-zA-Z0-9_-]{1,64}$/.test(id)) throw new Error("Battle is not ready");
     this.disconnect(actor);
-    const link: Link = { id, queue: [], bytes: 0 };
+    const link: Link = { id, queue: [], bytes: 0, push };
     this.links.set(actor, link);
     link.peer = this.sync.connect(actor, message => {
       const text = JSON.stringify(message);
+      if (push) {
+        try { push.send(text); } catch { this.disconnect(actor, id); }
+        return;
+      }
       if (link.queue.length >= 64 || link.bytes + text.length > MAX_BATTLE_SYNC_BYTES) { this.disconnect(actor, id); return; }
       link.queue.push(text); link.bytes += text.length;
     });
-    if (!link.peer) { this.links.delete(actor); throw new Error("Battle connection failed"); }
+    if (!link.peer || this.links.get(actor) !== link) {
+      if (link.peer) this.sync.disconnect(link.peer);
+      if (this.links.get(actor) === link) this.disconnect(actor, id);
+      throw new Error("Battle connection failed");
+    }
   }
   disconnect(actor: string, id?: string) {
     const link = this.links.get(actor);
     if (!link || id !== undefined && link.id !== id) return;
     if (link.peer) this.sync?.disconnect(link.peer);
     this.links.delete(actor);
+    link.push?.close();
   }
   private link(actor: string, id: string) {
     this.player(actor);
@@ -146,6 +156,7 @@ export class CoopRoom {
   receive(actor: string, id: string, text: string) { return this.sync!.receiveText(this.link(actor, id).peer!, text); }
   close() {
     this.phase = "closed"; void this.loop?.stop();
-    this.sync?.close(); this.authority?.close(); this.links.clear();
+    for (const actor of [...this.links.keys()]) this.disconnect(actor);
+    this.sync?.close(); this.authority?.close();
   }
 }
