@@ -3134,7 +3134,7 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 - New chapter after Symbol Domain Capital. Unlocks after AE-EX-8; 10 waves. Uses the current EX template: 2000 starting characters, initial weight 30, increment +35, extra increment +5, one flag every 10 waves, no weight cap.
 - Regular enemy pool: Circle I/II/III, Tilde I/II/III, Dollar I.
 - Environment: wave 1 additionally spawns one column of Greater-Than Sign I at the right entry edge, one per row (7 total), simultaneously with ordinary wave spawns. These leaders consume no wave weight and never repeat on later waves, including flag waves. Victory still requires defeating surviving enemies.
-- All seven leaders start at the same base movement speed of 15, with no random variance. Existing transformations and movement effects remain unchanged.
+- All seven leaders start at the same base movement speed of 5, with no random variance. Existing transformations and movement effects remain unchanged.
 - Pre-battle preview/discovery includes the extra leader; the environment description specifies wave 1 and all rows. Extra-wave spawn data now supports an optional wave number and the all-row lane selector; existing every-wave effects remain unchanged.
 
 ## ASCII Expansion: AE-10
@@ -3152,7 +3152,7 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 
 ## Recent Enemy Additions
 
-- Greater-Than Sign leader (`>` / `<`): HP `32000`, +`16000` per additional rank, armor `100`, MR `50`, ATK `450` magic, fixed speed `15`. Rank I first appears in AE-9.
+- Greater-Than Sign leader (`>` / `<`): HP `32000`, +`16000` per additional rank, armor `100`, MR `50`, ATK `450` magic, cannon-form fixed speed `5` at every rank. At half HP, the existing permanent assault transformation still uses base speed `30` and unchanged acceleration. Rank I first appears in AE-9.
 - Cannon form charges for `12s`, then fires a light-green ion ball along its facing: `1000% ATK`, radius `2.4` cells, linear damage falloff. No ordinary melee; freezing and High Flight pause charging.
 - At half maximum HP it permanently switches to `<`, cancels unfinished charging, sets armor to `260` and base speed to `30`, and uses Hex Mace acceleration/bounce mechanics. Collisions deal **magic** damage equal to ATK times actual speed divided by 10. Facing is unchanged and healing cannot revert the form.
 

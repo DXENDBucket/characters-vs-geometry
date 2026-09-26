@@ -89,7 +89,7 @@ test("chevron leader gains additive 50% base HP per rank, with unchanged magic A
     const kind = enemyKindAtRank("chevronLeader", rank), stats = registry.getEnemyDefinition(kind);
     assert.equal(stats.hp, 32000 + (rank - 1) * 16000);
     assert.deepEqual([stats.armor, stats.magicResistance, stats.damage, stats.damageType, stats.speedMultiplier, stats.weight],
-      [100, 50, 450, "magic", 1.5, 0]);
+      [100, 50, 450, "magic", 0.5, 0]);
     assert.equal(registry.enemyIsLeader(kind), true);
     assert.equal(behavior.canEnemyMelee({ kind }), false);
     assert.equal(behavior.shouldEnemyShoot({ kind, attackAt: 0 }, 999999), false);
@@ -103,7 +103,7 @@ test("ion charge fires every twelve active seconds and assault switches only onc
   } });
   const { advanceIonCharge, updateChevronPhase, enemyUsesMaceMovement } = phaseLoad("src/game/chevronLeader.ts");
   const enemy = { kind: "chevronLeader2", hp: 48000, maxHp: 48000, movementDirection: 1,
-    baseStats: { maxHp: 48000, armor: 100, speed: 15, magicResistance: 50, damage: 450, damageType: "magic" } };
+    baseStats: { maxHp: 48000, armor: 100, speed: 5, magicResistance: 50, damage: 450, damageType: "magic" } };
   assert.equal(enemyUsesMaceMovement(enemy), false);
   let shots = 0;
   for (let i = 0; i < 720; i++) if (advanceIonCharge(enemy, 1 / 60)) shots++;
@@ -111,6 +111,7 @@ test("ion charge fires every twelve active seconds and assault switches only onc
   assert.ok(enemy.ionChargeMs < 1e-6);
   assert.equal(updateChevronPhase(enemy), false);
   enemy.hp = 24001; assert.equal(updateChevronPhase(enemy), false);
+  assert.equal(enemy.baseStats.speed, 5);
   enemy.hp = 24000; enemy.ionChargeMs = 11999;
   assert.equal(updateChevronPhase(enemy), true);
   assert.deepEqual([enemy.hp, enemy.maxHp, enemy.maceFacingDirection, enemy.ionChargeMs, enemy.maceVelocity], [24000, 48000, 1, 0, 0]);
@@ -118,6 +119,7 @@ test("ion charge fires every twelve active seconds and assault switches only onc
   assert.equal(enemyUsesMaceMovement(enemy), true);
   assert.equal(advanceIonCharge(enemy, 12), false);
   enemy.hp = 48000; assert.equal(updateChevronPhase(enemy), false);
+  assert.equal(enemy.baseStats.speed, 30);
   assert.equal(enemy.chevronAssault, true);
   assert.equal(updateChevronPhase({ ...enemy, hp: 0, chevronAssault: false }), false);
 });

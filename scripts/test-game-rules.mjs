@@ -29,7 +29,7 @@ test("AE-T-1 adds a zero-weight leader column only on wave one without changing 
       assert.ok(leaders.every(enemy => enemy.waveWeight === 0 && enemy.time === 5000));
       for (const roll of [0, 0.5, 1]) {
         const units = leaders.map(options => createEnemyState(options, () => roll));
-        assert.ok(units.every(enemy => enemy.baseStats.speed === 15 && enemy.speed === 15),
+        assert.ok(units.every(enemy => enemy.baseStats.speed === 5 && enemy.speed === 5),
           "all seven leaders use average base speed without random variance");
       }
     }

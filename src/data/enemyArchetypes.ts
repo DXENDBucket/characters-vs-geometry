@@ -20,7 +20,7 @@ export interface EnemyArchetype {
 // Only the finite catalog is enumerated. Runtime ranks are resolved on demand.
 export const enemyArchetypes: Record<EnemyFamily, EnemyArchetype> = {
   chevronLeader: {
-    base: { hp: 32000, armor: 100, magicResistance: 50, damage: 450, damageType: "magic", speedMultiplier: 1.5, weight: 0 },
+    base: { hp: 32000, armor: 100, magicResistance: 50, damage: 450, damageType: "magic", speedMultiplier: 0.5, weight: 0 },
     growth: { hp: 16000 },
     catalogRanks: 3,
     attackMode: "chargedRanged",
