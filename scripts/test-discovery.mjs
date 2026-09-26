@@ -22,18 +22,27 @@ test("j unlocks after 3-10 rather than 2-6", () => {
   assert.equal(progress.isCardUnlocked("j"), true);
 });
 
-test("Q unlocks after 2-2 and O after 2-3", () => {
+test("Q unlocks after 2-1, N after 2-2, q after 4-2; O remains at 2-3", () => {
   const { progress } = fixture();
   progress.completeLevel("1-10");
   assert.equal(progress.isCardUnlocked("R"), true);
   assert.equal(progress.isCardUnlocked("O"), false);
   assert.equal(progress.isCardUnlocked("Q"), false);
-  assert.deepEqual(progress.completeLevel("2-2"), ["Q"]);
+  assert.equal(progress.isCardUnlocked("N"), false);
+  assert.equal(progress.isCardUnlocked("q"), false);
+  assert.deepEqual(progress.completeLevel("2-1"), ["Q"]);
   assert.equal(progress.isCardUnlocked("Q"), true);
+  assert.equal(progress.isCardUnlocked("N"), false);
+  assert.equal(progress.isCardUnlocked("q"), false);
+  assert.deepEqual(progress.completeLevel("2-2"), ["N"]);
+  assert.equal(progress.isCardUnlocked("N"), true);
+  assert.equal(progress.isCardUnlocked("q"), false);
   assert.equal(progress.isCardUnlocked("O"), false);
   assert.deepEqual(progress.completeLevel("2-3"), ["O"]);
   assert.equal(progress.isCardUnlocked("O"), true);
   assert.deepEqual(progress.completeLevel("2-4"), ["c"]);
+  assert.deepEqual(progress.completeLevel("4-2"), ["q"]);
+  assert.equal(progress.isCardUnlocked("q"), true);
 });
 
 test("flawless clears retain per-difficulty records, including difficulty zero and repeat clears", () => {
