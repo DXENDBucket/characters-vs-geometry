@@ -468,6 +468,17 @@ test("NUL renders once per occupied cell, not once per tower layer", () => {
   assert.equal(drawn.length,2); assert.notDeepEqual(drawn[0],drawn[1]);
 });
 
+test("NUL glyph follows the push animation without duplicating shell layers", () => {
+  const drawn = [];
+  const load = createTypeScriptLoader({ "src/render/delBoss.ts": { drawNulGlyph: (_g, x, y) => drawn.push([x, y]) } });
+  const { drawNullifiedTowers } = load("src/render/nullifiedTowers.ts");
+  const { BOARD_X, BOARD_Y, CELL_WIDTH, CELL_HEIGHT } = load("src/config.ts");
+  const x = BOARD_X + 3.5 * CELL_WIDTH, y = BOARD_Y + 2.5 * CELL_HEIGHT;
+  const tower = { lane: 2, column: 3, moveVisual: { fromX: x - CELL_WIDTH, fromY: y, startedAt: 1000, duration: 500 } };
+  for (const time of [1000, 1250, 1500]) drawNullifiedTowers({ clear() {} }, { towers: [tower, { ...tower }] }, time);
+  assert.deepEqual(drawn, [[x - CELL_WIDTH, y], [x - CELL_WIDTH / 2, y], [x, y]]);
+});
+
 test("O specializes in magic resistance without changing its cost, health or cooldown", () => {
   const { cardDefinitions } = createTypeScriptLoader()("src/data/cards.ts");
   const card = cardDefinitions.find(card => card.id === "O");

@@ -1,6 +1,7 @@
 import type { LevelConfig } from "../types";
 import type { TowerState as Tower } from "./towerState";
 import { syncTowerOccupancy } from "./towerOccupancy";
+import { settleTowerMoveVisual } from "./towerRules";
 
 export interface NullifiedTowers<T extends Tower = Tower> {
   startedAt: number;
@@ -26,6 +27,10 @@ export class TowerNullificationSimulation<T extends Tower = Tower> {
 
   snapshot() { return this.state; }
   isOccupied(lane: number, column: number) { return this.cells.has(`${lane}:${column}`); }
+  refreshCells() {
+    this.cells.clear();
+    for (const tower of this.state?.towers ?? []) this.cells.add(`${tower.lane}:${tower.column}`);
+  }
 
   eraseWhere(matches: (tower: T) => boolean, erase: (tower: T) => void) {
     if (!this.state) return false;
@@ -75,6 +80,7 @@ export class TowerNullificationSimulation<T extends Tower = Tower> {
   }
 
   update(time: number, periodic?: LevelConfig["periodicTowerNullification"]) {
+    for (const tower of this.state?.towers ?? []) settleTowerMoveVisual(tower, time);
     this.recover(time);
     if (!periodic) return;
     const due: T[] = [];

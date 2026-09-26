@@ -161,13 +161,13 @@ test("shifting both layers of a mirror component retains its shells as an indepe
   assert.equal(rightShell.inPlay, false);
 });
 
-test("push authorization includes shells; NUL or moving members cancel before skill consumption", () => {
+test("push authorization includes shells; NUL is pushable but moving members cancel before skill consumption", () => {
   const f = fixture(), pusher = f.place("#", 3, 0), inner = f.place("B", 3, 1), shell = f.place("[]", 3, 1);
   getTowerSkillState(pusher, "push").sp = 30; const op = { type: "push", target: ref(pusher), cell: { lane: 3, column: 1 } };
   f.operations.authorize = (_actor, _op, affected) => !affected.towers.includes(shell);
   let before = f.snapshot(); f.send(op, "forbidden"); assert.deepEqual(f.snapshot(), before);
   f.operations.authorize = () => true; inner.nullified = true;
-  before = f.snapshot(); f.send(op, "unavailable"); assert.deepEqual(f.snapshot(), before); inner.nullified = false;
+  before = f.snapshot(); assert.ok(f.push.plan(pusher, 3, 1)); assert.deepEqual(f.snapshot(), before); inner.nullified = false;
   inner.moveVisual = { fromX: inner.x, fromY: inner.y, startedAt: 0, duration: 500 };
   before = f.snapshot(); f.send(op, "unavailable"); assert.deepEqual(f.snapshot(), before); inner.moveVisual = undefined;
   f.send(op); assert.equal(inner.column, 2); assert.equal(shell.column, 2); assert.equal(pusher.column, 0);

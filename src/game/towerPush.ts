@@ -3,7 +3,6 @@ import { physicalTowerCell, towerCell } from "./towerTopology";
 import type { TowerActionListener } from "./towerActions";
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, palette } from "../config";
 import type { Tower } from "../types";
-import { gridCellKey } from "./targeting";
 import { pushIsReady } from "./pushSkillRules";
 import { TowerPushSimulation, type TowerPushRuntime } from "./towerPushRules";
 import type { TowerActionEvent } from "./towerActions";
@@ -69,12 +68,11 @@ export class TowerPushController {
   private drawSelection() {
     const source = this.source;
     if (!source || !this.marks) return;
-    const runtime = this.runtime();
     this.marks.clear().lineStyle(3, palette.green, 0.95);
     const origin = towerCell(source);
     for (const [dy, dx] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
       const { lane, column } = physicalTowerCell(source, { lane: origin.lane + dy, column: origin.column + dx });
-      if (!runtime.occupied.get(gridCellKey(lane, column))?.inPlay) continue;
+      if (!this.simulation.plan(source, lane, column)) continue;
       this.marks.strokeRect(BOARD_X + column * CELL_WIDTH + 4, BOARD_Y + lane * CELL_HEIGHT + 4, CELL_WIDTH - 8, CELL_HEIGHT - 8);
     }
     this.marks.lineStyle(2, palette.white, 1).strokeCircle(source.x, source.y, 32);

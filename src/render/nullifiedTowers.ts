@@ -11,6 +11,14 @@ export function drawNullifiedTowers(graphics: Phaser.GameObjects.Graphics, state
     const key = `${tower.lane}:${tower.column}`;
     if (drawn.has(key)) continue;
     drawn.add(key);
-    drawNulGlyph(graphics, BOARD_X+(tower.column+.5)*CELL_WIDTH, BOARD_Y+(tower.lane+.5)*CELL_HEIGHT, time);
+    let x = BOARD_X + (tower.column + .5) * CELL_WIDTH, y = BOARD_Y + (tower.lane + .5) * CELL_HEIGHT;
+    if (tower.moveVisual) {
+      const move = tower.moveVisual;
+      const progress = Math.max(0, Math.min(1, (time - move.startedAt) / move.duration));
+      const eased = progress * progress * (3 - 2 * progress);
+      x = move.fromX + (x - move.fromX) * eased;
+      y = move.fromY + (y - move.fromY) * eased;
+    }
+    drawNulGlyph(graphics, x, y, time);
   }
 }

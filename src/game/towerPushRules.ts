@@ -1,4 +1,4 @@
-import { parenthesisInner, syncTowerOccupancy } from "./towerOccupancy";
+import { isTowerShellType, syncTowerOccupancy } from "./towerOccupancy";
 import { logicalTowerCell, physicalTowerCell, towerCell } from "./towerTopology";
 import type { TowerActionDataEvent } from "./towerActions";
 import { BOARD_X, BOARD_Y, CELL_HEIGHT, CELL_WIDTH, COLUMNS, LANES } from "../config";
@@ -12,6 +12,7 @@ import type { AppliedTowerMove, TowerMovementRuntime } from "./towerShifterRules
 import { settleTowerMoveVisual } from "./towerRules";
 
 export interface TowerPushRuntime<T extends Tower = Tower> extends TowerMovementRuntime<T> {
+  nullifiedTowers?: readonly T[];
   onTowerAction?: (tower: T, event: TowerActionDataEvent) => boolean | void;
   eraseTower: (tower: T) => void;
   authorizeMoves?: (source: T, moves: readonly (AppliedTowerMove<T> & { erased: boolean })[]) => boolean;
@@ -31,13 +32,21 @@ export class TowerPushSimulation<T extends Tower = Tower> {
   plan(source: T, lane: number, column: number) {
     if (!source.inPlay || source.nullified || source.moveVisual) return null;
     const runtime = this.runtime();
-    const byId = new Map(runtime.towers.map(tower => [tower.id, tower]));
+    const towers = [...runtime.towers, ...(runtime.nullifiedTowers ?? [])].filter(tower => !tower.transient && (tower.inPlay || tower.nullified));
+    const byId = new Map(towers.map(tower => [tower.id, tower]));
+    const occupied = new Map<string, T>();
+    for (const tower of towers) {
+      const key = gridCellKey(tower.lane, tower.column);
+      if (!occupied.has(key) || !isTowerShellType(tower.type)) occupied.set(key, tower);
+    }
     const origin = towerCell(source), target = logicalTowerCell(source, { lane, column });
-    const logicalTowers = new Map(runtime.towers.map(tower => [tower.id, { id: tower.id, inPlay: tower.inPlay, ...towerCell(tower) }]));
+    const logicalTowers = new Map(towers.map(tower => [tower.id, {
+      id: tower.id, inPlay: true, ...logicalTowerCell(source, tower)
+    }]));
     const plan = planTowerPush({ id: source.id, inPlay: source.inPlay, ...origin }, target, {
       lanes: LANES, columns: COLUMNS,
       getTower: id => logicalTowers.get(id),
-      occupantAt: (row, col) => { const cell = physicalTowerCell(source, { lane: row, column: col }); return runtime.occupied.get(gridCellKey(cell.lane, cell.column))?.id; },
+      occupantAt: (row, col) => { const cell = physicalTowerCell(source, { lane: row, column: col }); return occupied.get(gridCellKey(cell.lane, cell.column))?.id; },
       isCellDeployable: (row, col) => { const cell = physicalTowerCell(source, { lane: row, column: col }); return runtime.isCellDeployable?.(cell.lane, cell.column) ?? true; }
     });
     if (!plan) return null;
@@ -47,10 +56,13 @@ export class TowerPushSimulation<T extends Tower = Tower> {
       return { ...move, fromLane: from.lane, fromColumn: from.column, toLane: to.lane, toColumn: to.column, tower: byId.get(move.towerId)! };
     });
     for (const move of [...moves]) {
-      const companion = (move.tower.parenthesisGuard ?? parenthesisInner(move.tower)) as T | undefined;
-      if (companion && !moves.some(item => item.tower === companion)) moves.push({ ...move, towerId: companion.id, tower: companion });
+      for (const companion of towers) {
+        if (companion.lane === move.fromLane && companion.column === move.fromColumn && !moves.some(item => item.tower === companion)) {
+          moves.push({ ...move, towerId: companion.id, tower: companion });
+        }
+      }
     }
-    if (moves.some(move => !move.tower.inPlay || move.tower.nullified || move.tower.moveVisual)) return null;
+    if (moves.some(move => (!move.tower.inPlay && !move.tower.nullified) || move.tower.moveVisual)) return null;
     return { moves, origin, target };
   }
 
@@ -73,7 +85,7 @@ export class TowerPushSimulation<T extends Tower = Tower> {
       tower.x = BOARD_X + (tower.column + 0.5) * CELL_WIDTH;
       tower.y = BOARD_Y + (tower.lane + 0.5) * CELL_HEIGHT;
       this.presentation.position(tower);
-      if (!move.erased) runtime.occupied.set(gridCellKey(tower.lane, tower.column), tower);
+      if (!move.erased && !tower.nullified) runtime.occupied.set(gridCellKey(tower.lane, tower.column), tower);
     }
     for (const move of moves) {
       if (!move.erased) continue;

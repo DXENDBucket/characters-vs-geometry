@@ -62,6 +62,65 @@ test("legacy NUL and sealed-cell overlap is cleaned before recovery", () => {
   assert.equal(restored.world.towers.length, 0);
 });
 
+test("push moves mixed NUL chains and shells without changing suspension or overlapping on recovery", () => {
+  for (const nullFirst of [true, false]) {
+    const runtime = prepared("1-9", ["#", "A", "B", "()"]);
+    const source = place(runtime, "#", 2, 1);
+    const tower = place(runtime, "B", 2, nullFirst ? 2 : 3);
+    const shell = place(runtime, "()", 2, tower.column);
+    const active = place(runtime, "A", 2, nullFirst ? 3 : 2);
+    const oldColumn = tower.column;
+    runtime.nullification.start(0, 10000, [tower, shell]);
+    getTowerSkillState(source, "push").sp = 30;
+    assert.equal(runtime.executeOperation("local", { type: "push", target: ref(source), cell: { lane: 2, column: 2 } }), "handled");
+    assert.equal(tower.column, oldColumn + 1);
+    assert.equal(shell.column, tower.column);
+    assert.equal(active.column, nullFirst ? 4 : 3);
+    for (const member of [tower, shell]) {
+      assert.equal(member.inPlay, false);
+      assert.equal(member.nullified, true);
+      assert.equal(member.nullifiedUntil, 10000);
+      assert.ok(member.moveVisual);
+    }
+    assert.equal(runtime.nullification.isOccupied(2, oldColumn), false);
+    assert.equal(runtime.nullification.isOccupied(2, tower.column), true);
+    assert.equal(runtime.world.occupied.has(`2:${tower.column}`), false);
+    assert.equal(runtime.cellIsDeployable(2, tower.column), false);
+    assert.equal(runtime.push.plan(tower, 2, active.column), null);
+    const restored = cloneCheckpoint(runtime, runtime.session.exportReplay(), true);
+    assert.equal(checksum(runtime), checksum(restored));
+    for (let i = 0; i < 31; i++) { step(runtime); step(restored); }
+    assert.equal(tower.moveVisual, undefined);
+    assert.equal(checksum(runtime), checksum(restored));
+    for (let i = 0; i < 600; i++) { step(runtime); step(restored); }
+    assert.equal(checksum(runtime), checksum(restored));
+    assert.equal(runtime.nullification.snapshot(), undefined);
+    assert.equal(tower.inPlay, true); assert.equal(shell.inPlay, true);
+    assert.equal(runtime.world.occupied.get(`2:${tower.column}`), tower);
+    assert.equal(runtime.world.occupied.get(`2:${active.column}`), active);
+    assert.equal(tower.parenthesisGuard, shell);
+  }
+});
+
+test("pushing NUL towers into forbidden cells or out of bounds erases them permanently", () => {
+  for (const boundary of ["sealed", "edge"]) {
+    const runtime = prepared("1-9", ["#", "B", "()"]);
+    const source = place(runtime, "#", 2, boundary === "edge" ? 11 : 1);
+    const tower = place(runtime, "B", 2, source.column + 1);
+    const shell = place(runtime, "()", 2, tower.column);
+    runtime.nullification.start(0, 10000, [tower, shell]);
+    if (boundary === "sealed") runtime.cells.sealColumn(3);
+    getTowerSkillState(source, "push").sp = 30;
+    assert.equal(runtime.executeOperation("local", { type: "push", target: ref(source), cell: { lane: 2, column: tower.column } }), "handled");
+    assert.equal(tower.inPlay, false); assert.equal(shell.inPlay, false);
+    assert.equal(runtime.nullification.snapshot(), undefined);
+    const restored = cloneCheckpoint(runtime);
+    for (let i = 0; i < 660; i++) { step(runtime); step(restored); }
+    assert.equal(checksum(runtime), checksum(restored));
+    assert.deepEqual(runtime.world.towers, [source]);
+  }
+});
+
 test("archive hazards and seals survive validated replay restoration and expire normally", () => {
   const runtime = prepared("AE-LM-1", ["B"]);
   place(runtime, "B", 0, 12);

@@ -231,14 +231,21 @@ export class BattleRuntime {
     });
     this.targetedEffects = new TargetedEffectSimulation(() => targetedPorts);
     this.shifter = new TowerShifterSimulation(() => movement);
+    const nullificationTowers = () => this.nullification.snapshot()?.towers ?? [];
     const pushPorts = extendPorts(movement, {
+      get nullifiedTowers() { return nullificationTowers(); },
+      isCellDeployable: (lane: number, column: number) => this.cellIsUnsealed(lane, column),
+      onMoved: (moves: AppliedTowerMove[]) => { this.nullification.refreshCells(); this.towersMoved(moves); },
       authorizeMoves: (source: TowerState, moves: readonly (AppliedTowerMove & { erased: boolean })[]) => {
         if (session.policy.towerAccess !== "owner") return true;
         const changes = new Map(moves.map(move => [move.tower, { lane: move.toLane, column: move.toColumn, inPlay: !move.erased }]));
         const targets = topologyAffectedTowers(world.towers, changes);
         return [...moves.map(move => move.tower), ...targets].every(target => canControlBattleEntity(session.policy, source.ownerId, target));
       },
-      onTowerAction: this.routeTowerAction, eraseTower: (tower: TowerState) => this.removeTower(tower)
+      onTowerAction: this.routeTowerAction, eraseTower: (tower: TowerState) => {
+        if (tower.nullified) this.nullification.eraseWhere(candidate => candidate === tower, candidate => this.removeTower(candidate));
+        else this.removeTower(tower);
+      }
     });
     this.push = new TowerPushSimulation(() => pushPorts);
     const storagePorts = ports({ damageTower: damage.damageTower });
@@ -568,8 +575,12 @@ export class BattleRuntime {
   }
 
   cellIsDeployable(lane: number, column: number) {
+    return !this.nullification.isOccupied(lane, column) && this.cellIsUnsealed(lane, column);
+  }
+
+  private cellIsUnsealed(lane: number, column: number) {
     return lane >= 0 && lane < LANES && column >= 0 && column < COLUMNS &&
-      !this.nullification.isOccupied(lane, column) && !this.world.sealedCells.has(`${lane}:${column}`) &&
+      !this.world.sealedCells.has(`${lane}:${column}`) &&
       !this.world.timedCellSeals.isSealed(lane, column);
   }
 
