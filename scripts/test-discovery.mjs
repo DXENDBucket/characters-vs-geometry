@@ -4,9 +4,11 @@ import { createTypeScriptLoader } from "./helpers/load-typescript.mjs";
 
 const storageKey = "characters-vs-geometry-progress-v1";
 
-test("v unlocks after 3-4 rather than 2-9", () => {
+test("i unlocks after 2-9 while v still requires 3-4", () => {
   const { progress } = fixture();
-  assert.deepEqual(progress.completeLevel("2-9"), []);
+  assert.equal(progress.isCardUnlocked("i"), false);
+  assert.deepEqual(progress.completeLevel("2-9"), ["i"]);
+  assert.equal(progress.isCardUnlocked("i"), true);
   assert.equal(progress.isCardUnlocked("v"), false);
   assert.deepEqual(progress.completeLevel("3-4"), ["v"]);
   assert.equal(progress.isCardUnlocked("v"), true);
