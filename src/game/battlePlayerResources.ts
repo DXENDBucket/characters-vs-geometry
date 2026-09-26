@@ -1,7 +1,7 @@
 import { allCardDefinitions, getCardDefinition } from "../registry/cardDefinitions";
 import type { CardId } from "../types";
 import { battleBuilderIds, DEFAULT_BATTLE_PARTICIPANTS, type BattleOperationActor } from "./battleParticipants";
-import { type BattlePolicy } from "./battlePolicy";
+import { battlePolicyForActor, type BattlePolicy } from "./battlePolicy";
 import { BattleLoadout, type CardDeadline } from "./battleLoadout";
 import { TowerExtractionPool } from "./towerExtraction";
 import { createTowerShifterCooldown, type TowerShifterCooldown } from "./towerShifterRules";
@@ -48,7 +48,7 @@ export function validateBattlePlayerResources(value: unknown, policy?: BattlePol
       entry.actorId !== actors[index] || !nonnegative(entry.cardTime) || !nonnegative(entry.extraction) ||
       typeof entry.autoUpgradeEnabled !== "boolean" || !Number.isSafeInteger(entry.reserveChars) || !nonnegative(entry.reserveChars) ||
       !Array.isArray(entry.cards) || !Array.from(entry.cards).every(card => fields(card, ["id", "readyAt"]) && nonnegative(card.readyAt)) ||
-      !validPlayerCards(entry.cards.map(card => card.id), policy)) throw new Error("Invalid player resource cards");
+      !validPlayerCards(entry.cards.map(card => card.id), battlePolicyForActor(policy, entry.actorId as string))) throw new Error("Invalid player resource cards");
     const shifter = entry.shifter, reselection = entry.reselection;
     if (!fields(shifter, ["readyAt", "cooldownStartedAt", "cooldownDuration"]) ||
       !nonnegative(shifter.readyAt) || !nonnegative(shifter.cooldownStartedAt) || !nonnegative(shifter.cooldownDuration) ||

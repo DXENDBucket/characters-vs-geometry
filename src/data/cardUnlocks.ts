@@ -46,7 +46,7 @@ export const cardUnlockRequirements: Record<CardId, string | null> = {
   H: "1-3",
   h: "1-8",
   I: "1-3",
-  i: "4-8",
+  i: "2-9",
   Q: "2-2",
   J: "1-4",
   j: "3-10",

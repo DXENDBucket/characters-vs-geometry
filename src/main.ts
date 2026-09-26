@@ -8,6 +8,7 @@ import { GameScene } from "./scenes/GameScene";
 import { LevelSelectScene } from "./scenes/LevelSelectScene";
 import { SettingsScene } from "./scenes/SettingsScene";
 import { MainMenuScene } from "./scenes/MainMenuScene";
+import { CoopScene } from "./scenes/CoopScene";
 import { EncyclopediaScene } from "./scenes/EncyclopediaScene";
 import { TextQualityPlugin } from "./render/textQuality";
 import { installHighDpiRenderer } from "./render/highDpiRenderer";
@@ -28,7 +29,7 @@ const game = new Phaser.Game({
   plugins: {
     scene: [{ key: "TextQuality", plugin: TextQualityPlugin, start: true }]
   },
-  scene: [MainMenuScene, ChapterGroupSelectScene, ChapterSelectScene, LevelSelectScene, SettingsScene, EncyclopediaScene, CardSelectScene, GameScene],
+  scene: [MainMenuScene, CoopScene, ChapterGroupSelectScene, ChapterSelectScene, LevelSelectScene, SettingsScene, EncyclopediaScene, CardSelectScene, GameScene],
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,

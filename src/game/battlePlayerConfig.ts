@@ -1,6 +1,6 @@
 import type { CardId } from "../types";
 import { battleBuilderIds, DEFAULT_BATTLE_PARTICIPANTS, type BattleOperationActor } from "./battleParticipants";
-import { battleCardAllowed, type BattlePolicy } from "./battlePolicy";
+import { battleCardAllowed, battlePolicyForActor, type BattlePolicy } from "./battlePolicy";
 import { uniqueLoadout } from "./cardIdentity";
 import { isLoadoutCardId } from "./cardEligibility";
 
@@ -19,7 +19,8 @@ export function validateBattlePlayerLoadouts(value: unknown, policy?: BattlePoli
   if (policy?.resourceMode !== "individual" || !actors.length || !Array.isArray(value) || value.length !== actors.length ||
     !Array.from(value).every((entry, index) => entry && Object.getPrototypeOf(entry) === Object.prototype &&
       Object.keys(entry).length === 2 && Object.hasOwn(entry, "actorId") && Object.hasOwn(entry, "cards") &&
-      entry.actorId === actors[index] && validPlayerCards(entry.cards, policy))) {
+      entry.actorId === actors[index] && validPlayerCards(entry.cards, battlePolicyForActor(policy, entry.actorId))) ||
+    policy?.players && (policy.players.length !== actors.length || policy.players.some(p => !actors.includes(p.actorId)))) {
     throw new Error("Invalid player loadouts");
   }
 }

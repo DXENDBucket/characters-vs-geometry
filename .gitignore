@@ -19,6 +19,7 @@ pnpm-debug.log*
 coverage/
 *.tsbuildinfo
 .vite/
+.coop-server/
 
 # OS files
 .DS_Store

@@ -8,6 +8,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
+    "coop": "npm run build && node scripts/coop-server.mjs",
     "desktop:dev": "node scripts/desktop-dev.mjs",
     "desktop:start": "node scripts/desktop-start.mjs",
     "predesktop:pack": "node -e \"require('electron')\"",

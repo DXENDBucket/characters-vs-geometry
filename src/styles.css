@@ -117,3 +117,38 @@ canvas {
 .save-menu button[hidden] {
   display: none;
 }
+
+.coop-screen { position: fixed; inset: 130px 0 0; overflow: auto; background: #050505; z-index: 20; }
+.coop-screen[hidden] { display: none; }
+.coop-content { max-width: 860px; margin: 0 auto; padding: 20px 24px 32px; font-family: monospace; letter-spacing: 0; }
+.coop-content header, .coop-actions, .coop-selection { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
+.coop-content header { justify-content: space-between; border-bottom: 1px solid #555; padding-bottom: 14px; }
+.coop-content h1 { font-size: 28px; margin: 0; }
+.coop-content h2 { font-size: 20px; }
+.coop-content h3 { font-size: 17px; }
+.coop-content label { display: flex; flex-direction: column; gap: 8px; margin: 16px 0; font-size: 16px; }
+.coop-content input, .coop-content select, .coop-content button {
+  box-sizing: border-box; min-height: 42px; padding: 8px 12px; border: 1px solid #777; border-radius: 0;
+  background: #111; color: #f5f5f5; font: 16px monospace; max-width: 100%; letter-spacing: 0;
+}
+.coop-content input { width: 100%; }
+.coop-content select { min-width: 120px; }
+.coop-content button { cursor: pointer; }
+.coop-content button:hover:not(:disabled), .coop-content :focus-visible { outline: 2px solid #48ff88; outline-offset: 2px; }
+.coop-content :disabled { opacity: .45; cursor: default; }
+.coop-players { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin: 12px 0 28px; }
+.coop-player { border-top: 2px solid #777; padding: 4px 0 16px; overflow-wrap: anywhere; }
+.coop-player p { min-height: 30px; font-size: 21px; color: #cde9ff; white-space: pre-wrap; }
+.coop-ready { color: #83d8ff; }
+.coop-error { color: #ff9c9c; overflow-wrap: anywhere; min-height: 20px; }
+.coop-address { color: #bcbcbc; overflow-wrap: anywhere; }
+.coop-connection { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 110;
+  display: flex; align-items: center; gap: 16px; padding: 12px; background: #111; border: 1px solid #888; max-width: 90%; }
+.coop-connection[hidden] { display: none; }
+.coop-connection button { color: #eee; background: #222; border: 1px solid #888; padding: 8px; cursor: pointer; white-space: nowrap; }
+@media (max-width: 560px) {
+  .coop-screen { inset-block-start: 80px; }
+  .coop-players { grid-template-columns: 1fr; gap: 8px; }
+  .coop-content { padding: 16px; }
+  .coop-content h1 { font-size: 24px; }
+}

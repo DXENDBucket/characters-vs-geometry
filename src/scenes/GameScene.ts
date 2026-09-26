@@ -1538,14 +1538,14 @@ export class GameScene extends Phaser.Scene {
       this.autoUpgradeReserveInputFocused ? this.autoUpgradeReserveDraft : this.autoUpgradeReserveChars,
       this.autoUpgradeReserveInputFocused
     );
-    updateReselectButtonState(this.ui, this.session.policy.reselectEnabled,
+    updateReselectButtonState(this.ui, this.playerView.policy.reselectEnabled,
       this.reselection.readyRatio(this.battleTime), !isTutorialMechanic(this.levelConfig.specialMechanic));
   }
 
   private openReselection() {
     if (this.localInputBlocked() || !this.playerView.can("loadout")) return;
     if (this.gameOver || this.menuOpen || this.reselectOpen || isTutorialMechanic(this.levelConfig.specialMechanic)) return;
-    if (!this.session.policy.reselectEnabled) {
+    if (!this.playerView.policy.reselectEnabled) {
       this.showToast(t("card.unlockAfter", { level: RESELECT_UNLOCK_LEVEL }));
       return;
     }
@@ -1568,7 +1568,7 @@ export class GameScene extends Phaser.Scene {
       unlimitedFirepower: this.unlimitedFirepower,
       reselect: {
         selectedCards: [...this.selectedCardIds],
-        policy: this.session.policy,
+        policy: this.playerView.policy,
         onConfirm: (cards: CardId[]) => this.closeReselection(cards),
         onCancel: () => this.closeReselection()
       }

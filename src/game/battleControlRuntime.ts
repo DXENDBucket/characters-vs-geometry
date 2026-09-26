@@ -1,7 +1,7 @@
 import { CELL_HEIGHT, CELL_WIDTH } from "../config";
 import { getCardDefinition } from "../registry/cardDefinitions";
 import { isTutorialMechanic } from "./tutorial";
-import { battleCardAllowed } from "./battlePolicy";
+import { battleCardAllowed, battlePolicyForActor } from "./battlePolicy";
 import type { BattleControlRuntime } from "./battleControls";
 import type { BattleRuntime } from "./battleRuntime";
 import { forEachSnapshot } from "./iteration";
@@ -25,9 +25,9 @@ export function createBattleControlRuntime(runtime: BattleRuntime, actorId: () =
     actor: id => session.actor(id), authorize: (actor, control) =>
       (control.type !== "debugChars" || world.economy.hasWallet(actor.id)) &&
       (!["reselect", "reserve", "autoUpgradeEnabled", "debugChars"].includes(control.type) || runtime.players.has(actor.id)),
-    get slotCount() { return session.policy.slotCount; },
-    cardAllowed: id => battleCardAllowed(session.policy, id),
-    get reselectAvailable() { return !isTutorialMechanic(world.options.level.specialMechanic) && session.policy.reselectEnabled; },
+    get slotCount() { return battlePolicyForActor(session.policy, actorId()).slotCount; },
+    cardAllowed: id => battleCardAllowed(battlePolicyForActor(session.policy, actorId()), id),
+    get reselectAvailable() { return !isTutorialMechanic(world.options.level.specialMechanic) && battlePolicyForActor(session.policy, actorId()).reselectEnabled; },
     get reselectReady() { return runtime.currentResources.loadout.reselection.isReady(world.battleTime); },
     reselect: cards => {
       if (!runtime.currentResources.loadout.reselect(cards.map(getCardDefinition), runtime.cardClocks)) return false;

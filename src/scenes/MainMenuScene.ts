@@ -85,7 +85,7 @@ export class MainMenuScene extends Phaser.Scene {
     const spacing = portrait ? 72 : height < 700 ? 52 : 56;
     const startY = Math.min(Math.max(subtitleY + 65, height * 0.46), height - spacing * 5 - 38);
     this.addMenuItem(centerX, startY, t("menu.singlePlayer"), () => this.scene.start("ChapterGroupSelectScene"));
-    this.addMenuItem(centerX, startY + spacing, t("menu.multiplayer"), () => {}, false);
+    this.addMenuItem(centerX, startY + spacing, t("menu.multiplayer"), () => this.scene.start("CoopScene"));
     this.addMenuItem(centerX, startY + spacing * 2, t("button.encyclopedia"), () => this.scene.start("EncyclopediaScene"));
     this.addMenuItem(centerX, startY + spacing * 3, t("button.settings"), () => {
       this.scene.start("SettingsScene", { returnScene: "MainMenuScene" });

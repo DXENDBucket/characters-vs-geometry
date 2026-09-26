@@ -4,6 +4,7 @@ import type { BattleOperationPermission } from "./battleParticipants";
 import { canControlBattleEntity, type BattleOwnedEntity } from "./battleOwnership";
 import { battleCardTime } from "./battleLoadout";
 import { getCardDefinition } from "../registry/cardDefinitions";
+import { battlePolicyForActor } from "./battlePolicy";
 
 // Presentation reads never enter the runtime's authoritative command actor context.
 export class BattlePlayerView {
@@ -11,6 +12,7 @@ export class BattlePlayerView {
     if (!runtime.session.actor(actorId)) throw new Error("Unknown battle view actor");
   }
   get resources() { return this.runtime.players.get(this.actorId); }
+  get policy() { return battlePolicyForActor(this.runtime.session.policy, this.actorId); }
   get loadout() { return this.resources.loadout; }
   get battleTime() { return this.runtime.world.battleTime; }
   get cardTime() { return this.resources.cardTime; }
