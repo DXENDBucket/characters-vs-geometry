@@ -6,7 +6,7 @@ import { getLevelConfig } from "./data/levels";
 import { bossStatsAtRank, rankedBossFamily, tetrahedronChargeSpeedAtRank, dodecahedronAttacksAtRank } from "./bosses/bossRanks";
 import { getEnemyDefinition } from "./registry/enemies";
 import { enemyKindAtRank } from "./game/enemyIdentity";
-import { detailText as l, detailField as f, detailNumber as n, skillChargeFields, type DetailSection } from "./encyclopediaSections";
+import { detailText as l, detailField as f, detailNumber as n, skillChargeFields, sortDetailSections, type DetailSection } from "./encyclopediaSections";
 import { detailRange } from "./encyclopediaRanges";
 import { battlefieldRange, enemyContactRange, enemyMortarRange, enemyForwardRange } from "./enemyEncyclopediaDetails";
 import type { RangeDefinition } from "./rangeGeometry";
@@ -117,5 +117,5 @@ export function bossDetailSections(icon: BossIcon, level: number): DetailSection
       ? l("阈值分身不无敌，也不召唤阳炎爆弹。首次受到致命伤害锁 1 血，所有本体立即无敌 15s；预警 4s 后在第二列第三行生成向下移动的最终分身，共用剩余无敌时间。", "Threshold splits grant neither invincibility nor Sun Bombs. The first lethal hit locks HP at 1 and immediately grants all bodies 15s Invincible. After a 4s warning, the final body spawns in column 2, row 3 moving down, sharing the remaining invincibility time.")
       : l("开局及每次触发分身预警时，场上所有本体立即无敌。开局及分身实际出现时，在第 2/6 行最右列生成阳炎爆弹，新分身无敌。金色爆弹撞击无敌本体后破盾并消失，半径 2.6 格内造成 2900 真实伤害，不分敌我。", "Entry and each split warning immediately shield all existing bodies. Sun Bombs spawn in the rightmost cells of lanes 2/6 on entry and when each invincible copy appears. A gold bomb breaks the struck body's shield, disappears, and deals 2900 true damage to both sides within 2.6 cells."));
   }
-  return sections;
+  return sortDetailSections(sections);
 }

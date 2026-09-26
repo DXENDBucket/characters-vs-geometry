@@ -7,7 +7,7 @@ import { attackIntervalMs } from "./game/attackSpeed";
 import { getProjectilePattern } from "./game/cardAttackConfigs";
 import { towerRanges } from "./data/towerRanges";
 import { detailRange, type DetailRange } from "./encyclopediaRanges";
-import { skillChargeFields, type DetailField, type DetailSection } from "./encyclopediaSections";
+import { skillChargeFields, sortDetailSections, type DetailField, type DetailSection } from "./encyclopediaSections";
 export type { DetailField, DetailSection } from "./encyclopediaSections";
 import { isMaxHpUpgradeable, scaledByEffectiveUpgrades, upgradedAttackMultiplier, volleyShotCount } from "./game/upgrades";
 import { volleyHitsAt, volleyTimingCount } from "./game/volley";
@@ -139,5 +139,5 @@ export function towerDetailSections(card: CardDefinition, level: number, descrip
   }
   if (card.reflectAttackMultiplier) sections.push({ title: l("近战反伤", "Melee retaliation"), tag: l("受击被动", "On-hit passive"), tone: "passive",
     fields: [field("触发条件", "Trigger", l("受到近战攻击", "Hit by melee attack")), field("反伤", "Retaliation", `${n(stats.attackPower * card.reflectAttackMultiplier)} ${damageType} · ${n(card.reflectAttackMultiplier * 100)}% ATK`)] });
-  return sections;
+  return sortDetailSections(sections);
 }

@@ -13,6 +13,43 @@ const card = id => cardDefinitions.find(card => card.id === id);
 const sections = (id, level = 1) => towerDetailSections(card(id), level, towerEncyclopediaEntry(id).description);
 const values = section => section.fields.map(field => field.value).join("\n");
 
+test("detail ordering is stable and non-mutating: regular attack, talents/auras, then skills", () => {
+  const { sortDetailSections } = load("src/encyclopediaSections.ts");
+  const input = Object.freeze(["skill", "aura", "attack", "passive", "skill", "aura"].map((tone, i) =>
+    Object.freeze({ title: String(i), tag: "", tone, fields: [] })));
+  assert.deepEqual(sortDetailSections(input), [input[2], input[1], input[3], input[5], input[0], input[4]]);
+  assert.deepEqual(input.map(section => section.title), ["0", "1", "2", "3", "4", "5"]);
+  assert.deepEqual(sortDetailSections([]), []);
+});
+
+test("tower, enemy and Boss details consistently put all talents and auras before skills", () => {
+  const { enemyEncyclopediaEntries } = load("src/encyclopedia.ts");
+  const { enemyDetailSections } = load("src/enemyEncyclopediaDetails.ts");
+  const { bossDetailSections, bossPreviewLimit } = load("src/bossEncyclopediaDetails.ts");
+  const { enemyKindAtRank, enemyFamily } = load("src/registry/enemies.ts");
+  const order = { attack: 0, passive: 1, aura: 1, skill: 2 };
+  const check = (detail, id) => {
+    const priorities = detail.map(section => order[section.tone]);
+    assert.deepEqual(priorities, [...priorities].sort((a, b) => a - b), id);
+  };
+  for (const language of ["zh-CN", "en"]) {
+    setLanguage(language);
+    for (const definition of cardDefinitions) for (const level of [1, 30]) check(sections(definition.id, level), definition.id);
+    for (const entry of enemyEncyclopediaEntries()) {
+      if (entry.enemyKind) {
+        for (const rank of [1, 3, 99]) {
+          const kind = enemyKindAtRank(enemyFamily(entry.enemyKind), rank);
+          check(enemyDetailSections(kind, entry.description), kind);
+        }
+      } else if (entry.icon) {
+        for (let level = 1; level <= Math.min(4, bossPreviewLimit(entry.icon)); level++) {
+          check(bossDetailSections(entry.icon, level), `${entry.icon}:${level}`);
+        }
+      }
+    }
+  }
+});
+
 test("enemy catalog sorts every chapter group into minions, leaders and bosses without losing entries", () => {
   const { enemyEncyclopediaEntries } = load("src/encyclopedia.ts");
   const { enemyEncyclopediaGroup, enemyEncyclopediaRole, enemyEncyclopediaSections } = load("src/enemyEncyclopediaCatalog.ts");

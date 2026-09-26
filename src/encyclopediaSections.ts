@@ -11,6 +11,12 @@ export interface DetailSection {
   ranges?: DetailRange[];
 }
 
+const sectionOrder: Record<DetailSection["tone"], number> = { attack: 0, passive: 1, aura: 1, skill: 2 };
+
+export function sortDetailSections(sections: readonly DetailSection[]): DetailSection[] {
+  return [...sections].sort((a, b) => sectionOrder[a.tone] - sectionOrder[b.tone]);
+}
+
 export const detailText = (zh: string, en: string) => getLanguage() === "zh-CN" ? zh : en;
 export const detailNumber = (value: number) => `${Number(value.toFixed(2))}`;
 export const detailField = (zh: string, en: string, value: string): DetailField => ({ label: detailText(zh, en), value });

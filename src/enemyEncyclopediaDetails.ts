@@ -11,7 +11,7 @@ import { attackIntervalMs } from "./game/attackSpeed";
 import { volleyHitsAt, volleyTimingCount } from "./game/volley";
 import { PASSENGER_STAT_RATIO } from "./game/enemyContainers";
 import { detailRange } from "./encyclopediaRanges";
-import { detailText as l, detailField as f, detailNumber as n, detailSeconds as s, skillChargeFields, type DetailSection } from "./encyclopediaSections";
+import { detailText as l, detailField as f, detailNumber as n, detailSeconds as s, skillChargeFields, sortDetailSections, type DetailSection } from "./encyclopediaSections";
 import type { RangeDefinition } from "./rangeGeometry";
 import type { EnemyKind } from "./types";
 
@@ -163,5 +163,5 @@ export function enemyDetailSections(kind: EnemyKind, description: string): Detai
     f("常规出场限制", "Regular spawn restriction", leader ? l("旗帜波固定领袖，不占常规权重；关卡可指定额外召唤", "Fixed flag-wave leader, outside regular weight; stages may add summons")
       : spawnRestrictions.join(" · ") || "/"),
     f("自然出场等级上限", "Natural spawn rank cap", enemyArchetypes[family].spawnRankCap?.toString() ?? l("无固定上限，取决于关卡", "No fixed cap; determined by stage")) ] });
-  return sections;
+  return sortDetailSections(sections);
 }
