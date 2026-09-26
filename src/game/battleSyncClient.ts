@@ -1,7 +1,7 @@
 import { BATTLE_PROTOCOL_VERSION, validBattleIntent, type BattleIntent, type BattleReceipt, type BattleRequest } from "./battleAuthority";
 import type { RecordedBattleCommand } from "./battleCommands";
 import { olderSyncCursor, sameSyncCursor, parseBoundedSyncText, decodeSyncMessage,
-  type BattleSyncCursor, type BattleSyncInput, type BattleSyncRestoreSnapshot, type BattleSyncFrame } from "./battleSyncProtocol";
+  type BattleSyncCursor, type BattleSyncInput, type BattleSyncRestoreSnapshot, type BattleSyncFrame, type DecodedBattleSyncMessage } from "./battleSyncProtocol";
 import { MAX_REPLICA_FRAME_TICKS } from "./battleSession";
 
 export interface BattleSyncClientRuntime {
@@ -51,6 +51,12 @@ export class BattleSyncClient {
   get pendingRequest() { return this.pending ? structuredClone(this.pending) : undefined; }
   get position() { return this.cursor ? { ...this.cursor } : undefined; }
 
+  exceedsCatchUpLimit(message: DecodedBattleSyncMessage, ticks: number) {
+    return ticks > 0 && this.acceptingInput && this.cursor !== undefined && message.type === "frame" &&
+      message.battleId === this.battleId && message.stream === this.stream &&
+      message.to.tick - (this.frame?.tick ?? this.cursor.tick) > ticks;
+  }
+
   connect(send: (message: BattleSyncInput) => void) {
     this.epoch++; this.transportEpoch++;
     this.frame = undefined; this.send = send; this.synchronized = false; this.resyncRequested = false;
@@ -93,9 +99,16 @@ export class BattleSyncClient {
   receiveText(text: string): BattleSyncResult {
     if (!this.send) return "ignored";
     if (this.applying) return "invalid"; // Ordered callers must retain later messages until this frame completes.
-    let epoch = this.epoch;
     let message: ReturnType<typeof decodeSyncMessage>;
     try { message = decodeSyncMessage(parseBoundedSyncText(text)); } catch { return "invalid"; }
+    return this.receiveDecoded(message);
+  }
+
+  // Connection ingress validates once, before retaining messages in its bounded queue.
+  receiveDecoded(message: DecodedBattleSyncMessage): BattleSyncResult {
+    if (!this.send) return "ignored";
+    if (this.applying) return "invalid";
+    let epoch = this.epoch;
     if (message.type === "snapshot") {
       if (this.battleId && message.battleId !== this.battleId) return "invalid";
       if (message.stream <= this.stream) return "ignored";

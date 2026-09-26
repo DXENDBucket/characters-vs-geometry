@@ -1,6 +1,6 @@
 import { BattleSyncClient, type BattleInputPort, type BattleInputStatus, type BattleSyncClientRuntime } from "./battleSyncClient";
 import type { BattleIntent, BattleReceipt } from "./battleAuthority";
-import { MAX_BATTLE_SYNC_BYTES } from "./battleSyncProtocol";
+import { MAX_BATTLE_SYNC_BYTES, parseBoundedSyncText, decodeSyncMessage, type DecodedBattleSyncMessage } from "./battleSyncProtocol";
 
 export type BattleConnectionStatus = BattleInputStatus;
 export interface BattleTransport {
@@ -28,6 +28,8 @@ export interface BattleConnectionOptions {
   reconnectMs?: number;
   timeoutMs?: number;
   frameSliceTicks?: number;
+  snapshotCatchUpTicks?: number;
+  snapshotSkipCooldownMs?: number;
 }
 
 // Owns ingress timers and connection lifetime, never simulation time or battle state.
@@ -37,6 +39,8 @@ export class BattleConnection implements BattleInputPort {
   private readonly retryMs: number;
   private readonly reconnectMs: number;
   private readonly timeoutMs: number;
+  private readonly snapshotCatchUpTicks: number;
+  private readonly snapshotSkipCooldownMs: number;
   private transport?: BattleTransport;
   private opened = false;
   private epoch = 0;
@@ -45,7 +49,8 @@ export class BattleConnection implements BattleInputPort {
   private watchdog?: unknown;
   private reconnectTimer?: unknown;
   private sliceTimer?: unknown;
-  private inbox: string[] = [];
+  private snapshotSkipTimer?: unknown;
+  private inbox: { message: DecodedBattleSyncMessage; characters: number }[] = [];
   private inboxCharacters = 0;
   private processing = false;
   private current: BattleConnectionStatus = "idle";
@@ -57,8 +62,12 @@ export class BattleConnection implements BattleInputPort {
     this.retryMs = options.retryMs ?? 1500;
     this.reconnectMs = options.reconnectMs ?? 500;
     this.timeoutMs = options.timeoutMs ?? 15000;
+    this.snapshotCatchUpTicks = options.snapshotCatchUpTicks ?? 120;
+    this.snapshotSkipCooldownMs = options.snapshotSkipCooldownMs ?? 5000;
     if (![this.retryMs, this.reconnectMs, this.timeoutMs].every(Number.isFinite) ||
       this.retryMs < 1000 || this.reconnectMs < 100 || this.timeoutMs <= this.retryMs) throw new Error("Invalid connection timing");
+    if (!Number.isSafeInteger(this.snapshotCatchUpTicks) || this.snapshotCatchUpTicks < 0 ||
+      !Number.isFinite(this.snapshotSkipCooldownMs) || this.snapshotSkipCooldownMs < 1000) throw new Error("Invalid snapshot catch-up policy");
   }
   get status() { return this.current; }
   // Input-slot state is independent from replica catch-up below.
@@ -89,7 +98,7 @@ export class BattleConnection implements BattleInputPort {
     this.refresh();
     return accepted;
   }
-  private clearTimer(key: "retryTimer" | "watchdog" | "reconnectTimer" | "sliceTimer") {
+  private clearTimer(key: "retryTimer" | "watchdog" | "reconnectTimer" | "sliceTimer" | "snapshotSkipTimer") {
     if (this[key] !== undefined) this.clock.clear(this[key]);
     this[key] = undefined;
   }
@@ -97,6 +106,7 @@ export class BattleConnection implements BattleInputPort {
     this.epoch++;
     this.clearTimer("retryTimer"); this.clearTimer("watchdog"); this.clearTimer("reconnectTimer");
     this.clearTimer("sliceTimer"); this.inbox = []; this.inboxCharacters = 0;
+    this.clearTimer("snapshotSkipTimer");
     this.client.disconnect(); this.opened = false;
     const transport = this.transport; this.transport = undefined;
     try { transport?.close(); } catch { /* The old epoch is already detached. */ }
@@ -155,7 +165,10 @@ export class BattleConnection implements BattleInputPort {
             if (this.inbox.length >= 64 || this.inboxCharacters + text.length > MAX_BATTLE_SYNC_BYTES) {
               this.lost(false); return;
             }
-            this.inbox.push(text); this.inboxCharacters += text.length;
+            let message: DecodedBattleSyncMessage;
+            try { message = decodeSyncMessage(parseBoundedSyncText(text)); }
+            catch { this.lost(false); return; }
+            this.inbox.push({ message, characters: text.length }); this.inboxCharacters += text.length;
             this.drain();
           });
         },
@@ -169,18 +182,33 @@ export class BattleConnection implements BattleInputPort {
     finally { queued.length = 0; constructing = false; }
   }
   private drain() {
-    if (this.processing || this.sliceTimer !== undefined) return;
+    if (this.processing) return;
     const epoch = this.epoch;
     this.processing = true;
     try {
+      if (this.snapshotSkipTimer === undefined &&
+        !this.inbox.some(entry => entry.message.type === "snapshot") &&
+        this.inbox.some(entry => this.client.exceedsCatchUpLimit(entry.message, this.snapshotCatchUpTicks))) {
+        // Obsolete history is replaced only by a validated authoritative snapshot.
+        // Pending input stays in the client and is retried with its original sequence.
+        this.inbox = []; this.inboxCharacters = 0;
+        this.clearTimer("sliceTimer");
+        this.snapshotSkipTimer = this.clock.set(this.snapshotSkipCooldownMs, () => {
+          if (epoch !== this.epoch) return;
+          this.snapshotSkipTimer = undefined; this.drain();
+        });
+        this.client.resync();
+        if (epoch !== this.epoch) return;
+      }
+      if (this.sliceTimer !== undefined) return;
       if (this.client.applying) {
         const result = this.client.continueFrame();
         if (epoch !== this.epoch) return;
         if (result === "invalid") { this.lost(false); return; }
       }
       while (epoch === this.epoch && !this.client.applying && this.inbox.length) {
-        const text = this.inbox.shift()!; this.inboxCharacters -= text.length;
-        const result = this.client.receiveText(text);
+        const entry = this.inbox.shift()!; this.inboxCharacters -= entry.characters;
+        const result = this.client.receiveDecoded(entry.message);
         if (epoch !== this.epoch) return;
         if (result === "invalid") { this.lost(false); return; }
       }

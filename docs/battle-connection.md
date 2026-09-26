@@ -30,7 +30,7 @@ defaults to two ticks per task. The first slice runs on receipt, subsequent slic
 use one owned timer with a 1ms requested delay, and the final checksum runs after
 the last tick slice. Browser scheduling may delay those tasks further.
 
-The complete message is schema-validated before the first slice. Commands retain
+The complete message is decoded and schema-validated at ingress, once. Commands retain
 their exact tick/sequence boundaries. Later frames, snapshots and receipts wait in
 an ordered inbox, bounded to 64 messages and 16 Mi UTF-16 code units in aggregate;
 the active decoded frame is separate. Every decoded message still has the 16 MiB
@@ -58,6 +58,30 @@ charged merely because it was empty when the user clicked.
 This changes scheduling, not simulation rules or wire formats. Snapshot decoding,
 individual ticks and final checksums remain synchronous. See the measured costs
 and limitations in [performance](performance.md#sliced-replica-application).
+
+## Snapshot Catch-Up
+
+By default, a validated frame on the current stream more than 120 ticks ahead of
+the replica's partially applied tick triggers a snapshot request. This measures
+known simulation backlog (two seconds at 60 ticks/s), not wall-clock network
+latency. Small incoming frames count too: the latest queued frame is compared
+against actual replica progress, not just the size of one message.
+
+The connection abandons its partial frame and queued history, then uses the
+existing resync protocol to restore the host's latest snapshot. It never advances
+the clock without restoring state. Input is blocked until reconstruction and
+checksum validation succeed. Pending input retains its payload and sequence;
+after restoration, retries recover receipts without executing an action twice.
+Intermediate cosmetic events may be skipped. Snapshot reconstruction still has
+a cost and this does not solve sustained rendering overload.
+
+Automatic skips are separated by at least 5000ms on the same connection. During
+that cooldown normal sliced following continues; ordinary divergence recovery
+and timeout/retry behavior are unchanged. A snapshot already in the queue is not
+replaced by another request. Closing/reconnecting cancels the cooldown timer.
+Configure `snapshotCatchUpTicks` (0 disables automatic skipping) and
+`snapshotSkipCooldownMs` (at least 1000ms) through connection options. Protocol
+validation and queue limits are unchanged; foreign streams cannot trigger skips.
 
 ## Recovery
 

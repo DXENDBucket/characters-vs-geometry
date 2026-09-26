@@ -30,7 +30,7 @@ function clock() {
       now = end;
     } };
 }
-function fixture({ open = true, snapshots = true, frameSliceTicks } = {}) {
+function fixture({ open = true, snapshots = true, frameSliceTicks, snapshotCatchUpTicks, snapshotSkipCooldownMs } = {}) {
   const hooks = {};
   const time = clock(), links = [], results = [], statuses = [];
   const hostRuntime = createIndependentBattle({ version: BATTLE_RULES_VERSION, levelId: "1-1", difficultyVersion: 2,
@@ -61,7 +61,8 @@ function fixture({ open = true, snapshots = true, frameSliceTicks } = {}) {
       const text = JSON.stringify(message); link.received.push(text); events.message(text);
     });
     return link;
-  }, { scheduler: time, retryMs: 1000, reconnectMs: 100, timeoutMs: 3000, frameSliceTicks });
+  }, { scheduler: time, retryMs: 1000, reconnectMs: 100, timeoutMs: 3000, frameSliceTicks,
+    snapshotCatchUpTicks, snapshotSkipCooldownMs });
   connection.subscribe(status => statuses.push(status));
   const intent = value => ({ type: "control", control: { type: "reserve", value } });
   return { time, connection, links, results, statuses, intent, hostRuntime, host, hooks,
@@ -289,8 +290,99 @@ test("pause and resume at slice boundaries preserve command order and queued rec
   f.same(); f.connection.close(); assert.equal(f.time.size, 0);
 });
 
-test("the maximum valid tick gap drains in bounded slices without skipping simulation", () => {
+test("a backlog of small frames jumps to a current snapshot instead of replaying the entire history", () => {
   const f = fixture({ frameSliceTicks: 2 }); f.connection.start();
+  let followed = 0; f.hooks.follow = () => followed++;
+  for (let frame = 0; frame < 24; frame++) {
+    f.hostRuntime.session.advance(BATTLE_STEP_MS * 6, f.hostRuntime.sessionRuntime); f.host.publish();
+  }
+  assert.equal(f.restorations, 2);
+  assert.ok(f.replica.session.clock.tick >= 126);
+  f.time.advance(20); f.same();
+  assert.ok(followed < 20, "Skipped history must not run simulation slices");
+  assert.deepEqual(f.links[0].sent.map(text => JSON.parse(text).type), ["resync"]);
+  assert.equal(f.links.length, 1); assert.equal(f.connection.ready, true);
+  f.connection.close(); assert.equal(f.time.size, 0);
+});
+
+test("snapshot skipping preserves unsent and already executed pending input exactly once", () => {
+  for (const sent of [false, true]) {
+    const f = fixture({ frameSliceTicks: 2 }); f.connection.start();
+    let completed = 0;
+    if (sent) f.loseReceipt(true);
+    else { f.hostRuntime.session.advance(100, f.hostRuntime.sessionRuntime); f.host.publish(); }
+    assert.equal(f.connection.request(f.intent(91), () => completed++), true);
+    assert.equal(completed, 0); f.loseReceipt(false);
+    for (let tick = 0; tick < 150; tick++) f.hostRuntime.session.advance(BATTLE_STEP_MS, f.hostRuntime.sessionRuntime);
+    f.host.publish(); f.time.advance(10);
+    assert.equal(f.restorations, 2); assert.equal(completed, 1);
+    assert.equal(f.hostRuntime.session.nextCommandSequence, 1);
+    assert.equal(f.replica.session.controls.reserveChars, 91);
+    assert.equal(f.connection.busy, false); f.same();
+    const requests = f.links[0].sent.map(text => JSON.parse(text)).filter(message => message.type === "request");
+    assert.equal(requests.length, sent ? 2 : 1);
+    assert.ok(requests.every(message => message.request.sequence === 0));
+    f.connection.close(); assert.equal(f.time.size, 0);
+  }
+});
+
+test("snapshot skipping has a cooldown and resumes normal frame following between skips", () => {
+  const f = fixture({ frameSliceTicks: 2 }); f.connection.start();
+  const burst = () => {
+    for (let tick = 0; tick < 126; tick++) f.hostRuntime.session.advance(BATTLE_STEP_MS, f.hostRuntime.sessionRuntime);
+    f.host.publish();
+  };
+  burst(); assert.equal(f.restorations, 2); f.same();
+  burst(); assert.equal(f.restorations, 2); assert.equal(f.connection.catchingUp, true);
+  f.time.advance(70); f.same();
+  f.time.advance(4930);
+  burst(); assert.equal(f.restorations, 3); f.same();
+  f.connection.close(); assert.equal(f.time.size, 0);
+});
+
+test("a lagging frame cannot bypass validation or use a foreign stream to trigger a snapshot", () => {
+  for (const kind of ["invalid", "foreign"]) {
+    const f = fixture({ frameSliceTicks: 2 }); f.connection.start();
+    f.hostRuntime.session.advance(100, f.hostRuntime.sessionRuntime); f.host.publish();
+    const frame = JSON.parse(f.links[0].received.at(-1));
+    frame.to.tick = 150;
+    if (kind === "invalid") frame.commands = [{ tick: 150 }];
+    else frame.stream++;
+    f.links[0].events.message(JSON.stringify(frame));
+    f.time.advance(10);
+    assert.equal(f.restorations, 1); assert.equal(f.links[0].sent.length, 0);
+    assert.equal(f.connection.status, kind === "invalid" ? "failed" : "ready");
+    if (kind === "foreign") f.same();
+    f.connection.close(); assert.equal(f.time.size, 0);
+  }
+});
+
+test("snapshot skipping blocks input until a valid replacement arrives and rejects corrupt snapshots", () => {
+  for (const corrupt of [false, true]) {
+    const f = fixture({ frameSliceTicks: 2 }); f.connection.start();
+    const events = f.links[0].events, receive = events.message;
+    let snapshot;
+    events.message = text => {
+      if (JSON.parse(text).type === "snapshot") snapshot = text;
+      else receive(text);
+    };
+    for (let tick = 0; tick < 126; tick++) f.hostRuntime.session.advance(BATTLE_STEP_MS, f.hostRuntime.sessionRuntime);
+    f.host.publish();
+    assert.ok(snapshot); assert.equal(f.connection.status, "synchronizing");
+    assert.equal(f.connection.request(f.intent(5)), false);
+    if (corrupt) { const message = JSON.parse(snapshot); message.checksum = "00000000"; snapshot = JSON.stringify(message); }
+    receive(snapshot);
+    assert.equal(f.connection.status, corrupt ? "failed" : "ready");
+    assert.equal(f.restorations, corrupt ? 1 : 2);
+    if (!corrupt) f.same();
+    f.connection.close(); assert.equal(f.time.size, 0);
+  }
+  for (const snapshotCatchUpTicks of [-1, 1.5, NaN]) assert.throws(() => fixture({ snapshotCatchUpTicks }));
+  for (const snapshotSkipCooldownMs of [0, 999, Infinity]) assert.throws(() => fixture({ snapshotSkipCooldownMs }));
+});
+
+test("the maximum valid tick gap drains in bounded slices without skipping simulation", () => {
+  const f = fixture({ frameSliceTicks: 2, snapshotCatchUpTicks: 0 }); f.connection.start();
   for (let tick = 0; tick < 600; tick++) f.hostRuntime.session.advance(BATTLE_STEP_MS, f.hostRuntime.sessionRuntime);
   assert.equal(f.hostRuntime.session.clock.tick, 600);
   f.host.publish();
