@@ -745,6 +745,29 @@ export function makeArcWaveEffect(
   });
 }
 
+export function makeSupportWave(scene: Phaser.Scene, fromX: number, fromY: number, toX: number, toY: number) {
+  const dx = toX - fromX, dy = toY - fromY;
+  const wave = acquireEffectGraphics(scene, 110).setPosition(fromX, fromY);
+  wave.setRotation(Math.atan2(dy, dx));
+  for (const arc of [
+    { x: -24, radius: 24, width: 10, alpha: 0.15 },
+    { x: -24, radius: 24, width: 3, alpha: 0.6 },
+    { x: -37, radius: 25, width: 2, alpha: 0.28 }
+  ]) {
+    wave.lineStyle(arc.width, palette.green, arc.alpha);
+    wave.beginPath().arc(arc.x, 0, arc.radius, -1.1, 1.1, false).strokePath();
+  }
+  scene.tweens.add({
+    targets: wave,
+    x: toX, y: toY,
+    scale: 1.15,
+    alpha: { value: 0, ease: "Quad.easeIn" },
+    duration: Math.max(280, Math.min(750, Math.hypot(dx, dy) / 0.7)),
+    ease: "Linear",
+    onComplete: () => releaseEffectGraphics(scene, wave)
+  });
+}
+
 export function makeShiftEffect(scene: Phaser.Scene, fromX: number, fromY: number, toX: number, toY: number) {
   const line = acquireEffectGraphics(scene, 109);
   line.lineStyle(2, palette.green, 0.92);

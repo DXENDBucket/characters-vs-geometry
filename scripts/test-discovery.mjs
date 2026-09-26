@@ -164,7 +164,9 @@ test("Symbol Domain Capital follows Symbol Domain and unlocks AE-EX-1 after DEL"
   progress.completeLevel("AE-EX-6");
   assert.equal(progress.isChapterCompleted("AE2"), false);
   assert.equal(progress.isLevelUnlocked("AE-EX-7"), true);
-  assert.equal(progress.discoveredEnemies().enemies.has("minus3"), true);
+  assert.equal(progress.discoveredEnemies().enemies.has("minus"), true);
+  assert.equal(progress.discoveredEnemies().enemies.has("minus2"), false);
+  assert.equal(progress.discoveredEnemies().enemies.has("minus3"), false);
   progress.completeLevel("AE-EX-7");
   assert.equal(progress.isChapterCompleted("AE2"), true);
 });
@@ -251,7 +253,7 @@ test("AE-EX-6 uses the capital template, requested pool and AE-EX-2 NUL environm
   assert.deepEqual(levels.levelPreviewEnemyKinds(level), level.enemyKinds);
 });
 
-test("AE-EX-7 introduces Minus I-III without inheriting NUL or creating AE-EX-9", () => {
+test("AE-EX-7 introduces only Minus I without inheriting NUL or creating AE-EX-9", () => {
   const { levels } = fixture();
   const level = levels.getLevelConfig("AE-EX-7");
   assert.equal(level.totalWaves, 20);
@@ -260,7 +262,7 @@ test("AE-EX-7 introduces Minus I-III without inheriting NUL or creating AE-EX-9"
   assert.deepEqual([level.firstWaveWeight, level.waveWeightIncrement, level.waveWeightIncrementGrowth], [30, 35, 5]);
   assert.equal(level.periodicTowerNullification, undefined);
   assert.equal(level.waveWeightCap, undefined);
-  assert.deepEqual(level.enemyKinds, ["circle", "tilde", "tilde2", "tilde3", "equals3", "dollar", "plus", "minus", "minus2", "minus3"]);
+  assert.deepEqual(level.enemyKinds, ["circle", "tilde", "tilde2", "tilde3", "equals3", "dollar", "plus", "minus"]);
   assert.deepEqual(levels.levelPreviewEnemyKinds(level), level.enemyKinds);
   assert.equal(levels.levelNodes.some(node => node.id === "AE-EX-9"), false);
 });

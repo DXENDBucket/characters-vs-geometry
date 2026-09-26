@@ -92,7 +92,8 @@ test("Minus keeps Plus stats, has no skill or melee, and fires paired ranked mag
   for (const rank of [1, 2, 3, 6]) {
     const kind = rank === 1 ? "minus" : `minus${rank}`, e = enemy(kind);
     const panel = getEnemyDefinition(kind), plus = getEnemyDefinition(rank === 1 ? "plus" : `plus${rank}`);
-    for (const key of ["hp", "armor", "magicResistance", "attackPower", "speedMultiplier", "weight"]) assert.equal(panel[key], plus[key], key);
+    for (const key of ["hp", "armor", "magicResistance", "attackPower", "speedMultiplier"]) assert.equal(panel[key], plus[key], key);
+    assert.equal(panel.weight, plus.weight * 2);
     assert.equal(panel.minFlag, 1); assert.equal(enemyAttackSpeed(kind), 60);
     assert.equal(canEnemyMelee(e), false); assert.deepEqual(initialEnemySkillStates(kind), {});
     const ground = tower("B", 6), flying = tower("w", 2, 1); flying.flyingUntil = 10000;
@@ -108,6 +109,14 @@ test("Minus keeps Plus stats, has no skill or melee, and fires paired ranked mag
       assert.equal(shot.targetTower, flying); assert.equal(shot.damage, 200);
       assert.equal(shot.damageType, "magic"); assert.equal(shot.appearance, "chevron");
     }
+  }
+});
+
+test("Minus weight doubles the original curve across every growth breakpoint", () => {
+  const { getEnemyDefinition } = load("src/registry/enemies.ts");
+  for (const rank of [1, 2, 3, 20, 21, 60, 61, 140, 141, 300, 301, 999]) {
+    const suffix = rank === 1 ? "" : String(rank);
+    assert.equal(getEnemyDefinition(`minus${suffix}`).weight, getEnemyDefinition(`plus${suffix}`).weight * 2);
   }
 });
 

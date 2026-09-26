@@ -165,7 +165,7 @@ export function enemyEncyclopediaEntries(): EncyclopediaEntry[] {
       lines: [statLine([
         [t("label.hp"), minus.hp], [t("label.armor"), minus.armor],
         [t("label.mr"), minus.magicResistance], [t("label.atk"), damageText(minus.attackPower, minus.damageType)]]),
-        zh ? "权重 I/II/III：240 / 440 / 640；移速 10；攻速 60；一旗前不出现。" : "Weight I/II/III: 240 / 440 / 640; speed 10; attack speed 60; unavailable before the first flag."],
+        zh ? "权重 I/II/III：480 / 880 / 1280；移速 10；攻速 60；一旗前不出现。" : "Weight I/II/III: 480 / 880 / 1280; speed 10; attack speed 60; unavailable before the first flag."],
       description: zh ? "没有技力技能或近战攻击。从减号两端同时发射两颗加速追踪弹，每颗造成攻击力 25% 的法术伤害。发射时优先锁定离自身最近的飞行塔，否则选最近的塔；目标消失后改锁离弹幕最近的塔，不再优先飞行。等级增加连发次数，超过五连发的部分按常规规则分配为独立多判。"
         : "No SP skill or melee attack. Fires two accelerating homing shots from opposite ends, each dealing 25% ATK magic damage. At launch prefers the nearest flying tower, otherwise the nearest tower. On target loss, retargets the nearest tower to the projectile without flight priority. Rank adds volleys, with hits beyond five volleys distributed as independent judgments."
     },

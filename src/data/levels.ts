@@ -111,7 +111,7 @@ export const levelConfigs: Record<string, LevelConfig> = {
   "AE-EX-7": {
     ...EX_LEVEL_DEFAULTS,
     id: "AE-EX-7", unlockAfter: "AE-EX-6", totalWaves: 20,
-    enemyKinds: ["circle", "tilde", "tilde2", "tilde3", "equals3", "dollar", "plus", "minus", "minus2", "minus3"]
+    enemyKinds: ["circle", "tilde", "tilde2", "tilde3", "equals3", "dollar", "plus", "minus"]
   },
   "AE-EX-6": {
     ...EX_LEVEL_DEFAULTS,

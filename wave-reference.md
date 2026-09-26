@@ -3106,6 +3106,7 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 - Enemy pool: Circle I, Tilde I/II/III/IV/V, Equals I/II/III, Dollar I, Plus I, Triangle Ram I/II/III/IV/V, Angel Pentagon Ram I/II/III, Hex Mace I/II/III. No additional environment effect; existing minimum-wave and flag restrictions apply.
 - Plus (`+`) shares Dollar's panel and growth: 20000 HP, 200 armor, 50 MR, 800 physical ATK, attack speed 60, movement speed 10; weight 240 / 440 / 640 at ranks I/II/III.
 - Command: Support starts at 0/15 SP, recovers 1 SP/s and consumes 15 at full SP. Heals each of the nearest (rank + 1) ordinary enemies for 35% of the caster's current HP at cast time, capped at the target's maximum HP. Excludes itself, all other Plus enemies, leaders, Bosses, companions and Solar Bombs. Selects by distance rather than missing HP; with no eligible targets, retains full SP. Uses existing shared-health healing and heal visuals.
+- Each successful Plus heal additionally sends a translucent green arc shockwave from the caster toward the target. This is visual only; healing still resolves immediately.
 - Dollar's skill is renamed Command: Incitement (指令：煽动); its behavior is unchanged.
 
 ## ASCII Expansion: Symbol Domain Capital / AE-EX-6
@@ -3117,8 +3118,8 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 ## ASCII Expansion: Symbol Domain Capital / AE-EX-7
 
 - Unlocks after AE-EX-6; 20 waves. Uses EX defaults: 2000 starting characters, initial weight 30, increment +35, extra increment +5, one flag every 10 waves, no weight cap. No additional environment effect.
-- Enemy pool: Circle I, Tilde I/II/III, Equals III, Dollar I, Plus I, Minus I/II/III.
-- Minus (`-`) shares Plus's base panel and weight growth: 20000 HP, 200 armor, 50 MR, 800 ATK, movement speed 10; weight 240 / 440 / 640. Cannot spawn before flag 1. No SP skill or melee attack; attack speed 60.
+- Enemy pool: Circle I, Tilde I/II/III, Equals III, Dollar I, Plus I, Minus I only. Higher Minus ranks remain defined but are not in this operation's pool.
+- Minus (`-`) shares Plus's combat panel: 20000 HP, 200 armor, 50 MR, 800 ATK, movement speed 10. Its entire weight curve is twice Plus's: 480 / 880 / 1280, with +400 per effective weight upgrade including growth breakpoints. Cannot spawn before flag 1. No SP skill or melee attack; attack speed 60.
 - Each shot emits two accelerating homing projectiles from opposite ends, each dealing 25% ATK magic damage (200 at base). Locks the nearest flying tower at launch, otherwise the nearest tower; after target disappearance retargets the nearest tower to the projectile regardless of flight. Rank adds volleys using the standard five-volley/multi-judgment distribution. Projectile targets and velocity persist through snapshots.
 
 ## ASCII Expansion: AE-10

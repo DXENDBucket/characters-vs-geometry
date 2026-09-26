@@ -28,6 +28,7 @@ export const updateSupportCommand: EnemySkillDefinition["update"] = (caster, sta
   for (const target of targets) {
     if (changeEnemyHealth(target, amount) <= 0) continue;
     for (const member of target.healthPool?.members ?? [target]) runtime.presentation.scale(member);
+    runtime.presentation.supportWave(caster.x, caster.y, target.x, target.y);
     runtime.presentation.heal(target.x, target.y);
   }
 };

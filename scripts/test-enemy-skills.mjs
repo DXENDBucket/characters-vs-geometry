@@ -124,18 +124,21 @@ test("Plus panels match Dollar at all ranks and Support targets the nearest rank
 test("Support charges for 15s, heals from current caster HP, caps health and retains SP without targets", () => {
   const caster = enemy("plus"), a = enemy("square", 3, 6), b = enemy("triangle", 3, 7), far = enemy("square", 3, 8);
   caster.hp = 10000; a.hp = 1000; b.hp = 4500; far.hp = 100;
-  const healed = [], scaled = [];
+  const healed = [], scaled = [], waves = [];
   const runtime = { enemies: [caster, far, b, a], presentation: { ...presentation,
-    heal: (x, y) => healed.push([x, y]), scale: target => scaled.push(target) } };
+    heal: (x, y) => healed.push([x, y]), scale: target => scaled.push(target),
+    supportWave: (...points) => waves.push(points) } };
   updateEnemySkills(runtime, 14, 14000);
   assert.equal(caster.skills.support.sp, 14); assert.equal(a.hp, 1000);
   updateEnemySkills(runtime, 1, 15000);
   assert.equal(caster.skills.support.sp, 0);
   assert.equal(a.hp, 4500); assert.equal(b.hp, 5000); assert.equal(far.hp, 100); assert.equal(caster.hp, 10000);
   assert.equal(healed.length, 2); assert.deepEqual(scaled, [a, b]);
+  assert.deepEqual(waves, [[caster.x, caster.y, a.x, a.y], [caster.x, caster.y, b.x, b.y]]);
   runtime.enemies = [caster];
   updateEnemySkills(runtime, 15, 30000);
   assert.equal(caster.skills.support.sp, 15);
+  assert.equal(waves.length, 2, "no wave without a healed target");
   runtime.enemies.push(a);
   updateEnemySkills(runtime, 0, 30000);
   assert.equal(caster.skills.support.sp, 0); assert.equal(a.hp, 8000);

@@ -106,6 +106,16 @@ test("DEL orbits have rounded zero glyphs and deterministic animation", () => {
   }
 });
 
+test("support shockwaves recycle their graphics after reaching the target", () => {
+  const f = fixture();
+  for (let i = 0; i < 20; i++) {
+    effects.makeSupportWave(f.scene, 400, 300, 700, 450);
+    f.complete();
+  }
+  assert.equal(f.objects.length, 1);
+  f.end();
+});
+
 test("DEL contact effects reuse one graphics object", () => {
   const f = fixture();
   for (let i = 0; i < 20; i++) {
