@@ -293,6 +293,10 @@ test("tetrahedron and icosahedron lethal locks preserve phase callbacks and prev
     life.damageBoss(f.runtime, 1e10, "true");
     assert.deepEqual(f.events, [["phase", 0]]);
     assert.equal(f.runtime.boss, boss);
+    assert.equal(life.damageBoss(f.runtime, 1e10, "true"), false);
+    assert.deepEqual(f.events, [["phase", 0]], "A dead phase cannot trigger defeat callbacks twice");
+    // The encounter restores HP when advancing to the next phase.
+    boss.hp = boss.maxHp;
     f.runtime.onBossDefeated = () => false;
     life.damageBoss(f.runtime, 1e10, "true");
     assert.equal(f.runtime.boss, null);
