@@ -411,6 +411,7 @@ export interface LevelConfig {
   flagWeightMultiplier?: number;
   extraWaveSpawns?: { kind: EnemyKind; lane?: number | "all"; wave?: number }[];
   periodicEnemySpawns?: { kind: EnemyKind; lane: number; intervalMs: number }[];
+  bossLanes?: number[];
   periodicTowerNullification?: { intervalMs: number; durationMs: number; initialDelayMs?: number };
   firstWaveWeight: number;
   waveWeightIncrement: number;
@@ -480,6 +481,7 @@ export interface DelLaneSweepState<Part = CubeBoss> {
 }
 
 export interface CubeBoss extends BossState, BossRotationState {
+  independentBosses?: CubeBoss[];
   delLaneSweep?: DelLaneSweepState;
   octahedronCopies?: CubeBoss[];
   body: Phaser.GameObjects.Container;

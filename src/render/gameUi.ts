@@ -12,6 +12,7 @@ import {
   PROGRESS_BAR_WIDTH,
   BATTLE_STATUS_Y,
   BATTLE_PROGRESS_Y,
+  BOARD_Y, CELL_HEIGHT, CUBE_BOSS_STATS,
   palette,
   uiTextColors
 } from "../config";
@@ -23,6 +24,7 @@ import { createUnitBorder } from "./unitShapes";
 import { drawTowerShellBorder } from "./parenthesisTower";
 import { isTowerShellType } from "../game/towerOccupancy";
 import type { TowerExtractionPool } from "../game/towerExtraction";
+import { getLevelConfig } from "../data/levels";
 
 export interface GameHudElements {
   titleText: Phaser.GameObjects.Text;
@@ -36,6 +38,8 @@ export interface GameHudElements {
   progressText: Phaser.GameObjects.Text;
   progressBack: Phaser.GameObjects.Rectangle;
   progressFill: Phaser.GameObjects.Rectangle;
+  bossBars: { lane: number; maxHp: number; text: Phaser.GameObjects.Text;
+    back: Phaser.GameObjects.Rectangle; fill: Phaser.GameObjects.Rectangle }[];
   toastText: Phaser.GameObjects.Text;
   speedText: Phaser.GameObjects.Text;
   speedFill: Phaser.GameObjects.Rectangle;
@@ -202,6 +206,16 @@ export function createGameHud(
     .rectangle(GAME_WIDTH - 28 - PROGRESS_BAR_WIDTH, GAME_HEIGHT - 24, 0, 4, palette.white, 1)
     .setOrigin(0, 0.5);
 
+  const level = getLevelConfig(levelId);
+  const bossBars = (level.bossLanes && level.bossLanes.length > 1 ? level.bossLanes : []).map((lane, index, lanes) => {
+    const right = GAME_WIDTH - 28 - (lanes.length - index - 1) * 204;
+    return { lane, maxHp: CUBE_BOSS_STATS[level.bossKind!].hp,
+      text: scene.add.text(right, BATTLE_PROGRESS_Y + 8, "", { color: uiTextColors.primary,
+        fontFamily: "monospace", fontSize: "13px", align: "right" }).setOrigin(1, 1),
+      back: scene.add.rectangle(right - 180, GAME_HEIGHT - 24, 180, 4, palette.dim).setOrigin(0, .5),
+      fill: scene.add.rectangle(right - 180, GAME_HEIGHT - 24, 180, 4, palette.white).setOrigin(0, .5) };
+  });
+
   const toastText = scene.add
     .text(GAME_WIDTH / 2, GAME_HEIGHT - 34, "", {
       color: uiTextColors.body,
@@ -339,6 +353,7 @@ export function createGameHud(
     progressText,
     progressBack,
     progressFill,
+    bossBars,
     toastText,
     speedText,
     speedFill,
@@ -639,6 +654,20 @@ export function updateGameHud(ui: GameHudElements, state: HudUpdateState) {
   setTextIfChanged(ui.speedText, `${t("label.speed")} x${formatSpeed(state.gameSpeed)}`);
   setRectangleWidthIfChanged(ui.speedFill, 176 * speedRatio);
   setXIfChanged(ui.speedKnob, Math.round(348 + 176 * speedRatio));
+  if (ui.bossBars.length) {
+    setVisibleIfChanged(ui.progressText, false);
+    setVisibleIfChanged(ui.progressBack, false);
+    setVisibleIfChanged(ui.progressFill, false);
+    const bosses = state.boss ? [state.boss, ...(state.boss.independentBosses ?? [])] : [];
+    for (const bar of ui.bossBars) {
+      const boss = bosses.find(boss => Math.floor(((boss.delSweep?.homeY ?? boss.y) - BOARD_Y) / CELL_HEIGHT) === bar.lane);
+      if (boss) bar.maxHp = boss.maxHp;
+      const hp = Math.max(0, boss?.hp ?? 0);
+      setTextIfChanged(bar.text, `${t("label.bossLane", { lane: bar.lane + 1 })}\n${Math.ceil(hp)}/${bar.maxHp}`);
+      setRectangleWidthIfChanged(bar.fill, 180 * Phaser.Math.Clamp(hp / bar.maxHp, 0, 1));
+    }
+    return;
+  }
   if (state.boss) {
     const bossHpRatio = Phaser.Math.Clamp(state.boss.hp / state.boss.maxHp, 0, 1);
     const phaseText = state.bossHpBar ? ` P${state.bossHpBar.phase}/${state.bossHpBar.totalPhases}` : "";

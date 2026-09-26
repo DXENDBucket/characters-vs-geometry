@@ -210,7 +210,7 @@ export class CardSelectScene extends Phaser.Scene {
     let contentY = 32;
     if (levelConfig.bossKind) {
       const bossText = this.add
-        .text(0, contentY, `${this.bossDisplayName(levelConfig.bossKind)}  ${t("label.hp")} ${CUBE_BOSS_STATS[levelConfig.bossKind].hp}`, {
+        .text(0, contentY, `${this.bossDisplayName(levelConfig.bossKind)}${(levelConfig.bossLanes?.length ?? 0) > 1 ? ` x${levelConfig.bossLanes!.length}` : ""}  ${t("label.hp")} ${CUBE_BOSS_STATS[levelConfig.bossKind].hp}`, {
           color: uiTextColors.secondary,
           fontFamily: "monospace",
           fontSize: "14px"

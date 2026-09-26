@@ -21,8 +21,8 @@ export function syncDelSweepWarning(boss: CubeBoss, time: number) {
   graphic.clear().setPosition(BOARD_X - boss.x, BOARD_Y - boss.y);
   const progress = Math.max(0, Math.min(1, (time - state.startedAt) / warningMs));
   const pulse = .6 + .3 * Math.sin((time - state.startedAt) / 110);
-  const center = Math.floor(LANES / 2);
-  const lanes = laneSweep ? config.lanes : [center - 1, center, center + 1];
+  const center = Math.floor(((boss.delSweep?.homeY ?? boss.y) - BOARD_Y) / CELL_HEIGHT);
+  const lanes = laneSweep ? config.lanes : [center - 1, center, center + 1].filter(lane => lane >= 0 && lane < LANES);
   for (const lane of lanes) {
     const y = lane * CELL_HEIGHT;
     graphic.fillStyle(palette.enemyShot, .06 + pulse * .06).fillRect(0, y, BOARD_WIDTH, CELL_HEIGHT);

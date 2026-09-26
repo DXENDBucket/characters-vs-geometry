@@ -10,7 +10,7 @@ import type { BossState as CubeBoss } from "./bossState";
 import { enemyIsBurrowed, enemyIsHighFlying } from "./enemyCombatRules";
 import { forEachSnapshot } from "./iteration";
 import { applyStatusEffect } from "./statusEffects";
-import { bossPartDistanceSqToPoint, bossPartInRect, forEachBossPart } from "./unitGeometry";
+import { bossPartDistanceSqToPoint, bossPartIntersectsRect, forEachBossAreaHit, forEachBossPart } from "./unitGeometry";
 import { getShockCount, getTriggerDebuffDuration, towerDamageType } from "./towerRules";
 import { towerAttackAmount } from "./unitStatRules";
 
@@ -95,8 +95,9 @@ export function executeShockPulse(runtime: TriggerTowerRuntime, action: TowerSho
       runtime.damageEnemy(enemy, damage, damageType, tower);
     }
   });
-  const part = bossPartInRect(runtime.boss, area.left, area.top, area.width, area.height);
-  if (part) runtime.damageBoss(damage, damageType, part);
+  forEachBossAreaHit(runtime.boss,
+    part => bossPartIntersectsRect(part, area.left, area.left + area.width, area.top, area.top + area.height),
+    part => runtime.damageBoss(damage, damageType, part));
 }
 
 export function triggerTrapTower(runtime: TriggerTowerRuntime, tower: Tower, target: Enemy | CubeBoss | "boss") {

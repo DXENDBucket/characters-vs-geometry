@@ -137,6 +137,10 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
         finite(sweep.previousInvincibleUntil) && array(sweep.sealedCells, key => typeof key === "string"));
     }
     if (boss.delEcho !== undefined) require(family === "del" && typeof boss.delEcho === "boolean");
+    if (boss.independentBosses !== undefined) require((boss as unknown) === state.boss &&
+      Array.isArray(boss.independentBosses) && new Set(boss.independentBosses).size === boss.independentBosses.length &&
+      boss.independentBosses.every(other => member("boss")(other) && other !== boss &&
+        !other.delEcho && !other.independentBosses?.length));
     if (boss.delEcho) require((boss as unknown) !== state.boss &&
       [DEL_ECHO_HITBOX_CELLS, 1].some(size => boss.hitboxWidth === CELL_WIDTH * size && boss.hitboxHeight === CELL_HEIGHT * size) &&
       !boss.hasSkills && boss.delLaneSweep === undefined && boss.delSweep === undefined);

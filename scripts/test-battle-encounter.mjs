@@ -66,6 +66,65 @@ function fixture(levelId = "5-10", unlimitedFirepower = false) {
   return { world, events, queue, lifecycle, storage, nul, cells, encounter, tower, enemy };
 }
 
+test("AE-T-4 DELs have independent health and victory requires both, in either kill order", () => {
+  const { BOARD_Y, CELL_HEIGHT } = load("src/config.ts");
+  const { bossParts, bossPartAtPoint } = load("src/game/unitGeometry.ts");
+  for (const secondFirst of [false, true]) {
+    const f = fixture("AE-T-4"); f.encounter.spawnBoss();
+    const first = f.world.boss, second = first.independentBosses[0];
+    assert.equal(f.world.chars, 5000);
+    assert.deepEqual([first.y, second.y], [1, 5].map(lane => BOARD_Y + (lane + .5) * CELL_HEIGHT));
+    assert.equal(first.hp, 500000); assert.equal(second.hp, 500000);
+    assert.notEqual(first.skills, second.skills);
+    assert.equal(bossPartAtPoint(first, second.x, second.y), second);
+    life.damageBoss(f.lifecycle, 1000, "true", second);
+    assert.equal(first.hp, 500000); assert.ok(second.hp < 500000);
+    const victim = secondFirst ? second : first, survivor = secondFirst ? first : second;
+    const hp = survivor.hp;
+    life.damageBoss(f.lifecycle, 1e12, "true", victim);
+    assert.equal(f.world.gameOver, false);
+    assert.equal(f.world.boss, survivor); assert.equal(survivor.hp, hp);
+    assert.deepEqual(bossParts(f.world.boss), [survivor]);
+    assert.equal(life.damageBoss(f.lifecycle, 1e12, "true", victim), false);
+    life.damageBoss(f.lifecycle, 1e12, "true", survivor);
+    assert.equal(f.world.boss, null); assert.equal(f.world.result.outcome, "victory");
+  }
+});
+
+test("both DELs tick skills independently and sweep at their own home rows", () => {
+  const f = fixture("AE-T-4"); f.encounter.spawnBoss(); f.tower();
+  const first = f.world.boss, second = first.independentBosses[0];
+  const { updateBossRuntime } = load("src/game/bossSimulation.ts");
+  const moves = [], warnings = [];
+  const runtime = { getBoss: () => f.world.boss, towers: f.world.towers, enemies: [], battleTime: 0,
+    bossPhaseIndex: 0, finalDamageReduction: 0,
+    presentation: { ...NO_BOSS_SIMULATION_PRESENTATION, motion: boss => moves.push(boss) },
+    warnCellSeal: (...args) => warnings.push(args), sealCell() {}, triggerTrapTower() {}, triggerShockTower() {},
+    damageTower() {}, endGame() {} };
+  updateBossRuntime(runtime, 1 / 60);
+  assert.equal(first.deleteStackPending, true); assert.equal(second.deleteStackPending, true);
+  assert.deepEqual(moves, [first, second]);
+  runtime.battleTime = first.skills.deleteStack.activeUntil;
+  updateBossRuntime(runtime, 1 / 60); assert.equal(warnings.length, 2);
+  life.damageBoss(f.lifecycle, 200000, "true", second);
+  assert.equal(first.delSweep, undefined); assert.equal(second.delSweep.homeY, second.y);
+  assert.equal(first.invincibleUntil, 0); assert.equal(second.invincibleUntil, Infinity);
+  const firstHp = first.hp, secondHp = second.hp;
+  assert.equal(life.damageBoss(f.lifecycle, 1000, "true", second), false);
+  assert.equal(life.damageBoss(f.lifecycle, 1000, "true", first), true);
+  assert.equal(second.hp, secondHp); assert.ok(first.hp < firstHp);
+});
+
+test("independent DEL state survives graph snapshots without sharing HP or skills", () => {
+  const f = fixture("AE-T-4"); f.encounter.spawnBoss();
+  const first = f.world.boss, second = first.independentBosses[0];
+  second.hp = 420000; second.skills.deleteStack.sp = 7;
+  const saved = decodeSaveGraph(captureBattleSnapshot({ boss: first }), () => ({})).boss;
+  assert.equal(saved.hp, 500000); assert.equal(saved.independentBosses[0].hp, 420000);
+  assert.equal(saved.independentBosses[0].skills.deleteStack.sp, 7);
+  assert.notEqual(saved.skills, saved.independentBosses[0].skills);
+});
+
 test("phase transition clears field links, passengers and stored cargo without death rewards or wave reset", () => {
   const f = fixture(), { world, encounter } = f; encounter.spawnBoss();
   world.wave = 27; world.levelElapsed = 123456; world.waveTracker = { number: 27, totalWeight: 100, defeatedWeight: 15, spawnedAt: 0 };

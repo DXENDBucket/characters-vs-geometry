@@ -23,7 +23,7 @@ import { getTowerSkillState } from "./skillState";
 import { TOWER_SKILLS } from "../data/towerAbilities";
 import { chargeTowerSkill, resetTowerSkillCharge, spendTowerSkill, towerSkillIsReady } from "./towerSkillRules";
 import { createTowerSkillRegistry, type TowerSkillDefinition } from "./towerSkillRegistry";
-import { bossPartInRect } from "./unitGeometry";
+import { forEachBossAreaHit, bossPartIntersectsRect } from "./unitGeometry";
 import { effectiveTowerLevel, setTowerFlyingUntil, towerDamageType, settleTowerMoveVisual } from "./towerRules";
 import { towerAttackAmount, towerFinalStats, withTowerBehavior } from "./unitStatRules";
 
@@ -458,16 +458,10 @@ export class TowerSkillSimulation {
         runtime.damageEnemy(enemy, damage, damageType, sourceTower);
       }
     });
-    const bossPart = bossPartInRect(
-      runtime.boss,
-      x - SPELL_MORTAR_AOE_RANGE_X,
-      y - SPELL_MORTAR_AOE_RANGE_Y,
-      SPELL_MORTAR_AOE_RANGE_X * 2,
-      SPELL_MORTAR_AOE_RANGE_Y * 2
-    );
-    if (bossPart) {
-      runtime.damageBoss(damage, damageType, bossPart);
-    }
+    forEachBossAreaHit(runtime.boss, part => bossPartIntersectsRect(part,
+      x - SPELL_MORTAR_AOE_RANGE_X, x + SPELL_MORTAR_AOE_RANGE_X,
+      y - SPELL_MORTAR_AOE_RANGE_Y, y + SPELL_MORTAR_AOE_RANGE_Y),
+      part => runtime.damageBoss(damage, damageType, part));
   }
 
   private resetClockTower(tower: Tower, state: SkillState) {

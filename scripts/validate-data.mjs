@@ -97,12 +97,15 @@ const levelEnemyKinds = unique(Object.values(levelConfigs).flatMap(level => [
   ...levelPreviewEnemyKinds(level), ...(level.bossPhases ?? []).flatMap(phase => phase.enemyKinds)
 ]));
 for (const level of Object.values(levelConfigs)) {
-  for (const field of ["spawnLanes", "deployableLanes"]) {
+  for (const field of ["spawnLanes", "deployableLanes", "bossLanes"]) {
     const lanes = level[field];
     if (lanes && (!lanes.length || new Set(lanes).size !== lanes.length ||
         lanes.some(lane => !Number.isInteger(lane) || lane < 0 || lane >= LANES))) {
       errors.push(`Level "${level.id}" has invalid ${field}.`);
     }
+  }
+  if (level.bossLanes && (level.bossKind !== "del" || level.bossEndless || level.bossPhases)) {
+    errors.push(`Level "${level.id}" has unsupported independent Boss configuration.`);
   }
   if (level.flagWeightMultiplier !== undefined && (!Number.isFinite(level.flagWeightMultiplier) || level.flagWeightMultiplier < 0)) {
     errors.push(`Level "${level.id}" has invalid flag weight multiplier.`);

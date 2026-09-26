@@ -23,6 +23,37 @@ const prepared = (level = "1-9", cards = ["A", "B", "X"]) => {
   return runtime;
 };
 
+test("debug damage targets the clicked DEL and checks only that DEL's invulnerability", () => {
+  for (const mode of ["normal", "super"]) {
+    const runtime = prepared("AE-T-4");
+    runtime.executeControl("local", { type: "debugMode", enabled: true });
+    const first = runtime.world.boss, second = first.independentBosses[0];
+    const click = boss => runtime.executeControl("local", { type: "debugDamage", mode, point: { x: boss.x, y: boss.y } });
+    first.invincibleUntil = Infinity;
+    assert.equal(click(second), "handled");
+    assert.equal(first.hp, first.maxHp); assert.ok(second.hp < second.maxHp);
+    const secondHp = second.hp;
+    click(first); assert.equal(first.hp, first.maxHp); assert.equal(second.hp, secondHp);
+    first.invincibleUntil = 0; second.invincibleUntil = Infinity;
+    click(first); assert.ok(first.hp < first.maxHp);
+    click(second); assert.equal(second.hp, secondHp);
+  }
+});
+
+test("dual DEL combat and independent skill state restore deterministically", () => {
+  const runtime = prepared("AE-T-4", ["B"]);
+  place(runtime, "B", 3, 1);
+  step(runtime, 10);
+  const root = runtime.world.boss, second = root.independentBosses[0];
+  damageBoss(runtime.lifecycle, 200000, "true", second);
+  const restored = cloneCheckpoint(runtime, runtime.session.exportReplay(), true);
+  assert.equal(checksum(runtime), checksum(restored));
+  assert.equal(restored.world.boss.delSweep, undefined);
+  assert.equal(restored.world.boss.independentBosses[0].delSweep.phase, "warning");
+  for (let i = 0; i < 240; i++) { step(runtime); step(restored); }
+  assert.equal(checksum(runtime), checksum(restored));
+});
+
 test("the assembly rejects a world attached to a different session random stream", () => {
   const a = createRuntime(), b = createRuntime();
   const { BattleRuntime } = load("src/game/battleRuntime.ts");

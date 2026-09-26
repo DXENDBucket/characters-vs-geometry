@@ -3125,7 +3125,7 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 ## ASCII Expansion: Symbol Domain Capital / AE-EX-8
 
 - Unlocks after AE-EX-7. DEL Boss battle: waves continue until DEL is defeated, with no fixed wave count; this is not an Infinite Front operation. DEL retains its existing stats and skills.
-- Uses EX defaults: 2000 starting characters, initial weight 30, increment +35, extra increment +5, one flag every 10 waves, no weight cap.
+- Uses 5000 starting characters and EX weight defaults: initial weight 30, increment +35, extra increment +5, one flag every 10 waves, no weight cap.
 - Enemy pool: Circle I, Tilde I/II/III, Inverted Triangle I/II/III, Parentheses I/II/III, Dollar I/II, Plus I/II, Minus I/II, Greater-Than Sign III, Hex Mace I/II/III. Existing spawn restrictions and flag-wave leader rules apply.
 - Environment matches AE-EX-2: each grid tower enters NUL for 10 seconds every 60 seconds from its deployment; edge connectors remain exempt. This coexists with DEL's Format skill, using the existing overlapping NUL rules. The environment description appears between the Boss and ordinary enemy previews.
 
@@ -3149,6 +3149,12 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 - Regular enemy pool: Circle I, Tilde I/II/III, Inverted Triangle I/II/III, Equals I/II/III, Hex Mace I, Dollar I, Angel Pentagon Ram I, Angel Pentagon I.
 - Environment: every 15 seconds of battle time, spawns one Archangel Heptagon I from the right edge in row 4, first at 15s. Independent of wave refreshes, consumes no wave weight, pauses with combat and retains cadence after restoration. Surviving reinforcements must also be defeated for victory.
 - Enemy preview/discovery includes the periodic Archangel; other field effects are not inherited from AE-T-2.
+
+## ASCII Expansion: Symbol Domain Proving Grounds / AE-T-4
+
+- Unlocks after AE-T-3. Uses AE-EX-8's enemy pool, 5000 starting characters, EX weight growth and per-tower NUL (60s interval, 10s duration).
+- Two independent DEL Bosses start in rows 2 and 6 at the usual right-side position. Each has 500000 HP and its own skills, damage, invulnerability and threshold events. The 75% sweep warning follows that DEL's actual three-row collision area.
+- Waves continue until both DEL Bosses have been defeated. Defeating either one does not remove the other or end the level. Shared-health octahedron/icosahedron copies are unchanged.
 
 ## ASCII Expansion: AE-10
 

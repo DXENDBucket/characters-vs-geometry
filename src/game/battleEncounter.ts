@@ -1,4 +1,5 @@
 import type { BossKind } from "../types";
+import { BOARD_Y, CELL_HEIGHT } from "../config";
 import type { BossState, CreateBossOptions } from "./bossState";
 import type { EnemyState } from "./enemyState";
 import type { BattleEntities, BattleWorld } from "./battleWorld";
@@ -43,7 +44,21 @@ export class BattleEncounter<E extends BattleEntities = BattleEntities> {
   spawnBoss(rank?: number) {
     const { world } = this.runtime, { level, difficulty, unlimitedFirepower } = world.options;
     if (!level.bossKind) return;
-    const boss = world.boss = this.runtime.createBoss(level.bossKind, difficulty.finalDamageReduction, { rank });
+    const lanes = level.bossLanes;
+    const boss = world.boss = this.runtime.createBoss(level.bossKind, difficulty.finalDamageReduction,
+      { rank, y: lanes ? BOARD_Y + (lanes[0] + 0.5) * CELL_HEIGHT : undefined });
+    if (lanes && lanes.length > 1) {
+      boss.independentBosses = lanes.slice(1).map(lane => {
+        const other = this.runtime.createBoss(level.bossKind!, difficulty.finalDamageReduction,
+          { rank, y: BOARD_Y + (lane + 0.5) * CELL_HEIGHT });
+        if (unlimitedFirepower) {
+          other.baseStats.maxHp *= 10;
+          syncBossBaseStats(other);
+          other.hp = other.maxHp;
+        }
+        return other;
+      });
+    }
     this.runtime.bossSeen(level.bossKind);
     world.bossHomePosition = { x: boss.x, y: boss.y };
     if (level.bossEndless && isDodecahedronBoss(boss)) initializeDodecahedronCompanions(this.runtime.bossRuntime(), boss);

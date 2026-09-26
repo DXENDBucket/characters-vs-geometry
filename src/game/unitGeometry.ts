@@ -39,7 +39,40 @@ export function bossParts(boss: BossState | null) {
 export function secondaryBossParts(boss: CubeBoss): CubeBoss[];
 export function secondaryBossParts(boss: BossState): BossState[];
 export function secondaryBossParts(boss: BossState) {
+  const parts = localSecondaryBossParts(boss);
+  return boss.independentBosses?.length
+    ? [...parts, ...boss.independentBosses.flatMap(other => [other, ...localSecondaryBossParts(other)])] : parts;
+}
+
+function localSecondaryBossParts(boss: BossState) {
   return boss.delLaneSweep?.parts ?? boss.octahedronCopies ?? [];
+}
+
+export function bossHealthOwner(root: BossState, part: BossState) {
+  if (root === part || localSecondaryBossParts(root).includes(part)) return root;
+  return root.independentBosses?.find(other => other === part || localSecondaryBossParts(other).includes(part));
+}
+
+export function findLocalBossPart<T extends BossState>(boss: T, predicate: (part: T) => boolean): T | undefined {
+  if (predicate(boss)) return boss;
+  return (localSecondaryBossParts(boss) as T[]).find(predicate);
+}
+
+export function forEachLocalBossPart<T extends BossState>(boss: T, visit: (part: T) => void) {
+  visit(boss);
+  for (const part of localSecondaryBossParts(boss) as T[]) visit(part);
+}
+
+export function bossHealthRoots<T extends BossState>(boss: T | null): T[] {
+  return boss ? [boss, ...(boss.independentBosses ?? []) as T[]] : [];
+}
+
+export function forEachBossAreaHit<T extends BossState>(boss: T | null,
+  contains: (part: T) => boolean, hit: (part: T) => void) {
+  for (const root of bossHealthRoots(boss)) {
+    const part = findLocalBossPart(root, contains);
+    if (part) hit(part);
+  }
 }
 
 export function findBossPart<T extends BossState>(boss: T | null, predicate: (part: T) => boolean): T | undefined {

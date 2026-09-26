@@ -53,7 +53,7 @@ const bossFields = new Set(Object.keys({
   contactAttackBuffer: true, chargeExpiresAt: true, halfHpTriggered: true, criticalHpTriggered: true,
   pendingCriticalSummon: true, companionsInitialized: true, companionDeathsHandled: true,
   invincibleUntil: true, bossHasteUntil: true, nextBossHasteTrailAt: true,
-  octahedronCopies: true, pendingCopies: true, octahedronSolarBombsInitialized: true,
+  octahedronCopies: true, independentBosses: true, pendingCopies: true, octahedronSolarBombsInitialized: true,
   octahedronSpawn75Triggered: true, octahedronSpawn50Triggered: true, octahedronSpawn25Triggered: true
 } satisfies Record<keyof BossState, true>));
 // Old saves retain cosmetic rotation. It is not part of authoritative Boss state.

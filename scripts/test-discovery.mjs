@@ -182,7 +182,7 @@ test("Symbol Domain Proving Grounds follows the capital and unlocks AE-T-1 after
   assert.equal(chapters.getChapterDefinition("AET").parentId, "AE2");
   assert.equal(chapterGroups.groupForChapter("AET").id, "ascii");
   assert.equal(chapters.chapterIdForLevelId("AE-T-1"), "AET");
-  assert.deepEqual(chapters.levelNodesForChapter("AET").map(node => node.id), ["AE-T-1", "AE-T-2", "AE-T-3"]);
+  assert.deepEqual(chapters.levelNodesForChapter("AET").map(node => node.id), ["AE-T-1", "AE-T-2", "AE-T-3", "AE-T-4"]);
   assert.equal(chapters.levelNodesForChapter("AE").length, 10);
   const level = levels.getLevelConfig("AE-T-1");
   assert.equal(level.totalWaves, 10);
@@ -206,7 +206,20 @@ test("Symbol Domain Proving Grounds follows the capital and unlocks AE-T-1 after
   assert.equal(progress.isLevelUnlocked("AE-T-3"), true);
   assert.equal(progress.discoveredEnemies().enemies.has("archangelHeptagon"), true);
   progress.completeLevel("AE-T-3");
+  assert.equal(progress.isChapterCompleted("AET"), false);
+  assert.equal(progress.isLevelUnlocked("AE-T-4"), true);
+  progress.completeLevel("AE-T-4");
   assert.equal(progress.isChapterCompleted("AET"), true);
+});
+
+test("AE-T-4 reuses the capital DEL encounter with two independent Boss lanes", () => {
+  const { levels, progress } = fixture();
+  const { id, unlockAfter, bossLanes, ...config } = levels.getLevelConfig("AE-T-4");
+  const { id: oldId, unlockAfter: oldUnlock, ...base } = levels.getLevelConfig("AE-EX-8");
+  assert.deepEqual(config, base);
+  assert.deepEqual(bossLanes, [1, 5]);
+  assert.equal(unlockAfter, "AE-T-3");
+  assert.equal(progress.isLevelUnlocked(id), false);
 });
 
 test("AE-T-3 has its own funds, pool and timed archangel preview", () => {
@@ -347,7 +360,7 @@ test("AE-EX-8 combines DEL with the capital template, requested pool and periodi
   assert.equal(level.survival, undefined);
   assert.equal(level.bossEndless, undefined);
   assert.equal(level.totalWaves, undefined);
-  assert.equal(level.startingChars, 2000);
+  assert.equal(level.startingChars, 5000);
   assert.deepEqual([level.firstWaveWeight, level.waveWeightIncrement, level.waveWeightIncrementGrowth], [30, 35, 5]);
   assert.equal(level.wavesPerFlag, 10);
   assert.equal(level.waveWeightCap, undefined);

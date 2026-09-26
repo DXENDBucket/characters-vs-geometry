@@ -20,6 +20,16 @@ export const EX_LEVEL_DEFAULTS = {
   wavesPerFlag: WAVES_PER_FLAG
 } as const;
 
+const DEL_CAPITAL_CONFIG: Omit<LevelConfig, "id"> = {
+  ...EX_LEVEL_DEFAULTS,
+  startingChars: 5000,
+  bossKind: "del", endless: true,
+  enemyKinds: ["circle", "tilde", "tilde2", "tilde3", "invertedTriangle", "invertedTriangle2", "invertedTriangle3",
+    "parentheses", "parentheses2", "parentheses3", "dollar", "dollar2", "plus", "plus2", "minus", "minus2",
+    "chevronLeader3", "hexMace", "hexMace2", "hexMace3"],
+  periodicTowerNullification: { intervalMs: 60_000, durationMs: 10_000 }
+};
+
 export const levelNodes: LevelNode[] = [
   { id: "0-1", x: 500, y: 410 },
   { id: "0-2", x: 820, y: 320 },
@@ -106,12 +116,17 @@ export const levelNodes: LevelNode[] = [
   { id: "AE-T-1", x: 500, y: 380 },
   { id: "AE-T-2", x: 820, y: 320 },
   { id: "AE-T-3", x: 1140, y: 380 },
+  { id: "AE-T-4", x: 1460, y: 320 },
   ...Array.from({ length: 8 }, (_, index) => ({
     id: `IF-${index + 5}`, x: 1840 + index * 340, y: index % 2 === 0 ? 430 : 320
   }))
 ];
 
 export const levelConfigs: Record<string, LevelConfig> = {
+  "AE-T-4": {
+    ...DEL_CAPITAL_CONFIG,
+    id: "AE-T-4", unlockAfter: "AE-T-3", bossLanes: [1, 5]
+  },
   "AE-T-3": {
     ...EX_LEVEL_DEFAULTS,
     id: "AE-T-3", unlockAfter: "AE-T-2", totalWaves: 20, startingChars: 5000,
@@ -133,13 +148,8 @@ export const levelConfigs: Record<string, LevelConfig> = {
     extraWaveSpawns: [{ kind: "chevronLeader", lane: "all", wave: 1 }]
   },
   "AE-EX-8": {
-    ...EX_LEVEL_DEFAULTS,
-    id: "AE-EX-8", unlockAfter: "AE-EX-7",
-    bossKind: "del", endless: true,
-    enemyKinds: ["circle", "tilde", "tilde2", "tilde3", "invertedTriangle", "invertedTriangle2", "invertedTriangle3",
-      "parentheses", "parentheses2", "parentheses3", "dollar", "dollar2", "plus", "plus2", "minus", "minus2",
-      "chevronLeader3", "hexMace", "hexMace2", "hexMace3"],
-    periodicTowerNullification: { intervalMs: 60_000, durationMs: 10_000 }
+    ...DEL_CAPITAL_CONFIG,
+    id: "AE-EX-8", unlockAfter: "AE-EX-7"
   },
   "AE-EX-7": {
     ...EX_LEVEL_DEFAULTS,

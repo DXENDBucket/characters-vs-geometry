@@ -65,6 +65,7 @@ export interface BossState {
   bossHasteUntil: number; // Legacy save field; live haste is stored in statusEffects.
   nextBossHasteTrailAt: number;
   octahedronCopies?: BossState[];
+  independentBosses?: BossState[];
   pendingCopies?: PendingBossCopy[];
   octahedronSolarBombsInitialized?: boolean;
   octahedronSpawn75Triggered?: boolean;

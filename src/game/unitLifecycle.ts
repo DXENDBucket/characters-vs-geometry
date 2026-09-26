@@ -33,7 +33,7 @@ import {
 } from "./solarBombRules";
 import { enemyIsSolarBomb } from "./enemyIdentity";
 import { addFrozenPhysicalDamage, applyStatusEffect, hasStatusEffect } from "./statusEffects";
-import { bossParts, secondaryBossParts, forEachBossPart } from "./unitGeometry";
+import { bossParts, bossHealthOwner, forEachBossPart } from "./unitGeometry";
 import { changeTowerHealth, syncTowerHealthNetworks, towerHealthDepleted } from "./towerHealthRules";
 import { syncUnyieldingAuras } from "./towerAuras";
 import { towerFinalStats } from "./unitStatRules";
@@ -119,13 +119,14 @@ export function damageBoss(
   damageType: DamageType,
   targetPart?: CubeBoss
 ): boolean {
-  const boss = runtime.getBoss();
-  if (!boss) {
+  const root = runtime.getBoss();
+  if (!root) {
     return false;
   }
 
-  const damagedPart = targetPart ?? boss;
-  if (damagedPart !== boss && !secondaryBossParts(boss).includes(damagedPart)) return false;
+  const damagedPart = targetPart ?? root;
+  const boss = bossHealthOwner(root, damagedPart);
+  if (!boss || boss.hp <= 0) return false;
   if (damagedPart.invincibleUntil > runtime.battleTime) {
     if (!delSweepActive(damagedPart) && !delLaneSweepInvincible(damagedPart)) {
       runtime.presentation.bossInvincible(damagedPart);
@@ -179,8 +180,16 @@ export function damageBoss(
     if (runtime.onBossDefeated?.(boss)) {
       return true;
     }
-    removeBoss(runtime);
-    runtime.endLevel();
+    if (root.independentBosses?.length) {
+      const survivors = [root, ...root.independentBosses].filter(other => other !== boss);
+      delete root.independentBosses;
+      survivors[0].independentBosses = survivors.slice(1);
+      runtime.setBoss(survivors[0]);
+      runtime.presentation.removeBoss(bossParts(boss), true);
+    } else {
+      removeBoss(runtime);
+      runtime.endLevel();
+    }
   }
   return true;
 }

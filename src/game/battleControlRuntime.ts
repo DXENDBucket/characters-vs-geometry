@@ -5,7 +5,7 @@ import { battleCardAllowed, battlePolicyForActor } from "./battlePolicy";
 import type { BattleControlRuntime } from "./battleControls";
 import type { BattleRuntime } from "./battleRuntime";
 import { forEachSnapshot } from "./iteration";
-import { isBossInRect } from "./unitGeometry";
+import { forEachBossAreaHit, bossPartIntersectsRect } from "./unitGeometry";
 import { damageBoss, damageEnemy } from "./unitLifecycle";
 
 // The live scene and a display-free host use the same control effects.
@@ -64,9 +64,9 @@ export function createBattleControlRuntime(runtime: BattleRuntime, actorId: () =
           damageEnemy(runtime.lifecycle, enemy, damage, "true");
         }
       });
-      if (isBossInRect(world.boss, point.x - rangeX, point.y - rangeY, rangeX * 2, rangeY * 2)) {
-        damageBoss(runtime.lifecycle, damage, "true");
-      }
+      forEachBossAreaHit(world.boss,
+        part => bossPartIntersectsRect(part, point.x - rangeX, point.x + rangeX, point.y - rangeY, point.y + rangeY),
+        part => damageBoss(runtime.lifecycle, damage, "true", part));
     }
   };
 }

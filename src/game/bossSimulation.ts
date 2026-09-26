@@ -48,7 +48,8 @@ import { triggerAngelWings } from "./enemySkillExecution";
 import { applyStatusEffect, hasStatusEffect } from "./statusEffects";
 import { activeStatusSpeedMultiplier } from "./rules/statusEffectRules";
 import { latestPlacedTower, latestPlacedTowers } from "./towerTargeting";
-import { bossBounds, findBossPart, forEachBossPart, pointInBounds, type RectBounds } from "./unitGeometry";
+import { bossBounds, findLocalBossPart as findBossPart, forEachLocalBossPart as forEachBossPart,
+  pointInBounds, type RectBounds } from "./unitGeometry";
 import { isTrapArmed } from "./towerRules";
 import { towerFinalStats } from "./unitStatRules";
 import { volleyInterval } from "./upgrades";
@@ -217,7 +218,29 @@ const bossSkillRegistry = createBossSkillRegistry<BossRuntime>({
   ]
 });
 
+const independentRuntimes = new WeakMap<BossRuntime, WeakMap<CubeBoss, BossRuntime>>();
+
 export function updateBossRuntime(runtime: BossRuntime, seconds: number) {
+  const root = runtime.getBoss();
+  if (root?.independentBosses?.length) {
+    let runtimes = independentRuntimes.get(runtime);
+    if (!runtimes) { runtimes = new WeakMap(); independentRuntimes.set(runtime, runtimes); }
+    for (const boss of [root, ...root.independentBosses]) {
+      let local = runtimes.get(boss);
+      if (!local) {
+        local = Object.create(runtime) as BossRuntime;
+        local.getBoss = () => {
+          const current = runtime.getBoss();
+          return current === boss || current?.independentBosses?.includes(boss) ? boss : null;
+        };
+        runtimes.set(boss, local);
+      }
+      updateSingleBossRuntime(local, seconds);
+    }
+  } else updateSingleBossRuntime(runtime, seconds);
+}
+
+function updateSingleBossRuntime(runtime: BossRuntime, seconds: number) {
   const boss = runtime.getBoss();
   if (!boss) {
     return;

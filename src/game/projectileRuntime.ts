@@ -28,9 +28,8 @@ import {
   bossPartAtPoint,
   bossPartDistanceSqToPoint,
   bossPartInRadius,
-  bossPartInRect,
   bossParts,
-  secondaryBossParts,
+  bossHealthRoots, forEachLocalBossPart, forEachBossAreaHit, bossPartIntersectsRect,
   clampXToBossPart,
   clampYToBossPart,
   findBossPart,
@@ -190,12 +189,14 @@ export function updateTowerProjectiles(runtime: ProjectileRuntime, seconds: numb
         });
         invalidateDirectTargetsIfNeeded(enemy, previousEnemyCount);
       });
-      const bossFalloff = bossRadiusFalloff(runtime, runtime.getBoss(), burstX, burstY, projectile.splashRadius);
-      if (bossFalloff.falloff > 0) {
-        const { part, falloff } = bossFalloff;
-        forEachProjectileHit(projectile, damage => {
-          if (part && part.hp > 0) runtime.damageBoss(damage * falloff, projectile.damageType, part);
-        });
+      for (const root of bossHealthRoots(runtime.getBoss())) {
+        const bossFalloff = bossRadiusFalloff(runtime, root, burstX, burstY, projectile.splashRadius);
+        if (bossFalloff.falloff > 0) {
+          const { part, falloff } = bossFalloff;
+          forEachProjectileHit(projectile, damage => {
+            if (part && part.hp > 0) runtime.damageBoss(damage * falloff, projectile.damageType, part);
+          });
+        }
       }
     }
 
@@ -613,10 +614,9 @@ function bossRadiusFalloff(runtime: ProjectileRuntime, boss: CubeBoss | null, x:
     return bossRadiusFalloffResult;
   }
 
-  updateBossRadiusFalloffResult(boss, bossRadiusFalloffResult, x, y, radius);
-  for (const part of secondaryBossParts(boss)) {
+  forEachLocalBossPart(boss, part => {
     updateBossRadiusFalloffResult(part, bossRadiusFalloffResult, x, y, radius);
-  }
+  });
   return bossRadiusFalloffResult;
 }
 
@@ -789,18 +789,13 @@ function detonateTowerMortar(runtime: ProjectileRuntime, projectile: MortarProje
       if (enemy.inPlay) applyMortarDebuff(runtime, projectile, enemy, runtime.battleTime);
     });
   });
-  const bossPart = bossPartInRect(
-    runtime.getBoss(),
-    projectile.targetX - projectile.rangeX,
-    projectile.targetY - projectile.rangeY,
-    projectile.rangeX * 2,
-    projectile.rangeY * 2
-  );
-  if (bossPart) {
+  forEachBossAreaHit(runtime.getBoss(), part => bossPartIntersectsRect(part,
+    projectile.targetX - projectile.rangeX, projectile.targetX + projectile.rangeX,
+    projectile.targetY - projectile.rangeY, projectile.targetY + projectile.rangeY), bossPart => {
     forEachProjectileHit(projectile, damage => {
       if (bossPart.hp > 0) runtime.damageBoss(damage, projectile.damageType, bossPart);
     });
-  }
+  });
 }
 
 function detonateRadialFalloffTowerMortar(runtime: ProjectileRuntime, projectile: MortarProjectile) {
@@ -826,12 +821,14 @@ function detonateRadialFalloffTowerMortar(runtime: ProjectileRuntime, projectile
     });
   });
 
-  const bossFalloff = bossRadiusFalloff(runtime, runtime.getBoss(), projectile.targetX, projectile.targetY, radius);
-  if (bossFalloff.falloff > 0) {
-    const { part, falloff } = bossFalloff;
-    forEachProjectileHit(projectile, damage => {
-      if (part && part.hp > 0) runtime.damageBoss(damage * falloff, projectile.damageType, part);
-    });
+  for (const root of bossHealthRoots(runtime.getBoss())) {
+    const bossFalloff = bossRadiusFalloff(runtime, root, projectile.targetX, projectile.targetY, radius);
+    if (bossFalloff.falloff > 0) {
+      const { part, falloff } = bossFalloff;
+      forEachProjectileHit(projectile, damage => {
+        if (part && part.hp > 0) runtime.damageBoss(damage * falloff, projectile.damageType, part);
+      });
+    }
   }
 }
 
