@@ -141,7 +141,7 @@ test("checksum reentry fences snapshots, immediate frames, duplicates and sliced
   }
 });
 
-test("sliced frames preserve commands at boundaries and withhold readiness until final checksum", () => {
+test("sliced frames preserve commands at boundaries and withhold later messages until final checksum", () => {
   const f = fixture({ frameSliceTicks: 2 }); f.connection.start();
   const set = value => f.hostRuntime.session.submit({ type: "control", actorId: "local",
     control: { type: "reserve", value } }, command => f.hostRuntime.executeCommand(command));
@@ -149,19 +149,107 @@ test("sliced frames preserve commands at boundaries and withhold readiness until
   set(20); set(21); f.hostRuntime.session.advance(BATTLE_STEP_MS * 4, f.hostRuntime.sessionRuntime); set(60);
   f.host.publish();
   assert.equal(f.replica.session.clock.tick, 2); assert.equal(f.replica.session.controls.reserveChars, 21);
-  assert.equal(f.connection.ready, false); assert.equal(f.connection.busy, true);
-  assert.equal(f.connection.request(f.intent(999)), false);
+  assert.equal(f.connection.ready, true); assert.equal(f.connection.busy, false); assert.equal(f.connection.catchingUp, true);
   // A later same-tick command must wait behind the first frame's checksum.
   set(61); f.host.publish();
   f.time.advance(1); assert.equal(f.replica.session.clock.tick, 4);
   f.time.advance(1); assert.equal(f.replica.session.clock.tick, 6);
-  assert.equal(f.replica.session.controls.reserveChars, 60); assert.equal(f.connection.ready, false);
+  assert.equal(f.replica.session.controls.reserveChars, 60); assert.equal(f.connection.catchingUp, true);
   f.time.advance(1); assert.equal(f.replica.session.controls.reserveChars, 61);
   assert.equal(f.connection.ready, true); assert.equal(f.connection.busy, false); assert.equal(f.time.size, 0);
   f.connection.reconnect(); set(90);
   f.hostRuntime.session.advance(100, f.hostRuntime.sessionRuntime); f.host.publish(); f.time.advance(3);
   assert.equal(f.replica.session.controls.reserveChars, 90);
   f.same(); f.connection.close();
+});
+
+test("catch-up accepts one cloned intent and sends it after the frame checksum, before later queued frames", () => {
+  const f = fixture({ frameSliceTicks: 2 }); f.connection.start();
+  f.hostRuntime.session.advance(100, f.hostRuntime.sessionRuntime); f.host.publish();
+  const intent = f.intent(999), completed = [];
+  assert.equal(f.connection.catchingUp, true); assert.equal(f.connection.ready, true); assert.equal(f.connection.busy, false);
+  assert.equal(f.connection.request(intent, receipt => completed.push(receipt.result)), true);
+  intent.control.value = 7;
+  assert.equal(f.connection.request(f.intent(123)), false); assert.equal(f.connection.busy, true);
+  assert.equal(f.links[0].sent.length, 0); assert.equal(f.hostRuntime.session.controls.reserveChars, 0);
+  f.hostRuntime.session.advance(100, f.hostRuntime.sessionRuntime); f.host.publish();
+  f.time.advance(2);
+  assert.equal(f.replica.session.clock.tick, 6); assert.equal(f.links[0].sent.length, 0);
+  f.time.advance(1);
+  assert.equal(f.hostRuntime.session.controls.reserveChars, 999);
+  assert.equal(f.replica.session.clock.tick, 8); assert.deepEqual(completed, []);
+  assert.equal(f.links[0].sent.length, 1);
+  f.time.advance(10);
+  assert.deepEqual(completed, ["handled"]); assert.equal(f.connection.busy, false); f.same();
+  f.hostRuntime.session.advance(100, f.hostRuntime.sessionRuntime); f.host.publish(); f.time.advance(3);
+  assert.equal(f.links[0].sent.length, 1, "Frame completion must not resend an already transmitted request");
+  f.same(); f.connection.close(); assert.equal(f.time.size, 0);
+});
+
+test("catch-up input with a lost receipt retries by timer, not on every subsequent frame", () => {
+  const f = fixture({ frameSliceTicks: 2 }); f.connection.start(); f.loseReceipt(true);
+  f.hostRuntime.session.advance(100, f.hostRuntime.sessionRuntime); f.host.publish();
+  let completed = 0;
+  assert.equal(f.connection.request(f.intent(63), () => completed++), true);
+  f.time.advance(3);
+  for (let i = 0; i < 10; i++) {
+    f.hostRuntime.session.advance(100, f.hostRuntime.sessionRuntime); f.host.publish(); f.time.advance(3);
+  }
+  assert.equal(f.links[0].sent.length, 1); assert.equal(f.connection.busy, true); assert.equal(completed, 0);
+  f.loseReceipt(false); f.time.advance(1000);
+  assert.equal(f.links[0].sent.length, 2); assert.equal(f.hostRuntime.session.nextCommandSequence, 1);
+  assert.equal(completed, 1); assert.equal(f.connection.busy, false); f.same();
+  f.connection.close(); assert.equal(f.time.size, 0);
+});
+
+test("catch-up input waits for reconstruction after divergence instead of sending against a failed checksum", () => {
+  const f = fixture({ frameSliceTicks: 2 }); f.connection.start();
+  f.hostRuntime.session.advance(100, f.hostRuntime.sessionRuntime); f.host.publish();
+  let completed = 0;
+  assert.equal(f.connection.request(f.intent(88), () => completed++), true);
+  f.replica.world.chars++;
+  f.time.advance(2); assert.equal(f.links[0].sent.length, 0);
+  f.time.advance(1);
+  assert.deepEqual(f.links[0].sent.map(text => JSON.parse(text).type), ["resync", "request"]);
+  assert.equal(f.restorations, 2); assert.equal(completed, 1);
+  assert.equal(f.hostRuntime.session.nextCommandSequence, 1); f.same();
+  f.connection.close(); assert.equal(f.time.size, 0);
+});
+
+test("catch-up input survives disconnect or send failure once, but is discarded by close", () => {
+  for (const mode of ["disconnect", "sendFailure", "close"]) {
+    const f = fixture({ frameSliceTicks: 2 }); f.connection.start();
+    f.hostRuntime.session.advance(100, f.hostRuntime.sessionRuntime); f.host.publish();
+    const abandoned = f.replica; let completed = 0;
+    assert.equal(f.connection.request(f.intent(72), () => completed++), true);
+    if (mode === "close") {
+      f.connection.close(); f.time.advance(1000);
+      assert.equal(f.hostRuntime.session.nextCommandSequence, 0); assert.equal(completed, 0);
+      assert.equal(f.links[0].sent.length, 0); assert.equal(f.time.size, 0); continue;
+    }
+    if (mode === "disconnect") f.links[0].events.closed();
+    else { f.failSend(); f.time.advance(3); }
+    f.time.advance(100);
+    assert.equal(f.links.length, 2); assert.equal(f.links[0].sent.length, 0);
+    assert.equal(f.links[1].sent.length, 1); assert.equal(completed, 1);
+    assert.equal(f.hostRuntime.session.nextCommandSequence, 1);
+    assert.notEqual(f.replica, abandoned); f.same();
+    f.connection.close(); assert.equal(f.time.size, 0);
+  }
+});
+
+test("catch-up deployment revalidates its cell on the host without charging or upgrading an intervening tower", () => {
+  const f = fixture({ frameSliceTicks: 2 }); f.connection.start();
+  f.hostRuntime.session.advance(100, f.hostRuntime.sessionRuntime); f.host.publish();
+  const operation = { type: "deploy", card: "A", cell: { lane: 3, column: 2 }, expected: null }, completed = [];
+  assert.equal(f.connection.request({ type: "operation", operation }, receipt => completed.push(receipt.result)), true);
+  f.hostRuntime.session.submit({ type: "operation", actorId: "local", operation }, command => f.hostRuntime.executeCommand(command));
+  const paid = f.hostRuntime.world.effectiveChars();
+  f.host.publish(); f.time.advance(10);
+  assert.deepEqual(completed, ["stale"]);
+  assert.equal(f.hostRuntime.world.towers.length, 1); assert.equal(f.hostRuntime.world.towers[0].level, 1);
+  assert.equal(f.hostRuntime.world.effectiveChars(), paid); f.same();
+  f.connection.close(); assert.equal(f.time.size, 0);
 });
 
 test("a scene callback may reconnect during a slice without stranding the new snapshot", () => {
@@ -210,7 +298,7 @@ test("the maximum valid tick gap drains in bounded slices without skipping simul
   for (let slice = 1; slice < 300; slice++) {
     f.time.advance(1);
     assert.equal(f.replica.session.clock.tick, (slice + 1) * 2);
-    assert.equal(f.connection.ready, false);
+    assert.equal(f.connection.ready, true); assert.equal(f.connection.catchingUp, true);
   }
   f.time.advance(1);
   assert.equal(f.connection.ready, true); assert.equal(f.connection.catchingUp, false);

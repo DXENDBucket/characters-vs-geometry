@@ -18,7 +18,9 @@ assert.ok(!profilePath || engine === "chromium", "CPU profiling requires Chromiu
 const durable = process.argv.includes("--durable");
 const uncompressed = process.argv.includes("--uncompressed");
 const crowded = Number(option("crowded") ?? 0);
+const crowdedInput = process.argv.includes("--crowded-input");
 assert.ok(Number.isSafeInteger(crowded) && crowded >= 0 && crowded <= 2000);
+assert.ok(!crowdedInput || crowded > 0, "--crowded-input requires a mixed-enemy workload");
 const cards = crowded ? CROWDED_CARDS : PRESSURE_CARDS;
 const census = crowded ? crowdedCensus : pipelinePressureCensus;
 assert.ok(durable || !uncompressed, "--uncompressed requires --durable");
@@ -184,6 +186,9 @@ try {
           if (!link.closed) { events.open(); void poll(); }
         });
         return { send: text => {
+          if (state.inputProbe && state.inputProbe.sentAt === undefined && JSON.parse(text).type === "request") {
+            state.inputProbe.sentAt = performance.now();
+          }
           state.tail = state.tail.then(async () => {
             if (link.closed) return;
             const response = await fetch(relay + "/send", { method: "POST", headers: linkHeaders(), body: text });
@@ -267,7 +272,7 @@ try {
   const start = performance.now(); let heldAt, requested = false, disconnectedAt, terminal;
   // The mixed battle ends naturally in about twelve seconds. Seed the retry fault
   // before ticking so receipt recovery is not confounded with input starvation.
-  if (crowded) {
+  if (crowded && !crowdedInput) {
     dropReceipt = true;
     requested = await page.evaluate(() => {
       const s = window.networkPressure;
@@ -284,11 +289,18 @@ try {
     }
     if (!requested && elapsed >= (crowded ? 4000 : seconds * 600)) {
       dropReceipt = true;
-      requested = await page.evaluate(() => {
+      requested = await page.evaluate(requireCatchup => {
         const s = window.networkPressure;
-        return s.remote.connection.request({ type: "control", control: { type: "reserve", value: 1234 } }, () => s.completions++);
-      });
+        if (requireCatchup && (!s.remote.connection.catchingUp || s.remote.scene.runtime.world.gameOver)) return false;
+        const probe = { enqueuedAt: performance.now(), catchingUp: s.remote.connection.catchingUp,
+          gameOver: s.remote.scene.runtime.world.gameOver, tick: s.remote.scene.runtime.session.clock.tick };
+        if (requireCatchup) s.inputProbe = probe;
+        const accepted = s.remote.connection.request({ type: "control", control: { type: "reserve", value: 1234 } }, () => s.completions++);
+        if (!accepted && requireCatchup) s.inputProbe = undefined;
+        return accepted;
+      }, crowdedInput);
     }
+    if (crowdedInput && elapsed >= 7000) assert.ok(requested, "Input remained unavailable throughout active catch-up");
     if (requested && disconnectedAt === undefined && dropped) {
       disconnectedAt = elapsed; await page.evaluate(() => window.networkPressure.link.events.closed());
     }
@@ -339,21 +351,29 @@ try {
     return { hash: s.remote.scene.battleChecksum(), errors: s.errors, frames: s.frames, intervals: s.intervals,
       peakMortars: s.peakMortars, peakTrails: s.peakTrails, peakEnemyProjectiles: s.peakEnemyProjectiles,
       litPixels: s.litPixels, statuses: s.statuses,
-      completions: s.completions, receipts: s.receipts, links: s.links.length, profileUnchanged: JSON.stringify(localStorage) === s.profile };
+      completions: s.completions, receipts: s.receipts, links: s.links.length, inputProbe: s.inputProbe,
+      profileUnchanged: JSON.stringify(localStorage) === s.profile };
   });
   await saveProfile();
   if (crowded) console.log(JSON.stringify({ diagnostic: "Mixed-battle terminal observations before acceptance checks",
     initial, final, terminal, samples, frames: observed.frames, peakEnemyProjectiles: observed.peakEnemyProjectiles,
-    heldAt, disconnectedAt, snapshots, receipts: observed.receipts, checksum: observed.hash, hostChecksum: hash() }));
+    heldAt, disconnectedAt, snapshots, receipts: observed.receipts, inputProbe: observed.inputProbe,
+    checksum: observed.hash, hostChecksum: hash() }));
   if (crowded) {
     assert.ok(initial.enemies === crowded && final.enemies + final.passengers >= crowded * .9 &&
       samples.every(sample => sample.enemies + sample.passengers >= crowded * .9), "Crowded workload did not remain populated");
-    assert.ok(terminal && final.gameOver && samples.at(-1).gameOver, "Natural terminal state did not reach the client");
+    assert.ok(terminal && final.gameOver && samples.at(-1).gameOver, "Natural terminal state missed the client observation window");
     assert.ok(terminal.tick - initial.tick >= terminal.elapsed * .05, "Crowded host did not keep real time before defeat");
   }
   assert.equal(observed.hash, hash()); assert.equal(runtime.session.nextCommandSequence, 1);
   assert.equal(runtime.session.controls.reserveChars, 1234); assert.equal(dropped, 1);
   assert.equal(observed.completions, 1); assert.equal(observed.links, 2); assert.equal(observed.profileUnchanged, true);
+  if (crowdedInput) {
+    assert.equal(observed.inputProbe?.catchingUp, true); assert.equal(observed.inputProbe.gameOver, false);
+    assert.ok(observed.inputProbe.sentAt >= observed.inputProbe.enqueuedAt &&
+      observed.inputProbe.sentAt - observed.inputProbe.enqueuedAt < 1000, "Input did not leave at a nearby validated frame boundary");
+    assert.ok(observed.receipts[0].tick < final.tick, "Input was not executed during battle");
+  }
   assert.equal(snapshots, 2, "Unexpected resync could conceal a divergent replica");
   assert.deepEqual(observed.errors, []); assert.deepEqual(errors, []);
   if (!crowded) assert.ok(final.tick - initial.tick >= seconds * 50 && !final.gameOver);
@@ -410,7 +430,8 @@ try {
       "disk restart, receipt retry and continuation matched";
   }
   console.log(JSON.stringify({ diagnostic: "Continuous localhost replica rendering with delayed polling; optional atomic file persistence",
-    engine, browser: browser.version(), seconds, delay, small, crowded, terminal, durable, storage, initial, final, checksum: observed.hash,
+    engine, browser: browser.version(), seconds, delay, small, crowded, crowdedInput, inputProbe: observed.inputProbe,
+    terminal, durable, storage, initial, final, checksum: observed.hash,
     frames: observed.frames, frameIntervalMs: summary(observed.intervals), steadyLagTicks: lag,
     peakMortars: observed.peakMortars, peakTrails: observed.peakTrails, peakEnemyProjectiles: observed.peakEnemyProjectiles,
     peakQueue, bytes, samples, cleanup: "baseline restored" }));

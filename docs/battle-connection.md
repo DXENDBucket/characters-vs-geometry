@@ -36,12 +36,24 @@ an ordered inbox, bounded to 64 messages and 16 Mi UTF-16 code units in aggregat
 the active decoded frame is separate. Every decoded message still has the 16 MiB
 UTF-8 protocol limit. Overflow fails closed instead of accumulating unbounded work.
 
-`catchingUp` reports partial work or queued ingress. Input `ready` is false and
-`busy` true during partial application; the verified cursor advances only after
-the final checksum. The display status stays `ready` during ordinary catch-up to
-avoid a flashing reconnect label. Retry waits for that frame to finish; the
-watchdog still bounds stalled catch-up. Disconnect/replacement clears the timer,
-inbox and partial frame; callbacks from retired epochs cannot advance a new scene.
+`catchingUp` reports partial work or queued ingress. Connection `ready` means a
+validated baseline can accept input; `busy` means an intent is queued or awaiting
+its receipt. A partial frame does not by itself block the single input slot.
+The intent is cloned, not executed locally, and waits for that frame's final
+checksum before transmission. It is sent before starting another queued frame,
+so a continuous stream cannot starve input. Already-sent requests keep their
+normal retry cadence instead of being retried on every frame.
+
+The verified cursor still advances only after the final checksum. The raw
+`BattleSyncClient.ready` retains that stricter frame-boundary meaning; its
+`acceptingInput` and `inputPending` expose the input slot used by the connection.
+The display status stays `ready` during ordinary catch-up to avoid a flashing
+reconnect label. The watchdog still bounds stalled catch-up. Disconnect/replacement
+clears the timer, inbox and partial frame; callbacks from retired epochs cannot
+advance a new scene. A queued intent survives reconnect/resync with its original
+sequence and completion, but final close discards it. The host always revalidates
+targets, costs and permissions at execution; a stale cell is not upgraded or
+charged merely because it was empty when the user clicked.
 
 This changes scheduling, not simulation rules or wire formats. Snapshot decoding,
 individual ticks and final checksums remain synchronous. See the measured costs

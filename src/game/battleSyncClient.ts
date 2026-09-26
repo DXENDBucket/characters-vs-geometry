@@ -28,6 +28,7 @@ export class BattleSyncClient {
   private baseSequence = 0;
   private nextRequest = 0;
   private pending?: BattleRequest;
+  private deferredRequest = false;
   private completed?: (receipt: BattleReceipt) => void;
   private send?: (message: BattleSyncInput) => void;
   private synchronized = false;
@@ -42,7 +43,10 @@ export class BattleSyncClient {
       frameSliceTicks > MAX_REPLICA_FRAME_TICKS)) throw new Error("Invalid replica slice size");
   }
   get applying() { return this.frame !== undefined; }
-  get ready() { return this.synchronized && !!this.send && !this.applying; }
+  // A validated baseline can accept one intent while a newer frame is still applying.
+  get acceptingInput() { return this.synchronized && !!this.send; }
+  get inputPending() { return !!this.pending; }
+  get ready() { return this.acceptingInput && !this.applying; }
   get busy() { return !!this.pending || this.applying; }
   get pendingRequest() { return this.pending ? structuredClone(this.pending) : undefined; }
   get position() { return this.cursor ? { ...this.cursor } : undefined; }
@@ -52,7 +56,7 @@ export class BattleSyncClient {
     this.frame = undefined; this.send = send; this.synchronized = false; this.resyncRequested = false;
   }
   disconnect() { this.epoch++; this.transportEpoch++; this.frame = undefined; this.send = undefined; this.synchronized = false; this.resyncRequested = false; }
-  dispose() { this.disconnect(); this.pending = undefined; this.completed = undefined; }
+  dispose() { this.disconnect(); this.pending = undefined; this.deferredRequest = false; this.completed = undefined; }
 
   private transmit(message: BattleSyncInput) {
     const epoch = this.transportEpoch;
@@ -61,8 +65,9 @@ export class BattleSyncClient {
   }
 
   request(intent: BattleIntent, completed?: (receipt: BattleReceipt) => void) {
-    if (!this.ready || this.pending || !validBattleIntent(intent) || !this.battleId) return false;
+    if (!this.acceptingInput || this.pending || !validBattleIntent(intent) || !this.battleId) return false;
     this.pending = { version: BATTLE_PROTOCOL_VERSION, battleId: this.battleId, sequence: this.nextRequest, intent: structuredClone(intent) };
+    this.deferredRequest = this.applying;
     this.completed = completed;
     this.retry(); return true;
   }
@@ -70,7 +75,10 @@ export class BattleSyncClient {
   retry() {
     if (this.applying) return;
     if (!this.synchronized) { this.resyncRequested = false; this.resync(); return; }
-    if (this.ready && this.pending) this.transmit({ type: "request", stream: this.stream, request: structuredClone(this.pending) });
+    if (this.ready && this.pending) {
+      this.deferredRequest = false;
+      this.transmit({ type: "request", stream: this.stream, request: structuredClone(this.pending) });
+    }
   }
 
   resync() {
@@ -114,6 +122,7 @@ export class BattleSyncClient {
       let completed: typeof this.completed;
       if (receipt.status === "executed" || !["busy", "gap"].includes(receipt.reason)) {
         this.pending = undefined;
+        this.deferredRequest = false;
         if (receipt.nextSequence !== null) this.nextRequest = receipt.nextSequence;
         completed = this.completed;
         this.completed = undefined;
@@ -177,6 +186,9 @@ export class BattleSyncClient {
     }
     if (this.frame !== frame || !this.send) return "ignored";
     this.cursor = { ...frame.message.to }; this.frame = undefined;
+    // One buffered intent may leave only after this frame is validated. Already
+    // transmitted requests retain their normal retry cadence, not one per frame.
+    if (this.deferredRequest) this.retry();
     return "applied";
   }
 }

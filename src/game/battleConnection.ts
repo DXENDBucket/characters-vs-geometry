@@ -61,8 +61,9 @@ export class BattleConnection implements BattleInputPort {
       this.retryMs < 1000 || this.reconnectMs < 100 || this.timeoutMs <= this.retryMs) throw new Error("Invalid connection timing");
   }
   get status() { return this.current; }
-  get ready() { return this.current !== "closed" && this.client.ready; }
-  get busy() { return this.client.busy; }
+  // Input-slot state is independent from replica catch-up below.
+  get ready() { return this.current !== "closed" && this.client.acceptingInput; }
+  get busy() { return this.client.inputPending; }
   get catchingUp() { return this.client.applying || this.inbox.length > 0; }
 
   subscribe(listener: (status: BattleConnectionStatus) => void) {

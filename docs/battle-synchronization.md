@@ -62,7 +62,12 @@ transport adapter schedules retries; this module does not start timers itself.
 call `continueFrame` in later tasks until the result is no longer `pending`.
 Calling `receiveText` during partial application is invalid. Entire-frame schema
 validation still precedes execution; the final checksum and verified cursor are
-not committed at intermediate ticks. Requests/retries wait during application.
+not committed at intermediate ticks. One request can be buffered during
+application after a valid baseline has been installed, but cannot be transmitted
+until the current frame validates. Transmission precedes the next queued frame;
+additional input remains blocked until its receipt. Retries wait during
+application and retain their existing timer cadence. A failed frame instead
+requires snapshot reconstruction before the original buffered request is sent.
 Disconnect/resync clears pending frame work. Omit the second constructor argument
 to retain synchronous execution. [BattleConnection](battle-connection.md) owns the
 bounded ordered queue, scheduling and lifetime fencing for real remote scenes.
