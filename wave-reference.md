@@ -3108,6 +3108,12 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 - Command: Support starts at 0/15 SP, recovers 1 SP/s and consumes 15 at full SP. Heals each of the nearest (rank + 1) ordinary enemies for 35% of the caster's current HP at cast time, capped at the target's maximum HP. Excludes itself, all other Plus enemies, leaders, Bosses, companions and Solar Bombs. Selects by distance rather than missing HP; with no eligible targets, retains full SP. Uses existing shared-health healing and heal visuals.
 - Dollar's skill is renamed Command: Incitement (指令：煽动); its behavior is unchanged.
 
+## ASCII Expansion: Symbol Domain Capital / AE-EX-6
+
+- Unlocks after AE-EX-5; 20 waves. Uses EX defaults: 2000 starting characters, initial weight 30, increment +35, extra increment +5, one flag every 10 waves, no weight cap.
+- Enemy pool: Circle I, Parentheses I/II, Equals I/II, Dollar I/II, Plus I/II, Inverted Triangle I/II/III/IV/V, Greater-Than Sign I, Archangel Heptagon III. Existing spawn restrictions and flag-wave leader rules apply.
+- Environment matches AE-EX-2: each grid tower enters NUL for 10 seconds every 60 seconds from its own deployment. Edge connectors remain exempt; upgrading or moving does not reset the cycle. Uses the same pre-battle environment description and NUL behavior.
+
 ## ASCII Expansion: AE-10
 
 - Unlocks after AE-9. Boss battle: waves continue until DEL is defeated; not an Infinite Front operation.

@@ -115,7 +115,7 @@ test("Symbol Domain Capital follows Symbol Domain and unlocks AE-EX-1 after DEL"
   assert.equal(chapterGroups.groupForChapter("AE2").id, "ascii");
   assert.equal(chapters.chapterIdForLevelId("AE-10"), "AE");
   assert.equal(chapters.chapterIdForLevelId("AE-EX-1"), "AE2");
-  assert.deepEqual(chapters.levelNodesForChapter("AE2").map(node => node.id), ["AE-EX-1", "AE-EX-2", "AE-EX-3", "AE-EX-4", "AE-EX-5"]);
+  assert.deepEqual(chapters.levelNodesForChapter("AE2").map(node => node.id), ["AE-EX-1", "AE-EX-2", "AE-EX-3", "AE-EX-4", "AE-EX-5", "AE-EX-6"]);
   assert.equal(chapters.levelNodesForChapter("AE").length, 10);
   const level = levels.getLevelConfig("AE-EX-1");
   assert.equal(level.totalWaves, 10);
@@ -154,7 +154,12 @@ test("Symbol Domain Capital follows Symbol Domain and unlocks AE-EX-1 after DEL"
   assert.equal(progress.isLevelUnlocked("AE-EX-5"), true);
   assert.equal(progress.discoveredEnemies().enemies.has("plus"), true);
   assert.equal(progress.discoveredEnemies().enemies.has("plus2"), false);
+  assert.equal(progress.isLevelUnlocked("AE-EX-6"), false);
   progress.completeLevel("AE-EX-5");
+  assert.equal(progress.isChapterCompleted("AE2"), false);
+  assert.equal(progress.isLevelUnlocked("AE-EX-6"), true);
+  assert.equal(progress.discoveredEnemies().enemies.has("plus2"), true);
+  progress.completeLevel("AE-EX-6");
   assert.equal(progress.isChapterCompleted("AE2"), true);
 });
 
@@ -219,6 +224,24 @@ test("AE-EX-5 uses the capital template with Plus I and ranks I-V", () => {
     "equals", "equals2", "equals3", "dollar", "plus",
     "triangleRam", "triangleRam2", "triangleRam3", "triangleRam4", "triangleRam5",
     "angelPentagonRam", "angelPentagonRam2", "angelPentagonRam3", "hexMace", "hexMace2", "hexMace3"]);
+  assert.deepEqual(levels.levelPreviewEnemyKinds(level), level.enemyKinds);
+});
+
+test("AE-EX-6 uses the capital template, requested pool and AE-EX-2 NUL environment", () => {
+  const { levels } = fixture();
+  const level = levels.getLevelConfig("AE-EX-6");
+  assert.equal(level.totalWaves, 20);
+  assert.equal(level.unlockAfter, "AE-EX-5");
+  assert.equal(level.startingChars, 2000);
+  assert.deepEqual([level.firstWaveWeight, level.waveWeightIncrement, level.waveWeightIncrementGrowth], [30, 35, 5]);
+  assert.equal(level.wavesPerFlag, 10);
+  assert.equal(level.waveWeightCap, undefined);
+  assert.equal(level.extraWaveSpawns, undefined);
+  assert.deepEqual(level.periodicTowerNullification, levels.getLevelConfig("AE-EX-2").periodicTowerNullification);
+  assert.deepEqual(level.periodicTowerNullification, { intervalMs: 60000, durationMs: 10000 });
+  assert.deepEqual(level.enemyKinds, ["circle", "parentheses", "parentheses2", "equals", "equals2",
+    "dollar", "dollar2", "plus", "plus2", "invertedTriangle", "invertedTriangle2", "invertedTriangle3",
+    "invertedTriangle4", "invertedTriangle5", "chevronLeader", "archangelHeptagon3"]);
   assert.deepEqual(levels.levelPreviewEnemyKinds(level), level.enemyKinds);
 });
 
