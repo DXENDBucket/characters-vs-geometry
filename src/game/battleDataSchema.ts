@@ -45,7 +45,7 @@ const enemyFields = new Set(Object.keys({
 } satisfies Record<keyof EnemyState, true>));
 const bossFields = new Set(Object.keys({
   entityId: true,
-  deleteFormatReadyAt: true, delLaneSweep: true, delEcho: true, delSweep: true, deleteStackPending: true,
+  deleteFormatReadyAt: true, delLaneSweep: true, delEcho: true, environmentalDel: true, delSweep: true, deleteStackPending: true,
   statusEffects: true, kind: true, rank: true, label: true, x: true, y: true,
   hitboxWidth: true, hitboxHeight: true, hp: true, baseStats: true, finalStats: true,
   maxHp: true, armor: true, magicResistance: true, finalDamageReduction: true, speed: true,

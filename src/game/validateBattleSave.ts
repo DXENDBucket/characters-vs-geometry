@@ -21,7 +21,7 @@ import { validateBattleOwners } from "./battleOwnership";
 import { validateBattleWallets } from "./battleEconomy";
 import { validateBattlePlayerResources } from "./battlePlayerResources";
 
-export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossKind?: BossKind) {
+export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossKind?: BossKind, allowEnvironmentalDel = false) {
   const units = new Map<NodeKind, Set<object>>();
   const state = decodeSaveGraph<BattleSaveState>(graph, node => {
     const value = {};
@@ -117,12 +117,21 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
   require(state.wave === wave && state.gameSpeed > 0 && typeof state.autoUpgradeEnabled === "boolean");
   require(state.debugModeEnabled === undefined || typeof state.debugModeEnabled === "boolean");
   require(expectedBossKind ? (lifecycle.result && !state.boss) ||
-    member("boss")(state.boss) && (state.boss!.hp > 0 || lifecycle.result !== null) : !state.boss);
+    member("boss")(state.boss) && (state.boss!.hp > 0 || lifecycle.result !== null) :
+    !state.boss || allowEnvironmentalDel && member("boss")(state.boss) && !!state.boss!.environmentalDel);
   for (const object of units.get("boss") ?? []) {
     const boss = object as Record<string, unknown>;
     const family = rankedBossFamily(boss.kind) ?? (["del", "icosahedron"].includes(boss.kind as string) ? boss.kind : undefined);
     const expectedFamily = rankedBossFamily(expectedBossKind) ?? (["del", "icosahedron"].includes(expectedBossKind ?? "") ? expectedBossKind : undefined);
-    require(expectedBossKind && family && family === expectedFamily);
+    require(expectedBossKind && family && family === expectedFamily ||
+      allowEnvironmentalDel && family === "del" && record(boss.environmentalDel));
+    if (boss.environmentalDel !== undefined) {
+      const sweep = boss.environmentalDel;
+      require(allowEnvironmentalDel && family === "del" && boss.delEcho === true && record(sweep) &&
+        finite(sweep.startedAt) && sweep.startedAt >= 0 && Number.isInteger(sweep.lane) &&
+        (sweep.lane as number) >= 0 && (sweep.lane as number) < LANES &&
+        array(sweep.sealedCells, key => typeof key === "string") && boss.invincibleUntil === Infinity);
+    }
     require(Number.isSafeInteger(boss.rank) && (boss.rank as number) >= 1);
     require(finite(boss.hp) && boss.hp >= 0 && finite(boss.maxHp) && boss.maxHp > 0 && boss.hp <= boss.maxHp);
     if (!record(boss.baseStats) || !record(boss.finalStats) || !record(boss.skills)) throw new Error("Invalid boss state");
@@ -140,8 +149,8 @@ export function validateBattleSave(graph: SaveGraph, wave: number, expectedBossK
     if (boss.independentBosses !== undefined) require((boss as unknown) === state.boss &&
       Array.isArray(boss.independentBosses) && new Set(boss.independentBosses).size === boss.independentBosses.length &&
       boss.independentBosses.every(other => member("boss")(other) && other !== boss &&
-        !other.delEcho && !other.independentBosses?.length));
-    if (boss.delEcho) require((boss as unknown) !== state.boss &&
+        (!other.delEcho || allowEnvironmentalDel && !!other.environmentalDel) && !other.independentBosses?.length));
+    if (boss.delEcho) require(((boss as unknown) !== state.boss || allowEnvironmentalDel && !!boss.environmentalDel) &&
       [DEL_ECHO_HITBOX_CELLS, 1].some(size => boss.hitboxWidth === CELL_WIDTH * size && boss.hitboxHeight === CELL_HEIGHT * size) &&
       !boss.hasSkills && boss.delLaneSweep === undefined && boss.delSweep === undefined);
     if (boss.delLaneSweep !== undefined) {

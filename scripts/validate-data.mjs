@@ -111,6 +111,14 @@ for (const level of Object.values(levelConfigs)) {
     errors.push(`Level "${level.id}" has invalid flag weight multiplier.`);
   }
   const nul = level.periodicTowerNullification;
+  const sweep = level.periodicDelSweep;
+  if (sweep && (level.bossKind || !Number.isFinite(sweep.intervalMs) || !Number.isFinite(sweep.warningMs) ||
+      sweep.warningMs <= 0 || sweep.intervalMs <= sweep.warningMs || !Number.isFinite(sweep.speed) || sweep.speed <= 0 ||
+      !Number.isFinite(sweep.sealMs) || sweep.sealMs <= 0 || !sweep.laneGroups.length ||
+      sweep.laneGroups.some(lanes => !lanes.length || new Set(lanes).size !== lanes.length ||
+        lanes.some(lane => !Number.isInteger(lane) || lane < 0 || lane >= LANES)))) {
+    errors.push(`Level "${level.id}" has invalid periodic DEL sweep settings.`);
+  }
   if (nul && (!Number.isFinite(nul.intervalMs) || !Number.isFinite(nul.durationMs) ||
       nul.durationMs <= 0 || nul.intervalMs <= nul.durationMs ||
       nul.initialDelayMs !== undefined && (!Number.isFinite(nul.initialDelayMs) || nul.initialDelayMs <= 0))) {

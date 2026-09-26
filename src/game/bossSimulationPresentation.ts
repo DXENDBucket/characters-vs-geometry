@@ -8,6 +8,7 @@ export interface BossSimulationPresentation {
   bossDepth(boss: BossState, depth: number): void;
   removeEcho(boss: BossState): void;
   sweepWarning(boss: BossState, time: number): void;
+  environmentalWarning(lanes: readonly number[], progress: number, elapsed: number): void;
   copyWarnings(boss: BossState, time: number): void;
   companionDepth(enemy: EnemyState, depth: number): void;
   companionPosition(enemy: EnemyState): void;
@@ -21,7 +22,7 @@ export interface BossSimulationPresentation {
   wings(x: number, y: number): void;
 }
 export const NO_BOSS_SIMULATION_PRESENTATION: BossSimulationPresentation = Object.freeze({
-  motion() {}, bossDepth() {}, removeEcho() {}, sweepWarning() {}, copyWarnings() {},
+  motion() {}, bossDepth() {}, removeEcho() {}, sweepWarning() {}, environmentalWarning() {}, copyWarnings() {},
   companionDepth() {}, companionPosition() {}, companionShape() {}, promoted() {},
   collapse() {}, laser() {}, hit() {}, invincible() {}, haste() {}, wings() {}
 });

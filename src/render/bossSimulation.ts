@@ -12,7 +12,7 @@ import {
   isOctahedronBossKind, isIcosahedronBossKind
 } from "../game/bossRules";
 import { syncBossCopyWarnings } from "./bossCopyWarnings";
-import { syncDelSweepWarning } from "./delSweepWarning";
+import { syncDelSweepWarning, syncEnvironmentalDelWarning } from "./delSweepWarning";
 import { syncDodecahedronCompanionShape } from "./unitShapes";
 import { makeWingPulse } from "./enemySkillEffects";
 import {
@@ -61,6 +61,7 @@ export function bossSimulationRuntime(live: BossRuntime): BossSimulationRuntime 
         bossDepth: (boss, depth) => { (boss as CubeBoss).body.setDepth(depth); },
         removeEcho: boss => { (boss as CubeBoss).body.destroy(); },
         sweepWarning: (boss, time) => syncDelSweepWarning(boss as CubeBoss, time),
+        environmentalWarning: (lanes, progress, elapsed) => syncEnvironmentalDelWarning(live.scene, lanes, progress, elapsed),
         copyWarnings: (boss, time) => syncBossCopyWarnings(boss as CubeBoss, time),
         companionDepth: (enemy, depth) => { (enemy as Enemy).body.setDepth(depth); },
         companionPosition: enemy => { (enemy as Enemy).body.setPosition(enemy.x, enemy.y); },

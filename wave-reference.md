@@ -3156,6 +3156,18 @@ Enemy final damage reduction is applied after armor, magic resistance, and minim
 - Two independent DEL Bosses start in rows 2 and 6 at the usual right-side position. Each has 500000 HP and its own skills, damage, invulnerability and threshold events. The 75% sweep warning follows that DEL's actual three-row collision area.
 - Waves continue until both DEL Bosses have been defeated. Defeating either one does not remove the other or end the level. Shared-health octahedron/icosahedron copies are unchanged.
 
+## ASCII Expansion: Symbol Domain Archives / AE-LM-1
+
+- New chapter after Symbol Domain Proving Grounds. Unlocks after AE-T-4; 20 waves. EX defaults: 2000 starting characters, initial weight 30, increment +35, extra increment +5, one flag every 10 waves, no weight cap.
+- Enemy pool: Circle I, Tilde I/II/III, Inverted Triangle I/II/III, Triangle Ram I/II/III, Hex Mace I, Dollar I.
+- Environment: small DELs periodically destroy designated rows. Red 3-second row warnings start at battle time 30s, 60s, 90s, 120s, then repeat the row sequence 1/7, 2/6, 3/5, 4. DELs enter from the right after each warning, move left at speed 600, and seal each touched cell for 5 seconds.
+- These invincible small DELs use the existing inset 1-by-1 Boss collision shape and intercept projectiles. They cannot breach the base, have no Boss health bar or skills, and leave after crossing the field. Only the ordinary 20-wave victory condition applies. Warning, movement and seals pause with battle time and survive snapshots.
+
+## ASCII Expansion: Symbol Domain Archives / AE-LM-2
+
+- Unlocks after AE-LM-1. Uses AE-T-4's enemy pool, EX weight growth and two independent DEL Bosses in rows 2 and 6, with 10000 starting characters. Both must be defeated for victory.
+- Replaces the periodic NUL environment with AE-T-2's rule: each tower alternates 30s of normal operation and 30s of NUL from deployment. No periodic small-DEL field sweeps; both Bosses retain their own normal skills and threshold abilities.
+
 ## ASCII Expansion: AE-10
 
 - Unlocks after AE-9. Boss battle: waves continue until DEL is defeated; not an Infinite Front operation.

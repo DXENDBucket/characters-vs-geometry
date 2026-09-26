@@ -81,7 +81,8 @@ export function decodeSyncMessage(value: unknown): DecodedBattleSyncMessage {
         !sameBattleParticipants(copyBattleParticipants(replay.participants), copyBattleParticipants(simulation.participants))) {
       throw new Error("Inconsistent sync checkpoint");
     }
-    validateBattleSave(replay.checkpoint, state.wave, levelConfigs[replay.levelId].bossKind);
+    validateBattleSave(replay.checkpoint, state.wave, levelConfigs[replay.levelId].bossKind,
+      !!levelConfigs[replay.levelId].periodicDelSweep);
     if (battleChecksum(state) !== message.checksum) throw new Error("Corrupted sync checkpoint");
     return decoded;
   }

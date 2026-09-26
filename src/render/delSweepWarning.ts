@@ -23,6 +23,23 @@ export function syncDelSweepWarning(boss: CubeBoss, time: number) {
   const pulse = .6 + .3 * Math.sin((time - state.startedAt) / 110);
   const center = Math.floor(((boss.delSweep?.homeY ?? boss.y) - BOARD_Y) / CELL_HEIGHT);
   const lanes = laneSweep ? config.lanes : [center - 1, center, center + 1].filter(lane => lane >= 0 && lane < LANES);
+  drawLaneWarnings(graphic, lanes, progress, pulse);
+}
+
+const environmentalWarnings = new WeakMap<Phaser.Scene, Phaser.GameObjects.Graphics>();
+
+export function syncEnvironmentalDelWarning(scene: Phaser.Scene, lanes: readonly number[], progress: number, elapsed: number) {
+  let graphic = environmentalWarnings.get(scene);
+  if (!lanes.length) { graphic?.destroy(); environmentalWarnings.delete(scene); return; }
+  if (!graphic || !graphic.scene) {
+    graphic = scene.add.graphics().setName("del-environment-warning").setDepth(85).setPosition(BOARD_X, BOARD_Y);
+    environmentalWarnings.set(scene, graphic);
+  }
+  graphic.clear();
+  drawLaneWarnings(graphic, lanes, progress, .6 + .3 * Math.sin(elapsed / 110));
+}
+
+function drawLaneWarnings(graphic: Phaser.GameObjects.Graphics, lanes: readonly number[], progress: number, pulse: number) {
   for (const lane of lanes) {
     const y = lane * CELL_HEIGHT;
     graphic.fillStyle(palette.enemyShot, .06 + pulse * .06).fillRect(0, y, BOARD_WIDTH, CELL_HEIGHT);

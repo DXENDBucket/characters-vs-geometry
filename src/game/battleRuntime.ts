@@ -308,6 +308,9 @@ export class BattleRuntime {
       onEnemyReachedBase: enemy => this.encounter.enemyReachedBase(enemy)
     } satisfies Omit<EnemySimulationRuntime, keyof typeof rosters>);
     this.boss = ports({
+      environmentalDel: world.options.level.periodicDelSweep ? {
+        config: world.options.level.periodicDelSweep, setBoss: boss => { world.boss = boss; }
+      } : undefined,
       ...damage, presentation: NO_BOSS_SIMULATION_PRESENTATION, random: () => world.random.next(),
       createBoss, createMortar, getBoss: () => world.boss,
       get wave() { return world.wave; }, get bossPhaseIndex() { return world.bossPhaseIndex; },
@@ -531,7 +534,7 @@ export class BattleRuntime {
       }
     }
     world.enemies = state.enemies; world.boss = state.boss ?? null;
-    world.bossHomePosition = state.bossHomePosition ?? (world.boss ? { x: world.boss.x, y: world.boss.y } : null);
+    world.bossHomePosition = state.bossHomePosition ?? (world.boss && !world.boss.environmentalDel ? { x: world.boss.x, y: world.boss.y } : null);
     world.projectiles = state.projectiles; world.enemyProjectiles = state.enemyProjectiles; world.mortarProjectiles = state.mortarProjectiles;
     world.occupied.clear(); syncTowerOccupancy(world.towers, world.occupied);
     world.sealedCells = new Set(state.sealedCells); world.timedCellSeals.restore(state.timedCellSeals);

@@ -22,7 +22,8 @@ export const chapterDefinitions: ChapterDefinition[] = [
   { id: "IFB", labelKey: "chapter.IFB", x: 820, y: 350, levelPrefix: "IF-BE-", survival: true },
   { id: "AE", labelKey: "chapter.AE", x: 420, y: 350, levelPrefix: "AE-" },
   { id: "AE2", labelKey: "chapter.AE2", x: 820, y: 350, levelPrefix: "AE-EX-", parentId: "AE" },
-  { id: "AET", labelKey: "chapter.AET", x: 1220, y: 350, levelPrefix: "AE-T-", parentId: "AE2" }
+  { id: "AET", labelKey: "chapter.AET", x: 1220, y: 350, levelPrefix: "AE-T-", parentId: "AE2" },
+  { id: "AELM", labelKey: "chapter.AELM", x: 1620, y: 350, levelPrefix: "AE-LM-", parentId: "AET" }
 ];
 
 export function defaultChapterId() {

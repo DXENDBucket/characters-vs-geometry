@@ -412,6 +412,7 @@ export interface LevelConfig {
   extraWaveSpawns?: { kind: EnemyKind; lane?: number | "all"; wave?: number }[];
   periodicEnemySpawns?: { kind: EnemyKind; lane: number; intervalMs: number }[];
   bossLanes?: number[];
+  periodicDelSweep?: { intervalMs: number; warningMs: number; laneGroups: number[][]; speed: number; sealMs: number };
   periodicTowerNullification?: { intervalMs: number; durationMs: number; initialDelayMs?: number };
   firstWaveWeight: number;
   waveWeightIncrement: number;

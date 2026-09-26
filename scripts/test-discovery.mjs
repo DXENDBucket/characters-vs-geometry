@@ -110,7 +110,7 @@ function fixture(saved) {
 
 test("Symbol Domain Capital follows Symbol Domain and unlocks AE-EX-1 after DEL", () => {
   const { progress, chapters, chapterGroups, levels } = fixture();
-  assert.deepEqual(chapterGroups.chaptersInGroup("ascii").map(chapter => chapter.id), ["AE", "AE2", "AET"]);
+  assert.deepEqual(chapterGroups.chaptersInGroup("ascii").map(chapter => chapter.id), ["AE", "AE2", "AET", "AELM"]);
   assert.equal(chapters.getChapterDefinition("AE2").parentId, "AE");
   assert.equal(chapterGroups.groupForChapter("AE2").id, "ascii");
   assert.equal(chapters.chapterIdForLevelId("AE-10"), "AE");
@@ -210,6 +210,43 @@ test("Symbol Domain Proving Grounds follows the capital and unlocks AE-T-1 after
   assert.equal(progress.isLevelUnlocked("AE-T-4"), true);
   progress.completeLevel("AE-T-4");
   assert.equal(progress.isChapterCompleted("AET"), true);
+});
+
+test("Symbol Domain Archives follows the proving grounds with AE-LM-1", () => {
+  const { levels, chapters, chapterGroups, progress } = fixture();
+  assert.equal(chapters.getChapterDefinition("AELM").parentId, "AET");
+  assert.equal(chapterGroups.groupForChapter("AELM").id, "ascii");
+  assert.equal(chapters.chapterIdForLevelId("AE-LM-1"), "AELM");
+  assert.deepEqual(chapters.levelNodesForChapter("AELM").map(n => n.id), ["AE-LM-1", "AE-LM-2"]);
+  const level = levels.getLevelConfig("AE-LM-1");
+  assert.equal(level.totalWaves, 20); assert.equal(level.startingChars, 2000);
+  assert.deepEqual([level.firstWaveWeight, level.waveWeightIncrement, level.waveWeightIncrementGrowth], [30, 35, 5]);
+  assert.deepEqual(level.enemyKinds, ["circle", "tilde", "tilde2", "tilde3", "invertedTriangle", "invertedTriangle2",
+    "invertedTriangle3", "triangleRam", "triangleRam2", "triangleRam3", "hexMace", "dollar"]);
+  assert.deepEqual(level.periodicDelSweep, { intervalMs: 30000, warningMs: 3000,
+    laneGroups: [[0, 6], [1, 5], [2, 4], [3]], speed: 600, sealMs: 5000 });
+  assert.equal(level.bossKind, undefined);
+  assert.equal(progress.isLevelUnlocked(level.id), false);
+  progress.completeLevel("4-10"); progress.completeLevel("AE-T-4");
+  assert.equal(progress.isChapterUnlocked("AELM"), true);
+  assert.equal(progress.isLevelUnlocked(level.id), true);
+  assert.equal(progress.isLevelUnlocked("AE-LM-2"), false);
+  progress.completeLevel(level.id);
+  assert.equal(progress.isLevelUnlocked("AE-LM-2"), true);
+  assert.equal(progress.isChapterCompleted("AELM"), false);
+  progress.completeLevel("AE-LM-2");
+  assert.equal(progress.isChapterCompleted("AELM"), true);
+});
+
+test("AE-LM-2 combines dual DELs with 10000 funds and AE-T-2 NUL", () => {
+  const { levels } = fixture();
+  const { id, unlockAfter, startingChars, periodicTowerNullification, ...level } = levels.getLevelConfig("AE-LM-2");
+  const { id: baseId, unlockAfter: baseUnlock, startingChars: baseChars, periodicTowerNullification: baseNul, ...base } = levels.getLevelConfig("AE-T-4");
+  assert.deepEqual(level, base);
+  assert.equal(startingChars, 10000);
+  assert.equal(unlockAfter, "AE-LM-1");
+  assert.deepEqual(periodicTowerNullification, levels.getLevelConfig("AE-T-2").periodicTowerNullification);
+  assert.equal(level.periodicDelSweep, undefined);
 });
 
 test("AE-T-4 reuses the capital DEL encounter with two independent Boss lanes", () => {

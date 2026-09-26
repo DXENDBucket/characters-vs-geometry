@@ -4,6 +4,7 @@ import { DEL_DELETE_STACK, DEL_FORMAT, DEL_ECHO_HITBOX_CELLS } from "../data/del
 import { ENDLESS_WINGS_EFFECT } from "../data/bossAbilities";
 import { bossSkillRecoverySeconds, chargeBossSkill, isBossSkillReady, spendBossSkill, grantBossSkillSp } from "./bossSkillRules";
 import { advanceDelLaneSweep, startDelLaneSweep } from "./delLaneSweep";
+import { updateEnvironmentalDelSweep } from "./environmentalDelSweep";
 import { advanceDelSweep, delSweepActive, startDelSweep } from "./delSweep";
 import { towerAreaTargets, towerDamageReceiver } from "./towerOccupancy";
 import { towerBehaviorType } from "./towerIdentity";
@@ -221,6 +222,7 @@ const bossSkillRegistry = createBossSkillRegistry<BossRuntime>({
 const independentRuntimes = new WeakMap<BossRuntime, WeakMap<CubeBoss, BossRuntime>>();
 
 export function updateBossRuntime(runtime: BossRuntime, seconds: number) {
+  if (runtime.environmentalDel) { updateEnvironmentalDelSweep(runtime, seconds); return; }
   const root = runtime.getBoss();
   if (root?.independentBosses?.length) {
     let runtimes = independentRuntimes.get(runtime);

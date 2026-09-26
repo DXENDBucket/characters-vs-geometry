@@ -26,7 +26,7 @@ export function createIndependentBattle(options: BattleSessionOptions, mode: Ind
   if (mode.replica && !checkpoint) throw new Error("Replica requires a checkpoint");
   if (checkpoint) {
     const saved = decodeSaveGraph<BattleSaveData>(checkpoint, () => ({}));
-    validateBattleSave(checkpoint, saved.wave, world.options.level.bossKind);
+    validateBattleSave(checkpoint, saved.wave, world.options.level.bossKind, !!world.options.level.periodicDelSweep);
     if (saved.cardDeadlines.length !== world.loadout.ids.length || saved.cardDeadlines.some((card, index) => card.id !== world.loadout.ids[index])) {
       throw new Error("Checkpoint loadout differs from battle configuration");
     }

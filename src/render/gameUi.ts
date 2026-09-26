@@ -668,7 +668,7 @@ export function updateGameHud(ui: GameHudElements, state: HudUpdateState) {
     }
     return;
   }
-  if (state.boss) {
+  if (state.boss && !state.boss.environmentalDel) {
     const bossHpRatio = Phaser.Math.Clamp(state.boss.hp / state.boss.maxHp, 0, 1);
     const phaseText = state.bossHpBar ? ` P${state.bossHpBar.phase}/${state.bossHpBar.totalPhases}` : "";
     setTextIfChanged(ui.progressText, `${t("label.cubeHp")}${phaseText} ${Math.ceil(state.boss.hp)}/${state.boss.maxHp}`);

@@ -117,12 +117,26 @@ export const levelNodes: LevelNode[] = [
   { id: "AE-T-2", x: 820, y: 320 },
   { id: "AE-T-3", x: 1140, y: 380 },
   { id: "AE-T-4", x: 1460, y: 320 },
+  { id: "AE-LM-1", x: 500, y: 380 },
+  { id: "AE-LM-2", x: 820, y: 320 },
   ...Array.from({ length: 8 }, (_, index) => ({
     id: `IF-${index + 5}`, x: 1840 + index * 340, y: index % 2 === 0 ? 430 : 320
   }))
 ];
 
 export const levelConfigs: Record<string, LevelConfig> = {
+  "AE-LM-2": {
+    ...DEL_CAPITAL_CONFIG,
+    id: "AE-LM-2", unlockAfter: "AE-LM-1", bossLanes: [1, 5], startingChars: 10000,
+    periodicTowerNullification: { intervalMs: 60_000, initialDelayMs: 30_000, durationMs: 30_000 }
+  },
+  "AE-LM-1": {
+    ...EX_LEVEL_DEFAULTS,
+    id: "AE-LM-1", unlockAfter: "AE-T-4", totalWaves: 20,
+    enemyKinds: ["circle", "tilde", "tilde2", "tilde3", "invertedTriangle", "invertedTriangle2", "invertedTriangle3",
+      "triangleRam", "triangleRam2", "triangleRam3", "hexMace", "dollar"],
+    periodicDelSweep: { intervalMs: 30_000, warningMs: 3000, laneGroups: [[0, 6], [1, 5], [2, 4], [3]], speed: 600, sealMs: 5000 }
+  },
   "AE-T-4": {
     ...DEL_CAPITAL_CONFIG,
     id: "AE-T-4", unlockAfter: "AE-T-3", bossLanes: [1, 5]

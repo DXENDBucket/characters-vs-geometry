@@ -23,6 +23,27 @@ const prepared = (level = "1-9", cards = ["A", "B", "X"]) => {
   return runtime;
 };
 
+test("archive hazards and seals survive validated replay restoration and expire normally", () => {
+  const runtime = prepared("AE-LM-1", ["B"]);
+  place(runtime, "B", 0, 12);
+  step(runtime, 2040);
+  assert.ok(runtime.world.boss?.environmentalDel);
+  assert.equal(runtime.world.boss.independentBosses.length, 1);
+  const graph = captureBattleSnapshot(runtime.snapshot("B"));
+  const { validateBattleSave } = load("src/game/validateBattleSave.ts");
+  assert.doesNotThrow(() => validateBattleSave(graph, runtime.world.wave, undefined, true));
+  assert.throws(() => validateBattleSave(graph, runtime.world.wave), /Invalid battle save/);
+  const restored = cloneCheckpoint(runtime, runtime.session.exportReplay(), true);
+  assert.equal(checksum(runtime), checksum(restored));
+  const integrity = runtime.world.baseIntegrity;
+  for (let i = 0; i < 600; i++) { step(runtime); step(restored); }
+  assert.equal(checksum(runtime), checksum(restored));
+  assert.equal(runtime.world.boss, null);
+  assert.equal(runtime.world.baseIntegrity, integrity);
+  assert.equal(runtime.world.timedCellSeals.snapshot().length, 0);
+  assert.equal(runtime.world.gameOver, false);
+});
+
 test("debug damage targets the clicked DEL and checks only that DEL's invulnerability", () => {
   for (const mode of ["normal", "super"]) {
     const runtime = prepared("AE-T-4");

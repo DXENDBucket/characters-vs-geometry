@@ -1,4 +1,4 @@
-import type { BossKind, DamageType, EnemyKind } from "../types";
+import type { BossKind, DamageType, EnemyKind, LevelConfig } from "../types";
 import type { BossState, CreateBossOptions } from "./bossState";
 import type { EnemyState } from "./enemyState";
 import type { TowerState } from "./towerState";
@@ -8,6 +8,7 @@ import type { BossAttackAction } from "./battleActions";
 import type { BossSimulationPresentation } from "./bossSimulationPresentation";
 
 export interface BossSimulationRuntime {
+  environmentalDel?: { config: NonNullable<LevelConfig["periodicDelSweep"]>; setBoss(boss: BossState | null): void };
   presentation: BossSimulationPresentation;
   random(): number;
   enemies: EnemyState[];

@@ -43,15 +43,7 @@ export function advanceDelLaneSweep(boss: CubeBoss, time: number, callbacks: {
     const nextX = Math.max(exitX, entryX - (time - startsMovingAt) * speed / 1000);
     for (let i = 0; i < state.parts.length; i++) {
       const part = state.parts[i], lane = lanes[i];
-      const halfWidth = CELL_WIDTH * DEL_ECHO_HITBOX_CELLS / 2;
-      const left = Math.max(0, Math.floor((nextX - halfWidth - BOARD_X) / CELL_WIDTH));
-      const right = Math.min(COLUMNS - 1, Math.ceil((part.x + halfWidth - BOARD_X) / CELL_WIDTH) - 1);
-      for (let column = left; column <= right; column++) {
-        const key = `${lane}:${column}`;
-        if (state.sealedCells.includes(key)) continue;
-        state.sealedCells.push(key);
-        callbacks.sealCell(lane, column, sealMs);
-      }
+      sealDelSweepCells(part.x, nextX, lane, state.sealedCells, sealMs, callbacks.sealCell);
       part.x = nextX;
     }
     if (time < exitedAt) return;
@@ -66,4 +58,17 @@ export function advanceDelLaneSweep(boss: CubeBoss, time: number, callbacks: {
     state.summons++;
   }
   if (time >= exitedAt + summonCount * summonIntervalMs) state.phase = "complete";
+}
+
+export function sealDelSweepCells(fromX: number, toX: number, lane: number, sealedCells: string[], sealMs: number,
+  sealCell: (lane: number, column: number, durationMs: number) => void) {
+  const halfWidth = CELL_WIDTH * DEL_ECHO_HITBOX_CELLS / 2;
+  const left = Math.max(0, Math.floor((Math.min(fromX, toX) - halfWidth - BOARD_X) / CELL_WIDTH));
+  const right = Math.min(COLUMNS - 1, Math.ceil((Math.max(fromX, toX) + halfWidth - BOARD_X) / CELL_WIDTH) - 1);
+  for (let column = left; column <= right; column++) {
+    const key = `${lane}:${column}`;
+    if (sealedCells.includes(key)) continue;
+    sealedCells.push(key);
+    sealCell(lane, column, sealMs);
+  }
 }

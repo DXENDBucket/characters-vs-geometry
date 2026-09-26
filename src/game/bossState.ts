@@ -17,6 +17,7 @@ export interface BossState {
   deleteFormatReadyAt?: number;
   delLaneSweep?: DelLaneSweepState<BossState>;
   delEcho?: boolean;
+  environmentalDel?: { startedAt: number; lane: number; sealedCells: string[] };
   delSweep?: DelSweepState;
   deleteStackPending?: boolean;
   statusEffects: StatusEffect[];

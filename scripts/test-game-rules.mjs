@@ -2,6 +2,40 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createTypeScriptLoader } from "./helpers/load-typescript.mjs";
 
+test("archive DEL sweeps warn, cycle lanes, seal once and leave without a breach", () => {
+  const load = createTypeScriptLoader();
+  const { updateBossRuntime } = load("src/game/bossSimulation.ts");
+  const { createBossState } = load("src/game/bossState.ts");
+  const { NO_BOSS_SIMULATION_PRESENTATION } = load("src/game/bossSimulationPresentation.ts");
+  const { COLUMNS, CELL_WIDTH } = load("src/config.ts");
+  const { bossHealthRoots } = load("src/game/unitGeometry.ts");
+  let boss = null, warning = [], removed = 0;
+  const seals = [], config = load("src/data/levels.ts").getLevelConfig("AE-LM-1").periodicDelSweep;
+  const runtime = { battleTime: 0, getBoss: () => boss, createBoss: createBossState,
+    environmentalDel: { config, setBoss: value => { boss = value; } },
+    presentation: { ...NO_BOSS_SIMULATION_PRESENTATION,
+      environmentalWarning: lanes => { warning = lanes; }, removeEcho: () => removed++ },
+    sealCell: (lane, column, duration) => seals.push([lane, column, duration]),
+    endGame: () => assert.fail("Environmental sweeps must not breach") };
+  const update = time => { runtime.battleTime = time; updateBossRuntime(runtime, 1 / 60); };
+  update(29999); assert.deepEqual(warning, []); assert.equal(boss, null);
+  for (const [i, lanes] of [[0, [0, 6]], [1, [1, 5]], [2, [2, 4]], [3, [3]], [4, [0, 6]]]) {
+    const start = (i + 1) * 30000;
+    update(start); assert.deepEqual(warning, lanes); assert.equal(boss, null);
+    update(start + 2999); assert.equal(boss, null);
+    update(start + 3000); assert.deepEqual(warning, []);
+    const parts = bossHealthRoots(boss);
+    assert.deepEqual(parts.map(p => p.environmentalDel.lane), lanes);
+    assert.ok(parts.every(p => p.invincibleUntil === Infinity && p.delEcho && !p.hasSkills && p.hitboxWidth < CELL_WIDTH));
+    update(start + 3000); assert.equal(bossHealthRoots(boss).length, lanes.length);
+    const before = seals.length;
+    update(start + 7000); assert.equal(boss, null);
+    assert.equal(seals.length - before, COLUMNS * lanes.length);
+    assert.ok(seals.slice(before).every(([lane, , duration]) => lanes.includes(lane) && duration === 5000));
+  }
+  assert.equal(removed, 9);
+});
+
 test("AE-T-1 adds a zero-weight leader column only on wave one without changing regular RNG", () => {
   const load = createTypeScriptLoader();
   const { spawnBattleWave } = load("src/game/waveSpawner.ts");
